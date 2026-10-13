@@ -1,0 +1,62 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.venv*/
+.python/
+.uv-cache/
+.env
+.env.*
+!.env.example
+
+# Local tools, IDE settings and caches
+.tools/
+.idea/
+.continue/
+.agents/
+.pytest_cache/
+.ipynb_checkpoints/
+
+#docker files
+volumes/
+
+# OS files
+.DS_Store
+data/
+
+# Model weights, bundled executables, generated reports and private run data
+bm2.5/
+ffmpeg/
+minlo/
+datasets/
+log/
+work/
+tmp/
+tmp_*/
+qa_*/
+lo_profile_*/
+diagnostics/output/
+test/output/
+*.mp3
+*.wav
+*.mp4
+*.safetensors
+*.zip
+*.7z
+*.rar
+
+# Local handoff documents and notebook outputs
+/CHAT_HANDOFF.md
+/项目交接文档.*
+*.ipynb
+/langchain-study/
+/week_jupyter.py
+/test/test_vl
+/docs/*.pdf
+/docs/*.docx

@@ -1,0 +1,18 @@
+# Build the original MinIO release from its official source archive because
+# the upstream image is no longer downloadable. Existing volumes are reused.
+services:
+  minio:
+    image: supermew-minio:RELEASE.2024-05-28T17-19-04Z
+    build:
+      context: ./docker/minio
+      dockerfile: Dockerfile.minio
+  standalone:
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+  attu:
+    depends_on:
+      standalone:
+        condition: service_healthy

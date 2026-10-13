@@ -1,0 +1,13 @@
+FROM golang:1.22-bookworm AS builder
+WORKDIR /src
+ADD minio-source.tar.gz /src/
+WORKDIR /src/minio-RELEASE.2024-05-28T17-19-04Z
+RUN CGO_ENABLED=0 go build -trimpath \
+    -ldflags="-s -w -X github.com/minio/minio/cmd.Version=2024-05-28T17:19:04Z -X github.com/minio/minio/cmd.ReleaseTag=RELEASE.2024-05-28T17-19-04Z" \
+    -o /minio .
+
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates curl
+COPY --from=builder /minio /usr/local/bin/minio
+EXPOSE 9000 9001
+CMD ["minio", "server", "/data", "--console-address", ":9001"]

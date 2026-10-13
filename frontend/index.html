@@ -1,0 +1,209 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>观复咨询 AI 尽调工作流</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<main id="app" v-cloak>
+  <section class="login-page" v-if="!isAuthenticated">
+    <el-card class="login-card" shadow="never">
+      <img src="logo.png" alt="观复咨询" class="login-logo" />
+      <p class="eyebrow">AI Due Diligence</p><h1>尽调工作流 MVP</h1>
+      <p class="muted">提交尽调任务，跟踪生成进度，下载报告结果包。</p>
+      <div v-if="authStep === 'role'" class="login-actions">
+        <el-button type="primary" size="large" @click="selectAuthRole('user')">普通用户</el-button>
+        <el-button size="large" @click="selectAuthRole('admin')">管理员</el-button>
+      </div>
+      <el-form v-else class="login-form" @keyup.enter="handleAuthSubmit">
+        <div class="auth-toolbar">
+          <div class="auth-mode-actions">
+            <el-button :type="authMode === 'login' ? 'primary' : 'default'" @click="authMode = 'login'">登录</el-button>
+            <el-button :type="authMode === 'register' ? 'primary' : 'default'" @click="authMode = 'register'">注册</el-button>
+          </div>
+          <el-button text @click="backToRoleSelect">重新选择</el-button>
+        </div>
+        <el-alert :title="authRoleLabel + (authMode === 'login' ? '登录' : '注册')" type="info" :closable="false" show-icon></el-alert>
+        <el-input v-model="authForm.username" placeholder="账号" size="large"></el-input>
+        <el-input v-model="authForm.password" placeholder="密码" type="password" size="large" show-password></el-input>
+        <el-input v-if="authMode === 'register' && authRole === 'admin'" v-model="authForm.admin_code" placeholder="管理员邀请码" type="password" size="large" show-password></el-input>
+        <el-button type="primary" size="large" class="full" :loading="authLoading" @click="handleAuthSubmit">{{ authRoleLabel }}{{ authMode === 'login' ? '登录' : '注册' }}</el-button>
+        <el-button text class="full" @click="switchAuthMode">{{ authMode === 'login' ? '没有账号？去注册' : '已有账号？去登录' }}</el-button>
+      </el-form>
+    </el-card>
+  </section>
+
+  <el-container class="app-frame" v-else>
+    <el-aside width="248px" class="sidebar">
+      <div class="sidebar-brand"><img src="logo.png" alt="观复咨询" class="sidebar-logo" /></div>
+      <el-menu :default-active="activeView" class="side-menu" @select="switchView">
+        <el-menu-item index="submit"><i class="fa-solid fa-paper-plane"></i><span>提交尽调任务</span></el-menu-item>
+        <el-menu-item index="tasks"><i class="fa-solid fa-list-check"></i><span>任务管理</span></el-menu-item>
+        <el-menu-item index="review"><i class="fa-solid fa-pen-to-square"></i><span>复核与一手资料</span></el-menu-item>
+        <el-menu-item index="sources"><i class="fa-solid fa-database"></i><span>溯源库</span></el-menu-item>
+      </el-menu>
+      <div class="sidebar-note"><span>当前用户</span><strong>{{ currentUser?.username }}</strong><small>{{ currentUser?.role }}</small><el-button type="danger" plain @click="handleLogout">退出登录</el-button></div>
+    </el-aside>
+
+    <el-container class="app-shell">
+      <el-header height="76px" class="topbar"><div><h1>{{ pageTitle }}</h1><p>{{ pageSubtitle }}</p></div><el-space><el-tag type="success" effect="light">{{ currentUser?.role }}</el-tag><el-button text @click="handleLogout">退出</el-button></el-space></el-header>
+      <el-main>
+        <section class="summary-band"><div><span>任务总数</span><strong>{{ projects.length }}</strong></div><div><span>生成中</span><strong>{{ generatingCount }}</strong></div><div><span>可下载</span><strong>{{ readyCount }}</strong></div><div><span>溯源条目</span><strong>{{ sourceCount }}</strong></div></section>
+
+        <section v-if="activeView === 'submit'">
+          <el-card shadow="never" class="panel-card">
+            <template #header><div class="card-header"><div><p class="eyebrow">Request Intake</p><h2>新建尽调任务</h2></div><el-tag type="primary" effect="plain">连接现有工作流</el-tag></div></template>
+            <el-form :model="form" label-position="top">
+              <el-row :gutter="14"><el-col :xs="24" :sm="8"><el-form-item label="项目名称"><el-input v-model="form.projectName" ></el-input></el-form-item></el-col><el-col :xs="24" :sm="8"><el-form-item label="开始时间"><el-date-picker v-model="form.startDate" type="date" value-format="YYYY-MM-DD" class="full" ></el-date-picker></el-form-item></el-col><el-col :xs="24" :sm="8"><el-form-item label="结束时间"><el-date-picker v-model="form.endDate" type="date" value-format="YYYY-MM-DD" class="full" ></el-date-picker></el-form-item></el-col></el-row>
+              <el-divider ></el-divider>
+              <el-form-item label="报告类型"><el-select v-model="form.targetType" class="full"><el-option label="BDD目标人报告" value="person" ></el-option><el-option label="BDD目标公司报告" value="company" ></el-option><el-option label="CDD目标行业报告" value="industry" ></el-option></el-select></el-form-item>
+              <el-form-item :label="targetPrimaryLabel"><el-input v-model="form.companyName" ></el-input></el-form-item>
+              <el-form-item :label="targetSecondaryLabel"><el-input v-if="form.targetType === 'company'" v-model="form.identifier" ></el-input><el-input v-else v-model="form.targetContext" :placeholder="targetSecondaryPlaceholder" clearable></el-input></el-form-item>
+              <el-row v-if="form.targetType === 'company'" :gutter="14"><el-col :xs="24" :sm="12"><el-form-item label="行业"><el-input v-model="form.industry" ></el-input></el-form-item></el-col><el-col :xs="24" :sm="12"><el-form-item label="地区"><el-input v-model="form.region" ></el-input></el-form-item></el-col></el-row>
+              <el-form-item label="查什么"><el-select v-model="form.ddType" class="full"><el-option v-for="type in ddTypes" :key="type" :label="type" :value="type" ></el-option></el-select></el-form-item>
+              <el-form-item label="重点模块"><el-checkbox-group v-model="form.modules" class="checkbox-grid"><el-checkbox v-for="module in modules" :key="module.value" :label="module.value">{{ module.label }}</el-checkbox></el-checkbox-group></el-form-item>
+              <div class="search-setting"><div><strong>开启 AI 搜索</strong><span>公开网络、新闻、官方来源和制裁名单检索</span></div><el-switch v-model="form.aiSearchEnabled" ></el-switch></div>
+              <el-row :gutter="14"><el-col :xs="24" :sm="12"><el-form-item label="检索关键词（每行一个）"><el-input v-model="form.searchQueries" type="textarea" :rows="3" ></el-input></el-form-item></el-col><el-col :xs="24" :sm="12"><el-form-item label="重点问题（每行一个）"><el-input v-model="form.focusQuestions" type="textarea" :rows="3" ></el-input></el-form-item></el-col></el-row>
+              <el-form-item label="重点问题 / 特殊需求"><el-input v-model="form.keyQuestions" type="textarea" :rows="4" resize="vertical" ></el-input></el-form-item>
+              <el-form-item label="上传资料"><el-upload drag multiple :auto-upload="false" :on-change="handleFileChange" :on-remove="handleFileRemove"><div class="upload-title">拖拽或点击上传</div><div class="upload-text">{{ fileLabel }}</div><div class="upload-hint">上传后先轻量提取身份骨架（人物、公司、职位、行业）并自动补充任务信息；全文留到后续清洗阶段。</div></el-upload></el-form-item>
+              <el-button type="primary" size="large" class="full" :loading="submitting" @click="submitTask">提交任务</el-button>
+            </el-form>
+          </el-card>
+        </section>
+        <section v-if="activeView === 'tasks'">
+          <el-card shadow="never" class="panel-card">
+            <template #header><div class="card-header"><div><p class="eyebrow">Task Management</p><h2>任务管理</h2></div><el-button type="primary" @click="switchView('submit')">新建任务</el-button></div></template>
+            <div class="table-toolbar"><div class="table-meta">显示 {{ filteredProjects.length }} 个任务</div><el-input v-model="taskSearch" clearable placeholder="搜索项目、公司、行业、状态" class="table-search" ></el-input></div>
+            <el-table ref="taskTable" :data="pagedProjects" row-key="id" class="task-table" empty-text="暂无任务" @expand-change="onTaskExpand">
+              <el-table-column type="expand"><template #default="{ row }"><div class="task-expand">
+                <div class="detail-grid primary-result-grid">
+                  <section class="detail-panel result-panel">
+                    <div class="workflow-head"><strong>成果下载</strong><el-tag size="small" type="success">{{ downloadableArtifacts(row).length }} 个产物</el-tag></div>
+                    <div v-if="downloadableArtifacts(row).length" class="artifact-list primary-artifacts">
+                      <div v-for="artifact in downloadableArtifacts(row)" :key="artifact.id" class="artifact-item">
+                        <span>{{ artifact.title || artifactTypeLabel(artifact.artifact_type) }} v{{ artifact.version }}</span>
+                        <el-space>
+                          <el-button type="primary" plain @click="downloadArtifact(artifact)">下载</el-button>
+                          <el-button type="danger" plain @click="deleteArtifact(row, artifact)">删除</el-button>
+                        </el-space>
+                      </div>
+                    </div>
+                    <el-empty v-else description="暂无可下载成果" :image-size="60" ></el-empty>
+                  </section>
+                  <section class="detail-panel workflow-panel">
+                    <div class="workflow-head"><strong>工作流进度</strong><el-tag size="small">{{ row.status }}</el-tag></div>
+                    <div v-if="traceFor(row).length" class="trace-scroll"><el-timeline><el-timeline-item v-for="(event, index) in traceFor(row)" :key="index" :type="timelineType(event.status)" :timestamp="event.stage"><div :class="['trace-item', event.heartbeat ? 'trace-heartbeat' : '', heartbeatStale(event) ? 'trace-stale' : '']"><strong><span v-if="event.heartbeat" class="live-dot"></span>{{ event.label }}</strong><p>{{ traceDetail(event) }}</p><div v-if="event.heartbeat" class="trace-meta"><el-tag size="small" :type="heartbeatStale(event) ? 'warning' : 'success'" effect="plain">{{ heartbeatStale(event) ? '可能卡住' : '活跃' }}</el-tag><span>最后心跳 {{ eventAge(event) }}</span><span v-if="event.elapsed_seconds">总耗时 {{ formatDuration(event.elapsed_seconds) }}</span><span v-if="event.current_elapsed_seconds">当前步骤 {{ formatDuration(event.current_elapsed_seconds) }}</span></div><div v-if="event.platform || event.url" class="trace-meta"><el-tag v-if="event.platform" size="small" effect="plain">{{ event.platform }}</el-tag><el-link v-if="event.url && isExternalUrl(event.url)" :href="event.url" target="_blank" type="primary">{{ event.url }}</el-link></div></div></el-timeline-item></el-timeline></div>
+                    <el-empty v-else description="暂无工作流记录" :image-size="60" ></el-empty>
+                  </section>
+                </div>
+                <div class="detail-grid secondary-detail-grid">
+                  <section class="detail-panel">
+                    <div class="workflow-head"><strong>项目参数</strong><el-tag size="small" type="info">{{ targetTypeLabel(row.target_type) }}</el-tag></div>
+                    <div class="detail-fields">
+                      <div><span>项目名称</span><strong>{{ row.title || '-' }}</strong></div>
+                      <div><span>项目周期</span><strong>{{ projectPeriod(row) }}</strong></div>
+                      <div><span>目标名称</span><strong>{{ row.target_name || '-' }}</strong></div>
+                      <div v-if="row.target_type === 'person'"><span>身份与关联机构</span><strong>{{ intakeFor(row).affiliation || '-' }}</strong></div>
+                      <div v-if="row.target_type === 'person' && intakeFor(row).identity_anchors"><span>身份锚点</span><strong>{{ intakeFor(row).identity_anchors }}</strong></div>
+                      <div v-if="row.target_type === 'company'"><span>统一社会信用代码</span><strong>{{ intakeFor(row).official_identifier || '-' }}</strong></div>
+                      <div v-if="row.target_type === 'industry'"><span>重点公司/产品</span><strong>{{ intakeFor(row).focus_entities || '-' }}</strong></div>
+                      <div v-if="row.target_type === 'company'"><span>行业</span><strong>{{ row.industry || intakeFor(row).industry || '-' }}</strong></div>
+                      <div v-if="row.target_type === 'company'"><span>地区</span><strong>{{ intakeFor(row).region || '-' }}</strong></div>
+                      <div><span>尽调类型</span><strong>{{ intakeFor(row).research_type || '-' }}</strong></div>
+                      <div><span>上传资料</span><strong>{{ uploadFileSummary(row) }}</strong></div>
+                    </div>
+                    <p class="detail-note" v-if="intakeFor(row).special_requirements">{{ intakeFor(row).special_requirements }}</p>
+                  </section>
+                </div>
+              </div></template></el-table-column>
+              <el-table-column prop="title" label="项目" min-width="220" ></el-table-column>
+              <el-table-column label="研究对象" min-width="220"><template #default="{ row }"><div>{{ row.target_name }}</div><div class="table-subtext">{{ targetTypeLabel(row.target_type) }}</div></template></el-table-column>
+              <el-table-column label="项目周期" width="210"><template #default="{ row }">{{ projectPeriod(row) }}</template></el-table-column>
+              <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)" effect="light">{{ row.status }}</el-tag></template></el-table-column>
+              <el-table-column label="进度" min-width="180"><template #default="{ row }"><el-progress :percentage="progressFor(row)" ></el-progress></template></el-table-column>
+              <el-table-column label="更新" width="190"><template #default="{ row }"><div>{{ formatTime(row.updated_at) }}</div><div class="table-subtext">创建 {{ formatTime(row.created_at) }}</div></template></el-table-column>
+              <el-table-column label="操作" width="270" align="right"><template #default="{ row }"><el-button link type="primary" @click="viewProject(row)">查看</el-button><el-button v-if="canPauseProject(row)" link type="warning" @click="pauseProject(row)">暂停</el-button><el-button v-else link type="warning" @click="rerunProject(row)">{{ row.status === 'completed' ? '重跑' : '继续' }}</el-button><el-button link type="primary" :disabled="!latestDownloadable(row)" @click="downloadArtifact(latestDownloadable(row))">下载</el-button><el-button link type="danger" @click="deleteProject(row)">删除</el-button></template></el-table-column>
+            </el-table>
+            <div class="pagination-bar"><el-pagination background layout="prev, pager, next, sizes, total" :total="filteredProjects.length" v-model:current-page="taskPage" v-model:page-size="taskPageSize" :page-sizes="[10,12,20,50]" ></el-pagination></div>
+          </el-card>
+        </section>
+
+        <section v-if="activeView === 'review'">
+          <el-card shadow="never" class="panel-card">
+            <template #header><div class="card-header"><div><p class="eyebrow">Human Review</p><h2>复核与一手资料</h2></div><el-button type="primary" :loading="secondStageRunning" @click="runSecondStage">二阶段再生成</el-button></div></template>
+            <el-form label-position="top">
+              <div class="table-toolbar"><div class="table-meta">先选择要复核的项目</div><el-input v-model="taskSearch" clearable placeholder="搜索项目、公司、行业、状态" class="table-search" ></el-input></div>
+              <el-table ref="reviewTable" :data="pagedProjects" row-key="id" class="review-project-table" empty-text="暂无任务" highlight-current-row>
+                <el-table-column type="expand"><template #default="{ row }">
+                  <div v-if="reviewProjectId === row.id" class="review-inline">
+                    <el-alert :title="'当前复核项目：' + (row.title || row.id)" type="success" show-icon :closable="false" class="review-current" ></el-alert>
+                    <div class="review-grid">
+                      <section class="review-panel">
+                        <h3>人工修订产物覆盖</h3>
+                        <el-form-item label="人工修订后的桌面研究报告"><el-upload drag :auto-upload="false" :limit="1" :on-change="handleReviewReportChange"><div class="upload-title">上传 Word / PDF / Markdown</div><div class="upload-text">作为最新桌面研究报告版本，并入库供二阶段使用</div></el-upload></el-form-item>
+                        <el-button type="primary" plain @click="uploadReviewArtifact('desktop_report')">覆盖桌面研究报告</el-button>
+                        <el-divider ></el-divider>
+                        <el-form-item label="人工修订后的项目建议书"><el-upload drag :auto-upload="false" :limit="1" :on-change="handleReviewProposalChange"><div class="upload-title">上传 Word / PDF / Markdown</div><div class="upload-text">作为最新建议书版本，并入库供二阶段使用</div></el-upload></el-form-item>
+                        <el-button type="primary" plain @click="uploadReviewArtifact('proposal')">覆盖项目建议书</el-button>
+                      </section>
+                      <section class="review-panel">
+                        <h3>专家访谈 / 走访一手资料</h3>
+                        <el-form-item label="资料类型"><el-select v-model="fieldSourceModule" class="full"><el-option label="专家访谈" value="专家访谈" ></el-option><el-option label="实地走访" value="实地走访" ></el-option><el-option label="客户访谈" value="客户访谈" ></el-option><el-option label="供应商访谈" value="供应商访谈" ></el-option><el-option label="渠道访谈" value="渠道访谈" ></el-option><el-option label="管理层访谈" value="管理层访谈" ></el-option></el-select></el-form-item>
+                        <el-form-item label="上传笔录、录音转写、照片或书面材料"><el-upload drag multiple :auto-upload="false" :on-change="handleFieldSourceChange"><div class="upload-title">上传一手资料</div><div class="upload-text">文件会进入对象存储，图片会标记 OCR/视觉处理，文本会尝试写入向量库</div></el-upload></el-form-item>
+                        <el-button type="primary" @click="uploadFieldSources">上传并入库</el-button>
+                      </section>
+                    </div>
+                  </div>
+                </template></el-table-column>
+                <el-table-column prop="title" label="项目" min-width="220" ></el-table-column>
+                <el-table-column label="研究对象" min-width="200"><template #default="{ row }">{{ row.target_name || '-' }}</template></el-table-column>
+                <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)" effect="light">{{ row.status }}</el-tag></template></el-table-column>
+                <el-table-column label="更新" width="190"><template #default="{ row }">{{ formatTime(row.updated_at) }}</template></el-table-column>
+                <el-table-column label="操作" width="110" align="right"><template #default="{ row }"><el-button link type="primary" @click="selectReviewProject(row)">复核</el-button></template></el-table-column>
+              </el-table>
+              <div class="pagination-bar"><el-pagination background layout="prev, pager, next, sizes, total" :total="filteredProjects.length" v-model:current-page="taskPage" v-model:page-size="taskPageSize" :page-sizes="[10,12,20,50]" ></el-pagination></div>
+              <el-empty v-if="!reviewProjectId" description="请选择项目后上传复核资料" :image-size="80" ></el-empty>
+            </el-form>
+          </el-card>
+        </section>
+
+        <section v-if="activeView === 'sources'">
+          <el-card shadow="never" class="panel-card">
+            <template #header><div class="card-header"><div><p class="eyebrow">Source Repository</p><h2>溯源库</h2></div><el-button type="primary" plain :loading="reindexing" @click="reindexVectors">重建向量索引</el-button></div></template>
+            <el-alert title="这里承接原来的智能问答能力：搜索框检索项目资料和报告，右下角 AI 助手可基于现有知识库进行问答。" type="info" show-icon :closable="false" class="source-alert" ></el-alert>
+            <div class="table-toolbar"><div class="table-meta">显示 {{ knowledgeResults.length }} 条来源、上传资料和产物</div><el-input v-model="knowledgeQuery" clearable placeholder="搜索标题、项目、报告或清洗事实" class="table-search" @clear="loadRepository" @keyup.enter="searchKnowledge"><template #append><el-button @click="searchKnowledge"><i class="fa-solid fa-search"></i></el-button></template></el-input></div>
+            <el-table :data="pagedKnowledgeResults" class="source-table" empty-text="暂无溯源库条目">
+              <el-table-column prop="title" label="标题" min-width="220" ></el-table-column>
+              <el-table-column label="链接" min-width="260"><template #default="{ row }"><el-link v-if="isExternalUrl(row.url)" :href="row.url" target="_blank" type="primary">{{ row.url }}</el-link><el-button v-else-if="row.kind === 'artifact'" link type="primary" @click="downloadArtifact(row)">下载产物</el-button><el-button v-else-if="row.has_download" link type="primary" @click="downloadSource(row)">下载资料</el-button><span v-else class="table-subtext">-</span></template></el-table-column>
+              <el-table-column label="类型" width="150"><template #default="{ row }">{{ row.kind === 'artifact' ? artifactTypeLabel(row.artifact_type) : row.source_type }}</template></el-table-column>
+              <el-table-column label="正文" width="150"><template #default="{ row }"><el-tag v-if="row.kind === 'source'" size="small" :type="sourceContentTagType(row)">{{ sourceContentLabel(row) }}</el-tag><span v-else class="table-subtext">产物</span></template></el-table-column>
+              <el-table-column label="项目" width="180"><template #default="{ row }">{{ row.project_title || row.project_id }}</template></el-table-column>
+              <el-table-column label="摘要" min-width="360"><template #default="{ row }"><span class="snippet">{{ row.snippet }}</span></template></el-table-column>
+              <el-table-column label="操作" width="120"><template #default="{ row }"><el-button v-if="row.kind === 'artifact'" link type="primary" @click="downloadArtifact(row)">下载</el-button><el-button v-else-if="row.has_download" link type="primary" @click="downloadSource(row)">下载</el-button><el-link v-else-if="row.url" :href="row.url" target="_blank" type="primary">打开</el-link></template></el-table-column>
+            </el-table>
+            <div class="pagination-bar"><el-pagination background layout="prev, pager, next, sizes, total" :total="knowledgeResults.length" v-model:current-page="sourcePage" v-model:page-size="sourcePageSize" :page-sizes="[20,50,100,300]" ></el-pagination></div>
+          </el-card>
+        </section>
+      </el-main>
+    </el-container>
+
+    <button class="assistant-fab" :style="assistantFabStyle" @mousedown.stop.prevent="startAssistantDrag" @click="toggleAssistant"><img src="aizhushou.png" alt="AI 小助手" /></button>
+    <section v-if="assistantOpen" class="assistant-panel" :style="assistantPanelStyle">
+      <header class="assistant-drag-handle" @mousedown.prevent="startAssistantDrag"><strong>AI 小助手</strong><el-button text @click="assistantOpen = false">关闭</el-button></header>
+      <div class="assistant-messages" ref="assistantMessages"><div v-for="(msg, index) in assistantMessages" :key="index" :class="['assistant-msg', msg.isUser ? 'user' : 'bot']" v-html="msg.isUser ? escapeHtml(msg.text) : parseMarkdown(msg.text)"></div></div>
+      <div class="assistant-input"><el-input v-model="assistantInput" placeholder="问问现有资料和报告..." @keyup.enter="sendAssistantMessage" ></el-input><el-button type="primary" :loading="assistantLoading" @click="sendAssistantMessage">发送</el-button></div>
+    </section>
+  </el-container>
+</main>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
+
+
