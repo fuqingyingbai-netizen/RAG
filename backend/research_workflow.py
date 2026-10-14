@@ -25,7 +25,7 @@ from langchain.chat_models import init_chat_model
 from sqlalchemy.orm import Session, object_session
 
 try:
-    from .industry_research import normalize_scope, scope_fingerprint, source_in_current_run, normalize_risk as normalize_industry_risk, unknown_risk as unknown_industry_risk, annotate_fact as annotate_industry_fact, append_evidence_index as append_industry_index, delivery_errors as industry_delivery_errors
+    from .industry_research import normalize_scope, scope_fingerprint, source_in_current_run, normalize_risk as normalize_industry_risk, unknown_risk as unknown_industry_risk, annotate_fact as annotate_industry_fact, append_evidence_index as append_industry_index, delivery_errors as industry_delivery_errors, company_filing_source
     from .docx_exporter import markdown_to_docx_bytes
     from .models import ResearchArtifact, ResearchProject, ResearchSource
     from .report_agents import CompanyReportAgent, IndustryReportAgent, PersonReportAgent
@@ -35,7 +35,7 @@ try:
     from .research_strategies import get_research_strategy
     from .web_search import web_search_provider
 except ImportError:
-    from industry_research import normalize_scope, scope_fingerprint, source_in_current_run, normalize_risk as normalize_industry_risk, unknown_risk as unknown_industry_risk, annotate_fact as annotate_industry_fact, append_evidence_index as append_industry_index, delivery_errors as industry_delivery_errors
+    from industry_research import normalize_scope, scope_fingerprint, source_in_current_run, normalize_risk as normalize_industry_risk, unknown_risk as unknown_industry_risk, annotate_fact as annotate_industry_fact, append_evidence_index as append_industry_index, delivery_errors as industry_delivery_errors, company_filing_source
     from docx_exporter import markdown_to_docx_bytes
     from models import ResearchArtifact, ResearchProject, ResearchSource
     from report_agents import CompanyReportAgent, IndustryReportAgent, PersonReportAgent
@@ -632,7 +632,7 @@ class ResearchWorkflow:
             if standardized_type == "person"
             else "company-evidence-v8-entity-bound"
             if standardized_type == "company"
-            else "industry-evidence-v5-source-grounded"
+            else "industry-evidence-v6-metric-grounded"
             if standardized_type == "industry"
             else "default-v4-auditable"
         )
@@ -654,7 +654,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v10-bounded-summary",
+            "industry": "industry-report-evidence-v11-diagnostic-repair",
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -4642,6 +4642,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             except ImportError:
                 from industry_research import active_risk_dimensions
             applicable = active_risk_dimensions(getattr(project, "industry_scope", {}))
+            dimension_schema = json.dumps([{'name': name, 'evidence_ids': [], 'score': None,
+                'level': 'unknown|low|medium|high|critical', 'reason': '...', 'evidence_sources': []}
+                for name in applicable], ensure_ascii=False)
             prompt = f"""
 研究边界：{json.dumps(getattr(project, "industry_scope", {}), ensure_ascii=False)}
 仅评估以下启用维度：{json.dumps(applicable, ensure_ascii=False)}。忽略下方结构示例中未启用的维度，不列为 unknown，不提出其补采建议。
@@ -4654,20 +4657,13 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
 {_clip(risk_evidence, 30000)}
 
 评分口径必须统一：overall_score 和各维度 score 均为“风险分”，0 表示风险最低，100 表示风险最高。信息缺失必须列为 unknown/待核验，不能仅因“未搜索到、未提供、无法排除”就判为高风险。代表企业材料只能作为行业样本或竞争格局信号，不能写成目标公司经营风险。
+各维度只能使用 dimension_evidence_ids 中列出的编号；reason 中的编号必须同时列入 evidence_ids。数值卡的 fact 是唯一通过归属校验的指标；evidence_quote 中其他数值仅供核对，不能借用其增速、规模或比例作评分结论。政策目标不能写成已经实现的市场集中度。
 
 请只输出 JSON，结构为：
 {{
   "overall_score": 0,
   "risk_level": "unknown|low|medium|high|critical",
-  "dimensions": [
-    {{"name": "政策与监管风险", "evidence_ids": [], "score": null, "level": "unknown|low|medium|high|critical", "reason": "...", "evidence_sources": ["..."]}},
-    {{"name": "市场增长与需求风险", "score": 0, "level": "...", "reason": "...", "evidence_sources": ["..."]}},
-    {{"name": "竞争格局与集中度风险", "score": 0, "level": "...", "reason": "...", "evidence_sources": ["..."]}},
-    {{"name": "商业化与盈利模式风险", "score": 0, "level": "...", "reason": "...", "evidence_sources": ["..."]}},
-    {{"name": "技术迭代与替代风险", "score": 0, "level": "...", "reason": "...", "evidence_sources": ["..."]}},
-    {{"name": "资本热度与估值风险", "score": 0, "level": "...", "reason": "...", "evidence_sources": ["..."]}},
-    {{"name": "数据口径与证据可靠性风险", "score": 0, "level": "...", "reason": "...", "evidence_sources": ["..."]}}
-  ],
+  "dimensions": {dimension_schema},
   "key_risks": ["..."],
   "unknowns": ["..."],
   "recommended_followups": ["..."]
@@ -4676,8 +4672,11 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             answer = self._invoke("行业风险研判 Agent", prompt, emit=emit)
             parsed = _plain_json(answer)
             if isinstance(parsed, dict):
+                # Only facts actually sent within the model's budget can authorize scores.
+                retained_ids = {f.get('evidence_id') for f in json.loads(risk_evidence).get('facts', [])}
                 cleaned_payload = _plain_json(cleaned_json)
-                parsed = normalize_industry_risk(parsed, cleaned_payload.get("facts", []) if isinstance(cleaned_payload, dict) else [], getattr(project, "industry_scope", {}))
+                retained = [f for f in cleaned_payload.get('facts', []) if f.get('evidence_id') in retained_ids] if isinstance(cleaned_payload, dict) else []
+                parsed = normalize_industry_risk(parsed, retained, getattr(project, "industry_scope", {}))
                 _emit(emit, "risk", "risk_assessment_agent", "模型行业风险评分完成", f"risk_level={parsed.get('risk_level')}", risk_level=parsed.get("risk_level"), status="done")
                 return json.dumps(parsed, ensure_ascii=False, indent=2)
             fallback = unknown_industry_risk(scope=getattr(project, "industry_scope", {}))
@@ -4732,9 +4731,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         facts = parsed.get("facts") or []
         if target_type == "industry":
             try:
-                from .industry_research import balanced_risk_facts
+                from .industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions
             except ImportError:
-                from industry_research import balanced_risk_facts
+                from industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions
             facts = balanced_risk_facts(facts)
         for fact in facts:
             if not isinstance(fact, dict):
@@ -4754,6 +4753,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 row["evidence_id"] = fact.get("evidence_id")
                 row["evidence_scope"] = fact.get("evidence_scope")
             if target_type == "industry":
+                row['fact'] = risk_fact_text(fact)[:700]
                 row["evidence_id"] = fact.get("evidence_id")
                 row["evidence_scope"] = fact.get("evidence_scope")
                 row["industry_name"] = fact.get("industry_name")
@@ -4762,6 +4762,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 row["attribution_boundary"] = fact.get("attribution_boundary")
                 row["numeric_context"] = fact.get("numeric_context")
                 row["numeric_validation"] = fact.get("numeric_validation")
+                row['evidence_quote'] = str(fact.get('evidence_quote') or '')[:500]
             rows.append(row)
             if len(rows) >= 60:
                 break
@@ -4775,9 +4776,18 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             for row in rows:
                 row['source_title'] = str(row.get('source_title') or '')[:160]
                 row['attribution_boundary'] = str(row.get('attribution_boundary') or '')[:250]
-            return bounded_package({'facts': rows,
+            payload = json.loads(bounded_package({'facts': rows,
                 'information_gaps': [str(x)[:200] for x in (parsed.get('information_gaps') or [])[:12]],
-                'gap_interpretation': '缺口是单批抽取线索，需结合全库事实核对；不能据此断言全行业无数据。'}, 28000)
+                'gap_interpretation': '缺口是单批抽取线索，需结合全库事实核对；不能据此断言全行业无数据。'}, 25000))
+            original_by_id = {f.get('evidence_id'): f for f in facts}
+            while True:
+                payload['dimension_evidence_ids'] = {name: [r['evidence_id'] for r in payload['facts']
+                    if risk_fact_applicable(original_by_id[r['evidence_id']], name)]
+                    for name in active_risk_dimensions(parsed.get('industry_scope') or {})}
+                encoded = json.dumps(payload, ensure_ascii=False)
+                if len(encoded) <= 28000 or not payload['facts']:
+                    return encoded
+                payload['facts'].pop()
         return json.dumps(
             {"facts": rows, "information_gaps": (parsed.get("information_gaps") or [])[:15]},
             ensure_ascii=False,
@@ -6668,6 +6678,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                         item["evidence_scope"] = "representative_company"
                     elif meta.get("evidence_scope") and not fact.get("evidence_scope"):
                         item["evidence_scope"] = meta["evidence_scope"]
+                    if company_filing_source(source):
+                        item['evidence_scope'] = 'representative_company'
                     item["date"] = item.get("date") or meta.get("published_date") or ""
                     item["source_id"] = getattr(source, "id", None)
                     item["source_title"] = source.title
@@ -6958,6 +6970,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             key = f"{key}|{source_url}"
             if fact.get('cleaning_method') == 'industry_rule':
                 key += '|industry_rule|' + json.dumps(fact.get('numeric_context') or {}, sort_keys=True, ensure_ascii=False)
+            elif fact.get('cleaning_method') == 'llm' and fact.get('numeric_context'):
+                key += '|llm_numeric|' + json.dumps(fact['numeric_context'], sort_keys=True, ensure_ascii=False)
             if key in seen:
                 continue
             seen.add(key)

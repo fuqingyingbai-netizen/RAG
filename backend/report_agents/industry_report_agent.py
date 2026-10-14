@@ -180,7 +180,11 @@ class IndustryReportAgent:
         #   fact_count >= 3 -> full section structure + few-shot
         #   fact_count <  3 -> minimal: title + max 3 points
         rich_evidence = fact_count >= INDUSTRY_SPARSE_CHAPTER_MIN_FACTS
-        if rich_evidence:
+        if index == 1:
+            few_shot = ''
+            section_structure = (f'只输出 `## 1. {section_title}` 标题、研究范围、3至5项主要发现和证据限制。'
+                                 '使用短段落或要点，目标450字以内，不使用表格或子标题。')
+        elif rich_evidence:
             few_shot = INDUSTRY_FEW_SHOT
             section_structure = INDUSTRY_SECTION_STRUCTURES.get(index, "")
         else:
@@ -275,37 +279,75 @@ class IndustryReportAgent:
         emit(trace_emit, 'report', self.trace_agent, '行业报告分章校验完成，执行目录合并', 'sections=16', status='done')
         return sanitize_nested_report_chapter_headings(normalize_report_headings(draft, expected), expected)
 
+    @staticmethod
+    def _normalize_section_format(section):
+        section = section.strip()
+        fence = re.fullmatch(r'```(?:markdown|md)?\s*\n(.*?)\n```', section, re.S | re.I)
+        if fence:
+            section = fence[1].strip()
+        return re.sub(r'^# (\d{1,2})\. ', r'## \1. ', section, flags=re.M)
+
+    @staticmethod
+    def _section_validation_reasons(section, allowed, index, title):
+        ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', section, re.I))
+        reasons = []
+        if (section.splitlines() or [''])[0].strip() != f'## {index}. {title}':
+            reasons.append('wrong_heading')
+        if len(re.findall(r'(?m)^##\s+\d+[.、．]', section)) > 1:
+            reasons.append('duplicate_chapter_heading')
+        if not ids & allowed:
+            reasons.append('missing_citation')
+        if ids - allowed:
+            reasons.append('invalid_citation')
+        if index == 1 and summary_length(section) > 600:
+            reasons.append('summary_too_long')
+        return reasons
+
     def _validate_section(self, section, package, index, title, invoke, emit, trace_emit, degradations=None):
         facts = package.get('facts', [])
-        allowed = {f.get('evidence_id') for f in facts}
+        allowed = {f.get('evidence_id') for f in facts if f.get('evidence_id')}
+        section = self._normalize_section_format(section)
         ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', section, re.I))
         expected_heading = f'## {index}. {title}'
         if index == 1:
             section = mark_unverified_numbers(section, facts)
-        if (ids - allowed or not (ids & allowed) or (section.splitlines() or [''])[0].strip() != expected_heading
-                or re.findall(r'(?m)^##\s+\d+[.、．]', section) != [f'## {index}.']
-                or (index == 1 and summary_length(section) > 600)):
-            emit(trace_emit, 'report', self.trace_agent, '章节引用或目录校验未通过，尝试一次局部修复', f'chapter={index}', status='warning')
+        initial_reasons = self._section_validation_reasons(section, allowed, index, title)
+        if initial_reasons:
+            emit(trace_emit, 'report', self.trace_agent, '章节校验未通过，尝试一次局部修复',
+                 f'chapter={index}; reasons={",".join(initial_reasons)}', status='warning', validation_reasons=initial_reasons)
+            # Retain cited cards first, then validate against exactly what the repair saw.
+            repair_package = json.loads(bounded_package({**package, 'facts': sorted(facts,
+                key=lambda f: f.get('evidence_id') not in ids)}, 14000 if index == 1 else 12000))
+            repair_facts = repair_package['facts']
+            repair_allowed = {f.get('evidence_id') for f in repair_facts if f.get('evidence_id')}
             prompt = (f'仅修复第{index}章，顶级标题为 {expected_heading}。删除无证据结论，保留合法来源编号。'
-                      '只输出本章；不能新增数字或证据编号。\n证据：' + bounded_package(package, 12000)
+                      '只输出本章；不能新增数字或证据编号。\n证据：' + json.dumps(repair_package, ensure_ascii=False)
                       + '\n待修复章节：\n' + section[:8000])
             if index == 1:
                 prompt += '\n摘要压缩至450字以内，最多5项发现，保留来源编号和数值待核验提示。禁止表格和章节复述。'
             try:
-                repaired = invoke(f'{self.report_kind}章节修复 Agent - {title}', prompt, trace_emit).strip()
-            except Exception:
+                repaired = self._normalize_section_format(invoke(f'{self.report_kind}章节修复 Agent - {title}', prompt, trace_emit))
+                repair_error = ''
+            except Exception as exc:
                 repaired = ''
+                repair_error = type(exc).__name__
             if index == 1:
-                repaired = mark_unverified_numbers(repaired, facts)
-            repair_ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', repaired, re.I))
-            if ((repaired.splitlines() or [''])[0].strip() == expected_heading and repair_ids & allowed
-                    and not repair_ids - allowed and len(re.findall(r'(?m)^##\s+\d+[.、．]', repaired)) == 1
-                    and (index != 1 or summary_length(repaired) <= 600)):
+                repaired = mark_unverified_numbers(repaired, repair_facts)
+            repair_reasons = self._section_validation_reasons(repaired, repair_allowed, index, title)
+            if repair_error:
+                repair_reasons.append('model_error:' + repair_error)
+            if not repair_reasons:
                 section = repaired
             else:
                 # Preserve traceable facts, not prose whose citations failed.
                 section = self._fallback_section(package, index, title)
                 if degradations is not None:
-                    degradations.append({'chapter': index, 'message': f'第{index}章引用或目录修复失败，使用来源事实摘录；建议复核综合判断。'})
-                emit(trace_emit, 'report', self.trace_agent, '局部修复失败，保留来源事实摘录', f'chapter={index}', status='fallback')
+                    labels = {'wrong_heading':'标题不符', 'duplicate_chapter_heading':'章节标题重复',
+                              'missing_citation':'缺少引用', 'invalid_citation':'引用不在修复证据包', 'summary_too_long':'摘要超长'}
+                    explanation = '、'.join(labels.get(reason, reason) for reason in repair_reasons)
+                    degradations.append({'chapter': index, 'initial_validation_reasons': initial_reasons,
+                        'repair_validation_reasons': repair_reasons,
+                        'message': f'第{index}章局部修复失败（{explanation}），使用来源事实摘录；建议复核综合判断。'})
+                emit(trace_emit, 'report', self.trace_agent, '局部修复失败，保留来源事实摘录',
+                     f'chapter={index}; reasons={",".join(repair_reasons)}', status='fallback', validation_reasons=repair_reasons)
         return mark_unverified_numbers(section, facts)

@@ -151,16 +151,26 @@ def normalize_risk(parsed: Any, facts: list[dict], scope: dict | None = None) ->
         # One company's condition is a sample, never proof of an industry-wide score.
         ids = [eid for eid in ids if evidence[eid].get('evidence_scope') in {'industry_level', 'segment_level', 'capital_market'}]
         score = row.get('score')
-        modules = {
-            '政策与监管风险': {'政策与监管'}, '市场增长与需求风险': {'市场规模与增长'},
-            '竞争格局与集中度风险': {'竞争格局与代表企业'}, '商业化与盈利模式风险': {'商业模式与盈利逻辑'},
-            '技术迭代与替代风险': {'技术路线对比', '技术演进与平台生态'},
-            '资本热度与估值风险': {'投融资与资本市场'},
-        }
-        ids = [eid for eid in ids if name not in modules or evidence[eid].get('module') in modules[name]]
-        if not ids or isinstance(score, bool) or not isinstance(score, (int, float)) or not 0 <= score <= 100:
-            row = {'name': name, 'score': None, 'level': 'unknown', 'reason': '缺少有效且适用的行业证据编号，暂不评分。',
-                   'evidence_ids': [], 'evidence_sources': []}
+        ids = [eid for eid in ids if risk_fact_applicable(evidence[eid], name)]
+        reason_ids = set(re.findall(r'(?<![A-Z0-9-])E-[A-Z0-9-]{6,}(?![A-Z0-9-])', str(row.get('reason') or ''), re.I))
+        invalid_reason_ids = reason_ids - set(ids)
+        numeric_cards = {eid: {'validation': evidence[eid].get('numeric_validation') or {},
+                               'context': evidence[eid].get('numeric_context') or {}} for eid in ids}
+        unverified_numbers = [n for n in re.findall(NUMBER_PATTERN, str(row.get('reason') or ''))
+                              if not any(numeric_supported(n, eid, numeric_cards) for eid in ids)]
+        if not ids or invalid_reason_ids or unverified_numbers or isinstance(score, bool) or not isinstance(score, (int, float)) or not 0 <= score <= 100:
+            candidates = [eid for eid, fact in evidence.items() if risk_fact_applicable(fact, name)]
+            supplied_ids = row.get('evidence_ids') or []
+            cause = ('no_applicable_evidence' if not candidates else 'missing_model_citations' if not supplied_ids
+                     else 'invalid_citations' if not ids else 'invalid_reason_citations' if invalid_reason_ids
+                     else 'unverified_reason_numbers' if unverified_numbers else 'invalid_score')
+            explanations = {'no_applicable_evidence':'本次评分证据包没有适用的行业事实',
+                'missing_model_citations':'模型未提供评分证据编号', 'invalid_citations':'评分引用没有适用的行业事实',
+                'invalid_reason_citations':'评分理由引用了未授权或不适用的编号',
+                'unverified_reason_numbers':'评分理由含未通过对应指标校验的数值', 'invalid_score':'模型评分值不符合0至100的风险分格式'}
+            row = {'name': name, 'score': None, 'level': 'unknown', 'reason': explanations[cause] + '，暂不评分。',
+                   'evidence_ids': [], 'evidence_sources': [], 'unknown_cause': cause,
+                   'candidate_evidence_count': len(candidates)}
             unknowns.append(name + '：缺少有效评分证据。')
         else:
             row.update(name=name, evidence_ids=ids, level=risk_level(score),
@@ -175,6 +185,38 @@ def normalize_risk(parsed: Any, facts: list[dict], scope: dict | None = None) ->
     result['applicable_dimensions'] = list(active_risk_dimensions(scope))
     result['assessed_dimension_count'] = len(scores)
     return result
+
+
+RISK_MODULES = {
+    '政策与监管风险': {'政策与监管'}, '市场增长与需求风险': {'市场规模与增长'},
+    '竞争格局与集中度风险': {'竞争格局与代表企业'}, '商业化与盈利模式风险': {'商业模式与盈利逻辑'},
+    '技术迭代与替代风险': {'技术路线对比', '技术演进与平台生态'},
+    '资本热度与估值风险': {'投融资与资本市场'},
+}
+
+
+def risk_fact_applicable(fact: dict, name: str) -> bool:
+    if (fact.get('eligible_for_risk_scoring') is False or fact.get('eligible_for_report') is False
+            or fact.get('scope_match') != 'in_scope'
+            or fact.get('evidence_scope') not in {'industry_level', 'segment_level', 'capital_market'}):
+        return False
+    if name in RISK_MODULES and fact.get('module') not in RISK_MODULES[name]:
+        return False
+    if name == '竞争格局与集中度风险':
+        return bool(re.search(r'竞争|市场份额|市占率|集中度|CR\d|HHI|垄断|进入壁垒|头部|寡头',
+                              str(fact.get('fact') or ''), re.I))
+    return True
+
+
+def risk_fact_text(fact: dict) -> str:
+    """A single verified numeric context cannot authorize other numbers in its quote."""
+    context = fact.get('numeric_context') or {}
+    if fact.get('numeric_validation', {}).get('passed') is True:
+        return (f'{context.get("period", "")} {context.get("geography", "")} '
+                f'{context.get("metric", "")}：{context.get("value", "")}{context.get("unit", "")}；'
+                f'口径：{context.get("definition", "")}；'
+                f'性质：{"预测" if context.get("is_forecast") else "原来源统计"}。')
+    return str(fact.get('fact') or '')
 
 
 def risk_level(score: float) -> str:
@@ -268,6 +310,8 @@ def bounded_package(package: dict, limit: int = 20000) -> str:
     result = {**package, 'facts': []}
     for original in package.get('facts', []):
         fact = dict(original)
+        # Diagnostic model prose must never re-enter a writer's evidence input.
+        fact.pop('original_model_fact', None)
         fact['fact'] = str(fact.get('fact') or '')[:900]
         fact['evidence_quote'] = str(fact.get('evidence_quote') or '')[:500]
         result['facts'].append(fact)
@@ -353,6 +397,15 @@ def industry_cleaning_sources(sources: list, per_module: int = 6) -> list:
     return selected
 
 
+def company_filing_source(source: Any) -> bool:
+    title = str(source.title or '')
+    if source.source_type == 'filing' or re.search(r'招股书|招股说明书', title):
+        return True
+    if not re.search(r'年报|年度报告', title):
+        return False
+    return bool(re.search(r'公司|股份|集团|有限公司', title) or not re.search(r'行业|产业|市场|技术|监管', title))
+
+
 def extract_industry_source_facts(sources: list, scope: dict) -> list[dict]:
     """Extract small, verbatim cards from stored body text, never search summaries.
 
@@ -390,7 +443,7 @@ def extract_industry_source_facts(sources: list, scope: dict) -> list[dict]:
                     'claim_type': 'fact', 'is_structured_evidence': True,
                     'cleaning_method': 'industry_rule', 'evidence_quote_verified': True,
                     'confidence': min(.9, float(source.credibility_score or 50) / 100)}
-            if source.source_type == 'filing' or re.search(r'年报|招股书|年度报告', str(source.title or '')):
+            if company_filing_source(source):
                 base['evidence_scope'] = 'representative_company'
             numeric_cards = []
             for number in re.finditer(NUMBER_PATTERN, quote):
@@ -460,11 +513,12 @@ def unique_search_queries(rows: list[dict], seen: set) -> list[dict]:
     return distinct
 
 
-NUMBER_PATTERN = r'\d[\d,.]*\s*(?:%|％|万亿元|万亿美元|亿元|万元|亿美元|万美元)'
+NUMBER_UNITS = r'%|％|万亿元|万亿美元|亿元|万元|亿美元|万美元|美元|人民币元|元|EB|PB|TB|GB|MB|EFLOPS|PFLOPS|TFLOPS'
+NUMBER_PATTERN = rf'\d[\d,.]*\s*(?i:{NUMBER_UNITS})'
 
 
 def number_key(value: str) -> tuple | None:
-    match = re.fullmatch(r'([\d,.]+)\s*(%|％|万亿元|万亿美元|亿元|万元|亿美元|万美元)', value.strip())
+    match = re.fullmatch(rf'([\d,.]+)\s*({NUMBER_UNITS})', value.strip(), re.I)
     if not match:
         return None
     try:
@@ -476,6 +530,12 @@ def number_key(value: str) -> tuple | None:
         amount *= Decimal({'万亿元': '1000000000000', '亿元': '100000000', '万元': '10000'}[unit]); unit = '人民币元'
     elif unit in ('万亿美元', '亿美元', '万美元'):
         amount *= Decimal({'万亿美元': '1000000000000', '亿美元': '100000000', '万美元': '10000'}[unit]); unit = '美元'
+    elif unit in ('元', '人民币元'):
+        unit = '人民币元'
+    elif unit.upper() in ('EB', 'PB', 'TB', 'GB', 'MB'):
+        amount *= Decimal(1000) ** {'MB':2, 'GB':3, 'TB':4, 'PB':5, 'EB':6}[unit.upper()]; unit = 'bytes_decimal'
+    elif unit.upper() in ('EFLOPS', 'PFLOPS', 'TFLOPS'):
+        amount *= Decimal(1000) ** {'TFLOPS':4, 'PFLOPS':5, 'EFLOPS':6}[unit.upper()]; unit = 'FLOPS'
     return amount, unit
 
 
@@ -504,6 +564,13 @@ def mark_unverified_numbers(section: str, facts: list[dict]) -> str:
 
 def annotate_fact(fact: dict, scope: dict) -> dict:
     item = dict(fact)
+    if (item.get('cleaning_method') == 'llm' and item.get('evidence_quote_verified') is True
+            and item.get('evidence_quote') and (item.get('numeric_context') or re.search(NUMBER_PATTERN, str(item.get('fact') or '')))):
+        quote = str(item['evidence_quote']).strip()
+        if quote != str(item.get('fact') or '').strip():
+            item['original_model_fact'] = item.get('original_model_fact') or item.get('fact')
+            item['fact'] = quote
+            item['grounding_status'] = 'numeric_source_quote'
     blob = ' '.join(str(item.get(key) or '') for key in ('fact', 'evidence_quote', 'source_title'))
     declared = str(item.get('scope_match') or '')
     names = [scope.get('industry_name'), *scope.get('segments', []), *scope.get('named_companies', [])]
@@ -528,9 +595,12 @@ def annotate_fact(fact: dict, scope: dict) -> dict:
     identity = str(item.get('source_url') or '') + '\n' + str(item.get('fact') or '')
     if item.get('cleaning_method') == 'industry_rule':
         identity += '\nindustry_rule\n' + json.dumps(item.get('numeric_context') or {}, sort_keys=True, ensure_ascii=False)
+    elif item.get('cleaning_method') == 'llm' and item.get('numeric_context') and item.get('evidence_quote_verified') is True:
+        identity += '\nllm_numeric_quote\n' + json.dumps(item.get('numeric_context') or {}, sort_keys=True, ensure_ascii=False)
     item['evidence_id'] = 'E-' + hashlib.sha256(identity.encode()).hexdigest()[:12].upper()
     numeric = item.get('numeric_context') if isinstance(item.get('numeric_context'), dict) else {}
-    numerical = bool(re.search(r'\d[\d,.]*\s*(?:%|％|亿元|万元|亿美元|万美元|亿|万|CAGR|PE|PB|PS)', blob, re.I))
+    numerical = bool(numeric or re.search(NUMBER_PATTERN, blob, re.I)
+                     or re.search(r'\d[\d,.]*\s*(?:亿|万|CAGR|PE|PB|PS)', blob, re.I))
     if numerical:
         required = ('metric', 'unit', 'geography', 'period', 'definition')
         missing = [key for key in required if not numeric.get(key)]
@@ -551,14 +621,38 @@ def annotate_fact(fact: dict, scope: dict) -> dict:
         if 'is_forecast' in numeric and not isinstance(numeric['is_forecast'], bool):
             missing.append('is_forecast_boolean')
         expected_number = number_key(str(numeric.get('value', '')) + str(numeric.get('unit', '')))
+        if expected_number is None and numeric.get('value') is not None:
+            missing.append('unsupported_numeric_unit')
+        grounded = item.get('cleaning_method') in {'industry_rule', 'llm'}
+        if grounded and item.get('evidence_quote_verified') is not True:
+            missing.append('unverified_evidence_quote')
         if expected_number is not None:
             grounded = item.get('cleaning_method') in {'industry_rule', 'llm'}
             evidence = str(item.get('evidence_quote') or '') if grounded else str(item.get('fact') or '') + ' ' + str(item.get('evidence_quote') or '')
             quote_numbers = re.findall(NUMBER_PATTERN, evidence)
             if not any(number_key(n) == expected_number for n in quote_numbers):
                 missing.append('value_not_in_evidence_quote')
-            if grounded and item.get('evidence_quote_verified') is not True:
-                missing.append('unverified_evidence_quote')
+            if grounded:
+                anchor = re.sub(r'\s+', '', str(numeric.get('metric') or ''))
+                for name in [*names, numeric.get('geography')]:
+                    if name: anchor = anchor.replace(str(name), '')
+                compact_quote = re.sub(r'\s+', '', evidence)
+                if anchor and anchor not in compact_quote:
+                    missing.append('metric_not_in_evidence_quote')
+                elif anchor:
+                    # The matching value must follow this metric, without a different
+                    # number intervening. A shared sentence is not shared attribution.
+                    paired = False
+                    for metric_match in re.finditer(re.escape(anchor), compact_quote):
+                        tail = compact_quote[metric_match.end():]
+                        next_number = re.search(NUMBER_PATTERN, tail)
+                        if (next_number and next_number.start() <= 60
+                                and not re.search(r'[。；;]', tail[:next_number.start()])
+                                and number_key(next_number.group()) == expected_number):
+                            paired = True
+                            break
+                    if not paired:
+                        missing.append('metric_value_not_paired')
         cutoff = str(scope.get('as_of_date') or '')
         if period_years and cutoff and numeric.get('is_forecast') is not True and max(period_years) > cutoff[:4]:
             missing.append('period_after_cutoff')
@@ -602,7 +696,8 @@ def append_evidence_index(report: str, payload: dict, outline: list, packages: d
                 continue
             def cell(value):
                 return re.sub(r'\s+', ' ', str(value or '待标注')).replace('|', '/')[:160]
-            rows.append(f'| [{eid}]({url}) | 第 {index} 章 | {cell(fact.get("fact"))} | {cell(fact.get("provider") or fact.get("source_type"))} / {cell(fact.get("source_grade"))} |')
+            audit_text = fact.get('evidence_quote') if fact.get('cleaning_method') == 'llm' and fact.get('numeric_context') else fact.get('fact')
+            rows.append(f'| [{eid}]({url}) | 第 {index} 章 | {cell(audit_text)} | {cell(fact.get("provider") or fact.get("source_type"))} / {cell(fact.get("source_grade"))} |')
             referenced.add(url)
     lines = ['## 15. 信息来源（自动生成审计索引）', '',
              '本索引列出章节正文实际引用且属于对应证据包的事实编号；同一来源的不同事实可支持多个章节。', '',
@@ -701,6 +796,9 @@ def balanced_risk_facts(facts: list[dict], limit: int = 60) -> list[dict]:
         if not isinstance(fact, dict) or fact.get('eligible_for_risk_scoring') is False or fact.get('scope_match') != 'in_scope':
             continue
         if fact.get('evidence_scope') not in {'industry_level', 'segment_level', 'capital_market'}:
+            continue
+        if (fact.get('module') == '竞争格局与代表企业'
+                and not risk_fact_applicable(fact, '竞争格局与集中度风险')):
             continue
         groups.setdefault(fact.get('module') or '其他', []).append(fact)
     for rows in groups.values():
