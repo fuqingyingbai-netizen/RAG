@@ -3781,6 +3781,11 @@ class ResearchWorkflow:
                             metadata["content_kind"] = "summary_only"
                             metadata["extraction_status"] = fetch_status
                             metadata["skip_fulltext_reason"] = "fetch_empty_saved_summary"
+                        try:
+                            from .json_utils import strip_nul
+                        except ImportError:
+                            from json_utils import strip_nul
+                        title, summary, stored_text, metadata = strip_nul([str(title or ''), str(summary or ''), stored_text, metadata])
                         object_key = research_store.put_text(
                             f"projects/{project.id}/raw_web/{_now_key()}_{added}.txt",
                             stored_text,
@@ -5977,51 +5982,6 @@ class ResearchWorkflow:
             for gap in gaps[:100]:
                 lines.append(f"- {gap}")
         return "\n".join(lines)
-    def _index_cleaned_facts_background(
-        self,
-        project_snapshot: dict[str, Any],
-        cleaned_json: str,
-        version: int,
-        markdown_object_key: str,
-    ) -> None:
-        class ProjectSnapshot:
-            pass
-
-        project = ProjectSnapshot()
-        project.id = project_snapshot.get("id")
-        project.title = project_snapshot.get("title", "")
-        project.target_name = project_snapshot.get("target_name", "")
-        project.target_type = project_snapshot.get("target_type", "")
-        project.industry = project_snapshot.get("industry", "")
-        try:
-            self._index_cleaned_facts(project, cleaned_json, version, markdown_object_key)
-        except Exception:
-            return
-
-    def _index_cleaned_facts_with_timeout(
-        self,
-        project: ResearchProject,
-        cleaned_json: str,
-        version: int,
-        markdown_object_key: str,
-        timeout_seconds: int,
-    ) -> tuple[str, int, str]:
-        result_queue: queue.Queue[tuple[str, int, str]] = queue.Queue(maxsize=1)
-
-        def target() -> None:
-            try:
-                indexed_count = self._index_cleaned_facts(project, cleaned_json, version, markdown_object_key)
-                result_queue.put(("completed", indexed_count, ""))
-            except Exception as exc:
-                result_queue.put(("failed", 0, str(exc)))
-
-        thread = threading.Thread(target=target, daemon=True)
-        thread.start()
-        try:
-            return result_queue.get(timeout=max(1, timeout_seconds))
-        except queue.Empty:
-            return ("background_timeout", 0, f"vector indexing exceeded {timeout_seconds}s; workflow continued")
-
     def _index_cleaned_facts(
         self,
         project: ResearchProject,
@@ -6075,7 +6035,14 @@ class ResearchWorkflow:
 
         if not docs:
             return 0
-        MilvusWriter().write_documents(docs)
+        writer = MilvusWriter()
+        if project.target_type == "industry":
+            manager = getattr(writer, "milvus_manager", None)
+            if manager is not None and manager.has_collection():
+                # Retry replaces this artifact version only, never another
+                # project's vectors or a different version's evidence.
+                manager.delete(f'project_id == {int(project.id)} and artifact_type == "cleaned_facts" and artifact_version == {int(version)}')
+        writer.write_documents(docs)
         return len(docs)
 
     def _find_soffice(self) -> str:
@@ -6173,6 +6140,7 @@ class ResearchWorkflow:
         version = (current.version + 1) if current else 1
         suffix = "json" if artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment"} else "md"
         artifact_metadata = dict(metadata or {})
+        index_job = None
         object_key = research_store.put_text(
             f"projects/{project.id}/{artifact_type}/{artifact_type}_v{version}.{suffix}",
             content,
@@ -6191,35 +6159,11 @@ class ResearchWorkflow:
                 index_payload = _plain_json(content)
                 if not isinstance(index_payload, dict) or not isinstance(index_payload.get("facts"), list):
                     raise ValueError("清洗事实 JSON 无效，未执行事实索引；请检查清洗产物后重试。")
-                if os.getenv("VECTOR_INDEX_SYNC", "false").strip().lower() in {"1", "true", "yes", "on"}:
-                    timeout_seconds = _env_int("VECTOR_INDEX_SYNC_TIMEOUT_SECONDS", 30, 1, 3600)
-                    status, indexed_count, error = self._index_cleaned_facts_with_timeout(
-                        project,
-                        content,
-                        version,
-                        markdown_key,
-                        timeout_seconds,
-                    )
-                    artifact_metadata["vector_indexed"] = status == "completed"
-                    artifact_metadata["vector_indexed_count"] = indexed_count
-                    artifact_metadata["vector_index_status"] = status
-                    if error:
-                        artifact_metadata["vector_index_error"] = error
-                elif os.getenv("VECTOR_INDEX_ASYNC", "true").strip().lower() in {"1", "true", "yes", "on"}:
-                    snapshot = {
-                        "id": project.id,
-                        "title": project.title,
-                        "target_name": project.target_name,
-                        "target_type": project.target_type,
-                        "industry": project.industry,
-                    }
-                    threading.Thread(
-                        target=self._index_cleaned_facts_background,
-                        args=(snapshot, content, version, markdown_key),
-                        daemon=True,
-                    ).start()
-                    artifact_metadata["vector_indexed"] = False
-                    artifact_metadata["vector_index_status"] = "queued"
+                sync = os.getenv("VECTOR_INDEX_SYNC", "false").strip().lower() in {"1", "true", "yes", "on"}
+                asynchronous = os.getenv("VECTOR_INDEX_ASYNC", "true").strip().lower() in {"1", "true", "yes", "on"}
+                if sync or asynchronous:
+                    index_job = (content, version, markdown_key, sync)
+                    artifact_metadata.update(vector_indexed=False, vector_indexed_count=0, vector_index_status="queued")
                 else:
                     artifact_metadata["vector_indexed"] = False
                     artifact_metadata["vector_index_status"] = "disabled"
@@ -6270,7 +6214,59 @@ class ResearchWorkflow:
         project.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(artifact)
+        if index_job:
+            self.start_artifact_index(db, project, artifact, wait_seconds=_env_int("VECTOR_INDEX_SYNC_TIMEOUT_SECONDS", 30, 1, 3600) if index_job[3] else 0)
+            db.refresh(artifact)
         return artifact
+
+    def start_artifact_index(self, db, project, artifact, wait_seconds=0):
+        """Start after artifact commit; worker owns its SQL session and always writes a terminal result."""
+        metadata = dict(artifact.artifact_metadata or {})
+        if any(t.name == f"research-index-{artifact.id}" and t.is_alive() for t in threading.enumerate()):
+            raise ValueError("索引仍在后台执行，请等待完成。")
+        if metadata.get("vector_index_status") not in {"queued", "failed", "error", "background_timeout", "disabled"}:
+            raise ValueError("索引正在执行或已经完成。")
+        content, version, key, artifact_id = artifact.content, artifact.version, metadata.get("markdown_object_key", ""), artifact.id
+        payload = _plain_json(content)
+        if not isinstance(payload, dict) or not isinstance(payload.get("facts"), list):
+            raise ValueError("清洗事实 JSON 无效，不能执行索引。")
+        bind = db.get_bind()
+        if hasattr(bind, "engine"):
+            bind = bind.engine
+        snapshot = type("IndexProject", (), {name: getattr(project, name, "") for name in ("id", "title", "target_name", "target_type", "industry")})()
+        # Transition before scheduling; API retries lock this artifact row.
+        metadata.update(vector_index_status="running", vector_indexed=False, vector_index_started_at=datetime.utcnow().isoformat())
+        metadata.pop("vector_index_error", None)
+        artifact.artifact_metadata = metadata
+        db.commit()
+        finished = threading.Event()
+        def worker():
+            try:
+                count = self._index_cleaned_facts(snapshot, content, version, key)
+                result = {"vector_index_status": "completed", "vector_indexed": True, "vector_indexed_count": count}
+            except Exception as exc:
+                result = {"vector_index_status": "failed", "vector_indexed": False, "vector_indexed_count": 0, "vector_index_error": str(exc)[:1000]}
+            result["vector_index_finished_at"] = datetime.utcnow().isoformat()
+            try:
+                with Session(bind=bind) as session:
+                    row = session.query(ResearchArtifact).filter(ResearchArtifact.id == artifact_id).with_for_update().first()
+                    if row:
+                        merged = dict(row.artifact_metadata or {})
+                        merged.pop("vector_index_error", None)
+                        row.artifact_metadata = {**merged, **result}
+                        session.commit()
+            finally:
+                finished.set()
+        threading.Thread(target=worker, daemon=True, name=f"research-index-{artifact_id}").start()
+        if wait_seconds and not finished.wait(wait_seconds):
+            # Use the same row lock as the worker. Do not overwrite a result
+            # that completed between the timeout and this transaction.
+            row = db.query(ResearchArtifact).filter(ResearchArtifact.id == artifact_id).with_for_update().populate_existing().first()
+            current = dict(row.artifact_metadata or {})
+            if current.get("vector_index_status") == "running":
+                current.update(vector_index_status="background_timeout", vector_index_error=f"vector indexing exceeded {wait_seconds}s; workflow continued")
+                row.artifact_metadata = current
+            db.commit()
 
     def _cleaning_brief(self, project: ResearchProject, plan: dict[str, Any], quality: dict[str, Any]) -> str:
         modules = [item.get("name", "") for item in plan.get("modules", []) if isinstance(item, dict)]

@@ -23,6 +23,8 @@ class MilvusWriter:
             batch = documents[i:i + batch_size]
             texts = [doc["text"] for doc in batch]
             dense_embeddings, sparse_embeddings = self.embedding_service.get_all_embeddings(texts)
+            if len(dense_embeddings) != len(batch) or len(sparse_embeddings) != len(batch):
+                raise RuntimeError("Embedding result count does not match document batch; indexing is incomplete")
             if dense_embeddings:
                 self.milvus_manager.init_collection(dense_dim=len(dense_embeddings[0]))
             else:
