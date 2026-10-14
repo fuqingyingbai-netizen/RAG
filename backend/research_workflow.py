@@ -207,14 +207,11 @@ def _project_doc_title(project: ResearchProject, suffix: str) -> str:
 
 
 def _plain_json(text: str) -> Any:
-    if not text:
-        return None
-    match = re.search(r"```(?:json)?\s*(.*?)```", text, flags=re.S)
-    raw = match.group(1) if match else text
     try:
-        return json.loads(raw)
-    except Exception:
-        return None
+        from .json_utils import parse_json_output
+    except ImportError:
+        from json_utils import parse_json_output
+    return parse_json_output(text)
 
 
 def _env_int(name: str, default: int, minimum: int = 1, maximum: int = 600) -> int:
@@ -6018,7 +6015,7 @@ class ResearchWorkflow:
     ) -> int:
         parsed = _plain_json(cleaned_json)
         if not isinstance(parsed, dict):
-            facts = [{"fact": cleaned_json, "category": "cleaned_facts"}]
+            raise ValueError("清洗事实 JSON 无效，未执行事实索引；请检查清洗产物后重试。")
         else:
             facts = [fact for fact in (parsed.get("facts") or []) if isinstance(fact, dict)]
         if not facts:
