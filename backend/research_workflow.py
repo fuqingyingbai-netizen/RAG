@@ -369,6 +369,28 @@ class ResearchWorkflow:
                   duration_ms=int((time.monotonic()-started)*1000), degraded=True, status='fallback')
             return ''
 
+    def _invoke_industry_cleaning(self, role: str, prompt: str, emit=None, timeout_seconds=60) -> str:
+        """Industry enrichment gets a bounded request with no hidden SDK retries."""
+        if not os.getenv('ARK_API_KEY') or not os.getenv('MODEL'):
+            return ''
+        started = time.monotonic()
+        _emit(emit, 'llm', role, '正在调用行业清洗模型', f'timeout_seconds={timeout_seconds:.1f}',
+              timeout_seconds=timeout_seconds, status='running')
+        try:
+            model = init_chat_model(model=os.environ['MODEL'], model_provider='openai',
+                api_key=os.environ['ARK_API_KEY'], base_url=os.getenv('BASE_URL'), temperature=0.1,
+                timeout=timeout_seconds, max_retries=0, max_tokens=4000)
+            result = model.invoke([{'role': 'system', 'content': '只提取可核验事实，输出完整JSON并保留来源和统计口径。'},
+                                   {'role': 'user', 'content': prompt}])
+            content = str(result.content or '')
+            _emit(emit, 'llm', role, '行业清洗模型调用完成', f'chars={len(content)}',
+                  duration_ms=int((time.monotonic()-started)*1000), status='done')
+            return content
+        except Exception as exc:
+            _emit(emit, 'llm', role, '行业清洗模型失败，保留规则事实', str(exc)[:800],
+                  duration_ms=int((time.monotonic()-started)*1000), degraded=True, status='fallback')
+            return ''
+
     def _get_person_report_section_model(self):
         if self._person_report_section_model is not None:
             return self._person_report_section_model
@@ -610,7 +632,7 @@ class ResearchWorkflow:
             if standardized_type == "person"
             else "company-evidence-v8-entity-bound"
             if standardized_type == "company"
-            else "industry-evidence-v3-structured-cards"
+            else "industry-evidence-v4-bounded-cleaning"
             if standardized_type == "industry"
             else "default-v4-auditable"
         )
@@ -632,7 +654,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v8-validated-cards",
+            "industry": "industry-report-evidence-v9-grounded-summary",
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -1040,7 +1062,8 @@ class ResearchWorkflow:
                     "agent": "report_writer",
                     "report_pipeline_version": report_pipeline_version,
                     **({"industry_evidence_diagnostic": getattr(project, "industry_delivery_diagnostic", {}),
-                         "quality_issues": getattr(project, "industry_quality_issues", [])} if standardized_type == "industry" else {}),
+                         "quality_issues": getattr(project, "industry_quality_issues", []),
+                         "generation_degradations": getattr(project, "industry_report_degradations", [])} if standardized_type == "industry" else {}),
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
                 },
@@ -4035,11 +4058,18 @@ class ResearchWorkflow:
 
         if llm_enabled:
             llm_sources = self._select_llm_cleaning_sources(selected_sources)
+            if project.target_type == 'industry':
+                try:
+                    from .industry_research import industry_cleaning_sources
+                except ImportError:
+                    from industry_research import industry_cleaning_sources
+                llm_sources = industry_cleaning_sources(selected_sources, _env_int('CLEANING_LLM_SOURCES_PER_MODULE', 6, 1, 30))
             llm_batches = self._source_context_batches(
                 llm_sources,
                 max_chars=_env_int("CLEANING_MAX_CHARS_PER_BATCH", 8000, 1000, 30000),
                 max_chars_per_source=max_chars_per_source,
                 max_batches=None,
+                industry=project.target_type == 'industry',
             )
             _emit(
                 emit,
@@ -4080,6 +4110,8 @@ class ResearchWorkflow:
             "identity_quarantine_facts": list(fast.get("identity_quarantine_facts", [])),
             "discarded_patterns": self._normalize_cleaning_text_items(discarded_patterns + ["fast cleaning enabled", "duplicate or low-evidence snippets removed"]),
             "information_gaps": self._normalize_cleaning_text_items(information_gaps),
+            **({'cleaning_diagnostic': llm_results.get('cleaning_diagnostic', {})}
+               if llm_enabled and project.target_type == 'industry' else {}),
             "evidence_ledger": evidence_ledger,
             "coverage_summary": {
                 "source_count": quality.get("source_count", len(project.sources)),
@@ -4313,7 +4345,13 @@ class ResearchWorkflow:
         quality = quality or self.evaluate_source_quality(project, plan)
         safe_sources = self._select_cleaning_sources(project.sources, project=project)
         model_sources = self._select_llm_cleaning_sources(safe_sources)
-        batches = self._source_context_batches(model_sources)
+        if project.target_type == 'industry':
+            try:
+                from .industry_research import industry_cleaning_sources
+            except ImportError:
+                from industry_research import industry_cleaning_sources
+            model_sources = industry_cleaning_sources(safe_sources, _env_int('CLEANING_LLM_SOURCES_PER_MODULE', 6, 1, 30))
+        batches = self._source_context_batches(model_sources, industry=project.target_type == 'industry')
         _emit(emit, "cleaning", "data_cleaning_agent", "开始深度清洗", "", status="running")
         llm_results = self._clean_batches_with_llm(project, plan, quality, batches, emit=emit)
         deterministic = self._fast_clean_sources(safe_sources, project=project, emit=emit)
@@ -4342,6 +4380,7 @@ class ResearchWorkflow:
             ],
             "discarded_patterns": self._normalize_cleaning_text_items([llm_results.get("discarded_patterns", []), "duplicate or low-evidence snippets removed"]),
             "information_gaps": self._normalize_cleaning_text_items([quality.get("information_gaps", []), llm_results.get("information_gaps", [])]),
+            **({'cleaning_diagnostic': llm_results.get('cleaning_diagnostic', {})} if project.target_type == 'industry' else {}),
             "evidence_ledger": evidence_ledger,
             "coverage_summary": {
                 "source_count": quality.get("source_count", 0),
@@ -4393,8 +4432,18 @@ class ResearchWorkflow:
         }
         match_instruction, match_field = match_rules.get(target_type, ("", ""))
         workers = _env_int("CLEANING_MAX_WORKERS", 3, 1, 8)
+        industry_mode = target_type == 'industry'
+        batch_states = {}
 
         def invoke_cleaning(batch_index: int, source_blocks: str, depth: int = 0) -> list[dict[str, Any]]:
+            if industry_mode:
+                state = batch_states[batch_index]
+                remaining = state['deadline'] - time.monotonic()
+                if remaining < 1 or state['calls'] >= _env_int('INDUSTRY_CLEANING_MAX_CALLS_PER_BATCH', 3, 1, 5):
+                    state['budget_exhausted'] = True
+                    _emit(emit, 'cleaning', 'data_cleaning_agent', '行业清洗批次预算已用尽，保留规则事实',
+                          f'batch={batch_index}, calls={state["calls"]}', batch=batch_index, status='fallback')
+                    return []
             prompt = f"""
 你是合规尽调资料的信息抽取 Agent。只客观提取材料中明确出现、可复核、可引用的信息；不得判罪、认定违法或补充材料中没有的事实。
 {brief}
@@ -4440,13 +4489,27 @@ class ResearchWorkflow:
   "information_gaps": ["..."]
 }}
 """
-            answer = self._invoke("数据清洗 Agent", prompt, emit=emit)
+            if industry_mode:
+                prompt += '\n本批最多提取8条可核验事实，优先保留完整数值口径和商业模式依据；必须在输出预算内闭合JSON，不输出大段原文或空字段说明。\n'
+                remaining = state['deadline'] - time.monotonic()
+                if remaining < 1:
+                    state['budget_exhausted'] = True
+                    return []
+                state['calls'] += 1
+                answer = self._invoke_industry_cleaning(f'行业清洗 Agent - 批次{batch_index}', prompt, emit=emit,
+                    timeout_seconds=min(remaining, _env_int('INDUSTRY_CLEANING_TIMEOUT_SECONDS', 60, 10, 120)))
+            else:
+                answer = self._invoke("数据清洗 Agent", prompt, emit=emit)
             parsed = _plain_json(answer)
             if isinstance(parsed, dict):
                 return [parsed]
-            max_depth = _env_int("CLEANING_INSPECTION_SPLIT_MAX_DEPTH", 2, 0, 5)
+            max_depth = (_env_int('INDUSTRY_CLEANING_SPLIT_MAX_DEPTH', 1, 0, 2) if industry_mode
+                         else _env_int("CLEANING_INSPECTION_SPLIT_MAX_DEPTH", 2, 0, 5))
             parts = [part.strip() for part in source_blocks.split("\n\n---\n\n") if part.strip()]
             if depth >= max_depth or len(parts) <= 1:
+                if industry_mode:
+                    state['failed_parts'] += 1
+                    return []
                 fallback_answer = self._invoke_cleaning_fallback_model(prompt, emit=emit)
                 fallback_parsed = _plain_json(fallback_answer)
                 if isinstance(fallback_parsed, dict):
@@ -4458,6 +4521,11 @@ class ResearchWorkflow:
             return invoke_cleaning(batch_index, "\n\n---\n\n".join(parts[:midpoint]), depth + 1) + invoke_cleaning(batch_index, "\n\n---\n\n".join(parts[midpoint:]), depth + 1)
 
         def clean_one(batch_index: int, source_blocks: str) -> tuple[int, list[dict[str, Any]]]:
+            if industry_mode:
+                batch_states[batch_index] = {'deadline': time.monotonic() +
+                    _env_int('INDUSTRY_CLEANING_BATCH_BUDGET_SECONDS', 150, 20, 300), 'calls': 0,
+                    'budget_exhausted': False, 'started': time.monotonic()}
+                batch_states[batch_index]['failed_parts'] = 0
             return batch_index, invoke_cleaning(batch_index, source_blocks)
 
         with ThreadPoolExecutor(max_workers=min(workers, len(batches))) as executor:
@@ -4490,13 +4558,21 @@ class ResearchWorkflow:
                         )
                         discarded_patterns.extend(payload["discarded_patterns"])
                         information_gaps.extend(payload["information_gaps"])
-                    _emit(emit, "cleaning", "data_cleaning_agent", "批次清洗完成", "", status="done")
+                    _emit(emit, "cleaning", "data_cleaning_agent", "批次清洗完成", f'batch={batch_index}', batch=batch_index, status="done")
                 else:
                     fallback = self._fallback_clean_batch([], batch_index)
                     information_gaps.extend(fallback.get("information_gaps", []))
-                    _emit(emit, "cleaning", "data_cleaning_agent", "批次清洗失败，使用规则降级", "", status="fallback")
+                    _emit(emit, "cleaning", "data_cleaning_agent", "批次清洗失败，使用规则降级", f'batch={batch_index}', batch=batch_index, status="fallback")
 
-        return {"facts": all_facts, "discarded_patterns": discarded_patterns, "information_gaps": information_gaps}
+        result = {"facts": all_facts, "discarded_patterns": discarded_patterns, "information_gaps": information_gaps}
+        if industry_mode:
+            for idx, state in sorted(batch_states.items()):
+                if state['failed_parts'] or state['budget_exhausted']:
+                    information_gaps.append(f'行业清洗批次{idx}有子片段未完成结构化提取；规则来源保留，需复核。')
+            result['cleaning_diagnostic'] = {'batches': [{'batch': idx, 'model_calls': state['calls'],
+                'failed_parts': state['failed_parts'], 'budget_exhausted': state['budget_exhausted']}
+                for idx, state in sorted(batch_states.items())]}
+        return result
 
     def assess_risk(self, project: ResearchProject, cleaned_json: str, emit: TraceEmitter | None = None) -> str:
         target_type = str(project.target_type or "").lower()
@@ -4637,6 +4713,19 @@ class ResearchWorkflow:
             rows.append(row)
             if len(rows) >= 60:
                 break
+        if target_type == 'industry':
+            try:
+                from .industry_research import bounded_package
+            except ImportError:
+                from industry_research import bounded_package
+            # The full payload used to reach ~79k chars and get sliced mid-JSON.
+            # Cap complete cards before composing the risk prompt.
+            for row in rows:
+                row['source_title'] = str(row.get('source_title') or '')[:160]
+                row['attribution_boundary'] = str(row.get('attribution_boundary') or '')[:250]
+            return bounded_package({'facts': rows,
+                'information_gaps': [str(x)[:200] for x in (parsed.get('information_gaps') or [])[:12]],
+                'gap_interpretation': '缺口是单批抽取线索，需结合全库事实核对；不能据此断言全行业无数据。'}, 28000)
         return json.dumps(
             {"facts": rows, "information_gaps": (parsed.get("information_gaps") or [])[:15]},
             ensure_ascii=False,
@@ -6724,7 +6813,7 @@ class ResearchWorkflow:
             "discarded_patterns": ["duplicate source snippets removed", "only fully empty sources removed"],
             "information_gaps": gaps,
         }
-    def _source_context(self, sources: list[ResearchSource], max_chars_per_source: int = 5000) -> str:
+    def _source_context(self, sources: list[ResearchSource], max_chars_per_source: int = 5000, industry: bool = False) -> str:
         blocks = []
         for idx, source in enumerate(sources, 1):
             text = source.content or source.summary
@@ -6732,6 +6821,12 @@ class ResearchWorkflow:
             quality = meta.get("quality") or {}
             is_structured_source = self._is_structured_professional_source(source)
             source_limit = _env_int("CLEANING_STRUCTURED_MAX_CHARS_PER_SOURCE", 8000, 1000, 30000) if is_structured_source else max_chars_per_source
+            if industry and not is_structured_source:
+                try:
+                    from .industry_research import industry_excerpt
+                except ImportError:
+                    from industry_research import industry_excerpt
+                text = industry_excerpt(text, str(meta.get('module') or ''), source_limit)
             blocks.append(
                 f"[{idx}] {source.title}\n"
                 f"类型：{source.source_type}\n"
@@ -6758,12 +6853,14 @@ class ResearchWorkflow:
         max_chars: int = 18000,
         max_chars_per_source: int = 5000,
         max_batches: int | None = None,
+        industry: bool = False,
     ) -> list[str]:
         batches: list[str] = []
         current: list[str] = []
         current_len = 0
         for source in sources:
-            block = self._source_context([source], max_chars_per_source=max_chars_per_source)
+            block = (self._source_context([source], max_chars_per_source=max_chars_per_source, industry=True)
+                     if industry else self._source_context([source], max_chars_per_source=max_chars_per_source))
             if current and current_len + len(block) > max_chars:
                 batches.append("\n\n---\n\n".join(current))
                 if max_batches and len(batches) >= max_batches:

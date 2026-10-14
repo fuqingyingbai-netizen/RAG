@@ -99,6 +99,10 @@
                       <div v-for="artifact in downloadableArtifacts(row)" :key="artifact.id" class="artifact-item">
                         <span>{{ artifact.title || artifactTypeLabel(artifact.artifact_type) }} v{{ artifact.version }}</span>
                         <el-tag v-if="artifact.metadata?.delivery_status === 'review_draft'" type="warning" size="small">待复核稿</el-tag>
+                        <el-popover v-if="artifact.metadata?.generation_degradations?.length" trigger="click" width="460">
+                          <template #reference><el-button text type="warning">部分章节使用事实摘录</el-button></template>
+                          <div style="max-height: 300px; overflow: auto"><p v-for="(issue, n) in artifact.metadata.generation_degradations" :key="n">{{ issue.message }}</p></div>
+                        </el-popover>
                         <el-popover v-if="artifact.metadata?.quality_issues?.length" trigger="click" width="460">
                           <template #reference><el-button text type="warning">查看 {{ artifact.metadata.quality_issues.length }} 项核验问题</el-button></template>
                           <div style="max-height: 300px; overflow: auto"><p v-for="(issue, n) in artifact.metadata.quality_issues" :key="n">{{ issue.message }}</p></div>

@@ -276,6 +276,83 @@ def bounded_package(package: dict, limit: int = 20000) -> str:
     return json.dumps(result, ensure_ascii=False)
 
 
+def summary_package(packages: dict, sections: dict, scope: dict, limit: int = 14000) -> dict:
+    """Reuse cited chapter facts fairly; never feed citations outside the summary budget."""
+    groups = []
+    for index in (4, 6, 7, 3, 10, 11, 13, 14, 2, 5, 12):
+        raw = packages.get(index, {})
+        package = json.loads(raw) if isinstance(raw, str) else raw
+        cited = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', sections.get(index, ''), re.I))
+        rows = [f for f in package.get('facts', []) if f.get('evidence_id') in cited]
+        rows.sort(key=lambda f: (f.get('claim_type') != 'source_excerpt',
+                                  f.get('numeric_validation', {}).get('passed') is True), reverse=True)
+        groups.append(rows)
+    facts, seen = [], set()
+    for offset in range(max((len(g) for g in groups), default=0)):
+        for group in groups:
+            if offset >= len(group):
+                continue
+            original = group[offset]
+            key = re.sub(r'\s+', '', str(original.get('fact') or ''))
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            # Remove raw page metadata and long image lists from synthesis prompts.
+            fields = ('evidence_id', 'fact', 'source_url', 'source_title', 'module', 'claim_type',
+                      'evidence_scope', 'scope_match', 'numeric_context', 'numeric_validation',
+                      'attribution_boundary', 'eligible_for_risk_scoring')
+            facts.append({k: original[k] for k in fields if k in original})
+    return json.loads(bounded_package({'facts': facts, 'industry_scope': scope}, limit))
+
+
+def industry_excerpt(text: str, module: str, limit: int) -> str:
+    """Preserve original context near data/business passages instead of only page headers."""
+    text = str(text or '')
+    if len(text) <= limit:
+        return text
+    patterns = [r'\d[\d,.]*\s*(?:%|％|亿元|万元|亿美元|万美元|万亿元)',
+                r'商业模式|盈利模式|收入结构|订阅|按量计费|毛利率|净利率']
+    if module != '商业模式与盈利逻辑':
+        patterns = patterns[:1]
+    matches = []
+    for priority, pattern in enumerate(reversed(patterns)):
+        for match in re.finditer(pattern, text):
+            start, end = max(0, match.start()-180), min(len(text), match.end()+230)
+            matches.append((priority, start, end))
+    # Include the introduction for subject/date anchors; gaps remain explicit.
+    ranges = [(0, min(200, limit))]
+    marker = '\n[不连续原文片段]\n'
+    used = ranges[0][1]
+    for _, start, end in sorted(matches):
+        if any(start < b and end > a for a, b in ranges):
+            continue
+        if used + end-start + len(marker) > limit:
+            continue
+        ranges.append((start, end)); used += end-start + len(marker)
+        if len(ranges) >= 4:
+            break
+    return marker.join(text[a:b] for a, b in sorted(ranges)) if len(ranges) > 1 else text[:limit]
+
+
+def industry_cleaning_sources(sources: list, per_module: int = 6) -> list:
+    """Select extraction candidates by module relevance and usable data, not authority alone."""
+    groups = {}
+    for source in sources:
+        module = (source.source_metadata or {}).get('module', '其他')
+        groups.setdefault(module, []).append(source)
+    selected = []
+    for module, rows in groups.items():
+        def score(source):
+            content = str(source.content or source.summary or '')
+            title = str(source.title or '')
+            business = bool(re.search(r'商业模式|盈利模式|收入结构|订阅|按量计费', title + content)) if module == '商业模式与盈利逻辑' else False
+            data = bool(re.search(r'\d[\d,.]*\s*(?:%|％|亿元|万元|亿美元|万美元|万亿元)', content))
+            return (business, data, float(source.credibility_score or 0))
+        rows.sort(key=score, reverse=True)
+        selected.extend(rows[:per_module])
+    return selected
+
+
 def unique_search_queries(rows: list[dict], seen: set) -> list[dict]:
     distinct = []
     for row in rows:
@@ -288,11 +365,11 @@ def unique_search_queries(rows: list[dict], seen: set) -> list[dict]:
     return distinct
 
 
-NUMBER_PATTERN = r'\d[\d,.]*\s*(?:%|％|亿元|万元|亿美元|万美元)'
+NUMBER_PATTERN = r'\d[\d,.]*\s*(?:%|％|万亿元|万亿美元|亿元|万元|亿美元|万美元)'
 
 
 def number_key(value: str) -> tuple | None:
-    match = re.fullmatch(r'([\d,.]+)\s*(%|％|亿元|万元|亿美元|万美元)', value.strip())
+    match = re.fullmatch(r'([\d,.]+)\s*(%|％|万亿元|万亿美元|亿元|万元|亿美元|万美元)', value.strip())
     if not match:
         return None
     try:
@@ -300,10 +377,10 @@ def number_key(value: str) -> tuple | None:
     except InvalidOperation:
         return None
     unit = match[2].replace('％', '%')
-    if unit in ('亿元', '万元'):
-        amount *= Decimal('100000000' if unit == '亿元' else '10000'); unit = '人民币元'
-    elif unit in ('亿美元', '万美元'):
-        amount *= Decimal('100000000' if unit == '亿美元' else '10000'); unit = '美元'
+    if unit in ('万亿元', '亿元', '万元'):
+        amount *= Decimal({'万亿元': '1000000000000', '亿元': '100000000', '万元': '10000'}[unit]); unit = '人民币元'
+    elif unit in ('万亿美元', '亿美元', '万美元'):
+        amount *= Decimal({'万亿美元': '1000000000000', '亿美元': '100000000', '万美元': '10000'}[unit]); unit = '美元'
     return amount, unit
 
 
@@ -516,6 +593,10 @@ def balanced_risk_facts(facts: list[dict], limit: int = 60) -> list[dict]:
         if fact.get('evidence_scope') not in {'industry_level', 'segment_level', 'capital_market'}:
             continue
         groups.setdefault(fact.get('module') or '其他', []).append(fact)
+    for rows in groups.values():
+        rows.sort(key=lambda f: (f.get('claim_type') != 'source_excerpt',
+                                 f.get('numeric_validation', {}).get('passed') is True,
+                                 float(f.get('quality_score') or 0)), reverse=True)
     result = []
     offset = 0
     while len(result) < limit:
