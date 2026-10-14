@@ -24,8 +24,13 @@ if (-not (Test-Path -LiteralPath $pythonPath)) {
 if ($LASTEXITCODE -ne 0) { throw 'Project Python or dependencies are unavailable.' }
 
 $dockerCommand = Get-Command docker -ErrorAction Stop
-& docker info --format '{{.ServerVersion}}' 2>$null | Out-Null
-if ($LASTEXITCODE -ne 0) {
+function Test-DockerServer {
+    try {
+        & docker info --format '{{.ServerVersion}}' 2>$null | Out-Null
+        return $LASTEXITCODE -eq 0
+    } catch { return $false }
+}
+if (-not (Test-DockerServer)) {
     $desktopRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $dockerCommand.Source))
     $desktopPath = Join-Path $desktopRoot 'Docker Desktop.exe'
     if (-not (Test-Path -LiteralPath $desktopPath)) { throw 'Start Docker Desktop, then retry.' }
@@ -33,14 +38,17 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host 'Waiting for Docker Desktop...'
     for ($attempt = 0; $attempt -lt 60; $attempt++) {
         Start-Sleep -Seconds 2
-        & docker info --format '{{.ServerVersion}}' 2>$null | Out-Null
-        if ($LASTEXITCODE -eq 0) { break }
+        if (Test-DockerServer) { break }
     }
-    if ($LASTEXITCODE -ne 0) { throw 'Docker Desktop did not become ready.' }
+    if (-not (Test-DockerServer)) { throw 'Docker Desktop did not become ready.' }
 }
 
-& docker image inspect 'supermew-minio:RELEASE.2024-05-28T17-19-04Z' 2>$null | Out-Null
-if ($LASTEXITCODE -ne 0) {
+$minioImageAvailable = $false
+try {
+    & docker image inspect 'supermew-minio:RELEASE.2024-05-28T17-19-04Z' 2>$null | Out-Null
+    $minioImageAvailable = $LASTEXITCODE -eq 0
+} catch { $minioImageAvailable = $false }
+if (-not $minioImageAvailable) {
     $archivePath = Join-Path $projectRoot 'docker\minio\minio-source.tar.gz'
     if (-not (Test-Path -LiteralPath $archivePath)) {
         Invoke-WebRequest -Uri 'https://codeload.github.com/minio/minio/tar.gz/refs/tags/RELEASE.2024-05-28T17-19-04Z' -OutFile $archivePath -TimeoutSec 120
