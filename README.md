@@ -21,6 +21,28 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1 -Background
 MinIO 构建文件位于 `docker/minio`，源码归档首次缺失时启动脚本会下载并校验。
 原环境配置备份与后台日志也位于该目录。连通性检查不会创建或重跑研究项目。
 
+## 行业研究线路
+
+选择 `CDD目标行业报告`，填写行业名称、重点赛道、排除范围、研究地域、数据截止日和研究用途。
+截止日独立于任务结束时间；默认地域和截止日会在报告研究边界中说明。
+填写核心企业名称后才启用企业公开资料尽调。资本市场开关控制一级融资、IPO、估值及二级市场研究。
+
+行业报告采用参照模板的 16 章目录，技术路线独立成章，来源和后续研究点分别为第 15、16 章。
+建议书采用 7 章结构，人员、周期和报价保留为双方确认项。
+行业结论与企业样本分开；无有效证据的评分为 `unknown`，数值口径不完整时需核验。
+任务生成完成后还应查看报告是否为待复核稿，以及 Word 导出和版式检查状态。
+
+行业范围变更会使对应缓存失效，历史来源仍保留。默认检索查询预算为 80，可通过
+`INDUSTRY_SEARCH_QUERY_BUDGET` 在 10 至 200 之间调整。
+新逻辑集中在 `backend/industry_research.py` 和行业策略、报告 Agent 中。
+详细范围与验证见 [行业优化计划](docs/industry_optimization_plan.md)。
+
+```powershell
+$env:PYTHONPATH = (Resolve-Path backend).Path
+.\.venv\Scripts\python.exe -m pytest test/test_json_output.py test/test_industry_scope.py test/test_industry_evidence.py test/test_industry_api_intake.py -q
+node test/frontend_industry_params.cjs
+```
+
 ## 本地部署
 ![img.png](img.png)
 ### 1) 环境准备
