@@ -164,7 +164,7 @@ def _unsubscribe_running_project(project_id: int, queue: asyncio.Queue) -> None:
 
 
 def _locked_run_intake(request: ResearchRunRequest) -> dict:
-    intake = request.model_dump()
+    intake = request.model_dump(exclude_unset=request.target_type == "industry")
     intake.update(
         {
             "max_results_per_query": FIXED_MAX_RESULTS_PER_QUERY,
@@ -174,6 +174,9 @@ def _locked_run_intake(request: ResearchRunRequest) -> dict:
             "max_search_rounds": FIXED_MAX_SEARCH_ROUNDS,
         }
     )
+    if request.target_type == "industry":
+        intake["ai_search_enabled"] = request.ai_search_enabled
+        intake["max_search_rounds"] = min(3, max(1, request.max_search_rounds))
     return intake
 
 def _clip_text(text: str, limit: int = 4000) -> str:
@@ -657,7 +660,12 @@ def _is_report_trace_demo_question(question: str) -> bool:
 def _save_workflow_trace(db: Session, project: ResearchProject, events: list[dict]) -> None:
     if not events:
         return
-    trimmed = _compact_workflow_trace(events)
+    industry_trace_metadata = {}
+    if project.target_type == "industry":
+        from industry_research import trace_snapshot
+        trimmed, industry_trace_metadata = trace_snapshot(events)
+    else:
+        trimmed = _compact_workflow_trace(events)
     content = json.dumps(trimmed, ensure_ascii=False, indent=2)
     latest_timestamp = max((str(event.get("timestamp") or "") for event in trimmed), default="")
     # Trace snapshots are persisted from worker threads. Locking the project row
@@ -682,6 +690,7 @@ def _save_workflow_trace(db: Session, project: ResearchProject, events: list[dic
         artifact.content = content
         artifact.object_key = object_key
         artifact.artifact_metadata = {
+            **industry_trace_metadata,
             "event_count": len(trimmed),
             "last_event_timestamp": latest_timestamp,
             "last_status": str(trimmed[-1].get("status") or ""),
@@ -700,6 +709,7 @@ def _save_workflow_trace(db: Session, project: ResearchProject, events: list[dic
                 content=content,
                 object_key=object_key,
                 artifact_metadata={
+                    **industry_trace_metadata,
                     "event_count": len(trimmed),
                     "last_event_timestamp": latest_timestamp,
                     "last_status": str(trimmed[-1].get("status") or ""),
@@ -783,13 +793,27 @@ def _workflow_failure_trace_event(exc: Exception) -> dict:
 
 def _save_project_intake(db: Session, project: ResearchProject, metadata: dict | None) -> None:
     intake = dict(metadata or {})
+    if project.target_type == "industry":
+        saved = _project_intake(project)
+        intake = {**saved, **intake}
+        raw = {**saved, **intake}
+        if not raw.get("industry_scope"):
+            raw["industry_scope"] = saved.get("industry_scope") or {}
+        normalized = research_workflow._normalize_intake(
+            project, raw, raw.get("search_queries") or [], raw.get("focus_questions") or [],
+        )
+        intake["industry_scope"] = normalized["industry_scope"]
+        intake["as_of_date"] = normalized["as_of_date"]
+        intake["region"] = normalized["region"]
+        if isinstance(metadata, dict):
+            metadata.update(intake)
     intake.update(
         {
             "project_name": project.title,
             "target_name": project.target_name,
             "target_type": project.target_type,
             "industry": project.industry,
-            "special_requirements": project.description,
+            "special_requirements": intake.get("special_requirements", project.description) if project.target_type == "industry" else project.description,
         }
     )
     content = json.dumps(intake, ensure_ascii=False, indent=2)
@@ -1852,7 +1876,7 @@ async def run_second_stage_stream(
                 if not is_admin and project.created_by_id != user_id:
                     emit({"type": "error", "content": "无权访问该研究项目"})
                     return
-                intake = request.model_dump()
+                intake = request.model_dump(exclude_unset=project.target_type == "industry")
                 intake.update(
                     {
                         "ai_search_enabled": False,

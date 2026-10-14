@@ -391,6 +391,12 @@ def _focused_cleaned_json(
         return cleaned_json
     if not isinstance(parsed, dict):
         return cleaned_json
+    if str(target_type or "").lower() == "industry":
+        try:
+            from ..industry_research import select_chapter_evidence
+        except ImportError:
+            from industry_research import select_chapter_evidence
+        return json.dumps(select_chapter_evidence(parsed, section_title, requirements, excluded_urls), ensure_ascii=False)
     noise_markers = ["地域限制", "后续调用建议", "error calling tool", "空结果：未发现", "未找到公司"]
     target_type = str(target_type or "").lower()
 

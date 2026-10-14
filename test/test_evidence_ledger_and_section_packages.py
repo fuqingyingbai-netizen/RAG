@@ -207,7 +207,7 @@ def test_industry_scope_is_safe_for_non_expert_input():
     assert scope["assumptions"]
 
 
-def test_industry_report_gets_a_deterministic_ledger_in_chapter_14():
+def test_industry_report_gets_a_deterministic_ledger_in_chapter_15():
     workflow = ResearchWorkflow.__new__(ResearchWorkflow)
     project = _project([], target_type="industry")
     project.target_name = "互联网"
@@ -221,15 +221,21 @@ def test_industry_report_gets_a_deterministic_ledger_in_chapter_14():
             "source_url": f"https://evidence.example.com/industry/{index}",
             "quality_score": 90,
             "date": "2026-07-18",
+            "evidence_id": f"E-{index:012X}",
+            "evidence_scope": "industry_level",
+            "scope_match": "in_scope",
         }
         for index in range(1, 91)
     ]
     report = "\n\n".join(f"## {index}. {title}\n\n章节正文。" for index, title in enumerate(titles, 1))
+    project.industry_section_packages = {
+        index: {"facts": facts[index - 1::14]} for index in range(1, 15)
+    }
 
     result = workflow._append_report_evidence_index(project, report, json.dumps({"facts": facts}, ensure_ascii=False))
 
-    assert "## 14. 信息来源（自动生成审计索引）" in result
-    assert "| 证据编号 | 支持章节 | 来源与关键摘要 | 原始 URL |" in result
+    assert "## 15. 信息来源（自动生成审计索引）" in result
+    assert "| 证据编号与原始来源 | 支持章节 | 信息点 | 获取工具与信源等级 |" in result
     assert "E-" in result
     assert "已纳入章节证据包的唯一来源：90 / 清洗事实库可追溯来源：90。" in result
 
@@ -311,7 +317,8 @@ def test_report_evidence_packages_keep_person_company_and_industry_match_rules_s
 
     person = json.loads(_focused_cleaned_json(payload, "履历", ["教育"], "目标人物", "person"))["facts"]
     company = json.loads(_focused_cleaned_json(payload, "经营", ["业务"], "目标公司", "company"))["facts"]
-    industry = json.loads(_focused_cleaned_json(payload, "市场", ["市场规模"], "目标行业", "industry"))["facts"]
+    industry_payload = json.dumps({"facts": [{**item, "evidence_scope": "industry_level"} for item in facts]}, ensure_ascii=False)
+    industry = json.loads(_focused_cleaned_json(industry_payload, "摘要", [], "目标行业", "industry"))["facts"]
 
     assert {item["source_url"] for item in person} == {"https://example.com/company", "https://example.com/industry"}
     assert {item["source_url"] for item in company} == set()

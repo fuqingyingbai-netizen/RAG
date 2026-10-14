@@ -65,6 +65,17 @@
               <el-form-item :label="targetPrimaryLabel"><el-input v-model="form.companyName" ></el-input></el-form-item>
               <el-form-item :label="targetSecondaryLabel"><el-input v-if="form.targetType === 'company'" v-model="form.identifier" ></el-input><el-input v-else v-model="form.targetContext" :placeholder="targetSecondaryPlaceholder" clearable></el-input></el-form-item>
               <el-row v-if="form.targetType === 'company'" :gutter="14"><el-col :xs="24" :sm="12"><el-form-item label="行业"><el-input v-model="form.industry" ></el-input></el-form-item></el-col><el-col :xs="24" :sm="12"><el-form-item label="地区"><el-input v-model="form.region" ></el-input></el-form-item></el-col></el-row>
+              <template v-if="form.targetType === 'industry'">
+                <el-form-item label="重点赛道（选填，多个用顿号分隔）"><el-input v-model="form.industryFocus" placeholder="例如：协作机器人、焊接机器人；留空研究主行业"></el-input></el-form-item>
+                <el-form-item label="不纳入的赛道（选填）"><el-input v-model="form.excludedSegments" placeholder="填写本次不研究的范围"></el-input></el-form-item>
+                <el-row :gutter="14">
+                  <el-col :xs="24" :sm="12"><el-form-item label="研究地域"><el-input v-model="form.region" placeholder="留空默认中国大陆"></el-input></el-form-item></el-col>
+                  <el-col :xs="24" :sm="12"><el-form-item label="数据截止日"><el-date-picker v-model="form.asOfDate" type="date" value-format="YYYY-MM-DD" placeholder="留空采用本次提交日期" class="full"></el-date-picker></el-form-item></el-col>
+                </el-row>
+                <el-form-item label="研究用途"><el-select v-model="form.researchPurpose" class="full"><el-option v-for="purpose in ['日常了解', '战略研究', '投资判断', '尽调支持']" :key="purpose" :label="purpose" :value="purpose"></el-option></el-select></el-form-item>
+                <div class="search-setting"><div><strong>纳入资本市场研究</strong><span>一级融资、IPO、估值和二级市场概览；关闭后这些章节仅说明研究范围。</span></div><el-switch v-model="form.includeCapitalMarkets"></el-switch></div>
+                <p class="detail-note">报告采用 16 章目录。填写核心企业后，启用核心企业公开资料尽调；关注产品可写在重点问题中。不同企业与行业整体结论分别呈现。</p>
+              </template>
               <el-form-item label="查什么"><el-select v-model="form.ddType" class="full"><el-option v-for="type in ddTypes" :key="type" :label="type" :value="type" ></el-option></el-select></el-form-item>
               <el-form-item label="重点模块"><el-checkbox-group v-model="form.modules" class="checkbox-grid"><el-checkbox v-for="module in modules" :key="module.value" :label="module.value">{{ module.label }}</el-checkbox></el-checkbox-group></el-form-item>
               <div class="search-setting"><div><strong>开启 AI 搜索</strong><span>公开网络、新闻、官方来源和制裁名单检索</span></div><el-switch v-model="form.aiSearchEnabled" ></el-switch></div>
@@ -87,6 +98,9 @@
                     <div v-if="downloadableArtifacts(row).length" class="artifact-list primary-artifacts">
                       <div v-for="artifact in downloadableArtifacts(row)" :key="artifact.id" class="artifact-item">
                         <span>{{ artifact.title || artifactTypeLabel(artifact.artifact_type) }} v{{ artifact.version }}</span>
+                        <el-tag v-if="artifact.metadata?.delivery_status === 'review_draft'" type="warning" size="small">待复核稿</el-tag>
+                        <el-tag v-if="artifact.metadata?.docx_export_error" type="danger" size="small">Word 导出失败</el-tag>
+                        <el-tag v-else-if="artifact.metadata?.docx_render_status === 'unavailable'" type="info" size="small">版式未校验</el-tag>
                         <el-space>
                           <el-button type="primary" plain @click="downloadArtifact(artifact)">下载</el-button>
                           <el-button type="danger" plain @click="deleteArtifact(row, artifact)">删除</el-button>
@@ -112,6 +126,8 @@
                       <div v-if="row.target_type === 'person' && intakeFor(row).identity_anchors"><span>身份锚点</span><strong>{{ intakeFor(row).identity_anchors }}</strong></div>
                       <div v-if="row.target_type === 'company'"><span>统一社会信用代码</span><strong>{{ intakeFor(row).official_identifier || '-' }}</strong></div>
                       <div v-if="row.target_type === 'industry'"><span>重点公司/产品</span><strong>{{ intakeFor(row).focus_entities || '-' }}</strong></div>
+                      <div v-if="row.target_type === 'industry'"><span>研究范围</span><strong>{{ intakeFor(row).industry_scope?.segments?.join('、') || intakeFor(row).industry_focus || row.target_name }}</strong></div>
+                      <div v-if="row.target_type === 'industry'"><span>地域与数据截止日</span><strong>{{ intakeFor(row).industry_scope?.geography || intakeFor(row).region || '-' }} / {{ intakeFor(row).as_of_date || '-' }}</strong></div>
                       <div v-if="row.target_type === 'company'"><span>行业</span><strong>{{ row.industry || intakeFor(row).industry || '-' }}</strong></div>
                       <div v-if="row.target_type === 'company'"><span>地区</span><strong>{{ intakeFor(row).region || '-' }}</strong></div>
                       <div><span>尽调类型</span><strong>{{ intakeFor(row).research_type || '-' }}</strong></div>
