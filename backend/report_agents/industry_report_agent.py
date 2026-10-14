@@ -10,9 +10,9 @@ from .report_style import REPORT_CHAPTER_HEADING_RE, REFERENCE_REPORT_STYLE, ens
 
 from .industry_template import INDUSTRY_REPORT_OUTLINE
 try:
-    from ..industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers, summary_package
+    from ..industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers, summary_package, summary_length
 except ImportError:
-    from industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers, summary_package
+    from industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers, summary_package, summary_length
 
 INDUSTRY_SECTION_STRUCTURES = {
     index: f"## {index}. {title}\n\n本节内容要求：" + "；".join(requirements)
@@ -225,7 +225,7 @@ class IndustryReportAgent:
         if completed_sections:
             prompt += "\n实体章节已引用的事实摘要（编号均属于本章证据包）：\n" + completed_sections
         if index == 1:
-            prompt += '\n摘要限600字：概括研究范围、3至5项主要发现及证据限制。不要复制其他章节标题、来源索引、长表格或逐条重复事实。每项发现只引用本章提供的编号。\n'
+            prompt += '\n摘要限600字：概括研究范围、3至5项主要发现及证据限制。不要复制其他章节标题、来源索引、长表格或逐条重复事实。每项发现只引用本章提供的编号。不能把摘要证据包条数当作报告总来源数或全库事实数。\n'
         if index == 12:
             prompt += "\n按指定企业分别列示注册、股权、经营、产品、客户供应商与风险。仅根据本轮公开资料核查，未覆盖的事项写待核验；不得声称已经完成企业内部核验、访谈或现场调研。企业结论不得替代行业整体结论。\n"
         if (getattr(project, 'industry_scope', {}) or {}).get('capital_market') == 'none':
@@ -263,7 +263,7 @@ class IndustryReportAgent:
         if index == 1:
             # A synthesis fallback remains short, traceable and explicit about its limits.
             facts = facts[:5]
-        body = '\n\n'.join(f'- {str(f.get("fact") or "")[:350 if index == 1 else 700]} [{f["evidence_id"]}]({f.get("source_url", "")})' for f in facts)
+        body = '\n\n'.join(f'- {str(f.get("fact") or "")[:60 if index == 1 else 700]} [{f["evidence_id"]}]({f.get("source_url", "")})' for f in facts)
         if index == 1:
             body = '以下为已完成章节的主要事实摘要；模型摘要未通过校验，综合判断需人工复核。\n\n' + body
         return f'## {index}. {title}\n\n' + (body or '待核验。本次证据不足，相关事项见第16章。')
@@ -280,18 +280,27 @@ class IndustryReportAgent:
         allowed = {f.get('evidence_id') for f in facts}
         ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', section, re.I))
         expected_heading = f'## {index}. {title}'
+        if index == 1:
+            section = mark_unverified_numbers(section, facts)
         if (ids - allowed or not (ids & allowed) or (section.splitlines() or [''])[0].strip() != expected_heading
-                or re.findall(r'(?m)^##\s+\d+[.、．]', section) != [f'## {index}.']):
+                or re.findall(r'(?m)^##\s+\d+[.、．]', section) != [f'## {index}.']
+                or (index == 1 and summary_length(section) > 600)):
             emit(trace_emit, 'report', self.trace_agent, '章节引用或目录校验未通过，尝试一次局部修复', f'chapter={index}', status='warning')
             prompt = (f'仅修复第{index}章，顶级标题为 {expected_heading}。删除无证据结论，保留合法来源编号。'
                       '只输出本章；不能新增数字或证据编号。\n证据：' + bounded_package(package, 12000)
                       + '\n待修复章节：\n' + section[:8000])
+            if index == 1:
+                prompt += '\n摘要压缩至450字以内，最多5项发现，保留来源编号和数值待核验提示。禁止表格和章节复述。'
             try:
                 repaired = invoke(f'{self.report_kind}章节修复 Agent - {title}', prompt, trace_emit).strip()
             except Exception:
                 repaired = ''
+            if index == 1:
+                repaired = mark_unverified_numbers(repaired, facts)
             repair_ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', repaired, re.I))
-            if repaired.startswith(expected_heading) and repair_ids & allowed and not repair_ids - allowed and len(re.findall(r'(?m)^##\s+\d+[.、．]', repaired)) == 1:
+            if ((repaired.splitlines() or [''])[0].strip() == expected_heading and repair_ids & allowed
+                    and not repair_ids - allowed and len(re.findall(r'(?m)^##\s+\d+[.、．]', repaired)) == 1
+                    and (index != 1 or summary_length(repaired) <= 600)):
                 section = repaired
             else:
                 # Preserve traceable facts, not prose whose citations failed.

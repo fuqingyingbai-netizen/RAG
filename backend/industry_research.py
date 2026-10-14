@@ -7,7 +7,7 @@ from decimal import Decimal, InvalidOperation
 from datetime import date
 from typing import Any
 
-INDUSTRY_POLICY_VERSION = 'industry-scope-v2'
+INDUSTRY_POLICY_VERSION = 'industry-scope-v3'
 INDUSTRY_RISK_DIMENSIONS = (
     '政策与监管风险', '市场增长与需求风险', '竞争格局与集中度风险',
     '商业化与盈利模式风险', '技术迭代与替代风险', '资本热度与估值风险', '数据口径与证据可靠性风险',
@@ -353,6 +353,101 @@ def industry_cleaning_sources(sources: list, per_module: int = 6) -> list:
     return selected
 
 
+def extract_industry_source_facts(sources: list, scope: dict) -> list[dict]:
+    """Extract small, verbatim cards from stored body text, never search summaries.
+
+    A numeric context is complete only when the same sentence names its subject,
+    metric, region, period and value. Missing context remains pending verification.
+    This validates attribution/units, not the publisher's underlying methodology.
+    """
+    facts = []
+    subjects = [scope.get('industry_name'), *scope.get('segments', [])]
+    metric_pattern = r'市场规模|核心产业规模|产业规模|营业收入|营收|收入|毛利率|净利率|渗透率|市场份额|占比|复合增长率|CAGR|同比增长|同比增幅|增速'
+    business_pattern = r'订阅|按量计费|按调用量|商业模式|盈利模式|收入结构|收费模式|服务收费'
+    regions = {'我国': '中国大陆', '全国': '中国大陆', '中国大陆': '中国大陆', '中国': '中国大陆',
+               '全球': '全球', '美国': '美国', '欧洲': '欧洲', '欧盟': '欧盟'}
+    for source in sources:
+        body = str(source.content or '').replace('\x00', '')
+        if not body.strip() or not str(source.url or '').startswith(('https://', 'http://')):
+            continue
+        meta = source.source_metadata or {}
+        seen, selected = set(), []
+        # Keep original sentence boundaries; no concatenation across PDF pages or snippets.
+        sentences = re.split(r'[。！？；;\n]+', body)
+        for sentence in sentences:
+            quote = re.sub(r'\s+', ' ', sentence).strip(' -*#\t')
+            if not 12 <= len(quote) <= 650 or quote in seen:
+                continue
+            if not any(str(n).lower() in quote.lower() for n in subjects if n):
+                continue
+            if any(word in quote for word in ('如果需要', '以下是基于', '摘要要点', '免责声明', '不连续原文片段')):
+                continue
+            seen.add(quote)
+            base = {'fact': quote, 'evidence_quote': quote, 'source_title': source.title,
+                    'source_url': source.url, 'module': meta.get('module') or '其他',
+                    'evidence_scope': meta.get('evidence_scope') or 'industry_level',
+                    'industry_name': scope.get('industry_name'), 'category': 'industry',
+                    'claim_type': 'fact', 'is_structured_evidence': True,
+                    'cleaning_method': 'industry_rule', 'evidence_quote_verified': True,
+                    'confidence': min(.9, float(source.credibility_score or 50) / 100)}
+            if source.source_type == 'filing' or re.search(r'年报|招股书|年度报告', str(source.title or '')):
+                base['evidence_scope'] = 'representative_company'
+            numeric_cards = []
+            for number in re.finditer(NUMBER_PATTERN, quote):
+                prefix = quote[:number.start()]
+                metrics = list(re.finditer(metric_pattern, prefix, re.I))
+                if not metrics or number.start() - metrics[-1].end() > 45:
+                    continue
+                metric = metrics[-1]
+                # Do not associate a second unrelated number with the preceding metric.
+                if re.search(NUMBER_PATTERN, prefix[metric.end():]):
+                    continue
+                definition = re.split(r'[，,：:]', prefix[:metric.end()])[-1].strip()
+                year_tokens = re.findall(r'20\d{2}', prefix)
+                region_names = {regions[x] for x in re.findall('|'.join(regions), quote)}
+                value_match = re.fullmatch(r'([\d,.]+)\s*(.*)', number.group())
+                context = {'metric': metric.group(), 'value': value_match[1], 'unit': value_match[2],
+                           'definition': definition if any(str(n).lower() in definition.lower() for n in subjects if n) else '',
+                           'geography': next(iter(region_names)) if len(region_names) == 1 else '',
+                           'period': year_tokens[0] if len(set(year_tokens)) == 1 else '',
+                           'is_forecast': bool(re.search(r'预计|预测|有望|将达到|将达', quote))}
+                numeric_cards.append({**base, 'numeric_context': context})
+            if numeric_cards:
+                selected.extend(numeric_cards[:3])
+            elif meta.get('module') == '商业模式与盈利逻辑' and re.search(business_pattern, quote):
+                # Isolate qualitative business evidence from unrelated page-level numbers.
+                selected.append(base)
+            if len(selected) >= 6:
+                break
+        facts.extend(selected[:6])
+    return facts
+
+
+def summary_length(section: str) -> int:
+    """Count visible summary prose; source IDs and link destinations are not prose."""
+    body = '\n'.join(section.splitlines()[1:])
+    body = re.sub(r'\[([^\]]*)\]\([^)]*\)', r'\1', body)
+    body = re.sub(r'\bE-[A-Z0-9-]{6,}\b', '', body, flags=re.I)
+    return len(re.sub(r'[\s#*\[\]［］]', '', body))
+
+
+def validate_docx_package(payload: bytes) -> dict:
+    """Check exported document integrity independently of optional page rendering."""
+    import io
+    import zipfile
+    from xml.etree import ElementTree
+    with zipfile.ZipFile(io.BytesIO(payload)) as package:
+        if package.testzip() is not None:
+            raise ValueError('Word导出文件损坏，ZIP校验失败。')
+        for name in ('[Content_Types].xml', '_rels/.rels', 'word/document.xml'):
+            ElementTree.fromstring(package.read(name))
+        body = ElementTree.fromstring(package.read('word/document.xml'))
+        paragraphs = body.findall('.//{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p')
+        if not paragraphs or not ''.join(body.itertext()).strip():
+            raise ValueError('Word导出文件缺少正文。')
+    return {'docx_integrity_status': 'passed', 'docx_paragraph_count': len(paragraphs)}
+
+
 def unique_search_queries(rows: list[dict], seen: set) -> list[dict]:
     distinct = []
     for row in rows:
@@ -430,9 +525,10 @@ def annotate_fact(fact: dict, scope: dict) -> dict:
     if item.get('evidence_scope') == 'capital_market' and scope.get('capital_market') == 'none':
         item['eligible_for_report'] = False
         item['eligible_for_risk_scoring'] = False
-    item['evidence_id'] = 'E-' + hashlib.sha256(
-        (str(item.get('source_url') or '') + '\n' + str(item.get('fact') or '')).encode()
-    ).hexdigest()[:12].upper()
+    identity = str(item.get('source_url') or '') + '\n' + str(item.get('fact') or '')
+    if item.get('cleaning_method') == 'industry_rule':
+        identity += '\nindustry_rule\n' + json.dumps(item.get('numeric_context') or {}, sort_keys=True, ensure_ascii=False)
+    item['evidence_id'] = 'E-' + hashlib.sha256(identity.encode()).hexdigest()[:12].upper()
     numeric = item.get('numeric_context') if isinstance(item.get('numeric_context'), dict) else {}
     numerical = bool(re.search(r'\d[\d,.]*\s*(?:%|％|亿元|万元|亿美元|万美元|亿|万|CAGR|PE|PB|PS)', blob, re.I))
     if numerical:
@@ -456,9 +552,13 @@ def annotate_fact(fact: dict, scope: dict) -> dict:
             missing.append('is_forecast_boolean')
         expected_number = number_key(str(numeric.get('value', '')) + str(numeric.get('unit', '')))
         if expected_number is not None:
-            quote_numbers = re.findall(NUMBER_PATTERN, str(item.get('fact') or '') + ' ' + str(item.get('evidence_quote') or ''))
+            grounded = item.get('cleaning_method') in {'industry_rule', 'llm'}
+            evidence = str(item.get('evidence_quote') or '') if grounded else str(item.get('fact') or '') + ' ' + str(item.get('evidence_quote') or '')
+            quote_numbers = re.findall(NUMBER_PATTERN, evidence)
             if not any(number_key(n) == expected_number for n in quote_numbers):
                 missing.append('value_not_in_evidence_quote')
+            if grounded and item.get('evidence_quote_verified') is not True:
+                missing.append('unverified_evidence_quote')
         cutoff = str(scope.get('as_of_date') or '')
         if period_years and cutoff and numeric.get('is_forecast') is not True and max(period_years) > cutoff[:4]:
             missing.append('period_after_cutoff')
@@ -539,6 +639,8 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
             continue
         end = chapters[position + 1].start() if position + 1 < len(chapters) else len(report)
         body = report[match.end():end]
+        if chapter == 1 and summary_length(report[match.start():end]) > 600:
+            errors.append('摘要正文超过600字，需要压缩并保留事实引用。')
         ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', body, flags=re.I))
         chapter_map = diagnostic.get('chapter_evidence_ids', {})
         allowed = set(chapter_map.get(chapter, chapter_map.get(str(chapter), [])) or [])
@@ -567,6 +669,14 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
                     errors.append(f'第{chapter}章数值 {number} 缺少同一行的有效口径证据或待核验标注。')
     if not valid or cited_chapters < 4:
         errors.append('至少四个研究章节需要引用有效事实，当前证据覆盖不足。')
+    market_ids = set((diagnostic.get('chapter_evidence_ids') or {}).get(4,
+                     (diagnostic.get('chapter_evidence_ids') or {}).get('4', [])))
+    market_body = re.search(r'(?ms)^##\s*4[.、．][^\n]*\n(.*?)(?=^##\s*5[.、．]|\Z)', report)
+    market_ids &= set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', market_body[1], re.I)) if market_body else set()
+    numeric = diagnostic.get('numeric_evidence') or {}
+    if any(re.search(NUMBER_PATTERN, str(numeric.get(eid, {}).get('fact') or '')) for eid in market_ids):
+        if not any(numeric.get(eid, {}).get('validation', {}).get('passed') is True for eid in market_ids):
+            errors.append('市场规模章节尚无口径完整的数值证据，仅可作为待复核稿交付。')
     if '研究边界与口径' not in report:
         errors.append('缺少研究边界与口径。')
     return list(dict.fromkeys(errors))

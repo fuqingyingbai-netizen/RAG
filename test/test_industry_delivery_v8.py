@@ -82,7 +82,8 @@ def test_disabled_capital_dimension_and_followups_are_excluded():
 
 def test_disabled_authority_module_does_not_create_false_gap():
     workflow = ResearchWorkflow.__new__(ResearchWorkflow)
-    quality = {'authoritative_counts': {'政策与监管': 3, '市场规模与增长': 2, '竞争格局与代表企业': 2}}
+    quality = {'authoritative_counts': {'政策与监管': 3, '市场规模与增长': 2, '竞争格局与代表企业': 2,
+                                       '商业模式与盈利逻辑': 1}}
     result = workflow._apply_authority_coverage_requirements(quality, 'industry', {'capital_market': 'none'})
     assert result['authority_coverage_passed']
     assert '投融资与资本市场' not in result['authority_requirements']

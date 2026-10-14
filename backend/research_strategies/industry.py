@@ -43,6 +43,7 @@ class IndustryResearchStrategy(BaseResearchStrategy):
         ("市场规模与增长", "{target} 市场规模 需求 渗透率 增速 CAGR"),
         ("竞争格局与代表企业", "{target} {industry} 市场份额 竞争格局 龙头企业 CR3 CR5"),
         ("商业模式与盈利逻辑", "{target} {industry} 商业模式 变现 收入结构 利润率"),
+        ("商业模式与盈利逻辑", "{target} 代表企业 年报 收入结构 业务分部"),
         ("技术演进与平台生态", "{target} 技术进展 产业生态 商业化成熟度"),
         ("技术路线对比", "{target} 技术路线 性能 成本 落地难度"),
         ("投融资与资本市场", "{target} {industry} 投融资 IPO 并购 年报 招股书"),
@@ -70,6 +71,13 @@ class IndustryResearchStrategy(BaseResearchStrategy):
             "domains": ["samr.gov.cn", "gov.cn", "cninfo.com.cn", "sse.com.cn", "szse.cn", "hkexnews.hk", "sec.gov"],
             "exa_category": "financial report",
             "min_sources": 2,
+            "evidence_scope": "industry_level",
+        },
+        {
+            "module": "商业模式与盈利逻辑",
+            "query": '"{target}" 行业研究 商业模式 服务收费 订阅 按量计费',
+            "domains": ["gov.cn", "miit.gov.cn", "caict.ac.cn"],
+            "min_sources": 1,
             "evidence_scope": "industry_level",
         },
         {
@@ -147,6 +155,10 @@ class IndustryResearchStrategy(BaseResearchStrategy):
         def classify(module: str, query: str) -> dict[str, Any]:
             if module == "投融资与资本市场":
                 return {"evidence_scope": "capital_market"}
+            if module == '商业模式与盈利逻辑':
+                if any(word in query for word in ('代表企业', '上市公司', '年报', '招股书', '业务分部')):
+                    return {'evidence_scope': 'representative_company', 'company_role': 'benchmark'}
+                return {'evidence_scope': 'industry_level'}
             blob = f"{module} {query}"
             if any(word in blob for word in ("代表企业", "龙头", "市场份额", "竞争格局", "年报", "收入结构", "业务分部")):
                 return {"evidence_scope": "representative_company", "company_role": "benchmark"}

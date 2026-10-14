@@ -379,7 +379,7 @@ class ResearchWorkflow:
         try:
             model = init_chat_model(model=os.environ['MODEL'], model_provider='openai',
                 api_key=os.environ['ARK_API_KEY'], base_url=os.getenv('BASE_URL'), temperature=0.1,
-                timeout=timeout_seconds, max_retries=0, max_tokens=4000)
+                timeout=timeout_seconds, max_retries=0, max_tokens=2000)
             result = model.invoke([{'role': 'system', 'content': '只提取可核验事实，输出完整JSON并保留来源和统计口径。'},
                                    {'role': 'user', 'content': prompt}])
             content = str(result.content or '')
@@ -632,7 +632,7 @@ class ResearchWorkflow:
             if standardized_type == "person"
             else "company-evidence-v8-entity-bound"
             if standardized_type == "company"
-            else "industry-evidence-v4-bounded-cleaning"
+            else "industry-evidence-v5-source-grounded"
             if standardized_type == "industry"
             else "default-v4-auditable"
         )
@@ -654,7 +654,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v9-grounded-summary",
+            "industry": "industry-report-evidence-v10-bounded-summary",
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -4050,6 +4050,8 @@ class ResearchWorkflow:
         # it cannot erase deterministic or professional-platform evidence.
         all_facts: list[dict[str, Any]] = list(fast.get("facts", []))
         all_facts.extend(structured_rule_facts)
+        if project.target_type == 'industry':
+            all_facts.extend(self._extract_industry_rule_facts(selected_sources, project))
         if person_mode:
             all_facts.extend(rule_facts)
         discarded_patterns = self._normalize_cleaning_text_items(fast.get("discarded_patterns", []))
@@ -4169,6 +4171,14 @@ class ResearchWorkflow:
                 if kept >= 2:
                     break
         return facts
+
+    def _extract_industry_rule_facts(self, sources, project):
+        try:
+            from .industry_research import extract_industry_source_facts
+        except ImportError:
+            from industry_research import extract_industry_source_facts
+        return extract_industry_source_facts(sources, getattr(project, 'industry_scope', {}) or
+                                             {'industry_name': project.target_name})
 
     def _extract_professional_structured_facts(
         self,
@@ -4305,6 +4315,12 @@ class ResearchWorkflow:
                 # already been retrieved for its declared boundary.  Preserve
                 # that default unless the cleaner explicitly marks them out.
                 normalized["scope_match"] = scope_match or "in_scope"
+                body = re.sub(r'\s+', '', str(getattr(source, 'content', '') or '')).lower()
+                native_quote = re.sub(r'\s+', '', quote).lower()
+                normalized['evidence_quote_verified'] = bool(native_quote and native_quote in body)
+                if not normalized['evidence_quote_verified']:
+                    continue
+                normalized['is_structured_evidence'] = normalized['claim_type'] == 'fact'
                 normalized.pop("identity_match", None)
                 normalized.pop("entity_match", None)
             if is_affiliation_structured_fact:
@@ -4357,6 +4373,8 @@ class ResearchWorkflow:
         deterministic = self._fast_clean_sources(safe_sources, project=project, emit=emit)
         all_facts = list(deterministic.get("facts", []))
         all_facts.extend(self._extract_professional_structured_facts(safe_sources, project))
+        if project.target_type == 'industry':
+            all_facts.extend(self._extract_industry_rule_facts(safe_sources, project))
         if str(project.target_type or "").lower() == "person":
             all_facts.extend(self._extract_sentence_facts(safe_sources, project))
         all_facts.extend(self._sanitize_structured_facts(llm_results.get("facts", []), project))
@@ -4434,10 +4452,16 @@ class ResearchWorkflow:
         workers = _env_int("CLEANING_MAX_WORKERS", 3, 1, 8)
         industry_mode = target_type == 'industry'
         batch_states = {}
+        health = {'failures': 0, 'circuit_open': False}
+        health_lock = threading.Lock()
 
         def invoke_cleaning(batch_index: int, source_blocks: str, depth: int = 0) -> list[dict[str, Any]]:
             if industry_mode:
                 state = batch_states[batch_index]
+                with health_lock:
+                    if health['circuit_open']:
+                        state['circuit_skipped'] = True
+                        return []
                 remaining = state['deadline'] - time.monotonic()
                 if remaining < 1 or state['calls'] >= _env_int('INDUSTRY_CLEANING_MAX_CALLS_PER_BATCH', 3, 1, 5):
                     state['budget_exhausted'] = True
@@ -4490,7 +4514,16 @@ class ResearchWorkflow:
 }}
 """
             if industry_mode:
-                prompt += '\n本批最多提取8条可核验事实，优先保留完整数值口径和商业模式依据；必须在输出预算内闭合JSON，不输出大段原文或空字段说明。\n'
+                # Industry extraction needs no person identity/privacy/company schema.
+                prompt = f'''只抽取本批原文明示的最多3条行业事实，优先数值口径和商业模式。
+{brief}
+原文批次 {batch_index}/{len(batches)}：
+{_clip(source_blocks, _env_int("CLEANING_MAX_CHARS_PER_BATCH", 8000, 1000, 30000))}
+逐条保留原始source_url、source_title、module、evidence_scope，evidence_quote必须是连续原文，最长180字。
+fact最长120字，不新增原文没有的数值或口径。企业个案保持representative_company；不适用的材料跳过。
+只输出闭合JSON：{{"facts":[{{"fact":"...","claim_type":"fact","source_url":"...","source_title":"...","module":"...","evidence_scope":"industry_level|segment_level|representative_company|capital_market","scope_match":"in_scope","evidence_quote":"..."}}]}}
+含数值时增加numeric_context：metric、value、unit、geography、period、definition、is_forecast；原文未明确的字段留空。无适用事实返回facts=[]。
+'''
                 remaining = state['deadline'] - time.monotonic()
                 if remaining < 1:
                     state['budget_exhausted'] = True
@@ -4502,7 +4535,18 @@ class ResearchWorkflow:
                 answer = self._invoke("数据清洗 Agent", prompt, emit=emit)
             parsed = _plain_json(answer)
             if isinstance(parsed, dict):
+                if industry_mode:
+                    with health_lock:
+                        if parsed.get('facts'):
+                            health['failures'] = 0
                 return [parsed]
+            if industry_mode:
+                with health_lock:
+                    health['failures'] += 1
+                    if health['failures'] >= _env_int('INDUSTRY_CLEANING_FAILURE_LIMIT', 6, 2, 30) and not health['circuit_open']:
+                        health['circuit_open'] = True
+                        _emit(emit, 'cleaning', 'data_cleaning_agent', '行业精洗连续失败，停止追加模型请求',
+                              f'failures={health["failures"]}; 原文规则事实保留', status='fallback')
             max_depth = (_env_int('INDUSTRY_CLEANING_SPLIT_MAX_DEPTH', 1, 0, 2) if industry_mode
                          else _env_int("CLEANING_INSPECTION_SPLIT_MAX_DEPTH", 2, 0, 5))
             parts = [part.strip() for part in source_blocks.split("\n\n---\n\n") if part.strip()]
@@ -4526,7 +4570,12 @@ class ResearchWorkflow:
                     _env_int('INDUSTRY_CLEANING_BATCH_BUDGET_SECONDS', 150, 20, 300), 'calls': 0,
                     'budget_exhausted': False, 'started': time.monotonic()}
                 batch_states[batch_index]['failed_parts'] = 0
-            return batch_index, invoke_cleaning(batch_index, source_blocks)
+                batch_states[batch_index]['circuit_skipped'] = False
+            try:
+                return batch_index, invoke_cleaning(batch_index, source_blocks)
+            finally:
+                if industry_mode:
+                    batch_states[batch_index]['finished'] = time.monotonic()
 
         with ThreadPoolExecutor(max_workers=min(workers, len(batches))) as executor:
             futures = {
@@ -4567,11 +4616,14 @@ class ResearchWorkflow:
         result = {"facts": all_facts, "discarded_patterns": discarded_patterns, "information_gaps": information_gaps}
         if industry_mode:
             for idx, state in sorted(batch_states.items()):
-                if state['failed_parts'] or state['budget_exhausted']:
+                state['budget_exhausted'] = state['budget_exhausted'] or bool(state['failed_parts'] and
+                    (state['finished'] >= state['deadline'] or state['calls'] >= _env_int('INDUSTRY_CLEANING_MAX_CALLS_PER_BATCH', 3, 1, 5)))
+                if state['failed_parts'] or state['budget_exhausted'] or state['circuit_skipped']:
                     information_gaps.append(f'行业清洗批次{idx}有子片段未完成结构化提取；规则来源保留，需复核。')
             result['cleaning_diagnostic'] = {'batches': [{'batch': idx, 'model_calls': state['calls'],
-                'failed_parts': state['failed_parts'], 'budget_exhausted': state['budget_exhausted']}
-                for idx, state in sorted(batch_states.items())]}
+                'failed_parts': state['failed_parts'], 'budget_exhausted': state['budget_exhausted'],
+                'circuit_skipped': state['circuit_skipped']}
+                for idx, state in sorted(batch_states.items())], 'circuit_open': health['circuit_open']}
         return result
 
     def assess_risk(self, project: ResearchProject, cleaned_json: str, emit: TraceEmitter | None = None) -> str:
@@ -5127,6 +5179,13 @@ class ResearchWorkflow:
                 payload = {"facts": []}
             result, diagnostic = append_industry_index(report, payload, IndustryReportAgent.outline,
                                                       getattr(project, "industry_section_packages", None))
+            facts = payload.get('facts', [])
+            diagnostic['fact_quality'] = {
+                'structured_fact_count': sum(f.get('is_structured_evidence') is True for f in facts),
+                'verified_numeric_fact_count': sum(f.get('numeric_validation', {}).get('passed') is True for f in facts),
+                'rule_extracted_fact_count': sum(f.get('cleaning_method') == 'industry_rule' for f in facts),
+                'llm_extracted_fact_count': sum(f.get('cleaning_method') == 'llm' for f in facts),
+            }
             setattr(project, "industry_delivery_diagnostic", diagnostic)
             _emit(emit, "report", "desktop_report_agent", "行业事实引用索引已生成",
                   f"referenced_sources={diagnostic['referenced_sources']}", status="done")
@@ -6329,6 +6388,12 @@ class ResearchWorkflow:
                     review_draft=bool(artifact_metadata.get("quality_warning")),
                     outline=self._select_report_outline(project) if artifact_type == "desktop_report" else None,
                 )
+                if project.target_type == 'industry':
+                    try:
+                        from .industry_research import validate_docx_package
+                    except ImportError:
+                        from industry_research import validate_docx_package
+                    artifact_metadata.update(validate_docx_package(docx_payload))
                 docx_key = research_store.put_bytes(
                     f"projects/{project.id}/{artifact_type}/{artifact_type}_v{version}.docx",
                     docx_payload,
@@ -6350,6 +6415,7 @@ class ResearchWorkflow:
                 artifact_metadata["docx_export_error"] = str(exc)
                 if project.target_type == "industry":
                     artifact_metadata["delivery_status"] = "export_failed"
+                    artifact_metadata['docx_integrity_status'] = 'failed'
         artifact = ResearchArtifact(
             project_id=project.id,
             artifact_type=artifact_type,
@@ -6827,6 +6893,11 @@ class ResearchWorkflow:
                 except ImportError:
                     from industry_research import industry_excerpt
                 text = industry_excerpt(text, str(meta.get('module') or ''), source_limit)
+            if industry:
+                blocks.append(f'标题：{source.title}\nURL：{source.url}\n模块：{meta.get("module", "")}\n'
+                              f'行业证据层级：{meta.get("evidence_scope", "industry_level")}\n'
+                              f'内容：{_clip(text, source_limit)}')
+                continue
             blocks.append(
                 f"[{idx}] {source.title}\n"
                 f"类型：{source.source_type}\n"
@@ -6885,6 +6956,8 @@ class ResearchWorkflow:
             key = re.sub(r"\s+", "", text.lower())[:160]
             source_url = str(fact.get("source_url") or "")
             key = f"{key}|{source_url}"
+            if fact.get('cleaning_method') == 'industry_rule':
+                key += '|industry_rule|' + json.dumps(fact.get('numeric_context') or {}, sort_keys=True, ensure_ascii=False)
             if key in seen:
                 continue
             seen.add(key)

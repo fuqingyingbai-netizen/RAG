@@ -108,7 +108,14 @@
                           <div style="max-height: 300px; overflow: auto"><p v-for="(issue, n) in artifact.metadata.quality_issues" :key="n">{{ issue.message }}</p></div>
                         </el-popover>
                         <el-tag v-if="artifact.metadata?.docx_export_error" type="danger" size="small">Word 导出失败</el-tag>
-                        <el-tag v-else-if="artifact.metadata?.docx_render_status === 'unavailable'" type="info" size="small">版式未校验</el-tag>
+                        <el-tag v-if="row.target_type === 'industry' && artifact.metadata?.docx_integrity_status === 'passed'" type="success" size="small">Word 文件检查通过</el-tag>
+                        <el-tag v-if="!artifact.metadata?.docx_export_error && artifact.metadata?.docx_render_status === 'unavailable'" type="info" size="small">版式未校验</el-tag>
+                        <el-popover v-if="row.target_type === 'industry' && artifact.metadata?.industry_evidence_diagnostic?.fact_quality" trigger="click" width="380">
+                          <template #reference><el-button text>查看事实质量</el-button></template>
+                          <p>结构化事实：{{ artifact.metadata.industry_evidence_diagnostic.fact_quality.structured_fact_count }} 条</p>
+                          <p>口径字段完整的数值事实：{{ artifact.metadata.industry_evidence_diagnostic.fact_quality.verified_numeric_fact_count }} 条</p>
+                          <p>口径检查包括指标、单位、地域、统计期和原文引用；来源数据本身仍需核验。</p>
+                        </el-popover>
                         <el-tag v-if="artifact.artifact_type === 'cleaned_facts' && row.target_type === 'industry'" :type="artifact.metadata?.vector_index_status === 'completed' ? 'success' : 'info'" size="small">事实索引：{{ artifact.metadata?.vector_index_status || '未确认' }} / {{ artifact.metadata?.vector_indexed_count || 0 }} 条</el-tag>
                         <el-space>
                           <el-button v-if="row.target_type === 'industry' && artifact.artifact_type === 'cleaned_facts' && ['failed', 'error', 'background_timeout', 'disabled'].includes(artifact.metadata?.vector_index_status)" plain @click="retryArtifactIndex(row, artifact)">重试索引</el-button>
