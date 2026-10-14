@@ -227,7 +227,9 @@ def test_industry_report_gets_a_deterministic_ledger_in_chapter_15():
         }
         for index in range(1, 91)
     ]
-    report = "\n\n".join(f"## {index}. {title}\n\n章节正文。" for index, title in enumerate(titles, 1))
+    report = "\n\n".join(f"## {index}. {title}\n\n章节正文。 " +
+                         (' '.join(item['evidence_id'] for item in facts[index - 1::14]) if index <= 14 else '')
+                         for index, title in enumerate(titles, 1))
     project.industry_section_packages = {
         index: {"facts": facts[index - 1::14]} for index in range(1, 15)
     }

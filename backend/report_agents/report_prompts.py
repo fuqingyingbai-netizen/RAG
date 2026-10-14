@@ -675,10 +675,11 @@ def build_section_prompt(
     clip,
     few_shot: str = "",
     section_structure: str = "",
+    evidence_preselected: bool = False,
 ) -> str:
     output_structure = section_structure or SECTION_OUTPUT_FRAME.format(index=index, section_title=section_title)
     project_target_type = str(project.target_type or "").lower()
-    focused_cleaned = _focused_cleaned_json(cleaned_json, section_title, requirements, str(project.target_name or ""), project_target_type)
+    focused_cleaned = cleaned_json if evidence_preselected and project_target_type == 'industry' else _focused_cleaned_json(cleaned_json, section_title, requirements, str(project.target_name or ""), project_target_type)
     industry_scope = getattr(project, "industry_scope", {}) if project_target_type == "industry" else {}
     evidence_package_label = (
         "本章证据包（按章节相关性筛选；人物报告允许 0 条、1 条或多条证据，必须按 evidence_level/evidence_boundary 降级表达）："
@@ -728,7 +729,7 @@ def build_section_prompt(
 项目背景：{project.description}
 
 {evidence_package_label}
-{clip(focused_cleaned, 14000)}
+{focused_cleaned if evidence_preselected and project_target_type == 'industry' else clip(focused_cleaned, 14000)}
 
 风险研判：
 {clip(risk_json, 6000)}

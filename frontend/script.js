@@ -600,6 +600,16 @@ createApp({
         this.reindexing = false;
       }
     },
+    async retryArtifactIndex(project, artifact) {
+      const response = await this.authFetch(`/research/artifacts/${artifact.id}/reindex`, { method: 'POST' });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        return ElementPlus.ElMessage.error(result.detail || '索引重试失败');
+      }
+      const result = await response.json();
+      Object.assign(artifact, result);
+      ElementPlus.ElMessage.success('已单独启动事实索引，报告不会重跑');
+    },
     async downloadArtifact(artifact) {
       if (!artifact) return;
       const r = await this.authFetch(`/research/artifacts/${artifact.id}/download`); if (!r.ok) return ElementPlus.ElMessage.error('下载失败');

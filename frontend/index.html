@@ -99,9 +99,15 @@
                       <div v-for="artifact in downloadableArtifacts(row)" :key="artifact.id" class="artifact-item">
                         <span>{{ artifact.title || artifactTypeLabel(artifact.artifact_type) }} v{{ artifact.version }}</span>
                         <el-tag v-if="artifact.metadata?.delivery_status === 'review_draft'" type="warning" size="small">待复核稿</el-tag>
+                        <el-popover v-if="artifact.metadata?.quality_issues?.length" trigger="click" width="460">
+                          <template #reference><el-button text type="warning">查看 {{ artifact.metadata.quality_issues.length }} 项核验问题</el-button></template>
+                          <div style="max-height: 300px; overflow: auto"><p v-for="(issue, n) in artifact.metadata.quality_issues" :key="n">{{ issue.message }}</p></div>
+                        </el-popover>
                         <el-tag v-if="artifact.metadata?.docx_export_error" type="danger" size="small">Word 导出失败</el-tag>
                         <el-tag v-else-if="artifact.metadata?.docx_render_status === 'unavailable'" type="info" size="small">版式未校验</el-tag>
+                        <el-tag v-if="artifact.artifact_type === 'cleaned_facts' && row.target_type === 'industry'" :type="artifact.metadata?.vector_index_status === 'completed' ? 'success' : 'info'" size="small">事实索引：{{ artifact.metadata?.vector_index_status || '未确认' }} / {{ artifact.metadata?.vector_indexed_count || 0 }} 条</el-tag>
                         <el-space>
+                          <el-button v-if="row.target_type === 'industry' && artifact.artifact_type === 'cleaned_facts' && ['failed', 'error', 'background_timeout', 'disabled'].includes(artifact.metadata?.vector_index_status)" plain @click="retryArtifactIndex(row, artifact)">重试索引</el-button>
                           <el-button type="primary" plain @click="downloadArtifact(artifact)">下载</el-button>
                           <el-button type="danger" plain @click="deleteArtifact(row, artifact)">删除</el-button>
                         </el-space>

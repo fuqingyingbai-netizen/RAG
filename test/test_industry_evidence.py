@@ -137,7 +137,8 @@ def test_template_has_16_chapters_and_disabled_modules_skip_model_calls():
     headings = re.findall(r'^## (\d+)\.', body, flags=re.M)
     assert headings == [str(n) for n in range(1, 17)]
     assert not any(title in role for role in calls for title in ('行业投融资全景', '二级市场情绪', '行业核心公司主体全面尽调'))
-    assert calls[-2].endswith(' - 摘要')
+    assert any(role.endswith(' - 摘要') for role in calls)
+    assert not any('总编' in role for role in calls)
     assert '未指定核心企业' in body
 
 
@@ -209,7 +210,8 @@ def test_industry_target_is_never_replaced_by_project_title():
 
 def test_fabricated_source_is_quarantined_and_uploaded_source_gets_internal_reference():
     workflow = ResearchWorkflow.__new__(ResearchWorkflow)
-    source = SimpleNamespace(id=7, url='', title='行业访谈.txt', source_type='upload', source_metadata={})
+    source = SimpleNamespace(id=7, url='', title='行业访谈.txt', source_type='upload', source_metadata={},
+                             content='机器人行业访谈', summary='', credibility_score=50)
     project = SimpleNamespace(id=1, target_type='industry', target_name='机器人', sources=[source], industry_scope={'industry_name': '机器人'})
     rows = workflow._annotate_evidence_facts(project, [
         {'fact': '机器人行业需求', 'source_title': source.title, 'evidence_scope': 'industry_level'},
@@ -274,6 +276,7 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
             return f'## {index}. {title}\n\n' + ('已核验公开事实 ' + ids[0] if ids else '待核验')
         return '{"facts": [], "information_gaps": []}'
     workflow._invoke = invoke
+    workflow._invoke_industry_report = invoke
     def save(db, project, kind, title, content, metadata=None, **kwargs):
         artifact = SimpleNamespace(id=len(project.artifacts) + 1, artifact_type=kind, title=title,
             version=1, content=content, artifact_metadata=metadata or {}, created_at=datetime.now(), object_key='test-key')

@@ -341,6 +341,34 @@ class ResearchWorkflow:
         )
         return self._person_report_editor_model
 
+    def _invoke_industry_report(self, role: str, prompt: str, emit: TraceEmitter | None = None) -> str:
+        """Bound industry chapter requests; a local repair gets no SDK retries."""
+        repair = '修复 Agent' in role
+        attribute = '_industry_repair_model' if repair else '_industry_section_model'
+        model = getattr(self, attribute, None)
+        if model is None:
+            if not os.getenv('ARK_API_KEY') or not os.getenv('MODEL'):
+                _emit(emit, 'llm', role, '行业章节模型未配置，使用来源事实摘录', '', status='fallback')
+                return ''
+            model = init_chat_model(model=os.environ['MODEL'], model_provider='openai',
+                api_key=os.environ['ARK_API_KEY'], base_url=os.getenv('BASE_URL'), temperature=0.1,
+                timeout=_env_int('INDUSTRY_REPAIR_TIMEOUT_SECONDS' if repair else 'INDUSTRY_SECTION_TIMEOUT_SECONDS', 45 if repair else 90, 10, 180),
+                max_retries=0, max_tokens=2500 if repair else 6000)
+            setattr(self, attribute, model)
+        started = time.monotonic()
+        _emit(emit, 'llm', role, '正在调用行业章节模型', f'input_chars={len(prompt)}', input_chars=len(prompt), status='running')
+        try:
+            result = model.invoke([{'role':'system','content':'仅使用输入证据，保留事实编号和数值口径，不新增事实。'},
+                                   {'role':'user','content':prompt}])
+            content = str(result.content or '')
+            _emit(emit, 'llm', role, '行业章节模型调用完成', f'chars={len(content)}',
+                  duration_ms=int((time.monotonic()-started)*1000), status='done')
+            return content
+        except Exception as exc:
+            _emit(emit, 'llm', role, '行业章节模型超时或失败，使用来源事实摘录', str(exc)[:800],
+                  duration_ms=int((time.monotonic()-started)*1000), degraded=True, status='fallback')
+            return ''
+
     def _get_person_report_section_model(self):
         if self._person_report_section_model is not None:
             return self._person_report_section_model
@@ -582,7 +610,7 @@ class ResearchWorkflow:
             if standardized_type == "person"
             else "company-evidence-v8-entity-bound"
             if standardized_type == "company"
-            else "industry-evidence-v2-scope-cache"
+            else "industry-evidence-v3-structured-cards"
             if standardized_type == "industry"
             else "default-v4-auditable"
         )
@@ -604,7 +632,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v7-template16",
+            "industry": "industry-report-evidence-v8-validated-cards",
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -824,7 +852,7 @@ class ResearchWorkflow:
                 "ocr_items": [],
                 "sources": [],
             }
-        quality = self._apply_authority_coverage_requirements(quality, standardized_type)
+        quality = self._apply_authority_coverage_requirements(quality, standardized_type, getattr(project, "industry_scope", {}))
         if (
             os.getenv("AUTHORITY_COVERAGE_REQUIRED", "false").strip().lower() in {"1", "true", "yes", "on"}
             and quality.get("authority_coverage_passed") is False
@@ -905,7 +933,7 @@ class ResearchWorkflow:
             except Exception as exc:
                 db.rollback()
                 _emit(emit, "risk", "risk_assessment_agent", "风险研判失败，使用降级评分", str(exc), status="fallback")
-                fallback = unknown_industry_risk() if standardized_type == "industry" else self._fallback_risk(cleaned)
+                fallback = unknown_industry_risk(scope=getattr(project, "industry_scope", {})) if standardized_type == "industry" else self._fallback_risk(cleaned)
                 risk = json.dumps(fallback | {"workflow_error": _error_json("risk", exc)}, ensure_ascii=False, indent=2)
             risk_artifact = self.save_artifact(db, project, "risk_assessment", _project_doc_title(project, "风险研判"), risk, {"agent": "risk_assessment"})
             _emit(emit, "risk", "risk_assessment_agent", "风险研判完成", "", status="done")
@@ -1011,7 +1039,8 @@ class ResearchWorkflow:
                 {
                     "agent": "report_writer",
                     "report_pipeline_version": report_pipeline_version,
-                    **({"industry_evidence_diagnostic": getattr(project, "industry_delivery_diagnostic", {})} if standardized_type == "industry" else {}),
+                    **({"industry_evidence_diagnostic": getattr(project, "industry_delivery_diagnostic", {}),
+                         "quality_issues": getattr(project, "industry_quality_issues", [])} if standardized_type == "industry" else {}),
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
                 },
@@ -1786,7 +1815,21 @@ class ResearchWorkflow:
             gap_plan = {**plan, "modules": [m for m in plan.get("modules", []) if m.get("name") in missing]}
             if not gap_plan["modules"]:
                 return []
-            return self._expand_search_queries(gap_plan, intake)[:24]
+            scope = intake.get('industry_scope') or {}
+            target = intake.get('target_name') or scope.get('industry_name') or ''
+            suffixes = {
+                '市场规模与增长': '市场规模 统计口径 数据年度 中国信通院 官方统计',
+                '商业模式与盈利逻辑': '商业化 收入结构 盈利模式 毛利率 行业研究 披露',
+                '竞争格局与代表企业': '市场份额 CR3 CR5 样本范围 统计年度',
+                '技术路线对比': '技术路线 成本 性能 实测 场景 对比',
+            }
+            rows = [row for row in self._expand_search_queries(gap_plan, intake) if row.get('module') in missing]
+            for module in sorted(missing):
+                if module in suffixes:
+                    rows.insert(0, {'module': module, 'query': f'{target} {scope.get("geography", "")} {suffixes[module]}',
+                                    'evidence_scope': 'industry_level', 'industry_name': target,
+                                    'search_tier': 'open_web', 'gap_reason': next((gap for gap in gaps if str(gap).startswith(module)), '')})
+            return rows[:24]
         target = (intake.get("target_name") or "").strip()
         items: list[dict[str, str]] = []
         routes: list[tuple[tuple[str, ...], str, tuple[str, ...]]] = [
@@ -2368,12 +2411,14 @@ class ResearchWorkflow:
             "sources": source_rows[:500],
         }
 
-    def _apply_authority_coverage_requirements(self, quality: dict[str, Any], target_type: str) -> dict[str, Any]:
+    def _apply_authority_coverage_requirements(self, quality: dict[str, Any], target_type: str, scope: dict | None = None) -> dict[str, Any]:
         result = dict(quality or {})
         authoritative_counts = dict(result.get("authoritative_counts") or {})
         requirements: dict[str, int] = {}
         for route in get_research_strategy(target_type).authority_queries:
             module = str(route.get("module") or "权威来源")
+            if target_type == "industry" and (scope or {}).get("capital_market") == "none" and module == "投融资与资本市场":
+                continue
             requirements[module] = max(requirements.get(module, 0), int(route.get("min_sources") or 2))
         gaps = [
             f"{module}：权威来源 {authoritative_counts.get(module, 0)} 条，最低要求 {minimum} 条"
@@ -3372,12 +3417,18 @@ class ResearchWorkflow:
             status="running",
         )
         industry_query_history = []
+        industry_seen_queries = set()
         for round_index in range(1, max_rounds + 1):
             if pause_requested and pause_requested():
                 raise WorkflowPaused("任务已暂停")
             round_added = 0
             if intake.get("target_type") == "industry":
                 budget = _env_int("INDUSTRY_SEARCH_QUERY_BUDGET", 80, 10, 200)
+                try:
+                    from .industry_research import unique_search_queries
+                except ImportError:
+                    from industry_research import unique_search_queries
+                query_items = unique_search_queries(query_items, industry_seen_queries)
                 used = sum(len(batch) for batch in industry_query_history)
                 query_items = query_items[:max(0, budget - used)]
                 if not query_items:
@@ -3994,7 +4045,7 @@ class ResearchWorkflow:
                 emit,
                 "cleaning",
                 "data_cleaning_agent",
-                "楂樹环鍊兼潵婧愯繘鍏?LLM 绮炬礂",
+                "高价值来源进入 LLM 精洗",
                 f"llm_sources={len(llm_sources)}, batches={len(llm_batches)}",
                 status="running",
             )
@@ -4389,7 +4440,7 @@ class ResearchWorkflow:
   "information_gaps": ["..."]
 }}
 """
-            answer = self._invoke("鏁版嵁娓呮礂 Agent", prompt, emit=emit)
+            answer = self._invoke("数据清洗 Agent", prompt, emit=emit)
             parsed = _plain_json(answer)
             if isinstance(parsed, dict):
                 return [parsed]
@@ -4458,7 +4509,14 @@ class ResearchWorkflow:
 """
             evidence_id_field = ', "evidence_ids": ["E-..."]'
         if target_type == "industry":
+            try:
+                from .industry_research import active_risk_dimensions
+            except ImportError:
+                from industry_research import active_risk_dimensions
+            applicable = active_risk_dimensions(getattr(project, "industry_scope", {}))
             prompt = f"""
+研究边界：{json.dumps(getattr(project, "industry_scope", {}), ensure_ascii=False)}
+仅评估以下启用维度：{json.dumps(applicable, ensure_ascii=False)}。忽略下方结构示例中未启用的维度，不列为 unknown，不提出其补采建议。
 请扮演行业风险研判 Agent。基于清洗事实，对目标行业进行行业维度风险评分，不得套用目标公司/标的主体尽调维度。每个维度必须输出 evidence_ids，且仅能引用输入事实的 E-ID。无有效且适用的行业证据时 score=null、level=unknown；不得用代表企业个案直接证明行业整体风险。
 项目：{project.title}
 研究对象：{project.target_name}
@@ -4491,10 +4549,10 @@ class ResearchWorkflow:
             parsed = _plain_json(answer)
             if isinstance(parsed, dict):
                 cleaned_payload = _plain_json(cleaned_json)
-                parsed = normalize_industry_risk(parsed, cleaned_payload.get("facts", []) if isinstance(cleaned_payload, dict) else [])
+                parsed = normalize_industry_risk(parsed, cleaned_payload.get("facts", []) if isinstance(cleaned_payload, dict) else [], getattr(project, "industry_scope", {}))
                 _emit(emit, "risk", "risk_assessment_agent", "模型行业风险评分完成", f"risk_level={parsed.get('risk_level')}", risk_level=parsed.get("risk_level"), status="done")
                 return json.dumps(parsed, ensure_ascii=False, indent=2)
-            fallback = unknown_industry_risk()
+            fallback = unknown_industry_risk(scope=getattr(project, "industry_scope", {}))
             _emit(emit, "risk", "risk_assessment_agent", "使用规则降级行业评分", f"risk_level={fallback.get('risk_level')}", risk_level=fallback.get("risk_level"), status="fallback")
             return json.dumps(fallback, ensure_ascii=False, indent=2)
         prompt = f"""
@@ -4705,6 +4763,8 @@ class ResearchWorkflow:
                 emit(event)
 
         def report_invoke(role: str, prompt: str, trace_emit: TraceEmitter | None = None) -> str:
+            if target_type == 'industry':
+                return self._invoke_industry_report(role, prompt, emit=trace_emit)
             if target_type == "person" and role.endswith("总编 Agent"):
                 return self._invoke_person_report_editor(role, prompt, emit=trace_emit)
             if target_type == "person" and "章节 Agent" in role:
@@ -5333,6 +5393,7 @@ class ResearchWorkflow:
         if target_type == "industry":
             errors = industry_delivery_errors(report, getattr(project, "industry_delivery_diagnostic", {}),
                                                getattr(project, "industry_scope", {}))
+            project.industry_quality_issues = [{"message": message, "chapter": (int(match.group(1)) if (match := re.search(r"第(\d+)章", message)) else None)} for message in errors]
             if errors:
                 raise RuntimeError("行业报告交付质量闸门未通过：" + "；".join(errors))
             return
@@ -5538,7 +5599,7 @@ class ResearchWorkflow:
         notice = (
             "> **待人工复核稿**：本报告已完成自动生成，但未通过交付质量闸门。"
             "请先按下列原因补充核验或人工修订后再作为正式交付稿使用。\n"
-            f">\n> 未通过原因：{reason}\n\n"
+            f">\n> 未通过原因（摘要）：{reason[:600]}" + ("……完整问题见报告质量诊断。" if len(reason) > 600 else "") + "\n\n"
         )
         return notice + (report or "").lstrip()
 
@@ -6454,6 +6515,9 @@ class ResearchWorkflow:
                         item["evidence_scope"] = meta["evidence_scope"]
                     item["date"] = item.get("date") or meta.get("published_date") or ""
                     item["source_id"] = getattr(source, "id", None)
+                    item["source_title"] = source.title
+                    item["quality_score"] = item.get("quality_score") or getattr(source, "credibility_score", 50)
+                    item["source_grade"] = item.get("source_grade") or self._source_grade(source, meta.get("quality") or {})
                     if not url:
                         item["source_url"] = f"structured://projects/{project.id}/sources/{source.id}"
                     item["source_provenance_verified"] = True

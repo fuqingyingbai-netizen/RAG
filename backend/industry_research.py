@@ -3,6 +3,7 @@
 import hashlib
 import json
 import re
+from decimal import Decimal, InvalidOperation
 from datetime import date
 from typing import Any
 
@@ -119,14 +120,19 @@ def chapter_scopes(title: str) -> set[str]:
     return {'industry_level', 'segment_level'}
 
 
-def unknown_risk(reason: str = '未取得可审计的行业评分，需补充有效证据。') -> dict:
+def active_risk_dimensions(scope: dict | None = None) -> tuple[str, ...]:
+    return tuple(name for name in INDUSTRY_RISK_DIMENSIONS
+                 if not ((scope or {}).get('capital_market') == 'none' and name == '资本热度与估值风险'))
+
+
+def unknown_risk(reason: str = '未取得可审计的行业评分，需补充有效证据。', scope: dict | None = None) -> dict:
     return {'overall_score': None, 'risk_level': 'unknown',
             'dimensions': [{'name': name, 'score': None, 'level': 'unknown', 'reason': reason,
-                            'evidence_ids': [], 'evidence_sources': []} for name in INDUSTRY_RISK_DIMENSIONS],
+                            'evidence_ids': [], 'evidence_sources': []} for name in active_risk_dimensions(scope)],
             'key_risks': [], 'unknowns': [reason], 'recommended_followups': ['补充行业统计、监管文件和可比企业披露。']}
 
 
-def normalize_risk(parsed: Any, facts: list[dict]) -> dict:
+def normalize_risk(parsed: Any, facts: list[dict], scope: dict | None = None) -> dict:
     result = dict(parsed) if isinstance(parsed, dict) else unknown_risk()
     evidence = {str(f.get('evidence_id')): f for f in facts if f.get('evidence_id')
                 and f.get('eligible_for_risk_scoring') is not False and f.get('eligible_for_report') is not False
@@ -134,7 +140,12 @@ def normalize_risk(parsed: Any, facts: list[dict]) -> dict:
     supplied = {d.get('name'): d for d in result.get('dimensions', []) if isinstance(d, dict)}
     dimensions = []
     unknowns = list(result.get('unknowns') or [])
-    for name in INDUSTRY_RISK_DIMENSIONS:
+    if (scope or {}).get('capital_market') == 'none':
+        capital_words = ('资本热度', '估值', '投融资', '二级市场', '融资数据库')
+        unknowns = [note for note in unknowns if not any(word in str(note) for word in capital_words)]
+        result['recommended_followups'] = [note for note in result.get('recommended_followups', [])
+                                           if not any(word in str(note) for word in capital_words)]
+    for name in active_risk_dimensions(scope):
         row = dict(supplied.get(name) or {})
         ids = list(dict.fromkeys(eid for eid in row.get('evidence_ids', []) if isinstance(eid, str) and eid in evidence))
         # One company's condition is a sample, never proof of an industry-wide score.
@@ -161,6 +172,8 @@ def normalize_risk(parsed: Any, facts: list[dict]) -> dict:
     result['overall_score'] = round(sum(scores) / len(scores), 1) if len(scores) == len(dimensions) else None
     result['risk_level'] = risk_level(result['overall_score']) if result['overall_score'] is not None else 'unknown'
     result['unknowns'] = list(dict.fromkeys(unknowns))
+    result['applicable_dimensions'] = list(active_risk_dimensions(scope))
+    result['assessed_dimension_count'] = len(scores)
     return result
 
 
@@ -206,12 +219,17 @@ def select_chapter_evidence(payload: dict, title: str, requirements: list[str], 
         derived = title in {'摘要', '行业判断与综合评估', '综合评估', '信息来源', '后续研究点'}
         if not module_match and not hits and not derived:
             continue
-        candidates.append((10 * module_match + hits, float(fact.get('quality_score') or 0), fact))
-    candidates.sort(key=lambda row: (row[0], row[1]), reverse=True)
+        # Structured facts must not lose to source excerpts merely because the
+        # excerpt inherits a publisher score while the cleaner omits it.
+        structured = fact.get('claim_type') != 'source_excerpt'
+        verified_numeric = fact.get('numeric_validation', {}).get('passed') is True
+        candidates.append((int(module_match), int(structured), int(verified_numeric), hits,
+                           float(fact.get('quality_score') or fact.get('confidence') or 0), fact))
+    candidates.sort(key=lambda row: row[:-1], reverse=True)
     focused = []
     seen = set()
     # A source may support different facts/chapters. Repeated identical facts may not.
-    for _, _, fact in candidates:
+    for *_, fact in candidates:
         key = fact.get('evidence_id') or (fact.get('source_url'), fact.get('fact'))
         if key in seen:
             continue
@@ -223,6 +241,93 @@ def select_chapter_evidence(payload: dict, title: str, requirements: list[str], 
     # be consumed by metadata before the actual fact cards are reached.
     return {'facts': focused, 'industry_scope': payload.get('industry_scope') or {},
             'information_gaps': (payload.get('information_gaps') or [])[:20]}
+
+
+def package_risk_evidence(package: dict, payload: dict, risk: dict, include_all: bool = False) -> tuple[dict, dict]:
+    """Carry validated risk facts into synthesis chapters; other chapters see only their own risks."""
+    facts = list(package.get('facts') or [])
+    by_id = {f.get('evidence_id'): f for f in payload.get('facts', []) if isinstance(f, dict)
+             and f.get('eligible_for_report') is not False and f.get('scope_match') == 'in_scope'}
+    if include_all:
+        existing = {f.get('evidence_id') for f in facts}
+        for dimension in risk.get('dimensions', []):
+            for eid in dimension.get('evidence_ids', []):
+                if eid in by_id and eid not in existing:
+                    facts.append(by_id[eid]); existing.add(eid)
+    allowed = {f.get('evidence_id') for f in facts}
+    dimensions = [d for d in risk.get('dimensions', []) if d.get('evidence_ids')
+                  and set(d['evidence_ids']) <= allowed]
+    scoped_risk = {'dimensions': dimensions, 'overall_score': risk.get('overall_score') if include_all else None,
+                  'risk_level': risk.get('risk_level') if include_all else 'unknown',
+                  'unknowns': risk.get('unknowns', []) if include_all else []}
+    return {**package, 'facts': facts}, scoped_risk
+
+
+def bounded_package(package: dict, limit: int = 20000) -> str:
+    """Keep JSON intact under a prompt budget, prioritizing concise fact cards."""
+    result = {**package, 'facts': []}
+    for original in package.get('facts', []):
+        fact = dict(original)
+        fact['fact'] = str(fact.get('fact') or '')[:900]
+        fact['evidence_quote'] = str(fact.get('evidence_quote') or '')[:500]
+        result['facts'].append(fact)
+        if len(json.dumps(result, ensure_ascii=False)) > limit:
+            result['facts'].pop(); break
+    return json.dumps(result, ensure_ascii=False)
+
+
+def unique_search_queries(rows: list[dict], seen: set) -> list[dict]:
+    distinct = []
+    for row in rows:
+        key = (re.sub(r'\s+', ' ', str(row.get('query') or '')).strip().casefold(),
+               tuple(sorted(row.get('include_domains') or [])), tuple(sorted(row.get('exclude_domains') or [])))
+        if not key[0] or key in seen:
+            continue
+        seen.add(key)
+        distinct.append(row)
+    return distinct
+
+
+NUMBER_PATTERN = r'\d[\d,.]*\s*(?:%|％|亿元|万元|亿美元|万美元)'
+
+
+def number_key(value: str) -> tuple | None:
+    match = re.fullmatch(r'([\d,.]+)\s*(%|％|亿元|万元|亿美元|万美元)', value.strip())
+    if not match:
+        return None
+    try:
+        amount = Decimal(match[1].replace(',', ''))
+    except InvalidOperation:
+        return None
+    unit = match[2].replace('％', '%')
+    if unit in ('亿元', '万元'):
+        amount *= Decimal('100000000' if unit == '亿元' else '10000'); unit = '人民币元'
+    elif unit in ('亿美元', '万美元'):
+        amount *= Decimal('100000000' if unit == '亿美元' else '10000'); unit = '美元'
+    return amount, unit
+
+
+def numeric_supported(number: str, eid: str, numeric: dict) -> bool:
+    card = numeric.get(eid, {})
+    if card.get('validation', {}).get('passed') is not True:
+        return False
+    context = card.get('context') or {}
+    # A verified metric validates that metric only, never all numbers on a page.
+    value = str(context.get('value', '')) + str(context.get('unit', ''))
+    return number_key(number) is not None and number_key(number) == number_key(value)
+
+
+def mark_unverified_numbers(section: str, facts: list[dict]) -> str:
+    numeric = {f.get('evidence_id'): {'validation': f.get('numeric_validation') or {},
+                                    'context': f.get('numeric_context') or {}} for f in facts}
+    lines = []
+    for line in section.splitlines():
+        numbers = re.findall(NUMBER_PATTERN, line)
+        ids = re.findall(r'\bE-[A-Z0-9-]{6,}\b', line, flags=re.I)
+        if numbers and '待核验' not in line and any(not any(numeric_supported(n, eid, numeric) for eid in ids) for n in numbers):
+            line += ' （数值口径待核验，不用于行业合计或评分）'
+        lines.append(line)
+    return '\n'.join(lines)
 
 
 def annotate_fact(fact: dict, scope: dict) -> dict:
@@ -270,8 +375,15 @@ def annotate_fact(fact: dict, scope: dict) -> dict:
             if not any(word in requested for word in ('全球', 'global', 'worldwide')) and actual not in requested:
                 missing.append('geography_scope_match')
         period_years = re.findall(r'20\d{2}', str(numeric.get('period') or ''))
+        if 'is_forecast' in numeric and not isinstance(numeric['is_forecast'], bool):
+            missing.append('is_forecast_boolean')
+        expected_number = number_key(str(numeric.get('value', '')) + str(numeric.get('unit', '')))
+        if expected_number is not None:
+            quote_numbers = re.findall(NUMBER_PATTERN, str(item.get('fact') or '') + ' ' + str(item.get('evidence_quote') or ''))
+            if not any(number_key(n) == expected_number for n in quote_numbers):
+                missing.append('value_not_in_evidence_quote')
         cutoff = str(scope.get('as_of_date') or '')
-        if period_years and cutoff and not numeric.get('is_forecast') and max(period_years) > cutoff[:4]:
+        if period_years and cutoff and numeric.get('is_forecast') is not True and max(period_years) > cutoff[:4]:
             missing.append('period_after_cutoff')
         item['numeric_validation'] = {'passed': not missing, 'missing_fields': missing}
         if missing:
@@ -290,7 +402,9 @@ def append_evidence_index(report: str, payload: dict, outline: list, packages: d
     chapter_ids = {}
     facts = [f for f in payload.get('facts', []) if isinstance(f, dict)]
     total_sources = {f.get('source_url') for f in facts if f.get('eligible_for_report') is not False and f.get('source_url')}
-    for index, (title, requirements) in enumerate(outline[:-2], 1):
+    for index, (title, requirements) in enumerate(outline, 1):
+        if index == 15:
+            continue
         package = (packages or {}).get(index)
         if isinstance(package, str):
             try:
@@ -299,18 +413,22 @@ def append_evidence_index(report: str, payload: dict, outline: list, packages: d
                 package = None
         selected = package.get('facts', []) if isinstance(package, dict) else select_chapter_evidence(payload, title, requirements)['facts']
         chapter_ids[index] = [f.get('evidence_id') for f in selected if f.get('evidence_id')]
+        chapter_match = re.search(rf'(?ms)^##\s*{index}[.、．][^\n]*\n(.*?)(?=^##\s*\d+[.、．]|\Z)', report)
+        mentioned = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', chapter_match[1], re.I)) if chapter_match else set()
         for fact in selected:
             eid = str(fact.get('evidence_id') or '')
             url = str(fact.get('source_url') or '')
             if not eid or not url or not url.startswith(('https://', 'http://', 'structured://')):
                 continue
+            cited_ids.add(eid)
+            if eid not in mentioned:
+                continue
             def cell(value):
                 return re.sub(r'\s+', ' ', str(value or '待标注')).replace('|', '/')[:160]
             rows.append(f'| [{eid}]({url}) | 第 {index} 章 | {cell(fact.get("fact"))} | {cell(fact.get("provider") or fact.get("source_type"))} / {cell(fact.get("source_grade"))} |')
-            cited_ids.add(eid)
             referenced.add(url)
     lines = ['## 15. 信息来源（自动生成审计索引）', '',
-             '本索引对应章节实际输入的事实编号；同一来源的不同事实可支持多个章节。', '',
+             '本索引列出章节正文实际引用且属于对应证据包的事实编号；同一来源的不同事实可支持多个章节。', '',
              '| 证据编号与原始来源 | 支持章节 | 信息点 | 获取工具与信源等级 |',
              '| --- | --- | --- | --- |', *rows, '',
              f'> 已纳入章节证据包的唯一来源：{len(referenced)} / 清洗事实库可追溯来源：{len(total_sources)}。', '']
@@ -325,7 +443,7 @@ def append_evidence_index(report: str, payload: dict, outline: list, packages: d
     return updated, {'referenced_sources': len(referenced), 'total_fact_sources': len(total_sources),
                      'evidence_ids': sorted(cited_ids), 'chapter_evidence_ids': chapter_ids,
                      'numeric_evidence': {f['evidence_id']: {'validation': f.get('numeric_validation') or {},
-                                         'fact': f.get('fact', ''), 'context': f.get('numeric_context') or {}}
+                                         'fact': str(f.get('fact', ''))[:900], 'context': f.get('numeric_context') or {}}
                                           for f in facts if f.get('evidence_id') in cited_ids}}
 
 
@@ -345,7 +463,8 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
         end = chapters[position + 1].start() if position + 1 < len(chapters) else len(report)
         body = report[match.end():end]
         ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', body, flags=re.I))
-        allowed = set(diagnostic.get('chapter_evidence_ids', {}).get(chapter) or [])
+        chapter_map = diagnostic.get('chapter_evidence_ids', {})
+        allowed = set(chapter_map.get(chapter, chapter_map.get(str(chapter), [])) or [])
         if chapter in {1, 14}:
             allowed = valid
         missing = ids - allowed
@@ -360,21 +479,20 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
         if re.search(r'(?:不存在|没有|无)(?:任何)?(?:行业风险|监管风险|技术风险)', body):
             errors.append(f'第{chapter}章存在确定无风险的越界结论。')
         for line in body.splitlines():
-            numbers = re.findall(r'\d[\d,.]*\s*(?:%|％|亿元|万元|亿美元|万美元)', line)
+            numbers = re.findall(NUMBER_PATTERN, line)
             if not numbers:
                 continue
             line_ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', line, flags=re.I)) & allowed
             numeric = diagnostic.get('numeric_evidence', {})
             for number in numbers:
-                supported = any(number.replace(' ', '') in str(numeric.get(eid, {}).get('fact', '')).replace(' ', '')
-                                and numeric.get(eid, {}).get('validation', {}).get('passed') for eid in line_ids)
+                supported = any(numeric_supported(number, eid, numeric) for eid in line_ids)
                 if not supported and '待核验' not in line:
                     errors.append(f'第{chapter}章数值 {number} 缺少同一行的有效口径证据或待核验标注。')
     if not valid or cited_chapters < 4:
         errors.append('至少四个研究章节需要引用有效事实，当前证据覆盖不足。')
     if '研究边界与口径' not in report:
         errors.append('缺少研究边界与口径。')
-    return errors
+    return list(dict.fromkeys(errors))
 
 
 def trace_snapshot(events: list[dict], limit: int = 2000) -> tuple[list[dict], dict]:

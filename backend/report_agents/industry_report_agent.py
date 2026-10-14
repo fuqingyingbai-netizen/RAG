@@ -9,6 +9,10 @@ from .report_style import REPORT_CHAPTER_HEADING_RE, REFERENCE_REPORT_STYLE, ens
 
 
 from .industry_template import INDUSTRY_REPORT_OUTLINE
+try:
+    from ..industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers
+except ImportError:
+    from industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers
 
 INDUSTRY_SECTION_STRUCTURES = {
     index: f"## {index}. {title}\n\n本节内容要求：" + "；".join(requirements)
@@ -50,10 +54,14 @@ class IndustryReportAgent:
         # Allocate by chapter relevance; distinct facts from one URL can be reused.
         used_urls: set[str] = set()
         section_packages: dict[int, str] = {}
+        payload = json.loads(cleaned_json)
+        risk = json.loads(risk_json)
         for index, (section_title, requirements) in enumerate(self.outline, 1):
             if index >= 15:
-                section_packages[index] = cleaned_json
-                section_fact_counts[index] = 0
+                package = _focused_cleaned_json(cleaned_json, section_title, requirements,
+                                                str(project.target_name or ''), 'industry') if index == 16 else '{"facts": []}'
+                section_packages[index] = bounded_package(json.loads(package))
+                section_fact_counts[index] = len(json.loads(section_packages[index])['facts'])
                 continue
             package = _focused_cleaned_json(
                 cleaned_json,
@@ -72,8 +80,9 @@ class IndustryReportAgent:
                 for item in package_facts
                 if isinstance(item, dict) and str(item.get("source_url") or "").startswith(("http://", "https://"))
             )
-            section_packages[index] = package
-            section_fact_counts[index] = len(package_facts) if isinstance(package_facts, list) else 0
+            package, _ = package_risk_evidence(json.loads(package), payload, risk, include_all=index in {1, 13, 14})
+            section_packages[index] = bounded_package(package)
+            section_fact_counts[index] = len(json.loads(section_packages[index])['facts'])
         emit(trace_emit, "report", self.trace_agent, "行业章节证据包已按章节分桶", f"unique_sources={len(used_urls)}, evidence_chapters=14", unique_sources=len(used_urls), status="done")
 
         setattr(project, "industry_section_packages", section_packages)
@@ -138,6 +147,11 @@ class IndustryReportAgent:
                 if section.strip():
                     sections_by_index[index] = section
         summary_title, summary_requirements = self.outline[0]
+        # The summary may reuse every fact actually supplied to entity chapters.
+        summary_facts = {f['evidence_id']: f for i, raw in section_packages.items() if i < 15
+                         for f in json.loads(raw).get('facts', []) if f.get('evidence_id')}
+        section_packages[1] = bounded_package({'facts': list(summary_facts.values()), 'industry_scope': industry_scope}, 14000)
+        section_fact_counts[1] = len(json.loads(section_packages[1])['facts'])
         try:
             summary = self._write_section(project, section_packages[1], risk_json, 1, summary_title,
                 summary_requirements, section_fact_counts[1], invoke, clip, emit, trace_emit,
@@ -171,18 +185,21 @@ class IndustryReportAgent:
                 "按已有证据写最多三个要点；仅在有两条以上可比较事实时使用表格。"
                 "不要为了覆盖任务书增加二级标题、三级标题或本章待核验清单。"
             )
+        package = json.loads(cleaned_json)
+        _, scoped_risk = package_risk_evidence(package, package, json.loads(risk_json), include_all=index in {1, 13, 14})
         prompt = build_section_prompt(
             report_kind=self.report_kind,
             outline=self.outline,
             project=project,
             cleaned_json=cleaned_json,
-            risk_json=risk_json,
+            risk_json=json.dumps(scoped_risk, ensure_ascii=False),
             index=index,
             section_title=section_title,
             requirements=requirements,
             clip=clip,
             few_shot=few_shot,
             section_structure=section_structure,
+            evidence_preselected=True,
         )
         prompt += """
 行业证据边界（强制执行）：
@@ -201,9 +218,11 @@ class IndustryReportAgent:
         if not rich_evidence and index <= 14:
             prompt += "\n本章属于有限证据章节：旧章节骨架和 few-shot 仅供丰富证据章节参考，本章不适用。只写已证实事实和最多两条克制推演，不超过三个要点，不生成表格；所有待核验动作只放第16章。\n"
         if completed_sections:
-            prompt += "\n已完成的实体章节（摘要仅概括这些已写结论，不新增事实）：\n" + clip(completed_sections, 30000)
+            prompt += "\n已完成的实体章节（摘要仅概括这些已写结论，不新增事实）：\n" + clip(completed_sections, 12000)
         if index == 12:
             prompt += "\n按指定企业分别列示注册、股权、经营、产品、客户供应商与风险。仅根据本轮公开资料核查，未覆盖的事项写待核验；不得声称已经完成企业内部核验、访谈或现场调研。企业结论不得替代行业整体结论。\n"
+        if (getattr(project, 'industry_scope', {}) or {}).get('capital_market') == 'none':
+            prompt += '\n资本市场模块未启用：不要将投融资、估值或二级市场缺失列为本次研究缺口、风险或必做补采任务。\n'
         if index == 15:
             return "## 15. 信息来源\n\n来源索引由系统根据章节证据生成。"
         prompt += "\n每个关键事实和数值后必须引用本章输入的 E-证据编号；不得引用未提供的编号。无评分证据时第14章返回待核验，不能补造评分。\n"
@@ -218,67 +237,36 @@ class IndustryReportAgent:
                 answer.strip(),
                 flags=re.MULTILINE,
             )
+            normalized = self._validate_section(normalized, package, index, section_title, invoke, emit, trace_emit)
             emit(trace_emit, "report", self.trace_agent, "章节写作完成", section_title, section=section_title, status="done")
             return normalized
         return f"## {index}. {section_title}\n\n待核验。本章节需要后续补充核验：{'; '.join(requirements)}。"
 
     def _edit(self, project: Any, draft: str, risk_json: str, section_fact_counts: dict[int, int], invoke: Callable[[str, str, Any], str], clip: Callable[[str, int], str], emit: Callable[..., None], trace_emit: Any) -> str:
-        emit(trace_emit, "report", self.trace_agent, "总编润色启动", f"sections={len(self.outline)}", status="running")
-        prompt = build_editor_prompt(
-            report_kind=self.report_kind,
-            outline=self.outline,
-            project=project,
-            draft=draft,
-            risk_json=risk_json,
-            clip=clip,
-        )
-        # Count how many chapters are truly substantive (have significant body text
-        # beyond a one-line placeholder).  Used below to guide the editor.
-        sparse_chapter_nums = sorted(
-            idx for idx, fc in section_fact_counts.items() if fc < INDUSTRY_SPARSE_CHAPTER_MIN_FACTS
-        )
-        outline_lines = chr(10).join(f"{idx}. {title}" for idx, (title, _) in enumerate(self.outline, 1))
-        sparse_hint = ""
-        if sparse_chapter_nums:
-            sparse_labels = ", ".join(f"第{idx}章" for idx in sparse_chapter_nums)
-            sparse_hint = (
-                "以下章节证据稀疏（fact_count < " + str(INDUSTRY_SPARSE_CHAPTER_MIN_FACTS) + "），"
-                "正文应简短（最多3个要点、不用表格），但 ## 顶级标题必须保留：" + sparse_labels + "\n"
-            )
-        prompt += f"""
-
-行业报告专属总编要求：
-1. 最终报告必须严格保留 16 节目录，标题和顺序如下：
-{outline_lines}
-2. 不得把每一节统一改写成"本章结论/事实梳理/分析判断/风险与待核验"四段式；每节必须保留该节自己的内容结构。
-3. 第 6 节写竞争格局，第 7 节单列技术路线对比，分别引用对应证据。
-4. 第 9 节二级市场情绪如缺少实时交易数据，必须明确数据缺口和建议数据源，不得编造指标。
-5. 第 14 节仅在有效证据支持时评分，否则写待核验；第 15 节来源索引由系统生成；第 16 节必须按高/中/低优先级排序。
-6. 对无证据内容保持克制，正文只写"待核验"，并统一沉淀到"集中式待核验清单"；不要编造市场规模、融资金额、政策原文、二级市场指标、客户或供应商数据。
-
-章节保护规则（最高优先级，凌驾于精简规则）：
-- 最终输出的 16 个 ## 顶级章节一个都不能少。即使某章只有一句"本次已检索公开来源未形成可引用记录"，也必须保留其 ## 标题。
-- 精简规则只能用于删除章节内部的 ### 子标题和空洞正文段落，绝对不能删除整个 ## 顶级章节。
-- 如果草稿中某章缺失，必须补回其 ## 标题和一句占位说明；不得直接跳过该编号。
-{sparse_hint}
-"""
-        answer = invoke(f"{self.report_kind}总编 Agent", prompt, trace_emit)
-        edited = answer.strip()
-        if not edited:
-            return draft
+        # Chapters have already been audited independently. A whole-report model
+        # rewrite both loses citations and duplicates expensive output tokens.
         expected = {idx: title for idx, (title, _) in enumerate(self.outline, 1)}
-        edited = normalize_report_headings(edited, expected)
-        edited = sanitize_nested_report_chapter_headings(edited, expected)
-        present = {int(match.group(1)) for match in REPORT_CHAPTER_HEADING_RE.finditer(edited or "")}
-        missing = [idx for idx in range(1, len(self.outline) + 1) if idx not in present]
-        if missing:
-            emit(
-                trace_emit,
-                "report",
-                self.trace_agent,
-                "总编输出缺章，回退分章节草稿",
-                f"missing={missing}",
-                status="fallback",
-            )
-            return draft
-        return edited
+        emit(trace_emit, 'report', self.trace_agent, '行业报告分章校验完成，执行目录合并', 'sections=16', status='done')
+        return sanitize_nested_report_chapter_headings(normalize_report_headings(draft, expected), expected)
+
+    def _validate_section(self, section, package, index, title, invoke, emit, trace_emit):
+        facts = package.get('facts', [])
+        allowed = {f.get('evidence_id') for f in facts}
+        ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', section, re.I))
+        expected_heading = f'## {index}. {title}'
+        if ids - allowed or not (ids & allowed) or re.findall(r'(?m)^##\s+\d+[.、．]', section) != [f'## {index}.']:
+            emit(trace_emit, 'report', self.trace_agent, '章节引用或目录校验未通过，尝试一次局部修复', f'chapter={index}', status='warning')
+            prompt = (f'仅修复第{index}章，顶级标题为 {expected_heading}。删除无证据结论，保留合法来源编号。'
+                      '只输出本章；不能新增数字或证据编号。\n证据：' + bounded_package(package, 12000)
+                      + '\n待修复章节：\n' + section[:8000])
+            repaired = invoke(f'{self.report_kind}章节修复 Agent - {title}', prompt, trace_emit).strip()
+            repair_ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', repaired, re.I))
+            if repaired.startswith(expected_heading) and repair_ids & allowed and not repair_ids - allowed and len(re.findall(r'(?m)^##\s+\d+[.、．]', repaired)) == 1:
+                section = repaired
+            else:
+                # Preserve traceable facts, not prose whose citations failed.
+                section = expected_heading + '\n\n' + '\n\n'.join(
+                    f'- {str(f.get("fact") or "")[:700]} [{f["evidence_id"]}]({f.get("source_url", "")})'
+                    for f in facts if f.get('evidence_id'))
+                emit(trace_emit, 'report', self.trace_agent, '局部修复失败，保留来源事实摘录', f'chapter={index}', status='fallback')
+        return mark_unverified_numbers(section, facts)

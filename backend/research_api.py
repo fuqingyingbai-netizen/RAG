@@ -1975,6 +1975,28 @@ async def list_artifacts(
     return [_artifact_response(item) for item in artifacts]
 
 
+@router.post("/artifacts/{artifact_id}/reindex", response_model=ResearchArtifactResponse)
+async def reindex_industry_artifact(
+    artifact_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    artifact = db.query(ResearchArtifact).filter(ResearchArtifact.id == artifact_id).first()
+    if not artifact:
+        raise HTTPException(status_code=404, detail="产物不存在")
+    project = _get_project(db, artifact.project_id, current_user)
+    if project.target_type != 'industry' or artifact.artifact_type != 'cleaned_facts':
+        raise HTTPException(status_code=400, detail="仅支持行业清洗事实单独重建索引")
+    artifact = db.query(ResearchArtifact).filter(ResearchArtifact.id == artifact_id).with_for_update().populate_existing().first()
+    try:
+        research_workflow.start_artifact_index(db, project, artifact)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    db.refresh(artifact)
+    return _artifact_response(artifact, include_content=False)
+
+
 @router.delete("/artifacts/{artifact_id}")
 async def delete_artifact(
     artifact_id: int,
