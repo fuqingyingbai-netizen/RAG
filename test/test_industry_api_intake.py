@@ -15,6 +15,11 @@ def test_industry_request_respects_disabled_search_and_bounded_rounds():
     assert 'industry_focus' not in intake
 
 
+def test_industry_run_can_inherit_project_type_without_enabling_search():
+    intake = research_api._locked_run_intake(ResearchRunRequest(ai_search_enabled=False), target_type='industry')
+    assert intake['target_type'] == 'industry' and intake['ai_search_enabled'] is False
+
+
 def test_save_and_resume_preserve_scope_and_allow_clearing_companies(monkeypatch):
     saved = {'industry_focus': '协作机器人', 'focus_modules': ['技术路线对比'], 'focus_entities': '甲公司',
              'include_capital_markets': False, 'as_of_date': '2026-01-31', 'region': '欧洲',

@@ -163,8 +163,9 @@ def _unsubscribe_running_project(project_id: int, queue: asyncio.Queue) -> None:
             RUNNING_PROJECT_SUBSCRIBERS.pop(project_id, None)
 
 
-def _locked_run_intake(request: ResearchRunRequest) -> dict:
-    intake = request.model_dump(exclude_unset=request.target_type == "industry")
+def _locked_run_intake(request: ResearchRunRequest, target_type: str = "") -> dict:
+    effective_type = request.target_type or target_type
+    intake = request.model_dump(exclude_unset=effective_type == "industry")
     intake.update(
         {
             "max_results_per_query": FIXED_MAX_RESULTS_PER_QUERY,
@@ -174,7 +175,8 @@ def _locked_run_intake(request: ResearchRunRequest) -> dict:
             "max_search_rounds": FIXED_MAX_SEARCH_ROUNDS,
         }
     )
-    if request.target_type == "industry":
+    if effective_type == "industry":
+        intake["target_type"] = "industry"
         intake["ai_search_enabled"] = request.ai_search_enabled
         intake["max_search_rounds"] = min(3, max(1, request.max_search_rounds))
     return intake
@@ -1616,7 +1618,7 @@ async def run_research_project(
     if not _mark_project_running(project_id):
         raise HTTPException(status_code=409, detail="该项目已有工作流正在后台运行，请稍后查看进度")
     try:
-        intake = _locked_run_intake(request)
+        intake = _locked_run_intake(request, target_type=project.target_type)
         recovered_identity = _refresh_failed_upload_ocr(db, project)
         for key, value in recovered_identity.items():
             if value and not str(intake.get(key) or "").strip():
@@ -1757,7 +1759,7 @@ async def run_research_project_stream(
                 if not is_admin and project.created_by_id != user_id:
                     emit({"type": "error", "content": "无权访问该研究项目"})
                     return
-                intake = _locked_run_intake(request)
+                intake = _locked_run_intake(request, target_type=project.target_type)
                 recovered_identity = _refresh_failed_upload_ocr(worker_db, project)
                 for key, value in recovered_identity.items():
                     if value and not str(intake.get(key) or "").strip():
