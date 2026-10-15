@@ -265,6 +265,11 @@ def render_judicial(p):
     f=p['facts'];lines=['## 9. '+TITLE,'','### 查询覆盖与计数边界','']
     for attempt in p.get('query_attempts') or []:
         if attempt.get('status')=='failed':lines+=['- 专业平台调用未成功：'+attempt.get('tool','风险接口')+'；不计为无记录，需补齐查询。']
+        if attempt.get('status')=='not_queried':
+            reason={'quota_exceeded':'账户额度不足','unauthorized':'鉴权失败','rate_limited':'平台限流',
+                    'not_configured':'未配置接入','initialization_failed':'连接初始化失败',
+                    'transport_failed':'网络调用异常'}.get(attempt.get('reason'),'平台暂不可用')
+            lines+=['- 专业平台尚未查询：'+attempt.get('tool','风险接口')+'（'+reason+'）；不计为无记录，需补齐查询。']
     for c in p['coverage']:lines+=['- '+c['fact']+'；'+c['retrieved_at']+' '+refs(c)]
     scans=[r for r in f if r['kind']=='scan']
     if scans:lines+=_table(['扫描因子','接口条目数','明细工具与证据'],[[r['factor'],str(r['count']),r['detail_tool']+'；'+refs(r)] for r in scans])

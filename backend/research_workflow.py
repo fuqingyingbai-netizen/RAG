@@ -25,6 +25,7 @@ from langchain.chat_models import init_chat_model
 from sqlalchemy.orm import Session, object_session
 
 try:
+    from .company_platform import CompanyPlatformAudit, restore_platform_audit
     from .docx_exporter import markdown_to_docx_bytes
     from .models import ResearchArtifact, ResearchProject, ResearchSource
     from .report_agents import CompanyReportAgent, IndustryReportAgent, PersonReportAgent
@@ -34,6 +35,7 @@ try:
     from .research_strategies import get_research_strategy
     from .web_search import web_search_provider
 except ImportError:
+    from company_platform import CompanyPlatformAudit, restore_platform_audit
     from docx_exporter import markdown_to_docx_bytes
     from models import ResearchArtifact, ResearchProject, ResearchSource
     from report_agents import CompanyReportAgent, IndustryReportAgent, PersonReportAgent
@@ -623,7 +625,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v26-role-specific-and-readable-export",
+            "company": "company-report-evidence-v27-professional-platform-coverage",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -1055,7 +1057,8 @@ class ResearchWorkflow:
                     "agent": "report_writer",
                     "report_pipeline_version": report_pipeline_version,
                     **({"company_summary_diagnostic": getattr(project, "company_summary_diagnostic", {}),
-                        "company_summary_evidence": getattr(project, "company_summary_package", {})}
+                        "company_summary_evidence": getattr(project, "company_summary_package", {}),
+                        "company_professional_platform_attempts": getattr(project, "company_professional_platform_attempts", [])}
                        if standardized_type == "company" else {}),
                     **({"company_governance_diagnostic": getattr(project, "company_governance_diagnostic", {})}
                        if standardized_type == "company" else {}),
@@ -3145,14 +3148,37 @@ class ResearchWorkflow:
         if not target:
             return 0
         added = 0
+        company = self._standardize_target_type(project, intake, target) == "company"
+        if company:
+            project.company_professional_platform_attempts = []
+            project.company_judicial_query_attempts = []
         collectors = [self._collect_qcc_sources, self._collect_tyc_sources, self._collect_xiniu_sources]
         for collector in collectors:
             try:
                 added += collector(db, project, target, intake, emit=emit)
             except Exception as exc:
                 _emit(emit, "structured_data", "structured_data_agent", "结构化采集失败", str(exc), status="warning")
+        if company:
+            audit = {"attempts": getattr(project, "company_professional_platform_attempts", []),
+                     "judicial_query_attempts": getattr(project, "company_judicial_query_attempts", [])}
+            self.save_artifact(db, project, "professional_platform_audit", "专业平台查询覆盖记录",
+                               json.dumps(audit, ensure_ascii=False), {"provider_audit_version": 1})
+            failures = sum(r["status"] in {"failed", "not_queried"} for r in audit["attempts"])
+            if failures:
+                _emit(emit, "structured_data", "structured_data_agent", "专业平台存在未完成查询",
+                      f"失败或未查询={failures}；平台不可用不表示企业无记录。", status="warning")
         _emit(emit, "structured_data", "structured_data_agent", "结构化采集完成", f"sources_added={added}", sources_added=added, status="done")
         return added
+
+    def _company_platform_audit(self, project, intake, target, provider, credential):
+        if not hasattr(self, "_company_platform_failure_cache"):
+            self._company_platform_failure_cache = {}
+        return CompanyPlatformAudit(project, provider, credential, self._company_platform_failure_cache,
+                                    self._standardize_target_type(project, intake, target) == "company")
+
+    def _emit_platform_stop(self, audit, emit):
+        _emit(emit, "structured_data", audit.provider + "_mcp_agent", "专业平台暂不可用，停止本轮调用",
+              f"{audit.provider}: {audit.stop_reason}；后续工具未查询，不计为企业无记录。", status="warning")
 
     def collect_person_affiliation_structured_sources(
         self,
@@ -3348,7 +3374,12 @@ class ResearchWorkflow:
 
     def _collect_qcc_sources(self, db: Session, project: ResearchProject, target: str, intake: dict[str, Any], emit: TraceEmitter | None = None) -> int:
         token = os.getenv("QCC_API_KEY", "").strip()
+        audit = self._company_platform_audit(project, intake, target, "qcc", token)
+        audit.planned(["get_company_registration_info", "get_shareholder_info", "get_key_personnel",
+                       "get_company_profile", "get_company_risk_scan", "get_administrative_penalty", "get_recruitment_info"])
         if not token:
+            audit.stop_reason = "not_configured"
+            audit.finish_unqueried()
             _emit(emit, "structured_data", "qcc_mcp_agent", "企查查 API Key 为空，跳过", "", status="skipped")
             return 0
         if token.lower().startswith("bearer "):
@@ -3372,6 +3403,10 @@ class ResearchWorkflow:
         ]
         if os.getenv("QCC_ENABLE_IPR_TOOLS", "false").strip().lower() in {"1", "true", "yes", "on"}:
             endpoints.append(("qcc_ipr", os.getenv("QCC_MCP_IPR_URL", "https://agent.qcc.com/mcp/ipr/stream"), [("get_patents", "技术实力")]))
+            audit.planned(["get_patents"])
+        if audit.cached_failure():
+            self._emit_platform_stop(audit, emit)
+            return 0
         added = 0
         candidates = intake.get("structured_target_candidates") or [target]
         disabled_tools: set[str] = set()
@@ -3379,8 +3414,13 @@ class ResearchWorkflow:
         if company_risk:
             project.company_judicial_query_attempts = []
         for provider, url, tools in endpoints:
-            session, ok, error = self._mcp_initialize(url, headers, timeout=timeout)
+            session, ok, error = audit.initialize(self._mcp_initialize, url, headers, timeout=timeout)
             if not ok:
+                if audit.result(provider + "初始化", {}, {"error": error}):
+                    self._emit_platform_stop(audit, emit)
+                    return added
+                for tool, _ in tools:
+                    audit.record(tool, {}, "not_queried", "initialization_failed")
                 if company_risk and provider == "qcc_risk":
                     project.company_judicial_query_attempts.append({"tool": "qcc_risk初始化", "status": "failed"})
                 _emit(emit, "structured_data", "qcc_mcp_agent", "企查查 MCP 初始化失败", error, status="warning")
@@ -3389,12 +3429,14 @@ class ResearchWorkflow:
                 if tool in disabled_tools:
                     continue
                 saved = False
+                failed = False
                 for candidate in candidates:
-                    payload, session = self._mcp_call_tool(url, headers, tool, {"searchKey": candidate}, session=session, request_id=10 + index, timeout=timeout)
+                    payload, session = audit.call(self._mcp_call_tool, url, headers, tool, {"searchKey": candidate}, session=session, request_id=10 + index, timeout=timeout)
+                    if audit.result(tool, {"searchKey": candidate}, payload):
+                        self._emit_platform_stop(audit, emit)
+                        return added
                     if payload.get("error"):
-                        if company_risk and provider == "qcc_risk":
-                            project.company_judicial_query_attempts.append({"tool": tool, "query": candidate,
-                                "status": "failed", "retrieved_at": datetime.now().isoformat(timespec="seconds")})
+                        failed = True
                         if self._mcp_error_is_disabled_tool(payload):
                             disabled_tools.add(tool)
                             saved = True
@@ -3406,20 +3448,26 @@ class ResearchWorkflow:
                                   "query_status": "success", "retrieved_at": datetime.now().isoformat(timespec="seconds")}
                     if company_risk and provider == "qcc_risk":
                         query_meta["company_qcc_raw_response"] = payload
-                        project.company_judicial_query_attempts.append({"tool": tool, "query": candidate,
-                            "retrieved_at": query_meta["retrieved_at"], "status": "returned"})
                         from company_risk import drilldown_tools, document_requests
                         scan_entity_ok, _ = self._structured_entity_matches_request(text, query_meta, intake)
                         if tool == "get_company_risk_scan" and scan_entity_ok:
                             queued = {name for name, _module in tools}
                             tools.extend((name, "诉讼/制裁") for name in drilldown_tools(text) if name not in queued)
+                            audit.planned([name for name, _module in tools])
                         if tool == "get_judicial_documents" and scan_entity_ok:
                             for case_number, document_id in document_requests(text):
-                                detail, session = self._mcp_call_tool(url, headers, "get_judicial_document_detail",
+                                detail, session = audit.call(self._mcp_call_tool, url, headers, "get_judicial_document_detail",
                                     {"searchKey": candidate, "documentId": document_id, "section": "全部"},
                                     session=session, request_id=100 + index, timeout=timeout)
-                                project.company_judicial_query_attempts.append({"tool": "get_judicial_document_detail",
-                                    "case_number": case_number, "status": "failed" if detail.get("error") else "returned"})
+                                if audit.result("get_judicial_document_detail", {"searchKey": candidate,
+                                                "documentId": document_id, "section": "全部"}, detail):
+                                    # The list already returned successfully. A failed
+                                    # detail lookup must not discard that original.
+                                    if self._save_structured_source(db, project, provider, module,
+                                        f"企查查-{tool}-{target}", text, query_meta, emit=emit, intake=intake):
+                                        added += 1
+                                    self._emit_platform_stop(audit, emit)
+                                    return added
                                 if not detail.get("error"):
                                     detail_text = self._extract_mcp_text(detail, preserve_company_risk=True)
                                     if self._save_structured_source(db, project, provider, module,
@@ -3431,7 +3479,7 @@ class ResearchWorkflow:
                         added += 1
                         saved = True
                         break
-                if not saved:
+                if not saved and not failed:
                     _emit(
                         emit,
                         "structured_data",
@@ -3444,21 +3492,34 @@ class ResearchWorkflow:
 
     def _collect_tyc_sources(self, db: Session, project: ResearchProject, target: str, intake: dict[str, Any], emit: TraceEmitter | None = None) -> int:
         api_key = (os.getenv("TYC_API_KEY") or os.getenv("TENC_API_KEY") or "").strip()
+        audit = self._company_platform_audit(project, intake, target, "tyc", api_key)
+        audit.planned(["search_companies", "get_company_basic_profile", "get_company_people", "get_company_group_profile", "search_patents"])
         if not api_key:
+            audit.stop_reason = "not_configured"
+            audit.finish_unqueried()
             _emit(emit, "structured_data", "tyc_mcp_agent", "天眼查 API Key 为空，跳过", "", status="skipped")
+            return 0
+        if audit.cached_failure():
+            self._emit_platform_stop(audit, emit)
             return 0
         url = os.getenv("TYC_MCP_URL", "https://mcp.tianyancha.com/v1").strip()
         headers = {"Authorization": api_key}
         timeout = _env_int("STRUCTURED_SOURCE_TIMEOUT_SECONDS", 45, 10, 180)
-        session, ok, error = self._mcp_initialize(url, headers, timeout=timeout)
+        session, ok, error = audit.initialize(self._mcp_initialize, url, headers, timeout=timeout)
         if not ok:
+            audit.result("initialize", {}, {"error": error})
+            audit.stop_reason = audit.stop_reason or "initialization_failed"
+            audit.finish_unqueried()
             _emit(emit, "structured_data", "tyc_mcp_agent", "天眼查 MCP 初始化失败", error, status="warning")
             return 0
         added = 0
         candidates = intake.get("structured_target_candidates") or [target]
         anchor = {"company_name": target, "company_id": ""}
         for candidate in candidates:
-            payload, session = self._mcp_call_tool(url, headers, "search_companies", {"query": candidate, "page": 1, "page_size": 5}, session=session, request_id=20, timeout=timeout)
+            payload, session = audit.call(self._mcp_call_tool, url, headers, "search_companies", {"query": candidate, "page": 1, "page_size": 5}, session=session, request_id=20, timeout=timeout)
+            if audit.result("search_companies", {"query": candidate, "page": 1, "page_size": 5}, payload):
+                self._emit_platform_stop(audit, emit)
+                return added
             if payload.get("error"):
                 _emit(emit, "structured_data", "tyc_mcp_agent", "天眼查搜索失败", json.dumps(payload, ensure_ascii=False)[:400], status="warning")
                 continue
@@ -3478,7 +3539,10 @@ class ResearchWorkflow:
             ("search_patents", "技术实力", {"query": subject_args["company_name"], "applicant": subject_args["company_name"], "page": 1, "page_size": 20}),
         ]
         for index, (tool, module, args) in enumerate(detail_tools, 1):
-            payload, session = self._mcp_call_tool(url, headers, tool, args, session=session, request_id=30 + index, timeout=timeout)
+            payload, session = audit.call(self._mcp_call_tool, url, headers, tool, args, session=session, request_id=30 + index, timeout=timeout)
+            if audit.result(tool, args, payload):
+                self._emit_platform_stop(audit, emit)
+                return added
             if payload.get("error"):
                 _emit(emit, "structured_data", "tyc_mcp_agent", "天眼查工具调用失败", f"{tool}: {json.dumps(payload, ensure_ascii=False)[:400]}", status="warning")
                 continue
@@ -3489,15 +3553,7 @@ class ResearchWorkflow:
 
     def _collect_xiniu_sources(self, db: Session, project: ResearchProject, target: str, intake: dict[str, Any], emit: TraceEmitter | None = None) -> int:
         api_key = os.getenv("XINIU_API_KEY", "").strip()
-        if not api_key:
-            return 0
-        base_url = os.getenv("XINIU_MCP_URL", "https://vip.xiniudata.com/mcp").strip()
-        url = base_url if "api_key=" in base_url else f"{base_url}{'&' if '?' in base_url else '?'}{urlencode({'api_key': api_key})}"
-        timeout = _env_int("STRUCTURED_SOURCE_TIMEOUT_SECONDS", 45, 10, 180)
-        session, ok, error = self._mcp_initialize(url, {}, timeout=timeout)
-        if not ok:
-            _emit(emit, "structured_data", "xiniu_mcp_agent", "稀牛 MCP 初始化失败", error, status="warning")
-            return 0
+        audit = self._company_platform_audit(project, intake, target, "xiniu", api_key)
         aspects = [
             ("企业基本信息", "公司背景"),
             ("融资状况分析", "融资情报"),
@@ -3505,6 +3561,24 @@ class ResearchWorkflow:
             ("团队人物及招聘分析", "管理团队"),
             ("风险评估", "风险核查"),
         ]
+        audit.planned(["get_company_info:" + aspect for aspect, _module in aspects])
+        if not api_key:
+            audit.stop_reason = "not_configured"
+            audit.finish_unqueried()
+            return 0
+        if audit.cached_failure():
+            self._emit_platform_stop(audit, emit)
+            return 0
+        base_url = os.getenv("XINIU_MCP_URL", "https://vip.xiniudata.com/mcp").strip()
+        url = base_url if "api_key=" in base_url else f"{base_url}{'&' if '?' in base_url else '?'}{urlencode({'api_key': api_key})}"
+        timeout = _env_int("STRUCTURED_SOURCE_TIMEOUT_SECONDS", 45, 10, 180)
+        session, ok, error = audit.initialize(self._mcp_initialize, url, {}, timeout=timeout)
+        if not ok:
+            audit.result("initialize", {}, {"error": error})
+            audit.stop_reason = audit.stop_reason or "initialization_failed"
+            audit.finish_unqueried()
+            _emit(emit, "structured_data", "xiniu_mcp_agent", "稀牛 MCP 初始化失败", error, status="warning")
+            return 0
         added = 0
         raw_candidates = intake.get("structured_target_candidates") or [target]
         candidates: list[str] = []
@@ -3515,7 +3589,10 @@ class ResearchWorkflow:
         for index, (aspect, module) in enumerate(aspects, 1):
             saved = False
             for candidate in candidates:
-                payload, session = self._mcp_call_tool(url, {}, "get_company_info", {"firm_name": candidate, "aspect": aspect}, session=session, request_id=30 + index, timeout=timeout)
+                payload, session = audit.call(self._mcp_call_tool, url, {}, "get_company_info", {"firm_name": candidate, "aspect": aspect}, session=session, request_id=30 + index, timeout=timeout)
+                if audit.result("get_company_info:" + aspect, {"firm_name": candidate, "aspect": aspect}, payload):
+                    self._emit_platform_stop(audit, emit)
+                    return added
                 if payload.get("error"):
                     _emit(emit, "structured_data", "xiniu_mcp_agent", "稀牛工具调用失败", json.dumps(payload, ensure_ascii=False)[:400], status="warning")
                     error_text = json.dumps(payload, ensure_ascii=False).lower()
@@ -3528,7 +3605,7 @@ class ResearchWorkflow:
                     added += 1
                     saved = True
                     break
-            if not saved:
+            if not saved and "get_company_info:" + aspect not in audit.failed_tools:
                 _emit(emit, "structured_data", "xiniu_mcp_agent", "稀牛未命中有效数据", aspect, status="warning")
         return added
     def collect_web_sources(
@@ -4948,6 +5025,16 @@ class ResearchWorkflow:
         target_type = (intake or {}).get("target_type") or self._standardize_target_type(project, intake or {})
         if target_type == "company":
             project.company_research_intake = dict(intake or {})
+            if not hasattr(project, "company_professional_platform_attempts"):
+                audits = [a for a in getattr(project, "artifacts", [])
+                          if a.artifact_type == "professional_platform_audit"]
+                if audits:
+                    latest = max(audits, key=lambda a: a.version or 0)
+                    try:
+                        restore_platform_audit(project, json.loads(latest.content))
+                    except (ValueError, TypeError):
+                        _emit(emit, "report", "desktop_report_agent", "专业平台覆盖记录无法读取",
+                              "本轮不据此认定已查询或无记录。", status="warning")
             # A template fallback after a writer failure must not inherit
             # successful diagnostics from an earlier generation attempt.
             project.company_verified_chapters_required = True
@@ -6568,7 +6655,7 @@ class ResearchWorkflow:
             .first()
         )
         version = (current.version + 1) if current else 1
-        suffix = "json" if artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment"} else "md"
+        suffix = "json" if artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "professional_platform_audit"} else "md"
         artifact_metadata = dict(metadata or {})
         object_key = research_store.put_text(
             f"projects/{project.id}/{artifact_type}/{artifact_type}_v{version}.{suffix}",
