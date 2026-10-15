@@ -6,6 +6,8 @@ import pytest
 from report_agents.company_management import (
     HEADINGS,iso,issuer,roster_rows,change_rows,appointments,biography_rows,
     relationship_rows,outside_roles,build_management_package,latest_roles,render_management,management_errors,
+    biography_excerpt,
+    period_date,
 )
 from report_agents.company_report_agent import CompanyReportAgent,COMPANY_SECTION_FEW_SHOTS,COMPANY_REPORT_OUTLINE
 from research_workflow import ResearchWorkflow
@@ -95,11 +97,93 @@ def test_actual_election_results_cross_page_keep_independent_categories():
     assert [(x['entity'],x['role'],x['page']) for x in r]==[('赵一','非独立董事',3),('钱二','独立董事',3)]
 
 
-def test_new_director_class_replaces_prior_term_instead_of_silent_merge():
+def test_new_explicit_director_class_replaces_prior_term_instead_of_silent_merge():
     old=roster_rows([roster_page(role='独立董事')],'2025年年度报告')
     pages,raw=announcement('董事会同意选举赵一先生为公司董事长。')
-    new=appointments(pages,raw);roles=latest_roles(old+new)
-    assert roles[0][1][0]['role']=='董事长' and not any(r['role']=='独立董事' for _,rs in roles for r in rs)
+    election=appointments([{'page':2,'text':'关于公司董事会换届选举非独立董事的议案\n赵一先生 100 99.0 当选'}],raw)
+    new=appointments(pages,raw);roles=latest_roles(old+election+new)
+    assert {r['role'] for _,rs in roles for r in rs}=={'董事长','非独立董事'}
+
+
+def test_chair_and_director_class_with_different_dates_do_not_overwrite_each_other():
+    election=appointments([{'page':2,'text':'关于公司董事会换届选举非独立董事的议案\n赵一先生 100 99.0 当选'}],'公司董事会2026年9月28日')
+    pages,raw=announcement('董事会同意选举赵一先生为公司董事长。')
+    roles=latest_roles(election+appointments(pages,raw))[0][1]
+    assert {r['role']:r['as_of'] for r in roles}=={'董事长':'2026-09-29','非独立董事':'2026-09-28'}
+
+
+def test_board_secretary_appointment_does_not_erase_company_secretary():
+    old=roster_rows([roster_page(role='公司秘书')],'2025年年度报告')
+    pages,raw=announcement('董事会同意聘任赵一先生为公司董事会秘书。')
+    roles=latest_roles(old+appointments(pages,raw))[0][1]
+    assert {r['role'] for r in roles}=={'公司秘书','董事会秘书'}
+
+
+def test_chair_title_alone_cannot_invent_change_in_director_independence():
+    old=roster_rows([roster_page(role='独立董事')],'2025年年度报告')
+    pages,raw=announcement('董事会同意选举赵一先生为公司董事长。')
+    roles=latest_roles(old+appointments(pages,raw))[0][1]
+    assert {r['role'] for r in roles}=={'独立董事','董事长'}
+    # The two disclosures have different dates; this is not proof of a
+    # simultaneous legal status, nor an invented non-independent category.
+    assert {r['as_of'] for r in roles}=={'2025-12-31','2026-09-29'}
+
+
+def test_shared_terms_and_appointments_do_not_repeat_the_full_roster():
+    pages,raw=announcement('董事会同意聘任赵一先生、钱二女士为公司副总裁，任期三年，自本次董事会审议通过之日起至本届董事会任期届满为止。')
+    c,s=source(pages=pages)
+    s['content']='青禾食品有限公司\n'+raw;c['fact']=raw;c['evidence_quote']=raw
+    p=package('青禾食品有限公司',(c,s));text=render_management(p)
+    assert text.count('任期三年，自本次董事会审议通过之日起至本届董事会任期届满为止')==1
+    assert '涉及2名人员' in text and '具体人员、岗位及任期见上表' in text
+    assert text.count('| 赵一 |')==1 and text.count('| 钱二 |')==1
+    assert management_errors(text,p)==[]
+
+
+def test_merged_role_sources_keep_their_own_physical_page_in_package():
+    first=source(pages=[roster_page(page=8)],i=1)
+    second=source(pages=[roster_page(page=12)],i=2)
+    p=package('青禾食品有限公司',first,second)
+    role=next(r for r in p['facts'] if r['kind']=='role')
+    assert role['evidence_ids']==[first[0]['evidence_id'],second[0]['evidence_id']]
+    assert {(loc['evidence_id'],loc['page']) for loc in role['evidence_locations']}=={(first[0]['evidence_id'],8),(second[0]['evidence_id'],12)}
+    text=render_management(p)
+    assert first[0]['evidence_id'] in text and second[0]['evidence_id'] not in text
+
+
+def test_biography_excerpt_keeps_education_and_prior_employer_without_repeating_current_posts():
+    bio={'fact':'一九六六年出生，中国国籍，硕士研究生学历。王先生毕业于甲大学，获工程硕士学位。王先生曾任乙研究院工程师，现任本公司董事长、总裁。',
+         'as_of':'2026-09-29','period':'2026-09-29'}
+    text=biography_excerpt(bio,[{'as_of':'2026-09-29'}])
+    assert '甲大学' in text and '乙研究院工程师' in text
+    assert '一九六六年出生' not in text and '现任' not in text and '董事长' not in text
+
+
+def test_biography_cross_page_locations_use_original_offsets_not_selected_character_count():
+    pages=[{'page':1,'text':'赵一先生，硕士研究生学历。'},
+           {'page':2,'text':'其他说明'*150+'。'},
+           {'page':3,'text':'赵先生曾任甲公司工程师。'}]
+    rows=biography_rows(pages,{'赵一'},'2025年年度报告','青禾食品有限公司')
+    assert rows and '曾任甲公司工程师' in rows[0]['fact'] and 3 in rows[0]['pages']
+
+
+def test_announcement_biography_does_not_become_a_future_year_end_snapshot():
+    assert period_date('2026-09-29')=='2026-09-29'
+    assert period_date('2026年半年度报告')=='2026-06-30'
+    rows=biography_rows([{'page':2,'text':'赵一先生，硕士研究生学历。曾任甲公司工程师。'}],{'赵一'},'2026-09-29','青禾食品有限公司')
+    assert rows[0]['as_of']=='2026-09-29'
+
+
+def test_index_keeps_each_corroborating_id_original_url_after_claim_merge():
+    first=source(pages=[roster_page(page=8)],i=1)
+    second=source(pages=[roster_page(page=12)],i=2)
+    p=package('青禾食品有限公司',first,second)
+    project=SimpleNamespace(target_name='青禾食品有限公司',target_type='company',company_management_package=p)
+    text='## 7. 核心管理团队风险研判\n任职披露。['+first[0]['evidence_id']+']['+second[0]['evidence_id']+']\n\n## 13. 信息来源\n\n## 14. 后续研究建议'
+    result=ResearchWorkflow.__new__(ResearchWorkflow)._append_company_claim_evidence_index(project,text,[first[0],second[0]],total_traceable_sources=2,eligible_company_sources=2)
+    for card,_ in (first,second):
+        line=next(line for line in result.splitlines() if line.startswith('| '+card['evidence_id']+' |'))
+        assert card['source_url'] in line
 
 
 def test_partial_executive_appointment_does_not_erase_concurrent_board_role():

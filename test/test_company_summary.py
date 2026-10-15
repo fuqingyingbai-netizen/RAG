@@ -8,6 +8,7 @@ from report_agents.company_summary import (
     normalize_company_summary,
 )
 from report_agents.company_report_agent import CompanyReportAgent
+from research_workflow import ResearchWorkflow
 
 
 def project(sources=()):
@@ -40,6 +41,15 @@ def test_summary_cannot_turn_undated_personnel_snapshot_into_current_role():
     assert summary_errors(section('王甲为当前董事长。[E-000000000001]'),p)
     assert summary_errors(section('王甲任期自2008年6月11日起至今。[E-000000000001]'),p)
     assert not summary_errors(section('平台登记记录中，王甲职务为董事长，数据基准日未载。[E-000000000001]'),p)
+
+
+def test_source_index_uses_summary_original_cards_instead_of_old_search_lead():
+    f=card(text='以下信息与用户查询直接相关：公司资料。');p=project()
+    p.company_summary_package={'facts':[dict(f,fact='本集团2025年营业收入10亿元。',summary_topic='financial')]}
+    t='## 1. 摘要\n本集团2025年营业收入10亿元。[E-000000000001]\n\n## 13. 信息来源\n\n## 14. 后续研究建议'
+    result=ResearchWorkflow.__new__(ResearchWorkflow)._append_company_claim_evidence_index(p,t,[f],total_traceable_sources=1,eligible_company_sources=1)
+    index=result.split('## 13.')[1]
+    assert '用户查询' not in index and '2025年营业收入10亿元' in index and '第一章原文核对' in index
 
 
 def test_summary_rejects_related_company_even_when_target_is_in_title():

@@ -623,7 +623,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v25-page-ocr-and-integrated-claims",
+            "company": "company-report-evidence-v26-role-specific-and-readable-export",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -1054,7 +1054,8 @@ class ResearchWorkflow:
                 {
                     "agent": "report_writer",
                     "report_pipeline_version": report_pipeline_version,
-                    **({"company_summary_diagnostic": getattr(project, "company_summary_diagnostic", {})}
+                    **({"company_summary_diagnostic": getattr(project, "company_summary_diagnostic", {}),
+                        "company_summary_evidence": getattr(project, "company_summary_package", {})}
                        if standardized_type == "company" else {}),
                     **({"company_governance_diagnostic": getattr(project, "company_governance_diagnostic", {})}
                        if standardized_type == "company" else {}),
@@ -4950,6 +4951,7 @@ class ResearchWorkflow:
             # A template fallback after a writer failure must not inherit
             # successful diagnostics from an earlier generation attempt.
             project.company_verified_chapters_required = True
+            project.company_summary_package = {}
             for chapter_key in ("summary", "governance", "history", "operations", "reputation", "business",
                                 "management", "people", "judicial", "diligence", "risk_register", "assessment"):
                 setattr(project, f"company_{chapter_key}_diagnostic", {})
@@ -5493,6 +5495,9 @@ class ResearchWorkflow:
     ) -> str:
         """Build chapter 13 from E-IDs actually present in company chapters 1-12."""
         outline = CompanyReportAgent().outline
+        summary_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_summary_package", {}).get("facts", []):
+            summary_by_id[str(record.get("evidence_id") or "").upper()].append(record)
         governance_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for record in getattr(project, "company_governance_package", {}).get("facts", []):
             for evidence_id in record.get("evidence_ids", []):
@@ -5618,26 +5623,29 @@ class ResearchWorkflow:
             chapters_by_id[evidence_id] = {0}
         for evidence_id, chapters in sorted(chapters_by_id.items(), key=lambda value: (min(value[1]), value[0])):
             item = facts_by_id.get(evidence_id, {})
-            if any(evidence_id in mapping for mapping in (governance_by_id, history_by_id, operations_by_id, reputation_by_id, business_by_id, management_by_id, people_by_id, judicial_by_id, diligence_by_id, risk_register_by_id, assessment_by_id)):
+            if any(evidence_id in mapping for mapping in (summary_by_id, governance_by_id, history_by_id, operations_by_id, reputation_by_id, business_by_id, management_by_id, people_by_id, judicial_by_id, diligence_by_id, risk_register_by_id, assessment_by_id)):
                 # A page-level industry/related classification may have hidden
                 # a literal issuer declaration recovered for chapter 2. Keep
                 # the source ID, and show the actual field-level claim used.
-                admitted = (governance_by_id.get(evidence_id, []) + history_by_id.get(evidence_id, [])
+                admitted = (summary_by_id.get(evidence_id, []) + governance_by_id.get(evidence_id, []) + history_by_id.get(evidence_id, [])
                             + operations_by_id.get(evidence_id, []) + reputation_by_id.get(evidence_id, []) + business_by_id.get(evidence_id, []) + management_by_id.get(evidence_id, []) + people_by_id.get(evidence_id, []) + judicial_by_id.get(evidence_id, []) + diligence_by_id.get(evidence_id, []) + risk_register_by_id.get(evidence_id, []) + assessment_by_id.get(evidence_id, []))
-                labels = [label for label, mapping in [("第二章", governance_by_id), ("第三章", history_by_id),
+                labels = [label for label, mapping in [("第一章", summary_by_id), ("第二章", governance_by_id), ("第三章", history_by_id),
                                                        ("第四章", operations_by_id), ("第五章", reputation_by_id), ("第六章", business_by_id), ("第七章", management_by_id), ("第八章", people_by_id), ("第九章", judicial_by_id), ("第十章", diligence_by_id), ("第十一章", risk_register_by_id), ("第十二章", assessment_by_id)] if evidence_id in mapping]
                 label = "／".join(labels) + "原文核对："
-                item = {**item, "source_url": admitted[0]["source_url"],
-                        "source_title": admitted[0]["source_title"],
+                # Deduplicated claims can cite several originals. Their
+                # E-IDs must keep their own URL/title, not all be redirected
+                # to the first merged record's document and physical pages.
+                item = {**item, "source_url": item.get("source_url") or admitted[0]["source_url"],
+                        "source_title": item.get("source_title") or admitted[0]["source_title"],
                         "fact": label + "；".join(
-                            (r.get("field") or r.get("metric") or r.get("aspect") or r["kind"]) + "=" + str(
+                            (r.get("field") or r.get("metric") or r.get("aspect") or r.get("summary_topic") or r["kind"]) + "=" + str(
                                 r.get("value") if r.get("field") else r.get("fact") or r.get("entity") or r.get("value") or "")
                             for r in admitted[:3])}
             url = str(item.get("source_url") or "").rstrip("/")
             source_title = re.sub(r"\s+", " ", str(item.get("source_title") or "公开来源")).replace("|", "/")[:48]
             fact = re.sub(r"\s+", " ", str(item.get("fact") or item.get("evidence_quote") or "正文引用证据编号，事实卡待回溯")).replace("|", "/")[:90]
             supports = "、".join(
-                f"第 {chapter} 章：{outline[chapter - 1][0]}" if 1 <= chapter <= len(outline) else "正文引用位置待回溯"
+                f"第 {chapter} 章" if 1 <= chapter <= len(outline) else "正文引用位置待回溯"
                 for chapter in sorted(chapters)
             )
             if url.startswith(("http://", "https://")):

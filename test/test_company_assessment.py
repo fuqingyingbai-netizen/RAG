@@ -354,7 +354,8 @@ def test_generation_resets_old_diagnostics_before_any_template_fallback():
     class FailAgent:
         def generate(self,*a,**kw):raise RuntimeError('模拟写作故障')
     w=ResearchWorkflow.__new__(ResearchWorkflow);w._report_agents={'company':FailAgent()}
-    p=SimpleNamespace(target_type='company',target_name=ROOT,company_assessment_diagnostic={'degraded':False})
+    p=SimpleNamespace(target_type='company',target_name=ROOT,company_assessment_diagnostic={'degraded':False},company_summary_package={'facts':[{'evidence_id':'E-OLD123456'}]})
     with pytest.raises(RuntimeError,match='模拟写作故障'):
         w.generate_report(p,'{}','{}',intake={'target_type':'company'})
     assert p.company_verified_chapters_required and p.company_assessment_diagnostic=={}
+    assert p.company_summary_package=={}

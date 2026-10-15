@@ -687,6 +687,7 @@ class CompanyReportAgent:
         if not isinstance(cleaned, dict):
             cleaned = {}
         package = build_company_summary_package(cleaned, str(project.target_name or ""), list(getattr(project, "sources", []) or []))
+        project.company_summary_package = package
         diagnostic = {
             "version": "company-summary-v1",
             "package_fingerprint": package_fingerprint(package),

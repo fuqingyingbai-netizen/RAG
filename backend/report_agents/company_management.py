@@ -12,7 +12,7 @@ from .company_history import _issuer_hosts
 
 TITLE='核心管理团队风险研判'
 HEADINGS=('管理层履历与岗位配置','任职变动与时间线','产业资源及明确关联关系','管理能力与团队掌控力评估','派系斗争、人事动荡与商业腐败信号','本章待核验事项')
-VERSION='company-management-v1'
+VERSION='company-management-v2-role-specific-and-compact'
 DATE=r'(?:20\d{2}年\d{1,2}月\d{1,2}日|20\d{2}[/.-]\d{1,2}[/.-]\d{1,2})'
 PERSON=r'[\u4e00-\u9fff·]{2,8}'
 ROLE=r'(?:董事长|副董事长|非独立董事|独立非执行董事|独立董事|执行董事|非执行董事|职工董事|董事|总裁|总经理|副总裁|财务总监|董事会秘书|公司秘书|内部审计负责人|证券事务代表|首席(?:财务|技术|运营|人才|执行|信息|风险|合规|科学)官|CEO|CFO|CTO|COO)'
@@ -26,6 +26,8 @@ def iso(value):
 
 
 def period_date(period):
+    exact=iso(period)
+    if exact:return exact
     y=re.search(r'20\d{2}',period)
     if not y:return ''
     return y[0]+('-06-30' if '半年度' in period else '-03-31' if '第一季度' in period else '-09-30' if '第三季度' in period else '-12-31')
@@ -145,17 +147,17 @@ def biography_rows(pages,names,period,target):
         block=text[m.end():matches[i+1].start() if i+1<len(matches) else len(text)]
         # Qualifying declarations are separate from professional experience.
         block=re.split(r'截至目前|且不存在以下|与持有公司|董事、高级管理人员报告期内',block)[0]
-        sentences=re.split(r'(?<=[。；])',block)
-        selected=[]
-        for sentence in sentences:
-            if not re.search(r'毕业|学位|学历|曾任|历任|加入|现任|负责|担任',sentence):continue
+        selected=[];last_offset=0
+        for match in re.finditer(r'[^。；]+[。；]?',block):
+            sentence=match[0]
+            if not re.search(r'毕业|学位|学历|曾任|历任|加入|创办|创立|任职|供职|现任|负责|担任',sentence):continue
             if re.search(r'入选|榜单|最具影响力|法》|任职资格',sentence):continue
             if sum(map(len,selected))+len(sentence)>680:break
-            selected.append(sentence)
+            selected.append(sentence);last_offset=match.end()
         fact=_prose(''.join(selected)).strip()
         if not fact:continue
         page=next(n for start,n in reversed(spans) if start<=m.start())
-        end=m.end()+sum(map(len,selected));used=[n for start,n in spans if m.start()<=start<=end]
+        end=m.end()+last_offset;used=[n for start,n in spans if m.start()<=start<=end]
         rows.append({'kind':'biography','entity':m['name'],'period':period,'as_of':period_date(period) or period,
                      'page':page,'pages':list(dict.fromkeys([page]+used)),'fact':fact,'evidence_quote':fact,
                      'mode':'公司公开履历自述，历史经历不等于现职或个人业绩核验'})
@@ -231,9 +233,13 @@ def build_management_package(cleaned,target,sources=None,*,limit=100000):
     unique=[];seen={}
     for c,r in records:
         key=json.dumps({k:v for k,v in r.items() if k not in {'page','pages','evidence_quote'}},ensure_ascii=False,sort_keys=True)
+        location={'evidence_id':c['evidence_id'],'source_url':c['source_url'],'page':r['page'],'pages':r.get('pages') or [r['page']]}
         if key in seen:
-            seen[key]['evidence_ids']=list(dict.fromkeys(seen[key]['evidence_ids']+[c['evidence_id']]));counts['duplicate_claim']+=1;continue
+            seen[key]['evidence_ids']=list(dict.fromkeys(seen[key]['evidence_ids']+[c['evidence_id']]))
+            if location not in seen[key]['evidence_locations']:seen[key]['evidence_locations'].append(location)
+            counts['duplicate_claim']+=1;continue
         r.update(evidence_id=c['evidence_id'],evidence_ids=[c['evidence_id']],source_url=c['source_url'],source_title=c.get('source_title',''),evidence_scope='target_direct')
+        r['evidence_locations']=[location]
         seen[key]=r;unique.append(r)
     selected=[]
     for kind in ('role','appointment','change'):
@@ -281,15 +287,49 @@ def latest_roles(records):
             candidates.append({**r,'status':'离任' if leaving else '变动表任职披露','end':r['start'] if leaving else '源表未载终止日'})
     for r in sorted(candidates,key=lambda r:(r['as_of'],r['kind']=='appointment'),reverse=True):
         for role in re.split(r'、|兼|及',r['role']):
-            family='secretary' if '秘书' in role else 'board' if '董事' in role else 'vice_president' if '副总裁' in role else role
+            # A chair appointment does not itself reclassify independent vs
+            # non-independent directorship, and a company secretary is not
+            # automatically replaced by a board-secretary appointment.
+            family=('board_secretary' if role=='董事会秘书' else
+                    'company_secretary' if role=='公司秘书' else
+                    'board_leadership' if '董事长' in role else
+                    'board_class' if '董事' in role else
+                    'vice_president' if '副总裁' in role else role)
             people[r['entity']].append({**r,'role':role,'family':family})
     result=[]
     for person,rows in people.items():
         newest={family:max(r['as_of'] for r in rows if r['family']==family) for family in {r['family'] for r in rows}}
         chosen=[r for r in rows if r['as_of']==newest[r['family']] and r.get('status') not in {'离任','任期满离任'}]
-        if reset:chosen=[r for r in chosen if r['as_of']>=reset or r['family']!='board']
+        if reset:chosen=[r for r in chosen if r['as_of']>=reset or r['family'] not in {'board_class','board_leadership'}]
         if chosen:result.append((person,chosen))
     return result
+
+
+def _locations(rows):
+    """Cite a source once with all supporting physical pages."""
+    locations={}
+    for r in rows:
+        # The physical page here belongs to the primary original. Alternate
+        # sources may paginate differently; keep their individual locations
+        # in the package instead of attaching this page to every citation.
+        for eid in r['evidence_ids'][:1]:
+            locations.setdefault(eid,[])
+            for page in r.get('pages') or [r['page']]:
+                if page not in locations[eid]:locations[eid].append(page)
+    return '；'.join('['+eid+']（物理页'+ '、'.join(map(str,sorted(pages)))+'）' for eid,pages in locations.items())
+
+
+def _term_text(row):
+    # Attachment pointers are not tenure terms. The complete untouched field
+    # remains in the evidence package alongside the original page and quote.
+    text=re.sub(r'（[^（）]*简历详见附件[^（）]*）','',row.get('end') or '').strip()
+    if not text or text.startswith('按'):
+        return '终止条款待按原公告核对'
+    return text
+
+
+def _role_parts(row):
+    return [x for x in re.split(r'、|兼|及',row['role']) if x]
 
 
 def render_management(p):
@@ -297,22 +337,40 @@ def render_management(p):
     roster=latest_roles(facts);bios={r['entity']:r for r in facts if r['kind']=='biography'}
     if roster:
         lines+=['已得任职披露涉及'+str(len(roster))+'名人员，含董事、高管及其他岗位；不将此数直接当作完整法定高管人数。','']
-        lines+=_table(['姓名','已得最新任职披露／基准日','原披露任期','履历与岗位依据','来源'],[
-            [name,'；'.join(dict.fromkeys(r['role']+'（'+(r['period'] if r['kind']=='role' else r['as_of'])+'）' for r in rows)),
-             '；'.join(dict.fromkeys(r['start']+'至'+r['end'] for r in rows)),
+        shared={r['period'] if r['kind']=='role' else r['as_of'] for _,rows in roster for r in rows}
+        common_date=next(iter(shared)) if len(shared)==1 else ''
+        if common_date:lines+=['下表各岗位已得最新任职披露的公告日／文件期均为'+common_date+'；任期条款集中列于表后，履历仅摘录教育及既往经历。','']
+        lines+=_table(['姓名','职务／披露时点','履历要点（公司自述）','出处'],[
+            [name,'；'.join(dict.fromkeys(r['role']+('' if common_date else '（'+(r['period'] if r['kind']=='role' else r['as_of'])+'）') for r in rows)),
              biography_excerpt(bios[name],rows) if name in bios else '未选到可绑定个人的履历，不能据此认定公司未披露。',
-             ' '.join(dict.fromkeys(refs(r)+f"（物理页{r['page']}）" for r in rows))+('；履历'+refs(bios[name])+f"（物理页{bios[name]['page']}）" if name in bios else '')] for name,rows in roster])
-        lines+=['','任职表中的现任、历史职务、同人多职与后续正式任命分别记录；上述为已得最新披露，不保证今天状态。年报标签指该文件任职披露，未另认定为精确年末时点；表内起始日期是对应职位的源字段，不直接当本届董事会统一起始日。财务签署人名单不代表完整高管名单。']
+             _locations(rows+([bios[name]] if name in bios else []))] for name,rows in roster])
+        terms={}
+        for name,rows in roster:
+            for r in rows:
+                key=(r['start'],_term_text(r))
+                terms.setdefault(key,[]).append(r)
+        lines+=['','任期对应（共同条款只列一次；不推算日历终止日）：','']
+        lines+=_table(['起始字段','对应人员及职务','终止字段／条款','出处'],[
+            [key[0],'；'.join(name+'（'+'、'.join(dict.fromkeys(r['role'] for r in rows if r['entity']==name))+'）' for name in dict.fromkeys(r['entity'] for r in rows)),key[1],_locations(rows)]
+            for key,rows in terms.items()])
+        lines+=['','任职表保留各职位的最新已得披露，文件时点不同不保证同时有效，亦不保证今天状态。董事类别、董事长/副董事长、董秘/公司秘书分别更新，不由一个岗位的续聘推断其他岗位续任或董事类别变更。年报标签指该文件任职披露，未另认定为精确年末时点；任期起始字段不直接当本届董事会统一起始日。财务签署人名单不代表完整高管名单。']
     else:lines+=['尚未形成可绑定任职时点的人员表；不以搜索简介或财务签字名单补造完整团队。']
     lines+=['','### '+HEADINGS[1],'']
     changes=[r for r in facts if r['kind'] in {'change','appointment'}]
     if changes:
+        latest={(name,r['as_of'],r['role']) for name,rows in roster for r in rows}
+        represented=[r for r in changes if r['kind']=='appointment' and all((r['entity'],r['as_of'],role) in latest for role in _role_parts(r))]
+        summaries={}
+        for r in represented:summaries.setdefault((r['start'],r['action']),[]).append(r)
+        for key,rows in summaries.items():
+            lines+=['- '+key[0]+'：'+key[1]+'，涉及'+str(len({r['entity'] for r in rows}))+'名人员；具体人员、岗位及任期见上表。'+_locations(rows)]
+        changes=[r for r in changes if r not in represented]
         grouped={}
         for r in sorted(changes,key=lambda x:x['start'],reverse=True):
             key=(r['start'],r['role'],r['action'],r.get('reason') or r['mode'])
             if key not in grouped:grouped[key]=[r]
             elif r['entity'] not in {x['entity'] for x in grouped[key]}:grouped[key].append(r)
-        lines+=_table(['人员','职务','日期／动作','原因与边界','出处'],[
+        if grouped:lines+=_table(['人员','职务','日期／动作','原因与边界','出处'],[
             ['、'.join(r['entity'] for r in rows),key[1],key[0]+'；'+key[2],key[3],
              ' '.join(dict.fromkeys(refs(r)+f"（物理页{r['page']}）" for r in rows))] for key,rows in grouped.items()])
         lines+=['','聘任、升迁、岗位调整、换届、治理架构调整与离任分开；候选提名不当正式任职，正常离任不直接判为内斗或动荡。历史人员表不覆盖更新后的董事独立性类别。']
@@ -335,14 +393,25 @@ def render_management(p):
 
 def biography_excerpt(bio,roles):
     text=bio['fact']
-    if bio['as_of']<max(r['as_of'] for r in roles):
-        text=re.sub(r'(?:现任|目前担任)[^。；]*(?:[。；]|$)','',text)
+    # Current posts are already in the dated roster and outside-role table.
+    # Repeating them here obscures education/prior experience and may revive
+    # an older title. Preserve the full biography in the package, not the body.
+    text=re.sub(r'(?:现任|目前担任)[^。；]*(?:[。；]|$)','',text)
+    text=re.sub(r'(?:自)?[一二三四五六七八九〇零\d]{4}年[^。；]{0,35}至今(?:任|担任)[^。；]*(?:[。；]|$)','',text)
+    clauses=[x.strip('，,。；; ') for x in re.split(r'[，,。；;]',text) if x.strip('，,。；; ')]
+    schools=[x for x in clauses if '毕业' in x]
+    qualifications=[x for x in clauses if re.search(r'学位|学历',x) and '毕业' not in x]
+    education=schools[:1]+qualifications[:1]
+    # Prefer the actual school/degree over birth, nationality, honours or
+    # society titles. Prior employment is a separate dated career excerpt.
+    career=[x for x in clauses if re.search(r'曾任|历任|加入|创办|创立|任职|供职',x)]
     pieces=[]
-    for part in re.split(r'(?<=[。，；])',text):
-        if sum(map(len,pieces))+len(part)>250:break
-        pieces.append(part)
-    excerpt=''.join(pieces).strip()
-    return '履历文件期'+bio['period']+'：'+(excerpt or '详见原履历')+('（节选；完整履历保留于证据包）' if excerpt!=bio['fact'] else '')
+    for group in (education[:2],career[:2]):
+        for part in group:
+            if part not in pieces and sum(map(len,pieces))+len(part)<=140:pieces.append(part)
+    excerpt='；'.join(pieces)
+    period='' if {r['as_of'] for r in roles}=={bio['as_of']} else bio['period']+'履历：'
+    return period+(excerpt or '教育及既往经历详见原履历')+'（节选；完整履历见证据包）'
 
 
 def management_errors(text,p):
