@@ -23,6 +23,7 @@ from .company_summary import (
 from .company_governance import build_governance_package, render_governance, governance_errors
 from .company_history import build_history_package, render_history, history_errors
 from .company_operations import build_operations_package, render_operations, operations_errors
+from .company_reputation import build_reputation_package, render_reputation, reputation_errors
 
 
 COMPANY_REPORT_OUTLINE = [
@@ -248,6 +249,19 @@ class CompanyReportAgent:
                 chapter = self._write_operations(project, package_payload, emit, trace_emit)
                 sections_by_index[4] = chapter
                 section_evidence_ids[4] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+            elif index == 5:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_reputation_package(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                )
+                project.company_reputation_package = package_payload
+                chapter = self._write_reputation(project, package_payload, emit, trace_emit)
+                sections_by_index[5] = chapter
+                section_evidence_ids[5] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
             elif index <= 12:
                 package = _focused_cleaned_json(
                     cleaned_json,
@@ -312,6 +326,7 @@ class CompanyReportAgent:
             verification_gaps + getattr(project, "company_governance_package", {}).get("information_gaps", [])
             + getattr(project, "company_history_package", {}).get("information_gaps", [])
             + getattr(project, "company_operations_package", {}).get("information_gaps", [])
+            + getattr(project, "company_reputation_package", {}).get("information_gaps", [])
         ))
         sections_by_index[14] = "## 14. 后续研究建议\n\n" + (
             "\n".join(f"- 待核验：{item}" for item in verification_gaps)
@@ -322,7 +337,7 @@ class CompanyReportAgent:
         with ThreadPoolExecutor(max_workers=min(workers, len(self.outline))) as executor:
             futures = {}
             for index, (section_title, requirements) in enumerate(self.outline, 1):
-                if index in {1, 2, 3, 4, 13, 14}:
+                if index in {1, 2, 3, 4, 5, 13, 14}:
                     continue
                 fact_count = len(json.loads(section_packages[index]).get("facts", []))
                 if index <= 12 and fact_count == 0:
@@ -386,6 +401,8 @@ class CompanyReportAgent:
                        lambda _m: sections_by_index[3] + "\n\n", final, count=1)
         final = re.sub(r"(?ms)^##\s*4[.、．][^\n]*\n.*?(?=^##\s*5[.、．]|\Z)",
                        lambda _m: sections_by_index[4] + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*5[.、．][^\n]*\n.*?(?=^##\s*6[.、．]|\Z)",
+                       lambda _m: sections_by_index[5] + "\n\n", final, count=1)
         final = self._ensure_section_evidence_markers(final, section_evidence_ids)
         final = ensure_delivery_sections(project, final, self.report_kind)
         emit(trace_emit, "report", self.trace_agent, "目标公司桌面研究报告完成", f"chars={len(final)}", chars=len(final), status="done")
@@ -429,6 +446,19 @@ class CompanyReportAgent:
         emit(trace_emit, "report", self.trace_agent, "第四章治理制度与运行记录核对完成",
              json.dumps(project.company_operations_diagnostic, ensure_ascii=False),
              section=self.outline[3][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_reputation(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_reputation(package)
+        errors = reputation_errors(chapter, package)
+        project.company_reputation_diagnostic = {
+            "version": package["version"], **package["diagnostic"], "errors": errors,
+            "degraded": bool(errors), "information_gaps": package["information_gaps"],
+            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第五章评价主体与同口径对标核对完成",
+             json.dumps(project.company_reputation_diagnostic, ensure_ascii=False),
+             section=self.outline[4][0], status="fallback" if errors else "done")
         return chapter
 
     def _write_summary(self, project: Any, cleaned_json: str, completed_sections: dict[int, str], invoke, emit, trace_emit=None) -> str:
@@ -592,12 +622,12 @@ class CompanyReportAgent:
             section = report[match.start():end].rstrip()
             index = int(match.group(1))
             expected = [value for value in section_evidence_ids.get(index, []) if value]
-            if 5 <= index <= 12 and not expected:
+            if 6 <= index <= 12 and not expected:
                 section = (
                     report[match.start():match.end()]
                     + "\n\n本次已检索公开来源未形成可引用记录；相关核验事项见第14章。"
                 )
-            missing = [value for value in expected if value not in section] if index not in {1, 2, 3, 4} else []
+            missing = [value for value in expected if value not in section] if index not in {1, 2, 3, 4, 5} else []
             if missing:
                 section += "\n\n> 本章引用证据：" + "、".join(f"[{value}]" for value in missing)
             chunks.append(section + ("\n\n" if position + 1 < len(matches) else ""))

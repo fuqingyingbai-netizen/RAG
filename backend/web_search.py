@@ -404,7 +404,7 @@ class WebSearchProvider:
                 time.sleep(wait_seconds)
             self._exa_last_request_at = time.time()
 
-    def fetch_url(self, url: str, allow_browser: bool = True) -> dict[str, Any]:
+    def fetch_url(self, url: str, allow_browser: bool = True, *, document_profile: str = '') -> dict[str, Any]:
         url = (url or "").strip()
         if not url or urlparse(url).scheme not in {"http", "https"}:
             return {"status": "skipped", "content": "", "error": "invalid_url"}
@@ -418,7 +418,8 @@ class WebSearchProvider:
         best: dict[str, Any] = {"status": "empty", "content": "", "error": ""}
         errors: list[str] = []
         for attempt_name, user_agent in attempts:
-            result = self._fetch_url_once(url, timeout, max_chars, user_agent, attempt_name)
+            options = {'document_profile': document_profile} if document_profile else {}
+            result = self._fetch_url_once(url, timeout, max_chars, user_agent, attempt_name, **options)
             if result.get("error"):
                 errors.append(f"{attempt_name}:{result.get('error')}")
             if len(result.get("content") or "") > len(best.get("content") or "") or (
@@ -442,7 +443,7 @@ class WebSearchProvider:
             best["error"] = "; ".join(errors[:3])
         return best
 
-    def _fetch_url_once(self, url: str, timeout: int, max_chars: int, user_agent: str, attempt_name: str) -> dict[str, Any]:
+    def _fetch_url_once(self, url: str, timeout: int, max_chars: int, user_agent: str, attempt_name: str, *, document_profile: str = '') -> dict[str, Any]:
         try:
             resp = requests.get(
                 url,
@@ -479,6 +480,12 @@ class WebSearchProvider:
                 }
             is_pdf = has_pdf_signature
             if is_pdf:
+                if document_profile == 'company':
+                    from company_pdf import extract_company_pdf
+                    document = extract_company_pdf(resp.content)
+                    return {**document, 'status': 'done' if document['content'] else 'empty_pdf',
+                            'error': '', 'content_type': content_type or 'application/pdf',
+                            'fetch_attempt': attempt_name, 'images': []}
                 text, pages = self._extract_pdf_text(resp.content)
                 images = []
                 if not text.strip():

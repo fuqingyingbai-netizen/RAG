@@ -32,7 +32,10 @@ class CompanyResearchStrategy(BaseResearchStrategy):
         ("企业司法负面核查", "{target} 诉讼 裁判文书 行政处罚"),
         ("诉讼/制裁", "{target} 被执行人 失信 限制高消费 制裁 黑名单"),
         ("技术实力", "{target} 专利 知识产权 商标 软著"),
-        ("行业口碑、产品认可度与同业竞争地位研判", "{target} 员工评价 竞品 市场份额 客户 合作伙伴"),
+        ("行业口碑、产品认可度与同业竞争地位研判", '"{target}" 可持续发展报告 员工满意度 客户满意度 投诉 指标'),
+        ("行业口碑、产品认可度与同业竞争地位研判", '"{target}" 竞品 同行 市场份额 原发布机构 统计口径'),
+        ("行业口碑、产品认可度与同业竞争地位研判", '"{target}" 合作伙伴 共同开发 对方 官方公告'),
+        ("行业口碑、产品认可度与同业竞争地位研判", '"{target}" 员工评价 客户评价 测评 样本 调查方法'),
     ]
     authority_queries = [
         {"module": "主体工商基本信息核查股东关系与治理底盘", "query": '"{target}" 注册资本 股东 变更', "domains": ["gsxt.gov.cn", "samr.gov.cn", "cninfo.com.cn", "szse.cn", "sse.com.cn", "hkexnews.hk"], "min_sources": 2},

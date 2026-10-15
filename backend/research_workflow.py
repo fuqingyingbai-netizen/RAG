@@ -623,7 +623,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v16-checked-operations",
+            "company": "company-report-evidence-v17-checked-reputation-original-text",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -1049,6 +1049,9 @@ class ResearchWorkflow:
                        if standardized_type == "company" else {}),
                     **({"company_operations_diagnostic": getattr(project, "company_operations_diagnostic", {}),
                         "company_operations_evidence": getattr(project, "company_operations_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_reputation_diagnostic": getattr(project, "company_reputation_diagnostic", {}),
+                        "company_reputation_evidence": getattr(project, "company_reputation_package", {})}
                        if standardized_type == "company" else {}),
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
@@ -3662,7 +3665,8 @@ class ResearchWorkflow:
                                 browser_fetch_allowed=allow_browser,
                                 status="running",
                             )
-                            fetched = self._fetch_web_url_with_timeout(url, allow_browser=allow_browser, emit=emit)
+                            fetch_options = {'document_profile': 'company'} if project.target_type == 'company' else {}
+                            fetched = self._fetch_web_url_with_timeout(url, allow_browser=allow_browser, emit=emit, **fetch_options)
                             _emit(
                                 emit,
                                 "web_search",
@@ -3696,7 +3700,10 @@ class ResearchWorkflow:
                             )
                             if fetched.get("images"):
                                 item_metadata["images"] = fetched.get("images")
-                            if len(fetched_clean) > len(cleaned_probe):
+                            for document_key in ('document_pages', 'document_extraction'):
+                                if fetched.get(document_key) is not None:
+                                    item_metadata[document_key] = fetched[document_key]
+                            if len(fetched_clean) > len(cleaned_probe) or (project.target_type == 'company' and fetched.get('status') == 'done' and fetched_clean):
                                 content = fetched_text
                                 raw_content = fetched_text
                                 cleaned_probe = fetched_clean
@@ -3966,13 +3973,14 @@ class ResearchWorkflow:
         _emit(emit, "web_search", "online_search_agent", "在线来源采集结束", "", status="done")
         return added
 
-    def _fetch_web_url_with_timeout(self, url: str, allow_browser: bool, emit: TraceEmitter | None = None) -> dict[str, Any]:
+    def _fetch_web_url_with_timeout(self, url: str, allow_browser: bool, emit: TraceEmitter | None = None, *, document_profile: str = '') -> dict[str, Any]:
         timeout_seconds = _env_int("WEB_FETCH_TOTAL_TIMEOUT_SECONDS", 45, 5, 180)
         result_queue: queue.Queue[tuple[str, Any]] = queue.Queue(maxsize=1)
 
         def worker() -> None:
             try:
-                result_queue.put(("ok", web_search_provider.fetch_url(url, allow_browser=allow_browser)))
+                options = {'document_profile': document_profile} if document_profile else {}
+                result_queue.put(("ok", web_search_provider.fetch_url(url, allow_browser=allow_browser, **options)))
             except Exception as exc:
                 result_queue.put(("error", exc))
 
@@ -4052,6 +4060,7 @@ class ResearchWorkflow:
                 max_chars=_env_int("CLEANING_MAX_CHARS_PER_BATCH", 8000, 1000, 30000),
                 max_chars_per_source=max_chars_per_source,
                 max_batches=None,
+                target_type=str(project.target_type or ''),
             )
             _emit(
                 emit,
@@ -4072,7 +4081,7 @@ class ResearchWorkflow:
         deduped = self._annotate_evidence_facts(project, self._dedupe_facts(all_facts))
         if person_mode:
             self._validate_person_cleaned_facts(deduped)
-        evidence_ledger = self._build_evidence_ledger(project.sources, selected_sources)
+        evidence_ledger = self._build_evidence_ledger(project.sources, selected_sources, target_type=str(project.target_type or ''))
         result = {
             "facts": deduped,
             "identity_quarantine": [
@@ -4228,6 +4237,17 @@ class ResearchWorkflow:
                 continue
             blob = re.sub(r"\s+", "", f"{text} {quote}").lower()
             source = source_by_url.get(url)
+            if target_type == 'company':
+                from report_agents.company_evidence import source_body
+                original, origin = source_body(source) if source else ('', 'discovery_summary')
+                normalized_quote = re.sub(r'\s+', '', html.unescape(quote))
+                normalized_original = re.sub(r'\s+', '', html.unescape(original))
+                if origin == 'discovery_summary' or not normalized_quote or normalized_quote not in normalized_original:
+                    continue
+                claim_numbers = set(re.findall(r'\d+(?:,\d{3})*(?:\.\d+)?', text))
+                quote_numbers = set(re.findall(r'\d+(?:,\d{3})*(?:\.\d+)?', quote))
+                if not claim_numbers <= quote_numbers:
+                    continue
             source_meta = (getattr(source, "source_metadata", {}) or {}) if source else {}
             affiliation_context = source_meta.get("person_affiliation") if isinstance(source_meta.get("person_affiliation"), dict) else {}
             affiliation_person = re.sub(r"\s+", "", str(affiliation_context.get("person_name") or "")).lower()
@@ -4324,7 +4344,7 @@ class ResearchWorkflow:
         quality = quality or self.evaluate_source_quality(project, plan)
         safe_sources = self._select_cleaning_sources(project.sources, project=project)
         model_sources = self._select_llm_cleaning_sources(safe_sources)
-        batches = self._source_context_batches(model_sources)
+        batches = self._source_context_batches(model_sources, target_type=str(project.target_type or ''))
         _emit(emit, "cleaning", "data_cleaning_agent", "开始深度清洗", "", status="running")
         llm_results = self._clean_batches_with_llm(project, plan, quality, batches, emit=emit)
         deterministic = self._fast_clean_sources(safe_sources, project=project, emit=emit)
@@ -4334,7 +4354,7 @@ class ResearchWorkflow:
             all_facts.extend(self._extract_sentence_facts(safe_sources, project))
         all_facts.extend(self._sanitize_structured_facts(llm_results.get("facts", []), project))
         deduped = self._annotate_evidence_facts(project, self._dedupe_facts(all_facts))
-        evidence_ledger = self._build_evidence_ledger(project.sources, safe_sources)
+        evidence_ledger = self._build_evidence_ledger(project.sources, safe_sources, target_type=str(project.target_type or ''))
         result = {
             "facts": deduped,
             "identity_quarantine": [
@@ -5275,6 +5295,10 @@ class ResearchWorkflow:
         for record in getattr(project, "company_operations_package", {}).get("facts", []):
             for evidence_id in record.get("evidence_ids", []):
                 operations_by_id[evidence_id.upper()].append(record)
+        reputation_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_reputation_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                reputation_by_id[evidence_id.upper()].append(record)
         facts_by_id: dict[str, dict[str, Any]] = {}
         for item in facts:
             url = str(item.get("source_url") or "").rstrip("/")
@@ -5309,7 +5333,8 @@ class ResearchWorkflow:
                 if (scope == "target_direct" or (scope == "industry_context" and chapter == 5)
                         or (chapter == 2 and canonical in governance_by_id)
                         or (chapter == 3 and canonical in history_by_id)
-                        or (chapter == 4 and canonical in operations_by_id)):
+                        or (chapter == 4 and canonical in operations_by_id)
+                        or (chapter == 5 and canonical in reputation_by_id)):
                     chapters_by_id.setdefault(canonical, set()).add(chapter)
                 elif canonical not in chapters_by_id:
                     # Keep the citation visible in chapter 13 even when it is
@@ -5339,19 +5364,20 @@ class ResearchWorkflow:
             chapters_by_id[evidence_id] = {0}
         for evidence_id, chapters in sorted(chapters_by_id.items(), key=lambda value: (min(value[1]), value[0])):
             item = facts_by_id.get(evidence_id, {})
-            if evidence_id in governance_by_id or evidence_id in history_by_id or evidence_id in operations_by_id:
+            if evidence_id in governance_by_id or evidence_id in history_by_id or evidence_id in operations_by_id or evidence_id in reputation_by_id:
                 # A page-level industry/related classification may have hidden
                 # a literal issuer declaration recovered for chapter 2. Keep
                 # the source ID, and show the actual field-level claim used.
                 admitted = (governance_by_id.get(evidence_id, []) + history_by_id.get(evidence_id, [])
-                            + operations_by_id.get(evidence_id, []))
+                            + operations_by_id.get(evidence_id, []) + reputation_by_id.get(evidence_id, []))
                 labels = [label for label, mapping in [("第二章", governance_by_id), ("第三章", history_by_id),
-                                                       ("第四章", operations_by_id)] if evidence_id in mapping]
+                                                       ("第四章", operations_by_id), ("第五章", reputation_by_id)] if evidence_id in mapping]
                 label = "／".join(labels) + "原文核对："
                 item = {**item, "source_url": admitted[0]["source_url"],
                         "source_title": admitted[0]["source_title"],
                         "fact": label + "；".join(
-                            (r.get("field") or r["kind"]) + "=" + str(r.get("value") or r.get("entity") or r.get("fact") or "")
+                            (r.get("field") or r.get("metric") or r.get("aspect") or r["kind"]) + "=" + str(
+                                r.get("value") if r.get("field") else r.get("fact") or r.get("entity") or r.get("value") or "")
                             for r in admitted[:3])}
             url = str(item.get("source_url") or "").rstrip("/")
             source_title = re.sub(r"\s+", " ", str(item.get("source_title") or "公开来源")).replace("|", "/")[:48]
@@ -5486,6 +5512,8 @@ class ResearchWorkflow:
                 errors.append("第三章沿革与成长质量未形成可交付证据，需人工复核")
             if getattr(project, "company_operations_diagnostic", {}).get("degraded"):
                 errors.append("第四章治理与运营未形成可交付证据，需人工复核")
+            if getattr(project, "company_reputation_diagnostic", {}).get("degraded"):
+                errors.append("第五章评价与对标未形成可交付证据，需人工复核")
             source_heading = re.search(r"(?m)^##\s*13[.、．]", report or "")
             next_heading = re.search(r"(?m)^##\s*14[.、．]", report or "")
             body_before_sources = (report or "")[:source_heading.start()] if source_heading else (report or "")
@@ -6531,6 +6559,7 @@ class ResearchWorkflow:
         self,
         sources: list[ResearchSource],
         cleaned_sources: list[ResearchSource],
+        *, target_type: str = '',
     ) -> list[dict[str, Any]]:
         cleaned_ids = {
             getattr(source, "id", None) or (source.url or id(source))
@@ -6540,6 +6569,10 @@ class ResearchWorkflow:
         seen_content_keys: set[str] = set()
         for source in sources:
             meta = source.source_metadata or {}
+            discovery_only = False
+            if target_type == 'company':
+                from report_agents.company_evidence import source_body
+                discovery_only = source_body(source)[1] == 'discovery_summary'
             quality = meta.get("quality") if isinstance(meta.get("quality"), dict) else {}
             source_key = getattr(source, "id", None) or (source.url or id(source))
             failed = self._is_failed_extraction_source(source)
@@ -6571,10 +6604,10 @@ class ResearchWorkflow:
                 "content_kind": meta.get("content_kind") or meta.get("extraction_status") or "",
                 "content_chars": len(source.content or source.summary or ""),
                 "duplicate": duplicate,
-                "usable_for_hard_fact": bool(not failed and safe and self._source_grade(source, quality) in {"A", "B"}),
+                "usable_for_hard_fact": bool(not failed and safe and not discovery_only and self._source_grade(source, quality) in {"A", "B"}),
                 "deterministically_processed": processed,
                 "deterministically_cleaned": cleaned,
-                "status": "duplicate" if duplicate else "cleaned" if cleaned else "rejected",
+                "status": "duplicate" if duplicate else "discovery_only" if discovery_only else "cleaned" if cleaned else "rejected",
                 "rejected_reason": "duplicate" if duplicate else "failed_extraction" if failed else "entity_mismatch" if not safe else "empty_content",
             })
         return rows
@@ -6596,13 +6629,21 @@ class ResearchWorkflow:
         raw_text_limit = _env_int("CLEANING_RAW_TEXT_LIMIT", 20000, 1000, 200000)
         progress_every = _env_int("CLEANING_PROGRESS_EVERY", 10, 1, 100)
         total = len(sources)
+        company_mode = str(getattr(project, 'target_type', '') or '').lower() == 'company'
         for index, source in enumerate(sources, 1):
             if total and (index == 1 or index % progress_every == 0):
                 _emit(emit, "cleaning", "data_cleaning_agent", "规则清洗来源片段", "", status="running")
             meta = source.source_metadata or {}
             quality = meta.get("quality") or {}
             raw_parts = []
-            for part in [source.summary or "", source.content or "", meta.get("ocr_text") or ""]:
+            text_origin = ''
+            if company_mode:
+                from report_agents.company_evidence import source_body
+                body, text_origin = source_body(source)
+                parts = [body]
+            else:
+                parts = [source.summary or "", source.content or "", meta.get("ocr_text") or ""]
+            for part in parts:
                 part_text = str(part or "").strip()
                 if part_text:
                     raw_parts.append(part_text[:raw_text_limit])
@@ -6643,7 +6684,7 @@ class ResearchWorkflow:
             if target_type == "person":
                 report_eligible = bool(affiliation_context) or identity_confidence not in {"low", "rejected"}
             elif target_type == "company":
-                report_eligible = entity_validation != "rejected"
+                report_eligible = entity_validation != "rejected" and text_origin != 'discovery_summary'
             else:
                 report_eligible = True
             fact_category = (
@@ -6664,6 +6705,7 @@ class ResearchWorkflow:
                 "fact": _clip(text, source_clip_limit),
                 "category": fact_category,
                 "claim_type": "source_excerpt",
+                **({'text_origin': text_origin, 'claim_type': 'discovery_summary' if text_origin == 'discovery_summary' else 'source_excerpt'} if company_mode else {}),
                 "source_title": source.title,
                 "source_url": source.url,
                 "evidence_quote": _clip(text, evidence_limit),
@@ -6722,10 +6764,15 @@ class ResearchWorkflow:
             "discarded_patterns": ["duplicate source snippets removed", "only fully empty sources removed"],
             "information_gaps": gaps,
         }
-    def _source_context(self, sources: list[ResearchSource], max_chars_per_source: int = 5000) -> str:
+    def _source_context(self, sources: list[ResearchSource], max_chars_per_source: int = 5000, *, target_type: str = '') -> str:
         blocks = []
         for idx, source in enumerate(sources, 1):
             text = source.content or source.summary
+            if target_type == 'company':
+                from report_agents.company_evidence import source_body
+                text, origin = source_body(source)
+                if origin == 'discovery_summary':
+                    continue  # Discovery leads cannot become model-extracted facts.
             meta = source.source_metadata or {}
             quality = meta.get("quality") or {}
             is_structured_source = self._is_structured_professional_source(source)
@@ -6756,12 +6803,15 @@ class ResearchWorkflow:
         max_chars: int = 18000,
         max_chars_per_source: int = 5000,
         max_batches: int | None = None,
+        target_type: str = '',
     ) -> list[str]:
         batches: list[str] = []
         current: list[str] = []
         current_len = 0
         for source in sources:
-            block = self._source_context([source], max_chars_per_source=max_chars_per_source)
+            block = self._source_context([source], max_chars_per_source=max_chars_per_source, target_type=target_type)
+            if not block:
+                continue
             if current and current_len + len(block) > max_chars:
                 batches.append("\n\n---\n\n".join(current))
                 if max_batches and len(batches) >= max_batches:
@@ -6889,6 +6939,8 @@ class ResearchWorkflow:
         return str(meta.get("extraction_status") or "").lower() in {"failed", "pending"} or text.startswith(("[解析失败", "[待解析"))
 
     def _fallback_clean(self, project: ResearchProject) -> dict[str, Any]:
+        if str(project.target_type or '').lower() == 'company':
+            return self._fast_clean_sources(project.sources, project=project)
         facts = []
         seen = set()
         for source in project.sources:
