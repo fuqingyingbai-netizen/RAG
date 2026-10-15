@@ -17,6 +17,9 @@ class CompanyResearchStrategy(BaseResearchStrategy):
     query_templates = [
         ("主体工商基本信息核查股东关系与治理底盘", "{target} 工商 股东 实控人 董监高"),
         ("主体工商基本信息核查股东关系与治理底盘", "{target} 统一社会信用代码 注册资本 法定代表人"),
+        ("主体工商基本信息核查股东关系与治理底盘", '"{target}" 工商变更 股东变更 注册资本 变更日期'),
+        ("主体工商基本信息核查股东关系与治理底盘", '"{target}" 减资公告 债权人 公告'),
+        ("主体工商基本信息核查股东关系与治理底盘", '"{target}" 股东名册 实际控制人 一致行动 表决权'),
         ("历史沿革与融资", "{target} 融资 投资方 估值 IPO 招股书 年报"),
         ("主营业务真实经营情况核验", "{target} 商业化 收入 客户 订单 产品线"),
         ("核心管理团队（深度/基础）风险研判", "{target} 创始人 管理团队 履历 高管 离职"),
@@ -26,6 +29,7 @@ class CompanyResearchStrategy(BaseResearchStrategy):
         ("行业口碑、产品认可度与同业竞争地位研判", "{target} 员工评价 竞品 市场份额 客户 合作伙伴"),
     ]
     authority_queries = [
+        {"module": "主体工商基本信息核查股东关系与治理底盘", "query": '"{target}" 注册资本 股东 变更', "domains": ["gsxt.gov.cn", "samr.gov.cn", "cninfo.com.cn", "szse.cn", "sse.com.cn", "hkexnews.hk"], "min_sources": 2},
         {"module": "企业司法负面核查", "query": '"{target}" 诉讼 裁判', "domains": ["wenshu.court.gov.cn", "court.gov.cn"], "min_sources": 2},
         {"module": "风险核查", "query": '"{target}" 被执行 失信 行政处罚', "domains": ["zxgk.court.gov.cn", "creditchina.gov.cn", "samr.gov.cn"], "min_sources": 2},
         {"module": "上市披露", "query": '"{target}" 年报 招股书 公告 股东', "domains": ["cninfo.com.cn", "sse.com.cn", "szse.cn", "hkexnews.hk", "sec.gov"], "exa_category": "financial report", "min_sources": 2},

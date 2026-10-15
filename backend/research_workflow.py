@@ -623,7 +623,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v13-checked-summary",
+            "company": "company-report-evidence-v14-checked-governance",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -1039,6 +1039,10 @@ class ResearchWorkflow:
                     "agent": "report_writer",
                     "report_pipeline_version": report_pipeline_version,
                     **({"company_summary_diagnostic": getattr(project, "company_summary_diagnostic", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_governance_diagnostic": getattr(project, "company_governance_diagnostic", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_governance_evidence": getattr(project, "company_governance_package", {})}
                        if standardized_type == "company" else {}),
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
@@ -5253,6 +5257,10 @@ class ResearchWorkflow:
     ) -> str:
         """Build chapter 13 from E-IDs actually present in company chapters 1-12."""
         outline = CompanyReportAgent().outline
+        governance_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_governance_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                governance_by_id[evidence_id.upper()].append(record)
         facts_by_id: dict[str, dict[str, Any]] = {}
         for item in facts:
             url = str(item.get("source_url") or "").rstrip("/")
@@ -5284,7 +5292,8 @@ class ResearchWorkflow:
                 if not item:
                     continue
                 scope = str(item.get("evidence_scope") or classify_company_fact_scope(item, str(project.target_name or "")))
-                if scope == "target_direct" or (scope == "industry_context" and chapter == 5):
+                if (scope == "target_direct" or (scope == "industry_context" and chapter == 5)
+                        or (chapter == 2 and canonical in governance_by_id)):
                     chapters_by_id.setdefault(canonical, set()).add(chapter)
                 elif canonical not in chapters_by_id:
                     # Keep the citation visible in chapter 13 even when it is
@@ -5314,6 +5323,16 @@ class ResearchWorkflow:
             chapters_by_id[evidence_id] = {0}
         for evidence_id, chapters in sorted(chapters_by_id.items(), key=lambda value: (min(value[1]), value[0])):
             item = facts_by_id.get(evidence_id, {})
+            if evidence_id in governance_by_id:
+                # A page-level industry/related classification may have hidden
+                # a literal issuer declaration recovered for chapter 2. Keep
+                # the source ID, and show the actual field-level claim used.
+                admitted = governance_by_id[evidence_id]
+                item = {**item, "source_url": admitted[0]["source_url"],
+                        "source_title": admitted[0]["source_title"],
+                        "fact": "第二章原文核对：" + "；".join(
+                            (r.get("field") or r["kind"]) + "=" + str(r.get("value") or r.get("entity") or "")
+                            for r in admitted[:3])}
             url = str(item.get("source_url") or "").rstrip("/")
             source_title = re.sub(r"\s+", " ", str(item.get("source_title") or "公开来源")).replace("|", "/")[:48]
             fact = re.sub(r"\s+", " ", str(item.get("fact") or item.get("evidence_quote") or "正文引用证据编号，事实卡待回溯")).replace("|", "/")[:90]
@@ -5441,6 +5460,8 @@ class ResearchWorkflow:
         if target_type == "company":
             if getattr(project, "company_summary_diagnostic", {}).get("degraded"):
                 errors.append("第一章摘要未通过校验，原文摘录需人工复核")
+            if getattr(project, "company_governance_diagnostic", {}).get("degraded"):
+                errors.append("第二章工商股权核查未形成可交付证据，需人工复核")
             source_heading = re.search(r"(?m)^##\s*13[.、．]", report or "")
             next_heading = re.search(r"(?m)^##\s*14[.、．]", report or "")
             body_before_sources = (report or "")[:source_heading.start()] if source_heading else (report or "")
@@ -5678,12 +5699,12 @@ class ResearchWorkflow:
         if equity_key:
             blocks.extend([
                 "### 股权结构分析示意图", "", f"![股权结构分析示意图]({equity_key})", "",
-                "> 注：本图仅展示已取得结构化证据中的股东/投资方及持股信息；未披露或待核验安排不作推定。", "",
+                "> 注：本图最多展示10个已核对的股东节点；完整记录及数据时点以本章表格为准，不由登记持股推定实际控制。", "",
             ])
         if control_key:
             blocks.extend([
                 "### 实控人/关联方分析示意图", "", f"![实控人/关联方分析示意图]({control_key})", "",
-                "> 注：本图基于已取得的法定代表人、管理人员、股东及关联方结构化证据生成，不代表对未披露控制关系的确认。", "",
+                "> 注：本图最多展示10个已核对节点；边线只代表标注的任职或明确披露关系，各自时点以本章表格为准，不补出未披露的一致行动或控制关系。", "",
             ])
         block = "\n".join(blocks).rstrip() + "\n\n"
         chapter = re.search(r"(?mi)^##\s*2[.、．]\s*[^\n]*(?:工商|股东|治理)[^\n]*$", report)
@@ -5724,8 +5745,16 @@ class ResearchWorkflow:
         graph_kind: str = "relationship",
         emit: TraceEmitter | None = None,
     ) -> str:
-        nodes = self._professional_graph_nodes(project, graph_kind)
-        if len(nodes) < 3:
+        company_package = getattr(project, "company_governance_package", None) if str(project.target_type or "").lower() == "company" else None
+        if company_package is not None:
+            try:
+                from .report_agents.company_governance import governance_graph_nodes
+            except ImportError:
+                from report_agents.company_governance import governance_graph_nodes
+            nodes = governance_graph_nodes(company_package, graph_kind)
+        else:
+            nodes = self._professional_graph_nodes(project, graph_kind)
+        if len(nodes) < 3 and company_package is None:
             seen = {name for name, _relation, _note in nodes}
             for node in self._cleaned_fact_graph_nodes(project, cleaned_json):
                 if node[0] not in seen:
@@ -5739,11 +5768,14 @@ class ResearchWorkflow:
             return html.escape(str(value or ""), quote=True)
 
         def short_text(value: str, limit: int = 24) -> str:
-            value = re.sub(r"\s+", "", str(value or ""))
+            value = re.sub(r"\s+", " " if company_package is not None and re.search(r"[A-Za-z]", str(value or "")) else "", str(value or "")).strip()
             return value if len(value) <= limit else value[: max(0, limit - 3)] + "..."
 
         def wrap_lines(value: str, limit: int = 15, max_lines: int = 2) -> list[str]:
             value = short_text(value, limit * max_lines)
+            if company_package is not None and re.search(r"[A-Za-z]", value):
+                from textwrap import wrap
+                return wrap(value, width=limit, break_long_words=False, break_on_hyphens=False)[:max_lines] or [""]
             return [value[index:index + limit] for index in range(0, len(value), limit)][:max_lines] or [""]
 
         def node_kind(name: str) -> str:
@@ -5751,7 +5783,8 @@ class ResearchWorkflow:
                 "公司", "集团", "基金", "资本", "控股", "大学", "学院",
                 "协会", "商会", "实验室", "研究院", "中心", "机构",
             )
-            return "organization" if any(token in str(name) for token in organization_suffixes) else "person"
+            english_org = company_package is not None and re.search(r"\b(?:LIMITED|LTD|INC|LLC|CORPORATION|PLC|LP)\b", name, re.I)
+            return "organization" if english_org or any(token in str(name) for token in organization_suffixes) else "person"
 
         if not nodes:
             _emit(emit, "report", "desktop_report_agent", "关系网图数据不足，已跳过空图", graph_kind, status="warning")
@@ -5775,13 +5808,16 @@ class ResearchWorkflow:
             f'<text x="44" y="48" font-family="Microsoft YaHei, Arial" font-size="25" font-weight="700" fill="#1f2937">{esc(title)}</text>',
             '<text x="44" y="78" font-family="Microsoft YaHei, Arial" font-size="14" fill="#64748b">分析示意图：基于已取得的结构化记录与可追溯事实生成；待核验关系不代表已确认事实。</text>',
         ]
+        if company_package is not None:
+            svg.append('<text x="44" y="102" font-family="Microsoft YaHei, Arial" font-size="13" fill="#64748b">图示最多10个已核对节点；完整记录及各自数据时点见第二章表格。边线关系以节点标签为准。</text>')
         for x, y, side, name, relation, note in positions:
             edge_x = x + 160 if side == "left" else x - 160
             dash = ' stroke-dasharray="7 5"' if "待核验" in relation or "不足" in name else ""
             svg.append(f'<line x1="{center_x}" y1="{center_y}" x2="{edge_x}" y2="{y}" stroke="#94a3b8" stroke-width="1.8"{dash}/>')
             label_x = center_x - 145 if side == "left" else center_x + 145
             label_y = int((center_y + y) / 2)
-            svg.append(f'<text x="{label_x}" y="{label_y}" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">{esc(short_text(relation, 12))}</text>')
+            if company_package is None:
+                svg.append(f'<text x="{label_x}" y="{label_y}" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">{esc(short_text(relation, 12))}</text>')
 
         svg.append(f'<rect x="{center_x - 145}" y="{center_y - 46}" rx="10" ry="10" width="290" height="92" fill="#2563eb" stroke="#1d4ed8"/>')
         for offset, line in enumerate(wrap_lines(project.target_name or project.title or "目标公司", 15, 2)):

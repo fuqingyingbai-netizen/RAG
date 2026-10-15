@@ -20,6 +20,7 @@ from .company_summary import (
     package_fingerprint,
     summary_errors,
 )
+from .company_governance import build_governance_package, render_governance, governance_errors
 
 
 COMPANY_REPORT_OUTLINE = [
@@ -149,7 +150,7 @@ COMPANY_SECTION_FEW_SHOTS = {
 摘要 few-shot 表达锚点：
 执行摘要：写清公司成立时间、定位、团队、网站/产品状态。核心发现要覆盖团队、产品、融资/客户、技术或经营亮点。关键验证要列修正与确认。需关注信号要包括工商/融资/产品/媒体覆盖/经营数据缺口。竞争格局要列头部/腰部/初创/海外竞品及相对劣势。评估要写优势与核心风险。
 """,
-    2: "few-shot：目标公司主要股东之间暂未发现重大公开矛盾或实质性冲突，核心决策权仍较集中，其他股东多以投资人或资源支持角色参与。现阶段未发现股东关系对公司经营稳定性造成重大不利影响。",
+    2: "表达参考：持股、任职及明确披露的控制关系分别列示，数据期分开；股东冲突、决策权及治理稳定性须由对应事件、协议或决议支持，不从模板示例预设结论。",
     3: "few-shot：目标公司发展路径整体较为顺畅，已完成从单一配件生产到多品类业务布局的扩张，业务规模实现较快增长。经调研，暂未发现重大历史遗留问题、未决事项或影响上市规范性的重大瑕疵。",
     7: "few-shot：采购、供应商及经销体系整体保持运转稳定，暂未发现商业贿赂、商业腐败、压货或虚增业绩等重大异常。但核心供应商质量稳定性、老板关系型合作、经销商人员交叉及国内销售商业关系仍需作为后续核验重点。",
     9: "few-shot：目标公司名下存在若干司法案件，主要涉及劳动争议及外观设计专利纠纷，相关案件均已结案，未对公司业务造成重大实质影响。现阶段未发现足以影响上市进程的重大诉讼或负面信息。",
@@ -204,6 +205,19 @@ class CompanyReportAgent:
                 # cards are selected and budgeted independently below.
                 package_payload = {"facts": []}
                 section_evidence_ids[1] = []
+            elif index == 2:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_governance_package(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                )
+                project.company_governance_package = package_payload
+                chapter = self._write_governance(project, package_payload, emit, trace_emit)
+                sections_by_index[2] = chapter
+                section_evidence_ids[2] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
             elif index <= 12:
                 package = _focused_cleaned_json(
                     cleaned_json,
@@ -264,6 +278,9 @@ class CompanyReportAgent:
             for item in (verification_payload.get("information_gaps") or [])[:12]
             if str(item or "").strip()
         ]
+        verification_gaps = list(dict.fromkeys(
+            verification_gaps + getattr(project, "company_governance_package", {}).get("information_gaps", [])
+        ))
         sections_by_index[14] = "## 14. 后续研究建议\n\n" + (
             "\n".join(f"- 待核验：{item}" for item in verification_gaps)
             if verification_gaps
@@ -273,7 +290,7 @@ class CompanyReportAgent:
         with ThreadPoolExecutor(max_workers=min(workers, len(self.outline))) as executor:
             futures = {}
             for index, (section_title, requirements) in enumerate(self.outline, 1):
-                if index in {1, 13, 14}:
+                if index in {1, 2, 13, 14}:
                     continue
                 fact_count = len(json.loads(section_packages[index]).get("facts", []))
                 if index <= 12 and fact_count == 0:
@@ -331,10 +348,26 @@ class CompanyReportAgent:
         # A later wording editor cannot silently replace a checked summary
         # with a fresh, ungrounded set of claims.
         final = re.sub(r"(?ms)^##\s*1[.、．][^\n]*\n.*?(?=^##\s*2[.、．]|\Z)", summary + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*2[.、．][^\n]*\n.*?(?=^##\s*3[.、．]|\Z)",
+                       lambda _m: sections_by_index[2] + "\n\n", final, count=1)
         final = self._ensure_section_evidence_markers(final, section_evidence_ids)
         final = ensure_delivery_sections(project, final, self.report_kind)
         emit(trace_emit, "report", self.trace_agent, "目标公司桌面研究报告完成", f"chars={len(final)}", chars=len(final), status="done")
         return final
+
+    def _write_governance(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_governance(package)
+        errors = governance_errors(chapter, package)
+        project.company_governance_diagnostic = {
+            "version": package["version"], **package["diagnostic"],
+            "conflicts": package["conflicts"], "information_gaps": package["information_gaps"],
+            "errors": errors, "degraded": bool(errors),
+            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第二章按字段证据完成核对与排版",
+             json.dumps(project.company_governance_diagnostic, ensure_ascii=False),
+             section=self.outline[1][0], status="fallback" if errors else "done")
+        return chapter
 
     def _write_summary(self, project: Any, cleaned_json: str, completed_sections: dict[int, str], invoke, emit, trace_emit=None) -> str:
         try:
@@ -497,12 +530,12 @@ class CompanyReportAgent:
             section = report[match.start():end].rstrip()
             index = int(match.group(1))
             expected = [value for value in section_evidence_ids.get(index, []) if value]
-            if 2 <= index <= 12 and not expected:
+            if 3 <= index <= 12 and not expected:
                 section = (
                     report[match.start():match.end()]
                     + "\n\n本次已检索公开来源未形成可引用记录；相关核验事项见第14章。"
                 )
-            missing = [value for value in expected if value not in section]
+            missing = [value for value in expected if value not in section] if index not in {1, 2} else []
             if missing:
                 section += "\n\n> 本章引用证据：" + "、".join(f"[{value}]" for value in missing)
             chunks.append(section + ("\n\n" if position + 1 < len(matches) else ""))
