@@ -424,15 +424,10 @@ class CompanyReportAgent:
         # Keeping a short placeholder avoids spending a model call on a source
         # list that the model must never invent.
         sections_by_index[13] = "## 13. 信息来源\n\n本章由系统根据正文实际引用的证据编号自动生成。"
-        try:
-            verification_payload = json.loads(section_packages[14])
-        except (TypeError, ValueError, json.JSONDecodeError):
-            verification_payload = {}
-        verification_gaps = [
-            re.sub(r"\s+", " ", str(item or "")).strip()
-            for item in (verification_payload.get("information_gaps") or [])[:12]
-            if str(item or "").strip()
-        ]
+        # The generic cleaning gaps predate the chapter-specific original
+        # document checks. Repeating them resurrects already recovered facts
+        # (e.g. product lines or judicial details) as false 'missing' findings.
+        verification_gaps = []
         verification_gaps = list(dict.fromkeys(
             verification_gaps + getattr(project, "company_governance_package", {}).get("information_gaps", [])
             + getattr(project, "company_history_package", {}).get("information_gaps", [])

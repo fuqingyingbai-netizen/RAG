@@ -5,6 +5,7 @@ import pytest
 
 import company_pdf
 from company_pdf import extract_company_pdf
+from report_agents.company_reputation import counterparty_excerpt
 from report_agents.company_evidence import source_body,document_pages
 from report_agents.company_reputation import (
     HEADINGS,aliases_for_target,build_reputation_package,render_reputation,reputation_errors,
@@ -256,6 +257,26 @@ def test_company_pdf_keeps_page_155_and_layout_beyond_old_40_page_limit(monkeypa
     assert p['pages']==182 and len(p['document_pages'])==182
     assert p['document_pages'][154]['page']==155 and 'layout_text' in p['document_pages'][154]
     assert 'PDF page 155' in p['content'] and p['document_extraction']['complete'] is True
+
+
+def test_company_pdf_does_not_silently_omit_tail_of_435_page_report(monkeypatch):
+    fake_reader(monkeypatch,435);p=extract_company_pdf(b'fixture')
+    assert p['pages']==435 and p['document_pages'][-1]['page']==435
+    assert p['document_extraction']['omitted_pages']==0
+    assert p['document_extraction']['complete'] is True
+
+
+def test_cooperation_passage_deduplicates_mobile_copy_without_losing_new_product():
+    a='The Alpha sedan was jointly developed by Example Motors and Vendor Ltd.'
+    b='The Beta vehicle was jointly developed by Example Motors and Other Ltd.'
+    result=counterparty_excerpt(a+' '+a+' '+b,{'Example Motors'})
+    assert result==[a,b]
+
+
+def test_cooperation_preserves_legal_company_suffix_and_drops_repeated_page_title():
+    sentence='The vehicle was jointly developed by Example Motors and Partner Motor Co. Ltd. (Partner).'
+    raw=sentence+' '+sentence+'\n\nNewsroom - A vehicle developed through collaboration with Example Motors'
+    assert counterparty_excerpt(raw,{'Example Motors'})==[sentence]
 
 
 def test_company_pdf_page_limit_reports_omissions_without_claiming_complete(monkeypatch):

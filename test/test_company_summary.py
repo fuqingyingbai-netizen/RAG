@@ -32,6 +32,16 @@ def section(text):
                                                 for i, heading in enumerate(SUMMARY_HEADINGS))
 
 
+def test_summary_cannot_turn_undated_personnel_snapshot_into_current_role():
+    f=card();f.update(source_url='structured://qcc/personnel',is_structured_evidence=True,source_entity_validation='verified',claim_type='source_excerpt')
+    raw='| 企业名称 | 目标科技股份有限公司 |\n| 1 | 王甲 | 2008-06-11至今 | 董事长 |'
+    p=build_company_summary_package({'facts':[f]},project().target_name,[source(f,raw,'get_key_personnel',entity_validation='verified')])
+    assert p['facts'] and all('2008' not in r['fact'] for r in p['facts'])
+    assert summary_errors(section('王甲为当前董事长。[E-000000000001]'),p)
+    assert summary_errors(section('王甲任期自2008年6月11日起至今。[E-000000000001]'),p)
+    assert not summary_errors(section('平台登记记录中，王甲职务为董事长，数据基准日未载。[E-000000000001]'),p)
+
+
 def test_summary_rejects_related_company_even_when_target_is_in_title():
     direct=card()
     related=card(2,"子公司新能源汽车零部件收入124.5亿元。")

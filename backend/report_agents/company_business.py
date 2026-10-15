@@ -5,7 +5,7 @@ from collections import Counter,defaultdict
 from decimal import Decimal
 from urllib.parse import urlparse
 
-from .company_evidence import source_body,document_pages
+from .company_evidence import source_body,document_pages,pending_ocr_notice
 from .company_governance import EID,_table,_filing_period,_period_rank,_primary_filing,compact,get,refs
 from .company_history import _issuer_hosts
 
@@ -361,7 +361,7 @@ def build_business_package(cleaned,target,sources=None,*,limit=50000):
     if counts['table_pages_pending']:gaps.append('部分业务表格页尚待单元格提取/原页核对，未选到数据不等于企业未披露。')
     if counts['empty_grid_pages']:gaps.append('部分候选页未识别出向量网格；文字可读也不等于表格单元格已绑定，需补做版面核对。')
     if counts['omitted_document_pages']:gaps.append('部分原件因提取上限尚未覆盖全文；本章仅使用已取得原页，不把未提取部分视为无披露。')
-    if counts['needs_ocr_pages']:gaps.append('原件含低文字页，尚未实际执行OCR；嵌入文本/向量表格提取不能代表扫描页已识别。')
+    if counts['needs_ocr_pages']:gaps.append(pending_ocr_notice(sources,'原件含低文字页，尚未实际执行OCR；嵌入文本/向量表格提取不能代表扫描页已识别。'))
     if conflicts:gaps.append('同主体、期间、维度与单位的来源记录存在差异，保留各值及出处，需核对重述、范围或版本；未择一认定。')
     return {'version':VERSION,'target_name':target,'facts':delivered,'information_gaps':gaps,
             'conflicts':conflicts,

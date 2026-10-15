@@ -179,10 +179,10 @@ def test_person_report_gets_deterministic_audit_index_from_fact_library():
         json.dumps({"facts": facts}, ensure_ascii=False),
     )
 
-    assert "## 审计引用索引（自动生成）" in report
+    assert "## 14. 信息来源（自动生成审计索引）" in report
     assert "E-" in report
     assert "https://evidence.example.com/1" in report
-    assert "已纳入本报告章节证据包的唯一来源：" in report
+    assert "已纳入章节证据包的唯一来源：" in report
 
 
 def test_industry_scope_is_safe_for_non_expert_input():
@@ -229,9 +229,13 @@ def test_industry_report_gets_a_deterministic_ledger_in_chapter_14():
     result = workflow._append_report_evidence_index(project, report, json.dumps({"facts": facts}, ensure_ascii=False))
 
     assert "## 14. 信息来源（自动生成审计索引）" in result
-    assert "| 证据编号 | 支持章节 | 来源与关键摘要 | 原始 URL |" in result
+    assert "| 支持章节 | 核心来源定位 | 覆盖说明 |" in result
     assert "E-" in result
-    assert "已纳入章节证据包的唯一来源：90 / 清洗事实库可追溯来源：90。" in result
+    used,total=map(int,re.search(r'已纳入章节证据包的唯一来源：(\d+) / 清洗事实库可追溯来源：(\d+)',result).groups())
+    # Delivery selection is bounded; all original fact sources stay in the
+    # ledger. Requiring all 90 in the Word index defeated its readability cap.
+    assert 30 <= used <= total == 90
+    assert 'https://evidence.example.com/industry/' in result
 
 
 def test_industry_scope_card_is_inserted_before_first_report_chapter():
@@ -286,21 +290,21 @@ def test_low_confidence_same_name_fact_stays_out_of_person_report_package():
 def test_report_evidence_packages_keep_person_company_and_industry_match_rules_separate():
     facts = [
         {
-            "fact": "可审计事实。",
+            "fact": "目标人物可审计事实。",
             "source_url": "https://example.com/person",
             "identity_match": "mismatch",
             "entity_match": "confirmed",
             "scope_match": "in_scope",
         },
         {
-            "fact": "可审计事实。",
+            "fact": "目标人物可审计事实。",
             "source_url": "https://example.com/company",
             "identity_match": "confirmed",
             "entity_match": "mismatch",
             "scope_match": "in_scope",
         },
         {
-            "fact": "可审计事实。",
+            "fact": "目标人物可审计事实。",
             "source_url": "https://example.com/industry",
             "identity_match": "confirmed",
             "entity_match": "confirmed",
@@ -467,6 +471,7 @@ def test_professional_fields_are_extracted_without_llm_and_keep_person_boundary(
             "provider": "qcc",
             "content_kind": "structured_data",
             "target": "蚂蚁集团",
+            "canonical_company_name": "蚂蚁科技集团股份有限公司",
             "person_affiliation": {
                 "person_name": "马云",
                 "affiliation_name": "蚂蚁集团",
@@ -475,7 +480,7 @@ def test_professional_fields_are_extracted_without_llm_and_keep_person_boundary(
         },
     )
     source.url = "structured://qcc/company/ant"
-    source.content = "统一社会信用代码：91110108MA01234567\n法定代表人：张三\n注册资本：100万元"
+    source.content = "企业名称：蚂蚁科技集团股份有限公司\n统一社会信用代码：91110108MA01234567\n法定代表人：张三\n注册资本：100万元"
     project = _project([source], target_type="person")
     project.target_name = "马云"
 
@@ -485,6 +490,8 @@ def test_professional_fields_are_extracted_without_llm_and_keep_person_boundary(
     assert all(item["category"] == "person_affiliation_structured" for item in facts)
     assert all(item["eligible_for_risk_scoring"] is False for item in facts)
     assert all("\u4e0d\u5f97\u5f52\u56e0\u4e3a\u76ee\u6807\u4eba\u7269" in item["attribution_boundary"] for item in facts)
+    source.source_metadata['canonical_company_name']='另一家公司股份有限公司'
+    assert workflow._extract_professional_structured_facts([source],project)==[]
 
 
 def test_company_ledger_uses_actual_body_citations_and_allows_cross_chapter_reuse():
@@ -661,7 +668,7 @@ def test_company_quality_gate_accepts_sparse_but_fully_traceable_fourteen_chapte
             body = (
                 "| 证据编号 | 支持章节 | 来源与关键摘要 | 台账定位 |\n"
                 "| --- | --- | --- | --- |\n"
-                f"| {evidence_id} | 第 2 章 | 官方工商记录 | 原始链接 → https://example.com/company |\n\n"
+                f"| {evidence_id} | 第 2 章 | 官方工商记录 | 原始链接 → https://issuer.test/company |\n\n"
                 "> 已纳入章节证据包的唯一来源：1 / 清洗事实库可追溯来源：1。目标主体匹配可用来源：1。"
             )
         elif index == 14:
@@ -771,7 +778,7 @@ def test_report_placeholder_urls_are_removed_before_export():
     cleaned = workflow._normalize_report_placeholders(report)
 
     assert "example.com" not in cleaned
-    assert "占位链接已移除" in cleaned
+    assert "图谱证据：待系统根据结构化事实生成或由人工补充真实来源。" in cleaned
 
 
 def test_company_agent_does_not_call_model_for_empty_evidence_chapters():

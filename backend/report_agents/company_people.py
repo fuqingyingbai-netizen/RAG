@@ -4,7 +4,7 @@ import re
 from collections import Counter,defaultdict
 from urllib.parse import urlparse
 
-from .company_evidence import source_body,document_pages
+from .company_evidence import source_body,document_pages,pending_ocr_notice
 from .company_governance import EID,_table,compact,get,refs
 from .company_history import _issuer_hosts
 from .company_management import issuer as management_issuer
@@ -40,6 +40,42 @@ def table_metrics(page):
     for i,header in enumerate(headers):
         end=headers[i+1].start() if i+1<len(headers) else len(raw)
         rows+=_metric_block(raw[header.end():end],re.findall(r'20\d{2}',header[1]),page['page'])
+    return rows
+
+
+def annual_workforce_rows(pages,period):
+    """Single-period annual-report employee tables are not ESG year grids.
+
+    Keep each source label and population; main subsidiaries need not cover
+    every consolidated entity. Net headcount cannot establish turnover.
+    """
+    if not re.fullmatch(r'20\d{2}年',period):return []
+    rows=[]
+    labels=('报告期末母公司在职员工的数量','报告期末主要子公司在职员工的数量',
+            '报告期末在职员工的数量合计','当期领取薪酬员工总人数',
+            '母公司及主要子公司需承担费用的离退休职工人数')
+    def add(metric,value,page,quote,scope):
+        rows.append({'kind':'workforce','metric':metric,'value':value,'previous_value':'—',
+                     'period':period,'previous_period':'','unit':'人','page':page,
+                     'population_note':scope,'fact':metric+'：'+value+'人（'+period+'年度报告员工表）',
+                     'evidence_quote':quote.strip(),'mode':'公司年度报告员工表；原始人数，不推断流失率'})
+    profession=False;last_page=0
+    for page in pages:
+        raw=page['text']
+        if page['page']>last_page+1:profession=False
+        last_page=page['page']
+        for label in labels:
+            pattern=r'(?m)^\s*'+re.escape(label)+r'\s*[（(]人[）)]\s+([0-9][0-9,]*)[ \t]*(?=\n|$)'
+            for m in re.finditer(pattern,raw):
+                add(label,m[1],page['page'],m[0],'源表原名及范围；母公司、主要子公司、合计及薪酬人数分列，不能相互替代')
+        header=re.search(r'专业构成类别\s+专业构成人数[（(]人[）)]',raw)
+        if header:profession=True
+        if profession:
+            remainder=raw[header.end():] if header else raw
+            block=re.split(r'教育程度|[二三四五六七八九十]、|\d+[、.]\s*(?:薪酬|培训|劳务)',remainder)[0]
+            for m in re.finditer(r'(?m)^\s*(制造人员|生产人员|销售人员|研发人员|技术人员|财务人员|行政人员|其他人员)\s+([0-9][0-9,]*)[ \t]*(?=\n|$)',block):
+                add(m[1]+'（专业构成）',m[2],page['page'],m[0],'年度报告员工专业构成；研发与技术保留源表分类，不替换为关键岗位流失人数')
+            if len(block)!=len(remainder):profession=False
     return rows
 
 
@@ -97,6 +133,7 @@ def policy_rows(pages,period,target=''):
         for raw in re.split(r'(?<=[。；])',text):
             quote=_prose(raw)
             if not 25<=len(quote)<=650:continue
+            if re.search(r'会计期间|会计政策|计入当期损益|确认为负债|摊销|预计负债|包括短期薪酬|其他长期职工福利',quote):continue
             if quote.count('•')>3 or quote.count('%')>4 or re.search(r'B[1-9]\.\d|主要绩效指标摘要',quote):continue
             if re.search(r'以下措施|如下|下表|流程图',quote):continue
             subjects=['我们','本公司','本集团','公司']+([target,short] if target else [])
@@ -105,13 +142,13 @@ def policy_rows(pages,period,target=''):
             start=None
             for m in anchored:
                 tail=quote[m.end():m.end()+70]
-                if m[0]=='公司' and not re.match(r'已|将|正|在|于|通过|建立|高度重视|积极|坚持|制定|开展|为员工|致力|设立|构建|组织|推出|搭建|决定|同步|面向|累计',tail):continue
-                if re.search(r'制定|建立|开展|组织|举办|完善|搭建|推出|培养|优化|设立|增加',tail):start=m.start();break
+                if m[0]=='公司' and not re.match(r'已|将|正|在|于|根据|按照|依据|结合|通过|建立|高度重视|积极|坚持|制定|开展|为员工|致力|设立|构建|组织|推出|搭建|决定|同步|面向|累计',tail):continue
+                if re.search(r'制定|建立|构建|提供|核定|开展|组织|举办|完善|搭建|推出|培养|优化|设立|增加',tail):start=m.start();break
             if start is None:continue
             quote=quote[start:]
             if not re.search(r'员工|人才|岗位|人事|培训|价值观|晋升|职业|师带徒|薪酬|博士后',quote):continue
             if re.search(r'供应商|客户|经销商',quote) and not re.search(r'员工|人才|人事|职业|研发人才',quote):continue
-            if not re.search(r'制定|建立|开展|组织|举办|完善|搭建|推出|培养|优化|设立|培训|晋升|增加',quote):continue
+            if not re.search(r'制定|建立|构建|提供|核定|开展|组织|举办|完善|搭建|推出|培养|优化|设立|培训|晋升|增加',quote):continue
             if re.search(r'员工沟通|员工申诉|投诉渠道|反馈机制|文化交流|价值观|反歧视|反骚扰|人权保障|员工手册|文化宣贯',quote):aspect=HEADINGS[0]
             elif re.search(r'员工持股|股权激励|薪酬|绩效考核|绩效评估|绩效管理|员工绩效|晋升机制|发展通道',quote):aspect=HEADINGS[1]
             elif re.search(r'人才培养|专项培训|培训体系|新员工.*培训|训练营|导师带教|博士后|人才梯队|继任|人才储备',quote):aspect=HEADINGS[2]
@@ -139,13 +176,14 @@ def build_people_package(cleaned,target,sources=None,*,limit=60000):
         # when no earlier stock-exchange filing supplied the website field.
         # Require both the standalone full issuer heading and the explicit
         # report ownership statement; a search title or parent mention fails.
-        extracted_pdf=(meta.get('document_extraction') or {}).get('method')=='embedded_pdf_text'
+        extracted_pdf=(meta.get('document_extraction') or {}).get('method') in {'embedded_pdf_text','embedded_pdf_text_with_selective_ocr'}
         named_pdf=extracted_pdf and statement and management_issuer(s,target,hosts|{host})
         if not (management_issuer(s,target,hosts) or scoped_report or named_pdf):continue
         usable=[c for c in cards[url] if c.get('eligible_for_report') is not False and c.get('entity_match') not in {'mismatch','ambiguous','out_of_scope'} and c.get('source_entity_validation')!='rejected']
         if not usable:continue
         c=usable[0];pages=document_pages(s)
         year=re.search(r'(20\d{2})\s*年',raw[:6000]);period=year[1]+'年' if year else '报告年度未绑定'
+        records.extend((c,r) for r in annual_workforce_rows(pages,period))
         local_notes=source_notes(pages)
         for note in local_notes:notes.append({**note,'kind':'source_note','fact':note['text'],
                                                      'evidence_id':c['evidence_id'],'evidence_ids':[c['evidence_id']],
@@ -202,7 +240,7 @@ def build_people_package(cleaned,target,sources=None,*,limit=60000):
           '培训人数、次数、人次、时数、支出与覆盖定义分别保留；培养计划及完成培训不证明晋升公平、留任或人才能力已改善。',
           '文化制度、具体实践、员工感受与独立执行核验分开；信息缺口不直接判为文化脱节、管理失效或高流失风险。']
     if counts['omitted_pages']:gaps.append('原件尚未提取全文，未选到指标不等于未披露。')
-    if counts['needs_ocr_pages']:gaps.append('存在低文字页尚未执行OCR；已得可读文字与扫描页识别分开。')
+    if counts['needs_ocr_pages']:gaps.append(pending_ocr_notice(sources,'存在低文字页尚未执行OCR；已得可读文字与扫描页识别分开。'))
     if counts['same_name_differences']:gaps.append('同名同期间指标存在不同值或公式，均保留出处；范围、定义及重述版本需核对，未择一或跨表拼接。')
     if counts['budget_excluded']:gaps.append('部分已识别记录超出本章展示预算，不代表该信息不存在或未披露。')
     missing=[m for m in ('销售人员流失率','研发人员流失率','技术人员流失率') if not any(r.get('metric')==m for r in delivered)]

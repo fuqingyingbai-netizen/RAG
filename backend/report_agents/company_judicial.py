@@ -4,7 +4,7 @@ import re
 from collections import Counter, defaultdict
 from urllib.parse import urlparse
 
-from .company_evidence import source_body, document_pages
+from .company_evidence import source_body, document_pages, pending_ocr_notice
 from .company_governance import EID, get, refs, _table, compact
 from .company_history import _issuer_hosts
 from .company_management import issuer
@@ -203,7 +203,9 @@ def build_judicial_package(cleaned,target,sources=None,*,limit=240000,query_atte
             for review in meta.get('visual_reviews') or []:
                 if (review.get('status')=='reviewed' and review.get('kind')=='document_signature_date'
                         and isinstance(review.get('page'),int) and re.fullmatch(r'20\d{2}-\d{2}-\d{2}',str(review.get('value') or ''))):
-                    notes.append({**base,'kind':'source_note','page':review['page'],'fact':'签章日期：'+review['value']+'（原页图片人工核对，未执行OCR）'})
+                    attempted=((meta.get('document_extraction') or {}).get('ocr') or {}).get('attempted_pages') or []
+                    mode='原页图片人工核对' if review['page'] in attempted else '原页图片人工核对，未执行OCR'
+                    notes.append({**base,'kind':'source_note','page':review['page'],'fact':'签章日期：'+review['value']+'（'+mode+'）'})
             definition=next((p for p in pages if re.search(r'报告期\s*指',p['text'])),None)
             if definition:
                 m=re.search(r'报告期\s*指\s*([^\n]+)',definition['text'])
@@ -247,7 +249,7 @@ def build_judicial_package(cleaned,target,sources=None,*,limit=240000,query_atte
           '涉案/诉请金额、判令支付、预计负债、已支付及执行回款分别核对；美元与人民币、万元与元不直接加总，未形成预计负债不等于没有风险。',
           '公司、子公司、股东和管理人员责任分别绑定；担保与质押是需要核对敞口的事项，不能仅凭条目数判断违法或正常融资。',
           '司法记录以外的产品召回、行政监管措施、纪律处分、负面报道与供应链争议需按各自原件核查，问询或注册终止不自动等同处罚。']
-    if counts['needs_ocr_pages']:gaps.append('存在低文字页尚未执行OCR；不将文字提取当扫描识别，不以未识别到内容证明无风险。')
+    if counts['needs_ocr_pages']:gaps.append(pending_ocr_notice(sources,'存在低文字页尚未执行OCR；不将文字提取当扫描识别，不以未识别到内容证明无风险。'))
     if counts['omitted_pages']:gaps.append('部分原件尚未提取全文，未检出不等于未披露。')
     if counts['budget_excluded']:gaps.append('部分明细超出本章证据预算，不能据此概括全量结果。')
     if counts['formatter_truncation']:gaps.append('专业平台内容存在格式化行/字段截断，需回已保存的原始返回核对，不能声称已核完全部明细。')

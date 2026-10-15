@@ -26,6 +26,7 @@ dependencies = [
     "langgraph>=0.2.31",
     "pypdf>=4.3.1",
     "pypdfium2>=4.30.0",
+    "rapidocr-onnxruntime>=1.4.4,<2",
     "pdfplumber>=0.11.9,<0.12",
     "opencc-python-reimplemented>=0.1.7,<0.2",
     "docx2txt>=0.8",

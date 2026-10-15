@@ -4,6 +4,13 @@ import re
 from .company_governance import get
 
 
+def pending_ocr_notice(sources, untouched_notice):
+    attempted = any((((get(source,'source_metadata',{}) or {}).get('document_extraction') or {}).get('ocr') or {}).get('attempted_pages') for source in sources or [])
+    if attempted:
+        return '仍有页面待识别或原页核对；已尝试OCR不等于全部页面或数字表格均已验收，未取得内容不证明没有披露或风险。'
+    return untouched_notice
+
+
 def source_body(source):
     meta=get(source,'source_metadata',{}) or {}
     content=str(get(source,'content') or '').strip()

@@ -610,7 +610,7 @@ class ResearchWorkflow:
         cleaning_pipeline_version = (
             "person-evidence-v10-anchor-quarantine"
             if standardized_type == "person"
-            else "company-evidence-v8-entity-bound"
+            else "company-evidence-v9-page-ocr-coverage"
             if standardized_type == "company"
             else "industry-evidence-v1-scoped"
             if standardized_type == "industry"
@@ -623,7 +623,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v24-reproducible-company-assessment",
+            "company": "company-report-evidence-v25-page-ocr-and-integrated-claims",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -646,6 +646,7 @@ class ResearchWorkflow:
 
         resume_enabled = os.getenv("WORKFLOW_RESUME_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
         force_refresh = bool(normalized_intake.get("force_refresh_from_upload_ocr"))
+        company_ocr_retry = standardized_type == 'company' and os.getenv('COMPANY_PDF_OCR_RETRY_PENDING','false').lower() in {'true','1','on'}
         intake_fingerprint = self._intake_evidence_fingerprint(normalized_intake)
         sources_match_intake = self._project_sources_match_intake(project, normalized_intake)
         existing_report = self._latest_artifact(project, "desktop_report")
@@ -655,6 +656,7 @@ class ResearchWorkflow:
         can_reuse_final_outputs = (
             resume_enabled
             and not force_refresh
+            and not company_ocr_retry
             and len(getattr(project, "sources", []) or []) > 0
             and sources_match_intake
             and existing_cleaned_for_reuse is not None
@@ -828,6 +830,7 @@ class ResearchWorkflow:
             _emit(emit, "structured_data", "structured_data_agent", "专业数据库来源缺失，质量闸门拦截", message, status="error")
             raise RuntimeError(message)
 
+        ocr_count = 0
         try:
             ocr_count = self.enrich_ocr_sources(db, project, emit=emit)
             if ocr_count:
@@ -886,6 +889,7 @@ class ResearchWorkflow:
         use_existing_cleaned = (
             resume_enabled
             and not force_refresh
+            and not (standardized_type == 'company' and (ocr_count or company_ocr_retry))
             and sources_match_intake
             and existing_cleaned is not None
             and (existing_cleaned.artifact_metadata or {}).get("pipeline_version") == cleaning_pipeline_version
@@ -2435,6 +2439,11 @@ class ResearchWorkflow:
             flags.append("ocr_done")
         elif quality.get("needs_ocr"):
             flags.append("ocr_pending")
+        document = meta.get('document_extraction') or {}
+        if (document.get('ocr') or {}).get('accepted_pages'):
+            flags.append('ocr_transcribed_requires_fact_review')
+        if document.get('needs_ocr_pages') and 'ocr_pending' not in flags:
+            flags.append('ocr_pending')
         if not (source.content or "").strip() and (source.summary or "").strip():
             flags.append("summary_only")
         return flags
@@ -2499,8 +2508,55 @@ class ResearchWorkflow:
         result["information_gaps"] = list(dict.fromkeys(list(result.get("information_gaps") or []) + gaps))
         return result
     def enrich_ocr_sources(self, db: Session, project: ResearchProject, emit: TraceEmitter | None = None) -> int:
-        _emit(emit, "ocr", "ocr_extraction_agent", "OCR 当前跳过", "", status="skipped")
-        return 0
+        if str(project.target_type or '').lower() != 'company':
+            _emit(emit, "ocr", "ocr_extraction_agent", "当前链路未启用OCR", "", status="skipped")
+            return 0
+        from company_ocr import VERSION, _integer
+        if os.getenv('COMPANY_PDF_OCR_ENABLED', 'true').lower() in {'false', '0', 'off'}:
+            _emit(emit, 'ocr', 'ocr_extraction_agent', '公司按页OCR已关闭', '原待识别页保留', status='skipped')
+            return 0
+        maximum = _integer('COMPANY_PDF_OCR_MAX_SOURCES', 4, 1, 20)
+        refreshed = 0
+        attempted = 0
+        for source in list(project.sources or []):
+            meta = dict(source.source_metadata or {})
+            extraction = meta.get('document_extraction') or {}
+            # Fresh company fetches already ran page-selective OCR. Do not
+            # refetch them or silently promote partial OCR to a complete run.
+            previous_ocr=extraction.get('ocr') or {}
+            retry_pending=os.getenv('COMPANY_PDF_OCR_RETRY_PENDING', 'false').lower() in {'true','1','on'}
+            if (previous_ocr.get('version') == VERSION and previous_ocr.get('status') not in {'busy','unavailable','disabled'} and not retry_pending):
+                continue
+            pending = extraction.get('needs_ocr_pages') or []
+            pdf = str(source.url or '').split('?', 1)[0].lower().endswith('.pdf') or 'pdf' in str(meta.get('fetched_content_type') or '')
+            if not pdf or not pending:
+                continue
+            if attempted >= maximum:
+                _emit(emit, 'ocr', 'ocr_extraction_agent', '扫描页待后续处理', '本轮来源预算已用完，原缺口保留', url=source.url, status='warning')
+                continue
+            attempted += 1
+            _emit(emit, 'ocr', 'ocr_extraction_agent', '公司PDF按页补充识别', f'pending_pages={len(pending)}', url=source.url, status='running')
+            fetched = self._fetch_web_url_with_timeout(source.url, False, emit=emit, document_profile='company')
+            if fetched.get('document_extraction') and fetched.get('document_pages'):
+                source.content = fetched.get('content') or source.content
+                meta.update(document_pages=fetched['document_pages'], document_extraction=fetched['document_extraction'])
+                ocr = fetched['document_extraction'].get('ocr') or {}
+                meta['ocr_status'] = ocr.get('status', 'pending')
+                refreshed += 1
+                detail = f"accepted={len(ocr.get('accepted_pages') or [])}, pending={len(ocr.get('pending_pages') or [])}"
+                status = 'done'
+            else:
+                # Fetch failure must not erase original text/coverage or be
+                # represented as an empty search result.
+                meta['ocr_retry'] = {'status': fetched.get('status') or 'failed', 'error': fetched.get('error') or ''}
+                detail = '重新获取失败，保留原文字与待识别页'
+                status = 'warning'
+            source.source_metadata = meta
+            _emit(emit, 'ocr', 'ocr_extraction_agent', '公司PDF识别状态已保存', detail, url=source.url, status=status)
+        if attempted:
+            db.commit()
+        _emit(emit, 'ocr', 'ocr_extraction_agent', '公司按页OCR检查完成', f'refreshed_sources={refreshed}; failed/partial/pages remain explicit', status='done')
+        return refreshed
 
     def _should_use_vision_for_source(self, source: ResearchSource) -> bool:
         return False
@@ -4076,6 +4132,13 @@ class ResearchWorkflow:
 
     def _fetch_web_url_with_timeout(self, url: str, allow_browser: bool, emit: TraceEmitter | None = None, *, document_profile: str = '') -> dict[str, Any]:
         timeout_seconds = _env_int("WEB_FETCH_TOTAL_TIMEOUT_SECONDS", 45, 5, 180)
+        if document_profile == 'company':
+            # Company PDFs may include hundreds of native pages plus bounded
+            # OCR and its queue wait; the old 45s wrapper discarded good results.
+            from company_ocr import _integer
+            ocr_seconds=_integer('COMPANY_PDF_OCR_MAX_SECONDS',60,1,600)
+            default=max(timeout_seconds, 60+2*ocr_seconds)
+            timeout_seconds=_env_int('COMPANY_PDF_FETCH_TOTAL_TIMEOUT_SECONDS',default,30,1500)
         result_queue: queue.Queue[tuple[str, Any]] = queue.Queue(maxsize=1)
 
         def worker() -> None:
@@ -5750,13 +5813,8 @@ class ResearchWorkflow:
             # not let a report turn a non-hit into a clean legal conclusion or
             # a zero-risk score.  Such language must be backed by a reviewed
             # official record, which this automated delivery path cannot prove.
-            overclaim_patterns = (
-                r"(?:司法与)?合规底盘干净",
-                r"(?:无|不存在)(?:历史)?(?:行政处罚|诉讼|失信|被执行|违法记录)",
-                r"法律合规风险\s*[：:]?\s*0(?:\s|$)",
-                r"企业无历史遗留违规",
-            )
-            if any(re.search(pattern, report or "", flags=re.I) for pattern in overclaim_patterns):
+            from report_agents.company_delivery import company_overclaims
+            if company_overclaims(report):
                 errors.append("存在将公开检索未命中表述为确定不存在/零风险的公司结论")
         if not audit_match:
             errors.append("缺少自动生成的审计引用索引")

@@ -75,6 +75,16 @@ def test_carbon_target_year_not_used_as_signing_date():
     assert _date('本集团签署储能供货协议，助力阿联酋二零五零年碳中和目标战略落地。')==''
 
 
+def test_issuer_esg_pdf_year_headings_are_not_a_website_history():
+    name='星河精密股份有限公司'
+    annual=filing(name,'网站：https://www.example-manufacturer.test\n公司于2019年成立。')
+    c,s=evidence(name,'# 2045\n- 要求合作伙伴遵守个人数据保护标准和要求',i=2)
+    c['source_url']=s['url']='https://www.example-manufacturer.test/esg.pdf'
+    s['source_metadata']['document_pages']=[{'page': 1, 'text': s['content']}]
+    p=history(name,annual,(c,s))
+    assert not any(r['kind']=='event' and r['period']=='2045' for r in p['facts'])
+
+
 @pytest.mark.parametrize('claim,status',[
     ('公司于2025年5月签署收购协议。','已签约／完成待核验'),
     ('公司计划于2026年完成投产。','计划／拟议'),

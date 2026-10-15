@@ -269,7 +269,11 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
         authority=primary or issuer_site or get(src,'source_type') in {'official','filing'} or (meta.get('quality') or {}).get('source_type') in {'official','filing'}
         rank=3 if authority else 1
         period=_filing_period(src)
-        if issuer_site:
+        # Issuer hosting authenticates ownership, not document genre. ESG,
+        # annual reports and policy PDFs contain standalone future-year
+        # headings too; they are not website history timelines.
+        timeline_page=issuer_site and not urlparse(url).path.lower().endswith('.pdf') and not meta.get('document_pages') and not re.search(r'--- PDF page \d+ ---',raw)
+        if timeline_page:
             for year,value in _heading_events(raw):
                 add(f,'event',value,period=year,source_rank=rank,
                     event_type='资本事项' if '交易所上市' in value else '创业起点（公司自述）' if re.search(r'创立|创业|成立.*起步',value) else '业务动作',

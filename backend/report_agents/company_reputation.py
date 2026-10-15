@@ -5,7 +5,7 @@ from collections import Counter,defaultdict
 from decimal import Decimal
 from urllib.parse import urlparse
 
-from .company_evidence import source_body,document_pages
+from .company_evidence import source_body,document_pages,pending_ocr_notice
 from .company_governance import EID,_table,_period_rank,compact,get,refs,_primary_filing
 from .company_history import _issuer_hosts
 
@@ -28,6 +28,27 @@ def _value(value,unit):
     if unit=='分数':return value+'分'
     if unit=='%' and value.endswith(('以上','以下')):return value[:-2]+'%'+value[-2:]
     return value+unit
+
+
+def counterparty_excerpt(raw, aliases):
+    """One original cooperation passage, excluding repeated mobile headers.
+
+    Do not deduplicate on numbers or approximate similarity: a later sentence
+    may disclose a different product, geography or stage of the cooperation.
+    """
+    pieces=re.split(r'(?<=[。；])\s*|(?<!\bCo\.)(?<=[.!?])\s+(?=[A-Z])|\n\s*\n',raw)
+    selected=[];seen=set()
+    for piece in pieces:
+        piece=re.sub(r'\s+',' ',piece).strip()
+        key=compact(piece)
+        if not piece or key in seen:continue
+        seen.add(key)
+        if re.search(r'[A-Za-z]',piece) and not re.search(r'[。；.!?]["”’)]*$',piece):continue
+        if _mentions(piece,aliases) and re.search(r'jointly developed|collaboration|共同开发|签订合约|签署协议',piece,re.I):
+            if 30<=len(piece)<=1000:selected.append(piece)
+    # Each retained passage independently contains the target and action;
+    # fragments around another legal entity are not joined by proximity.
+    return selected[:2]
 
 
 def aliases_for_target(target,sources):
@@ -192,12 +213,9 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000):
         # Explicit counterparty-issued material may support a dated cooperation
         # statement. It cannot be upgraded to endorsement or current sales.
         if meta.get('publisher_role')=='counterparty_official' and meta.get('publisher_verified') is True and _mentions(raw,aliases):
-            for sentence in re.split(r'(?<=[。])|\n\s*\n',raw):
-                sentence=re.sub(r'\s+',' ',sentence).strip()
-                if 30<=len(sentence)<=1000 and _mentions(sentence,aliases) and re.search(r'jointly developed|collaboration|共同开发|签订合约|签署协议',sentence,re.I):
-                    add(card,'partner_statement','合作方评价',sentence,period=meta.get('publication_date') or '公告日期未明确',
-                        mode='合作方公开公告／非访谈',rank=3)
-                    break
+            for sentence in counterparty_excerpt(raw,aliases):
+                add(card,'partner_statement','合作方评价',sentence,period=meta.get('publication_date') or '公告日期未明确',
+                    mode='合作方公开公告／非访谈',rank=3)
         for row in _market_rows(raw,aliases):
             claim=row.pop('fact')
             add(card,'benchmark','同业对标',claim,mode='原发布机构统计' if meta.get('publisher_role')=='statistics_origin' else '转载统计／原发布待核验',rank=3 if meta.get('publisher_role')=='statistics_origin' else 1,**row)
@@ -245,7 +263,7 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000):
     if counts['layout_noise']:gaps.append('转载研报存在数字/排版错乱，未将其中无法绑定市场和时期的份额作为定量对标。')
     if counts['survey_conflict']:gaps.append('同一调查指标同期来源值存在差异，须核对原页及统计范围。')
     if counts['omitted_pdf_pages']:gaps.append('部分PDF受提取页数或字符预算限制尚未覆盖全文，未选出指标不等于公司未披露。')
-    if counts['low_text_pdf_pages']:gaps.append('部分PDF页面文字很少（可能含封面），未实际执行OCR；本章仅采用已取得的明确文本与表格。')
+    if counts['low_text_pdf_pages']:gaps.append(pending_ocr_notice(sources,'部分PDF页面文字很少（可能含封面），未实际执行OCR；本章仅采用已取得的明确文本与表格。'))
     findings=[]
     score=next((r for r in delivered if r['kind']=='survey' and r['metric']=='员工满意度分数'),None)
     if score and not counts['survey_conflict']:

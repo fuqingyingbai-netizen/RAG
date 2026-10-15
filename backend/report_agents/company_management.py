@@ -5,7 +5,7 @@ from collections import Counter,defaultdict
 from datetime import date
 from urllib.parse import urlparse
 
-from .company_evidence import source_body,document_pages
+from .company_evidence import source_body,document_pages,pending_ocr_notice
 from .company_governance import EID,_filing_period,_table,compact,get,refs
 from .company_business import _cell,_prose,_clean
 from .company_history import _issuer_hosts
@@ -262,7 +262,7 @@ def build_management_package(cleaned,target,sources=None,*,limit=100000):
           '工商人员、董事会、法定高管及财务签署人范围分别核对，不把单一接口名单视为完整团队。']
     if counts['table_pages_pending']:gaps.append('部分人员表格页尚未完成单元格提取；未选到任职字段不能写为企业未披露。')
     if counts['omitted_pages']:gaps.append('原件提取尚未覆盖全文；仅以已取得原页作核对。')
-    if counts['needs_ocr_pages']:gaps.append('低文字页尚未执行OCR，不能据此认定缺少履历或人员信息。')
+    if counts['needs_ocr_pages']:gaps.append(pending_ocr_notice(sources,'低文字页尚未执行OCR，不能据此认定缺少履历或人员信息。'))
     if counts['budget_excluded']:gaps.append('本章预算未容纳全部已识别记录，不能根据展示名单推断其余岗位不存在。')
     return {'version':VERSION,'target_name':target,'facts':delivered,'information_gaps':gaps,
             'diagnostic':{'candidate_claims':len(records),'delivered_claims':len(delivered),'by_kind':dict(Counter(r['kind'] for r in delivered)),'filters':dict(counts)}}

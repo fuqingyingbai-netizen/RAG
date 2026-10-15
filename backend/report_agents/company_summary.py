@@ -72,7 +72,7 @@ def _structured_claims(content: str, tool: str, target: str) -> list[tuple[str, 
         if tool == "get_shareholder_info" and len(cells) >= 3 and re.search(r"\d.*%", cells[1]):
             result.append((f"{target}股东记录：{cells[0]}，持股比例{cells[1]}，持股数{cells[2]}股。", "governance"))
         elif tool == "get_key_personnel" and len(cells) >= 4 and cells[1] not in {"姓名", "名称"}:
-            result.append((f"{target}主要人员记录：{cells[1]}，职务{cells[3]}，任期{cells[2]}。", "governance"))
+            result.append((f"{target}主要人员记录：{cells[1]}，源表职务{cells[3]}。", "governance"))
         elif tool == "get_company_risk_scan" and len(cells) >= 3 and cells[0] in {"裁判文书", "立案信息", "开庭公告", "行政处罚"} and cells[1].isdigit() and int(cells[1]) > 0:
             result.append((f"{target}在本次平台风险扫描中，{cells[0]}返回{cells[1]}条记录。", "risk"))
         elif len(cells) == 2 and cells[0] in {"企业名称", "公司名称", "法定代表人", "注册资本", "成立日期", "成立时间", "统一社会信用代码", "登记状态", "经营范围"}:
@@ -150,6 +150,9 @@ def build_company_summary_package(
         is_disclosure = raw and original_source is not None and re.search(
             r"(?:年度|半年度)报告", _compact(str(_get(original_source, "content"))[:1000])
         )
+        structured_governance = topic == 'governance' and str(fact.get('source_url') or '').startswith('structured://')
+        if structured_governance:
+            text = '平台本次返回的登记记录（数据基准日未载）：' + text
         candidates.append({
             "evidence_id": fact["evidence_id"], "fact": text,
             "evidence_quote": text, "source_title": str(fact.get("source_title") or "")[:150],
@@ -159,6 +162,7 @@ def build_company_summary_package(
             "source_grade": str(fact.get("source_grade") or ""),
             "source_kind": "disclosure" if is_disclosure else "other",
             "claim_type": "original_source_claim" if raw else str(fact.get("claim_type") or "fact"),
+            "temporal_basis": 'undated_platform_snapshot' if structured_governance else 'source_period',
         })
 
     for fact in cleaned.get("facts") or []:
@@ -431,6 +435,8 @@ def summary_errors(text: str, package: dict[str, Any]) -> list[str]:
         errors.append("包含无依据评级、绝对免责或信息缺口扩大结论")
     if re.search(r"量化异常信号|已验证的司法风险敞口|持续运营法律基础", text):
         errors.append("把登记状态或案件数量扩大为经营能力或风险定性")
+    if re.search(r'任期|任职自|自\d{4}年[^。]{0,24}(?:起|至今)',text):
+        errors.append('摘要不列任职起始日或至今任期；对应职位与历史变动留在第七章')
     seen: list[str] = []
     for line in text.splitlines():
         line = line.strip()
@@ -447,6 +453,12 @@ def summary_errors(text: str, package: dict[str, Any]) -> list[str]:
             errors.append("包含重复过程说明或将摘要材料范围扩大为全库信息缺失")
         if ids and ids <= set(by_id):
             support = " ".join(f["fact"] + " " + f.get("period", "") for eid in ids for f in by_id[eid])
+            supported_cards = [f for eid in ids for f in by_id[eid]]
+            undated = any(f.get('temporal_basis') == 'undated_platform_snapshot' for f in supported_cards)
+            if undated and re.search(r'当前|现任|目前|至今|第一大股东|最大股东',line):
+                errors.append('未载数据基准日的平台记录不能写成当前任职或股东排序')
+            if undated and re.search(r'持股|股东|职务|董事长|总裁',line) and not re.search(r'平台|源表|登记记录|基准日未载',line):
+                errors.append('摘要引用平台股东或人员表时须保留登记记录及未载基准日的边界')
             if _numbers(line) - _numbers(support):
                 errors.append("数值、单位或年份未被本段引用原文支持")
             if re.search(r"营收|营业收入|利润|经营.{0,5}现金流", line) and not re.search(r"营业收入|利润|现金流", support):

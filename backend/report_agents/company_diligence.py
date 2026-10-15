@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 from opencc import OpenCC
 
-from .company_evidence import source_body, document_pages
+from .company_evidence import source_body, document_pages, pending_ocr_notice
 from .company_governance import EID, get, refs, _table
 from .company_history import _issuer_hosts
 
@@ -438,7 +438,7 @@ def build_diligence_package(cleaned,target,sources=None,*,prior_packages=None,in
           '交易基准、调整后对价、会计对价、已付/未付、并入现金和净现金流按日期与原币种单位区分，不能拿一种口径替代另一种。',
           '监管通讯案例、股东批准、上市规则分类及其他制度下的重大资产重组分别核对；案例入选不证明监管已审查资金合规或已豁免再融资审批。',
           '公开披露、审计关键事项及备考信息不能替代银行原始凭证、合同和业务背景逐笔核验；未取得材料不直接证明违法或清白。']
-    if counts['needs_ocr_pages']:gaps.append('存在低文字页尚未执行OCR；正文可读文字与扫描/图像页核验分开。')
+    if counts['needs_ocr_pages']:gaps.append(pending_ocr_notice(sources,'存在低文字页尚未执行OCR；正文可读文字与扫描/图像页核验分开。'))
     if counts['omitted_pages']:gaps.append('部分原件未提取全文，未选取到事项不能表述为全文未披露。')
     if counts['budget_excluded']:gaps.append('部分已识别原文超出本章证据预算，任务触发和展示样例均不代表完整尽调覆盖。')
     if counts['older_or_undated_document_not_expanded']:gaps.append('较旧或文件期未绑定的原件未在本章全面展开，仅保留已支持的主体关系/原章节线索；不因此认定不存在其他历史事项。')

@@ -4,10 +4,39 @@ from types import SimpleNamespace
 import pytest
 
 from report_agents.company_people import table_metrics,formula_notes,source_notes,policy_rows,build_people_package,render_people,people_errors
+from report_agents.company_people import annual_workforce_rows
 from test_company_history import filing
 
 
 def page(raw,number=155):return {'page':number,'text':raw}
+
+
+def test_annual_single_year_workforce_table_keeps_populations_and_no_fake_turnover():
+    raw=('七、审计委员会工作情况\n八、公司员工情况\n报告期末母公司在职员工的数量（人） 50\n报告期末主要子公司在职员工的数量（人） 800\n'
+         '报告期末在职员工的数量合计（人） 1,000\n当期领取薪酬员工总人数（人） 1,000\n'
+         '专业构成\n专业构成类别 专业构成人数（人）\n销售人员 100\n研发人员 200\n')
+    rows=annual_workforce_rows([page(raw)],'2025年')
+    assert len(rows)==6 and all(r['kind']=='workforce' and r['unit']=='人' for r in rows)
+    assert {r['value'] for r in rows if r['metric']=='报告期末在职员工的数量合计'}=={'1,000'}
+    assert any(r['metric']=='研发人员（专业构成）' and r['value']=='200' for r in rows)
+    assert all(r['previous_value']=='—' for r in rows)
+    assert not any(r['kind']=='turnover' for r in rows)
+
+
+def test_annual_workforce_rejects_missing_unit_missing_year_and_numeric_column_gluing():
+    assert not annual_workforce_rows([page('报告期末在职员工的数量合计 100')],'2025年')
+    assert not annual_workforce_rows([page('报告期末在职员工的数量合计（人） 100')],'报告年度未绑定')
+    assert not annual_workforce_rows([page('报告期末在职员工的数量合计（人） 100 90')],'2025年')
+
+
+def test_constructed_training_system_is_attributed_practice_not_effect_proof():
+    rows=policy_rows([page('青禾食品有限公司构建覆盖全体员工的培训体系，提供不同的技能提升与领导力发展课程。')],'2025年','青禾食品有限公司')
+    assert rows and rows[0]['kind']=='practice' and '公司制度/实践自述' in rows[0]['mode']
+
+
+def test_employee_benefit_accounting_policy_is_not_cultural_practice():
+    raw='本集团在职工提供服务的会计期间，将实际发生的短期薪酬确认为负债，并计入当期损益或相关资产成本。'
+    assert policy_rows([page(raw)],'2025年','青禾食品有限公司')==[]
 
 
 def sample(name='青禾食品有限公司',*,i=1):

@@ -4,6 +4,7 @@ import re
 from io import BytesIO
 
 from pypdf import PdfReader
+from company_ocr import native_text_issue, enrich_pdf_pages
 
 
 def _limit(name,default,minimum,maximum):
@@ -15,31 +16,45 @@ def _limit(name,default,minimum,maximum):
 def extract_company_pdf(payload):
     reader=PdfReader(BytesIO(payload))
     if reader.is_encrypted:reader.decrypt('')
-    max_pages=_limit('COMPANY_PDF_MAX_PAGES',300,1,500)
-    max_chars=_limit('COMPANY_PDF_MAX_CHARS',800000,10000,2000000)
+    max_pages=_limit('COMPANY_PDF_MAX_PAGES',1000,1,3000)
+    max_chars=_limit('COMPANY_PDF_MAX_CHARS',2000000,10000,6000000)
     pages=[];blocks=[];used=0;needs_ocr=[]
     for index,page in enumerate(reader.pages):
         if index>=max_pages:break
         text=(page.extract_text() or '').replace('\x00','').strip()
-        if len(re.sub(r'\s+','',text))<25:
-            needs_ocr.append(index+1)
         if used+len(text)>max_chars:continue
-        record={'page':index+1,'text':text}
+        issue=native_text_issue(text)
+        record={'page':index+1,'text':text,'text_origin':'embedded_pdf_text'}
+        if issue:record['native_text_issue']=issue
         # Two-column metric tables need both labels and cell alignment. Keep
         # layout for relevant pages without pretending text extraction is OCR.
         if re.search(r'满意度|投诉|员工流失率|market share|satisfaction',text,re.I):
             try:record['layout_text']=(page.extract_text(extraction_mode='layout') or '').replace('\x00','')
             except Exception:pass
         pages.append(record)
-        if text:blocks.append(f'--- PDF page {index+1} ---\n{text}')
         used+=len(text)
+    ocr=enrich_pdf_pages(payload,pages)
+    needs_ocr=ocr['pending_pages']
+    # OCR can add characters to an originally empty scan. Apply the body
+    # budget after recognition too; never silently return 'complete' while
+    # dropping these pages. The OCR receipt still records what was attempted.
+    retained=[];used=0;budget_omitted=[]
+    for record in pages:
+        if used+len(record['text'])>max_chars:
+            budget_omitted.append(record['page']);continue
+        retained.append(record);used+=len(record['text'])
+    pages=retained
+    # Rebuild with the same physical page numbers after accepted scan text.
+    for record in pages:
+        if record['text']:blocks.append(f"--- PDF page {record['page']} ---\n{record['text']}")
     table_status=extract_business_tables(payload,pages)
     management_status=extract_management_tables(payload,pages)
     judicial_status=extract_judicial_tables(payload,pages)
     return {'content':'\n\n'.join(blocks),'pages':len(reader.pages),'document_pages':pages,
-            'document_extraction':{'method':'embedded_pdf_text','extracted_pages':len(pages),
+            'document_extraction':{'method':'embedded_pdf_text_with_selective_ocr' if ocr['accepted_pages'] else 'embedded_pdf_text','extracted_pages':len(pages),
                                    'omitted_pages':len(reader.pages)-len(pages),'needs_ocr_pages':needs_ocr,
-                                   'complete':len(pages)==len(reader.pages) and not needs_ocr,
+                                   'ocr_content_budget_omitted_pages':budget_omitted,
+                                   'complete':len(pages)==len(reader.pages) and not needs_ocr,'ocr':ocr,
                                    'business_tables':table_status,'management_tables':management_status,
                                    'judicial_tables':judicial_status}}
 
