@@ -8,122 +8,20 @@ from .report_prompts import _focused_cleaned_json, build_editor_prompt, build_se
 from .report_style import REPORT_CHAPTER_HEADING_RE, REFERENCE_REPORT_STYLE, ensure_delivery_sections, normalize_report_headings, sanitize_nested_report_chapter_headings
 
 
-INDUSTRY_REPORT_OUTLINE = [
-    ("摘要", ["报告概述", "核心研究发现", "需关注信号", "标的所属赛道竞争格局速览", "总体评估"]),
-    ("行业基础定义与产业链全景", ["细分行业分类", "行业定义内涵", "代表产品及应用领域", "产业链上下游结构图谱", "各环节代表企业", "价值分配与平均毛利率水平", "产业链核心瓶颈环节"]),
-    ("政策环境分析与近期政策摘录", ["国家级顶层规划", "专项行动", "行业标准体系", "补贴/准入资质", "重点省市产业规划", "园区载体", "产业基金", "监管收紧/进出口管制/技术断供风险", "近期政策文件摘编", "政策基调与监管方向"]),
-    ("市场规模与增长预测", ["近3-5年历史市场规模", "CAGR", "未来5-10年分场景预测", "核心增长驱动因素", "制约因素", "行业天花板", "所处阶段：实验室/原型验证/小批量量产/规模化商用"]),
-    ("行业热度形成", ["市场环境催化", "里程碑事件", "商业化进展", "终端需求变化", "政策驱动", "景气度变化趋势", "资本关注核心逻辑"]),
-    ("竞争格局", ["玩家分层：头部链主/腰部/初创/海外巨头", "CR3/CR5市场集中度", "波特五力", "行业核心竞争力", "护城河", "主流技术路线横向对比", "优劣势", "落地难度", "成本", "迭代速度", "商业化成熟度"]),
-    ("行业投融资全景", ["近年一级市场融资总规模", "融资事件汇总", "阶段分布", "地域融资梯队", "IPO进度", "已上市标的及估值区间", "产业并购案例及估值倍数", "产业资本战略布局"]),
-    ("二级市场情绪", ["交易资金热度", "情绪预期", "行业关注度", "板块成交额占比", "换手率及历史分位", "主力买入率/主力资金净流入", "日内价格动量", "股指期货升贴水率", "期权PCR", "卖方覆盖报告数量与评级变动", "行业词频关注度"]),
-    ("投资机会", ["细分赛道选择", "核心能力筛选标准", "产业整合路径", "资本配置方向", "资本市场情绪热度", "核心投资机会", "标的筛选逻辑"]),
-    ("前景展望", ["未来5年趋势", "关键变量", "情景路径", "乐观/中性/谨慎假设"]),
-    ("龙头公司与重点企业对标", ["代表企业选择口径", "龙头公司业务结构", "收入与盈利模式", "用户/流量/渠道优势", "技术与生态能力", "代表企业对行业格局的影响", "可借鉴的商业化路径", "对标局限与待核验"]),
-    ("行业风险与不确定性", ["行业层面风险", "商业化风险", "技术迭代与替代风险", "合规法律风险", "资本与估值风险", "数据口径与证据缺口"]),
-    ("行业判断与综合评估", ["行业吸引力评分", "增长确定性评分", "竞争强度评分", "商业化成熟度评分", "监管压力评分", "资本热度评分", "主要加分/扣分项", "结论边界"]),
-    ("信息来源", ["信息点", "网址/来源说明", "检索工具", "可信度", "支持章节"]),
-    ("后续研究点", ["待确认信息点", "下一步深度研究方向", "优先级排序", "建议数据源/访谈对象"]),
-]
-
+from .industry_template import INDUSTRY_REPORT_OUTLINE
+try:
+    from ..industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers, summary_package, summary_length, claim_semantic_issues
+except ImportError:
+    from industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers, summary_package, summary_length, claim_semantic_issues
 
 INDUSTRY_SECTION_STRUCTURES = {
-    1: """
-行业报告专属章节输出骨架：
-## 1. 摘要
-
-完整摘要必须覆盖报告概述、核心研究发现、需关注信号、标的所属赛道竞争格局速览及总体评估。不要使用"本章结论/事实梳理/分析判断/风险与待核验"四段式。
-""",
-    2: """
-行业报告专属章节输出骨架：
-## 2. 行业基础定义与产业链全景
-
-涵盖赛道细分分类、行业定义内涵、代表产品及应用领域、产业链上下游结构图谱、各环节代表企业、价值分配与平均毛利率水平、产业链核心瓶颈环节研判。建议输出产业链表：环节｜主要功能｜代表企业｜价值占比/毛利率｜瓶颈｜标的相关性。
-""",
-    3: """
-行业报告专属章节输出骨架：
-## 3. 政策环境分析与近期政策摘录
-
-包含国家级顶层规划、专项行动、行业标准体系、补贴准入资质、重点省市产业规划、园区载体、产业基金，以及监管收紧、进出口管制、技术断供等政策风险。必须附近期政策文件摘编和政策基调/监管方向判断。
-""",
-    4: """
-行业报告专属章节输出骨架：
-## 4. 市场规模与增长预测
-
-包含近5年历史市场规模与CAGR、未来5-10年分场景预测、增长驱动与制约因素、行业天花板、行业所处阶段（实验室/原型验证/小批量量产/规模化商用）。建议表格：年份｜地区/口径｜规模｜增速/CAGR｜来源｜可信度｜备注。
-""",
-    5: """
-行业报告专属章节输出骨架：
-## 5. 行业热度形成
-
-以市场环境催化（里程碑事件、市场规模与增速、商业化进展、终端需求变化）和政策驱动（国家顶层设计、监管审批突破、地方配套政策）两大维度，分析赛道热度来源、景气度变化趋势及资本关注逻辑。
-""",
-    6: """
-行业报告专属章节输出骨架：
-## 6. 竞争格局
-
-必须覆盖玩家分层（头部链主/腰部/初创/海外巨头）、CR3/CR5集中度、波特五力、核心竞争力与护城河、主流技术路线横向对比。技术路线表建议列：路线｜代表公司｜优势｜短板｜成本/落地难度｜迭代速度｜商业化成熟度｜适用场景。
-""",
-    7: """
-行业报告专属章节输出骨架：
-## 7. 行业投融资全景
-
-涵盖近年一级市场融资总规模、融资事件汇总、阶段分布、地域融资梯队、IPO进度、已上市标的及估值区间、产业并购案例及估值倍数、产业资本战略布局方向。融资事件表建议列：时间｜公司｜轮次/交易类型｜金额/估值｜投资方/买方｜业务方向｜来源。
-""",
-    8: """
-行业报告专属章节输出骨架：
-## 8. 二级市场情绪
-
-从交易资金热度、情绪预期、行业关注度研判板块温度与趋势。核心指标包括板块成交额占比、换手率及历史分位、主力买入率/主力资金净流入、日内价格动量、股指期货升贴水率、期权PCR、卖方覆盖报告数量与评级变动、行业词频关注度。没有数据时写明缺口与建议数据源。
-""",
-    9: """
-行业报告专属章节输出骨架：
-## 9. 投资机会
-
-从细分赛道选择、核心能力筛选标准、产业整合路径、资本配置方向，结合资本市场情绪热度识别核心投资机会，明确标的筛选逻辑与重点关注的标的类型。
-""",
-    10: """
-行业报告专属章节输出骨架：
-## 10. 前景展望
-
-综合上述研究，对赛道未来5年发展趋势、关键变量、可能情景路径进行判断。建议拆为乐观/中性/谨慎情景。
-""",
-    11: """
-行业报告专属章节输出骨架：
-## 11. 龙头公司与重点企业对标
-
-本章只做代表企业/龙头公司对标，不做目标公司主体尽调。按代表企业选择口径、业务结构、收入与盈利模式、用户/流量/渠道优势、技术与生态能力、对行业格局的影响、可借鉴商业化路径、对标局限与待核验来写。公司材料必须明确标注为样本，不得外推为行业整体事实。
-""",
-    12: """
-行业报告专属章节输出骨架：
-## 12. 行业风险与不确定性
-
-根据检索信息识别行业层面风险、商业化风险、技术迭代与替代风险、合规法律风险、资本与估值风险、数据口径与证据缺口。建议表格：风险类别｜风险信号｜证据来源｜影响程度｜发生概率｜核验动作。不得写“标的经营风险”或把代表企业风险等同为行业结论。
-""",
-    13: """
-行业报告专属章节输出骨架：
-## 13. 行业判断与综合评估
-
-综合研究内容，对目标行业进行总结打分。建议结构：整体评级、行业吸引力评分、增长确定性评分、竞争强度评分、商业化成熟度评分、监管压力评分、资本热度评分、主要加分/扣分项、结论边界。不得设置“目标公司/标的相对位置评分”。
-""",
-    14: """
-行业报告专属章节输出骨架：
-## 14. 信息来源
-
-注明检索的信息来源，包括信息点、网址或来源说明、检索工具、可信度、支持章节。建议表格列：信息点｜来源标题/平台｜URL或来源说明｜数据获取工具｜可信度｜支持章节。
-""",
-    15: """
-行业报告专属章节输出骨架：
-## 15. 后续研究点
-
-给出有待确认的信息点和下一步深度研究方向。必须按高/中/低优先级排序，并说明建议数据源/访谈对象、预期判断价值。
-""",
+    index: f"## {index}. {title}\n\n本节内容要求：" + "；".join(requirements)
+    for index, (title, requirements) in enumerate(INDUSTRY_REPORT_OUTLINE, 1)
 }
-
 
 INDUSTRY_FEW_SHOT = """
 行业桌面研究报告写作要求：
-- 固定为 15 节，章节标题必须与标准目录一致；每节使用该节专属结构，不得机械套用"本章结论/事实梳理/分析判断/风险与待核验"。
+- 固定为 16 节，章节标题必须与标准目录一致；每节使用该节专属结构，不得机械套用"本章结论/事实梳理/分析判断/风险与待核验"。
 - 竞争格局速览：头部/腰部/初创/海外玩家分别列示，写清资金、客户、技术、产能或渠道差距。
 - 需关注信号：市场规模口径不统一、政策强监管、核心部件外购、商业化慢、估值透支等都要进入风险提示。
 - 证据不足处正文只写"待核验"，不要反复写"暂无充分公开证据"；所有缺口统一进入集中式待核验清单，不得编造市场规模、融资金额、政策原文、上市估值、客户或供应商数据。
@@ -151,19 +49,20 @@ class IndustryReportAgent:
         trace_emit: Any = None,
     ) -> str:
         sections_by_index: dict[int, str] = {}
+        setattr(project, 'industry_report_degradations', [])
         section_fact_counts: dict[int, int] = {}
         emit(trace_emit, "report", self.trace_agent, "目标行业报告团队启动", f"sections={len(self.outline)}", status="running")
-        # Allocate evidence before parallel writing.  Previously every chapter
-        # ranked the entire fact library independently, so the same handful of
-        # generic policy/market sources won all 15 rankings.  Chapters 1-13
-        # now receive disjoint evidence packages; 14 is deterministic and 15
-        # is a forward-looking verification plan.
+        # Allocate by chapter relevance; distinct facts from one URL can be reused.
         used_urls: set[str] = set()
         section_packages: dict[int, str] = {}
+        payload = json.loads(cleaned_json)
+        risk = json.loads(risk_json)
         for index, (section_title, requirements) in enumerate(self.outline, 1):
-            if index >= 14:
-                section_packages[index] = cleaned_json
-                section_fact_counts[index] = 0
+            if index >= 15:
+                package = _focused_cleaned_json(cleaned_json, section_title, requirements,
+                                                str(project.target_name or ''), 'industry') if index == 16 else '{"facts": []}'
+                section_packages[index] = bounded_package(json.loads(package))
+                section_fact_counts[index] = len(json.loads(section_packages[index])['facts'])
                 continue
             package = _focused_cleaned_json(
                 cleaned_json,
@@ -171,7 +70,7 @@ class IndustryReportAgent:
                 requirements,
                 str(project.target_name or ""),
                 "industry",
-                excluded_urls=used_urls,
+
             )
             try:
                 package_facts = json.loads(package).get("facts", [])
@@ -182,44 +81,46 @@ class IndustryReportAgent:
                 for item in package_facts
                 if isinstance(item, dict) and str(item.get("source_url") or "").startswith(("http://", "https://"))
             )
-            section_packages[index] = package
-            section_fact_counts[index] = len(package_facts) if isinstance(package_facts, list) else 0
-        emit(trace_emit, "report", self.trace_agent, "行业章节证据包已按章节分桶", f"unique_sources={len(used_urls)}, evidence_chapters=13", unique_sources=len(used_urls), status="done")
+            package, _ = package_risk_evidence(json.loads(package), payload, risk, include_all=index in {1, 13, 14})
+            section_packages[index] = bounded_package(package)
+            section_fact_counts[index] = len(json.loads(section_packages[index])['facts'])
+        emit(trace_emit, "report", self.trace_agent, "行业章节证据包已按章节分桶", f"unique_sources={len(used_urls)}, evidence_chapters=14", unique_sources=len(used_urls), status="done")
 
-        # Chapter 8: when capital_market is "none", skip the model call.
+        setattr(project, "industry_section_packages", section_packages)
+
+        # Chapter 9: when capital_market is "none", skip the model call.
         industry_scope = getattr(project, "industry_scope", {}) or {}
         capital_market = str(industry_scope.get("capital_market") or "")
 
         # Pre-allocate zero-evidence chapters and capital_market=none chapter.
         for index, (section_title, _requirements) in enumerate(self.outline, 1):
-            if index in {14, 15}:
+            if index in {15, 16}:
                 continue
             fact_count = section_fact_counts.get(index, 0)
-            if index == 8 and capital_market == "none":
-                sections_by_index[8] = (
-                    "## 8. 二级市场情绪\n\n"
-                    "本项目研究边界设定为不纳入交易性二级市场指标（capital_market=none）。"
+            if index == 12 and not industry_scope.get("named_companies"):
+                section_packages[index] = json.dumps({"facts": []})
+                sections_by_index[index] = f"## {index}. {section_title}\n\n本次未指定核心企业，未开展企业主体尽调。代表企业仅作为竞争和技术样本；如需企业尽调，请补充公司名称。"
+                continue
+            if index in {8, 9} and capital_market == "none":
+                section_packages[index] = json.dumps({"facts": []})
+                sections_by_index[index] = (
+                    f"## {index}. {section_title}\n\n"
+                    "本次研究范围未纳入一级融资、IPO、估值与二级市场指标。"
                     "如需补充二级市场资金热度、情绪预期、板块成交额占比、换手率、"
                     "卖方覆盖等指标，可在后续研究轮次中开启资本市场模块。"
                 )
                 continue
-            if fact_count < INDUSTRY_SPARSE_CHAPTER_MIN_FACTS:
-                if fact_count == 0:
-                    sections_by_index[index] = (
-                        f"## {index}. {section_title}\n\n"
-                        "本次已检索公开来源未形成可引用记录；相关核验事项见第15章。"
-                    )
-                else:
-                    sections_by_index[index] = (
-                        f"## {index}. {section_title}\n\n"
-                        f"本章仅检索到 {fact_count} 条碎片信息，不足以支撑独立分析；相关核验事项见第15章。"
-                    )
+            if fact_count == 0:
+                sections_by_index[index] = (
+                    f"## {index}. {section_title}\n\n"
+                    "本次已检索公开来源未形成可引用记录；相关核验事项见第16章。"
+                )
 
         workers = max(1, min(5, int(os.getenv("REPORT_SECTION_MAX_WORKERS", "3"))))
         with ThreadPoolExecutor(max_workers=min(workers, len(self.outline))) as executor:
             futures = {}
             for index, (section_title, requirements) in enumerate(self.outline, 1):
-                if index in sections_by_index:
+                if index == 1 or index in sections_by_index:
                     continue
                 fact_count = section_fact_counts.get(index, 0)
                 future = executor.submit(
@@ -243,9 +144,27 @@ class IndustryReportAgent:
                     section = future.result()
                 except Exception as exc:
                     emit(trace_emit, "report", self.trace_agent, "章节写作失败，保留待核验章节", f"{index}. {section_title} | {exc}", section=section_title, status="fallback")
-                    section = f"## {index}. {section_title}\n\n待核验。本章节需要后续补充核验：{'; '.join(requirements)}。"
+                    package = json.loads(section_packages[index])
+                    section = mark_unverified_numbers(self._fallback_section(package, index, section_title), package.get('facts', []))
+                    project.industry_report_degradations.append({'chapter': index, 'message': f'第{index}章写作异常，保留来源事实摘录；需人工复核。'})
                 if section.strip():
                     sections_by_index[index] = section
+        summary_title, summary_requirements = self.outline[0]
+        # Only cited, budgeted cards enter the summary and its chapter digest.
+        summary_cards = summary_package(section_packages, sections_by_index, industry_scope)
+        section_packages[1] = json.dumps(summary_cards, ensure_ascii=False)
+        section_fact_counts[1] = len(json.loads(section_packages[1])['facts'])
+        summary_digest = '\n'.join(f'{f.get("module", "")}：{f.get("fact", "")[:500]} [{f["evidence_id"]}]'
+                                   for f in summary_cards['facts'])
+        try:
+            summary = self._write_section(project, section_packages[1], risk_json, 1, summary_title,
+                summary_requirements, section_fact_counts[1], invoke, clip, emit, trace_emit,
+                completed_sections=summary_digest)
+            sections_by_index[1] = summary
+        except Exception as exc:
+            emit(trace_emit, "report", self.trace_agent, "摘要写作失败，保留核验提示", str(exc), status="fallback")
+            sections_by_index[1] = mark_unverified_numbers(self._fallback_section(summary_cards, 1, summary_title), summary_cards['facts'])
+            project.industry_report_degradations.append({'chapter': 1, 'message': '摘要写作异常，保留主要事实摘录；综合判断需人工复核。'})
         sections = [sections_by_index[index] for index in range(1, len(self.outline) + 1) if sections_by_index.get(index)]
         draft = "\n\n".join(sections)
         if not draft.strip():
@@ -255,13 +174,17 @@ class IndustryReportAgent:
         emit(trace_emit, "report", self.trace_agent, "目标行业桌面研究报告完成", f"chars={len(final)}", chars=len(final), status="done")
         return final
 
-    def _write_section(self, project: Any, cleaned_json: str, risk_json: str, index: int, section_title: str, requirements: list[str], fact_count: int, invoke: Callable[[str, str, Any], str], clip: Callable[[str, int], str], emit: Callable[..., None], trace_emit: Any) -> str:
+    def _write_section(self, project: Any, cleaned_json: str, risk_json: str, index: int, section_title: str, requirements: list[str], fact_count: int, invoke: Callable[[str, str, Any], str], clip: Callable[[str, int], str], emit: Callable[..., None], trace_emit: Any, completed_sections: str = "") -> str:
         emit(trace_emit, "report", self.trace_agent, "章节写作启动", f"{index}/{len(self.outline)} {section_title}", section=section_title, status="running")
         # Evidence-density-driven chapter writing (company v8 pattern):
         #   fact_count >= 3 -> full section structure + few-shot
         #   fact_count <  3 -> minimal: title + max 3 points
         rich_evidence = fact_count >= INDUSTRY_SPARSE_CHAPTER_MIN_FACTS
-        if rich_evidence:
+        if index == 1:
+            few_shot = ''
+            section_structure = (f'只输出 `## 1. {section_title}` 标题、研究范围、3至5项主要发现和证据限制。'
+                                 '使用短段落或要点，目标450字以内，不使用表格或子标题。')
+        elif rich_evidence:
             few_shot = INDUSTRY_FEW_SHOT
             section_structure = INDUSTRY_SECTION_STRUCTURES.get(index, "")
         else:
@@ -271,18 +194,21 @@ class IndustryReportAgent:
                 "按已有证据写最多三个要点；仅在有两条以上可比较事实时使用表格。"
                 "不要为了覆盖任务书增加二级标题、三级标题或本章待核验清单。"
             )
+        package = json.loads(cleaned_json)
+        _, scoped_risk = package_risk_evidence(package, package, json.loads(risk_json), include_all=index in {1, 13, 14})
         prompt = build_section_prompt(
             report_kind=self.report_kind,
             outline=self.outline,
             project=project,
             cleaned_json=cleaned_json,
-            risk_json=risk_json,
+            risk_json=json.dumps(scoped_risk, ensure_ascii=False),
             index=index,
             section_title=section_title,
             requirements=requirements,
             clip=clip,
             few_shot=few_shot,
             section_structure=section_structure,
+            evidence_preselected=True,
         )
         prompt += """
 行业证据边界（强制执行）：
@@ -294,12 +220,24 @@ class IndustryReportAgent:
 6. 本章只有少量证据时，可在证据明确支持的范围内作一至两条克制推演，但必须使用"基于现有证据判断/可能/仍需核验"等边界词。
 7. 不要为了完成任务书逐项填充无证据内容。没有可写内容的子项直接省略；表格只有在存在至少两条可比较事实时才使用。
 8. 每个 ### 子标题下的正文必须有对应的清洗事实来源；禁止为没有证据的子标题编造正文。
-9. 禁止在不同 ### 子标题之间重复同一论点或同一来源；每个事实只用一次。
-10. ### 子标题总数硬性上限：rich_evidence 章节最多 12 个，稀疏章节最多 3 个。超过上限的必须合并或删除，不是列出更多子标题。
+9. 同一章节内部避免重复同一论点；同一来源的不同事实可以分别支持不同章节，摘要可以概括实体章节中已引用的事实。
+10. 预测、预估、情景或目标数值须在数值所在分句明确标记，不能当成已实现统计。多张证据卡或同一发布方不同页面不等于独立来源，不得据此声称多源一致或交叉印证。
+11. ### 子标题总数硬性上限：rich_evidence 章节最多 12 个，稀疏章节最多 3 个。超过上限的必须合并或删除，不是列出更多子标题。
 """
         prompt += f"\n章节格式硬性要求：本章顶级标题必须且只能是 `## {index}. {section_title}`（两个#号）。正文子标题用 `###`（三个#号）。禁止将章节标题写成 `# {index}.`（一个#号）。\n"
-        if not rich_evidence and index <= 13:
-            prompt += "\n本章属于有限证据章节：旧章节骨架和 few-shot 仅供丰富证据章节参考，本章不适用。只写已证实事实和最多两条克制推演，不超过三个要点，不生成表格；所有待核验动作只放第15章。\n"
+        if not rich_evidence and index <= 14:
+            prompt += "\n本章属于有限证据章节：旧章节骨架和 few-shot 仅供丰富证据章节参考，本章不适用。只写已证实事实和最多两条克制推演，不超过三个要点，不生成表格；所有待核验动作只放第16章。\n"
+        if completed_sections:
+            prompt += "\n实体章节已引用的事实摘要（编号均属于本章证据包）：\n" + completed_sections
+        if index == 1:
+            prompt += '\n摘要限600字：概括研究范围、3至5项主要发现及证据限制。不要复制其他章节标题、来源索引、长表格或逐条重复事实。每项发现只引用本章提供的编号。不能把摘要证据包条数当作报告总来源数或全库事实数。\n'
+        if index == 12:
+            prompt += "\n按指定企业分别列示注册、股权、经营、产品、客户供应商与风险。仅根据本轮公开资料核查，未覆盖的事项写待核验；不得声称已经完成企业内部核验、访谈或现场调研。企业结论不得替代行业整体结论。\n"
+        if (getattr(project, 'industry_scope', {}) or {}).get('capital_market') == 'none':
+            prompt += '\n资本市场模块未启用：不要将投融资、估值或二级市场缺失列为本次研究缺口、风险或必做补采任务。\n'
+        if index == 15:
+            return "## 15. 信息来源\n\n来源索引由系统根据章节证据生成。"
+        prompt += "\n每个关键事实和数值后必须引用本章输入的 E-证据编号；不得引用未提供的编号。无评分证据时第14章返回待核验，不能补造评分。\n"
         answer = invoke(f"{self.report_kind}章节 Agent - {section_title}", prompt, trace_emit)
         if answer.strip():
             # Normalise heading levels: some models promote ## N. to # N.
@@ -311,67 +249,111 @@ class IndustryReportAgent:
                 answer.strip(),
                 flags=re.MULTILINE,
             )
+            normalized = self._validate_section(normalized, package, index, section_title, invoke, emit, trace_emit,
+                                                getattr(project, 'industry_report_degradations', []))
             emit(trace_emit, "report", self.trace_agent, "章节写作完成", section_title, section=section_title, status="done")
             return normalized
-        return f"## {index}. {section_title}\n\n待核验。本章节需要后续补充核验：{'; '.join(requirements)}。"
+        emit(trace_emit, 'report', self.trace_agent, '章节模型未返回正文，保留来源事实摘录', f'chapter={index}', status='fallback')
+        getattr(project, 'industry_report_degradations', []).append({'chapter': index, 'message': f'第{index}章模型未返回有效正文，使用来源事实摘录；建议复核综合判断。'})
+        return mark_unverified_numbers(self._fallback_section(package, index, section_title), package.get('facts', []))
+
+    def _fallback_section(self, package, index, title):
+        facts, seen = [], set()
+        for fact in package.get('facts', []):
+            key = re.sub(r'\s+', '', str(fact.get('fact') or ''))
+            if not key or key in seen or not fact.get('evidence_id'):
+                continue
+            seen.add(key)
+            facts.append(fact)
+        if index == 1:
+            # A synthesis fallback remains short, traceable and explicit about its limits.
+            facts = facts[:5]
+        body = '\n\n'.join(f'- {str(f.get("fact") or "")[:60 if index == 1 else 700]} [{f["evidence_id"]}]({f.get("source_url", "")})' for f in facts)
+        if index == 1:
+            body = '以下为已完成章节的主要事实摘要；模型摘要未通过校验，综合判断需人工复核。\n\n' + body
+        return f'## {index}. {title}\n\n' + (body or '待核验。本次证据不足，相关事项见第16章。')
 
     def _edit(self, project: Any, draft: str, risk_json: str, section_fact_counts: dict[int, int], invoke: Callable[[str, str, Any], str], clip: Callable[[str, int], str], emit: Callable[..., None], trace_emit: Any) -> str:
-        emit(trace_emit, "report", self.trace_agent, "总编润色启动", f"sections={len(self.outline)}", status="running")
-        prompt = build_editor_prompt(
-            report_kind=self.report_kind,
-            outline=self.outline,
-            project=project,
-            draft=draft,
-            risk_json=risk_json,
-            clip=clip,
-        )
-        # Count how many chapters are truly substantive (have significant body text
-        # beyond a one-line placeholder).  Used below to guide the editor.
-        sparse_chapter_nums = sorted(
-            idx for idx, fc in section_fact_counts.items() if fc < INDUSTRY_SPARSE_CHAPTER_MIN_FACTS
-        )
-        outline_lines = chr(10).join(f"{idx}. {title}" for idx, (title, _) in enumerate(self.outline, 1))
-        sparse_hint = ""
-        if sparse_chapter_nums:
-            sparse_labels = ", ".join(f"第{idx}章" for idx in sparse_chapter_nums)
-            sparse_hint = (
-                "以下章节证据稀疏（fact_count < " + str(INDUSTRY_SPARSE_CHAPTER_MIN_FACTS) + "），"
-                "正文应简短（最多3个要点、不用表格），但 ## 顶级标题必须保留：" + sparse_labels + "\n"
-            )
-        prompt += f"""
-
-行业报告专属总编要求：
-1. 最终报告必须严格保留 15 节目录，标题和顺序如下：
-{outline_lines}
-2. 不得把每一节统一改写成"本章结论/事实梳理/分析判断/风险与待核验"四段式；每节必须保留该节自己的内容结构。
-3. 第 6 节必须同时覆盖竞争格局与主流技术路线横向对比；不得再单独新增"技术路线对比"章节。
-4. 第 8 节二级市场情绪如缺少实时交易数据，必须明确数据缺口和建议数据源，不得编造指标。
-5. 第 13 节必须给出评分或等级；第 14 节必须列信息点、来源/URL、工具、可信度、支持章节；第 15 节必须按高/中/低优先级排序。
-6. 对无证据内容保持克制，正文只写"待核验"，并统一沉淀到"集中式待核验清单"；不要编造市场规模、融资金额、政策原文、二级市场指标、客户或供应商数据。
-
-章节保护规则（最高优先级，凌驾于精简规则）：
-- 最终输出的 15 个 ## 顶级章节一个都不能少。即使某章只有一句"本次已检索公开来源未形成可引用记录"，也必须保留其 ## 标题。
-- 精简规则只能用于删除章节内部的 ### 子标题和空洞正文段落，绝对不能删除整个 ## 顶级章节。
-- 如果草稿中某章缺失，必须补回其 ## 标题和一句占位说明；不得直接跳过该编号。
-{sparse_hint}
-"""
-        answer = invoke(f"{self.report_kind}总编 Agent", prompt, trace_emit)
-        edited = answer.strip()
-        if not edited:
-            return draft
+        # Chapters have already been audited independently. A whole-report model
+        # rewrite both loses citations and duplicates expensive output tokens.
         expected = {idx: title for idx, (title, _) in enumerate(self.outline, 1)}
-        edited = normalize_report_headings(edited, expected)
-        edited = sanitize_nested_report_chapter_headings(edited, expected)
-        present = {int(match.group(1)) for match in REPORT_CHAPTER_HEADING_RE.finditer(edited or "")}
-        missing = [idx for idx in range(1, len(self.outline) + 1) if idx not in present]
-        if missing:
-            emit(
-                trace_emit,
-                "report",
-                self.trace_agent,
-                "总编输出缺章，回退分章节草稿",
-                f"missing={missing}",
-                status="fallback",
-            )
-            return draft
-        return edited
+        emit(trace_emit, 'report', self.trace_agent, '行业报告分章校验完成，执行目录合并', 'sections=16', status='done')
+        return sanitize_nested_report_chapter_headings(normalize_report_headings(draft, expected), expected)
+
+    @staticmethod
+    def _normalize_section_format(section):
+        section = section.strip()
+        fence = re.fullmatch(r'```(?:markdown|md)?\s*\n(.*?)\n```', section, re.S | re.I)
+        if fence:
+            section = fence[1].strip()
+        return re.sub(r'^# (\d{1,2})\. ', r'## \1. ', section, flags=re.M)
+
+    @staticmethod
+    def _section_validation_reasons(section, allowed, index, title):
+        ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', section, re.I))
+        reasons = []
+        if (section.splitlines() or [''])[0].strip() != f'## {index}. {title}':
+            reasons.append('wrong_heading')
+        if len(re.findall(r'(?m)^##\s+\d+[.、．]', section)) > 1:
+            reasons.append('duplicate_chapter_heading')
+        if not ids & allowed:
+            reasons.append('missing_citation')
+        if ids - allowed:
+            reasons.append('invalid_citation')
+        if index == 1 and summary_length(section) > 600:
+            reasons.append('summary_too_long')
+        return reasons
+
+    def _validate_section(self, section, package, index, title, invoke, emit, trace_emit, degradations=None):
+        facts = package.get('facts', [])
+        allowed = {f.get('evidence_id') for f in facts if f.get('evidence_id')}
+        section = self._normalize_section_format(section)
+        ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', section, re.I))
+        expected_heading = f'## {index}. {title}'
+        if index == 1:
+            section = mark_unverified_numbers(section, facts)
+        initial_reasons = self._section_validation_reasons(section, allowed, index, title)
+        initial_reasons += list(dict.fromkeys(x['code'] for x in claim_semantic_issues(section, facts)))
+        if initial_reasons:
+            emit(trace_emit, 'report', self.trace_agent, '章节校验未通过，尝试一次局部修复',
+                 f'chapter={index}; reasons={",".join(initial_reasons)}', status='warning', validation_reasons=initial_reasons)
+            # Retain cited cards first, then validate against exactly what the repair saw.
+            repair_package = json.loads(bounded_package({**package, 'facts': sorted(facts,
+                key=lambda f: f.get('evidence_id') not in ids)}, 14000 if index == 1 else 12000))
+            repair_facts = repair_package['facts']
+            repair_allowed = {f.get('evidence_id') for f in repair_facts if f.get('evidence_id')}
+            prompt = (f'仅修复第{index}章，顶级标题为 {expected_heading}。删除无证据结论，保留合法来源编号。'
+                      '只输出本章；不能新增数字或证据编号。预测值须在同一分句保留预计/预测标记；'
+                      '多卡片或同一发布方不等于独立来源，禁止无据声称多源一致。'
+                      '\n校验原因：' + ','.join(initial_reasons) + '\n证据：' + json.dumps(repair_package, ensure_ascii=False)
+                      + '\n待修复章节：\n' + section[:8000])
+            if index == 1:
+                prompt += '\n摘要压缩至450字以内，最多5项发现，保留来源编号和数值待核验提示。禁止表格和章节复述。'
+            try:
+                repaired = self._normalize_section_format(invoke(f'{self.report_kind}章节修复 Agent - {title}', prompt, trace_emit))
+                repair_error = ''
+            except Exception as exc:
+                repaired = ''
+                repair_error = type(exc).__name__
+            if index == 1:
+                repaired = mark_unverified_numbers(repaired, repair_facts)
+            repair_reasons = self._section_validation_reasons(repaired, repair_allowed, index, title)
+            repair_reasons += list(dict.fromkeys(x['code'] for x in claim_semantic_issues(repaired, repair_facts)))
+            if repair_error:
+                repair_reasons.append('model_error:' + repair_error)
+            if not repair_reasons:
+                section = repaired
+            else:
+                # Preserve traceable facts, not prose whose citations failed.
+                section = self._fallback_section(package, index, title)
+                if degradations is not None:
+                    labels = {'wrong_heading':'标题不符', 'duplicate_chapter_heading':'章节标题重复',
+                              'missing_citation':'缺少引用', 'invalid_citation':'引用不在修复证据包', 'summary_too_long':'摘要超长',
+                              'forecast_presented_as_actual':'预测属性缺失', 'source_corroboration_overstated':'多源印证依据不足'}
+                    explanation = '、'.join(labels.get(reason, reason) for reason in repair_reasons)
+                    degradations.append({'chapter': index, 'initial_validation_reasons': initial_reasons,
+                        'repair_validation_reasons': repair_reasons,
+                        'message': f'第{index}章局部修复失败（{explanation}），使用来源事实摘录；建议复核综合判断。'})
+                emit(trace_emit, 'report', self.trace_agent, '局部修复失败，保留来源事实摘录',
+                     f'chapter={index}; reasons={",".join(repair_reasons)}', status='fallback', validation_reasons=repair_reasons)
+        return mark_unverified_numbers(section, facts)

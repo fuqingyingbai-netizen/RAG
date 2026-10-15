@@ -25,6 +25,7 @@ from langchain.chat_models import init_chat_model
 from sqlalchemy.orm import Session, object_session
 
 try:
+    from .industry_research import normalize_scope, scope_fingerprint, source_in_current_run, normalize_risk as normalize_industry_risk, unknown_risk as unknown_industry_risk, annotate_fact as annotate_industry_fact, append_evidence_index as append_industry_index, delivery_errors as industry_delivery_errors, company_filing_source
     from .docx_exporter import markdown_to_docx_bytes
     from .models import ResearchArtifact, ResearchProject, ResearchSource
     from .report_agents import CompanyReportAgent, IndustryReportAgent, PersonReportAgent
@@ -34,6 +35,7 @@ try:
     from .research_strategies import get_research_strategy
     from .web_search import web_search_provider
 except ImportError:
+    from industry_research import normalize_scope, scope_fingerprint, source_in_current_run, normalize_risk as normalize_industry_risk, unknown_risk as unknown_industry_risk, annotate_fact as annotate_industry_fact, append_evidence_index as append_industry_index, delivery_errors as industry_delivery_errors, company_filing_source
     from docx_exporter import markdown_to_docx_bytes
     from models import ResearchArtifact, ResearchProject, ResearchSource
     from report_agents import CompanyReportAgent, IndustryReportAgent, PersonReportAgent
@@ -207,14 +209,11 @@ def _project_doc_title(project: ResearchProject, suffix: str) -> str:
 
 
 def _plain_json(text: str) -> Any:
-    if not text:
-        return None
-    match = re.search(r"```(?:json)?\s*(.*?)```", text, flags=re.S)
-    raw = match.group(1) if match else text
     try:
-        return json.loads(raw)
-    except Exception:
-        return None
+        from .json_utils import parse_json_output
+    except ImportError:
+        from json_utils import parse_json_output
+    return parse_json_output(text)
 
 
 def _env_int(name: str, default: int, minimum: int = 1, maximum: int = 600) -> int:
@@ -341,6 +340,82 @@ class ResearchWorkflow:
             max_retries=_env_int("PERSON_REPORT_EDITOR_MAX_RETRIES", 0, 0, 2),
         )
         return self._person_report_editor_model
+
+    def _invoke_industry_report(self, role: str, prompt: str, emit: TraceEmitter | None = None) -> str:
+        """Bound industry chapter requests; a local repair gets no SDK retries."""
+        repair = '修复 Agent' in role
+        attribute = '_industry_repair_model' if repair else '_industry_section_model'
+        model = getattr(self, attribute, None)
+        if model is None:
+            if not os.getenv('ARK_API_KEY') or not os.getenv('MODEL'):
+                _emit(emit, 'llm', role, '行业章节模型未配置，使用来源事实摘录', '', status='fallback')
+                return ''
+            model = init_chat_model(model=os.environ['MODEL'], model_provider='openai',
+                api_key=os.environ['ARK_API_KEY'], base_url=os.getenv('BASE_URL'), temperature=0.1,
+                timeout=_env_int('INDUSTRY_REPAIR_TIMEOUT_SECONDS' if repair else 'INDUSTRY_SECTION_TIMEOUT_SECONDS', 45 if repair else 90, 10, 180),
+                max_retries=0, max_tokens=2500 if repair else 6000)
+            setattr(self, attribute, model)
+        started = time.monotonic()
+        _emit(emit, 'llm', role, '正在调用行业章节模型', f'input_chars={len(prompt)}', input_chars=len(prompt), status='running')
+        try:
+            result = model.invoke([{'role':'system','content':'仅使用输入证据，保留事实编号和数值口径，不新增事实。'},
+                                   {'role':'user','content':prompt}])
+            content = str(result.content or '')
+            _emit(emit, 'llm', role, '行业章节模型调用完成', f'chars={len(content)}',
+                  duration_ms=int((time.monotonic()-started)*1000), status='done')
+            return content
+        except Exception as exc:
+            _emit(emit, 'llm', role, '行业章节模型超时或失败，使用来源事实摘录', str(exc)[:800],
+                  duration_ms=int((time.monotonic()-started)*1000), degraded=True, status='fallback')
+            return ''
+
+    def _invoke_industry_risk(self, role: str, prompt: str, emit=None, repair: bool = False) -> str:
+        """Risk scoring and its one local repair never use hidden SDK retries."""
+        if not os.getenv('ARK_API_KEY') or not os.getenv('MODEL'):
+            return ''
+        attribute = '_industry_risk_repair_model' if repair else '_industry_risk_model'
+        model = getattr(self, attribute, None)
+        if model is None:
+            model = init_chat_model(model=os.environ['MODEL'], model_provider='openai',
+                api_key=os.environ['ARK_API_KEY'], base_url=os.getenv('BASE_URL'), temperature=0.1,
+                timeout=_env_int('INDUSTRY_RISK_REPAIR_TIMEOUT_SECONDS' if repair else 'INDUSTRY_RISK_TIMEOUT_SECONDS',
+                                 45 if repair else 90, 10, 180), max_retries=0, max_tokens=2500 if repair else 4000)
+            setattr(self, attribute, model)
+        started = time.monotonic()
+        _emit(emit, 'llm', role, '正在调用行业风险模型', f'input_chars={len(prompt)}', input_chars=len(prompt), status='running')
+        try:
+            result = model.invoke([{'role': 'system', 'content': '只用允许的证据与指标；评分理由简短，缺证返回unknown，输出完整JSON。'},
+                                   {'role': 'user', 'content': prompt}])
+            content = str(result.content or '')
+            _emit(emit, 'llm', role, '行业风险模型调用完成', f'chars={len(content)}',
+                  duration_ms=int((time.monotonic()-started)*1000), status='done')
+            return content
+        except Exception as exc:
+            _emit(emit, 'llm', role, '行业风险模型超时或失败，保留待核验结果', str(exc)[:800],
+                  duration_ms=int((time.monotonic()-started)*1000), status='fallback')
+            return ''
+
+    def _invoke_industry_cleaning(self, role: str, prompt: str, emit=None, timeout_seconds=60) -> str:
+        """Industry enrichment gets a bounded request with no hidden SDK retries."""
+        if not os.getenv('ARK_API_KEY') or not os.getenv('MODEL'):
+            return ''
+        started = time.monotonic()
+        _emit(emit, 'llm', role, '正在调用行业清洗模型', f'timeout_seconds={timeout_seconds:.1f}',
+              timeout_seconds=timeout_seconds, status='running')
+        try:
+            model = init_chat_model(model=os.environ['MODEL'], model_provider='openai',
+                api_key=os.environ['ARK_API_KEY'], base_url=os.getenv('BASE_URL'), temperature=0.1,
+                timeout=timeout_seconds, max_retries=0, max_tokens=2000)
+            result = model.invoke([{'role': 'system', 'content': '只提取可核验事实，输出完整JSON并保留来源和统计口径。'},
+                                   {'role': 'user', 'content': prompt}])
+            content = str(result.content or '')
+            _emit(emit, 'llm', role, '行业清洗模型调用完成', f'chars={len(content)}',
+                  duration_ms=int((time.monotonic()-started)*1000), status='done')
+            return content
+        except Exception as exc:
+            _emit(emit, 'llm', role, '行业清洗模型失败，保留规则事实', str(exc)[:800],
+                  duration_ms=int((time.monotonic()-started)*1000), degraded=True, status='fallback')
+            return ''
 
     def _get_person_report_section_model(self):
         if self._person_report_section_model is not None:
@@ -583,7 +658,7 @@ class ResearchWorkflow:
             if standardized_type == "person"
             else "company-evidence-v8-entity-bound"
             if standardized_type == "company"
-            else "industry-evidence-v1-scoped"
+            else "industry-evidence-v7-token-safe-numbers"
             if standardized_type == "industry"
             else "default-v4-auditable"
         )
@@ -605,7 +680,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v5-clean-outline",
+            "industry": "industry-report-evidence-v14-claim-semantics",
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -618,6 +693,8 @@ class ResearchWorkflow:
         resume_enabled = os.getenv("WORKFLOW_RESUME_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
         force_refresh = bool(normalized_intake.get("force_refresh_from_upload_ocr"))
         intake_fingerprint = self._intake_evidence_fingerprint(normalized_intake)
+        if standardized_type == "industry":
+            setattr(project, "industry_scope_fingerprint", scope_fingerprint(normalized_intake, source_only=True))
         sources_match_intake = self._project_sources_match_intake(project, normalized_intake)
         existing_report = self._latest_artifact(project, "desktop_report")
         existing_proposal = self._latest_artifact(project, "proposal")
@@ -647,7 +724,7 @@ class ResearchWorkflow:
                 db,
                 project,
                 "desktop_report",
-                _project_doc_title(project, "背景调查报告"),
+                _project_doc_title(project, "行业研究报告" if standardized_type == "industry" else "背景调查报告"),
                 existing_report.content,
                 {
                     "agent": "report_writer",
@@ -695,7 +772,7 @@ class ResearchWorkflow:
             and (source.source_metadata or {}).get("stage") not in {"initial_upload", "human_review", "second_stage"}
             for source in (getattr(project, "sources", []) or [])
         )
-        allow_archive_reuse = resume_enabled and (has_workflow_history or has_collected_sources)
+        allow_archive_reuse = resume_enabled and (has_workflow_history or has_collected_sources) and standardized_type != "industry"
         required_modules = [
             str(item.get("name") or "")
             for item in (plan.get("modules") or [])
@@ -704,7 +781,7 @@ class ResearchWorkflow:
         resume_min_per_module = int((plan.get("coverage_thresholds") or {}).get("min_sources_per_module") or FIXED_MIN_SOURCES_PER_MODULE)
         existing_module_counts = Counter(
             str((source.source_metadata or {}).get("module") or source.source_type or "unknown")
-            for source in (getattr(project, "sources", []) or [])
+            for source in self._active_industry_sources(project)
             if (source.content or source.summary or "").strip()
             and not self._is_failed_extraction_source(source)
         )
@@ -823,7 +900,7 @@ class ResearchWorkflow:
                 "ocr_items": [],
                 "sources": [],
             }
-        quality = self._apply_authority_coverage_requirements(quality, standardized_type)
+        quality = self._apply_authority_coverage_requirements(quality, standardized_type, getattr(project, "industry_scope", {}))
         if (
             os.getenv("AUTHORITY_COVERAGE_REQUIRED", "false").strip().lower() in {"1", "true", "yes", "on"}
             and quality.get("authority_coverage_passed") is False
@@ -889,10 +966,17 @@ class ResearchWorkflow:
         project.status = "risk_scoring"
         db.commit()
         existing_risk = self._latest_artifact(project, "risk_assessment")
+        if standardized_type == 'industry':
+            try:
+                from .industry_research import INDUSTRY_RISK_VERSION
+            except ImportError:
+                from industry_research import INDUSTRY_RISK_VERSION
         # A risk assessment is derived from the cleaned facts. Never reuse it when
         # cleaning was invalidated or regenerated, otherwise the report mixes new
         # evidence with a stale score from the previous pipeline.
         use_existing_risk = resume_enabled and not force_refresh and use_existing_cleaned and existing_risk is not None
+        if standardized_type == 'industry' and use_existing_risk:
+            use_existing_risk = (existing_risk.artifact_metadata or {}).get('risk_pipeline_version') == INDUSTRY_RISK_VERSION
         if use_existing_risk:
             risk_artifact = existing_risk
             risk = existing_risk.content
@@ -904,20 +988,19 @@ class ResearchWorkflow:
             except Exception as exc:
                 db.rollback()
                 _emit(emit, "risk", "risk_assessment_agent", "风险研判失败，使用降级评分", str(exc), status="fallback")
-                risk = json.dumps(self._fallback_risk(cleaned) | {"workflow_error": _error_json("risk", exc)}, ensure_ascii=False, indent=2)
-            risk_artifact = self.save_artifact(db, project, "risk_assessment", _project_doc_title(project, "风险研判"), risk, {"agent": "risk_assessment"})
+                fallback = unknown_industry_risk(scope=getattr(project, "industry_scope", {})) if standardized_type == "industry" else self._fallback_risk(cleaned)
+                risk = json.dumps(fallback | {"workflow_error": _error_json("risk", exc)}, ensure_ascii=False, indent=2)
+            risk_artifact = self.save_artifact(db, project, "risk_assessment", _project_doc_title(project, "风险研判"), risk,
+                {"agent": "risk_assessment", **({'risk_pipeline_version': INDUSTRY_RISK_VERSION} if standardized_type == 'industry' else {})})
             _emit(emit, "risk", "risk_assessment_agent", "风险研判完成", "", status="done")
         checkpoint("risk")
 
         project.status = "report_generating"
         db.commit()
         existing_report = self._latest_artifact(project, "desktop_report")
-        legacy_industry_report = (
-            self._latest_quality_artifact(project, "desktop_report")
-            if standardized_type == "industry" and existing_report is not None and (existing_report.artifact_metadata or {}).get("quality_warning")
-            else None
-        )
-        reusable_report = legacy_industry_report or existing_report
+        # Recheck the latest report, including its degradations. Never replace a
+        # newer review draft with an older candidate simply because it had no warning.
+        reusable_report = existing_report
         use_existing_report = (
             resume_enabled
             and use_existing_cleaned
@@ -925,10 +1008,11 @@ class ResearchWorkflow:
             and reusable_report is not None
             and (
                 (reusable_report.artifact_metadata or {}).get("report_pipeline_version") == report_pipeline_version
-                or legacy_industry_report is not None
             )
-            and not (reusable_report.artifact_metadata or {}).get("quality_warning")
+            and (standardized_type == 'industry' or not (reusable_report.artifact_metadata or {}).get("quality_warning"))
         )
+        quality_diagnostic_artifact = None
+        report_quality_warning = ''
         if use_existing_report:
             # A stage-level resume must not keep exporting an old report whose
             # model-written source list predates the deterministic audit index.
@@ -942,18 +1026,27 @@ class ResearchWorkflow:
                     report = sanitize_nested_report_chapter_headings(report, expected)
             report = self._append_report_evidence_index(project, report, cleaned, emit=emit)
             report = self._normalize_report_date(report)
-            self._validate_delivery_report(project, report)
+            reused_delivery_metadata = {}
+            if standardized_type == 'industry':
+                project.industry_report_degradations = list((reusable_report.artifact_metadata or {}).get('generation_degradations') or [])
+                report, reused_delivery_metadata = self._prepare_industry_delivery(project, report, risk, emit=emit)
+                report_quality_warning = reused_delivery_metadata.get('quality_warning', '')
+            else:
+                self._validate_delivery_report(project, report)
             report_artifact = self.save_artifact(
                 db,
                 project,
                 "desktop_report",
-                _project_doc_title(project, "背景调查报告"),
+                _project_doc_title(project, "行业研究报告" if standardized_type == "industry" else "背景调查报告") + ('（待复核稿）' if report_quality_warning else ''),
                 report,
-                {"agent": "report_writer", "reexported_from_artifact_id": reusable_report.id, "report_pipeline_version": report_pipeline_version, "delivery_status": "final_candidate"},
+                {"agent": "report_writer", "reexported_from_artifact_id": reusable_report.id, "report_pipeline_version": report_pipeline_version,
+                 "delivery_status": "final_candidate", **reused_delivery_metadata},
             )
-            _emit(emit, "report", "desktop_report_agent", "阶段级续跑：复用通过版报告正文并重新导出 Word", f"from_artifact_id={reusable_report.id}, new_artifact_id={report_artifact.id}", artifact_id=report_artifact.id, status="done")
+            _emit(emit, "report", "desktop_report_agent", "阶段级续跑：复用报告正文并重新检查交付状态、导出 Word", f"from_artifact_id={reusable_report.id}, new_artifact_id={report_artifact.id}", artifact_id=report_artifact.id, status="done")
         else:
             _emit(emit, "report", "desktop_report_agent", "开始生成桌面研究报告", "", status="running")
+            if standardized_type == 'industry':
+                project.industry_report_degradations = []
             try:
                 report = self.generate_report(project, cleaned, risk, emit=emit, intake=normalized_intake)
             except Exception as exc:
@@ -961,6 +1054,9 @@ class ResearchWorkflow:
                 if os.getenv("REPORT_TEMPLATE_FALLBACK_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}:
                     _emit(emit, "report", "desktop_report_agent", "报告生成失败，使用模板降级生成", str(exc), status="fallback")
                     report = self._fallback_report(project, cleaned, risk)
+                    if standardized_type == 'industry':
+                        project.industry_report_degradations = list(getattr(project, 'industry_report_degradations', []) or []) + [
+                            {'chapter': None, 'message': '报告生成异常，使用模板事实摘录；综合判断需人工复核。'}]
                 else:
                     _emit(emit, "report", "desktop_report_agent", "报告生成失败", str(exc), status="error")
                     raise
@@ -985,49 +1081,44 @@ class ResearchWorkflow:
             report = self._append_report_evidence_index(project, report, cleaned, emit=emit)
             report = self._normalize_report_date(report)
             report_quality_warning = ""
-            try:
-                self._validate_delivery_report(project, report)
-            except RuntimeError as exc:
-                if os.getenv("REPORT_SAVE_REVIEW_DRAFT_ON_GATE_FAIL", "true").strip().lower() not in {"1", "true", "yes", "on"}:
-                    raise
-                report_quality_warning = str(exc)
-                _emit(
-                    emit,
-                    "report",
-                    "desktop_report_agent",
-                    "报告交付质量闸门未通过，已保存待复核稿",
-                    report_quality_warning,
-                    status="fallback",
-                )
-                report = self._prepend_review_draft_notice(report, report_quality_warning)
+            industry_delivery_metadata = {}
+            if standardized_type == 'industry':
+                report, industry_delivery_metadata = self._prepare_industry_delivery(project, report, risk, emit=emit)
+                report_quality_warning = industry_delivery_metadata.get('quality_warning', '')
+            else:
+                try:
+                    self._validate_delivery_report(project, report)
+                except RuntimeError as exc:
+                    if os.getenv("REPORT_SAVE_REVIEW_DRAFT_ON_GATE_FAIL", "true").strip().lower() not in {"1", "true", "yes", "on"}:
+                        raise
+                    report_quality_warning = str(exc)
+                    _emit(emit, 'report', 'desktop_report_agent', '报告交付质量闸门未通过，已保存待复核稿', report_quality_warning, status='fallback')
+                    report = self._prepend_review_draft_notice(report, report_quality_warning)
             report_artifact = self.save_artifact(
                 db,
                 project,
                 "desktop_report",
-                _project_doc_title(project, "背景调查报告") + ("（待复核稿）" if report_quality_warning else ""),
+                _project_doc_title(project, "行业研究报告" if standardized_type == "industry" else "背景调查报告") + ("（待复核稿）" if report_quality_warning else ""),
                 report,
                 {
                     "agent": "report_writer",
                     "report_pipeline_version": report_pipeline_version,
+                    **industry_delivery_metadata,
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
                 },
             )
-            quality_diagnostic_artifact = None
-            if report_quality_warning:
-                quality_diagnostic_artifact = self.save_artifact(
-                    db,
-                    project,
-                    "report_quality_diagnostic",
-                    _project_doc_title(project, "报告质量诊断"),
-                    self._build_report_quality_diagnostic(project, report, report_quality_warning),
-                    {"agent": "report_quality_gate", "report_artifact_id": report_artifact.id, "quality_warning": report_quality_warning},
-                )
             _emit(emit, "report", "desktop_report_agent", "桌面研究报告已生成", "", status="done")
+        if report_quality_warning:
+            quality_diagnostic_artifact = self.save_artifact(
+                db, project, 'report_quality_diagnostic', _project_doc_title(project, '报告质量诊断'),
+                self._build_report_quality_diagnostic(project, report, report_quality_warning),
+                {'agent': 'report_quality_gate', 'report_artifact_id': report_artifact.id, 'quality_warning': report_quality_warning,
+                 **({'delivery_review_reasons': (report_artifact.artifact_metadata or {}).get('delivery_review_reasons', [])} if standardized_type == 'industry' else {})})
         checkpoint("report")
 
         artifacts = [plan_artifact, quality_artifact, cleaned_artifact, risk_artifact, report_artifact]
-        if 'quality_diagnostic_artifact' in locals() and quality_diagnostic_artifact is not None:
+        if quality_diagnostic_artifact is not None:
             artifacts.append(quality_diagnostic_artifact)
         if generate_proposal:
             project.status = "proposal_generating"
@@ -1052,7 +1143,7 @@ class ResearchWorkflow:
                     _emit(emit, "proposal", "proposal_agent", "建议书生成失败，使用模板降级生成", str(exc), status="fallback")
                     proposal = self._fallback_proposal(project, report)
                 proposal = self._normalize_proposal_placeholders(proposal)
-                proposal_quality_warning = self._proposal_quality_warning(proposal)
+                proposal_quality_warning = self._proposal_quality_warning(proposal, target_type=standardized_type)
                 if proposal_quality_warning:
                     _emit(
                         emit,
@@ -1156,7 +1247,8 @@ class ResearchWorkflow:
             modules = [item.strip() for item in re.split(r"[,锛孿n]", modules) if item.strip()]
         target_name = (intake.get("company_name") or intake.get("target_name") or project.target_name or project.title).strip()
         industry = (intake.get("industry") or project.industry or "").strip()
-        if self._looks_like_industry_name(target_name, industry):
+        industry_requested = str(intake.get("target_type") or project.target_type or "").lower() in {"industry", "sector", "market", "行业", "赛道", "目标行业"}
+        if not industry_requested and self._looks_like_industry_name(target_name, industry):
             inferred_target = self._target_from_project_title(project.title)
             if inferred_target:
                 target_name = inferred_target
@@ -1209,7 +1301,15 @@ class ResearchWorkflow:
                 normalized["affiliation"] = "、".join(normalized["affiliations"])
             normalized["person_anchor"] = self._build_person_anchor(normalized)
         if target_type == "industry":
+            try:
+                from .research_strategies.industry import INDUSTRY_MODULE_ALIASES
+            except ImportError:
+                from research_strategies.industry import INDUSTRY_MODULE_ALIASES
+            normalized["focus_modules"] = list(dict.fromkeys(INDUSTRY_MODULE_ALIASES.get(m, m) for m in modules))
+            normalized.update({key: intake.get(key, default) for key, default in {"industry_focus": "", "industry_segments": [], "excluded_segments": [], "research_purpose": "", "include_capital_markets": None, "as_of_date": ""}.items()})
             normalized["industry_scope"] = self._resolve_industry_scope(project, normalized, intake)
+            normalized["as_of_date"] = normalized["industry_scope"]["as_of_date"]
+            normalized["region"] = normalized["industry_scope"]["geography"]
         return normalized
 
     def _build_person_anchor(self, intake: dict[str, Any]) -> dict[str, Any]:
@@ -1256,6 +1356,8 @@ class ResearchWorkflow:
         }
 
     def _intake_evidence_fingerprint(self, intake: dict[str, Any]) -> str:
+        if str(intake.get("target_type") or "").lower() == "industry":
+            return scope_fingerprint(intake)
         anchor = intake.get("person_anchor") if isinstance(intake.get("person_anchor"), dict) else {}
         payload = {
             "target_type": str(intake.get("target_type") or "").lower(),
@@ -1275,11 +1377,23 @@ class ResearchWorkflow:
         }
         return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()[:16]
 
+    def _active_industry_sources(self, project: ResearchProject) -> list[ResearchSource]:
+        sources = list(getattr(project, "sources", []) or [])
+        fingerprint = getattr(project, "industry_scope_fingerprint", "")
+        if str(project.target_type or "").lower() == "industry" and fingerprint:
+            return [s for s in sources if source_in_current_run(s, fingerprint)]
+        return sources
+
     def _project_sources_match_intake(self, project: ResearchProject, intake: dict[str, Any]) -> bool:
         target_type = str(intake.get("target_type") or project.target_type or "").lower()
         sources = list(getattr(project, "sources", []) or [])
         if not sources:
             return False
+        if target_type == "industry":
+            fingerprint = scope_fingerprint(intake, source_only=True)
+            automated = [s for s in sources if s.source_type not in {"upload", "manual"}
+                         and (s.source_metadata or {}).get("stage") not in {"initial_upload", "human_review", "second_stage"}]
+            return any(source_in_current_run(s, fingerprint) for s in automated)
         if target_type != "person":
             return True
         target = re.sub(r"\s+", "", str(intake.get("target_name") or project.target_name or "")).lower()
@@ -1303,92 +1417,8 @@ class ResearchWorkflow:
                     anchored_hits += 1
         return current_policy >= max(3, min(20, len(sources) // 10)) and target_hits >= 8 and anchored_hits >= 3
 
-    def _resolve_industry_scope(
-        self,
-        project: ResearchProject,
-        normalized: dict[str, Any],
-        raw_intake: dict[str, Any],
-    ) -> dict[str, Any]:
-        """Turn optional, non-expert input into a safe and visible report scope.
-
-        Defaults are intentionally conservative: a vague request produces a
-        broad overview with no trading recommendation, rather than silently
-        mixing incompatible market-size and competition statistics.
-        """
-        raw_blob = "\n".join(
-            str(value or "")
-            for value in [
-                raw_intake.get("industry_focus"), raw_intake.get("research_purpose"),
-                normalized.get("special_requirements"), normalized.get("region"),
-                *list(normalized.get("focus_questions") or []),
-                *list(normalized.get("search_queries") or []),
-            ]
-        )
-        industry_name = str(normalized.get("industry") or project.industry or normalized.get("target_name") or "行业研究").strip()
-        segment_map = {
-            "平台经济": ("平台", "平台经济", "电商平台"),
-            "即时零售": ("即时零售", "外卖", "本地生活"),
-            "云服务": ("云服务", "云计算", "云基础设施"),
-            "AI应用": ("ai", "人工智能", "大模型", "智能体", "ai应用"),
-            "数字化出海": ("出海", "跨境", "数字贸易"),
-        }
-        lower_blob = raw_blob.lower()
-        segments = [name for name, words in segment_map.items() if any(word.lower() in lower_blob for word in words)]
-        assumptions: list[str] = []
-        if not segments:
-            if any(word in industry_name.lower() for word in ("互联网", "internet")):
-                segments = ["互联网服务"]
-                assumptions.append("未指定互联网重点子赛道，默认先按互联网服务做主行业概览；外卖、本地生活、云服务、AI应用等仅在证据明确时分赛道呈现，不合并计算市场规模。")
-            else:
-                segments = [industry_name]
-                assumptions.append("未指定重点子赛道，默认先按主行业做概览；不同子赛道不合并计算市场规模。")
-
-        geography = str(normalized.get("region") or raw_intake.get("geography") or "").strip()
-        if not geography:
-            geography = "中国大陆"
-            assumptions.append("未指定地域，默认研究中国大陆市场；仅在事实需要时纳入港美上市中资企业。")
-        as_of_date = str(raw_intake.get("as_of_date") or "").strip()
-        date_match = re.search(r"(?:截至|截止|as\s+of)\s*(20\d{2}[年./-]\d{1,2}(?:[月./-]\d{1,2})?)", raw_blob, flags=re.I)
-        if not as_of_date and date_match:
-            as_of_date = date_match.group(1).replace("年", "-").replace("月", "-").replace(".", "-").replace("/", "-").rstrip("-")
-        if not as_of_date:
-            as_of_date = datetime.now().date().isoformat()
-            assumptions.append("未指定数据截止日，默认以报告生成日为数据截点。")
-
-        purpose_raw = str(raw_intake.get("research_purpose") or "") + " " + raw_blob
-        if any(word in purpose_raw for word in ("投资", "投前", "估值", "融资")):
-            purpose = "投资判断"
-        elif any(word in purpose_raw for word in ("尽调", "合规", "风险")):
-            purpose = "尽调支持"
-        elif any(word in purpose_raw for word in ("战略", "规划", "布局")):
-            purpose = "战略研究"
-        else:
-            purpose = "日常了解"
-            assumptions.append("未指定研究用途，默认输出行业概览与风险提示，不构成投资或交易建议。")
-
-        include_capital = raw_intake.get("include_capital_markets")
-        if include_capital is None:
-            explicit_exclude = any(word in lower_blob for word in ("不看二级", "不含二级", "不看资本市场", "不看融资"))
-            capital_market = "none" if explicit_exclude else ("summary" if purpose == "投资判断" else "none")
-            assumptions.append(
-                "未明确资本市场范围，默认仅提供一级融资、IPO 和二级市场概览，不输出交易建议。"
-                if capital_market == "summary" else "未要求资本市场模块，默认不输出二级市场交易性指标。"
-            )
-        else:
-            capital_market = "summary" if bool(include_capital) else "none"
-        named_companies = [item.strip() for item in re.split(r"[、,，/；;\s]+", str(normalized.get("focus_entities") or "")) if len(item.strip()) >= 2]
-        confidence = "high" if not assumptions else ("medium" if len(assumptions) <= 2 else "low")
-        return {
-            "industry_name": industry_name,
-            "segments": segments,
-            "geography": geography,
-            "as_of_date": as_of_date,
-            "purpose": purpose,
-            "capital_market": capital_market,
-            "named_companies": named_companies,
-            "scope_confidence": confidence,
-            "assumptions": assumptions,
-        }
+    def _resolve_industry_scope(self, project: ResearchProject, normalized: dict[str, Any], raw_intake: dict[str, Any]) -> dict[str, Any]:
+        return normalize_scope(project, normalized, raw_intake)
 
     def _looks_like_industry_name(self, value: str, industry: str = "") -> bool:
         text = str(value or "").strip()
@@ -1669,6 +1699,12 @@ class ResearchWorkflow:
             or (project.title or "").strip()
         )
         industry = str(resolved.get("industry") or project.industry or "").strip()
+        if self._standardize_target_type(project, resolved, target_name) == "industry":
+            resolved.update(target_name=target_name, company_name="", target_type="industry", industry=industry or target_name)
+            project.target_name = target_name
+            project.target_type = "industry"
+            project.industry = industry or target_name
+            return resolved
         if self._looks_like_industry_name(target_name, industry):
             inferred_target = self._target_from_project_title(project.title)
             if inferred_target:
@@ -1710,6 +1746,14 @@ class ResearchWorkflow:
         industry = intake.get("industry") or project.industry
         strategy = get_research_strategy(str(intake.get("target_type") or project.target_type or "company"))
         modules = intake.get("focus_modules") or strategy.default_modules or DEFAULT_RESEARCH_MODULES
+        if intake.get("target_type") == "industry":
+            modules = list(modules)
+            if (intake.get("industry_scope") or {}).get("capital_market") == "none":
+                modules = [m for m in modules if m != "投融资与资本市场"]
+            if (intake.get("industry_scope") or {}).get("named_companies") and "核心企业尽调" not in modules:
+                modules.append("核心企业尽调")
+            elif not (intake.get("industry_scope") or {}).get("named_companies"):
+                modules = [m for m in modules if m != "核心企业尽调"]
         plan = {
             "target_name": target,
             "client_name": intake.get("client_name", ""),
@@ -1825,6 +1869,26 @@ class ResearchWorkflow:
         return [(query_item, results) for _index, query_item, results in ordered]
 
     def _gap_queries(self, plan: dict[str, Any], intake: dict[str, Any], gaps: list[str]) -> list[dict[str, str]]:
+        if intake.get("target_type") == "industry":
+            missing = {str(gap).split("：", 1)[0] for gap in gaps}
+            gap_plan = {**plan, "modules": [m for m in plan.get("modules", []) if m.get("name") in missing]}
+            if not gap_plan["modules"]:
+                return []
+            scope = intake.get('industry_scope') or {}
+            target = intake.get('target_name') or scope.get('industry_name') or ''
+            suffixes = {
+                '市场规模与增长': '市场规模 统计口径 数据年度 中国信通院 官方统计',
+                '商业模式与盈利逻辑': '商业化 收入结构 盈利模式 毛利率 行业研究 披露',
+                '竞争格局与代表企业': '市场份额 CR3 CR5 样本范围 统计年度',
+                '技术路线对比': '技术路线 成本 性能 实测 场景 对比',
+            }
+            rows = [row for row in self._expand_search_queries(gap_plan, intake) if row.get('module') in missing]
+            for module in sorted(missing):
+                if module in suffixes:
+                    rows.insert(0, {'module': module, 'query': f'{target} {scope.get("geography", "")} {suffixes[module]}',
+                                    'evidence_scope': 'industry_level', 'industry_name': target,
+                                    'search_tier': 'open_web', 'gap_reason': next((gap for gap in gaps if str(gap).startswith(module)), '')})
+            return rows[:24]
         target = (intake.get("target_name") or "").strip()
         items: list[dict[str, str]] = []
         routes: list[tuple[tuple[str, ...], str, tuple[str, ...]]] = [
@@ -2363,12 +2427,14 @@ class ResearchWorkflow:
         return flags
 
     def evaluate_source_quality(self, project: ResearchProject, plan: dict[str, Any]) -> dict[str, Any]:
-        sources = list(getattr(project, "sources", []) or [])
+        sources = self._active_industry_sources(project)
         module_counts: dict[str, int] = defaultdict(int)
         authoritative_counts: dict[str, int] = defaultdict(int)
         source_rows: list[dict[str, Any]] = []
         total_score = 0
         for source in sources:
+            if str(project.target_type or "").lower() == "industry" and (not (source.content or source.summary or "").strip() or self._is_failed_extraction_source(source)):
+                continue
             meta = source.source_metadata or {}
             module = str(meta.get("module") or source.source_type or "unknown")
             module_counts[module] += 1
@@ -2404,12 +2470,14 @@ class ResearchWorkflow:
             "sources": source_rows[:500],
         }
 
-    def _apply_authority_coverage_requirements(self, quality: dict[str, Any], target_type: str) -> dict[str, Any]:
+    def _apply_authority_coverage_requirements(self, quality: dict[str, Any], target_type: str, scope: dict | None = None) -> dict[str, Any]:
         result = dict(quality or {})
         authoritative_counts = dict(result.get("authoritative_counts") or {})
         requirements: dict[str, int] = {}
         for route in get_research_strategy(target_type).authority_queries:
             module = str(route.get("module") or "权威来源")
+            if target_type == "industry" and (scope or {}).get("capital_market") == "none" and module == "投融资与资本市场":
+                continue
             requirements[module] = max(requirements.get(module, 0), int(route.get("min_sources") or 2))
         gaps = [
             f"{module}：权威来源 {authoritative_counts.get(module, 0)} 条，最低要求 {minimum} 条"
@@ -3364,17 +3432,22 @@ class ResearchWorkflow:
         query_items = authority_queries or expanded_query_items
         max_rounds = max(1, int(intake.get("max_search_rounds") or FIXED_MAX_SEARCH_ROUNDS))
         if pending_open_web_queries:
-            max_rounds = max(2, max_rounds)
+            if intake.get("target_type") == "industry" and max_rounds == 1:
+                query_items = expanded_query_items
+                pending_open_web_queries = []
+            else:
+                max_rounds = max(2, max_rounds)
         browser_fetch_budget = _env_int("WEB_RENDER_FETCH_BUDGET_PER_RUN", 3, 0, 500)
         browser_fetch_used = 0
 
         added = 0
         discovered_affiliations: set[str] = set()
-        seen_urls = {s.url for s in project.sources if s.url}
+        active_sources = self._active_industry_sources(project)
+        seen_urls = {s.url for s in active_sources if s.url}
         host_counts: defaultdict[str, int] = defaultdict(int)
         authority_host_counts: defaultdict[str, int] = defaultdict(int)
         tech_content_saved = 0
-        for existing_source in project.sources:
+        for existing_source in active_sources:
             existing_host = urlparse(existing_source.url or "").netloc.lower().replace("www.", "")
             if existing_host:
                 host_counts[existing_host] += 1
@@ -3402,10 +3475,25 @@ class ResearchWorkflow:
             providers=configured_providers,
             status="running",
         )
+        industry_query_history = []
+        industry_seen_queries = set()
         for round_index in range(1, max_rounds + 1):
             if pause_requested and pause_requested():
                 raise WorkflowPaused("任务已暂停")
             round_added = 0
+            if intake.get("target_type") == "industry":
+                budget = _env_int("INDUSTRY_SEARCH_QUERY_BUDGET", 80, 10, 200)
+                try:
+                    from .industry_research import unique_search_queries
+                except ImportError:
+                    from industry_research import unique_search_queries
+                query_items = unique_search_queries(query_items, industry_seen_queries)
+                used = sum(len(batch) for batch in industry_query_history)
+                query_items = query_items[:max(0, budget - used)]
+                if not query_items:
+                    _emit(emit, "web_search", "coverage_agent", "行业检索预算已用完，保留证据缺口", f"query_budget={budget}", status="warning")
+                    break
+                industry_query_history.append(query_items)
             _emit(emit, "web_search", "online_search_agent", "开始在线检索", "", status="running")
             search_batches = self._search_query_items_parallel(
                 query_items,
@@ -3519,6 +3607,7 @@ class ResearchWorkflow:
                                 "identity_anchors": identity["matched_anchors"],
                                 "identity_policy_version": identity.get("identity_policy_version", PERSON_IDENTITY_POLICY_VERSION),
                                 "identity_status": "quarantined" if identity["confidence"] == "low" else "accepted",
+                                **({"industry_scope_fingerprint": getattr(project, "industry_scope_fingerprint", scope_fingerprint(intake, source_only=True))} if intake.get("target_type") == "industry" else {}),
                                 "reused_from_source_id": reused_source.id,
                                 "reused_from_project_id": reused_source.project_id,
                                 "content_kind": reused_meta.get("content_kind", "reused_full_text"),
@@ -3711,6 +3800,9 @@ class ResearchWorkflow:
                             "industry_name": query_item.get("industry_name") or "",
                             "segment_name": query_item.get("segment_name") or "",
                             "company_role": query_item.get("company_role") or "",
+                            "company_name": query_item.get("company_name") or "",
+                            "geography": query_item.get("geography") or "",
+                            "as_of_date": query_item.get("as_of_date") or "",
                             "identity_confidence": identity["confidence"],
                             "identity_reason": identity["reason"],
                             "identity_anchors": identity["matched_anchors"],
@@ -3721,6 +3813,7 @@ class ResearchWorkflow:
                             "content_kind": content_kind,
                             "extraction_status": item_metadata.get("fetch_status") or ("search_content" if cleaned_probe else "empty"),
                             **item_metadata,
+                            **({"industry_scope_fingerprint": getattr(project, "industry_scope_fingerprint", scope_fingerprint(intake, source_only=True))} if intake.get("target_type") == "industry" else {}),
                         }
                         fetch_status = metadata.get("fetch_status", "")
                         detail = f"[{platform_name}] {title}（搜索工具：{provider_name}）"
@@ -3798,6 +3891,11 @@ class ResearchWorkflow:
                             metadata["content_kind"] = "summary_only"
                             metadata["extraction_status"] = fetch_status
                             metadata["skip_fulltext_reason"] = "fetch_empty_saved_summary"
+                        try:
+                            from .json_utils import strip_nul
+                        except ImportError:
+                            from json_utils import strip_nul
+                        title, summary, stored_text, metadata = strip_nul([str(title or ''), str(summary or ''), stored_text, metadata])
                         object_key = research_store.put_text(
                             f"projects/{project.id}/raw_web/{_now_key()}_{added}.txt",
                             stored_text,
@@ -3988,6 +4086,8 @@ class ResearchWorkflow:
         # it cannot erase deterministic or professional-platform evidence.
         all_facts: list[dict[str, Any]] = list(fast.get("facts", []))
         all_facts.extend(structured_rule_facts)
+        if project.target_type == 'industry':
+            all_facts.extend(self._extract_industry_rule_facts(selected_sources, project))
         if person_mode:
             all_facts.extend(rule_facts)
         discarded_patterns = self._normalize_cleaning_text_items(fast.get("discarded_patterns", []))
@@ -3996,17 +4096,24 @@ class ResearchWorkflow:
 
         if llm_enabled:
             llm_sources = self._select_llm_cleaning_sources(selected_sources)
+            if project.target_type == 'industry':
+                try:
+                    from .industry_research import industry_cleaning_sources
+                except ImportError:
+                    from industry_research import industry_cleaning_sources
+                llm_sources = industry_cleaning_sources(selected_sources, _env_int('CLEANING_LLM_SOURCES_PER_MODULE', 6, 1, 30))
             llm_batches = self._source_context_batches(
                 llm_sources,
                 max_chars=_env_int("CLEANING_MAX_CHARS_PER_BATCH", 8000, 1000, 30000),
                 max_chars_per_source=max_chars_per_source,
                 max_batches=None,
+                industry=project.target_type == 'industry',
             )
             _emit(
                 emit,
                 "cleaning",
                 "data_cleaning_agent",
-                "楂樹环鍊兼潵婧愯繘鍏?LLM 绮炬礂",
+                "高价值来源进入 LLM 精洗",
                 f"llm_sources={len(llm_sources)}, batches={len(llm_batches)}",
                 status="running",
             )
@@ -4021,9 +4128,10 @@ class ResearchWorkflow:
         deduped = self._annotate_evidence_facts(project, self._dedupe_facts(all_facts))
         if person_mode:
             self._validate_person_cleaned_facts(deduped)
-        evidence_ledger = self._build_evidence_ledger(project.sources, selected_sources)
+        evidence_ledger = self._build_evidence_ledger(self._active_industry_sources(project), selected_sources)
         result = {
             "facts": deduped,
+            **({"industry_scope": getattr(project, "industry_scope", {})} if project.target_type == "industry" else {}),
             "identity_quarantine": [
                 {
                     "target": project.target_name,
@@ -4040,6 +4148,8 @@ class ResearchWorkflow:
             "identity_quarantine_facts": list(fast.get("identity_quarantine_facts", [])),
             "discarded_patterns": self._normalize_cleaning_text_items(discarded_patterns + ["fast cleaning enabled", "duplicate or low-evidence snippets removed"]),
             "information_gaps": self._normalize_cleaning_text_items(information_gaps),
+            **({'cleaning_diagnostic': llm_results.get('cleaning_diagnostic', {})}
+               if llm_enabled and project.target_type == 'industry' else {}),
             "evidence_ledger": evidence_ledger,
             "coverage_summary": {
                 "source_count": quality.get("source_count", len(project.sources)),
@@ -4097,6 +4207,14 @@ class ResearchWorkflow:
                 if kept >= 2:
                     break
         return facts
+
+    def _extract_industry_rule_facts(self, sources, project):
+        try:
+            from .industry_research import extract_industry_source_facts
+        except ImportError:
+            from industry_research import extract_industry_source_facts
+        return extract_industry_source_facts(sources, getattr(project, 'industry_scope', {}) or
+                                             {'industry_name': project.target_name})
 
     def _extract_professional_structured_facts(
         self,
@@ -4233,6 +4351,12 @@ class ResearchWorkflow:
                 # already been retrieved for its declared boundary.  Preserve
                 # that default unless the cleaner explicitly marks them out.
                 normalized["scope_match"] = scope_match or "in_scope"
+                body = re.sub(r'\s+', '', str(getattr(source, 'content', '') or '')).lower()
+                native_quote = re.sub(r'\s+', '', quote).lower()
+                normalized['evidence_quote_verified'] = bool(native_quote and native_quote in body)
+                if not normalized['evidence_quote_verified']:
+                    continue
+                normalized['is_structured_evidence'] = normalized['claim_type'] == 'fact'
                 normalized.pop("identity_match", None)
                 normalized.pop("entity_match", None)
             if is_affiliation_structured_fact:
@@ -4273,12 +4397,20 @@ class ResearchWorkflow:
         quality = quality or self.evaluate_source_quality(project, plan)
         safe_sources = self._select_cleaning_sources(project.sources, project=project)
         model_sources = self._select_llm_cleaning_sources(safe_sources)
-        batches = self._source_context_batches(model_sources)
+        if project.target_type == 'industry':
+            try:
+                from .industry_research import industry_cleaning_sources
+            except ImportError:
+                from industry_research import industry_cleaning_sources
+            model_sources = industry_cleaning_sources(safe_sources, _env_int('CLEANING_LLM_SOURCES_PER_MODULE', 6, 1, 30))
+        batches = self._source_context_batches(model_sources, industry=project.target_type == 'industry')
         _emit(emit, "cleaning", "data_cleaning_agent", "开始深度清洗", "", status="running")
         llm_results = self._clean_batches_with_llm(project, plan, quality, batches, emit=emit)
         deterministic = self._fast_clean_sources(safe_sources, project=project, emit=emit)
         all_facts = list(deterministic.get("facts", []))
         all_facts.extend(self._extract_professional_structured_facts(safe_sources, project))
+        if project.target_type == 'industry':
+            all_facts.extend(self._extract_industry_rule_facts(safe_sources, project))
         if str(project.target_type or "").lower() == "person":
             all_facts.extend(self._extract_sentence_facts(safe_sources, project))
         all_facts.extend(self._sanitize_structured_facts(llm_results.get("facts", []), project))
@@ -4286,6 +4418,7 @@ class ResearchWorkflow:
         evidence_ledger = self._build_evidence_ledger(project.sources, safe_sources)
         result = {
             "facts": deduped,
+            **({"industry_scope": getattr(project, "industry_scope", {})} if project.target_type == "industry" else {}),
             "identity_quarantine": [
                 {
                     "target": project.target_name,
@@ -4301,6 +4434,7 @@ class ResearchWorkflow:
             ],
             "discarded_patterns": self._normalize_cleaning_text_items([llm_results.get("discarded_patterns", []), "duplicate or low-evidence snippets removed"]),
             "information_gaps": self._normalize_cleaning_text_items([quality.get("information_gaps", []), llm_results.get("information_gaps", [])]),
+            **({'cleaning_diagnostic': llm_results.get('cleaning_diagnostic', {})} if project.target_type == 'industry' else {}),
             "evidence_ledger": evidence_ledger,
             "coverage_summary": {
                 "source_count": quality.get("source_count", 0),
@@ -4352,8 +4486,24 @@ class ResearchWorkflow:
         }
         match_instruction, match_field = match_rules.get(target_type, ("", ""))
         workers = _env_int("CLEANING_MAX_WORKERS", 3, 1, 8)
+        industry_mode = target_type == 'industry'
+        batch_states = {}
+        health = {'failures': 0, 'circuit_open': False}
+        health_lock = threading.Lock()
 
         def invoke_cleaning(batch_index: int, source_blocks: str, depth: int = 0) -> list[dict[str, Any]]:
+            if industry_mode:
+                state = batch_states[batch_index]
+                with health_lock:
+                    if health['circuit_open']:
+                        state['circuit_skipped'] = True
+                        return []
+                remaining = state['deadline'] - time.monotonic()
+                if remaining < 1 or state['calls'] >= _env_int('INDUSTRY_CLEANING_MAX_CALLS_PER_BATCH', 3, 1, 5):
+                    state['budget_exhausted'] = True
+                    _emit(emit, 'cleaning', 'data_cleaning_agent', '行业清洗批次预算已用尽，保留规则事实',
+                          f'batch={batch_index}, calls={state["calls"]}', batch=batch_index, status='fallback')
+                    return []
             prompt = f"""
 你是合规尽调资料的信息抽取 Agent。只客观提取材料中明确出现、可复核、可引用的信息；不得判罪、认定违法或补充材料中没有的事实。
 {brief}
@@ -4384,6 +4534,7 @@ class ResearchWorkflow:
       "segment_name": "...",
       "company_role": "benchmark|target|unknown",
       "date": "",
+      "numeric_context": {{"metric": "指标名称", "value": null, "unit": "", "geography": "", "period": "", "definition": "统计口径", "is_forecast": false}},
       {match_field}
       "matched_anchors": ["..."],
       "conflicting_signals": ["..."],
@@ -4398,13 +4549,47 @@ class ResearchWorkflow:
   "information_gaps": ["..."]
 }}
 """
-            answer = self._invoke("鏁版嵁娓呮礂 Agent", prompt, emit=emit)
+            if industry_mode:
+                # Industry extraction needs no person identity/privacy/company schema.
+                prompt = f'''只抽取本批原文明示的最多3条行业事实，优先数值口径和商业模式。
+{brief}
+原文批次 {batch_index}/{len(batches)}：
+{_clip(source_blocks, _env_int("CLEANING_MAX_CHARS_PER_BATCH", 8000, 1000, 30000))}
+逐条保留原始source_url、source_title、module、evidence_scope，evidence_quote必须是连续原文，最长180字。
+fact最长120字，不新增原文没有的数值或口径。企业个案保持representative_company；不适用的材料跳过。
+只输出闭合JSON：{{"facts":[{{"fact":"...","claim_type":"fact","source_url":"...","source_title":"...","module":"...","evidence_scope":"industry_level|segment_level|representative_company|capital_market","scope_match":"in_scope","evidence_quote":"..."}}]}}
+含数值时增加numeric_context：metric、value、unit、geography、period、definition、is_forecast；原文未明确的字段留空。无适用事实返回facts=[]。
+'''
+                remaining = state['deadline'] - time.monotonic()
+                if remaining < 1:
+                    state['budget_exhausted'] = True
+                    return []
+                state['calls'] += 1
+                answer = self._invoke_industry_cleaning(f'行业清洗 Agent - 批次{batch_index}', prompt, emit=emit,
+                    timeout_seconds=min(remaining, _env_int('INDUSTRY_CLEANING_TIMEOUT_SECONDS', 60, 10, 120)))
+            else:
+                answer = self._invoke("数据清洗 Agent", prompt, emit=emit)
             parsed = _plain_json(answer)
             if isinstance(parsed, dict):
+                if industry_mode:
+                    with health_lock:
+                        if parsed.get('facts'):
+                            health['failures'] = 0
                 return [parsed]
-            max_depth = _env_int("CLEANING_INSPECTION_SPLIT_MAX_DEPTH", 2, 0, 5)
+            if industry_mode:
+                with health_lock:
+                    health['failures'] += 1
+                    if health['failures'] >= _env_int('INDUSTRY_CLEANING_FAILURE_LIMIT', 6, 2, 30) and not health['circuit_open']:
+                        health['circuit_open'] = True
+                        _emit(emit, 'cleaning', 'data_cleaning_agent', '行业精洗连续失败，停止追加模型请求',
+                              f'failures={health["failures"]}; 原文规则事实保留', status='fallback')
+            max_depth = (_env_int('INDUSTRY_CLEANING_SPLIT_MAX_DEPTH', 1, 0, 2) if industry_mode
+                         else _env_int("CLEANING_INSPECTION_SPLIT_MAX_DEPTH", 2, 0, 5))
             parts = [part.strip() for part in source_blocks.split("\n\n---\n\n") if part.strip()]
             if depth >= max_depth or len(parts) <= 1:
+                if industry_mode:
+                    state['failed_parts'] += 1
+                    return []
                 fallback_answer = self._invoke_cleaning_fallback_model(prompt, emit=emit)
                 fallback_parsed = _plain_json(fallback_answer)
                 if isinstance(fallback_parsed, dict):
@@ -4416,7 +4601,17 @@ class ResearchWorkflow:
             return invoke_cleaning(batch_index, "\n\n---\n\n".join(parts[:midpoint]), depth + 1) + invoke_cleaning(batch_index, "\n\n---\n\n".join(parts[midpoint:]), depth + 1)
 
         def clean_one(batch_index: int, source_blocks: str) -> tuple[int, list[dict[str, Any]]]:
-            return batch_index, invoke_cleaning(batch_index, source_blocks)
+            if industry_mode:
+                batch_states[batch_index] = {'deadline': time.monotonic() +
+                    _env_int('INDUSTRY_CLEANING_BATCH_BUDGET_SECONDS', 150, 20, 300), 'calls': 0,
+                    'budget_exhausted': False, 'started': time.monotonic()}
+                batch_states[batch_index]['failed_parts'] = 0
+                batch_states[batch_index]['circuit_skipped'] = False
+            try:
+                return batch_index, invoke_cleaning(batch_index, source_blocks)
+            finally:
+                if industry_mode:
+                    batch_states[batch_index]['finished'] = time.monotonic()
 
         with ThreadPoolExecutor(max_workers=min(workers, len(batches))) as executor:
             futures = {
@@ -4448,13 +4643,24 @@ class ResearchWorkflow:
                         )
                         discarded_patterns.extend(payload["discarded_patterns"])
                         information_gaps.extend(payload["information_gaps"])
-                    _emit(emit, "cleaning", "data_cleaning_agent", "批次清洗完成", "", status="done")
+                    _emit(emit, "cleaning", "data_cleaning_agent", "批次清洗完成", f'batch={batch_index}', batch=batch_index, status="done")
                 else:
                     fallback = self._fallback_clean_batch([], batch_index)
                     information_gaps.extend(fallback.get("information_gaps", []))
-                    _emit(emit, "cleaning", "data_cleaning_agent", "批次清洗失败，使用规则降级", "", status="fallback")
+                    _emit(emit, "cleaning", "data_cleaning_agent", "批次清洗失败，使用规则降级", f'batch={batch_index}', batch=batch_index, status="fallback")
 
-        return {"facts": all_facts, "discarded_patterns": discarded_patterns, "information_gaps": information_gaps}
+        result = {"facts": all_facts, "discarded_patterns": discarded_patterns, "information_gaps": information_gaps}
+        if industry_mode:
+            for idx, state in sorted(batch_states.items()):
+                state['budget_exhausted'] = state['budget_exhausted'] or bool(state['failed_parts'] and
+                    (state['finished'] >= state['deadline'] or state['calls'] >= _env_int('INDUSTRY_CLEANING_MAX_CALLS_PER_BATCH', 3, 1, 5)))
+                if state['failed_parts'] or state['budget_exhausted'] or state['circuit_skipped']:
+                    information_gaps.append(f'行业清洗批次{idx}有子片段未完成结构化提取；规则来源保留，需复核。')
+            result['cleaning_diagnostic'] = {'batches': [{'batch': idx, 'model_calls': state['calls'],
+                'failed_parts': state['failed_parts'], 'budget_exhausted': state['budget_exhausted'],
+                'circuit_skipped': state['circuit_skipped']}
+                for idx, state in sorted(batch_states.items())], 'circuit_open': health['circuit_open']}
+        return result
 
     def assess_risk(self, project: ResearchProject, cleaned_json: str, emit: TraceEmitter | None = None) -> str:
         target_type = str(project.target_type or "").lower()
@@ -4467,8 +4673,18 @@ class ResearchWorkflow:
 """
             evidence_id_field = ', "evidence_ids": ["E-..."]'
         if target_type == "industry":
+            try:
+                from .industry_research import active_risk_dimensions
+            except ImportError:
+                from industry_research import active_risk_dimensions
+            applicable = active_risk_dimensions(getattr(project, "industry_scope", {}))
+            dimension_schema = json.dumps([{'name': name, 'evidence_ids': [], 'score': None,
+                'level': 'unknown|low|medium|high|critical', 'reason': '...', 'evidence_sources': []}
+                for name in applicable], ensure_ascii=False)
             prompt = f"""
-请扮演行业风险研判 Agent。基于清洗事实，对目标行业进行行业维度风险评分，不得套用目标公司/标的主体尽调维度。
+研究边界：{json.dumps(getattr(project, "industry_scope", {}), ensure_ascii=False)}
+仅评估以下启用维度：{json.dumps(applicable, ensure_ascii=False)}。忽略下方结构示例中未启用的维度，不列为 unknown，不提出其补采建议。
+请扮演行业风险研判 Agent。基于清洗事实，对目标行业进行行业维度风险评分，不得套用目标公司/标的主体尽调维度。每个维度必须输出 evidence_ids，且仅能引用输入事实的 E-ID。无有效且适用的行业证据时 score=null、level=unknown；不得用代表企业个案直接证明行业整体风险。
 项目：{project.title}
 研究对象：{project.target_name}
 行业：{project.industry}
@@ -4477,32 +4693,33 @@ class ResearchWorkflow:
 {_clip(risk_evidence, 30000)}
 
 评分口径必须统一：overall_score 和各维度 score 均为“风险分”，0 表示风险最低，100 表示风险最高。信息缺失必须列为 unknown/待核验，不能仅因“未搜索到、未提供、无法排除”就判为高风险。代表企业材料只能作为行业样本或竞争格局信号，不能写成目标公司经营风险。
+各维度只能使用 dimension_evidence_ids 中列出的编号；reason 中的编号必须同时列入 evidence_ids。理由每维120字以内，只写支撑该评分的判断，数值只可使用对应事实allowed_numbers中的值；禁止使用来源标题、URL或统计定义中的其他数字补结论。完整原文保留在事实库供审计，评分输入只授权fact中的单个指标。预测值须在同一分句明确预计/预测，不同事实编号不等于独立来源；同一发布方的卡片不能声称多源一致。政策目标不能写成已经实现的市场集中度。没有已核验数值时可以用适用定性证据作克制判断，禁止新增定量结论；证据不足仍返回unknown。
 
 请只输出 JSON，结构为：
 {{
   "overall_score": 0,
   "risk_level": "unknown|low|medium|high|critical",
-  "dimensions": [
-    {{"name": "政策与监管风险", "score": null, "level": "unknown|low|medium|high|critical", "reason": "...", "evidence_sources": ["..."]}},
-    {{"name": "市场增长与需求风险", "score": 0, "level": "...", "reason": "...", "evidence_sources": ["..."]}},
-    {{"name": "竞争格局与集中度风险", "score": 0, "level": "...", "reason": "...", "evidence_sources": ["..."]}},
-    {{"name": "商业化与盈利模式风险", "score": 0, "level": "...", "reason": "...", "evidence_sources": ["..."]}},
-    {{"name": "技术迭代与替代风险", "score": 0, "level": "...", "reason": "...", "evidence_sources": ["..."]}},
-    {{"name": "资本热度与估值风险", "score": 0, "level": "...", "reason": "...", "evidence_sources": ["..."]}},
-    {{"name": "数据口径与证据可靠性风险", "score": 0, "level": "...", "reason": "...", "evidence_sources": ["..."]}}
-  ],
+  "dimensions": {dimension_schema},
   "key_risks": ["..."],
   "unknowns": ["..."],
   "recommended_followups": ["..."]
 }}
 """
-            answer = self._invoke("行业风险研判 Agent", prompt, emit=emit)
+            answer = self._invoke_industry_risk("行业风险研判 Agent", prompt, emit=emit)
             parsed = _plain_json(answer)
-            if parsed:
-                parsed = self._normalize_risk_unknowns(parsed)
+            if isinstance(parsed, dict):
+                # Only facts actually sent within the model's budget can authorize scores.
+                retained_ids = {f.get('evidence_id') for f in json.loads(risk_evidence).get('facts', [])}
+                cleaned_payload = _plain_json(cleaned_json)
+                retained = [f for f in cleaned_payload.get('facts', []) if f.get('evidence_id') in retained_ids] if isinstance(cleaned_payload, dict) else []
+                parsed = normalize_industry_risk(parsed, retained, getattr(project, "industry_scope", {}))
+                parsed = self._repair_industry_risk(parsed, json.loads(risk_evidence), retained,
+                                                    getattr(project, 'industry_scope', {}), emit=emit)
                 _emit(emit, "risk", "risk_assessment_agent", "模型行业风险评分完成", f"risk_level={parsed.get('risk_level')}", risk_level=parsed.get("risk_level"), status="done")
                 return json.dumps(parsed, ensure_ascii=False, indent=2)
-            fallback = self._fallback_risk(cleaned_json)
+            fallback = unknown_industry_risk(scope=getattr(project, "industry_scope", {}))
+            fallback['validation_diagnostics'] = {'primary_status': 'empty_or_invalid_json',
+                'model_response_excerpt': answer[:3000], 'repair': {'attempted': False, 'attempts': 0}}
             _emit(emit, "risk", "risk_assessment_agent", "使用规则降级行业评分", f"risk_level={fallback.get('risk_level')}", risk_level=fallback.get("risk_level"), status="fallback")
             return json.dumps(fallback, ensure_ascii=False, indent=2)
         prompt = f"""
@@ -4546,12 +4763,74 @@ class ResearchWorkflow:
         _emit(emit, "risk", "risk_assessment_agent", "使用规则降级评分", f"risk_level={fallback.get('risk_level')}", risk_level=fallback.get("risk_level"), status="fallback")
         return json.dumps(fallback, ensure_ascii=False, indent=2)
 
+    def _repair_industry_risk(self, normalized: dict, evidence: dict, retained: list[dict], scope: dict,
+                              emit: TraceEmitter | None = None) -> dict:
+        try:
+            from .industry_research import risk_repair_package, risk_level
+        except ImportError:
+            from industry_research import risk_repair_package, risk_level
+        initial_diagnostics = [{'name': row['name'], 'cause': row.get('unknown_cause'),
+                                **row['validation_diagnostic']} for row in normalized['dimensions'] if row.get('validation_diagnostic')]
+        diagnostic = {'primary_status': 'validated', 'initial_rejections': initial_diagnostics,
+                      'repair': {'attempted': False, 'attempts': 0}}
+        result = {**normalized, 'validation_diagnostics': diagnostic}
+        package = risk_repair_package(evidence, normalized)
+        requested = {row['name'] for row in package['dimensions_to_repair']}
+        if not requested:
+            return result
+        prompt = ('仅修复下列失败风险维度，返回完整JSON {"dimensions":[{"name":"...","score":null,'
+                  '"level":"unknown|low|medium|high|critical","reason":"...","evidence_ids":[]}]}。'
+                  '每维理由120字以内，只用该维dimension_evidence_ids中的编号；理由引用必须同时列入evidence_ids。'
+                  '数字只可用对应证据allowed_numbers，禁止从先前失败理由补数据；没有定量证据可作有依据的定性判断。'
+                  '预测数字必须在同一分句明确预计/预测；同一发布方的多张卡片不能写成多源印证。'
+                  '保留政策目标、预测与实际统计的区别，企业样本不能评分行业整体。证据不足返回score=null、level=unknown，'
+                  '不能为了修复凑分。无需返回其他维度、总分或额外章节。\n' + json.dumps(package, ensure_ascii=False))
+        repair_diagnostic = {'attempted': True, 'attempts': 1, 'requested_dimensions': sorted(requested),
+                             'input_chars': len(prompt), 'repaired_dimensions': [], 'remaining_dimensions': sorted(requested)}
+        diagnostic['repair'] = repair_diagnostic
+        _emit(emit, 'risk', 'risk_assessment_agent', '部分行业评分未通过校验，尝试一次局部修复',
+              '、'.join(sorted(requested)), status='warning')
+        try:
+            answer = self._invoke_industry_risk('行业风险修复 Agent', prompt, emit=emit, repair=True)
+            parsed = _plain_json(answer)
+        except Exception as exc:
+            parsed = None
+            repair_diagnostic['exception_type'] = type(exc).__name__
+        if not isinstance(parsed, dict):
+            repair_diagnostic['status'] = 'empty_or_invalid_json'
+            return result
+        repair_ids = {f['evidence_id'] for f in package['facts']}
+        repair_retained = [f for f in retained if f.get('evidence_id') in repair_ids]
+        checked = normalize_industry_risk(parsed, repair_retained, scope)
+        accepted = {row['name']: row for row in checked['dimensions'] if row['name'] in requested and row.get('score') is not None}
+        result['dimensions'] = [accepted.get(row['name'], row) for row in normalized['dimensions']]
+        scores = [row['score'] for row in result['dimensions'] if row.get('score') is not None]
+        result['assessed_dimension_count'] = len(scores)
+        result['overall_score'] = round(sum(scores)/len(scores), 1) if len(scores) == len(result['dimensions']) else None
+        result['risk_level'] = risk_level(result['overall_score']) if result['overall_score'] is not None else 'unknown'
+        result['unknowns'] = [note for note in normalized.get('unknowns', [])
+                              if not any(str(note).startswith(name+'：') for name in accepted)]
+        repair_diagnostic.update(status='complete' if len(accepted)==len(requested) else 'partial' if accepted else 'rejected',
+            repaired_dimensions=sorted(accepted), remaining_dimensions=sorted(requested-set(accepted)),
+            rejected_diagnostics=[{'name':row['name'], 'cause':row.get('unknown_cause'), **(row.get('validation_diagnostic') or {})}
+                for row in checked['dimensions'] if row['name'] in requested and row.get('score') is None])
+        _emit(emit, 'risk', 'risk_assessment_agent', '行业评分局部修复校验完成',
+              f'repaired={len(accepted)}, remaining={len(requested)-len(accepted)}', status='done' if accepted else 'fallback')
+        return result
+
     def _risk_evidence_payload(self, cleaned_json: str, target_type: str = "") -> str:
         parsed = _plain_json(cleaned_json)
         if not isinstance(parsed, dict):
             return _clip(cleaned_json, 30000)
         rows = []
-        for fact in parsed.get("facts") or []:
+        facts = parsed.get("facts") or []
+        if target_type == "industry":
+            try:
+                from .industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions, source_document_key
+            except ImportError:
+                from industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions, source_document_key
+            facts = balanced_risk_facts(facts)
+        for fact in facts:
             if not isinstance(fact, dict):
                 continue
             if fact.get("eligible_for_risk_scoring") is False or fact.get("category") == "personal_background":
@@ -4569,15 +4848,44 @@ class ResearchWorkflow:
                 row["evidence_id"] = fact.get("evidence_id")
                 row["evidence_scope"] = fact.get("evidence_scope")
             if target_type == "industry":
+                row['fact'] = risk_fact_text(fact)[:700]
+                row['source_document_key'] = source_document_key(fact.get('source_url', ''))
                 row["evidence_id"] = fact.get("evidence_id")
                 row["evidence_scope"] = fact.get("evidence_scope")
                 row["industry_name"] = fact.get("industry_name")
                 row["segment_name"] = fact.get("segment_name")
                 row["company_role"] = fact.get("company_role")
                 row["attribution_boundary"] = fact.get("attribution_boundary")
+                row["numeric_context"] = fact.get("numeric_context")
+                row["numeric_validation"] = fact.get("numeric_validation")
+                context = fact.get('numeric_context') or {}
+                row['allowed_numbers'] = ([str(context.get('value')) + str(context.get('unit'))]
+                    if (fact.get('numeric_validation') or {}).get('passed') is True else [])
             rows.append(row)
             if len(rows) >= 60:
                 break
+        if target_type == 'industry':
+            try:
+                from .industry_research import bounded_package
+            except ImportError:
+                from industry_research import bounded_package
+            # The full payload used to reach ~79k chars and get sliced mid-JSON.
+            # Cap complete cards before composing the risk prompt.
+            for row in rows:
+                row['source_title'] = str(row.get('source_title') or '')[:160]
+                row['attribution_boundary'] = str(row.get('attribution_boundary') or '')[:250]
+            payload = json.loads(bounded_package({'facts': rows,
+                'information_gaps': [str(x)[:200] for x in (parsed.get('information_gaps') or [])[:12]],
+                'gap_interpretation': '缺口是单批抽取线索，需结合全库事实核对；不能据此断言全行业无数据。'}, 25000))
+            original_by_id = {f.get('evidence_id'): f for f in facts}
+            while True:
+                payload['dimension_evidence_ids'] = {name: [r['evidence_id'] for r in payload['facts']
+                    if risk_fact_applicable(original_by_id[r['evidence_id']], name)]
+                    for name in active_risk_dimensions(parsed.get('industry_scope') or {})}
+                encoded = json.dumps(payload, ensure_ascii=False)
+                if len(encoded) <= 28000 or not payload['facts']:
+                    return encoded
+                payload['facts'].pop()
         return json.dumps(
             {"facts": rows, "information_gaps": (parsed.get("information_gaps") or [])[:15]},
             ensure_ascii=False,
@@ -4704,6 +5012,8 @@ class ResearchWorkflow:
                 emit(event)
 
         def report_invoke(role: str, prompt: str, trace_emit: TraceEmitter | None = None) -> str:
+            if target_type == 'industry':
+                return self._invoke_industry_report(role, prompt, emit=trace_emit)
             if target_type == "person" and role.endswith("总编 Agent"):
                 return self._invoke_person_report_editor(role, prompt, emit=trace_emit)
             if target_type == "person" and "章节 Agent" in role:
@@ -4911,6 +5221,7 @@ class ResearchWorkflow:
         companies = "、".join(scope.get("named_companies") or []) or "未指定"
         capital = {"summary": "一级融资、IPO及二级市场概览；不构成交易建议", "none": "不纳入交易性二级市场指标"}.get(str(scope.get("capital_market") or ""), "待确认")
         assumptions = "；".join(scope.get("assumptions") or []) or "无"
+        excluded = "、".join(scope.get("excluded_segments") or []) or "未指定排除项；不同赛道分别呈现，不混算市场规模。"
         card = "\n".join([
             "## 研究边界与口径（自动生成）", "",
             "> 本卡由用户输入与系统默认假设共同生成。若与实际需求不符，应在后续研究前修订范围。", "",
@@ -4918,7 +5229,7 @@ class ResearchWorkflow:
             "| --- | --- |",
             f"| 研究对象 | {scope.get('industry_name') or project.industry or project.target_name} |",
             f"| 纳入范围 | {included} |",
-            "| 不纳入范围 | 未被明确纳入的硬件制造、电信基础设施及泛软件外包，不与本报告子赛道混合计算市场规模。 |",
+            f"| 不纳入范围 | {excluded} |",
             f"| 地域 | {scope.get('geography') or '中国大陆'} |",
             f"| 数据截止日 | {scope.get('as_of_date') or datetime.now().date().isoformat()} |",
             f"| 研究用途 | {scope.get('purpose') or '日常了解'} |",
@@ -4970,6 +5281,23 @@ class ResearchWorkflow:
         card and every selected fact is visibly used in the delivered report.
         """
         target_type = str(project.target_type or "").lower()
+        if target_type == "industry" and report.strip():
+            payload = _plain_json(cleaned_json)
+            if not isinstance(payload, dict):
+                payload = {"facts": []}
+            result, diagnostic = append_industry_index(report, payload, IndustryReportAgent.outline,
+                                                      getattr(project, "industry_section_packages", None))
+            facts = payload.get('facts', [])
+            diagnostic['fact_quality'] = {
+                'structured_fact_count': sum(f.get('is_structured_evidence') is True for f in facts),
+                'verified_numeric_fact_count': sum(f.get('numeric_validation', {}).get('passed') is True for f in facts),
+                'rule_extracted_fact_count': sum(f.get('cleaning_method') == 'industry_rule' for f in facts),
+                'llm_extracted_fact_count': sum(f.get('cleaning_method') == 'llm' for f in facts),
+            }
+            setattr(project, "industry_delivery_diagnostic", diagnostic)
+            _emit(emit, "report", "desktop_report_agent", "行业事实引用索引已生成",
+                  f"referenced_sources={diagnostic['referenced_sources']}", status="done")
+            return result
         if target_type not in {"person", "company", "industry"} or not report.strip():
             return report
         try:
@@ -5318,6 +5646,13 @@ class ResearchWorkflow:
         target_type = str(project.target_type or "").lower()
         if target_type not in {"person", "company", "industry"}:
             return
+        if target_type == "industry":
+            errors = industry_delivery_errors(report, getattr(project, "industry_delivery_diagnostic", {}),
+                                               getattr(project, "industry_scope", {}))
+            project.industry_quality_issues = [{"message": message, "chapter": (int(match.group(1)) if (match := re.search(r"第(\d+)章", message)) else None)} for message in errors]
+            if errors:
+                raise RuntimeError("行业报告交付质量闸门未通过：" + "；".join(errors))
+            return
         # Count only top-level report chapters. Subheadings like ``### 1.1``
         # previously produced duplicate artificial chapter bodies.
         matches = list(REPORT_CHAPTER_HEADING_RE.finditer(report or ""))
@@ -5520,12 +5855,66 @@ class ResearchWorkflow:
         notice = (
             "> **待人工复核稿**：本报告已完成自动生成，但未通过交付质量闸门。"
             "请先按下列原因补充核验或人工修订后再作为正式交付稿使用。\n"
-            f">\n> 未通过原因：{reason}\n\n"
+            f">\n> 未通过原因（摘要）：{reason[:600]}" + ("……完整问题见报告质量诊断。" if len(reason) > 600 else "") + "\n\n"
         )
         return notice + (report or "").lstrip()
 
+    def _prepare_industry_delivery(self, project: ResearchProject, report: str, risk_json: str,
+                                   emit: TraceEmitter | None = None) -> tuple[str, dict]:
+        """Use the same delivery decision for generated reports and reexports."""
+        try:
+            from .industry_research import delivery_review_reasons
+        except ImportError:
+            from industry_research import delivery_review_reasons
+        gate_warning = ''
+        try:
+            self._validate_delivery_report(project, report)
+        except RuntimeError as exc:
+            if os.getenv('REPORT_SAVE_REVIEW_DRAFT_ON_GATE_FAIL', 'true').strip().lower() not in {'1', 'true', 'yes', 'on'}:
+                raise
+            gate_warning = str(exc)
+        degradations = list(getattr(project, 'industry_report_degradations', []) or [])
+        # Preserve an explicit legacy fallback notice even if its old metadata was lost.
+        if not degradations and ('模型摘要未通过校验' in report or '模型摘要未通过引用或目录校验' in report):
+            degradations.append({'chapter': 1, 'message': '摘要沿用模型校验失败后的事实摘录，综合判断需人工复核。'})
+        risk = _plain_json(risk_json)
+        reasons = delivery_review_reasons(getattr(project, 'industry_scope', {}) or {},
+                                         risk if isinstance(risk, dict) else {}, degradations)
+        issues = list(getattr(project, 'industry_quality_issues', []) or [])
+        if gate_warning:
+            reasons += [{'code': 'evidence_gate_failed', 'chapter': issue.get('chapter'), 'message': issue['message']}
+                        for issue in issues if issue.get('message')]
+            if not any(r['code'] == 'evidence_gate_failed' for r in reasons):
+                reasons.append({'code': 'evidence_gate_failed', 'chapter': None, 'message': gate_warning})
+        project.industry_delivery_review_reasons = reasons
+        warning = '行业报告需人工复核：' + '；'.join(r['message'] for r in reasons) if reasons else ''
+        # Replace our own old notice, so a reexport cannot show stale review reasons.
+        report = re.sub(r'\A\s*> \*\*待人工复核稿\*\*.*?(?:\n\s*\n|\Z)', '', report, count=1, flags=re.S).lstrip()
+        if warning:
+            report = ('> **待人工复核稿**：报告已生成，部分证据核验、章节综合写作或风险评估仍需复核。'
+                      '请完成下列事项后再作为正式交付稿使用。\n>\n> 复核原因（摘要）：'
+                      + warning[:600] + ('……完整原因见报告质量诊断。' if len(warning) > 600 else '') + '\n\n' + report)
+            _emit(emit, 'report', 'desktop_report_agent', '行业报告保存为待复核稿', warning,
+                  review_reason_count=len(reasons), status='fallback')
+        return report, {'delivery_status': 'review_draft' if reasons else 'final_candidate',
+                        'delivery_review_reasons': reasons, 'quality_issues': issues,
+                        'industry_evidence_diagnostic': getattr(project, 'industry_delivery_diagnostic', {}),
+                        'generation_degradations': degradations,
+                        **({'quality_warning': warning} if warning else {})}
+
     def _build_report_quality_diagnostic(self, project: ResearchProject, report: str, warning: str) -> str:
         """Persist a reviewable diagnosis alongside a failed-but-exported Word draft."""
+        if str(project.target_type or '').lower() == 'industry':
+            reasons = getattr(project, 'industry_delivery_review_reasons', []) or []
+            def cell(value):
+                return re.sub(r'\s+', ' ', str(value or '-')).replace('|', '/')
+            rows = '\n'.join(f'| {cell(r.get("chapter"))} | {cell(r.get("dimension"))} | {cell(r.get("message"))} |'
+                             for r in reasons) or f'| - | - | {cell(warning)} |'
+            return (f'# {_project_doc_title(project, "报告质量诊断")}\n\n状态：待复核稿，生成完成不代表已经通过正式交付验收。\n\n'
+                    '## 复核原因\n\n| 章节 | 风险维度 | 需要复核的事项 |\n| --- | --- | --- |\n' + rows + '\n\n'
+                    '## 复核动作\n\n- 对照第15章来源索引核验正文引用、数值与口径。\n'
+                    '- 章节采用事实摘录时，人工复核综合判断；补证后重新评估尚未完成的启用风险维度。\n'
+                    '- 未启用的资本市场和核心企业尽调不列为必做补采；Word页面版式检查单独查看。\n')
         failures = [item.strip() for item in re.split(r"；|;", warning or "") if item.strip()]
         chapter_rows = []
         matches = list(REPORT_CHAPTER_HEADING_RE.finditer(report or ""))
@@ -5964,51 +6353,6 @@ class ResearchWorkflow:
             for gap in gaps[:100]:
                 lines.append(f"- {gap}")
         return "\n".join(lines)
-    def _index_cleaned_facts_background(
-        self,
-        project_snapshot: dict[str, Any],
-        cleaned_json: str,
-        version: int,
-        markdown_object_key: str,
-    ) -> None:
-        class ProjectSnapshot:
-            pass
-
-        project = ProjectSnapshot()
-        project.id = project_snapshot.get("id")
-        project.title = project_snapshot.get("title", "")
-        project.target_name = project_snapshot.get("target_name", "")
-        project.target_type = project_snapshot.get("target_type", "")
-        project.industry = project_snapshot.get("industry", "")
-        try:
-            self._index_cleaned_facts(project, cleaned_json, version, markdown_object_key)
-        except Exception:
-            return
-
-    def _index_cleaned_facts_with_timeout(
-        self,
-        project: ResearchProject,
-        cleaned_json: str,
-        version: int,
-        markdown_object_key: str,
-        timeout_seconds: int,
-    ) -> tuple[str, int, str]:
-        result_queue: queue.Queue[tuple[str, int, str]] = queue.Queue(maxsize=1)
-
-        def target() -> None:
-            try:
-                indexed_count = self._index_cleaned_facts(project, cleaned_json, version, markdown_object_key)
-                result_queue.put(("completed", indexed_count, ""))
-            except Exception as exc:
-                result_queue.put(("failed", 0, str(exc)))
-
-        thread = threading.Thread(target=target, daemon=True)
-        thread.start()
-        try:
-            return result_queue.get(timeout=max(1, timeout_seconds))
-        except queue.Empty:
-            return ("background_timeout", 0, f"vector indexing exceeded {timeout_seconds}s; workflow continued")
-
     def _index_cleaned_facts(
         self,
         project: ResearchProject,
@@ -6018,7 +6362,7 @@ class ResearchWorkflow:
     ) -> int:
         parsed = _plain_json(cleaned_json)
         if not isinstance(parsed, dict):
-            facts = [{"fact": cleaned_json, "category": "cleaned_facts"}]
+            raise ValueError("清洗事实 JSON 无效，未执行事实索引；请检查清洗产物后重试。")
         else:
             facts = [fact for fact in (parsed.get("facts") or []) if isinstance(fact, dict)]
         if not facts:
@@ -6062,7 +6406,14 @@ class ResearchWorkflow:
 
         if not docs:
             return 0
-        MilvusWriter().write_documents(docs)
+        writer = MilvusWriter()
+        if project.target_type == "industry":
+            manager = getattr(writer, "milvus_manager", None)
+            if manager is not None and manager.has_collection():
+                # Retry replaces this artifact version only, never another
+                # project's vectors or a different version's evidence.
+                manager.delete(f'project_id == {int(project.id)} and artifact_type == "cleaned_facts" and artifact_version == {int(version)}')
+        writer.write_documents(docs)
         return len(docs)
 
     def _find_soffice(self) -> str:
@@ -6160,6 +6511,7 @@ class ResearchWorkflow:
         version = (current.version + 1) if current else 1
         suffix = "json" if artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment"} else "md"
         artifact_metadata = dict(metadata or {})
+        index_job = None
         object_key = research_store.put_text(
             f"projects/{project.id}/{artifact_type}/{artifact_type}_v{version}.{suffix}",
             content,
@@ -6175,40 +6527,20 @@ class ResearchWorkflow:
             artifact_metadata["markdown_object_key"] = markdown_key
             artifact_metadata["raw_markdown_object_key"] = markdown_key
             try:
-                if os.getenv("VECTOR_INDEX_SYNC", "false").strip().lower() in {"1", "true", "yes", "on"}:
-                    timeout_seconds = _env_int("VECTOR_INDEX_SYNC_TIMEOUT_SECONDS", 30, 1, 3600)
-                    status, indexed_count, error = self._index_cleaned_facts_with_timeout(
-                        project,
-                        content,
-                        version,
-                        markdown_key,
-                        timeout_seconds,
-                    )
-                    artifact_metadata["vector_indexed"] = status == "completed"
-                    artifact_metadata["vector_indexed_count"] = indexed_count
-                    artifact_metadata["vector_index_status"] = status
-                    if error:
-                        artifact_metadata["vector_index_error"] = error
-                elif os.getenv("VECTOR_INDEX_ASYNC", "true").strip().lower() in {"1", "true", "yes", "on"}:
-                    snapshot = {
-                        "id": project.id,
-                        "title": project.title,
-                        "target_name": project.target_name,
-                        "target_type": project.target_type,
-                        "industry": project.industry,
-                    }
-                    threading.Thread(
-                        target=self._index_cleaned_facts_background,
-                        args=(snapshot, content, version, markdown_key),
-                        daemon=True,
-                    ).start()
-                    artifact_metadata["vector_indexed"] = False
-                    artifact_metadata["vector_index_status"] = "queued"
+                index_payload = _plain_json(content)
+                if not isinstance(index_payload, dict) or not isinstance(index_payload.get("facts"), list):
+                    raise ValueError("清洗事实 JSON 无效，未执行事实索引；请检查清洗产物后重试。")
+                sync = os.getenv("VECTOR_INDEX_SYNC", "false").strip().lower() in {"1", "true", "yes", "on"}
+                asynchronous = os.getenv("VECTOR_INDEX_ASYNC", "true").strip().lower() in {"1", "true", "yes", "on"}
+                if sync or asynchronous:
+                    index_job = (content, version, markdown_key, sync)
+                    artifact_metadata.update(vector_indexed=False, vector_indexed_count=0, vector_index_status="queued")
                 else:
                     artifact_metadata["vector_indexed"] = False
                     artifact_metadata["vector_index_status"] = "disabled"
             except Exception as exc:
                 artifact_metadata["vector_indexed"] = False
+                artifact_metadata["vector_index_status"] = "error"
                 artifact_metadata["vector_index_error"] = str(exc)
         if artifact_type in {"desktop_report", "proposal"}:
             try:
@@ -6218,6 +6550,12 @@ class ResearchWorkflow:
                     review_draft=bool(artifact_metadata.get("quality_warning")),
                     outline=self._select_report_outline(project) if artifact_type == "desktop_report" else None,
                 )
+                if project.target_type == 'industry':
+                    try:
+                        from .industry_research import validate_docx_package
+                    except ImportError:
+                        from industry_research import validate_docx_package
+                    artifact_metadata.update(validate_docx_package(docx_payload))
                 docx_key = research_store.put_bytes(
                     f"projects/{project.id}/{artifact_type}/{artifact_type}_v{version}.docx",
                     docx_payload,
@@ -6237,6 +6575,9 @@ class ResearchWorkflow:
                     artifact_metadata["docx_render_required_warning"] = "DOCX render QA is required but did not pass"
             except Exception as exc:
                 artifact_metadata["docx_export_error"] = str(exc)
+                if project.target_type == "industry":
+                    artifact_metadata["delivery_status"] = "export_failed"
+                    artifact_metadata['docx_integrity_status'] = 'failed'
         artifact = ResearchArtifact(
             project_id=project.id,
             artifact_type=artifact_type,
@@ -6251,7 +6592,59 @@ class ResearchWorkflow:
         project.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(artifact)
+        if index_job:
+            self.start_artifact_index(db, project, artifact, wait_seconds=_env_int("VECTOR_INDEX_SYNC_TIMEOUT_SECONDS", 30, 1, 3600) if index_job[3] else 0)
+            db.refresh(artifact)
         return artifact
+
+    def start_artifact_index(self, db, project, artifact, wait_seconds=0):
+        """Start after artifact commit; worker owns its SQL session and always writes a terminal result."""
+        metadata = dict(artifact.artifact_metadata or {})
+        if any(t.name == f"research-index-{artifact.id}" and t.is_alive() for t in threading.enumerate()):
+            raise ValueError("索引仍在后台执行，请等待完成。")
+        if metadata.get("vector_index_status") not in {"queued", "failed", "error", "background_timeout", "disabled"}:
+            raise ValueError("索引正在执行或已经完成。")
+        content, version, key, artifact_id = artifact.content, artifact.version, metadata.get("markdown_object_key", ""), artifact.id
+        payload = _plain_json(content)
+        if not isinstance(payload, dict) or not isinstance(payload.get("facts"), list):
+            raise ValueError("清洗事实 JSON 无效，不能执行索引。")
+        bind = db.get_bind()
+        if hasattr(bind, "engine"):
+            bind = bind.engine
+        snapshot = type("IndexProject", (), {name: getattr(project, name, "") for name in ("id", "title", "target_name", "target_type", "industry")})()
+        # Transition before scheduling; API retries lock this artifact row.
+        metadata.update(vector_index_status="running", vector_indexed=False, vector_index_started_at=datetime.utcnow().isoformat())
+        metadata.pop("vector_index_error", None)
+        artifact.artifact_metadata = metadata
+        db.commit()
+        finished = threading.Event()
+        def worker():
+            try:
+                count = self._index_cleaned_facts(snapshot, content, version, key)
+                result = {"vector_index_status": "completed", "vector_indexed": True, "vector_indexed_count": count}
+            except Exception as exc:
+                result = {"vector_index_status": "failed", "vector_indexed": False, "vector_indexed_count": 0, "vector_index_error": str(exc)[:1000]}
+            result["vector_index_finished_at"] = datetime.utcnow().isoformat()
+            try:
+                with Session(bind=bind) as session:
+                    row = session.query(ResearchArtifact).filter(ResearchArtifact.id == artifact_id).with_for_update().first()
+                    if row:
+                        merged = dict(row.artifact_metadata or {})
+                        merged.pop("vector_index_error", None)
+                        row.artifact_metadata = {**merged, **result}
+                        session.commit()
+            finally:
+                finished.set()
+        threading.Thread(target=worker, daemon=True, name=f"research-index-{artifact_id}").start()
+        if wait_seconds and not finished.wait(wait_seconds):
+            # Use the same row lock as the worker. Do not overwrite a result
+            # that completed between the timeout and this transaction.
+            row = db.query(ResearchArtifact).filter(ResearchArtifact.id == artifact_id).with_for_update().populate_existing().first()
+            current = dict(row.artifact_metadata or {})
+            if current.get("vector_index_status") == "running":
+                current.update(vector_index_status="background_timeout", vector_index_error=f"vector indexing exceeded {wait_seconds}s; workflow continued")
+                row.artifact_metadata = current
+            db.commit()
 
     def _cleaning_brief(self, project: ResearchProject, plan: dict[str, Any], quality: dict[str, Any]) -> str:
         modules = [item.get("name", "") for item in plan.get("modules", []) if isinstance(item, dict)]
@@ -6262,7 +6655,8 @@ class ResearchWorkflow:
                 f"研究对象：{project.target_name}",
                 f"对象类型：{project.target_type}",
                 f"行业：{project.industry}",
-                f"重点模块：{', '.join(modules[:8])}",
+                f"重点模块：{', '.join(modules if project.target_type == 'industry' else modules[:8])}",
+                *(["行业研究边界：" + json.dumps(getattr(project, 'industry_scope', {}) or plan.get('industry_scope') or {}, ensure_ascii=False)] if project.target_type == "industry" else []),
                 f"信息缺口：{'; '.join(str(gap) for gap in gaps)}",
             ]
         )
@@ -6298,9 +6692,11 @@ class ResearchWorkflow:
             authoritative = 1 if self._source_grade(source, quality) in {"A", "B"} else 0
             return (target_hit, structured_hit, authoritative, quality_score + has_content)
 
+        fingerprint = getattr(project, "industry_scope_fingerprint", "")
         selected = [
             source for source in sources
-            if (source.content or source.summary or "").strip()
+            if (not fingerprint or target_type != "industry" or source_in_current_run(source, fingerprint))
+            and (source.content or source.summary or "").strip()
             and not self._is_failed_extraction_source(source)
             and self._structured_source_is_safe(source)
         ]
@@ -6377,6 +6773,9 @@ class ResearchWorkflow:
         target_type = str(getattr(project, "target_type", "") or "").lower()
         target = str(getattr(project, "target_name", "") or "")
         annotated: list[dict[str, Any]] = []
+        industry_sources = self._active_industry_sources(project) if target_type == "industry" else []
+        industry_by_url = {str(s.url).rstrip('/'): s for s in industry_sources if s.url}
+        industry_by_title = {str(s.title): s for s in industry_sources if not s.url}
         for fact in facts:
             if not isinstance(fact, dict):
                 continue
@@ -6419,6 +6818,33 @@ class ResearchWorkflow:
                     item["attribution_boundary"] = "资本市场或投融资事实；只能用于资本热度、融资和上市披露判断，不构成交易建议。"
                 else:
                     item["attribution_boundary"] = "行业层事实；可用于行业定义、政策、规模、趋势和风险判断。"
+            if target_type == "industry":
+                url = str(item.get("source_url") or '').rstrip('/')
+                source = industry_by_url.get(url) if url else industry_by_title.get(str(item.get("source_title") or ''))
+                if source is not None:
+                    meta = source.source_metadata or {}
+                    for key in ("company_role", "company_name", "module", "industry_name", "segment_name"):
+                        if meta.get(key):
+                            item[key] = meta[key]
+                    if meta.get("company_role") == "requested_due_diligence":
+                        item["evidence_scope"] = "representative_company"
+                    elif meta.get("evidence_scope") and not fact.get("evidence_scope"):
+                        item["evidence_scope"] = meta["evidence_scope"]
+                    if company_filing_source(source):
+                        item['evidence_scope'] = 'representative_company'
+                    item["date"] = item.get("date") or meta.get("published_date") or ""
+                    item["source_id"] = getattr(source, "id", None)
+                    item["source_title"] = source.title
+                    item["quality_score"] = item.get("quality_score") or getattr(source, "credibility_score", 50)
+                    item["source_grade"] = item.get("source_grade") or self._source_grade(source, meta.get("quality") or {})
+                    if not url:
+                        item["source_url"] = f"structured://projects/{project.id}/sources/{source.id}"
+                    item["source_provenance_verified"] = True
+                else:
+                    item["source_provenance_verified"] = False
+                    item["eligible_for_report"] = False
+                    item["eligible_for_risk_scoring"] = False
+                item = annotate_industry_fact(item, getattr(project, "industry_scope", {}) or {"industry_name": target})
             annotated.append(item)
         return annotated
 
@@ -6617,7 +7043,7 @@ class ResearchWorkflow:
             "discarded_patterns": ["duplicate source snippets removed", "only fully empty sources removed"],
             "information_gaps": gaps,
         }
-    def _source_context(self, sources: list[ResearchSource], max_chars_per_source: int = 5000) -> str:
+    def _source_context(self, sources: list[ResearchSource], max_chars_per_source: int = 5000, industry: bool = False) -> str:
         blocks = []
         for idx, source in enumerate(sources, 1):
             text = source.content or source.summary
@@ -6625,6 +7051,17 @@ class ResearchWorkflow:
             quality = meta.get("quality") or {}
             is_structured_source = self._is_structured_professional_source(source)
             source_limit = _env_int("CLEANING_STRUCTURED_MAX_CHARS_PER_SOURCE", 8000, 1000, 30000) if is_structured_source else max_chars_per_source
+            if industry and not is_structured_source:
+                try:
+                    from .industry_research import industry_excerpt
+                except ImportError:
+                    from industry_research import industry_excerpt
+                text = industry_excerpt(text, str(meta.get('module') or ''), source_limit)
+            if industry:
+                blocks.append(f'标题：{source.title}\nURL：{source.url}\n模块：{meta.get("module", "")}\n'
+                              f'行业证据层级：{meta.get("evidence_scope", "industry_level")}\n'
+                              f'内容：{_clip(text, source_limit)}')
+                continue
             blocks.append(
                 f"[{idx}] {source.title}\n"
                 f"类型：{source.source_type}\n"
@@ -6651,12 +7088,14 @@ class ResearchWorkflow:
         max_chars: int = 18000,
         max_chars_per_source: int = 5000,
         max_batches: int | None = None,
+        industry: bool = False,
     ) -> list[str]:
         batches: list[str] = []
         current: list[str] = []
         current_len = 0
         for source in sources:
-            block = self._source_context([source], max_chars_per_source=max_chars_per_source)
+            block = (self._source_context([source], max_chars_per_source=max_chars_per_source, industry=True)
+                     if industry else self._source_context([source], max_chars_per_source=max_chars_per_source))
             if current and current_len + len(block) > max_chars:
                 batches.append("\n\n---\n\n".join(current))
                 if max_batches and len(batches) >= max_batches:
@@ -6681,6 +7120,10 @@ class ResearchWorkflow:
             key = re.sub(r"\s+", "", text.lower())[:160]
             source_url = str(fact.get("source_url") or "")
             key = f"{key}|{source_url}"
+            if fact.get('cleaning_method') == 'industry_rule':
+                key += '|industry_rule|' + json.dumps(fact.get('numeric_context') or {}, sort_keys=True, ensure_ascii=False)
+            elif fact.get('cleaning_method') == 'llm' and fact.get('numeric_context'):
+                key += '|llm_numeric|' + json.dumps(fact['numeric_context'], sort_keys=True, ensure_ascii=False)
             if key in seen:
                 continue
             seen.add(key)
@@ -6784,9 +7227,15 @@ class ResearchWorkflow:
         return str(meta.get("extraction_status") or "").lower() in {"failed", "pending"} or text.startswith(("[解析失败", "[待解析"))
 
     def _fallback_clean(self, project: ResearchProject) -> dict[str, Any]:
+        if project.target_type == "industry":
+            sources = self._select_cleaning_sources(self._active_industry_sources(project), project=project)
+            payload = self._fast_clean_sources(sources, project=project)
+            payload["facts"] = self._annotate_evidence_facts(project, payload.get("facts", []))
+            payload["industry_scope"] = getattr(project, "industry_scope", {})
+            return payload
         facts = []
         seen = set()
-        for source in project.sources:
+        for source in self._active_industry_sources(project):
             if self._is_failed_extraction_source(source):
                 continue
             text = (source.summary or source.content or "").strip()
@@ -6903,6 +7352,13 @@ class ResearchWorkflow:
         risk_json: str,
         emit: TraceEmitter | None = None,
     ) -> str:
+        if str(project.target_type or "").lower() == "industry":
+            try:
+                from .report_agents.industry_proposal import build_industry_proposal
+            except ImportError:
+                from report_agents.industry_proposal import build_industry_proposal
+            _emit(emit, "proposal", "proposal_agent", "行业建议书按研究范围和七章模板生成", "人员、周期和报价保留确认项", status="done")
+            return build_industry_proposal(project)
         if (
             str(project.target_type or "").lower() == "company"
             and os.getenv("COMPANY_PROPOSAL_LLM_ENABLED", "false").strip().lower() not in {"1", "true", "yes", "on"}
@@ -6968,7 +7424,7 @@ class ResearchWorkflow:
         text = re.sub(r"[¥￥]XXX,XXX", "待双方确认", text, flags=re.I)
         return text
 
-    def _proposal_quality_warning(self, proposal: str) -> str:
+    def _proposal_quality_warning(self, proposal: str, target_type: str = "") -> str:
         """Return a concise reason when a generated proposal is not deliverable."""
         text = str(proposal or "").strip()
         issues: list[str] = []
@@ -6979,7 +7435,7 @@ class ResearchWorkflow:
         ]
         if missing:
             issues.append(f"缺少章节：{missing}")
-        if len(re.sub(r"\s+", "", text)) < 1800:
+        if len(re.sub(r"\s+", "", text)) < (1200 if target_type == "industry" else 1800):
             issues.append("正文过薄")
         placeholder_patterns = [
             r"\[(?:客户名称|咨询公司名称|您的姓名/签名|电话/邮箱)[^\]]*\]",
@@ -6992,6 +7448,12 @@ class ResearchWorkflow:
         return "；".join(issues)
 
     def _fallback_proposal(self, project: ResearchProject, report: str) -> str:
+        if str(project.target_type or "").lower() == "industry":
+            try:
+                from .report_agents.industry_proposal import build_industry_proposal
+            except ImportError:
+                from report_agents.industry_proposal import build_industry_proposal
+            return build_industry_proposal(project)
         if str(project.target_type or "").lower() == "company":
             return self._fallback_company_proposal(project)
         subject = project.target_name or project.industry or project.title
