@@ -11,6 +11,7 @@ from decimal import Decimal
 from difflib import SequenceMatcher
 from urllib.parse import urlparse
 
+from .company_governance import cited_evidence_ids
 from .company_governance import (
     EID, _cell, _filing_period, _period_rank, _primary_filing,
     _table, compact, get, read_fields, refs,
@@ -491,6 +492,6 @@ def history_errors(text,package):
     errors=[]
     if text.strip()!=render_history(package).strip():errors.append('第三章出现未受原文事件或比较数据支持的改写')
     allowed={eid for r in package['facts'] for eid in r['evidence_ids']}
-    if set(EID.findall(text))-allowed:errors.append('第三章存在未知证据编号')
+    if set(cited_evidence_ids(text))-allowed:errors.append('第三章存在未知证据编号')
     if not package['facts']:errors.append('第三章没有可核对事件或成长数据')
     return errors

@@ -5,14 +5,16 @@ from collections import Counter,defaultdict
 from urllib.parse import urlparse
 
 from .company_evidence import source_body,document_pages,pending_ocr_notice
+from .company_governance import cited_evidence_ids
 from .company_governance import EID,_table,compact,get,refs
 from .company_history import _issuer_hosts
 from .company_management import issuer as management_issuer
 from .company_business import _cell,_prose
+from .company_text import OriginalTextView,match_text,match_compact,issuer_anchor
 
 TITLE='企业文化及人员流失情况'
 HEADINGS=('内部文化价值观与文化践行引导','团队激励与人才结构现状','人才储备、培养与梯队建设','销售/研发/技术等核心岗位人员流失情况','核验判断与具体缺口')
-VERSION='company-people-v1'
+VERSION='company-people-v2-script-and-single-year-tables'
 METRICS={
  '员工总人数':('workforce','人'),'员工总数':('workforce','人'),
  '生产人员人数':('workforce','人'),'销售人员人数':('workforce','人'),'技术人员人数':('workforce','人'),
@@ -27,19 +29,23 @@ METRICS={
  '员工培训覆盖率':('training','%'),'员工人均接受培训小时数':('training','小时'),
  '员工ESG相关培训开展场数':('training','场'),'员工ESG相关培训覆盖人次':('training','人次'),
  '绩效管理制度的员工覆盖率':('incentive','%'),
+ '支持员工继续教育投入金额':('training','金额'), '累计培训总费用':('training','金额'),
 }
 VALUE=r'(?:[-+]?\d[\d,]*(?:\.\d+)?|[/—-])'
-MONEY=r'(?:万元人民币|人民币万元|人民币元|万元|千元|元|USD|HKD)'
+MONEY=r'(?:万元人民币|人民币万元|人民币元|亿元|万元|千元|元|USD|HKD)'
 
 
 def table_metrics(page):
     """Read explicit annual columns; no guessing flat integer cell borders."""
-    raw=str(page.get('text') or '').replace('|',' ')
-    headers=list(re.finditer(r'指标\s+单位\s+((?:20\d{2}年\s*){2,4})',raw))
+    view=OriginalTextView(page.get('text'))
+    raw=view.text.replace('|',' ')
+    headers=list(re.finditer(r'指标(?:名称)?\s+单位\s+((?:20\d{2}年\s*){1,4})',raw))
     rows=[]
     for i,header in enumerate(headers):
         end=headers[i+1].start() if i+1<len(headers) else len(raw)
-        rows+=_metric_block(raw[header.end():end],re.findall(r'20\d{2}',header[1]),page['page'])
+        years=re.findall(r'20\d{2}',header[1])
+        if len(set(years))!=len(years):continue
+        rows+=_metric_block(raw[header.end():end],years,page['page'],view=view,offset=header.end())
     return rows
 
 
@@ -79,21 +85,28 @@ def annual_workforce_rows(pages,period):
     return rows
 
 
-def _metric_block(raw,years,page):
-    order=sorted(range(len(years)),key=lambda i:years[i]);old,new=order[-2:]
+def _metric_block(raw,years,page,*,view=None,offset=0):
+    order=sorted(range(len(years)),key=lambda i:years[i]);new=order[-1];old=order[-2] if len(order)>1 else None
+    view=view or OriginalTextView(raw)
     rows=[]
     for metric,(kind,unit) in METRICS.items():
         label=r'\s*(?:\n\s*\d{1,3}\s*\n)?\s*'.join(map(re.escape,metric))
-        units=MONEY if unit=='金额' else re.escape(unit)
+        units=MONEY if unit=='金额' else r'(?:千人|万人|人)' if unit=='人' and kind=='workforce' else re.escape(unit)
         # A wrapped superscript is a note ID, not the first data cell.
-        pattern=r'(?m)^\s*'+label+r'\s*(?:\n\s*\d{1,3}\s*)?(?P<unit>'+units+r')\s+'+r'\s+'.join('('+VALUE+')' for _ in years)+r'\s*$'
+        pattern=r'(?m)^\s*(?P<label>'+label+r')\s*(?:\n\s*\d{1,3}\s*)?(?P<unit>'+units+r')\s+'+r'\s+'.join('('+VALUE+')' for _ in years)+r'[ \t]*$'
         for m in re.finditer(pattern,raw):
-            values=list(m.groups()[1:])
+            values=list(m.groups()[2:])
             if values[new] in {'/','—','-'}:continue
-            rows.append({'kind':kind,'metric':metric,'value':values[new],'previous_value':values[old],
-                         'period':years[new]+'年','previous_period':years[old]+'年','unit':m['unit'],
-                         'page':page,'fact':metric+'：'+years[new]+'年'+values[new]+m['unit']+'；'+years[old]+'年'+values[old]+m['unit'],
-                         'evidence_quote':m[0].strip(),'mode':'公司披露原表，未作为独立员工调查'})
+            source_label=view.quote(offset+m.start('label'),offset+m.end('label')).strip()
+            fact=source_label+'：'+years[new]+'年'+values[new]+m['unit']
+            if old is not None:fact+='；'+years[old]+'年'+values[old]+m['unit']
+            record={'kind':kind,'metric':metric,'source_metric':source_label,'value':values[new],
+                    'previous_value':values[old] if old is not None else '—',
+                    'period':years[new]+'年','previous_period':years[old]+'年' if old is not None else '', 'unit':m['unit'],
+                    'page':page,'fact':fact,'evidence_quote':view.quote(offset+m.start(),offset+m.end()).strip(),
+                    'mode':'公司披露原表，未作为独立员工调查'}
+            if m['unit'] in {'千人','万人'}:record['population_note']='保留原表'+m['unit']+'单位，不推定精确人数或据此与年报人数作差'
+            rows.append(record)
     return rows
 
 
@@ -101,7 +114,7 @@ def formula_notes(page):
     raw=str(page.get('text') or '')
     lines=[]
     for line in raw.splitlines():
-        if re.search(r'流失率\s*[=＝]|流失率.*计算公式|计算公式.*流失率|各类别.*(?:受训|培训).*占比.*[=＝]|类别.*培训覆盖率\s*[=＝]|受训员工占比\s*[=＝]',line):
+        if re.search(r'流失率\s*[=＝]|流失率.*计算公式|计算公式.*流失率|各类别.*(?:受训|培训).*占比.*[=＝]|类别.*培训覆盖率\s*[=＝]|受训员工占比\s*[=＝]|受训(?:员工|雇员)比例计算公式',OriginalTextView(line).text):
             lines.append(_prose(line).strip())
     return lines
 
@@ -110,7 +123,7 @@ def source_notes(pages):
     notes=[]
     for p in pages:
         for line in str(p['text']).splitlines():
-            if re.search(r'涵盖员工[（(]|不适用.*公司法|申诉系统新增|培训总支出下降的原因',_cell(line)):
+            if re.search(r'涵盖员工[（(]|不适用.*公司法|申诉系统新增|培训总支出下降的原因|培训数据为|未含部分线下|应以简体中文版本为准',match_compact(line)):
                 notes.append({'page':p['page'],'text':_prose(line)})
     return notes
 
@@ -125,6 +138,22 @@ def practice_topic(text):
 
 
 def policy_rows(pages,period,target=''):
+    rows=[]
+    for page in pages:
+        view=OriginalTextView(page['text'])
+        found=_policy_rows([{**page,'text':view.text}],period,match_text(target))
+        for row in found:
+            if view.text!=view.original:
+                pattern=r'\s*'.join(map(re.escape,re.sub(r'\s+','',row['evidence_quote'])))
+                match=re.search(pattern,view.text)
+                if not match:continue
+                original=view.quote(match.start(),match.end())
+                row.update(fact=_prose(original),evidence_quote=original)
+            rows.append(row)
+    return rows
+
+
+def _policy_rows(pages,period,target=''):
     rows=[]
     short=re.sub(r'(?:股份有限公司|有限责任公司|有限公司)$','',target)
     for page in pages:
@@ -170,14 +199,15 @@ def build_people_package(cleaned,target,sources=None,*,limit=60000):
         raw,origin=source_body(s);url=str(get(s,'url'));meta=get(s,'source_metadata',{}) or {}
         if origin=='discovery_summary' or meta.get('entity_validation') in {'rejected','ambiguous','related_entity_context'}:continue
         host=(urlparse(url).hostname or '').lower().removeprefix('www.')
-        statement=bool(re.search(r'本报告(?:为|由|是).{0,30}'+re.escape(compact(target)),compact(raw[:6000])))
+        anchor=issuer_anchor(raw,target)
+        statement=not anchor.get('conflicting_heading') and bool(re.search(r'本报告(?:为|由|是).{0,30}'+re.escape(match_compact(target)),match_compact(raw[:6000])))
         scoped_report=host in hosts and statement
         # A retrieved PDF may itself establish who issued the report even
         # when no earlier stock-exchange filing supplied the website field.
         # Require both the standalone full issuer heading and the explicit
         # report ownership statement; a search title or parent mention fails.
         extracted_pdf=(meta.get('document_extraction') or {}).get('method') in {'embedded_pdf_text','embedded_pdf_text_with_selective_ocr'}
-        named_pdf=extracted_pdf and statement and management_issuer(s,target,hosts|{host})
+        named_pdf=extracted_pdf and statement and anchor.get('standalone') and management_issuer(s,target,hosts|{host})
         if not (management_issuer(s,target,hosts) or scoped_report or named_pdf):continue
         usable=[c for c in cards[url] if c.get('eligible_for_report') is not False and c.get('entity_match') not in {'mismatch','ambiguous','out_of_scope'} and c.get('source_entity_validation')!='rejected']
         if not usable:continue
@@ -192,7 +222,9 @@ def build_people_package(cleaned,target,sources=None,*,limit=60000):
         for page in pages:
             for r in table_metrics(page):
                 word='流失率' if r['kind']=='turnover' else '培训|受训' if r['kind']=='training' else r'(?!)'
-                r['definitions']=[n for n in formulas if n['page'] in {page['page'],page['page']+1} and re.search(word,n['text'])]
+                r['definitions']=[n for n in formulas if n['page'] in {page['page'],page['page']+1}
+                                  and re.search(word,match_compact(n['text']))
+                                  and (r['kind']!='training' or match_compact(r['metric']) in match_compact(n['text']))]
                 if '高级管理层' in r['metric'] and any(re.search(r'不适用.*公司法',n['text']) for n in local_notes):
                     r['population_note']='公司管理架构口径，不等同第七章法定高管名单'
                 records.append((c,r))
@@ -282,7 +314,7 @@ def render_people(p):
 
 def metric_table(rows):
     return _table(['指标原名','统计期','本期值／原单位','比较期值','口径及来源'],[
-        [r['metric'],r['period'],r['value']+r['unit'],r['previous_period']+' '+(r['previous_value']+r['unit'] if r['previous_value'] not in {'/','—','-'} else '未载'),
+        [r.get('source_metric',r['metric']),r['period'],r['value']+r['unit'],r['previous_period']+' '+(r['previous_value']+r['unit'] if r['previous_value'] not in {'/','—','-'} else '未载'),
          ('同名值/公式差异待核；' if r.get('difference') else '')+r.get('population_note','公司自报；按原定义核对')+'；'+refs(r)+f"（物理页{r['page']}）"] for r in rows])
 
 
@@ -291,5 +323,5 @@ def people_errors(text,p):
     if text.strip()!=render_people(p).strip():errors.append('第八章出现未受文化与人员原始证据支持的改写')
     if not p['facts']:errors.append('第八章尚无可核对的文化与人员记录')
     allowed={e for r in p['facts'] for e in r['evidence_ids']}|{n['evidence_id'] for n in p['source_notes']}
-    if set(EID.findall(text))-allowed:errors.append('第八章存在未知证据编号')
+    if set(cited_evidence_ids(text))-allowed:errors.append('第八章存在未知证据编号')
     return errors

@@ -6,9 +6,11 @@ from datetime import date
 from urllib.parse import urlparse
 
 from .company_evidence import source_body,document_pages,pending_ocr_notice
+from .company_governance import cited_evidence_ids
 from .company_governance import EID,_filing_period,_table,compact,get,refs
 from .company_business import _cell,_prose,_clean
 from .company_history import _issuer_hosts
+from .company_text import issuer_anchor
 
 TITLE='核心管理团队风险研判'
 HEADINGS=('管理层履历与岗位配置','任职变动与时间线','产业资源及明确关联关系','管理能力与团队掌控力评估','派系斗争、人事动荡与商业腐败信号','本章待核验事项')
@@ -48,8 +50,7 @@ def issuer(source,target,hosts):
     raw=str(get(source,'content') or '')[:3000]
     # A standalone issuer heading authenticates the document, not a search
     # title or a parent's name mentioned in a subsidiary biography.
-    name=r'\s*'.join(map(re.escape,str(target).strip()))
-    return bool(re.search(r'(?m)^\s*'+name+r'\s*(?:\n|20\d{2}\s*年)',raw))
+    return issuer_anchor(raw,target)['matched']
 
 
 def roster_rows(pages,period):
@@ -419,5 +420,5 @@ def management_errors(text,p):
     if text.strip()!=render_management(p).strip():errors.append('第七章出现未受任职与履历证据支持的改写')
     if not any(r['kind'] in {'role','appointment','change'} for r in p['facts']):errors.append('第七章尚无可核对的管理团队记录')
     allowed={e for r in p['facts'] for e in r['evidence_ids']}
-    if set(EID.findall(text))-allowed:errors.append('第七章存在未知证据编号')
+    if set(cited_evidence_ids(text))-allowed:errors.append('第七章存在未知证据编号')
     return errors

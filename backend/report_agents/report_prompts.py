@@ -3,6 +3,7 @@ import re
 from typing import Any
 
 from .report_style import REFERENCE_REPORT_STYLE
+from .company_text import match_text
 
 
 GLOBAL_REPORT_RULES = """
@@ -134,6 +135,11 @@ def format_outline(outline: list[tuple[str, list[str]]]) -> str:
 
 def _company_fact_has_trusted_target_anchor(fact: dict[str, Any], target_name: str) -> bool:
     """Require the underlying source to name the company, not only an LLM summary."""
+    # Local comparison view only. Never overwrite the retained source quote
+    # or promote a rejected/related legal entity through script conversion.
+    fact = {**fact, **{key: match_text(fact.get(key)) for key in
+            ("fact", "source_title", "evidence_quote", "subject", "object", "company_name", "entity_name")}}
+    target_name = match_text(target_name)
     target_key = "".join(str(target_name or "").lower().split())
     if not target_key or fact.get("eligible_for_report") is False:
         return False
@@ -144,7 +150,7 @@ def _company_fact_has_trusted_target_anchor(fact: dict[str, Any], target_name: s
     # back to a trusted fact.  This closes the gap where a structured source
     # is marked rejected during ingestion but later admitted via the
     # ``verified_entity`` path at the bottom of this function.
-    if str(fact.get("source_entity_validation") or "").lower() == "rejected":
+    if str(fact.get("source_entity_validation") or "").lower() in {"rejected", "ambiguous", "related", "related_entity_context"}:
         return False
 
     source_title = str(fact.get("source_title") or "")
@@ -207,6 +213,10 @@ def _company_fact_has_trusted_target_anchor(fact: dict[str, Any], target_name: s
             return False
     if target_key in title_key:
         return True
+    if not structured and str(fact.get('source_entity_validation') or '').lower() == 'matched_original_issuer':
+        if (''.join(match_text(fact.get('source_issuer_name')).casefold().split()) == target_key
+                and target_key in ''.join(match_text(fact.get('source_issuer_quote')).casefold().split())):
+            return True
     query_echo_markers = (
         "用户查询", "查询关注", "针对用户", "与查询", "相关性", "检索关键词",
         "userquery", "searchquery", "queryfocus", "doesnotdirectlyinvolve",
@@ -220,10 +230,10 @@ def _company_fact_has_trusted_target_anchor(fact: dict[str, Any], target_name: s
 
 def infer_company_fact_tags(fact: dict[str, Any]) -> set[str]:
     """Infer stable report tags; keywords rank evidence but do not gate it."""
-    blob = " ".join(str(fact.get(key) or "") for key in (
+    blob = match_text(" ".join(str(fact.get(key) or "") for key in (
         "fact", "category", "module", "claim_type", "fact_type", "source_title",
         "provider", "evidence_quote",
-    )).lower()
+    ))).lower()
     tags = {str(item).strip().lower() for item in (fact.get("fact_tags") or []) if str(item).strip()}
     rules = {
         "business_registration": ("工商", "注册资本", "法定代表人", "统一社会信用", "成立", "经营范围", "登记状态"),

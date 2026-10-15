@@ -612,7 +612,7 @@ class ResearchWorkflow:
         cleaning_pipeline_version = (
             "person-evidence-v10-anchor-quarantine"
             if standardized_type == "person"
-            else "company-evidence-v9-page-ocr-coverage"
+            else "company-evidence-v10-original-issuer-script-matching"
             if standardized_type == "company"
             else "industry-evidence-v1-scoped"
             if standardized_type == "industry"
@@ -625,7 +625,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v27-professional-platform-coverage",
+            "company": "company-report-evidence-v28-script-and-single-year-metrics",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -6873,6 +6873,22 @@ class ResearchWorkflow:
         """Attach durable IDs and a report-use boundary to every fact card."""
         target_type = str(getattr(project, "target_type", "") or "").lower()
         target = str(getattr(project, "target_name", "") or "")
+        original_issuers = {}
+        issuer_conflicts = set()
+        if target_type == 'company':
+            from report_agents.company_evidence import source_body
+            from report_agents.company_management import issuer
+            from report_agents.company_history import _issuer_hosts
+            from report_agents.company_text import issuer_anchor
+            from report_agents.company_governance import get as company_get
+            sources = list(getattr(project, 'sources', []) or [])
+            hosts = _issuer_hosts(sources, target)
+            for source in sources:
+                if source_body(source)[1] == 'discovery_summary':continue
+                anchor=issuer_anchor(company_get(source,'content',''),target)
+                url=str(company_get(source,'url',''))
+                if anchor.get('conflicting_heading'):issuer_conflicts.add(url)
+                elif issuer(source,target,hosts):original_issuers[url] = anchor
         annotated: list[dict[str, Any]] = []
         for fact in facts:
             if not isinstance(fact, dict):
@@ -6883,6 +6899,19 @@ class ResearchWorkflow:
                 str(item.get("source_title") or ""),
             ))
             if target_type == "company":
+                # Identity comes from the retrieved original, never from an
+                # extractor-invented issuer field or search title alone.
+                item.pop('source_issuer_name', None)
+                item.pop('source_issuer_quote', None)
+                if (str(item.get('source_url') or '') in issuer_conflicts
+                        and item.get('source_entity_validation')!='rejected'):
+                    item['source_entity_validation']='related_entity_context'
+                anchor = original_issuers.get(str(item.get('source_url') or ''))
+                if (anchor and item.get('eligible_for_report') is not False
+                        and item.get('source_entity_validation') not in {'rejected','ambiguous','related_entity_context'}
+                        and item.get('entity_match') not in {'mismatch','ambiguous','out_of_scope'}):
+                    item.update(source_issuer_name=anchor['issuer_name'],source_issuer_quote=anchor['evidence_quote'],
+                                source_entity_validation='matched_original_issuer')
                 scope = classify_company_fact_scope(item, target)
                 item["evidence_scope"] = scope
                 # A context item is retained for the industry chapter but never

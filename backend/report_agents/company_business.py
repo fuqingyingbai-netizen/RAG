@@ -6,6 +6,7 @@ from decimal import Decimal
 from urllib.parse import urlparse
 
 from .company_evidence import source_body,document_pages,pending_ocr_notice
+from .company_governance import cited_evidence_ids
 from .company_governance import EID,_table,_filing_period,_period_rank,_primary_filing,compact,get,refs
 from .company_history import _issuer_hosts
 
@@ -432,6 +433,6 @@ def business_errors(text,package):
     errors=[]
     if text.strip()!=render_business(package).strip():errors.append('第六章出现未受原始业务数据支持的改写')
     allowed={eid for r in package['facts'] for eid in r['evidence_ids']}
-    if set(EID.findall(text))-allowed:errors.append('第六章存在未知证据编号')
+    if set(cited_evidence_ids(text))-allowed:errors.append('第六章存在未知证据编号')
     if not package['facts']:errors.append('第六章没有可核对的经营数据')
     return errors

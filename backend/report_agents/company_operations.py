@@ -9,6 +9,7 @@ from collections import Counter, defaultdict
 from difflib import SequenceMatcher
 from urllib.parse import urlparse
 
+from .company_governance import cited_evidence_ids
 from .company_governance import EID, _filing_period, _period_rank, _primary_filing, _table, compact, get, refs
 from .company_history import _issuer_hosts
 from .report_prompts import _company_fact_has_trusted_target_anchor
@@ -219,6 +220,6 @@ def operations_errors(text,package):
     errors=[]
     if text.strip()!=render_operations(package).strip():errors.append('第四章出现未受已核对记录支持的改写')
     allowed={eid for r in package['facts'] for eid in r['evidence_ids']}
-    if set(EID.findall(text))-allowed:errors.append('第四章存在未知证据编号')
+    if set(cited_evidence_ids(text))-allowed:errors.append('第四章存在未知证据编号')
     if not package['facts']:errors.append('第四章没有可核对的治理及运行记录')
     return errors

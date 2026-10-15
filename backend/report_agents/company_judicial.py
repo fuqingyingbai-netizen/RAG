@@ -5,6 +5,7 @@ from collections import Counter, defaultdict
 from urllib.parse import urlparse
 
 from .company_evidence import source_body, document_pages, pending_ocr_notice
+from .company_governance import cited_evidence_ids
 from .company_governance import EID, get, refs, _table, compact
 from .company_history import _issuer_hosts
 from .company_management import issuer
@@ -315,5 +316,5 @@ def judicial_errors(text,p):
     if text.strip()!=render_judicial(p).strip():errors.append('第九章存在未受原始司法证据支持的改写')
     if not p['facts']:errors.append('第九章尚无可核对记录')
     allowed={r['evidence_id'] for key in ('facts','source_notes','coverage') for r in p[key]}
-    if set(EID.findall(text))-allowed:errors.append('第九章存在未知证据编号')
+    if set(cited_evidence_ids(text))-allowed:errors.append('第九章存在未知证据编号')
     return errors

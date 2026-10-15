@@ -11,11 +11,19 @@ from typing import Any
 from urllib.parse import urlparse
 
 from .report_prompts import _company_fact_has_trusted_target_anchor
+from .company_text import match_compact
 
 TITLE = "主体工商基本信息核查股东关系与治理底盘"
 HEADINGS = ("主体工商信息表", "股权与治理信息表", "股东/实控人/关联方关系网图", "治理底盘判断")
 VERSION = "company-governance-v1"
 EID = re.compile(r"E-[A-Z0-9-]{6,}", re.I)
+
+
+def cited_evidence_ids(text):
+    """Citation syntax, not words such as E-learning in a literal quote."""
+    return re.findall(r'\[('+EID.pattern+r')\]',str(text or ''),re.I)
+
+
 MISSING = {"", "-", "--", "待查", "待核验", "暂无", "暂无数据", "未披露", "null", "none", "n/a"}
 ALIASES = {
     "企业名称": ("企业名称", "公司名称", "主体名称", "companyName", "company_name", "Name", "name"),
@@ -138,14 +146,14 @@ def _historical(text):
 def _primary_filing(source, target):
     host=(urlparse(str(get(source,'url'))).hostname or '').lower()
     official=any(host==d or host.endswith('.'+d) for d in ('szse.cn','sse.com.cn','cninfo.com.cn','hkexnews.hk'))
-    head=compact(str(get(source,'content'))[:2400])
+    head=match_compact(str(get(source,'content'))[:2400])
     # A parent's mention inside a subsidiary filing is insufficient. Require
     # the issuer's full name immediately followed by its reporting period.
-    return official and bool(re.search(re.escape(compact(target))+r'20\d{2}年(?:年度|半年度|第[一三]季度)报告',head))
+    return official and bool(re.search(re.escape(match_compact(target))+r'20\d{2}年(?:年度|半年度|第[一三]季度)报告',head))
 
 
 def _filing_period(source):
-    text=compact(str(get(source,'title'))+' '+str(get(source,'content'))[:2400])
+    text=match_compact(str(get(source,'title'))+' '+str(get(source,'content'))[:2400])
     m=re.search(r'20\d{2}年(?:半年度|年度|第一季度|第三季度)报告',text)
     return m[0] if m else ''
 
@@ -477,7 +485,7 @@ def governance_errors(text, package):
     errors=[]
     if text.strip()!=render_governance(package).strip():
         errors.append('第二章出现未由字段证据渲染的改写或丢失')
-    ids=set(EID.findall(text))
+    ids=set(cited_evidence_ids(text))
     allowed={eid for r in package['facts'] for eid in r['evidence_ids']}
     if ids-allowed:
         errors.append('第二章存在未知证据编号')

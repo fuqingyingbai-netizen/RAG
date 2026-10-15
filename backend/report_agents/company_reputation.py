@@ -6,12 +6,15 @@ from decimal import Decimal
 from urllib.parse import urlparse
 
 from .company_evidence import source_body,document_pages,pending_ocr_notice
+from .company_governance import cited_evidence_ids
 from .company_governance import EID,_table,_period_rank,compact,get,refs,_primary_filing
 from .company_history import _issuer_hosts
+from .company_management import issuer as management_issuer
+from .company_text import OriginalTextView
 
 TITLE='行业口碑、产品认可度与同业竞争地位研判'
 HEADINGS=('员工评价','竞品评价','合作方评价','行业地位','技术实力','综合软实力','同业对标')
-VERSION='company-reputation-v1'
+VERSION='company-reputation-v2-script-and-single-year-tables'
 METRICS={
  '员工满意度分数':('员工评价','分数'), '员工敬业度分数':('员工评价','分数'),
  '客户满意度':('综合软实力','%'), '接获的客户投诉数目':('综合软实力','宗'),
@@ -19,6 +22,7 @@ METRICS={
  '客户满意度调查次数':('综合软实力','次'),
  '接获关于产品及服务的投诉数':('综合软实力','个'),
  '接获关于产品及服务的投诉处理率':('综合软实力','%'),
+ '用户满意度':('综合软实力','%'), '产品及服务投诉率':('综合软实力','%'),
 }
 
 
@@ -78,30 +82,29 @@ def _research_issuer(title,aliases):
 
 def survey_table_rows(page):
     """Use explicit year headers and delimited cells, including score scales."""
-    raw=str(page.get('text') or '').replace('|',' ')
-    header=re.search(r'指标\s+单位\s+((?:20\d{2}年\s*){2,4})',raw)
-    if not header:return []
-    # PDF line wrapping can occur inside the score's parenthetical scale.
-    raw=re.sub(r'[（(][^）)]{0,40}[）)]',lambda m:re.sub(r'\s+','',m[0]),raw)
-    for metric,(_aspect,unit) in METRICS.items():
-        raw=re.sub(r'(?m)^('+re.escape(metric)+r')\s*\n\s*(\d{1,2})\s*\n\s*('+re.escape(unit)+r')',r'\1 \2 \3',raw)
-    value=r'(?:[-+]?\d[\d,]*(?:\s*\.\s*\d+)?(?:以上|以下)?(?:[（(]满分\d+分[）)])?|[/—-])'
+    view=OriginalTextView(page.get('text'))
+    raw=view.text.replace('|',' ')
+    headers=list(re.finditer(r'指标(?:名称)?\s+单位\s+((?:20\d{2}年\s*){1,4})',raw))
+    value=r'(?:[-+]?\d[\d,]*(?:\s*\.\s*\d+)?(?:以上|以下)?(?:\s*[（(]满分\s*\d+\s*分[）)])?|[/—-])'
     rows=[]
-    years=re.findall(r'20\d{2}',header[1])
-    for line in raw.splitlines():
-        next_header=re.search(r'指标\s+单位\s+((?:20\d{2}年\s*){2,4})',line)
-        if next_header:years=re.findall(r'20\d{2}',next_header[1]);continue
+    for i,header in enumerate(headers):
+        years=re.findall(r'20\d{2}',header[1])
+        if len(set(years))!=len(years):continue
+        end=headers[i+1].start() if i+1<len(headers) else len(raw)
         for metric,(aspect,unit) in METRICS.items():
             cells=r'\s+'.join('('+value+')' for _ in years)
-            m=re.fullmatch(r'\s*'+re.escape(metric)+r'\s+(?:\d{1,2}\s+)?'+re.escape(unit)+r'\s+'+cells+r'\s*',line)
-            if not m:continue
-            values=[re.sub(r'\s+','',x) for x in m.groups()];order=sorted(range(len(years)),key=lambda i:years[i])
-            prior,current=order[-2:]
-            if values[current] in {'/','—','-'}:continue
-            rows.append({'aspect':aspect,'metric':metric,'unit':unit,'value':values[current],
-                         'previous_value':values[prior],'period':years[current]+'年','previous_period':years[prior]+'年',
-                         'fact':metric+'：'+years[current]+'年'+_value(values[current],unit)+'；'+years[prior]+'年'+_value(values[prior],unit),
-                         'evidence_quote':line.strip(),'page':page['page']})
+            pattern=r'(?m)^[ \t]*(?P<metric>'+re.escape(metric)+r')\s+(?:\d{1,2}\s+)?'+re.escape(unit)+r'\s+'+cells+r'[ \t]*$'
+            for m in re.finditer(pattern,raw[header.end():end]):
+                values=[re.sub(r'\s+','',x) for x in m.groups()[1:]];order=sorted(range(len(years)),key=lambda j:years[j])
+                current=order[-1];prior=order[-2] if len(order)>1 else None
+                if values[current] in {'/','—','-'}:continue
+                label=view.quote(header.end()+m.start('metric'),header.end()+m.end('metric'))
+                fact=label+'：'+years[current]+'年'+_value(values[current],unit)
+                if prior is not None:fact+='；'+years[prior]+'年'+_value(values[prior],unit)
+                rows.append({'aspect':aspect,'metric':metric,'source_metric':label,'unit':unit,'value':values[current],
+                             'previous_value':values[prior] if prior is not None else '—','period':years[current]+'年',
+                             'previous_period':years[prior]+'年' if prior is not None else '', 'fact':fact,
+                             'evidence_quote':view.quote(header.end()+m.start(),header.end()+m.end()).strip(),'page':page['page']})
     return rows
 
 
@@ -174,16 +177,23 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000):
         extraction=meta.get('document_extraction') or {}
         counts['omitted_pdf_pages']+=int(extraction.get('omitted_pages') or 0)
         counts['low_text_pdf_pages']+=len(extraction.get('needs_ocr_pages') or [])
-        exchange=any(host==d or host.endswith('.'+d) for d in ('szse.cn','sse.com.cn','cninfo.com.cn','hkexnews.hk'))
-        named_report=bool(re.match(re.escape(compact(target))+r'20\d{2}(?:年|年度).*(?:报告|Report)',compact(title),re.I))
-        issuer=(_primary_filing(source,target) or host in hosts or (exchange and named_report)) and compact(target) in compact(raw[:6000])
+        issuer=management_issuer(source,target,hosts)
         if issuer:
             for page in document_pages(source):
+                view=OriginalTextView(page['text'])
+                method=re.search(r'(?:我们|本公司|本集团)[^。；\n]{0,25}(?:开展|组织|实施)[^。；\n]{0,30}员工(?:敬业度|满意度)调查[^。；]{0,220}[。；]',view.text)
+                if method and not re.search(r'没有|未曾|未开展|尚未',method[0]):
+                    year=re.search(r'20\d{2}',raw[:1500])
+                    chart=re.search(r'[^\n]{0,30}员工调查分数[（(]满分\d+分[）)]',view.text)
+                    quote=view.quote(method.start(),method.end())
+                    add(card,'survey_method','员工评价',quote,period=year[0]+'年' if year else '文件年度未绑定',
+                        page=page['page'],evidence_quote=quote,mode='公司披露的调查方法，非本项目独立调查',
+                        survey_scope=view.quote(chart.start(),chart.end()) if chart else '',rank=4 if chart else 2)
                 for row in survey_table_rows(page):
                     aspect=row.pop('aspect');claim=row.pop('fact')
                     note='公司披露的调查分数；不是独立访谈，分数与NPS目标不相互替代。' if aspect=='员工评价' else '公司披露指标；不能据此认定市场整体认可或无投诉。'
-                    if row['metric']=='客户满意度':
-                        foot=re.search(r'客户满意度指[^。\n]{1,100}',page['text'])
+                    if row['metric'] in {'客户满意度','用户满意度'}:
+                        foot=re.search(re.escape(row['metric'])+r'指[^。\n]{1,100}',page['text'])
                         row['definition']=foot[0] if foot else '本页未明确满意度定义'
                         note+=' '+row['definition']
                     if row['metric'].startswith('客户投诉') or row['metric']=='接获的客户投诉数目':
@@ -247,8 +257,8 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000):
         if len(values)>1:
             latest['note']+=' 同期来源数值存在差异，暂不形成比较结论。';counts['survey_conflict']+=1
             selected += [r for r in same[1:] if (r['value'],r['unit'])!=(latest['value'],latest['unit'])][:2]
-    for kind,quota in [('research_view',2),('partner_statement',2),('industry_survey',1)]:
-        selected += sorted([r for r in records if r['kind']==kind],key=lambda r:_period_rank(r['period']),reverse=True)[:quota]
+    for kind,quota in [('research_view',2),('partner_statement',2),('industry_survey',1),('survey_method',1)]:
+        selected += sorted([r for r in records if r['kind']==kind],key=lambda r:(_period_rank(r['period']),r.get('rank',0)),reverse=True)[:quota]
     benchmarks=[r for r in records if r['kind']=='benchmark']
     if benchmarks:
         best=max(benchmarks,key=lambda r:(_period_rank(r['period'])[0],int(re.search(r'—(\d+)月',r['period'])[1]),r['rank']))
@@ -287,9 +297,14 @@ def render_reputation(package):
         lines+=['### '+heading,'']
         rows=[r for r in facts if r['aspect']==heading and r['kind']!='industry_survey']
         if heading in {'员工评价','综合软实力'}:
+            methods=[r for r in rows if r['kind']=='survey_method'];rows=[r for r in rows if r['kind']=='survey']
+            for r in methods:
+                lines+=['- '+r['period']+'，'+r['mode']+'：'+r['fact']+' '+refs(r)+f"（物理页{r['page']}）"]
+                if r.get('survey_scope'):
+                    lines+=['- 原件另有“'+r['survey_scope']+'”图表；尚未可靠绑定各年图示分值，不能猜读为全体员工满意度或认定未披露调查结果。']
             if rows:
                 lines+=_table(['指标','当期值','比较期值','性质与范围','来源／页码'],[
-                    [r['metric'],r['period']+' '+_value(r['value'],r['unit']),r['previous_period']+' '+_value(r['previous_value'],r['unit']),
+                    [r.get('source_metric',r['metric']),r['period']+' '+_value(r['value'],r['unit']),r['previous_period']+' '+_value(r['previous_value'],r['unit']),
                      r['mode']+'；'+r.get('definition',''),refs(r)+f"（PDF物理页{r['page']}）"] for r in rows])
                 lines+=['','以上为公司披露的调查或服务指标，不能当作本次项目已完成的独立访谈。'+('分数和百分比、满意度和敬业度分开，不由一项总分推出各岗位一致满意。' if heading=='员工评价' else '满意度与投诉数量并列；投诉绝对量缺少客户基数，不能直接比较投诉发生率或认定质量改善。')]
                 if any('差异' in r.get('note','') for r in rows):lines+=['同期记录存在数值差异，暂不据此下比较结论。']
@@ -333,6 +348,6 @@ def reputation_errors(text,package):
     errors=[]
     if text.strip()!=render_reputation(package).strip():errors.append('第五章出现未受原文支持的改写')
     allowed={eid for r in package['facts'] for eid in r['evidence_ids']}
-    if set(EID.findall(text))-allowed:errors.append('第五章存在未知证据编号')
+    if set(cited_evidence_ids(text))-allowed:errors.append('第五章存在未知证据编号')
     if not package['facts']:errors.append('第五章没有可核对的评价及对标材料')
     return errors
