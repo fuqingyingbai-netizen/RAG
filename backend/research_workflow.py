@@ -350,6 +350,27 @@ class ResearchWorkflow:
         )
         return self._person_report_editor_model
 
+    def _invoke_company_summary(self, role: str, prompt: str, emit: TraceEmitter | None = None) -> str:
+        """One bounded request per summary attempt, with no hidden SDK retries."""
+        if not os.getenv("ARK_API_KEY") or not os.getenv("MODEL"):
+            return ""
+        repair = "修订" in role
+        try:
+            model = init_chat_model(
+                model=os.environ["MODEL"], model_provider="openai",
+                api_key=os.environ["ARK_API_KEY"], base_url=os.getenv("BASE_URL"),
+                temperature=0.1, max_tokens=2400, max_retries=0,
+                timeout=_env_int("COMPANY_SUMMARY_REPAIR_TIMEOUT_SECONDS" if repair else "COMPANY_SUMMARY_TIMEOUT_SECONDS", 45 if repair else 75, 10, 180),
+            )
+            response = model.invoke([
+                {"role": "system", "content": "只依据完整事实卡撰写中文公司摘要，保留主体、时间、数值单位和证据编号。"},
+                {"role": "user", "content": prompt},
+            ])
+            return str(response.content or "")
+        except Exception as exc:
+            _emit(emit, "llm", role, "公司摘要模型调用失败", type(exc).__name__, status="fallback")
+            return ""
+
     def _get_person_report_section_model(self):
         if self._person_report_section_model is not None:
             return self._person_report_section_model
@@ -602,7 +623,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v12-citation-index",
+            "company": "company-report-evidence-v13-checked-summary",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -1017,6 +1038,8 @@ class ResearchWorkflow:
                 {
                     "agent": "report_writer",
                     "report_pipeline_version": report_pipeline_version,
+                    **({"company_summary_diagnostic": getattr(project, "company_summary_diagnostic", {})}
+                       if standardized_type == "company" else {}),
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
                 },
@@ -2660,7 +2683,7 @@ class ResearchWorkflow:
         request_id: int = 10,
         timeout: int = 45,
     ) -> tuple[dict[str, Any], requests.Session]:
-        return self._mcp_rpc(
+        payload, active_session = self._mcp_rpc(
             url,
             headers,
             "tools/call",
@@ -2669,6 +2692,12 @@ class ResearchWorkflow:
             request_id=request_id,
             timeout=timeout,
         )
+        result = payload.get("result", payload)
+        blocks = result.get("content", []) if isinstance(result, dict) else []
+        message = "\n".join(str(item.get("text") or "") for item in blocks if isinstance(item, dict)) if isinstance(blocks, list) else ""
+        if (isinstance(result, dict) and result.get("isError")) or message.lstrip().lower().startswith("error calling tool"):
+            return {"error": {"code": "tool_execution_error", "message": message[:800] or "MCP工具执行失败"}}, active_session
+        return payload, active_session
 
     def _extract_mcp_text(self, payload: dict[str, Any]) -> str:
         if payload.get("error"):
@@ -3337,6 +3366,10 @@ class ResearchWorkflow:
                 payload, session = self._mcp_call_tool(url, {}, "get_company_info", {"firm_name": candidate, "aspect": aspect}, session=session, request_id=30 + index, timeout=timeout)
                 if payload.get("error"):
                     _emit(emit, "structured_data", "xiniu_mcp_agent", "稀牛工具调用失败", json.dumps(payload, ensure_ascii=False)[:400], status="warning")
+                    error_text = json.dumps(payload, ensure_ascii=False).lower()
+                    if any(marker in error_text for marker in ("余额不足", "配额", "quota", "insufficient", "invalid_token", "unauthorized")):
+                        _emit(emit, "structured_data", "xiniu_mcp_agent", "稀牛账号额度或权限不可用，停止本轮调用", "平台调用失败不是目标企业无记录。", status="warning")
+                        return added
                     continue
                 text = self._extract_mcp_text(payload)
                 if self._save_structured_source(db, project, "xiniu", module, f"稀牛-{aspect}-{target}", text, {"tool": "get_company_info", "aspect": aspect, "target": target, "query": candidate}, emit=emit, intake=intake):
@@ -4712,6 +4745,8 @@ class ResearchWorkflow:
                 emit(event)
 
         def report_invoke(role: str, prompt: str, trace_emit: TraceEmitter | None = None) -> str:
+            if target_type == "company" and (role.endswith("摘要 Agent") or role.endswith("摘要修订 Agent")):
+                return self._invoke_company_summary(role, prompt, emit=trace_emit)
             if target_type == "person" and role.endswith("总编 Agent"):
                 return self._invoke_person_report_editor(role, prompt, emit=trace_emit)
             if target_type == "person" and "章节 Agent" in role:
@@ -5404,6 +5439,8 @@ class ResearchWorkflow:
         if target_type != "company" and sourced_sections < min_sourced_sections:
             errors.append(f"双来源覆盖章节不足：{sourced_sections}/{expected_chapters}（最低{min_sourced_sections}）")
         if target_type == "company":
+            if getattr(project, "company_summary_diagnostic", {}).get("degraded"):
+                errors.append("第一章摘要未通过校验，原文摘录需人工复核")
             source_heading = re.search(r"(?m)^##\s*13[.、．]", report or "")
             next_heading = re.search(r"(?m)^##\s*14[.、．]", report or "")
             body_before_sources = (report or "")[:source_heading.start()] if source_heading else (report or "")

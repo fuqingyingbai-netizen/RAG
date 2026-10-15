@@ -12,6 +12,14 @@ from .report_prompts import (
     company_section_evidence_budget,
 )
 from .report_style import REFERENCE_REPORT_STYLE, REPORT_CHAPTER_HEADING_RE, ensure_delivery_sections, normalize_report_headings
+from .company_summary import (
+    build_company_summary_package,
+    build_company_summary_prompt,
+    fallback_company_summary,
+    normalize_company_summary,
+    package_fingerprint,
+    summary_errors,
+)
 
 
 COMPANY_REPORT_OUTLINE = [
@@ -191,7 +199,12 @@ class CompanyReportAgent:
         all_used_urls: set[str] = set()
         for index, (section_title, requirements) in enumerate(self.outline, 1):
             package_payload: dict[str, Any]
-            if index <= 12:
+            if index == 1:
+                # The summary is assembled after substantive chapters. Its
+                # cards are selected and budgeted independently below.
+                package_payload = {"facts": []}
+                section_evidence_ids[1] = []
+            elif index <= 12:
                 package = _focused_cleaned_json(
                     cleaned_json,
                     section_title,
@@ -260,7 +273,7 @@ class CompanyReportAgent:
         with ThreadPoolExecutor(max_workers=min(workers, len(self.outline))) as executor:
             futures = {}
             for index, (section_title, requirements) in enumerate(self.outline, 1):
-                if index in {13, 14}:
+                if index in {1, 13, 14}:
                     continue
                 fact_count = len(json.loads(section_packages[index]).get("facts", []))
                 if index <= 12 and fact_count == 0:
@@ -297,6 +310,10 @@ class CompanyReportAgent:
                     section = f"## {index}. {section_title}\n\n待核验。本章节需要后续补充核验：{'; '.join(requirements)}。"
                 if section.strip():
                     sections_by_index[index] = section
+        summary = self._write_summary(project, cleaned_json, sections_by_index, invoke, emit, trace_emit)
+        sections_by_index[1] = summary
+        # Only IDs actually cited in the checked summary count as its usage.
+        section_evidence_ids[1] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", summary, flags=re.I)))
         sections = [sections_by_index[index] for index in range(1, len(self.outline) + 1) if sections_by_index.get(index)]
         draft = "\n\n".join(sections)
         if not draft.strip():
@@ -311,10 +328,72 @@ class CompanyReportAgent:
         else:
             final = draft
         final = self._lock_standard_outline(final, sections_by_index)
+        # A later wording editor cannot silently replace a checked summary
+        # with a fresh, ungrounded set of claims.
+        final = re.sub(r"(?ms)^##\s*1[.、．][^\n]*\n.*?(?=^##\s*2[.、．]|\Z)", summary + "\n\n", final, count=1)
         final = self._ensure_section_evidence_markers(final, section_evidence_ids)
         final = ensure_delivery_sections(project, final, self.report_kind)
         emit(trace_emit, "report", self.trace_agent, "目标公司桌面研究报告完成", f"chars={len(final)}", chars=len(final), status="done")
         return final
+
+    def _write_summary(self, project: Any, cleaned_json: str, completed_sections: dict[int, str], invoke, emit, trace_emit=None) -> str:
+        try:
+            cleaned = json.loads(cleaned_json or "{}")
+        except (TypeError, ValueError):
+            cleaned = {}
+        if not isinstance(cleaned, dict):
+            cleaned = {}
+        package = build_company_summary_package(cleaned, str(project.target_name or ""), list(getattr(project, "sources", []) or []))
+        diagnostic = {
+            "version": "company-summary-v1",
+            "package_fingerprint": package_fingerprint(package),
+            "delivered_evidence_ids": sorted({fact["evidence_id"] for fact in package["facts"]}),
+            "delivered_cards": len(package["facts"]),
+            "package_chars": len(json.dumps(package, ensure_ascii=False)),
+            "selection": package.get("selection_diagnostic", {}),
+            "repair_attempted": False, "degraded": False, "errors": [],
+        }
+        project.company_summary_diagnostic = diagnostic
+        emit(trace_emit, "report", self.trace_agent, "公司摘要完整证据包已准备", json.dumps(diagnostic, ensure_ascii=False), status="done")
+        if not package["facts"]:
+            diagnostic.update(degraded=True, errors=["没有主体匹配的摘要证据"])
+            return fallback_company_summary(project, package)
+        prompt = build_company_summary_prompt(project, package, completed_sections)
+        answer = ""
+        try:
+            answer = normalize_company_summary(invoke(f"{self.report_kind}摘要 Agent", prompt, trace_emit))
+            errors = summary_errors(answer, package)
+            if errors:
+                diagnostic["repair_attempted"] = True
+                diagnostic["errors"] = errors
+                # The previous draft locates the exact failing claim. It is
+                # explicitly not evidence; all corrections still use the same
+                # complete cards and undergo the identical validator.
+                repair = (
+                    prompt
+                    + "\n待修订草稿（不是证据；其中与事实卡不符的内容必须删除或按事实卡纠正）：\n"
+                    + answer
+                    + "\n校验错误如下，请逐项修正；已正确的事实不要重写为其他判断。仍返回上述五键JSON：\n"
+                    + "\n".join(errors)
+                )
+                answer = normalize_company_summary(invoke(f"{self.report_kind}摘要修订 Agent", repair, trace_emit))
+                errors = summary_errors(answer, package)
+        except Exception as exc:
+            errors = [f"摘要模型调用失败：{type(exc).__name__}"]
+        diagnostic["errors"] = errors
+        if errors:
+            diagnostic["model_errors"] = errors
+            diagnostic["rebuilt_from_evidence"] = True
+            rebuilt = fallback_company_summary(project, package)
+            rebuilt_errors = summary_errors(rebuilt, package)
+            diagnostic["errors"] = rebuilt_errors
+            diagnostic["degraded"] = bool(rebuilt_errors)
+            diagnostic["cited_evidence_ids"] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", rebuilt, flags=re.I)))
+            emit(trace_emit, "report", self.trace_agent, "公司摘要已按原文事实重建", "模型草稿越界；" + "；".join(errors), status="fallback")
+            return rebuilt
+        diagnostic["cited_evidence_ids"] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", answer, flags=re.I)))
+        emit(trace_emit, "report", self.trace_agent, "公司摘要完成且通过结构与引用校验", f"chars={len(answer)}, delivered_cards={len(package['facts'])}", status="done")
+        return answer
 
     def _write_section(self, project: Any, cleaned_json: str, risk_json: str, index: int, section_title: str, requirements: list[str], invoke: Callable[[str, str, Any], str], clip: Callable[[str, int], str], emit: Callable[..., None], trace_emit: Any) -> str:
         emit(trace_emit, "report", self.trace_agent, "章节写作启动", f"{index}/{len(self.outline)} {section_title}", section=section_title, status="running")
@@ -418,7 +497,7 @@ class CompanyReportAgent:
             section = report[match.start():end].rstrip()
             index = int(match.group(1))
             expected = [value for value in section_evidence_ids.get(index, []) if value]
-            if 1 <= index <= 12 and not expected:
+            if 2 <= index <= 12 and not expected:
                 section = (
                     report[match.start():match.end()]
                     + "\n\n本次已检索公开来源未形成可引用记录；相关核验事项见第14章。"
