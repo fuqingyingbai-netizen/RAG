@@ -5,6 +5,8 @@ from types import SimpleNamespace
 
 import re
 
+import pytest
+
 from docx_exporter import markdown_to_docx_bytes
 from report_agents.report_prompts import (
     _focused_cleaned_json,
@@ -179,10 +181,12 @@ def test_person_report_gets_deterministic_audit_index_from_fact_library():
         json.dumps({"facts": facts}, ensure_ascii=False),
     )
 
-    assert "## 审计引用索引（自动生成）" in report
-    assert "E-" in report
-    assert "https://evidence.example.com/1" in report
-    assert "已纳入本报告章节证据包的唯一来源：" in report
+    assert "## 14. 信息来源（自动生成审计索引）" in report
+    assert "| 证据编号 | 来源标题 | 信源等级/类型 | 支持章节 |" in report
+    links = re.findall(r"\[(E-[A-F0-9]+)\]\((https://evidence\.example\.com/\d+)\)", report)
+    assert {url for _evidence_id, url in links} == {fact["source_url"] for fact in facts}
+    assert len({evidence_id for evidence_id, _url in links}) == len(facts)
+    assert "已纳入章节证据包的唯一来源：60 / 清洗事实库可追溯来源：60" in report
 
 
 def test_industry_scope_is_safe_for_non_expert_input():
@@ -292,23 +296,30 @@ def test_low_confidence_same_name_fact_stays_out_of_person_report_package():
 
 
 def test_report_evidence_packages_keep_person_company_and_industry_match_rules_separate():
+    # Use relevant, source-anchored evidence so a zero chapter-relevance score
+    # cannot hide whether the three report-type boundaries work independently.
+    direct_fact = {
+        "fact": "目标人物在目标公司任职，参与业务管理。",
+        "source_title": "目标公司公开业务与任职记录",
+        "evidence_quote": "目标人物在目标公司任职，参与业务管理。",
+    }
     facts = [
         {
-            "fact": "可审计事实。",
+            **direct_fact,
             "source_url": "https://example.com/person",
             "identity_match": "mismatch",
             "entity_match": "confirmed",
             "scope_match": "in_scope",
         },
         {
-            "fact": "可审计事实。",
+            **direct_fact,
             "source_url": "https://example.com/company",
             "identity_match": "confirmed",
             "entity_match": "mismatch",
             "scope_match": "in_scope",
         },
         {
-            "fact": "可审计事实。",
+            **direct_fact,
             "source_url": "https://example.com/industry",
             "identity_match": "confirmed",
             "entity_match": "confirmed",
@@ -323,8 +334,19 @@ def test_report_evidence_packages_keep_person_company_and_industry_match_rules_s
     industry = json.loads(_focused_cleaned_json(industry_payload, "摘要", [], "目标行业", "industry"))["facts"]
 
     assert {item["source_url"] for item in person} == {"https://example.com/company", "https://example.com/industry"}
-    assert {item["source_url"] for item in company} == set()
+    assert {item["source_url"] for item in company} == {"https://example.com/person", "https://example.com/industry"}
     assert {item["source_url"] for item in industry} == {"https://example.com/person", "https://example.com/company"}
+
+
+def test_person_report_package_keeps_irrelevant_facts_out_despite_confirmed_identity():
+    facts = [
+        {"fact": "目标人物的教育与任职履历记录。", "source_url": "https://records.test/person", "identity_match": "confirmed"},
+        {"fact": "其他主体的一般记录。", "source_url": "https://records.test/unrelated", "identity_match": "confirmed"},
+    ]
+    selected = json.loads(_focused_cleaned_json(
+        json.dumps({"facts": facts}, ensure_ascii=False), "履历", ["教育"], "目标人物", "person",
+    ))["facts"]
+    assert {item["source_url"] for item in selected} == {"https://records.test/person"}
 
 
 def test_company_package_rejects_query_echo_and_keeps_source_title_anchor():
@@ -467,7 +489,8 @@ def test_company_relationship_graph_does_not_repeat_equity_shareholders():
     assert all("股东/投资方" not in relation for _name, relation, _note in relationship_nodes)
 
 
-def test_professional_fields_are_extracted_without_llm_and_keep_person_boundary():
+@pytest.mark.parametrize("source_state", ["matched", "missing_anchor", "different_company", "rejected"])
+def test_professional_fields_are_extracted_without_llm_and_keep_person_boundary(source_state):
     workflow = ResearchWorkflow.__new__(ResearchWorkflow)
     source = _source(
         1,
@@ -476,6 +499,7 @@ def test_professional_fields_are_extracted_without_llm_and_keep_person_boundary(
             "provider": "qcc",
             "content_kind": "structured_data",
             "target": "蚂蚁集团",
+            "canonical_company_name": "蚂蚁科技集团股份有限公司",
             "person_affiliation": {
                 "person_name": "马云",
                 "affiliation_name": "蚂蚁集团",
@@ -484,14 +508,30 @@ def test_professional_fields_are_extracted_without_llm_and_keep_person_boundary(
         },
     )
     source.url = "structured://qcc/company/ant"
-    source.content = "统一社会信用代码：91110108MA01234567\n法定代表人：张三\n注册资本：100万元"
+    source.content = "企业名称：蚂蚁科技集团股份有限公司\n统一社会信用代码：91110108MA01234567\n法定代表人：张三\n注册资本：100万元"
+    if source_state == "missing_anchor":
+        source.source_metadata.pop("canonical_company_name")
+    elif source_state == "different_company":
+        source.content = source.content.replace("企业名称：蚂蚁科技集团股份有限公司", "企业名称：其他科技有限公司")
+    elif source_state == "rejected":
+        source.source_metadata["entity_validation"] = "rejected"
     project = _project([source], target_type="person")
     project.target_name = "马云"
 
     facts = workflow._extract_professional_structured_facts([source], project)
 
-    assert {item["field"] for item in facts} >= {"统一社会信用代码", "法定代表人", "注册资本"}
+    if source_state != "matched":
+        assert facts == []
+        return
+
+    assert {item["field"]: item["value"] for item in facts} == {
+        "企业名称": "蚂蚁科技集团股份有限公司",
+        "统一社会信用代码": "91110108MA01234567",
+        "法定代表人": "张三",
+        "注册资本": "100万元",
+    }
     assert all(item["category"] == "person_affiliation_structured" for item in facts)
+    assert all(item["subject"] == "蚂蚁科技集团股份有限公司" for item in facts)
     assert all(item["eligible_for_risk_scoring"] is False for item in facts)
     assert all("\u4e0d\u5f97\u5f52\u56e0\u4e3a\u76ee\u6807\u4eba\u7269" in item["attribution_boundary"] for item in facts)
 
@@ -657,9 +697,7 @@ def test_company_audit_index_keeps_stable_id_and_clickable_original_url():
     assert "https://example.com/target-record" in result
 
 
-def test_company_quality_gate_accepts_sparse_but_fully_traceable_fourteen_chapter_report():
-    workflow = ResearchWorkflow.__new__(ResearchWorkflow)
-    project = _project([], target_type="company")
+def _sparse_traceable_company_report(source_url):
     titles = __import__("report_agents.company_report_agent", fromlist=["COMPANY_REPORT_OUTLINE"]).COMPANY_REPORT_OUTLINE
     evidence_id = "E-ABC123DEF456"
     chapters = []
@@ -670,7 +708,7 @@ def test_company_quality_gate_accepts_sparse_but_fully_traceable_fourteen_chapte
             body = (
                 "| 证据编号 | 支持章节 | 来源与关键摘要 | 台账定位 |\n"
                 "| --- | --- | --- | --- |\n"
-                f"| {evidence_id} | 第 2 章 | 官方工商记录 | 原始链接 → https://example.com/company |\n\n"
+                f"| {evidence_id} | 第 2 章 | 官方工商记录 | 原始链接 → {source_url} |\n\n"
                 "> 已纳入章节证据包的唯一来源：1 / 清洗事实库可追溯来源：1。目标主体匹配可用来源：1。"
             )
         elif index == 14:
@@ -679,7 +717,25 @@ def test_company_quality_gate_accepts_sparse_but_fully_traceable_fourteen_chapte
             body = "本次已检索公开来源未形成可引用记录；相关核验事项见第14章。"
         chapters.append(f"## {index}. {title}\n\n{body}")
 
-    workflow._validate_delivery_report(project, "\n\n".join(chapters))
+    return "\n\n".join(chapters)
+
+
+def test_company_quality_gate_accepts_sparse_but_fully_traceable_fourteen_chapter_report():
+    workflow = ResearchWorkflow.__new__(ResearchWorkflow)
+    project = _project([], target_type="company")
+    # Reserved .test domain: no external request and no placeholder accepted by
+    # relaxing the real report quality gate.
+    workflow._validate_delivery_report(project, _sparse_traceable_company_report("https://registry.test/company"))
+
+
+@pytest.mark.parametrize("source_url", [
+    "https://example.com/company", "https://www.example.org/company", "https://example.net/company",
+])
+def test_company_quality_gate_rejects_placeholder_source_urls(source_url):
+    workflow = ResearchWorkflow.__new__(ResearchWorkflow)
+    project = _project([], target_type="company")
+    with pytest.raises(RuntimeError, match="正文含示例占位链接"):
+        workflow._validate_delivery_report(project, _sparse_traceable_company_report(source_url))
 
 
 def test_company_audit_index_keeps_structured_business_evidence_referenced_by_body():
@@ -780,7 +836,9 @@ def test_report_placeholder_urls_are_removed_before_export():
     cleaned = workflow._normalize_report_placeholders(report)
 
     assert "example.com" not in cleaned
-    assert "占位链接已移除" in cleaned
+    assert "图谱证据：" in cleaned
+    assert "真实来源" in cleaned
+    assert workflow._normalize_report_placeholders(cleaned) == cleaned
 
 
 def test_company_agent_does_not_call_model_for_empty_evidence_chapters():
