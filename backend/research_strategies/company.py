@@ -36,6 +36,9 @@ class CompanyResearchStrategy(BaseResearchStrategy):
         ("核心管理团队（深度/基础）风险研判", '"{target}" 董事 高级管理人员 任职状态 任期 履历 兼职'),
         ("核心管理团队（深度/基础）风险研判", '"{target}" 董事会换届 股东会表决结果 候选人 当选 聘任 辞任'),
         ("核心管理团队（深度/基础）风险研判", '"{target}" 高管 亲属关系 关联关系 纪律处分 调查 事件日期'),
+        ("企业文化及人员流失情况", '"{target}" 可持续发展报告 ESG 员工总数 员工流失率 计算公式'),
+        ("企业文化及人员流失情况", '"{target}" 企业文化 员工沟通 培训 晋升 人才梯队 具体实践'),
+        ("企业文化及人员流失情况", '"{target}" 研发 销售 技术 关键岗位 流失 离职 继任计划'),
         ("企业司法负面核查", "{target} 诉讼 裁判文书 行政处罚"),
         ("诉讼/制裁", "{target} 被执行人 失信 限制高消费 制裁 黑名单"),
         ("技术实力", "{target} 专利 知识产权 商标 软著"),
@@ -51,6 +54,7 @@ class CompanyResearchStrategy(BaseResearchStrategy):
         {"module": "上市披露", "query": '"{target}" 年报 招股书 公告 股东', "domains": ["cninfo.com.cn", "sse.com.cn", "szse.cn", "hkexnews.hk", "sec.gov"], "exa_category": "financial report", "min_sources": 2},
         {"module": "主营业务真实经营情况核验", "query": '"{target}" 年度报告 半年度报告 分产品收入 产销 研发进展', "domains": ["cninfo.com.cn", "sse.com.cn", "szse.cn", "hkexnews.hk"], "min_sources": 2},
         {"module": "核心管理团队（深度/基础）风险研判", "query": '"{target}" 董事 高级管理人员 任职 变动 换届 表决结果', "domains": ["cninfo.com.cn", "sse.com.cn", "szse.cn", "hkexnews.hk"], "min_sources": 2},
+        {"module": "企业文化及人员流失情况", "query": '"{target}" 可持续发展报告 员工流失率 培训指标 脚注 统计范围', "domains": ["cninfo.com.cn", "sse.com.cn", "szse.cn", "hkexnews.hk"], "min_sources": 2},
         {"module": "金融监管", "query": '"{target}" 监管 处罚', "domains": ["csrc.gov.cn", "pbc.gov.cn", "nfra.gov.cn"], "min_sources": 2},
         {"module": "技术实力", "query": '"{target}" 专利 商标', "domains": ["cnipa.gov.cn"], "min_sources": 1},
     ]
