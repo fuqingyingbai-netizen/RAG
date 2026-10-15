@@ -623,7 +623,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v23-source-bound-risk-register",
+            "company": "company-report-evidence-v24-reproducible-company-assessment",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -1082,6 +1082,9 @@ class ResearchWorkflow:
                        if standardized_type == "company" else {}),
                     **({"company_risk_register_diagnostic": getattr(project, "company_risk_register_diagnostic", {}),
                         "company_risk_register_evidence": getattr(project, "company_risk_register_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_assessment_diagnostic": getattr(project, "company_assessment_diagnostic", {}),
+                        "company_assessment_evidence": getattr(project, "company_assessment_package", {})}
                        if standardized_type == "company" else {}),
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
@@ -3490,8 +3493,10 @@ class ResearchWorkflow:
         discovered_company_recalls: set[str] = set()
         if str(intake.get("target_type") or "").lower() == "company":
             from report_agents.company_risk_register import recall_discovery_queries
+            from report_agents.company_assessment import assessment_discovery_queries
             expanded_query_items = recall_discovery_queries(list(project.sources or []),
-                str(intake.get("target_name") or project.target_name or ""), discovered_company_recalls) + expanded_query_items
+                str(intake.get("target_name") or project.target_name or ""), discovered_company_recalls) + assessment_discovery_queries(
+                str(intake.get("target_name") or project.target_name or "")) + expanded_query_items
         person_mode = str(intake.get("target_type") or "").lower() == "person"
         authority_queries = [item for item in expanded_query_items if item.get("search_tier") == "authority_first"]
         pending_open_web_queries = [item for item in expanded_query_items if item.get("search_tier") != "authority_first"] if authority_queries else []
@@ -4875,6 +4880,12 @@ class ResearchWorkflow:
         target_type = (intake or {}).get("target_type") or self._standardize_target_type(project, intake or {})
         if target_type == "company":
             project.company_research_intake = dict(intake or {})
+            # A template fallback after a writer failure must not inherit
+            # successful diagnostics from an earlier generation attempt.
+            project.company_verified_chapters_required = True
+            for chapter_key in ("summary", "governance", "history", "operations", "reputation", "business",
+                                "management", "people", "judicial", "diligence", "risk_register", "assessment"):
+                setattr(project, f"company_{chapter_key}_diagnostic", {})
         if target_type == "industry":
             # Transient generation context: no schema migration is required and
             # all downstream agents can read the same normalized scope.
@@ -5457,6 +5468,10 @@ class ResearchWorkflow:
         for record in getattr(project, "company_risk_register_package", {}).get("facts", []):
             for evidence_id in record.get("evidence_ids", []):
                 risk_register_by_id[evidence_id.upper()].append(record)
+        assessment_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_assessment_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                assessment_by_id[evidence_id.upper()].append(record)
         facts_by_id: dict[str, dict[str, Any]] = {}
         for item in facts:
             url = str(item.get("source_url") or "").rstrip("/")
@@ -5475,6 +5490,8 @@ class ResearchWorkflow:
         for evidence_id, records in risk_register_by_id.items():
             # Original-document recovery can supply an event the cleaner
             # omitted altogether. Its source-bound locator must still resolve.
+            facts_by_id.setdefault(evidence_id, records[0])
+        for evidence_id, records in assessment_by_id.items():
             facts_by_id.setdefault(evidence_id, records[0])
 
         chapters_by_id: dict[str, set[int]] = {}
@@ -5503,7 +5520,8 @@ class ResearchWorkflow:
                         or (chapter == 8 and canonical in people_by_id)
                         or (chapter == 9 and canonical in judicial_by_id)
                         or (chapter == 10 and canonical in diligence_by_id)
-                        or (chapter == 11 and canonical in risk_register_by_id)):
+                        or (chapter == 11 and canonical in risk_register_by_id)
+                        or (chapter == 12 and canonical in assessment_by_id)):
                     chapters_by_id.setdefault(canonical, set()).add(chapter)
                 elif canonical not in chapters_by_id:
                     # Keep the citation visible in chapter 13 even when it is
@@ -5533,14 +5551,14 @@ class ResearchWorkflow:
             chapters_by_id[evidence_id] = {0}
         for evidence_id, chapters in sorted(chapters_by_id.items(), key=lambda value: (min(value[1]), value[0])):
             item = facts_by_id.get(evidence_id, {})
-            if any(evidence_id in mapping for mapping in (governance_by_id, history_by_id, operations_by_id, reputation_by_id, business_by_id, management_by_id, people_by_id, judicial_by_id, diligence_by_id, risk_register_by_id)):
+            if any(evidence_id in mapping for mapping in (governance_by_id, history_by_id, operations_by_id, reputation_by_id, business_by_id, management_by_id, people_by_id, judicial_by_id, diligence_by_id, risk_register_by_id, assessment_by_id)):
                 # A page-level industry/related classification may have hidden
                 # a literal issuer declaration recovered for chapter 2. Keep
                 # the source ID, and show the actual field-level claim used.
                 admitted = (governance_by_id.get(evidence_id, []) + history_by_id.get(evidence_id, [])
-                            + operations_by_id.get(evidence_id, []) + reputation_by_id.get(evidence_id, []) + business_by_id.get(evidence_id, []) + management_by_id.get(evidence_id, []) + people_by_id.get(evidence_id, []) + judicial_by_id.get(evidence_id, []) + diligence_by_id.get(evidence_id, []) + risk_register_by_id.get(evidence_id, []))
+                            + operations_by_id.get(evidence_id, []) + reputation_by_id.get(evidence_id, []) + business_by_id.get(evidence_id, []) + management_by_id.get(evidence_id, []) + people_by_id.get(evidence_id, []) + judicial_by_id.get(evidence_id, []) + diligence_by_id.get(evidence_id, []) + risk_register_by_id.get(evidence_id, []) + assessment_by_id.get(evidence_id, []))
                 labels = [label for label, mapping in [("第二章", governance_by_id), ("第三章", history_by_id),
-                                                       ("第四章", operations_by_id), ("第五章", reputation_by_id), ("第六章", business_by_id), ("第七章", management_by_id), ("第八章", people_by_id), ("第九章", judicial_by_id), ("第十章", diligence_by_id), ("第十一章", risk_register_by_id)] if evidence_id in mapping]
+                                                       ("第四章", operations_by_id), ("第五章", reputation_by_id), ("第六章", business_by_id), ("第七章", management_by_id), ("第八章", people_by_id), ("第九章", judicial_by_id), ("第十章", diligence_by_id), ("第十一章", risk_register_by_id), ("第十二章", assessment_by_id)] if evidence_id in mapping]
                 label = "／".join(labels) + "原文核对："
                 item = {**item, "source_url": admitted[0]["source_url"],
                         "source_title": admitted[0]["source_title"],
@@ -5695,6 +5713,14 @@ class ResearchWorkflow:
                 errors.append("第十章专项核查未形成具体可追溯对象，需人工复核")
             if getattr(project, "company_risk_register_diagnostic", {}).get("degraded"):
                 errors.append("第十一章风险事项或75项核查目录未通过核对，需人工复核")
+            if getattr(project, "company_assessment_diagnostic", {}).get("degraded"):
+                errors.append("第十二章综合评价或评分计算未通过核对，需人工复核")
+            if getattr(project, "company_verified_chapters_required", False):
+                for number, key in enumerate(("summary", "governance", "history", "operations", "reputation", "business",
+                                             "management", "people", "judicial", "diligence", "risk_register", "assessment"), 1):
+                    diagnostic = getattr(project, f"company_{key}_diagnostic", {})
+                    if not diagnostic or "degraded" not in diagnostic:
+                        errors.append(f"第{number}章缺少本轮原件核对结果，降级模板不能代替验收")
             source_heading = re.search(r"(?m)^##\s*13[.、．]", report or "")
             next_heading = re.search(r"(?m)^##\s*14[.、．]", report or "")
             body_before_sources = (report or "")[:source_heading.start()] if source_heading else (report or "")

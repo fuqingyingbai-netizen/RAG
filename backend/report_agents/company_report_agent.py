@@ -30,6 +30,7 @@ from .company_people import build_people_package, render_people, people_errors
 from .company_judicial import build_judicial_package, render_judicial, judicial_errors
 from .company_diligence import build_diligence_package, render_diligence, diligence_errors
 from .company_risk_register import build_risk_register, dictionary as risk_dictionary, render_risk_register, risk_register_errors
+from .company_assessment import build_assessment_package, render_assessment, assessment_errors
 
 
 COMPANY_REPORT_OUTLINE = [
@@ -44,7 +45,7 @@ COMPANY_REPORT_OUTLINE = [
     ("企业司法负面核查", ["核心事实汇总", "风险事项分类核查表", "视觉证据/图谱证据", "结论与行动建议"]),
     ("定向穿透专项尽职调查", ["融资情况", "资金使用合规性", "战略布局", "业务真实性", "大额资金往来", "客户指定专项", "技术/供应商/资金往来穿透"]),
     ("风险核查", ["组织与管理风险", "业务与运营风险", "行业特殊风险", "具体事项与有边界的判断", "75项核查目录及扩展事项"]),
-    ("综合评价", ["整体评级", "分项评分表", "核心优势", "核心扣分项", "关键判断", "投资推进建议"]),
+    ("综合评价", ["综合判断与评分口径", "分项评价与原件依据", "经营变化、优势与制约", "历史资本事项状态", "具体风险与推进条件", "显式评分锚点"]),
     ("信息来源", ["信息点", "来源标题", "URL", "可信度", "支持章节"]),
     ("后续研究建议", ["待确认信息点（集中式缺口清单）", "下一步深度研究方向与优先级排序", "关键行动提示"]),
 ]
@@ -131,7 +132,7 @@ COMPANY_SECTION_STRUCTURES = {
 目标公司报告专属章节输出骨架：
 ## 12. 综合评价
 
-综合上述研究内容，对目标公司进行总结打分。建议结构：整体评级、分项评分表、核心优势、核心扣分项、关键判断、投资推进建议。
+综合已核研究内容评价公司。公司表现分与证据可靠程度、风险严重程度分别列示；分项锚点、固定权重、原件事实与计算路径可追溯。不按证据覆盖度给企业质量分，不编造信用等级；缺项不填默认分、不剔除后假装完整均分。历史IPO/融资、名义持股、技术宣传与当前结果分别核对。
 """,
     13: """
 目标公司报告专属章节输出骨架：
@@ -166,7 +167,7 @@ COMPANY_SECTION_FEW_SHOTS = {
     9: "表达参考：依具体主体、案号、角色、程序、金额和原件列示核查结果；接口计数、零命中、公司自报及专项法律意见各有覆盖范围，不套用示例中的全部结案、无重大影响或无上市风险结论。",
     12: """
 综合评价 few-shot 表达锚点：
-可对公司、团队、产品、商业化、融资能力、治理规范性分别评分。写清优势、风险、关键判断和推进建议；不要把创始人个人评价替代公司整体评价，但可将核心团队作为评分维度。
+按已取得的具体结果及明确锚点评价公司表现，写清优势、制约及下一阶段判断条件；公司分、证据可靠程度和风险严重程度分开。未评分维度保留原权重，不取任意默认分，不把创始人身份/任期或单个技术项目当作公司能力，不编造信用评级或通用交易门槛。
 """,
     13: "信息来源 few-shot：公开可验证来源应逐项列明平台/标题/URL/工具/验证状态，例如工商数据库、司法数据库、官网、新闻、招股书、招聘平台、专利数据库、应用商店、融资数据库、访谈纪要等。",
     14: "后续研究建议 few-shot：高优先级关注融资与注册实体、股东结构、核心产品状态、收入/客户/产能数据；中优先级关注团队关系、供应商/经销商穿透、竞品差异；低优先级关注社交媒体、长尾舆情与品牌传播。",
@@ -354,6 +355,21 @@ class CompanyReportAgent:
                 chapter = self._write_risk_register(project, package_payload, emit, trace_emit)
                 sections_by_index[11] = chapter
                 section_evidence_ids[11] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+            elif index == 12:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_assessment_package(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                    industry=str(getattr(project, "industry", "") or ""),
+                    intake=getattr(project, "company_research_intake", {}),
+                )
+                project.company_assessment_package = package_payload
+                chapter = self._write_assessment(project, package_payload, emit, trace_emit)
+                sections_by_index[12] = chapter
+                section_evidence_ids[12] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
             elif index <= 12:
                 package = _focused_cleaned_json(
                     cleaned_json,
@@ -391,13 +407,16 @@ class CompanyReportAgent:
                 except (TypeError, ValueError, json.JSONDecodeError):
                     package_payload = {}
                 package_payload["facts"] = []
+            if index <= 12:
+                all_used_urls.update(str(r.get("source_url") or "") for r in package_payload.get("facts", [])
+                                     if isinstance(r, dict) and r.get("source_url"))
             section_packages[index] = json.dumps(package_payload, ensure_ascii=False)
         emit(
             trace_emit,
             "report",
             self.trace_agent,
             "公司章节证据分桶完成",
-            f"unique_sources={len(all_used_urls)}, chapter_budgets=6-15, cross_chapter_reuse=true",
+            f"unique_package_sources={len(all_used_urls)}, verified_chapters=12, cross_chapter_reuse=true",
             status="done",
         )
 
@@ -425,6 +444,7 @@ class CompanyReportAgent:
             + getattr(project, "company_judicial_package", {}).get("information_gaps", [])
             + getattr(project, "company_diligence_package", {}).get("information_gaps", [])
             + getattr(project, "company_risk_register_package", {}).get("information_gaps", [])
+            + getattr(project, "company_assessment_package", {}).get("information_gaps", [])
         ))
         sections_by_index[14] = "## 14. 后续研究建议\n\n" + (
             "\n".join(f"- 待核验：{item}" for item in verification_gaps)
@@ -435,7 +455,7 @@ class CompanyReportAgent:
         with ThreadPoolExecutor(max_workers=min(workers, len(self.outline))) as executor:
             futures = {}
             for index, (section_title, requirements) in enumerate(self.outline, 1):
-                if index in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14}:
+                if index in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}:
                     continue
                 fact_count = len(json.loads(section_packages[index]).get("facts", []))
                 if index <= 12 and fact_count == 0:
@@ -513,6 +533,8 @@ class CompanyReportAgent:
                        lambda _m: sections_by_index[10] + "\n\n", final, count=1)
         final = re.sub(r"(?ms)^##\s*11[.、．][^\n]*\n.*?(?=^##\s*12[.、．]|\Z)",
                        lambda _m: sections_by_index[11] + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*12[.、．][^\n]*\n.*?(?=^##\s*13[.、．]|\Z)",
+                       lambda _m: sections_by_index[12] + "\n\n", final, count=1)
         final = self._ensure_section_evidence_markers(final, section_evidence_ids)
         final = ensure_delivery_sections(project, final, self.report_kind)
         emit(trace_emit, "report", self.trace_agent, "目标公司桌面研究报告完成", f"chars={len(final)}", chars=len(final), status="done")
@@ -647,6 +669,19 @@ class CompanyReportAgent:
         emit(trace_emit, "report", self.trace_agent, "第十一章具体风险与模板核查目录核对完成",
              json.dumps(project.company_risk_register_diagnostic, ensure_ascii=False),
              section=self.outline[10][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_assessment(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_assessment(package)
+        errors = assessment_errors(chapter, package)
+        project.company_assessment_diagnostic = {
+            "version": package["version"], **package["diagnostic"], "errors": errors,
+            "degraded": bool(errors), "information_gaps": package["information_gaps"],
+            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第十二章公司评价及评分计算核对完成",
+             json.dumps(project.company_assessment_diagnostic, ensure_ascii=False),
+             section=self.outline[11][0], status="fallback" if errors else "done")
         return chapter
 
     def _write_summary(self, project: Any, cleaned_json: str, completed_sections: dict[int, str], invoke, emit, trace_emit=None) -> str:
@@ -810,12 +845,7 @@ class CompanyReportAgent:
             section = report[match.start():end].rstrip()
             index = int(match.group(1))
             expected = [value for value in section_evidence_ids.get(index, []) if value]
-            if index == 12 and not expected:
-                section = (
-                    report[match.start():match.end()]
-                    + "\n\n本次已检索公开来源未形成可引用记录；相关核验事项见第14章。"
-                )
-            missing = [value for value in expected if value not in section] if index not in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} else []
+            missing = [value for value in expected if value not in section] if index not in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12} else []
             if missing:
                 section += "\n\n> 本章引用证据：" + "、".join(f"[{value}]" for value in missing)
             chunks.append(section + ("\n\n" if position + 1 < len(matches) else ""))

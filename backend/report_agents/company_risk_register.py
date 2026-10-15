@@ -87,13 +87,17 @@ def filing_cutoff(pages):
     """Use the issuer's actual consolidated balance-sheet date, not FY=Dec31."""
     for page in pages:
         text = page['text']
-        heading = re.search(r'合并资产负债表|CONSOLIDATED\s+STATEMENT\s+OF\s+FINANCIAL\s+POSITION', text, re.I)
+        heading = re.search(r'合并(?:及(?:母)?公司)?资产负债表|CONSOLIDATED\s+STATEMENT\s+OF\s+FINANCIAL\s+POSITION|CONSOLIDATED(?:\s+AND\s+COMPANY)?\s+BALANCE\s+SHEETS?', text, re.I)
         if not heading:
             continue
         area = text[heading.end():heading.end() + 900]
         if not re.search(r'单位|人民币|流动资产|流動資產|RMB|HK\$|USD|Assets|ASSETS', area):
             continue  # a contents page is not a balance-sheet heading
-        chinese = re.search(DATE, area)
+        # Some issuers put the date before "consolidated and company balance
+        # sheets". The nearby native date still binds the statement itself.
+        preceding = text[max(0, heading.start() - 100):heading.start()]
+        before_dates = list(re.finditer(DATE, preceding))
+        chinese = before_dates[-1] if before_dates else re.search(DATE, area)
         if chinese:
             return iso_date(chinese[0])
         english = re.search(r'\b\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+20\d{2}\b', area, re.I)
