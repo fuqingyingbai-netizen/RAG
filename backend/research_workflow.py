@@ -680,7 +680,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v15-evidence-contracts",
+            "industry": "industry-report-evidence-v16-risk-transparency",
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -1015,7 +1015,8 @@ class ResearchWorkflow:
                 risk = json.dumps(fallback | {"workflow_error": _error_json("risk", exc)}, ensure_ascii=False, indent=2)
             risk_artifact = self.save_artifact(db, project, "risk_assessment", _project_doc_title(project, "风险研判"), risk,
                 {"agent": "risk_assessment", **industry_risk_inputs,
-                 **({'risk_pipeline_version': INDUSTRY_RISK_VERSION} if standardized_type == 'industry' else {})})
+                 **({'risk_pipeline_version': INDUSTRY_RISK_VERSION,
+                     'risk_transparency': (_plain_json(risk) or {}).get('risk_transparency', {})} if standardized_type == 'industry' else {})})
             _emit(emit, "risk", "risk_assessment_agent", "风险研判完成", "", status="done")
         checkpoint("risk")
         industry_report_inputs=({**industry_risk_inputs,'risk_artifact_id':risk_artifact.id,
@@ -4798,8 +4799,10 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         if target_type == "industry":
             try:
                 from .industry_research import active_risk_dimensions
+                from .industry_risk import scoring_rubric
             except ImportError:
                 from industry_research import active_risk_dimensions
+                from industry_risk import scoring_rubric
             applicable = active_risk_dimensions(getattr(project, "industry_scope", {}))
             dimension_schema = json.dumps([{'name': name, 'evidence_ids': [], 'score': None,
                 'level': 'unknown|low|medium|high|critical', 'reason': '...', 'evidence_sources': []}
@@ -4816,6 +4819,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
 {_clip(risk_evidence, 30000)}
 
 评分口径必须统一：overall_score 和各维度 score 均为“风险分”，0 表示风险最低，100 表示风险最高。信息缺失必须列为 unknown/待核验，不能仅因“未搜索到、未提供、无法排除”就判为高风险。代表企业材料只能作为行业样本或竞争格局信号，不能写成目标公司经营风险。
+评分参考：{json.dumps(scoring_rubric(getattr(project, 'industry_scope', {})), ensure_ascii=False)}
 各维度只能使用 dimension_evidence_ids 中列出的编号；reason 中的编号必须同时列入 evidence_ids。理由每维120字以内，只写支撑该评分的判断，数值只可使用对应事实allowed_numbers中的值；禁止使用来源标题、URL或统计定义中的其他数字补结论。完整原文保留在事实库供审计，评分输入只授权fact中的单个指标。预测值须在同一分句明确预计/预测，不同事实编号不等于独立来源；同一发布方的卡片不能声称多源一致。政策目标不能写成已经实现的市场集中度。没有已核验数值时可以用适用定性证据作克制判断，禁止新增定量结论；证据不足仍返回unknown。
 
 请只输出 JSON，结构为：
@@ -4830,17 +4834,23 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
 """
             answer = self._invoke_industry_risk("行业风险研判 Agent", prompt, emit=emit)
             parsed = _plain_json(answer)
+            # Support counts describe the exact bounded input even when the model abstains or returns invalid JSON.
+            retained_ids = {f.get('evidence_id') for f in json.loads(risk_evidence).get('facts', [])}
+            cleaned_payload = _plain_json(cleaned_json)
+            retained = [f for f in cleaned_payload.get('facts', []) if f.get('evidence_id') in retained_ids] if isinstance(cleaned_payload, dict) else []
             if isinstance(parsed, dict):
                 # Only facts actually sent within the model's budget can authorize scores.
-                retained_ids = {f.get('evidence_id') for f in json.loads(risk_evidence).get('facts', [])}
-                cleaned_payload = _plain_json(cleaned_json)
-                retained = [f for f in cleaned_payload.get('facts', []) if f.get('evidence_id') in retained_ids] if isinstance(cleaned_payload, dict) else []
                 parsed = normalize_industry_risk(parsed, retained, getattr(project, "industry_scope", {}))
                 parsed = self._repair_industry_risk(parsed, json.loads(risk_evidence), retained,
                                                     getattr(project, 'industry_scope', {}), emit=emit)
                 _emit(emit, "risk", "risk_assessment_agent", "模型行业风险评分完成", f"risk_level={parsed.get('risk_level')}", risk_level=parsed.get("risk_level"), status="done")
                 return json.dumps(parsed, ensure_ascii=False, indent=2)
             fallback = unknown_industry_risk(scope=getattr(project, "industry_scope", {}))
+            try:
+                from .industry_risk import attach_risk_support
+            except ImportError:
+                from industry_risk import attach_risk_support
+            fallback = attach_risk_support(fallback, retained, getattr(project, 'industry_scope', {}))
             fallback['validation_diagnostics'] = {'primary_status': 'empty_or_invalid_json',
                 'model_response_excerpt': answer[:3000], 'repair': {'attempted': False, 'attempts': 0}}
             _emit(emit, "risk", "risk_assessment_agent", "使用规则降级行业评分", f"risk_level={fallback.get('risk_level')}", risk_level=fallback.get("risk_level"), status="fallback")
@@ -4907,7 +4917,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                   '数字只可用对应证据allowed_numbers，禁止从先前失败理由补数据；没有定量证据可作有依据的定性判断。'
                   '预测数字必须在同一分句明确预计/预测；同一发布方的多张卡片不能写成多源印证。'
                   '保留政策目标、预测与实际统计的区别，企业样本不能评分行业整体。证据不足返回score=null、level=unknown，'
-                  '不能为了修复凑分。无需返回其他维度、总分或额外章节。\n' + json.dumps(package, ensure_ascii=False))
+                  '不能为了修复凑分。无需返回其他维度、总分或额外章节。\n'
+                  + json.dumps(normalized.get('scoring_methodology') or {}, ensure_ascii=False)
+                  + '\n' + json.dumps(package, ensure_ascii=False))
         repair_diagnostic = {'attempted': True, 'attempts': 1, 'requested_dimensions': sorted(requested),
                              'input_chars': len(prompt), 'repaired_dimensions': [], 'remaining_dimensions': sorted(requested)}
         diagnostic['repair'] = repair_diagnostic
@@ -4939,7 +4951,11 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 for row in checked['dimensions'] if row['name'] in requested and row.get('score') is None])
         _emit(emit, 'risk', 'risk_assessment_agent', '行业评分局部修复校验完成',
               f'repaired={len(accepted)}, remaining={len(requested)-len(accepted)}', status='done' if accepted else 'fallback')
-        return result
+        try:
+            from .industry_risk import attach_risk_support
+        except ImportError:
+            from industry_risk import attach_risk_support
+        return attach_risk_support(result, retained, scope)
 
     def _risk_evidence_payload(self, cleaned_json: str, target_type: str = "") -> str:
         parsed = _plain_json(cleaned_json)
@@ -5985,6 +6001,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
     def _prepare_industry_delivery(self, project: ResearchProject, report: str, risk_json: str,
                                    emit: TraceEmitter | None = None) -> tuple[str, dict]:
         """Use the same delivery decision for generated reports and reexports."""
+        report = re.sub(r'(?m)^> \*\*风险评分说明\*\*：[^\n]*(?:\n\s*\n)?', '', report, count=1).lstrip()
         try:
             from .industry_research import delivery_review_reasons
         except ImportError:
@@ -6001,6 +6018,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         if not degradations and ('模型摘要未通过校验' in report or '模型摘要未通过引用或目录校验' in report):
             degradations.append({'chapter': 1, 'message': '摘要沿用模型校验失败后的事实摘录，综合判断需人工复核。'})
         risk = _plain_json(risk_json)
+        project.industry_risk_transparency = (risk or {}).get('risk_transparency', {}) if isinstance(risk, dict) else {}
         reasons = delivery_review_reasons(getattr(project, 'industry_scope', {}) or {},
                                          risk if isinstance(risk, dict) else {}, degradations)
         payload=getattr(project,'industry_evidence_payload',{}) or {}
@@ -6025,6 +6043,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         warning = '行业报告需人工复核：' + '；'.join(r['message'] for r in reasons) if reasons else ''
         # Replace our own old notice, so a reexport cannot show stale review reasons.
         report = re.sub(r'\A\s*> \*\*待人工复核稿\*\*.*?(?:\n\s*\n|\Z)', '', report, count=1, flags=re.S).lstrip()
+        if project.industry_risk_transparency:
+            report = ('> **风险评分说明**：' + project.industry_risk_transparency['notice'] + '\n\n' + report)
         if warning:
             report = ('> **待人工复核稿**：报告已生成，部分证据核验、章节综合写作或风险评估仍需复核。'
                       '请完成下列事项后再作为正式交付稿使用。\n>\n> 复核原因（摘要）：'
@@ -6032,6 +6052,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             _emit(emit, 'report', 'desktop_report_agent', '行业报告保存为待复核稿', warning,
                   review_reason_count=len(reasons), status='fallback')
         return report, {'delivery_status': 'review_draft' if reasons else 'final_candidate',
+                        'risk_transparency': project.industry_risk_transparency,
                         'delivery_review_reasons': reasons, 'quality_issues': issues,
                         'industry_evidence_diagnostic': getattr(project, 'industry_delivery_diagnostic', {}),
                         'generation_degradations': degradations,
@@ -6051,9 +6072,14 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                                    for r in coverage.get('requirements',[]))
             coverage_section=('## 指标证据覆盖\n\n候选原文不等于已核验事实；缺证不自动判高风险。\n\n'
                 '| 研究问题 | 状态 | 完整事实数 |\n| --- | --- | --- |\n'+requirements+'\n\n') if requirements else ''
+            try:
+                from .industry_risk import risk_support_markdown
+            except ImportError:
+                from industry_risk import risk_support_markdown
+            risk_section = risk_support_markdown(getattr(project, 'industry_risk_transparency', {}))
             return (f'# {_project_doc_title(project, "报告质量诊断")}\n\n状态：待复核稿，生成完成不代表已经通过正式交付验收。\n\n'
                     '## 复核原因\n\n| 章节 | 风险维度 | 需要复核的事项 |\n| --- | --- | --- |\n' + rows + '\n\n'
-                    + coverage_section +
+                    + coverage_section + risk_section +
                     '## 复核动作\n\n- 对照第15章来源索引核验正文引用、数值与口径。\n'
                     '- 章节采用事实摘录时，人工复核综合判断；补证后重新评估尚未完成的启用风险维度。\n'
                     '- 未启用的资本市场和核心企业尽调不列为必做补采；Word页面版式检查单独查看。\n')

@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import urlsplit, parse_qsl, urlencode
 
 INDUSTRY_POLICY_VERSION = 'industry-scope-v3'
-INDUSTRY_RISK_VERSION = 'industry-risk-v3-claim-semantics'
+INDUSTRY_RISK_VERSION = 'industry-risk-v4-support-transparency'
 INDUSTRY_RISK_DIMENSIONS = (
     '政策与监管风险', '市场增长与需求风险', '竞争格局与集中度风险',
     '商业化与盈利模式风险', '技术迭代与替代风险', '资本热度与估值风险', '数据口径与证据可靠性风险',
@@ -128,10 +128,11 @@ def active_risk_dimensions(scope: dict | None = None) -> tuple[str, ...]:
 
 
 def unknown_risk(reason: str = '未取得可审计的行业评分，需补充有效证据。', scope: dict | None = None) -> dict:
-    return {'overall_score': None, 'risk_level': 'unknown',
+    from industry_risk import attach_risk_support
+    return attach_risk_support({'overall_score': None, 'risk_level': 'unknown',
             'dimensions': [{'name': name, 'score': None, 'level': 'unknown', 'reason': reason,
                             'evidence_ids': [], 'evidence_sources': []} for name in active_risk_dimensions(scope)],
-            'key_risks': [], 'unknowns': [reason], 'recommended_followups': ['补充行业统计、监管文件和可比企业披露。']}
+            'key_risks': [], 'unknowns': [reason], 'recommended_followups': ['补充行业统计、监管文件和可比企业披露。']}, [], scope)
 
 
 def normalize_risk(parsed: Any, facts: list[dict], scope: dict | None = None) -> dict:
@@ -197,7 +198,8 @@ def normalize_risk(parsed: Any, facts: list[dict], scope: dict | None = None) ->
     result['unknowns'] = list(dict.fromkeys(unknowns))
     result['applicable_dimensions'] = list(active_risk_dimensions(scope))
     result['assessed_dimension_count'] = len(scores)
-    return result
+    from industry_risk import attach_risk_support
+    return attach_risk_support(result, facts, scope)
 
 
 RISK_MODULES = {
@@ -394,11 +396,13 @@ def package_risk_evidence(package: dict, payload: dict, risk: dict, include_all:
                 if eid in by_id and eid not in existing:
                     facts.append(by_id[eid]); existing.add(eid)
     allowed = {f.get('evidence_id') for f in facts}
-    dimensions = [{k:v for k,v in d.items() if k != 'validation_diagnostic'} for d in risk.get('dimensions', [])
+    dimensions = [{k:v for k,v in d.items() if k not in {'validation_diagnostic', 'evidence_support', 'assessment_confidence'}} for d in risk.get('dimensions', [])
                   if d.get('evidence_ids') and set(d['evidence_ids']) <= allowed]
     scoped_risk = {'dimensions': dimensions, 'overall_score': risk.get('overall_score') if include_all else None,
                   'risk_level': risk.get('risk_level') if include_all else 'unknown',
-                  'unknowns': risk.get('unknowns', []) if include_all else []}
+                  'unknowns': risk.get('unknowns', []) if include_all else [],
+                  'scoring_caveat': (risk.get('risk_transparency') or {}).get('notice', ''),
+                  'aggregation_caveat': (risk.get('risk_transparency') or {}).get('aggregation_notice', '') if include_all else ''}
     return {**package, 'facts': facts}, scoped_risk
 
 

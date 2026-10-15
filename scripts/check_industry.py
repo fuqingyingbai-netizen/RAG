@@ -86,6 +86,7 @@ def audit_saved_run(folder: Path) -> dict:
         'proposal_chapters':proposal_chapters,
         'summary_visible_chars':summary_chars, 'report_issues':report_issues, 'contract_issues':contract_issues,
         'claim_reference_summary':ledger_summary,
+        'risk_support_under_current_rules':checked.get('risk_transparency'),
         'stored_delivery_status':meta.get('delivery_status'),
         'required_delivery_status':required_status,
         'has_new_findings':findings,
@@ -109,7 +110,7 @@ def main(argv=None):
         parser.error('--output must not overwrite saved source artifacts')
     if not args.replay_only:
         files = (sorted((ROOT / 'test').glob('test_industry_*.py')) if args.full else
-                 [ROOT / 'test' / name for name in ['test_industry_evidence_contract.py','test_industry_claim_semantics.py', 'test_industry_risk_repair.py']])
+                 [ROOT / 'test' / name for name in ['test_industry_evidence_contract.py','test_industry_risk_support.py','test_industry_claim_semantics.py', 'test_industry_risk_repair.py']])
         env = {**os.environ, 'PYTHONUTF8':'1', 'PYTHONPATH':str(ROOT / 'backend')}
         code = subprocess.run([sys.executable, '-m', 'pytest', *map(str, files), '-q', '--tb=short'], cwd=ROOT, env=env).returncode
         if code:
