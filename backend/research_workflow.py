@@ -623,7 +623,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v14-checked-governance",
+            "company": "company-report-evidence-v15-checked-history",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -1043,6 +1043,9 @@ class ResearchWorkflow:
                     **({"company_governance_diagnostic": getattr(project, "company_governance_diagnostic", {})}
                        if standardized_type == "company" else {}),
                     **({"company_governance_evidence": getattr(project, "company_governance_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_history_diagnostic": getattr(project, "company_history_diagnostic", {}),
+                        "company_history_evidence": getattr(project, "company_history_package", {})}
                        if standardized_type == "company" else {}),
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
@@ -5261,6 +5264,10 @@ class ResearchWorkflow:
         for record in getattr(project, "company_governance_package", {}).get("facts", []):
             for evidence_id in record.get("evidence_ids", []):
                 governance_by_id[evidence_id.upper()].append(record)
+        history_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_history_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                history_by_id[evidence_id.upper()].append(record)
         facts_by_id: dict[str, dict[str, Any]] = {}
         for item in facts:
             url = str(item.get("source_url") or "").rstrip("/")
@@ -5293,7 +5300,8 @@ class ResearchWorkflow:
                     continue
                 scope = str(item.get("evidence_scope") or classify_company_fact_scope(item, str(project.target_name or "")))
                 if (scope == "target_direct" or (scope == "industry_context" and chapter == 5)
-                        or (chapter == 2 and canonical in governance_by_id)):
+                        or (chapter == 2 and canonical in governance_by_id)
+                        or (chapter == 3 and canonical in history_by_id)):
                     chapters_by_id.setdefault(canonical, set()).add(chapter)
                 elif canonical not in chapters_by_id:
                     # Keep the citation visible in chapter 13 even when it is
@@ -5323,15 +5331,16 @@ class ResearchWorkflow:
             chapters_by_id[evidence_id] = {0}
         for evidence_id, chapters in sorted(chapters_by_id.items(), key=lambda value: (min(value[1]), value[0])):
             item = facts_by_id.get(evidence_id, {})
-            if evidence_id in governance_by_id:
+            if evidence_id in governance_by_id or evidence_id in history_by_id:
                 # A page-level industry/related classification may have hidden
                 # a literal issuer declaration recovered for chapter 2. Keep
                 # the source ID, and show the actual field-level claim used.
-                admitted = governance_by_id[evidence_id]
+                admitted = governance_by_id.get(evidence_id) or history_by_id[evidence_id]
+                label = "第二章原文核对：" if evidence_id in governance_by_id else "第三章原文核对："
                 item = {**item, "source_url": admitted[0]["source_url"],
                         "source_title": admitted[0]["source_title"],
-                        "fact": "第二章原文核对：" + "；".join(
-                            (r.get("field") or r["kind"]) + "=" + str(r.get("value") or r.get("entity") or "")
+                        "fact": label + "；".join(
+                            (r.get("field") or r["kind"]) + "=" + str(r.get("value") or r.get("entity") or r.get("fact") or "")
                             for r in admitted[:3])}
             url = str(item.get("source_url") or "").rstrip("/")
             source_title = re.sub(r"\s+", " ", str(item.get("source_title") or "公开来源")).replace("|", "/")[:48]
@@ -5462,6 +5471,8 @@ class ResearchWorkflow:
                 errors.append("第一章摘要未通过校验，原文摘录需人工复核")
             if getattr(project, "company_governance_diagnostic", {}).get("degraded"):
                 errors.append("第二章工商股权核查未形成可交付证据，需人工复核")
+            if getattr(project, "company_history_diagnostic", {}).get("degraded"):
+                errors.append("第三章沿革与成长质量未形成可交付证据，需人工复核")
             source_heading = re.search(r"(?m)^##\s*13[.、．]", report or "")
             next_heading = re.search(r"(?m)^##\s*14[.、．]", report or "")
             body_before_sources = (report or "")[:source_heading.start()] if source_heading else (report or "")

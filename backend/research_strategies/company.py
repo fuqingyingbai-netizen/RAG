@@ -20,7 +20,10 @@ class CompanyResearchStrategy(BaseResearchStrategy):
         ("主体工商基本信息核查股东关系与治理底盘", '"{target}" 工商变更 股东变更 注册资本 变更日期'),
         ("主体工商基本信息核查股东关系与治理底盘", '"{target}" 减资公告 债权人 公告'),
         ("主体工商基本信息核查股东关系与治理底盘", '"{target}" 股东名册 实际控制人 一致行动 表决权'),
-        ("历史沿革与融资", "{target} 融资 投资方 估值 IPO 招股书 年报"),
+        ("历史沿革与成长质量", '"{target}" 历史沿革 发展历程 工商变更'),
+        ("历史沿革与成长质量", '"{target}" 并购 收购 签约 交割 投产 量产'),
+        ("历史沿革与成长质量", '"{target}" 年报 半年度报告 营业收入 净利润 经营现金流'),
+        ("历史沿革与成长质量", '"{target}" 融资 发行 配售 上市 募集资金 到账'),
         ("主营业务真实经营情况核验", "{target} 商业化 收入 客户 订单 产品线"),
         ("核心管理团队（深度/基础）风险研判", "{target} 创始人 管理团队 履历 高管 离职"),
         ("企业司法负面核查", "{target} 诉讼 裁判文书 行政处罚"),
@@ -38,7 +41,7 @@ class CompanyResearchStrategy(BaseResearchStrategy):
     ]
 
     def required_source_types(self, module: str) -> list[str]:
-        if module in {"主体工商基本信息核查股东关系与治理底盘", "历史沿革与融资"}:
+        if module in {"主体工商基本信息核查股东关系与治理底盘", "历史沿革与融资", "历史沿革与成长质量"}:
             return ["filing", "official", "business_database", "news"]
         if module in {"企业司法负面核查", "诉讼/制裁", "风险核查"}:
             return ["court", "government", "regulatory", "news"]

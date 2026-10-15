@@ -21,12 +21,13 @@ from .company_summary import (
     summary_errors,
 )
 from .company_governance import build_governance_package, render_governance, governance_errors
+from .company_history import build_history_package, render_history, history_errors
 
 
 COMPANY_REPORT_OUTLINE = [
     ("摘要", ["报告概述", "核心发现点", "需关注信号", "公司所属赛道竞争格局", "总体评估"]),
     ("主体工商基本信息核查股东关系与治理底盘", ["主体工商信息表", "股权与治理信息表", "股东/实控人/关联方关系网图", "治理底盘判断"]),
-    ("历史沿革与融资", ["历史工商变更与成立基础", "业务发展历程与历史沿革（时间线）", "历史遗留问题", "融资情况总表", "上市规范性瑕疵"]),
+    ("历史沿革与成长质量", ["历史工商变更", "业务发展历程与关键节点", "同口径成长质量核对", "历史遗留事项与核验边界"]),
     ("组织治理与运营管理评估", ["组织架构合理性", "决策机制", "权责划分", "执行流程", "内部激励", "企业应变能力", "组织创新能力"]),
     ("行业口碑、产品认可度与同业竞争地位研判", ["员工评价", "竞品评价", "合作方评价", "行业地位", "技术实力", "综合软实力", "同业对标"]),
     ("主营业务真实经营情况核验", ["分部门业务运营数据核验表", "核心业务板块运营进展核验表", "关键经营事实与风险研判", "视觉/图谱证据说明"]),
@@ -64,9 +65,9 @@ COMPANY_SECTION_STRUCTURES = {
 """,
     3: """
 目标公司报告专属章节输出骨架：
-## 3. 历史沿革与融资
+## 3. 历史沿革与成长质量
 
-明确历史工商变更、业务发展历程、融资情况、历史沿革、历史遗留问题和上市规范性瑕疵。建议按时间线输出"时间｜事件｜业务/资本含义｜证据来源｜待核验事项"。
+分别列明事件日期、工商/业务/资本动作、签约或完成状态及来源；以同口径经营数据核对成长质量。历史遗留事项须有具体事件证据；不从上市、融资或缺失材料推出无瑕疵或持续增长。
 """,
     4: """
 目标公司报告专属章节输出骨架：
@@ -151,7 +152,7 @@ COMPANY_SECTION_FEW_SHOTS = {
 执行摘要：写清公司成立时间、定位、团队、网站/产品状态。核心发现要覆盖团队、产品、融资/客户、技术或经营亮点。关键验证要列修正与确认。需关注信号要包括工商/融资/产品/媒体覆盖/经营数据缺口。竞争格局要列头部/腰部/初创/海外竞品及相对劣势。评估要写优势与核心风险。
 """,
     2: "表达参考：持股、任职及明确披露的控制关系分别列示，数据期分开；股东冲突、决策权及治理稳定性须由对应事件、协议或决议支持，不从模板示例预设结论。",
-    3: "few-shot：目标公司发展路径整体较为顺畅，已完成从单一配件生产到多品类业务布局的扩张，业务规模实现较快增长。经调研，暂未发现重大历史遗留问题、未决事项或影响上市规范性的重大瑕疵。",
+    3: "表达参考：先列可核对的沿革事件及完成状态，再根据同口径经营变化讨论成长质量；不直接套用示例中的发展顺畅、快速增长或无重大遗留问题结论。",
     7: "few-shot：采购、供应商及经销体系整体保持运转稳定，暂未发现商业贿赂、商业腐败、压货或虚增业绩等重大异常。但核心供应商质量稳定性、老板关系型合作、经销商人员交叉及国内销售商业关系仍需作为后续核验重点。",
     9: "few-shot：目标公司名下存在若干司法案件，主要涉及劳动争议及外观设计专利纠纷，相关案件均已结案，未对公司业务造成重大实质影响。现阶段未发现足以影响上市进程的重大诉讼或负面信息。",
     12: """
@@ -218,6 +219,20 @@ class CompanyReportAgent:
                 chapter = self._write_governance(project, package_payload, emit, trace_emit)
                 sections_by_index[2] = chapter
                 section_evidence_ids[2] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+            elif index == 3:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_history_package(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                    governance=getattr(project, "company_governance_package", {}),
+                )
+                project.company_history_package = package_payload
+                chapter = self._write_history(project, package_payload, emit, trace_emit)
+                sections_by_index[3] = chapter
+                section_evidence_ids[3] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
             elif index <= 12:
                 package = _focused_cleaned_json(
                     cleaned_json,
@@ -280,6 +295,7 @@ class CompanyReportAgent:
         ]
         verification_gaps = list(dict.fromkeys(
             verification_gaps + getattr(project, "company_governance_package", {}).get("information_gaps", [])
+            + getattr(project, "company_history_package", {}).get("information_gaps", [])
         ))
         sections_by_index[14] = "## 14. 后续研究建议\n\n" + (
             "\n".join(f"- 待核验：{item}" for item in verification_gaps)
@@ -290,7 +306,7 @@ class CompanyReportAgent:
         with ThreadPoolExecutor(max_workers=min(workers, len(self.outline))) as executor:
             futures = {}
             for index, (section_title, requirements) in enumerate(self.outline, 1):
-                if index in {1, 2, 13, 14}:
+                if index in {1, 2, 3, 13, 14}:
                     continue
                 fact_count = len(json.loads(section_packages[index]).get("facts", []))
                 if index <= 12 and fact_count == 0:
@@ -350,6 +366,8 @@ class CompanyReportAgent:
         final = re.sub(r"(?ms)^##\s*1[.、．][^\n]*\n.*?(?=^##\s*2[.、．]|\Z)", summary + "\n\n", final, count=1)
         final = re.sub(r"(?ms)^##\s*2[.、．][^\n]*\n.*?(?=^##\s*3[.、．]|\Z)",
                        lambda _m: sections_by_index[2] + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*3[.、．][^\n]*\n.*?(?=^##\s*4[.、．]|\Z)",
+                       lambda _m: sections_by_index[3] + "\n\n", final, count=1)
         final = self._ensure_section_evidence_markers(final, section_evidence_ids)
         final = ensure_delivery_sections(project, final, self.report_kind)
         emit(trace_emit, "report", self.trace_agent, "目标公司桌面研究报告完成", f"chars={len(final)}", chars=len(final), status="done")
@@ -367,6 +385,19 @@ class CompanyReportAgent:
         emit(trace_emit, "report", self.trace_agent, "第二章按字段证据完成核对与排版",
              json.dumps(project.company_governance_diagnostic, ensure_ascii=False),
              section=self.outline[1][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_history(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_history(package)
+        errors = history_errors(chapter, package)
+        project.company_history_diagnostic = {
+            "version": package["version"], **package["diagnostic"], "errors": errors,
+            "degraded": bool(errors), "information_gaps": package["information_gaps"],
+            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第三章沿革与成长质量核对完成",
+             json.dumps(project.company_history_diagnostic, ensure_ascii=False),
+             section=self.outline[2][0], status="fallback" if errors else "done")
         return chapter
 
     def _write_summary(self, project: Any, cleaned_json: str, completed_sections: dict[int, str], invoke, emit, trace_emit=None) -> str:
@@ -530,12 +561,12 @@ class CompanyReportAgent:
             section = report[match.start():end].rstrip()
             index = int(match.group(1))
             expected = [value for value in section_evidence_ids.get(index, []) if value]
-            if 3 <= index <= 12 and not expected:
+            if 4 <= index <= 12 and not expected:
                 section = (
                     report[match.start():match.end()]
                     + "\n\n本次已检索公开来源未形成可引用记录；相关核验事项见第14章。"
                 )
-            missing = [value for value in expected if value not in section] if index not in {1, 2} else []
+            missing = [value for value in expected if value not in section] if index not in {1, 2, 3} else []
             if missing:
                 section += "\n\n> 本章引用证据：" + "、".join(f"[{value}]" for value in missing)
             chunks.append(section + ("\n\n" if position + 1 < len(matches) else ""))
