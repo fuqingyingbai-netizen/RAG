@@ -35,3 +35,5 @@ assert.ok(page.includes("dimension.score ?? '未评估'")); // A risk score of z
 assert.ok(page.includes('dimension.evidence_support.verified_metric_count'));
 assert.ok(page.includes('尚未校准'));
 console.log('Industry risk support presentation passed');
+assert.equal(definition.methods.artifactTypeLabel('industry_run'), '运行记录');
+assert.ok(page.includes('最后记录：'));

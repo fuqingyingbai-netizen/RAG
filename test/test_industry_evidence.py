@@ -289,6 +289,10 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     artifacts, added = workflow.run_project(database, project, [], [], intake={
         'target_type': 'industry', 'include_capital_markets': False, 'as_of_date': '2026-01-31'})
     assert added == 4 and project.status == 'completed'
+    run_record = next(a for a in artifacts if a.artifact_type == 'industry_run')
+    first_run = json.loads(run_record.content)
+    assert first_run['status'] == 'completed' and len(first_run['stages']) == 8
+    assert first_run['stages'][4]['outputs'][0]['usage'] == 'created'
     risk_artifact = next(a for a in artifacts if a.artifact_type == 'risk_assessment')
     assert risk_artifact.artifact_metadata['risk_transparency']['calibration_status'] == 'not_calibrated'
     report = next(a for a in artifacts if a.artifact_type == 'desktop_report')
@@ -321,6 +325,10 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     resumed,_=workflow.run_project(database,project,[],[],intake={
         'target_type':'industry','include_capital_markets':False,'as_of_date':'2026-01-31'})
     reexported=next(a for a in resumed if a.artifact_type=='desktop_report')
+    resumed_run=json.loads(next(a.content for a in resumed if a.artifact_type=='industry_run'))
+    assert resumed_run['parent_run_id']==first_run['run_id']
+    assert resumed_run['stages'][4]['outputs'][0]['usage']=='reused'
+    assert json.loads(run_record.content)==first_run
     assert reexported.artifact_metadata['reexported_from_artifact_id']==report.id
     assert reexported.artifact_metadata['delivery_status']=='review_draft'
     assert reexported.artifact_metadata['delivery_review_reasons']==report.artifact_metadata['delivery_review_reasons']

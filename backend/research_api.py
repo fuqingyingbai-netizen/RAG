@@ -683,10 +683,25 @@ def _save_workflow_trace(db: Session, project: ResearchProject, events: list[dic
     )
     artifact = max(artifacts, key=_workflow_trace_sort_key, default=None)
     existing_timestamp = str((artifact.artifact_metadata or {}).get("last_event_timestamp") or "") if artifact else ""
-    if artifact and existing_timestamp and latest_timestamp and latest_timestamp < existing_timestamp:
+    newer_industry_run = False
+    if project.target_type == 'industry':
+        run = next((e for e in events if e.get('run_id') and e.get('run_started_at')), {})
+        prior_start = (artifact.artifact_metadata or {}).get('run_started_at') if artifact else None
+        if prior_start and not run.get('run_started_at'):
+            return
+        if prior_start and run.get('run_started_at') and run['run_started_at'] < prior_start:
+            return
+        newer_industry_run = bool(prior_start and run.get('run_started_at') and run['run_started_at'] > prior_start)
+        industry_trace_metadata.update({k: run[k] for k in ('run_id', 'run_started_at') if k in run})
+    if artifact and existing_timestamp and latest_timestamp and latest_timestamp < existing_timestamp and not newer_industry_run:
         return
+    separate_run = project.target_type == 'industry' and industry_trace_metadata.get('run_id')
+    next_version = max((a.version or 0 for a in artifacts), default=0) + 1
+    if separate_run and artifact and (artifact.artifact_metadata or {}).get('run_id') != separate_run:
+        artifact = None
     object_key = research_store.put_text(
-        f"projects/{project.id}/workflow_trace/workflow_trace.json",
+        (f"projects/{project.id}/workflow_trace/{separate_run}.json" if separate_run
+         else f"projects/{project.id}/workflow_trace/workflow_trace.json"),
         content,
         "application/json; charset=utf-8",
     )
@@ -701,7 +716,7 @@ def _save_workflow_trace(db: Session, project: ResearchProject, events: list[dic
         }
         artifact.created_by = "workflow"
         for duplicate in artifacts:
-            if duplicate.id != artifact.id:
+            if duplicate.id != artifact.id and project.target_type != 'industry':
                 db.delete(duplicate)
     else:
         db.add(
@@ -709,7 +724,7 @@ def _save_workflow_trace(db: Session, project: ResearchProject, events: list[dic
                 project_id=project.id,
                 artifact_type="workflow_trace",
                 title="工作流详细记录",
-                version=1,
+                version=next_version if separate_run else 1,
                 content=content,
                 object_key=object_key,
                 artifact_metadata={
@@ -736,7 +751,7 @@ def _latest_workflow_trace(artifacts: list[ResearchArtifact]) -> list[dict]:
     return []
 
 
-def _workflow_trace_sort_key(artifact: ResearchArtifact) -> tuple[str, int, int]:
+def _workflow_trace_sort_key(artifact: ResearchArtifact) -> tuple[str, str, int, int]:
     metadata = artifact.artifact_metadata or {}
     latest_timestamp = str(metadata.get("last_event_timestamp") or "")
     if not latest_timestamp:
@@ -746,7 +761,8 @@ def _workflow_trace_sort_key(artifact: ResearchArtifact) -> tuple[str, int, int]
                 latest_timestamp = max((str(event.get("timestamp") or "") for event in events if isinstance(event, dict)), default="")
         except Exception:
             pass
-    return (latest_timestamp, int(metadata.get("event_count") or 0), int(artifact.id or 0))
+    return (str(metadata.get('run_started_at') or ''), latest_timestamp,
+            int(metadata.get("event_count") or 0), int(artifact.id or 0))
 
 
 def _compact_workflow_trace(events: list[dict], limit: int = 400) -> list[dict]:
@@ -1371,15 +1387,15 @@ async def get_project_progress(
 ):
     """Return only the state needed by the live task-progress display."""
     project = _get_project(db, project_id, current_user)
-    trace_artifacts = (
+    trace_query = (
         db.query(ResearchArtifact)
         .filter(
             ResearchArtifact.project_id == project.id,
             ResearchArtifact.artifact_type == "workflow_trace",
         )
         .order_by(ResearchArtifact.created_at.desc())
-        .all()
     )
+    trace_artifacts = trace_query.limit(1).all() if project.target_type == 'industry' else trace_query.all()
     return {
         "project": _project_response(project).model_dump(),
         "trace": _latest_workflow_trace(trace_artifacts),
@@ -2397,7 +2413,7 @@ async def download_artifact(
         except Exception:
             content = artifact.content
 
-    ext = "json" if artifact.artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger"} else "md"
+    ext = "json" if artifact.artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger", "industry_run"} else "md"
     filename = f"{_safe_download_name(artifact.title, artifact.artifact_type)}_v{artifact.version}.{ext}"
     media_type = "application/json; charset=utf-8" if ext == "json" else "text/markdown; charset=utf-8"
     return Response(

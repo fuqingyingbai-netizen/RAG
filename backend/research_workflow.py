@@ -624,7 +624,70 @@ class ResearchWorkflow:
         _emit(emit, "vision", role, "视觉模型调用失败，保留人工复核标记", last_error, status="fallback")
         return ""
 
-    def run_project(
+    def run_project(self, db, project, search_queries, focus_questions,
+                    max_results_per_query=FIXED_MAX_RESULTS_PER_QUERY, generate_proposal=True,
+                    emit=None, intake=None, pause_requested=None):
+        target = str((intake or {}).get('target_type') or project.target_type).strip().lower()
+        if target not in {'industry', 'sector', 'market', '行业', '赛道', '市场', '目标行业'}:
+            return self._run_project_impl(db, project, search_queries, focus_questions,
+                max_results_per_query, generate_proposal, emit, intake, pause_requested)
+        try:
+            from .industry_runs import RunJournal, OUTPUTS
+        except ImportError:
+            from industry_runs import RunJournal, OUTPUTS
+        previous = self._latest_artifact(project, 'industry_run')
+        session = object_session(project)
+        existing_ids = ([row[0] for row in session.query(ResearchArtifact.id).filter(ResearchArtifact.project_id == project.id).all()]
+                        if session is not None else [a.id for a in (project.artifacts or [])])
+        journal = RunJournal(project.id, existing_ids,
+                             (previous.artifact_metadata or {}).get('run_id') if previous else None)
+        project.industry_run_id = journal.data['run_id']
+        project.industry_run_started_at = journal.data['started_at']
+        try:
+            record = self.save_artifact(db, project, 'industry_run', _project_doc_title(project, '运行记录'),
+                json.dumps(journal.snapshot(), ensure_ascii=False), {'agent': 'workflow', 'run_status': 'running',
+                    'run_id': journal.data['run_id'], 'run_started_at': journal.data['started_at'],
+                    'journal_version': journal.data['version']})
+        except Exception:
+            db.rollback()
+            project.industry_run_id = None
+            project.industry_run_started_at = None
+            raise
+        def persist():
+            snapshot = journal.snapshot()
+            record.content = json.dumps(snapshot, ensure_ascii=False, indent=2)
+            record.artifact_metadata = {**(record.artifact_metadata or {}), 'run_id': snapshot['run_id'],
+                'run_started_at': snapshot['started_at'], 'run_status': snapshot['status'],
+                'current_stage': snapshot['current_stage'], 'journal_version': snapshot['version']}
+            db.commit()
+        def trace(event):
+            tagged = journal.tag_event(event)
+            if emit:
+                emit(tagged)
+        def checkpoint(stage):
+            outputs = [a for kind in OUTPUTS.get(stage, ()) if (a := self._latest_artifact(project, kind)) is not None]
+            journal.checkpoint(stage, outputs, len(project.sources or []))
+            persist()
+        try:
+            artifacts, added = self._run_project_impl(db, project, search_queries, focus_questions,
+                max_results_per_query, generate_proposal, trace, intake, pause_requested, checkpoint)
+            checkpoint('proposal')
+            journal.finish('completed')
+            persist()
+            return [*artifacts, record], added
+        except Exception as exc:
+            db.rollback()
+            journal.finish('paused' if isinstance(exc, WorkflowPaused) else 'failed', type(exc).__name__)
+            try:
+                persist()
+            except Exception:
+                db.rollback()
+            raise
+        finally:
+            project.industry_run_id = None
+            project.industry_run_started_at = None
+
+    def _run_project_impl(
         self,
         db: Session,
         project: ResearchProject,
@@ -635,8 +698,11 @@ class ResearchWorkflow:
         emit: TraceEmitter | None = None,
         intake: dict[str, Any] | None = None,
         pause_requested: Callable[[], bool] | None = None,
+        stage_checkpoint: Callable[[str], None] | None = None,
     ) -> tuple[list[ResearchArtifact], int]:
         def checkpoint(stage: str) -> None:
+            if stage_checkpoint:
+                stage_checkpoint(stage)
             if pause_requested and pause_requested():
                 project.status = "paused"
                 project.updated_at = datetime.utcnow()
@@ -6681,10 +6747,12 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             .first()
         )
         version = (current.version + 1) if current else 1
-        suffix = "json" if artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger"} else "md"
+        suffix = "json" if artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger", "industry_run"} else "md"
         artifact_metadata = dict(metadata or {})
+        if getattr(project, 'target_type', '') == 'industry' and getattr(project, 'industry_run_id', None):
+            artifact_metadata.update(run_id=project.industry_run_id, run_started_at=project.industry_run_started_at)
         index_job = None
-        object_key = research_store.put_text(
+        object_key = '' if artifact_type == 'industry_run' else research_store.put_text(
             f"projects/{project.id}/{artifact_type}/{artifact_type}_v{version}.{suffix}",
             content,
             "application/json; charset=utf-8" if suffix == "json" else "text/markdown; charset=utf-8",
