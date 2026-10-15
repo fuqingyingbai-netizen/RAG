@@ -24,12 +24,14 @@ createApp({
         { label: '上下游业务', value: '上下游业务' }, { label: '竞品情况', value: '竞品情况' },
         { label: '收入情况', value: '收入情况' }, { label: '行业政策', value: '行业政策' },
         { label: '舆情', value: '舆情' }
-      ], person: ['创始人底色画像（家庭/教育/履历）', '人格特质与诚信评估', '商业操守与行业口碑', '经营胜任力（战略/执行/创新）', '识人用人与团队管控', '关联利益冲突（体外公司/代持/关联交易）', '司法负面与诉讼核查', '个人信用与财务风险', '投后治理与退出风险', '同业对标评估', '核心管理团队背景'].map(x => ({ label: x, value: x })), industry: ['行业定义', '供应商调研', '下游渠道', '终端客户调研', '政策环境分析', '市场规模与增长预测', '竞争格局', '投融资全景', '技术路线与壁垒', '核心公司尽调', '二级市场情绪', '投资机会研判'].map(x => ({ label: x, value: x })) },
+      ], person: ['创始人底色画像（家庭/教育/履历）', '人格特质与诚信评估', '商业操守与行业口碑', '经营胜任力（战略/执行/创新）', '识人用人与团队管控', '关联利益冲突（体外公司/代持/关联交易）', '司法负面与诉讼核查', '个人信用与财务风险', '投后治理与退出风险', '同业对标评估', '核心管理团队背景'].map(x => ({ label: x, value: x })), industry: ['行业定义与边界', '细分赛道与产业链', '政策与监管', '市场规模与增长', '竞争格局与代表企业', '商业模式与盈利逻辑', '技术演进与平台生态', '技术路线对比', '投融资与资本市场', '行业风险与不确定性'].map(x => ({ label: x, value: x })) },
       form: {
         projectName: '', startDate: '', endDate: '', companyName: '', identifier: '',
         industry: '', region: '', targetType: 'company', ddType: '商业尽调', targetContext: '',
         modules: ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], aiSearchEnabled: true,
-        searchQueries: '', focusQuestions: '', keyQuestions: ''
+        searchQueries: '', focusQuestions: '', keyQuestions: '',
+        industryFocus: '', excludedSegments: '', researchPurpose: '日常了解',
+        includeCapitalMarkets: false, asOfDate: ''
       }
     };
   },
@@ -53,8 +55,8 @@ createApp({
     modules() { return this.modulesByTarget[this.form.targetType] || this.modulesByTarget.company; },
     ddTypes() { if (this.form.targetType === 'person') return ['人物背景尽调', '诚信与声誉核查', '投前人物综合评估']; if (this.form.targetType === 'industry') return ['行业全景研究', '赛道投资研究', '竞争与技术研究']; return ['商业尽调', '合规尽调', '负面新闻筛查', '综合桌面研究']; },
     targetPrimaryLabel() { return this.form.targetType === 'person' ? '目标人物姓名' : this.form.targetType === 'industry' ? '目标行业 / 赛道' : '目标公司名称'; },
-    targetSecondaryLabel() { return this.form.targetType === 'person' ? '身份与关联机构（选填）' : this.form.targetType === 'industry' ? '重点公司 / 产品' : '官网 / 统一社会信用代码'; },
-    targetSecondaryPlaceholder() { return this.form.targetType === 'person' ? '可留空；多个机构用 / 分隔，如：阿里巴巴 / 蚂蚁集团 / 云锋基金' : this.form.targetType === 'industry' ? '填写重点公司或产品' : ''; },
+    targetSecondaryLabel() { return this.form.targetType === 'person' ? '身份与关联机构（选填）' : this.form.targetType === 'industry' ? '核心企业（选填，多个用顿号分隔）' : '官网 / 统一社会信用代码'; },
+    targetSecondaryPlaceholder() { return this.form.targetType === 'person' ? '可留空；多个机构用 / 分隔，如：阿里巴巴 / 蚂蚁集团 / 云锋基金' : this.form.targetType === 'industry' ? '填写需开展公开资料尽调的公司名称；关注产品可写在重点问题中' : ''; },
     filteredProjects() {
       const keyword = this.taskSearch.trim().toLowerCase();
       if (!keyword) return this.projects;
@@ -116,6 +118,25 @@ createApp({
     handleLogout() { this.token = ''; this.currentUser = null; this.authStep = 'role'; this.authMode = 'login'; this.authForm.admin_code = ''; this.projects = []; this.knowledgeResults = []; localStorage.removeItem('accessToken'); },
     switchView(view) { this.activeView = view; localStorage.setItem('activeView', view); if (view === 'tasks' || view === 'review') { this.loadProjects(); this.refreshVisibleTaskProgress(); } if (view === 'sources') this.loadRepository(); },
     splitLines(text) { return (text || '').split('\n').map(x => x.trim()).filter(Boolean); },
+    industryRunFields(targetType, intake = null) {
+      if (targetType !== 'industry') return {};
+      if (intake) return {
+        industry_focus: intake.industry_focus || '',
+        industry_segments: intake.industry_segments || intake.industry_scope?.segments || [],
+        excluded_segments: intake.excluded_segments || intake.industry_scope?.excluded_segments || [],
+        research_purpose: intake.research_purpose || intake.industry_scope?.purpose || '',
+        include_capital_markets: intake.include_capital_markets ?? (intake.industry_scope?.capital_market ? intake.industry_scope.capital_market !== 'none' : null),
+        as_of_date: intake.as_of_date || intake.industry_scope?.as_of_date || '',
+        industry_scope: intake.industry_scope || {}
+      };
+      return {
+        industry_focus: this.form.industryFocus.trim(),
+        excluded_segments: this.form.excludedSegments.split(/[、,，;；\n]+/).map(x => x.trim()).filter(Boolean),
+        research_purpose: this.form.researchPurpose,
+        include_capital_markets: this.form.includeCapitalMarkets,
+        as_of_date: this.form.asOfDate || ''
+      };
+    },
     handleFileChange(file, fileList) { this.selectedFiles = fileList.map(item => item.raw || item).filter(Boolean); },
     handleFileRemove(file, fileList) { this.selectedFiles = fileList.map(item => item.raw || item).filter(Boolean); },
     async loadProjects() {
@@ -133,6 +154,7 @@ createApp({
           industry: this.form.industry.trim(),
           description: this.form.keyQuestions.trim(),
           metadata: {
+            ...this.industryRunFields(this.form.targetType),
             start_date: this.form.startDate,
             deadline: this.form.endDate,
             company_name: this.form.companyName,
@@ -164,6 +186,7 @@ createApp({
     async runWorkflow(project) {
       this.traceByProject[project.id] = this.traceByProject[project.id] || [];
       const payload = {
+        ...this.industryRunFields(this.form.targetType),
         search_queries: this.splitLines(this.form.searchQueries), focus_questions: this.splitLines(this.form.focusQuestions || this.form.keyQuestions),
         target_type: this.form.targetType, client_name: '', deadline: this.form.endDate || '',
         company_name: this.form.companyName || project.target_name || '', official_identifier: this.form.targetType === 'company' ? (this.form.identifier || '') : '', region: this.form.region || '',
@@ -216,6 +239,7 @@ createApp({
       this.traceByProject[project.id] = this.traceByProject[project.id] || [];
       const intake = savedIntake || this.intakeFor(project);
       const payload = {
+        ...this.industryRunFields(project.target_type, intake),
         search_queries: intake.search_queries || [],
         focus_questions: intake.focus_questions || [],
         target_type: project.target_type,
@@ -498,6 +522,7 @@ createApp({
       try {
         const intake = this.projectDetails[project.id]?.intake || {};
         const payload = {
+          ...this.industryRunFields(project.target_type, intake),
           search_queries: [], focus_questions: ['基于人工复核报告、专家访谈、走访纪要和一手资料更新核心事实、风险和建议'],
           target_type: project.target_type, client_name: '', deadline: intake.deadline || '',
           company_name: project.target_name || '', official_identifier: intake.official_identifier || '', region: intake.region || '',
@@ -575,6 +600,16 @@ createApp({
       } finally {
         this.reindexing = false;
       }
+    },
+    async retryArtifactIndex(project, artifact) {
+      const response = await this.authFetch(`/research/artifacts/${artifact.id}/reindex`, { method: 'POST' });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        return ElementPlus.ElMessage.error(result.detail || '索引重试失败');
+      }
+      const result = await response.json();
+      Object.assign(artifact, result);
+      ElementPlus.ElMessage.success('已单独启动事实索引，报告不会重跑');
     },
     async downloadArtifact(artifact) {
       if (!artifact) return;

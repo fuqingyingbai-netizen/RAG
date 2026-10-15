@@ -3,11 +3,22 @@ import zipfile
 
 from docx_exporter import markdown_to_docx_bytes
 from report_agents.report_style import sanitize_nested_report_chapter_headings
+from report_agents.industry_report_agent import IndustryReportAgent
 
 
 def _document_xml(payload: bytes) -> str:
     with zipfile.ZipFile(io.BytesIO(payload)) as archive:
         return archive.read("word/document.xml").decode("utf-8")
+
+
+def test_industry_word_navigation_matches_sixteen_chapter_reference():
+    outline = IndustryReportAgent.outline
+    report = '\n\n'.join(f'## {i}. {title}\n\n正文。' for i, (title, _) in enumerate(outline, 1))
+    payload = markdown_to_docx_bytes(report, title='行业研究', outline=outline)
+    document = _document_xml(payload)
+    assert document.count('w:pStyle w:val="Heading1"') == 16
+    for index in (7, 12, 15, 16):
+        assert f'{index}. {outline[index - 1][0]}' in document
 
 
 def test_docx_exporter_restores_two_level_word_navigation():

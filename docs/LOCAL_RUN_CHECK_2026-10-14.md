@@ -117,3 +117,30 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1 -Background
 浏览器验证通过：资料搜索、收藏、阅读目录切换、针对文档提问、Enter 发送、范围传递、回答引用返回阅读页、本地文件选择与移除。原有提交、任务、复核和溯源页面均可正常打开；任务仍显示已完成的公司项目，溯源表仍正常加载，原 AI 小助手在原页面仍可见。本次检查浏览器无 error / warn，两个 JavaScript 文件语法检查与 `git diff --check` 均通过；未重新执行报告生成或后台完整测试。窄屏采用单列知识空间与独立的问答布局，当前视觉验证使用默认桌面视口。
 
 效果图：`work/company-knowledge-preview.png`、`work/company-knowledge-chat-preview.png`。本次未提交或推送代码。
+
+## 公司与行业分支集成检查（2026-10-15）
+
+集成分支为 `codex/integration`，公司侧基于 `ae0a88a`（含知识库提交 `bf78133`），行业侧基于 `109d95d`。本次解决 `.env.example`、`backend/research_workflow.py`、`frontend/index.html`、`scripts/start-local.ps1` 四处合并冲突。
+
+- 配置示例同时保留百炼知识库配置和行业清洗、章节超时配置。
+- 公共 JSON 解析优先调用行业侧的完整 JSON / 外层围栏解析器，保留字符串内部代码围栏。公司、人物路径保留原先允许说明文字包围 JSON 代码块的行为；行业模型清洗和风险评分显式采用严格解析，未放宽行业证据或质量检查。
+- 报告成果区同时保留公司侧待复核提示，以及行业侧的章节降级、核验问题、Word 文件检查、版式未校验和事实质量信息，避免重复展示待复核标签。
+- 启动脚本保留外部健康向量服务复用和后台就绪等待；需要本地 MinIO 时采用行业侧带异常处理的镜像检查，仍校验源码归档哈希。
+- 自动合并后的行业前端测试原先没有加载知识库组件；测试现按实际组件注册关系加载并验证，行业参数、续跑和知识库前端回归均通过。
+- 搜索归一化测试显式开启它所验证的 `BOCHA_FETCH_ENABLED`，避免本机关闭预抓取的配置污染离线用例；未改生产搜索开关。
+
+离线后端回归共 259 项，254 通过、5 失败。覆盖行业从采集到 Word 的模拟流程、行业范围和评分、公司与人物隔离、JSON 解析、异步索引、知识库鉴权与流式问答等。失败项均可在合并前的公司提交 `ae0a88a` 单独复现：
+
+1. `test_person_report_gets_deterministic_audit_index_from_fact_library`：旧索引标题、提示语预期与当前输出不一致。
+2. `test_report_evidence_packages_keep_person_company_and_industry_match_rules_separate`：人物证据过滤结果与 fixture 预期不一致。
+3. `test_professional_fields_are_extracted_without_llm_and_keep_person_boundary`：专业字段抽取未命中 fixture 预期。
+4. `test_company_quality_gate_accepts_sparse_but_fully_traceable_fourteen_chapter_report`：fixture 中占位链接被现有质量闸门拒绝。
+5. `test_report_placeholder_urls_are_removed_before_export`：替代提示语与测试预期不一致。
+
+上述 5 项均位于 `test/test_evidence_ledger_and_section_packages.py`，本次未通过放宽质量规则或修改断言掩盖它们。初次回归另有搜索预抓取测试失败，旧公司提交也能复现，已通过用例配置隔离修复。回归日志：`work/integration-tests.log`、`work/integration-tests.xml`；旧提交对照日志：`work/integration-baseline-tests.log`、`work/integration-baseline-tests.xml`。
+
+前端两组 Node 回归通过：行业参数及组件注册验证、知识库的 3 个引用合并/进度用例。两个前端 JS 通过语法检查，PowerShell 启动脚本通过 AST 语法检查，`git diff --check` 通过。Docker 的 PostgreSQL、Redis、Milvus、MinIO、etcd 当前均 healthy；未额外执行缺镜像重建或首次安装分支。
+
+浏览器使用 `127.0.0.1:8011` 的临时集成服务及独立 SQLite 数据库，仅创建公司、行业兼容示例项目，不写原项目数据库。已检查登录、公司/行业表单切换、行业研究范围和资本开关、公司与行业成果展开、待复核提示、行业事实质量弹窗及公司知识库菜单；知识库真实读取到 5 份云端资料。控制台无 error / warn。截图：`work/integration-industry-form.png`、`work/integration-task-quality.png`、`work/integration-knowledge.png`。本次未运行真实的公司或行业新报告，也未新增云端资料、发起付费模型问答或重建原项目索引。
+
+本次只在集成分支准备冲突修复与验证记录，未执行合并提交、推送或修改 `main`。存在上述基线失败，因此不应将本次结论表述为全库测试通过；正式合入主分支前仍需双方复核，并跟踪原有失败。
