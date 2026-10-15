@@ -428,6 +428,12 @@ class WebSearchProvider:
                 best = result
             if len(result.get("content") or "") >= min_chars:
                 return result
+            if document_profile == 'company' and result.get('document_extraction') is not None and result.get('document_pages') is not None:
+                # A valid PDF with sparse/failed OCR is already an acquired
+                # original. Retain its page-level gaps; do not OCR it again
+                # with a mobile user-agent or replace the record with a reader
+                # summary merely because the extracted body is short.
+                return result
         reader_result = self._fetch_with_reader_proxy(url, timeout, max_chars)
         if len(reader_result.get("content") or "") > len(best.get("content") or "") or (
             not best.get("content") and reader_result.get("status") not in {"reader_disabled", "reader_empty", "reader_failed"}

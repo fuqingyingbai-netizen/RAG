@@ -2540,6 +2540,10 @@ class ResearchWorkflow:
             if fetched.get('document_extraction') and fetched.get('document_pages'):
                 source.content = fetched.get('content') or source.content
                 meta.update(document_pages=fetched['document_pages'], document_extraction=fetched['document_extraction'])
+                if fetched.get('content'):
+                    meta.update(content_kind='pdf_text_extracted', fetch_status=fetched.get('status') or 'done',
+                                fetched_content_type=fetched.get('content_type') or 'application/pdf',
+                                fetched_pages=fetched.get('pages') or 0)
                 ocr = fetched['document_extraction'].get('ocr') or {}
                 meta['ocr_status'] = ocr.get('status', 'pending')
                 refreshed += 1

@@ -130,7 +130,7 @@ def test_pending_notice_never_claims_ocr_was_skipped_after_actual_attempt():
 
 def test_old_company_pdf_refetches_once_and_other_routes_do_not(monkeypatch):
     w = ResearchWorkflow.__new__(ResearchWorkflow)
-    source = SimpleNamespace(url='https://issuer.test/a.pdf', content='original', source_metadata={'document_extraction': {'needs_ocr_pages': [30]}})
+    source = SimpleNamespace(url='https://issuer.test/a.pdf', content='original', source_metadata={'content_kind':'summary_only','fetch_status':'empty_pdf','document_extraction': {'needs_ocr_pages': [30]}})
     p = SimpleNamespace(target_type='company', sources=[source])
     calls = []
     result = {'content': '原文加扫描转录', 'document_pages': [{'page': 30, 'text': '扫描转录'}],
@@ -139,6 +139,8 @@ def test_old_company_pdf_refetches_once_and_other_routes_do_not(monkeypatch):
     db = SimpleNamespace(commit=lambda: None)
     assert w.enrich_ocr_sources(db, p) == 1
     assert source.content == '原文加扫描转录' and source.source_metadata['ocr_status'] == 'transcribed'
+    from report_agents.company_evidence import source_body
+    assert source_body(source)[1]=='retrieved_content'
     assert w.enrich_ocr_sources(db, p) == 0 and len(calls) == 1
     p.target_type = 'industry'
     assert w.enrich_ocr_sources(db, p) == 0 and len(calls) == 1
@@ -151,6 +153,25 @@ def test_failed_refetch_keeps_original_and_pending_pages(monkeypatch):
     assert w.enrich_ocr_sources(SimpleNamespace(commit=lambda: None), SimpleNamespace(target_type='company', sources=[source])) == 0
     assert source.content == 'original' and source.source_metadata['document_extraction']['needs_ocr_pages'] == [30]
     assert source.source_metadata['ocr_retry']['status'] == 'http_403'
+
+
+def test_sparse_company_pdf_keeps_ocr_gaps_without_mobile_or_reader_replacement(monkeypatch):
+    import web_search
+    provider=web_search.WebSearchProvider()
+    result={'status':'empty_pdf','content':'','pages':3,'document_pages':[{'page':1,'text':''}],
+            'document_extraction':{'complete':False,'needs_ocr_pages':[1,2,3]}}
+    calls=[]
+    monkeypatch.setattr(provider,'_fetch_url_once',lambda *a,**kw:calls.append(kw) or result)
+    monkeypatch.setattr(provider,'_fetch_with_reader_proxy',lambda *a:pytest.fail('reader would discard acquired PDF provenance'))
+    assert provider.fetch_url('https://issuer.test/a.pdf',False,document_profile='company')==result
+    assert len(calls)==1
+
+
+def test_failed_pdf_body_does_not_promote_search_summary_to_original():
+    from report_agents.company_evidence import source_body
+    source={'content':'搜索摘要声称公司没有任何诉讼。','summary':'搜索摘要声称公司没有任何诉讼。',
+            'source_metadata':{'fetch_status':'empty_pdf','document_extraction':{'needs_ocr_pages':[1]}}}
+    assert source_body(source)[1]=='discovery_summary'
 
 
 @pytest.mark.parametrize('line', [

@@ -19,7 +19,7 @@ def source_body(source):
     kind=str(meta.get('content_kind') or '').lower()
     status=str(meta.get('fetch_status') or meta.get('extraction_status') or '').lower()
     lead=kind in {'summary','summary_only','search_summary','search_snippet','snippet','empty_content'}
-    lead=lead or (status in {'failed','fetch_timeout','blocked_or_challenge','empty','invalid_pdf_response'}
+    lead=lead or (status in {'failed','fetch_timeout','blocked_or_challenge','empty','empty_pdf','invalid_pdf_response','unsupported_content_type','skipped'}
                  and content==str(get(source,'summary') or '').strip())
     if content and not lead:
         return content,'retrieved_content'
