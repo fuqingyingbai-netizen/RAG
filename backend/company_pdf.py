@@ -34,11 +34,12 @@ def extract_company_pdf(payload):
         if text:blocks.append(f'--- PDF page {index+1} ---\n{text}')
         used+=len(text)
     table_status=extract_business_tables(payload,pages)
+    management_status=extract_management_tables(payload,pages)
     return {'content':'\n\n'.join(blocks),'pages':len(reader.pages),'document_pages':pages,
             'document_extraction':{'method':'embedded_pdf_text','extracted_pages':len(pages),
                                    'omitted_pages':len(reader.pages)-len(pages),'needs_ocr_pages':needs_ocr,
                                    'complete':len(pages)==len(reader.pages) and not needs_ocr,
-                                   'business_tables':table_status}}
+                                   'business_tables':table_status,'management_tables':management_status}}
 
 
 def extract_business_tables(payload,pages):
@@ -58,7 +59,27 @@ def extract_business_tables(payload,pages):
                 selected.add(n)
                 if n>record['page'] and re.search(r'公司研发人员情况|公司研发投入情况',compact_page(by_page[n])):break
     selected=sorted(n for n in selected if n in by_page)
-    maximum=_limit('COMPANY_PDF_TABLE_MAX_PAGES',24,1,100)
+    return _extract_grids(payload,pages,selected,'COMPANY_PDF_TABLE_MAX_PAGES')
+
+
+def extract_management_tables(payload,pages):
+    selected=set();by_page={p['page']:p for p in pages}
+    for p in pages:
+        text=compact_page(p)
+        if ('任期起始日期' in text and '任职状态' in text) or all(s in text for s in ('姓名','担任的职务','类型','日期','原因')):
+            selected.update((p['page'],p['page']+1))
+        if re.search(r'在其他单位任职情况|在股东单位任职情况',text):
+            for n in range(p['page'],p['page']+6):
+                if n not in by_page:break
+                selected.add(n)
+                if n>p['page'] and re.search(r'报酬情况|薪酬情况|从公司获得的税前报酬',compact_page(by_page[n])):break
+    return _extract_grids(payload,pages,selected,'COMPANY_PDF_MANAGEMENT_MAX_PAGES')
+
+
+def _extract_grids(payload,pages,selected,limit_name):
+    by_page={p['page']:p for p in pages}
+    selected=sorted(n for n in selected if n in by_page)
+    maximum=_limit(limit_name,24,1,100)
     pending=selected[maximum:];selected=selected[:maximum]
     if not selected:return {'method':'not_needed','processed_pages':[],'pending_pages':[]}
     try:
