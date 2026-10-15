@@ -344,7 +344,7 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     new_risk=next(a for a in refreshed if a.artifact_type=='risk_assessment')
     new_report=next(a for a in refreshed if a.artifact_type=='desktop_report')
     assert len(risk_calls)==1 and new_risk.id!=prior_risk.id
-    assert new_risk.artifact_metadata['risk_pipeline_version']=='industry-risk-v4-support-transparency'
+    assert new_risk.artifact_metadata['risk_pipeline_version']=='industry-risk-v5-diverse-evidence'
     assert 'reexported_from_artifact_id' not in new_report.artifact_metadata
 
     # Same source set and pipeline version do not authorize a stale downstream

@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import urlsplit, parse_qsl, urlencode
 
 INDUSTRY_POLICY_VERSION = 'industry-scope-v3'
-INDUSTRY_RISK_VERSION = 'industry-risk-v4-support-transparency'
+INDUSTRY_RISK_VERSION = 'industry-risk-v5-diverse-evidence'
 INDUSTRY_RISK_DIMENSIONS = (
     '政策与监管风险', '市场增长与需求风险', '竞争格局与集中度风险',
     '商业化与盈利模式风险', '技术迭代与替代风险', '资本热度与估值风险', '数据口径与证据可靠性风险',
@@ -227,10 +227,9 @@ def risk_fact_text(fact: dict) -> str:
     """A single verified numeric context cannot authorize other numbers in its quote."""
     context = fact.get('numeric_context') or {}
     if fact.get('numeric_validation', {}).get('passed') is True:
-        return (f'{context.get("period", "")} {context.get("geography", "")} '
+        return (f'{"预测/目标值：" if context.get("is_forecast") else "来源报告值："}{context.get("period", "")} {context.get("geography", "")} '
                 f'{context.get("metric", "")}：{context.get("value", "")}{context.get("unit", "")}；'
-                f'口径：{context.get("definition", "")}；'
-                f'性质：{"预测" if context.get("is_forecast") else "原来源统计"}。')
+                f'口径：{context.get("definition", "")}。')
     return str(fact.get('fact') or '')
 
 
@@ -509,6 +508,41 @@ def company_filing_source(source: Any) -> bool:
     return bool(re.search(r'公司|股份|集团|有限公司', title) or not re.search(r'行业|产业|市场|技术|监管', title))
 
 
+FORECAST_MARKERS = r'预测|预计|预估|估计|有望|或将|情景|假设|目标|锚定|力争|争取|forecast|projected|estimated'
+
+
+def local_forecast_attribute(quote: str, metric: str, value, unit: str):
+    """Bind nature to the metric/value clause, not a later forecast in its quote.
+
+    Returns None for no pairing or contradictory repeated pairs. This is a
+    conservative text rule, not a verification of the source's methodology.
+    """
+    text = re.sub(r'\s+', '', quote)
+    anchor = re.sub(r'\s+', '', metric)
+    expected = number_key(str(value) + unit)
+    if not anchor or expected is None:
+        return None
+    statuses = set()
+    for match in re.finditer(re.escape(anchor), text):
+        tail = text[match.end():]
+        number = re.search(NUMBER_PATTERN, tail)
+        if not number or number.start() > 60 or number_key(number.group()) != expected:
+            continue
+        clauses = re.split(r'[，,；;。！？]', text[:match.end()] + tail[:number.start()])
+        prefix = clauses[-1]
+        # "据预测，市场规模..." has a short forecast lead-in without a
+        # separate numeric assertion; do not carry labels across other values.
+        if (len(clauses) > 1 and not numeric_mentions(clauses[-2])
+                and re.fullmatch(r'.{0,25}(?:预计|预测|预估)(?:显示|表明|认为)?', clauses[-2])):
+            prefix = clauses[-2] + prefix
+        # Parenthetical labels immediately after a value belong to that value.
+        suffix = tail[number.end():]
+        parenthetical = re.match(r'[（(]([^）)]{0,40})[）)]', suffix)
+        local = prefix + (parenthetical[1] if parenthetical else '')
+        statuses.add(bool(re.search(FORECAST_MARKERS + r'|将达|将达到', local, re.I)))
+    return next(iter(statuses)) if len(statuses) == 1 else None
+
+
 def extract_industry_source_facts(sources: list, scope: dict) -> list[dict]:
     """Extract small, verbatim cards from stored body text, never search summaries.
 
@@ -566,7 +600,7 @@ def extract_industry_source_facts(sources: list, scope: dict) -> list[dict]:
                            'definition': definition if any(str(n).lower() in definition.lower() for n in subjects if n) else '',
                            'geography': next(iter(region_names)) if len(region_names) == 1 else '',
                            'period': year_tokens[0] if len(set(year_tokens)) == 1 else '',
-                           'is_forecast': bool(re.search(r'预计|预测|有望|将达到|将达', quote))}
+                           'is_forecast': local_forecast_attribute(quote, metric.group(), value_match[1], value_match[2]) is True}
                 numeric_cards.append({**base, 'numeric_context': context})
             if numeric_cards:
                 selected.extend(numeric_cards[:3])
@@ -700,7 +734,7 @@ def claim_semantic_issues(text: str, facts: list[dict]) -> list[dict]:
                         'evidence_ids':[f['evidence_id'] for f in supporting],
                         'message':f'预测值{number}未在同一分句保留预测、预估或目标标记。'})
         claims = list(re.finditer(r'多源(?:预测|数据|信息|证据)?(?:一致|印证|验证)|多(?:家机构|个来源|个独立来源|方)(?:预测|数据|信息)?(?:一致|印证|验证)|交叉(?:验证|印证)|相互印证', line))
-        claims = [m for m in claims if not re.search(r'未|无|不能|尚不|缺少|缺乏|不足|待', line[max(0,m.start()-10):m.start()])]
+        claims = [m for m in claims if not re.search(r'未|无|不能|尚不|缺少|缺乏|不足|待|不构成|不代表|不等于|并非', line[max(0,m.start()-10):m.start()])]
         claims = [m for m in claims if not re.match(r'性?(?:尚待|待|需)(?:核验|验证|确认)', line[m.end():])]
         if claims:
             keys = {source_document_key(f.get('source_url', '')) for f in rows} - {''}
@@ -763,6 +797,14 @@ def annotate_fact(fact: dict, scope: dict) -> dict:
     if item.get('evidence_scope') == 'capital_market' and scope.get('capital_market') == 'none':
         item['eligible_for_report'] = False
         item['eligible_for_risk_scoring'] = False
+    if (item.get('cleaning_method') in {'industry_rule', 'llm'} and item.get('evidence_quote_verified') is True
+            and isinstance(item.get('numeric_context'), dict)):
+        context = dict(item['numeric_context'])
+        nature = local_forecast_attribute(str(item.get('evidence_quote') or ''), str(context.get('metric') or ''),
+                                          context.get('value'), str(context.get('unit') or ''))
+        if nature is not None:
+            context['is_forecast'] = nature
+        item['numeric_context'] = context
     identity = str(item.get('source_url') or '') + '\n' + str(item.get('fact') or '')
     if item.get('cleaning_method') == 'industry_rule':
         identity += '\nindustry_rule\n' + json.dumps(item.get('numeric_context') or {}, sort_keys=True, ensure_ascii=False)
@@ -968,6 +1010,7 @@ def trace_snapshot(events: list[dict], limit: int = 2000) -> tuple[list[dict], d
 
 
 def balanced_risk_facts(facts: list[dict], limit: int = 60) -> list[dict]:
+    from industry_evidence import evidence_requirements, fact_requirement_ids
     groups = {}
     for fact in facts:
         if not isinstance(fact, dict) or fact.get('eligible_for_risk_scoring') is False or fact.get('scope_match') != 'in_scope':
@@ -982,6 +1025,23 @@ def balanced_risk_facts(facts: list[dict], limit: int = 60) -> list[dict]:
         rows.sort(key=lambda f: (f.get('claim_type') != 'source_excerpt',
                                  f.get('numeric_validation', {}).get('passed') is True,
                                  float(f.get('quality_score') or 0)), reverse=True)
+        requirements = evidence_requirements([rows[0].get('module')])
+        metric_ids = {id(f):set(fact_requirement_ids(f, requirements, True)) for f in rows}
+        document_keys = {id(f):source_document_key(f.get('source_url', '')) for f in rows}
+        ordered, covered, documents = [], set(), set()
+        while rows and len(ordered) < limit:
+            def rank(pair):
+                index, fact = pair
+                return (fact.get('claim_type') != 'source_excerpt',
+                        bool(metric_ids[id(fact)] - covered),
+                        bool(document_keys[id(fact)] and document_keys[id(fact)] not in documents),
+                        (fact.get('numeric_context') or {}).get('is_forecast') is not True,
+                        fact.get('numeric_validation', {}).get('passed') is True, -index)
+            index, fact = max(enumerate(rows), key=rank)
+            rows.pop(index); ordered.append(fact)
+            covered.update(metric_ids[id(fact)])
+            documents.add(document_keys[id(fact)])
+        rows[:] = ordered + rows
     result = []
     offset = 0
     while len(result) < limit:

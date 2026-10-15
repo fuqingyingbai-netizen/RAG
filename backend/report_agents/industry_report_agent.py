@@ -10,9 +10,9 @@ from .report_style import REPORT_CHAPTER_HEADING_RE, REFERENCE_REPORT_STYLE, ens
 
 from .industry_template import INDUSTRY_REPORT_OUTLINE
 try:
-    from ..industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers, summary_package, summary_length, claim_semantic_issues
+    from ..industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers, summary_package, summary_length, claim_semantic_issues, risk_fact_text
 except ImportError:
-    from industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers, summary_package, summary_length, claim_semantic_issues
+    from industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers, summary_package, summary_length, claim_semantic_issues, risk_fact_text
 
 INDUSTRY_SECTION_STRUCTURES = {
     index: f"## {index}. {title}\n\n本节内容要求：" + "；".join(requirements)
@@ -261,7 +261,9 @@ class IndustryReportAgent:
     def _fallback_section(self, package, index, title):
         facts, seen = [], set()
         for fact in package.get('facts', []):
-            key = re.sub(r'\s+', '', str(fact.get('fact') or ''))
+            if fact.get('eligible_for_report') is False:
+                continue
+            key = re.sub(r'\s+', '', risk_fact_text(fact))
             if not key or key in seen or not fact.get('evidence_id'):
                 continue
             seen.add(key)
@@ -269,10 +271,29 @@ class IndustryReportAgent:
         if index == 1:
             # A synthesis fallback remains short, traceable and explicit about its limits.
             facts = facts[:5]
-        body = '\n\n'.join(f'- {str(f.get("fact") or "")[:60 if index == 1 else 700]} [{f["evidence_id"]}]({f.get("source_url", "")})' for f in facts)
-        if index == 1:
-            body = '以下为已完成章节的主要事实摘要；模型摘要未通过校验，综合判断需人工复核。\n\n' + body
-        return f'## {index}. {title}\n\n' + (body or '待核验。本次证据不足，相关事项见第16章。')
+        heading = f'## {index}. {title}\n\n'
+        body = '以下为已完成章节的主要事实摘要；模型摘要未通过校验，综合判断需人工复核。\n\n' if index == 1 else ''
+        for fact in facts:
+            # Render the single authorized metric with its nature in the same
+            # clause. Raw multi-metric quotes remain in the audit library.
+            text = risk_fact_text(fact)
+            if len(text) > 700:
+                parts = re.split(r'(?<=[。！？；;，])', text)
+                text = ''
+                for part in parts:
+                    if len(text + part) > 700:
+                        break
+                    text += part
+                text = text or '原文较长，具体内容待核验。'
+            line = f'- {text} [{fact["evidence_id"]}]({fact.get("source_url", "")})'
+            line = mark_unverified_numbers(line, [fact])
+            if claim_semantic_issues(line, [fact]):
+                line = f'- 该来源的数值或综合表述需复核，暂不转述其判断。 [{fact["evidence_id"]}]({fact.get("source_url", "")})'
+            candidate = body + line + '\n\n'
+            if index == 1 and summary_length(heading + candidate) > 600:
+                continue
+            body = candidate
+        return heading + (body.strip() or '待核验。本次证据不足，相关事项见第16章。')
 
     def _edit(self, project: Any, draft: str, risk_json: str, section_fact_counts: dict[int, int], invoke: Callable[[str, str, Any], str], clip: Callable[[str, int], str], emit: Callable[..., None], trace_emit: Any) -> str:
         # Chapters have already been audited independently. A whole-report model

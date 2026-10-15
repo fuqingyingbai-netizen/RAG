@@ -658,7 +658,7 @@ class ResearchWorkflow:
             if standardized_type == "person"
             else "company-evidence-v8-entity-bound"
             if standardized_type == "company"
-            else "industry-evidence-v8-source-locators"
+            else "industry-evidence-v9-local-nature"
             if standardized_type == "industry"
             else "default-v4-auditable"
         )
@@ -680,7 +680,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v16-risk-transparency",
+            "industry": "industry-report-evidence-v17-validated-fallback",
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
