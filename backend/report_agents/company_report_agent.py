@@ -29,6 +29,7 @@ from .company_management import build_management_package, render_management, man
 from .company_people import build_people_package, render_people, people_errors
 from .company_judicial import build_judicial_package, render_judicial, judicial_errors
 from .company_diligence import build_diligence_package, render_diligence, diligence_errors
+from .company_risk_register import build_risk_register, dictionary as risk_dictionary, render_risk_register, risk_register_errors
 
 
 COMPANY_REPORT_OUTLINE = [
@@ -42,7 +43,7 @@ COMPANY_REPORT_OUTLINE = [
     ("企业文化及人员流失情况", ["内部文化价值观与文化践行引导", "团队激励与人才结构现状", "人才储备、培养与梯队建设", "销售/研发/技术等核心岗位人员流失情况", "核验判断与具体缺口"]),
     ("企业司法负面核查", ["核心事实汇总", "风险事项分类核查表", "视觉证据/图谱证据", "结论与行动建议"]),
     ("定向穿透专项尽职调查", ["融资情况", "资金使用合规性", "战略布局", "业务真实性", "大额资金往来", "客户指定专项", "技术/供应商/资金往来穿透"]),
-    ("风险核查", ["组织与管理风险", "业务与运营风险", "行业特殊风险", "合规法律风险", "资本与估值风险"]),
+    ("风险核查", ["组织与管理风险", "业务与运营风险", "行业特殊风险", "具体事项与有边界的判断", "75项核查目录及扩展事项"]),
     ("综合评价", ["整体评级", "分项评分表", "核心优势", "核心扣分项", "关键判断", "投资推进建议"]),
     ("信息来源", ["信息点", "来源标题", "URL", "可信度", "支持章节"]),
     ("后续研究建议", ["待确认信息点（集中式缺口清单）", "下一步深度研究方向与优先级排序", "关键行动提示"]),
@@ -124,7 +125,7 @@ COMPANY_SECTION_STRUCTURES = {
 目标公司报告专属章节输出骨架：
 ## 11. 风险核查
 
-根据风险字典逐类识别，不得泛泛罗列。建议表格：风险类别｜本项目信号｜具体表现｜证据来源｜风险等级｜核验动作。
+按模板三类及75项核查目录核对；模板描述不是目标公司事实。具体事项保留主体、时期、原件定位、影响判断和核验动作；核查优先级与公司整体严重程度分开，不由信息缺口或模型打分平均出风险等级。召回、司法及资金等扩展事项明确标记。
 """,
     12: """
 目标公司报告专属章节输出骨架：
@@ -147,12 +148,11 @@ COMPANY_SECTION_STRUCTURES = {
 }
 
 
-COMPANY_RISK_TAXONOMY = """
-公司风险核查字典：
-- 组织与管理风险：管理层缺乏执行战斗力、战略缺乏延续性、缺乏行业经验、能力与企业发展需求不匹配、决策流程不科学、决策保守、创始人缺乏决策话语权、核心团队年纪偏大或能力不足、家族化管理、交叉管理职责不清、文化导向不健康、资源分配不均、派系内斗、信息不共享、员工流失率高、核心岗位流失、排外、晋升路径不清、监察制度不足、管理流于形式、核心资源掌控造假等。
-- 业务与运营风险：业绩收入造假、总部带头造假、经销体系紊乱、压货、刷单、客户数量造假、产品参数不符、美化报表、实验室数据误导投资人、研发进度及投入夸大、用户数量夸大、供应链能力夸大、专利侵权、销售区域恶性竞争、销售个人获利、不正当获客、偷税漏税、社保问题、区域腐败、产品壁垒不足、研发回报周期长、消防/环评/用工/贸易风险、现金流不足。
-- 行业特殊风险：消费行业关注业绩夸大、虚假宣传、商业模式单一、产品线单一、供应链薄弱、质量安全；医药/医疗器械关注研发审批、临床数据验真、产业化、医生认可、专利合作、渠道；硬科技关注PPT公司、研发慢、商务弱、闭门造车、场景局限、造血弱、人才流失；新能源关注虚假项目、融资套现、重炒作轻业务、资源与业务错配、竞争力不明显、盲目投入、生产管理落后、客情关系差。
-"""
+COMPANY_RISK_TAXONOMY = (
+    "公司风险核查字典（模板75个问题，不是已发生事实或默认评分）：\n"
+    + "\n".join(item['id'] + ' ' + item['category'] + ('／' + item['sector'] if item['sector'] else '')
+                + '：' + item['label'] for item in risk_dictionary()['items'])
+)
 
 
 COMPANY_SECTION_FEW_SHOTS = {
@@ -338,6 +338,22 @@ class CompanyReportAgent:
                 chapter = self._write_diligence(project, package_payload, emit, trace_emit)
                 sections_by_index[10] = chapter
                 section_evidence_ids[10] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+            elif index == 11:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_risk_register(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                    industry=str(getattr(project, "industry", "") or ""),
+                    intake=getattr(project, "company_research_intake", {}),
+                    query_attempts=getattr(project, "company_judicial_query_attempts", []),
+                )
+                project.company_risk_register_package = package_payload
+                chapter = self._write_risk_register(project, package_payload, emit, trace_emit)
+                sections_by_index[11] = chapter
+                section_evidence_ids[11] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
             elif index <= 12:
                 package = _focused_cleaned_json(
                     cleaned_json,
@@ -408,6 +424,7 @@ class CompanyReportAgent:
             + getattr(project, "company_people_package", {}).get("information_gaps", [])
             + getattr(project, "company_judicial_package", {}).get("information_gaps", [])
             + getattr(project, "company_diligence_package", {}).get("information_gaps", [])
+            + getattr(project, "company_risk_register_package", {}).get("information_gaps", [])
         ))
         sections_by_index[14] = "## 14. 后续研究建议\n\n" + (
             "\n".join(f"- 待核验：{item}" for item in verification_gaps)
@@ -418,7 +435,7 @@ class CompanyReportAgent:
         with ThreadPoolExecutor(max_workers=min(workers, len(self.outline))) as executor:
             futures = {}
             for index, (section_title, requirements) in enumerate(self.outline, 1):
-                if index in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14}:
+                if index in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14}:
                     continue
                 fact_count = len(json.loads(section_packages[index]).get("facts", []))
                 if index <= 12 and fact_count == 0:
@@ -494,6 +511,8 @@ class CompanyReportAgent:
                        lambda _m: sections_by_index[9] + "\n\n", final, count=1)
         final = re.sub(r"(?ms)^##\s*10[.、．][^\n]*\n.*?(?=^##\s*11[.、．]|\Z)",
                        lambda _m: sections_by_index[10] + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*11[.、．][^\n]*\n.*?(?=^##\s*12[.、．]|\Z)",
+                       lambda _m: sections_by_index[11] + "\n\n", final, count=1)
         final = self._ensure_section_evidence_markers(final, section_evidence_ids)
         final = ensure_delivery_sections(project, final, self.report_kind)
         emit(trace_emit, "report", self.trace_agent, "目标公司桌面研究报告完成", f"chars={len(final)}", chars=len(final), status="done")
@@ -615,6 +634,19 @@ class CompanyReportAgent:
         emit(trace_emit, "report", self.trace_agent, "第十章专项对象与核查边界核对完成",
              json.dumps(project.company_diligence_diagnostic, ensure_ascii=False),
              section=self.outline[9][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_risk_register(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_risk_register(package)
+        errors = risk_register_errors(chapter, package)
+        project.company_risk_register_diagnostic = {
+            "version": package["version"], **package["diagnostic"], "errors": errors,
+            "degraded": bool(errors), "information_gaps": package["information_gaps"],
+            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第十一章具体风险与模板核查目录核对完成",
+             json.dumps(project.company_risk_register_diagnostic, ensure_ascii=False),
+             section=self.outline[10][0], status="fallback" if errors else "done")
         return chapter
 
     def _write_summary(self, project: Any, cleaned_json: str, completed_sections: dict[int, str], invoke, emit, trace_emit=None) -> str:
@@ -778,12 +810,12 @@ class CompanyReportAgent:
             section = report[match.start():end].rstrip()
             index = int(match.group(1))
             expected = [value for value in section_evidence_ids.get(index, []) if value]
-            if 11 <= index <= 12 and not expected:
+            if index == 12 and not expected:
                 section = (
                     report[match.start():match.end()]
                     + "\n\n本次已检索公开来源未形成可引用记录；相关核验事项见第14章。"
                 )
-            missing = [value for value in expected if value not in section] if index not in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10} else []
+            missing = [value for value in expected if value not in section] if index not in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} else []
             if missing:
                 section += "\n\n> 本章引用证据：" + "、".join(f"[{value}]" for value in missing)
             chunks.append(section + ("\n\n" if position + 1 < len(matches) else ""))

@@ -623,7 +623,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v22-directed-diligence-and-money-bases",
+            "company": "company-report-evidence-v23-source-bound-risk-register",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -741,6 +741,8 @@ class ResearchWorkflow:
         if standardized_type == "company":
             from report_agents.company_diligence import diligence_discovery_queries
             company_diligence_queries = diligence_discovery_queries(list(project.sources or []), str(project.target_name or ""))
+            from report_agents.company_risk_register import recall_discovery_queries
+            company_diligence_queries += recall_discovery_queries(list(project.sources or []), str(project.target_name or ""))
         skip_web_search = bool(
             resume_enabled
             and not force_refresh
@@ -921,6 +923,8 @@ class ResearchWorkflow:
         checkpoint("cleaning")
 
         project.status = "risk_scoring"
+        if standardized_type == "company":
+            project.company_research_intake = dict(intake or {})
         db.commit()
         existing_risk = self._latest_artifact(project, "risk_assessment")
         # A risk assessment is derived from the cleaned facts. Never reuse it when
@@ -938,7 +942,10 @@ class ResearchWorkflow:
             except Exception as exc:
                 db.rollback()
                 _emit(emit, "risk", "risk_assessment_agent", "风险研判失败，使用降级评分", str(exc), status="fallback")
-                risk = json.dumps(self._fallback_risk(cleaned) | {"workflow_error": _error_json("risk", exc)}, ensure_ascii=False, indent=2)
+                fallback = ({"overall_score": None, "risk_level": "unknown", "dimensions": [],
+                             "key_risks": [], "unknowns": ["公司原件风险登记失败，需复核；未回退到关键词评分。"]}
+                            if standardized_type == "company" else self._fallback_risk(cleaned))
+                risk = json.dumps(fallback | {"workflow_error": _error_json("risk", exc)}, ensure_ascii=False, indent=2)
             risk_artifact = self.save_artifact(db, project, "risk_assessment", _project_doc_title(project, "风险研判"), risk, {"agent": "risk_assessment"})
             _emit(emit, "risk", "risk_assessment_agent", "风险研判完成", "", status="done")
         checkpoint("risk")
@@ -1072,6 +1079,9 @@ class ResearchWorkflow:
                        if standardized_type == "company" else {}),
                     **({"company_diligence_diagnostic": getattr(project, "company_diligence_diagnostic", {}),
                         "company_diligence_evidence": getattr(project, "company_diligence_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_risk_register_diagnostic": getattr(project, "company_risk_register_diagnostic", {}),
+                        "company_risk_register_evidence": getattr(project, "company_risk_register_package", {})}
                        if standardized_type == "company" else {}),
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
@@ -3477,6 +3487,11 @@ class ResearchWorkflow:
             return 0
 
         expanded_query_items = self._expand_search_queries(plan, intake)
+        discovered_company_recalls: set[str] = set()
+        if str(intake.get("target_type") or "").lower() == "company":
+            from report_agents.company_risk_register import recall_discovery_queries
+            expanded_query_items = recall_discovery_queries(list(project.sources or []),
+                str(intake.get("target_name") or project.target_name or ""), discovered_company_recalls) + expanded_query_items
         person_mode = str(intake.get("target_type") or "").lower() == "person"
         authority_queries = [item for item in expanded_query_items if item.get("search_tier") == "authority_first"]
         pending_open_web_queries = [item for item in expanded_query_items if item.get("search_tier") != "authority_first"] if authority_queries else []
@@ -3834,6 +3849,8 @@ class ResearchWorkflow:
                             "evidence_scope": query_item.get("evidence_scope") or "",
                             "diligence_entity": query_item.get("diligence_entity") or "",
                             "diligence_relationship_source": query_item.get("diligence_relationship_source") or "",
+                            "recall_entity": query_item.get("recall_entity") or "",
+                            "recall_relationship_source": query_item.get("recall_relationship_source") or "",
                             "industry_name": query_item.get("industry_name") or "",
                             "segment_name": query_item.get("segment_name") or "",
                             "company_role": query_item.get("company_role") or "",
@@ -4022,6 +4039,9 @@ class ResearchWorkflow:
                 from report_agents.company_diligence import diligence_discovery_queries
                 company_discovery = diligence_discovery_queries(list(project.sources or []),
                     str(intake.get("target_name") or project.target_name or ""), discovered_company_diligence)
+                from report_agents.company_risk_register import recall_discovery_queries
+                company_discovery += recall_discovery_queries(list(project.sources or []),
+                    str(intake.get("target_name") or project.target_name or ""), discovered_company_recalls)
                 if company_discovery:
                     discovery_items.extend(company_discovery)
                     _emit(emit, "web_search", "company_diligence_discovery_agent",
@@ -4625,6 +4645,20 @@ class ResearchWorkflow:
 
     def assess_risk(self, project: ResearchProject, cleaned_json: str, emit: TraceEmitter | None = None) -> str:
         target_type = str(project.target_type or "").lower()
+        if target_type == "company":
+            from report_agents.company_risk_register import build_risk_register
+            cleaned = _plain_json(cleaned_json)
+            package = build_risk_register(
+                cleaned if isinstance(cleaned, dict) else {}, str(project.target_name or ""),
+                list(project.sources or []), industry=str(project.industry or ""),
+                intake=getattr(project, "company_research_intake", {}),
+                query_attempts=getattr(project, "company_judicial_query_attempts", []),
+            )
+            project.company_risk_register_package = package
+            _emit(emit, "risk", "risk_assessment_agent", "公司风险原件登记完成",
+                  json.dumps(package["diagnostic"], ensure_ascii=False),
+                  risk_level=package["risk_level"], status="done")
+            return json.dumps(package, ensure_ascii=False, indent=2)
         risk_evidence = self._risk_evidence_payload(cleaned_json, target_type=target_type)
         company_evidence_rule = ""
         evidence_id_field = ""
@@ -5419,6 +5453,10 @@ class ResearchWorkflow:
         for record in getattr(project, "company_diligence_package", {}).get("facts", []):
             for evidence_id in record.get("evidence_ids", []):
                 diligence_by_id[evidence_id.upper()].append(record)
+        risk_register_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_risk_register_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                risk_register_by_id[evidence_id.upper()].append(record)
         facts_by_id: dict[str, dict[str, Any]] = {}
         for item in facts:
             url = str(item.get("source_url") or "").rstrip("/")
@@ -5433,6 +5471,11 @@ class ResearchWorkflow:
             )).strip().upper()
             if evidence_id:
                 facts_by_id.setdefault(evidence_id, item)
+
+        for evidence_id, records in risk_register_by_id.items():
+            # Original-document recovery can supply an event the cleaner
+            # omitted altogether. Its source-bound locator must still resolve.
+            facts_by_id.setdefault(evidence_id, records[0])
 
         chapters_by_id: dict[str, set[int]] = {}
         cited_ids: set[str] = set()
@@ -5459,7 +5502,8 @@ class ResearchWorkflow:
                         or (chapter == 7 and canonical in management_by_id)
                         or (chapter == 8 and canonical in people_by_id)
                         or (chapter == 9 and canonical in judicial_by_id)
-                        or (chapter == 10 and canonical in diligence_by_id)):
+                        or (chapter == 10 and canonical in diligence_by_id)
+                        or (chapter == 11 and canonical in risk_register_by_id)):
                     chapters_by_id.setdefault(canonical, set()).add(chapter)
                 elif canonical not in chapters_by_id:
                     # Keep the citation visible in chapter 13 even when it is
@@ -5489,14 +5533,14 @@ class ResearchWorkflow:
             chapters_by_id[evidence_id] = {0}
         for evidence_id, chapters in sorted(chapters_by_id.items(), key=lambda value: (min(value[1]), value[0])):
             item = facts_by_id.get(evidence_id, {})
-            if any(evidence_id in mapping for mapping in (governance_by_id, history_by_id, operations_by_id, reputation_by_id, business_by_id, management_by_id, people_by_id, judicial_by_id, diligence_by_id)):
+            if any(evidence_id in mapping for mapping in (governance_by_id, history_by_id, operations_by_id, reputation_by_id, business_by_id, management_by_id, people_by_id, judicial_by_id, diligence_by_id, risk_register_by_id)):
                 # A page-level industry/related classification may have hidden
                 # a literal issuer declaration recovered for chapter 2. Keep
                 # the source ID, and show the actual field-level claim used.
                 admitted = (governance_by_id.get(evidence_id, []) + history_by_id.get(evidence_id, [])
-                            + operations_by_id.get(evidence_id, []) + reputation_by_id.get(evidence_id, []) + business_by_id.get(evidence_id, []) + management_by_id.get(evidence_id, []) + people_by_id.get(evidence_id, []) + judicial_by_id.get(evidence_id, []) + diligence_by_id.get(evidence_id, []))
+                            + operations_by_id.get(evidence_id, []) + reputation_by_id.get(evidence_id, []) + business_by_id.get(evidence_id, []) + management_by_id.get(evidence_id, []) + people_by_id.get(evidence_id, []) + judicial_by_id.get(evidence_id, []) + diligence_by_id.get(evidence_id, []) + risk_register_by_id.get(evidence_id, []))
                 labels = [label for label, mapping in [("第二章", governance_by_id), ("第三章", history_by_id),
-                                                       ("第四章", operations_by_id), ("第五章", reputation_by_id), ("第六章", business_by_id), ("第七章", management_by_id), ("第八章", people_by_id), ("第九章", judicial_by_id), ("第十章", diligence_by_id)] if evidence_id in mapping]
+                                                       ("第四章", operations_by_id), ("第五章", reputation_by_id), ("第六章", business_by_id), ("第七章", management_by_id), ("第八章", people_by_id), ("第九章", judicial_by_id), ("第十章", diligence_by_id), ("第十一章", risk_register_by_id)] if evidence_id in mapping]
                 label = "／".join(labels) + "原文核对："
                 item = {**item, "source_url": admitted[0]["source_url"],
                         "source_title": admitted[0]["source_title"],
@@ -5649,6 +5693,8 @@ class ResearchWorkflow:
                 errors.append("第九章司法记录未形成可交付证据，需人工复核")
             if getattr(project, "company_diligence_diagnostic", {}).get("degraded"):
                 errors.append("第十章专项核查未形成具体可追溯对象，需人工复核")
+            if getattr(project, "company_risk_register_diagnostic", {}).get("degraded"):
+                errors.append("第十一章风险事项或75项核查目录未通过核对，需人工复核")
             source_heading = re.search(r"(?m)^##\s*13[.、．]", report or "")
             next_heading = re.search(r"(?m)^##\s*14[.、．]", report or "")
             body_before_sources = (report or "")[:source_heading.start()] if source_heading else (report or "")

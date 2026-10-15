@@ -1,0 +1,538 @@
+{
+  "version": "company-risk-dictionary-v1",
+  "template_reference": "桌面研究报告与建议书内容模板.xlsx / 目标公司桌面研究!B24",
+  "template_sha256": "8dd0d1b1f366aa0a2602b98c3d82d378b5d1ebd9b5b5e49130d45a43d5683adf",
+  "interpretation": "风险词条是核查工作目录，不是目标公司事实、已发生风险或默认评级。",
+  "categories": [
+    "组织与管理风险",
+    "业务与运营风险",
+    "行业特殊风险"
+  ],
+  "items": [
+    {
+      "id": "ORG-01",
+      "category": "组织与管理风险",
+      "label": "管理层缺乏执行战斗力",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-02",
+      "category": "组织与管理风险",
+      "label": "战略缺乏延续性",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-03",
+      "category": "组织与管理风险",
+      "label": "缺乏行业经验",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-04",
+      "category": "组织与管理风险",
+      "label": "能力与企业发展需求不匹配",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-05",
+      "category": "组织与管理风险",
+      "label": "决策流程不科学",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-06",
+      "category": "组织与管理风险",
+      "label": "决策保守，错失市场机会",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-07",
+      "category": "组织与管理风险",
+      "label": "创始人缺乏决策话语权",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-08",
+      "category": "组织与管理风险",
+      "label": "核心团队年纪偏大或能力不足",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-09",
+      "category": "组织与管理风险",
+      "label": "家族化管理，任人唯亲",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-10",
+      "category": "组织与管理风险",
+      "label": "交叉管理，职责不清晰",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-11",
+      "category": "组织与管理风险",
+      "label": "团队文化导向不健康",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-12",
+      "category": "组织与管理风险",
+      "label": "内部资源分配不均",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-13",
+      "category": "组织与管理风险",
+      "label": "团队不和谐，派系内斗严重",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-14",
+      "category": "组织与管理风险",
+      "label": "内部利益小团体、信息不共享",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-15",
+      "category": "组织与管理风险",
+      "label": "高、中、基层员工流失率高",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-16",
+      "category": "组织与管理风险",
+      "label": "核心岗位人才流失严重",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-17",
+      "category": "组织与管理风险",
+      "label": "排外，外部人才发挥空间不足",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-18",
+      "category": "组织与管理风险",
+      "label": "员工成长性差，无明确晋升路径",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-19",
+      "category": "组织与管理风险",
+      "label": "内部缺乏有效监察制度",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-20",
+      "category": "组织与管理风险",
+      "label": "员工工作积极性差，缺乏主观意识",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-21",
+      "category": "组织与管理风险",
+      "label": "管理流于表面形式",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-22",
+      "category": "组织与管理风险",
+      "label": "管理理念落后",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "ORG-23",
+      "category": "组织与管理风险",
+      "label": "创始人缺乏对企业核心资源的掌控造假等",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-01",
+      "category": "业务与运营风险",
+      "label": "业绩收入大幅造假",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-02",
+      "category": "业务与运营风险",
+      "label": "管理层或总部带头造假",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-03",
+      "category": "业务与运营风险",
+      "label": "经销体系紊乱、经销商粘性差",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-04",
+      "category": "业务与运营风险",
+      "label": "为了追求业绩，随意压货",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-05",
+      "category": "业务与运营风险",
+      "label": "业绩刷单",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-06",
+      "category": "业务与运营风险",
+      "label": "客户数量造假",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-07",
+      "category": "业务与运营风险",
+      "label": "产品参数性能严重不符",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-08",
+      "category": "业务与运营风险",
+      "label": "美化报表",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-09",
+      "category": "业务与运营风险",
+      "label": "用实验室数据误导投资人",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-10",
+      "category": "业务与运营风险",
+      "label": "研发进度及投入夸大",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-11",
+      "category": "业务与运营风险",
+      "label": "用户数量夸大",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-12",
+      "category": "业务与运营风险",
+      "label": "供应链能力夸大",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-13",
+      "category": "业务与运营风险",
+      "label": "专利侵权",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-14",
+      "category": "业务与运营风险",
+      "label": "销售区域恶意竞争",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-15",
+      "category": "业务与运营风险",
+      "label": "销售个人行为获利",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-16",
+      "category": "业务与运营风险",
+      "label": "不正当手段获取市场",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-17",
+      "category": "业务与运营风险",
+      "label": "偷税漏税、少缴或不缴社保",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-18",
+      "category": "业务与运营风险",
+      "label": "区域内塌方腐败业务及运营",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-19",
+      "category": "业务与运营风险",
+      "label": "产品壁垒不足",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-20",
+      "category": "业务与运营风险",
+      "label": "研发投入回报周期长",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-21",
+      "category": "业务与运营风险",
+      "label": "消防、环评风险",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-22",
+      "category": "业务与运营风险",
+      "label": "劳动力用工风险",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-23",
+      "category": "业务与运营风险",
+      "label": "中美双边贸易风险",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "OPS-24",
+      "category": "业务与运营风险",
+      "label": "现金流不足等",
+      "sector": null,
+      "origin": "template"
+    },
+    {
+      "id": "CON-01",
+      "category": "行业特殊风险",
+      "label": "业绩夸大、造假",
+      "sector": "消费行业",
+      "origin": "template"
+    },
+    {
+      "id": "CON-02",
+      "category": "行业特殊风险",
+      "label": "虚假宣传",
+      "sector": "消费行业",
+      "origin": "template"
+    },
+    {
+      "id": "CON-03",
+      "category": "行业特殊风险",
+      "label": "商业模式单一，业务可持续性差",
+      "sector": "消费行业",
+      "origin": "template"
+    },
+    {
+      "id": "CON-04",
+      "category": "行业特殊风险",
+      "label": "战略规划、产品定位不清晰",
+      "sector": "消费行业",
+      "origin": "template"
+    },
+    {
+      "id": "CON-05",
+      "category": "行业特殊风险",
+      "label": "产品线单一",
+      "sector": "消费行业",
+      "origin": "template"
+    },
+    {
+      "id": "CON-06",
+      "category": "行业特殊风险",
+      "label": "供应链薄弱",
+      "sector": "消费行业",
+      "origin": "template"
+    },
+    {
+      "id": "CON-07",
+      "category": "行业特殊风险",
+      "label": "产品质量安全存在隐患",
+      "sector": "消费行业",
+      "origin": "template"
+    },
+    {
+      "id": "MED-01",
+      "category": "行业特殊风险",
+      "label": "产品研发和审批进度风险",
+      "sector": "医药/医疗器械行业",
+      "origin": "template"
+    },
+    {
+      "id": "MED-02",
+      "category": "行业特殊风险",
+      "label": "临床前或临床阶段的数据验真",
+      "sector": "医药/医疗器械行业",
+      "origin": "template"
+    },
+    {
+      "id": "MED-03",
+      "category": "行业特殊风险",
+      "label": "产业化落地风险",
+      "sector": "医药/医疗器械行业",
+      "origin": "template"
+    },
+    {
+      "id": "MED-04",
+      "category": "行业特殊风险",
+      "label": "临床医生对产品不认可",
+      "sector": "医药/医疗器械行业",
+      "origin": "template"
+    },
+    {
+      "id": "MED-05",
+      "category": "行业特殊风险",
+      "label": "专利知识产权合作风险",
+      "sector": "医药/医疗器械行业",
+      "origin": "template"
+    },
+    {
+      "id": "MED-06",
+      "category": "行业特殊风险",
+      "label": "医疗机构管理经验不足",
+      "sector": "医药/医疗器械行业",
+      "origin": "template"
+    },
+    {
+      "id": "MED-07",
+      "category": "行业特殊风险",
+      "label": "渠道风险",
+      "sector": "医药/医疗器械行业",
+      "origin": "template"
+    },
+    {
+      "id": "TEC-01",
+      "category": "行业特殊风险",
+      "label": "芯片贪腐",
+      "sector": "硬科技行业",
+      "origin": "template"
+    },
+    {
+      "id": "TEC-02",
+      "category": "行业特殊风险",
+      "label": "PPT公司，无实际落地产品",
+      "sector": "硬科技行业",
+      "origin": "template"
+    },
+    {
+      "id": "TEC-03",
+      "category": "行业特殊风险",
+      "label": "产品研发进度慢",
+      "sector": "硬科技行业",
+      "origin": "template"
+    },
+    {
+      "id": "TEC-04",
+      "category": "行业特殊风险",
+      "label": "商务能力差",
+      "sector": "硬科技行业",
+      "origin": "template"
+    },
+    {
+      "id": "TEC-05",
+      "category": "行业特殊风险",
+      "label": "闭门造车，缺乏市场需求的把握",
+      "sector": "硬科技行业",
+      "origin": "template"
+    },
+    {
+      "id": "TEC-06",
+      "category": "行业特殊风险",
+      "label": "应用场景局限",
+      "sector": "硬科技行业",
+      "origin": "template"
+    },
+    {
+      "id": "TEC-07",
+      "category": "行业特殊风险",
+      "label": "缺乏造血能力、人才流失严重",
+      "sector": "硬科技行业",
+      "origin": "template"
+    },
+    {
+      "id": "ENE-01",
+      "category": "行业特殊风险",
+      "label": "虚假项目，单纯融资套现",
+      "sector": "新能源行业",
+      "origin": "template"
+    },
+    {
+      "id": "ENE-02",
+      "category": "行业特殊风险",
+      "label": "重炒作，轻业务",
+      "sector": "新能源行业",
+      "origin": "template"
+    },
+    {
+      "id": "ENE-03",
+      "category": "行业特殊风险",
+      "label": "个人资源与业务需求不匹配",
+      "sector": "新能源行业",
+      "origin": "template"
+    },
+    {
+      "id": "ENE-04",
+      "category": "行业特殊风险",
+      "label": "业务冗杂，竞争力不明显",
+      "sector": "新能源行业",
+      "origin": "template"
+    },
+    {
+      "id": "ENE-05",
+      "category": "行业特殊风险",
+      "label": "不舍得投入或盲目投入",
+      "sector": "新能源行业",
+      "origin": "template"
+    },
+    {
+      "id": "ENE-06",
+      "category": "行业特殊风险",
+      "label": "不尊重技术团队、管理及生产模式落后",
+      "sector": "新能源行业",
+      "origin": "template"
+    },
+    {
+      "id": "ENE-07",
+      "category": "行业特殊风险",
+      "label": "客情关系差等",
+      "sector": "新能源行业",
+      "origin": "template"
+    }
+  ]
+}
