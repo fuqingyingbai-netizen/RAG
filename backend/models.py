@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 # 导入数据库基类（来自database.py，所有模型继承此类）
 try:
@@ -124,6 +124,12 @@ class ResearchSource(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     project = relationship("ResearchProject", back_populates="sources")
+
+    @validates("title", "url", "object_key", "content", "summary")
+    def _postgres_text(self, _key: str, value: str) -> str:
+        # PDF extractors can emit NUL bytes, which PostgreSQL text rejects.
+        # Guard every source entry point, including uploads and web collection.
+        return value.replace("\x00", "") if isinstance(value, str) else value
 
 
 class ResearchArtifact(Base):

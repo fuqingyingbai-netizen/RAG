@@ -89,7 +89,13 @@
                     <div class="workflow-head"><strong>成果下载</strong><el-tag size="small" type="success">{{ downloadableArtifacts(row).length }} 个产物</el-tag></div>
                     <div v-if="downloadableArtifacts(row).length" class="artifact-list primary-artifacts">
                       <div v-for="artifact in downloadableArtifacts(row)" :key="artifact.id" class="artifact-item">
-                        <span>{{ artifact.title || artifactTypeLabel(artifact.artifact_type) }} v{{ artifact.version }}</span>
+                        <div>
+                          <span>{{ artifact.title || artifactTypeLabel(artifact.artifact_type) }} v{{ artifact.version }}</span>
+                          <div v-if="artifact.metadata?.quality_warning || artifact.metadata?.delivery_status === 'review_draft'" class="table-subtext">
+                            <el-tag size="small" type="warning">待复核稿</el-tag>
+                            <span>请先复核报告中的质量说明，再用于正式交付。</span>
+                          </div>
+                        </div>
                         <el-space>
                           <el-button type="primary" plain @click="downloadArtifact(artifact)">下载</el-button>
                           <el-button type="danger" plain @click="deleteArtifact(row, artifact)">删除</el-button>

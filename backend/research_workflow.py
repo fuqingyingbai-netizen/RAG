@@ -209,12 +209,20 @@ def _project_doc_title(project: ResearchProject, suffix: str) -> str:
 def _plain_json(text: str) -> Any:
     if not text:
         return None
-    match = re.search(r"```(?:json)?\s*(.*?)```", text, flags=re.S)
-    raw = match.group(1) if match else text
     try:
-        return json.loads(raw)
-    except Exception:
-        return None
+        # Stored facts can contain quoted Markdown fences in source excerpts.
+        # Parse the complete JSON before treating any fence as an outer wrapper.
+        return json.loads(text)
+    except (TypeError, ValueError):
+        pass
+    for pattern in (r"```(?:json)?\s*(.*)```", r"```(?:json)?\s*(.*?)```"):
+        match = re.search(pattern, text, flags=re.S)
+        if match:
+            try:
+                return json.loads(match.group(1))
+            except (TypeError, ValueError):
+                pass
+    return None
 
 
 def _env_int(name: str, default: int, minimum: int = 1, maximum: int = 600) -> int:

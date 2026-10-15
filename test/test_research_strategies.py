@@ -31,7 +31,7 @@ def test_authority_routes_are_isolated_by_target_type():
     assert not any(row["module"] == "司法信用" for row in company_rows)
     assert any(row["module"] == "企业司法负面核查" for row in company_rows)
     assert not any(row["module"] == "企业司法负面核查" for row in industry_rows)
-    assert any(row["module"] == "政策环境分析与近期政策摘录" for row in industry_rows)
+    assert any(row["module"] == "政策与监管" for row in industry_rows)
 
 
 def test_authority_queries_use_native_domain_filters():
