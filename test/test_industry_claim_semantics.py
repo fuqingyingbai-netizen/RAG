@@ -168,6 +168,10 @@ def test_saved_run_audit_rejects_round6_reason_without_mutating_inputs(tmp_path)
     assert result['model_calls']==result['search_calls']==result['database_writes']==0
     assert result['summary_visible_chars']==summary_length('## 1. 摘要\n预计规模6240亿元。 [E-0123456789AB]')
     assert before=={name:(tmp_path/name).read_bytes() for name in files}
+    # A stale ledger must never silently approve a newly edited report.
+    (tmp_path/'industry_claim_ledger.json').write_text(json.dumps({'dependencies':{'report_sha256':'old'}}),encoding='utf-8')
+    stale=load_auditor().audit_saved_run(tmp_path)
+    assert any('report正文指纹' in issue for issue in stale['contract_issues'])
 
 
 def test_audit_cli_refuses_overwriting_saved_artifacts(tmp_path):

@@ -658,7 +658,7 @@ class ResearchWorkflow:
             if standardized_type == "person"
             else "company-evidence-v8-entity-bound"
             if standardized_type == "company"
-            else "industry-evidence-v7-token-safe-numbers"
+            else "industry-evidence-v8-source-locators"
             if standardized_type == "industry"
             else "default-v4-auditable"
         )
@@ -680,7 +680,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v14-claim-semantics",
+            "industry": "industry-report-evidence-v15-evidence-contracts",
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -702,6 +702,7 @@ class ResearchWorkflow:
         existing_risk_for_reuse = self._latest_artifact(project, "risk_assessment")
         can_reuse_final_outputs = (
             resume_enabled
+            and standardized_type != 'industry'  # Industry reexports must refresh evidence/claim diagnostics.
             and not force_refresh
             and len(getattr(project, "sources", []) or []) > 0
             and sources_match_intake
@@ -792,6 +793,9 @@ class ResearchWorkflow:
             and required_modules
             and all(existing_module_counts.get(module, 0) >= resume_min_per_module for module in required_modules)
         )
+        if standardized_type == 'industry' and plan.get('evidence_requirements'):
+            evidence_gaps = self._industry_retrieval_gaps(project,plan)
+            skip_web_search = skip_web_search and not evidence_gaps
         if skip_web_search:
             _emit(
                 emit,
@@ -932,6 +936,14 @@ class ResearchWorkflow:
             and (existing_cleaned.artifact_metadata or {}).get("pipeline_version") == cleaning_pipeline_version
             and (existing_cleaned.artifact_metadata or {}).get("intake_fingerprint") == intake_fingerprint
         )
+        industry_source_snapshot=None
+        if standardized_type=='industry':
+            try:
+                from .industry_evidence import source_fingerprint
+            except ImportError:
+                from industry_evidence import source_fingerprint
+            industry_source_snapshot=source_fingerprint(self._active_industry_sources(project))
+            use_existing_cleaned=use_existing_cleaned and (existing_cleaned.artifact_metadata or {}).get('source_fingerprint')==industry_source_snapshot
         if use_existing_cleaned:
             cleaned_artifact = existing_cleaned
             cleaned = existing_cleaned.content
@@ -947,6 +959,9 @@ class ResearchWorkflow:
                     raise
                 _emit(emit, "cleaning", "data_cleaning_agent", "事实清洗失败，使用降级清洗", str(exc), status="fallback")
                 cleaned = json.dumps(self._fallback_clean(project) | {"workflow_error": _error_json("cleaning", exc)}, ensure_ascii=False, indent=2)
+            if standardized_type == 'industry':
+                cleaned = self._prepare_industry_evidence(project,cleaned,plan)
+            prepared_payload=_plain_json(cleaned) if standardized_type=='industry' else {}
             cleaned_artifact = self.save_artifact(
                 db,
                 project,
@@ -958,14 +973,21 @@ class ResearchWorkflow:
                     "source_count": len(project.sources),
                     "pipeline_version": cleaning_pipeline_version,
                     "intake_fingerprint": intake_fingerprint,
+                    **({'source_fingerprint':industry_source_snapshot} if standardized_type=='industry' else {}),
+                    **({'provenance_summary':prepared_payload.get('provenance_summary',{})}
+                       if standardized_type=='industry' and isinstance(prepared_payload,dict) else {}),
                 },
             )
             _emit(emit, "cleaning", "data_cleaning_agent", "清洗事实库已入库", f"artifact_id={cleaned_artifact.id}", artifact_id=cleaned_artifact.id, status="done")
         checkpoint("cleaning")
+        if standardized_type=='industry':
+            project.industry_evidence_payload=_plain_json(cleaned) or {}
 
         project.status = "risk_scoring"
         db.commit()
         existing_risk = self._latest_artifact(project, "risk_assessment")
+        industry_risk_inputs=({'cleaned_artifact_id':cleaned_artifact.id,
+            'cleaned_sha256':hashlib.sha256(cleaned.encode()).hexdigest()} if standardized_type=='industry' else {})
         if standardized_type == 'industry':
             try:
                 from .industry_research import INDUSTRY_RISK_VERSION
@@ -976,7 +998,8 @@ class ResearchWorkflow:
         # evidence with a stale score from the previous pipeline.
         use_existing_risk = resume_enabled and not force_refresh and use_existing_cleaned and existing_risk is not None
         if standardized_type == 'industry' and use_existing_risk:
-            use_existing_risk = (existing_risk.artifact_metadata or {}).get('risk_pipeline_version') == INDUSTRY_RISK_VERSION
+            use_existing_risk = ((existing_risk.artifact_metadata or {}).get('risk_pipeline_version') == INDUSTRY_RISK_VERSION
+                and all((existing_risk.artifact_metadata or {}).get(k)==v for k,v in industry_risk_inputs.items()))
         if use_existing_risk:
             risk_artifact = existing_risk
             risk = existing_risk.content
@@ -991,9 +1014,12 @@ class ResearchWorkflow:
                 fallback = unknown_industry_risk(scope=getattr(project, "industry_scope", {})) if standardized_type == "industry" else self._fallback_risk(cleaned)
                 risk = json.dumps(fallback | {"workflow_error": _error_json("risk", exc)}, ensure_ascii=False, indent=2)
             risk_artifact = self.save_artifact(db, project, "risk_assessment", _project_doc_title(project, "风险研判"), risk,
-                {"agent": "risk_assessment", **({'risk_pipeline_version': INDUSTRY_RISK_VERSION} if standardized_type == 'industry' else {})})
+                {"agent": "risk_assessment", **industry_risk_inputs,
+                 **({'risk_pipeline_version': INDUSTRY_RISK_VERSION} if standardized_type == 'industry' else {})})
             _emit(emit, "risk", "risk_assessment_agent", "风险研判完成", "", status="done")
         checkpoint("risk")
+        industry_report_inputs=({**industry_risk_inputs,'risk_artifact_id':risk_artifact.id,
+            'risk_sha256':hashlib.sha256(risk.encode()).hexdigest()} if standardized_type=='industry' else {})
 
         project.status = "report_generating"
         db.commit()
@@ -1011,6 +1037,8 @@ class ResearchWorkflow:
             )
             and (standardized_type == 'industry' or not (reusable_report.artifact_metadata or {}).get("quality_warning"))
         )
+        if standardized_type=='industry' and use_existing_report:
+            use_existing_report=all((reusable_report.artifact_metadata or {}).get(k)==v for k,v in industry_report_inputs.items())
         quality_diagnostic_artifact = None
         report_quality_warning = ''
         if use_existing_report:
@@ -1040,7 +1068,7 @@ class ResearchWorkflow:
                 _project_doc_title(project, "行业研究报告" if standardized_type == "industry" else "背景调查报告") + ('（待复核稿）' if report_quality_warning else ''),
                 report,
                 {"agent": "report_writer", "reexported_from_artifact_id": reusable_report.id, "report_pipeline_version": report_pipeline_version,
-                 "delivery_status": "final_candidate", **reused_delivery_metadata},
+                 **industry_report_inputs,"delivery_status": "final_candidate", **reused_delivery_metadata},
             )
             _emit(emit, "report", "desktop_report_agent", "阶段级续跑：复用报告正文并重新检查交付状态、导出 Word", f"from_artifact_id={reusable_report.id}, new_artifact_id={report_artifact.id}", artifact_id=report_artifact.id, status="done")
         else:
@@ -1103,6 +1131,7 @@ class ResearchWorkflow:
                 {
                     "agent": "report_writer",
                     "report_pipeline_version": report_pipeline_version,
+                    **industry_report_inputs,
                     **industry_delivery_metadata,
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
@@ -1115,9 +1144,31 @@ class ResearchWorkflow:
                 self._build_report_quality_diagnostic(project, report, report_quality_warning),
                 {'agent': 'report_quality_gate', 'report_artifact_id': report_artifact.id, 'quality_warning': report_quality_warning,
                  **({'delivery_review_reasons': (report_artifact.artifact_metadata or {}).get('delivery_review_reasons', [])} if standardized_type == 'industry' else {})})
+        claim_artifact=None
+        if standardized_type=='industry':
+            try:
+                from .industry_evidence import claim_ledger, VERSION
+            except ImportError:
+                from industry_evidence import claim_ledger, VERSION
+            payload=_plain_json(cleaned) or {}
+            dependencies={'cleaned_artifact_id':cleaned_artifact.id,'risk_artifact_id':risk_artifact.id,
+                'report_artifact_id':report_artifact.id,'intake_fingerprint':intake_fingerprint,
+                'report_sha256':hashlib.sha256(report.encode()).hexdigest(),
+                'cleaned_sha256':hashlib.sha256(cleaned.encode()).hexdigest(),
+                'risk_sha256':hashlib.sha256(risk.encode()).hexdigest(),
+                'cleaning_version':cleaning_pipeline_version,'report_version':report_pipeline_version}
+            ledger=claim_ledger(report,payload.get('facts',[]),getattr(project,'industry_delivery_diagnostic',{}),
+                payload.get('evidence_coverage') or {},dependencies)
+            claim_artifact=self.save_artifact(db,project,'industry_claim_ledger',_project_doc_title(project,'结论证据台账'),
+                json.dumps(ledger,ensure_ascii=False,indent=2),{'agent':'industry_evidence_audit',
+                    'evidence_contract_version':VERSION,**dependencies,**ledger['summary']})
+            report_artifact.artifact_metadata={**(report_artifact.artifact_metadata or {}),
+                'claim_ledger_artifact_id':claim_artifact.id,'claim_reference_summary':ledger['summary']}
         checkpoint("report")
 
         artifacts = [plan_artifact, quality_artifact, cleaned_artifact, risk_artifact, report_artifact]
+        if claim_artifact is not None:
+            artifacts.append(claim_artifact)
         if quality_diagnostic_artifact is not None:
             artifacts.append(quality_diagnostic_artifact)
         if generate_proposal:
@@ -1781,6 +1832,13 @@ class ResearchWorkflow:
                     "required_source_types": strategy.required_source_types(module),
                 }
             )
+        if intake.get('target_type') == 'industry':
+            try:
+                from .industry_evidence import evidence_requirements, VERSION
+            except ImportError:
+                from industry_evidence import evidence_requirements, VERSION
+            plan['evidence_contract_version'] = VERSION
+            plan['evidence_requirements'] = evidence_requirements(plan['modules'],intake.get('industry_scope') or {})
         _emit(emit, "planning", "research_planning_agent", "研究计划生成完成", "", status="done")
         return plan
 
@@ -1888,7 +1946,17 @@ class ResearchWorkflow:
                     rows.insert(0, {'module': module, 'query': f'{target} {scope.get("geography", "")} {suffixes[module]}',
                                     'evidence_scope': 'industry_level', 'industry_name': target,
                                     'search_tier': 'open_web', 'gap_reason': next((gap for gap in gaps if str(gap).startswith(module)), '')})
-            return rows[:24]
+            requirements = {r['id']:r for r in plan.get('evidence_requirements',[])}
+            targeted = []
+            for gap in gaps:
+                match = re.search(r'\[需求:([^\]]+)\]',str(gap))
+                req = requirements.get(match[1]) if match else None
+                if req:
+                    targeted.append({'module':req['module'],'query':f'{target} {scope.get("geography", "")} {req["query_terms"]}',
+                        'search_tier':'open_web','evidence_scope':'industry_level','industry_name':target,
+                        'requirement_id':req['id'],'gap_reason':str(gap)})
+            generic_missing={str(g).split('：',1)[0] for g in gaps if '[需求:' not in str(g)}
+            return (targeted + [r for r in rows if r.get('module') in generic_missing])[:24]
         target = (intake.get("target_name") or "").strip()
         items: list[dict[str, str]] = []
         routes: list[tuple[tuple[str, ...], str, tuple[str, ...]]] = [
@@ -2460,7 +2528,7 @@ class ResearchWorkflow:
         for module in [m.get("name") for m in plan.get("modules", []) if isinstance(m, dict)]:
             if module and module_counts.get(module, 0) < min_sources:
                 gaps.append(f"{module}：有效来源不足，当前 {module_counts.get(module, 0)} 条，目标 {min_sources} 条")
-        return {
+        result = {
             "source_count": len(sources),
             "average_score": round(total_score / len(sources), 2) if sources else 0,
             "module_counts": dict(module_counts),
@@ -2469,6 +2537,51 @@ class ResearchWorkflow:
             "ocr_items": [],
             "sources": source_rows[:500],
         }
+        if project.target_type=='industry' and plan.get('evidence_requirements'):
+            try:
+                from .industry_evidence import source_coverage
+            except ImportError:
+                from industry_evidence import source_coverage
+            coverage=source_coverage([s for s in sources if not self._is_failed_extraction_source(s)],plan['evidence_requirements'])
+            result['evidence_coverage']=coverage
+            result['information_gaps']=list(dict.fromkeys(gaps+coverage['information_gaps']))
+        return result
+
+    def _industry_retrieval_gaps(self, project, plan):
+        try:
+            from .industry_evidence import source_coverage, VERSION
+        except ImportError:
+            from industry_evidence import source_coverage, VERSION
+        gaps=source_coverage(self._active_industry_sources(project),plan.get('evidence_requirements',[]))['information_gaps']
+        previous=self._latest_artifact(project,'cleaned_facts')
+        payload=_plain_json(previous.content) if previous else {}
+        coverage=(payload.get('evidence_coverage') or {}) if isinstance(payload,dict) else {}
+        if coverage.get('version')==VERSION and payload.get('industry_scope')==getattr(project,'industry_scope',{}):
+            active_ids={r['id'] for r in plan.get('evidence_requirements',[])}
+            gaps += [g for g in coverage.get('information_gaps',[]) if any(f'[需求:{rid}]' in g for rid in active_ids)]
+        return list(dict.fromkeys(gaps))
+
+    def _prepare_industry_evidence(self, project, cleaned, plan):
+        try:
+            from .industry_evidence import attach_provenance, fact_coverage
+        except ImportError:
+            from industry_evidence import attach_provenance, fact_coverage
+        payload=_plain_json(cleaned)
+        if not isinstance(payload,dict) or not isinstance(payload.get('facts'),list):
+            return cleaned  # Preserve the existing invalid-JSON/index failure path.
+        payload['facts']=attach_provenance(payload['facts'],self._active_industry_sources(project))
+        for fact in payload['facts']:
+            if fact['provenance']['locator']['status']!='verified':
+                fact.update(eligible_for_report=False,eligible_for_risk_scoring=False,requires_human_review=True)
+                fact['provenance']['quarantine_reason']='unlocated_source_quote'
+        payload['evidence_requirements']=plan.get('evidence_requirements',[])
+        payload['provenance_summary']={'total_fact_count':len(payload['facts']),
+            'located_fact_count':sum(f['provenance']['locator']['status']=='verified' for f in payload['facts']),
+            'quarantined_fact_count':sum(f['provenance']['locator']['status']!='verified' for f in payload['facts']),
+            'index_eligible_fact_count':sum(f.get('eligible_for_report') is not False for f in payload['facts'])}
+        payload['evidence_coverage']=fact_coverage(payload['facts'],payload['evidence_requirements'])
+        payload['information_gaps']=list(dict.fromkeys(list(payload.get('information_gaps') or [])+payload['evidence_coverage']['information_gaps']))
+        return json.dumps(payload,ensure_ascii=False,indent=2)
 
     def _apply_authority_coverage_requirements(self, quality: dict[str, Any], target_type: str, scope: dict | None = None) -> dict[str, Any]:
         result = dict(quality or {})
@@ -3426,6 +3539,16 @@ class ResearchWorkflow:
             return 0
 
         expanded_query_items = self._expand_search_queries(plan, intake)
+        if intake.get('target_type')=='industry' and plan.get('evidence_requirements') and not intake.get('search_queries'):
+            active=self._active_industry_sources(project)
+            counts=Counter(str((s.source_metadata or {}).get('module') or '') for s in active if (s.content or '').strip())
+            minimum=int((plan.get('coverage_thresholds') or {}).get('min_sources_per_module') or FIXED_MIN_SOURCES_PER_MODULE)
+            if active and all(counts.get(m['name'],0)>=minimum for m in plan.get('modules',[])):
+                gaps=self._industry_retrieval_gaps(project,plan)
+                if gaps:
+                    expanded_query_items=self._gap_queries(plan,intake,gaps)
+                    _emit(emit,'web_search','coverage_agent','复用已有来源，仅补采指标证据缺口',
+                          f'queries={len(expanded_query_items)}',status='running')
         person_mode = str(intake.get("target_type") or "").lower() == "person"
         authority_queries = [item for item in expanded_query_items if item.get("search_tier") == "authority_first"]
         pending_open_web_queries = [item for item in expanded_query_items if item.get("search_tier") != "authority_first"] if authority_queries else []
@@ -5289,8 +5412,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                                                       getattr(project, "industry_section_packages", None))
             facts = payload.get('facts', [])
             diagnostic['fact_quality'] = {
-                'structured_fact_count': sum(f.get('is_structured_evidence') is True for f in facts),
-                'verified_numeric_fact_count': sum(f.get('numeric_validation', {}).get('passed') is True for f in facts),
+                'structured_fact_count': sum(f.get('is_structured_evidence') is True and f.get('eligible_for_report') is not False for f in facts),
+                'verified_numeric_fact_count': sum(f.get('numeric_validation', {}).get('passed') is True and f.get('eligible_for_report') is not False for f in facts),
                 'rule_extracted_fact_count': sum(f.get('cleaning_method') == 'industry_rule' for f in facts),
                 'llm_extracted_fact_count': sum(f.get('cleaning_method') == 'llm' for f in facts),
             }
@@ -5880,6 +6003,18 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         risk = _plain_json(risk_json)
         reasons = delivery_review_reasons(getattr(project, 'industry_scope', {}) or {},
                                          risk if isinstance(risk, dict) else {}, degradations)
+        payload=getattr(project,'industry_evidence_payload',{}) or {}
+        if payload.get('evidence_coverage'):
+            try:
+                from .industry_evidence import claim_ledger
+            except ImportError:
+                from industry_evidence import claim_ledger
+            audit=claim_ledger(report,payload.get('facts',[]),getattr(project,'industry_delivery_diagnostic',{}),
+                               payload['evidence_coverage'],{})
+            unlocated={c['chapter'] for c in audit['claims'] if 'unlocated_source_quote' in c['issues']}
+            reasons += [{'code':'source_locator_missing','chapter':chapter,
+                         'message':f'第{chapter}章引用的事实尚未定位到已保存来源原文，需核对结论证据台账。'}
+                        for chapter in sorted(unlocated)]
         issues = list(getattr(project, 'industry_quality_issues', []) or [])
         if gate_warning:
             reasons += [{'code': 'evidence_gate_failed', 'chapter': issue.get('chapter'), 'message': issue['message']}
@@ -5910,8 +6045,15 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 return re.sub(r'\s+', ' ', str(value or '-')).replace('|', '/')
             rows = '\n'.join(f'| {cell(r.get("chapter"))} | {cell(r.get("dimension"))} | {cell(r.get("message"))} |'
                              for r in reasons) or f'| - | - | {cell(warning)} |'
+            coverage=(getattr(project,'industry_evidence_payload',{}) or {}).get('evidence_coverage') or {}
+            labels={'verified':'已核验','candidate':'待核验候选','missing':'缺证'}
+            requirements='\n'.join(f'| {cell(r.get("question"))} | {labels.get(r.get("status"),"待核验")} | {len(r.get("verified_evidence_ids",[]))} |'
+                                   for r in coverage.get('requirements',[]))
+            coverage_section=('## 指标证据覆盖\n\n候选原文不等于已核验事实；缺证不自动判高风险。\n\n'
+                '| 研究问题 | 状态 | 完整事实数 |\n| --- | --- | --- |\n'+requirements+'\n\n') if requirements else ''
             return (f'# {_project_doc_title(project, "报告质量诊断")}\n\n状态：待复核稿，生成完成不代表已经通过正式交付验收。\n\n'
                     '## 复核原因\n\n| 章节 | 风险维度 | 需要复核的事项 |\n| --- | --- | --- |\n' + rows + '\n\n'
+                    + coverage_section +
                     '## 复核动作\n\n- 对照第15章来源索引核验正文引用、数值与口径。\n'
                     '- 章节采用事实摘录时，人工复核综合判断；补证后重新评估尚未完成的启用风险维度。\n'
                     '- 未启用的资本市场和核心企业尽调不列为必做补采；Word页面版式检查单独查看。\n')
@@ -6291,6 +6433,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         for fact in facts[:500]:
             if not isinstance(fact, dict):
                 continue
+            if project.target_type=='industry' and fact.get('eligible_for_report') is False:
+                continue
             blob = " ".join(str(fact.get(key) or "") for key in ("subject", "predicate", "object", "claim", "fact", "content"))
             compact = re.sub(r"\s+", "", blob)
             if target and target not in compact:
@@ -6365,6 +6509,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             raise ValueError("清洗事实 JSON 无效，未执行事实索引；请检查清洗产物后重试。")
         else:
             facts = [fact for fact in (parsed.get("facts") or []) if isinstance(fact, dict)]
+        if project.target_type=='industry':
+            facts=[fact for fact in facts if fact.get('eligible_for_report') is not False]
         if not facts:
             return 0
 
@@ -6509,7 +6655,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             .first()
         )
         version = (current.version + 1) if current else 1
-        suffix = "json" if artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment"} else "md"
+        suffix = "json" if artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger"} else "md"
         artifact_metadata = dict(metadata or {})
         index_job = None
         object_key = research_store.put_text(
@@ -6923,7 +7069,17 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             meta = source.source_metadata or {}
             quality = meta.get("quality") or {}
             raw_parts = []
-            for part in [source.summary or "", source.content or "", meta.get("ocr_text") or ""]:
+            source_parts=[source.summary or "", source.content or "", meta.get("ocr_text") or ""]
+            if project.target_type=='industry':
+                try:
+                    from .industry_evidence import stored_body
+                except ImportError:
+                    from industry_evidence import stored_body
+                source_parts=[stored_body(source)]
+                if not source_parts[0].strip():
+                    source_errors+=1
+                    continue
+            for part in source_parts:
                 part_text = str(part or "").strip()
                 if part_text:
                     raw_parts.append(part_text[:raw_text_limit])
@@ -6982,12 +7138,12 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                     else "unknown"
                 )
             fact_card = {
-                "fact": _clip(text, source_clip_limit),
+                "fact": text[:source_clip_limit] if target_type=='industry' else _clip(text, source_clip_limit),
                 "category": fact_category,
                 "claim_type": "source_excerpt",
                 "source_title": source.title,
                 "source_url": source.url,
-                "evidence_quote": _clip(text, evidence_limit),
+                "evidence_quote": text[:evidence_limit] if target_type=='industry' else _clip(text, evidence_limit),
                 "source_type": source.source_type,
                 "is_structured_evidence": is_structured_source,
                 "source_entity_validation": entity_validation,

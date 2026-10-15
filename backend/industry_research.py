@@ -367,11 +367,18 @@ def select_chapter_evidence(payload: dict, title: str, requirements: list[str], 
             continue
         seen.add(key)
         focused.append(fact)
-        if len(focused) >= 12:
-            break
+    try:
+        from .industry_evidence import diverse_evidence
+    except ImportError:
+        from industry_evidence import diverse_evidence
+    focused=diverse_evidence(focused,payload.get('evidence_requirements') or [],12)
     # Put evidence first and omit the full ledger; bounded model prompts must not
     # be consumed by metadata before the actual fact cards are reached.
+    coverage=(payload.get('evidence_coverage') or {}).get('requirements',[])
+    questions=[{'question':r['question'],'status':r['status'],'verified_fact_count':len(r.get('verified_evidence_ids',[]))}
+               for r in coverage if r['module'] in expected or title in {'摘要','综合评估','后续研究点'}]
     return {'facts': focused, 'industry_scope': payload.get('industry_scope') or {},
+            'research_questions_status':questions,
             'information_gaps': (payload.get('information_gaps') or [])[:20]}
 
 
@@ -402,6 +409,8 @@ def bounded_package(package: dict, limit: int = 20000) -> str:
         fact = dict(original)
         # Diagnostic model prose must never re-enter a writer's evidence input.
         fact.pop('original_model_fact', None)
+        if isinstance(fact.get('provenance'),dict):
+            fact['provenance']={**fact['provenance'], 'locator':{k:v for k,v in (fact['provenance'].get('locator') or {}).items() if k!='quote'}}
         fact['fact'] = str(fact.get('fact') or '')[:900]
         fact['evidence_quote'] = str(fact.get('evidence_quote') or '')[:500]
         result['facts'].append(fact)

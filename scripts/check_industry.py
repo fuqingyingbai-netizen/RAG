@@ -4,6 +4,7 @@ Run with the project Python. A replay reports findings with exit 2; this does no
 mean the historical run failed. It never regenerates or edits stored artifacts.
 """
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -31,8 +32,8 @@ def audit_saved_run(folder: Path) -> dict:
                       for old in [original_dimensions.get(new['name'], {})]
                       if old.get('score') is not None and new.get('score') is None]
     summary_file = folder / 'monitor-evidence-summary.json'
-    meta = (json.loads(summary_file.read_text(encoding='utf-8-sig')).get('desktop_report', {}).get('metadata', {})
-            if summary_file.exists() else {})
+    saved_summary=json.loads(summary_file.read_text(encoding='utf-8-sig')) if summary_file.exists() else {}
+    meta=saved_summary.get('desktop_report',{}).get('metadata',{})
     diagnostic = meta.get('industry_evidence_diagnostic')
     if diagnostic is not None:
         by_id = {f.get('evidence_id'): f for f in facts}
@@ -59,6 +60,22 @@ def audit_saved_run(folder: Path) -> dict:
         contract_issues.append('建议书缺失或未满足7章目录契约。')
     if required_status == 'review_draft' and meta.get('delivery_status') != 'review_draft':
         contract_issues.append('当前规则要求待复核，但历史交付状态不是待复核稿。')
+    ledger_path=folder/'industry_claim_ledger.json'
+    ledger_summary=None
+    if ledger_path.exists():
+        ledger=json.loads(ledger_path.read_text(encoding='utf-8-sig'))
+        ledger_summary=ledger.get('summary')
+        deps=ledger.get('dependencies') or {}
+        for kind,filename in [('report','desktop_report.md'),('cleaned','cleaned_facts.json'),('risk','risk_assessment.json')]:
+            digest=hashlib.sha256((folder/filename).read_text(encoding='utf-8-sig').encode()).hexdigest()
+            if deps.get(kind+'_sha256')!=digest:
+                contract_issues.append(f'结论证据台账与{kind}正文指纹不一致或缺失。')
+        for kind,key in [('desktop_report','report_artifact_id'),('cleaned_facts','cleaned_artifact_id'),('risk_assessment','risk_artifact_id')]:
+            expected=saved_summary.get(kind,{}).get('id')
+            if expected is not None and deps.get(key)!=expected:
+                contract_issues.append(f'结论证据台账的{kind}产物版本关联不一致。')
+    elif meta.get('claim_ledger_artifact_id'):
+        contract_issues.append('新报告声明有结论证据台账，但回放目录缺少对应产物。')
     findings = bool(newly_rejected or report_issues or contract_issues)
     return {'mode':'offline_saved_output_audit', 'model_calls':0, 'search_calls':0, 'database_writes':0,
         'risk_rule_version':INDUSTRY_RISK_VERSION, 'fact_count':len(facts),
@@ -68,6 +85,7 @@ def audit_saved_run(folder: Path) -> dict:
         'unknown_dimensions':unknown, 'report_chapters':chapters,
         'proposal_chapters':proposal_chapters,
         'summary_visible_chars':summary_chars, 'report_issues':report_issues, 'contract_issues':contract_issues,
+        'claim_reference_summary':ledger_summary,
         'stored_delivery_status':meta.get('delivery_status'),
         'required_delivery_status':required_status,
         'has_new_findings':findings,
@@ -87,11 +105,11 @@ def main(argv=None):
     if args.output and not args.replay:
         parser.error('--output requires --replay')
     if args.output and args.output.resolve() in {args.replay.resolve() / name for name in
-            ['cleaned_facts.json', 'risk_assessment.json', 'desktop_report.md', 'proposal.md', 'monitor-evidence-summary.json']}:
+            ['cleaned_facts.json', 'risk_assessment.json', 'desktop_report.md', 'proposal.md', 'monitor-evidence-summary.json','industry_claim_ledger.json']}:
         parser.error('--output must not overwrite saved source artifacts')
     if not args.replay_only:
         files = (sorted((ROOT / 'test').glob('test_industry_*.py')) if args.full else
-                 [ROOT / 'test' / name for name in ['test_industry_claim_semantics.py', 'test_industry_risk_repair.py']])
+                 [ROOT / 'test' / name for name in ['test_industry_evidence_contract.py','test_industry_claim_semantics.py', 'test_industry_risk_repair.py']])
         env = {**os.environ, 'PYTHONUTF8':'1', 'PYTHONPATH':str(ROOT / 'backend')}
         code = subprocess.run([sys.executable, '-m', 'pytest', *map(str, files), '-q', '--tb=short'], cwd=ROOT, env=env).returncode
         if code:
