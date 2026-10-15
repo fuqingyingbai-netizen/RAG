@@ -28,6 +28,10 @@ class CompanyResearchStrategy(BaseResearchStrategy):
         ("组织治理与运营管理评估", '"{target}" 年报 内部控制 评价 审计 整改 员工持股计划'),
         ("组织治理与运营管理评估", '"{target}" 组织架构 汇报关系 研发组织 应急预案'),
         ("主营业务真实经营情况核验", "{target} 商业化 收入 客户 订单 产品线"),
+        ("主营业务真实经营情况核验", '"{target}" 年报 半年度报告 营业收入构成 分产品 毛利率'),
+        ("主营业务真实经营情况核验", '"{target}" 研发项目 项目进展 拟达到的目标 预计上市'),
+        ("主营业务真实经营情况核验", '"{target}" 生产量 销售量 产销快报 本年累计 产能利用率'),
+        ("主营业务真实经营情况核验", '"{target}" 客户订单 交付 验收 回款 实际投产 规划产能'),
         ("核心管理团队（深度/基础）风险研判", "{target} 创始人 管理团队 履历 高管 离职"),
         ("企业司法负面核查", "{target} 诉讼 裁判文书 行政处罚"),
         ("诉讼/制裁", "{target} 被执行人 失信 限制高消费 制裁 黑名单"),
@@ -42,6 +46,7 @@ class CompanyResearchStrategy(BaseResearchStrategy):
         {"module": "企业司法负面核查", "query": '"{target}" 诉讼 裁判', "domains": ["wenshu.court.gov.cn", "court.gov.cn"], "min_sources": 2},
         {"module": "风险核查", "query": '"{target}" 被执行 失信 行政处罚', "domains": ["zxgk.court.gov.cn", "creditchina.gov.cn", "samr.gov.cn"], "min_sources": 2},
         {"module": "上市披露", "query": '"{target}" 年报 招股书 公告 股东', "domains": ["cninfo.com.cn", "sse.com.cn", "szse.cn", "hkexnews.hk", "sec.gov"], "exa_category": "financial report", "min_sources": 2},
+        {"module": "主营业务真实经营情况核验", "query": '"{target}" 年度报告 半年度报告 分产品收入 产销 研发进展', "domains": ["cninfo.com.cn", "sse.com.cn", "szse.cn", "hkexnews.hk"], "min_sources": 2},
         {"module": "金融监管", "query": '"{target}" 监管 处罚', "domains": ["csrc.gov.cn", "pbc.gov.cn", "nfra.gov.cn"], "min_sources": 2},
         {"module": "技术实力", "query": '"{target}" 专利 商标', "domains": ["cnipa.gov.cn"], "min_sources": 1},
     ]
