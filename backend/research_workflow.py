@@ -623,7 +623,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v20-workforce-turnover-definitions",
+            "company": "company-report-evidence-v21-judicial-scope-and-proceedings",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -1061,6 +1061,9 @@ class ResearchWorkflow:
                        if standardized_type == "company" else {}),
                     **({"company_people_diagnostic": getattr(project, "company_people_diagnostic", {}),
                         "company_people_evidence": getattr(project, "company_people_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_judicial_diagnostic": getattr(project, "company_judicial_diagnostic", {}),
+                        "company_judicial_evidence": getattr(project, "company_judicial_package", {})}
                        if standardized_type == "company" else {}),
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
@@ -2721,7 +2724,7 @@ class ResearchWorkflow:
             return {"error": {"code": "tool_execution_error", "message": message[:800] or "MCP工具执行失败"}}, active_session
         return payload, active_session
 
-    def _extract_mcp_text(self, payload: dict[str, Any]) -> str:
+    def _extract_mcp_text(self, payload: dict[str, Any], *, preserve_company_risk: bool = False) -> str:
         if payload.get("error"):
             return json.dumps(payload, ensure_ascii=False, indent=2)
         result = payload.get("result", payload)
@@ -2734,10 +2737,10 @@ class ResearchWorkflow:
                     if text:
                         blocks.append(str(text))
         if blocks:
-            return "\n\n".join(self._structured_json_to_markdown(block) for block in blocks)
-        return self._structured_json_to_markdown(result)
+            return "\n\n".join(self._structured_json_to_markdown(block, limits=(500, 32, 12000) if preserve_company_risk else None) for block in blocks)
+        return self._structured_json_to_markdown(result, limits=(500, 32, 12000) if preserve_company_risk else None)
 
-    def _structured_json_to_markdown(self, value: Any, title: str = "") -> str:
+    def _structured_json_to_markdown(self, value: Any, title: str = "", limits=None) -> str:
         if isinstance(value, str):
             clean = value.strip()
             if not clean:
@@ -2746,12 +2749,12 @@ class ResearchWorkflow:
                 parsed = json.loads(clean)
             except Exception:
                 return clean
-            return self._structured_json_to_markdown(parsed, title=title)
+            return self._structured_json_to_markdown(parsed, title=title, limits=limits)
         if isinstance(value, list):
             if not value:
                 return "暂无记录"
             if all(isinstance(item, dict) for item in value):
-                return self._dict_list_to_markdown_table(value, title=title)
+                return self._dict_list_to_markdown_table(value, title=title, limits=limits)
             return "\n".join(f"- {self._structured_scalar_to_text(item)}" for item in value)
         if not isinstance(value, dict):
             return self._structured_scalar_to_text(value)
@@ -2760,15 +2763,15 @@ class ResearchWorkflow:
         for key, item in value.items():
             label = str(key)
             if isinstance(item, list) and item and all(isinstance(row, dict) for row in item):
-                sections.append(self._dict_list_to_markdown_table(item, title=label))
+                sections.append(self._dict_list_to_markdown_table(item, title=label, limits=limits))
             elif isinstance(item, dict):
-                sections.append(self._structured_json_to_markdown(item, title=label))
+                sections.append(self._structured_json_to_markdown(item, title=label, limits=limits))
             elif isinstance(item, list):
-                sections.append(f"### {label}\n\n{self._structured_json_to_markdown(item, title=label)}")
+                sections.append(f"### {label}\n\n{self._structured_json_to_markdown(item, title=label, limits=limits)}")
             else:
                 scalar_rows.append({"字段": label, "值": self._structured_scalar_to_text(item)})
         if scalar_rows:
-            sections.insert(0, self._dict_list_to_markdown_table(scalar_rows, title=title or "基础字段"))
+            sections.insert(0, self._dict_list_to_markdown_table(scalar_rows, title=title or "基础字段", limits=limits))
         return "\n\n".join(part for part in sections if part.strip()) or json.dumps(value, ensure_ascii=False, indent=2)
 
     def _structured_scalar_to_text(self, value: Any) -> str:
@@ -2779,9 +2782,10 @@ class ResearchWorkflow:
         text = str(value).strip()
         return text if text else "待查"
 
-    def _dict_list_to_markdown_table(self, rows: list[dict[str, Any]], title: str = "") -> str:
+    def _dict_list_to_markdown_table(self, rows: list[dict[str, Any]], title: str = "", limits=None) -> str:
         if not rows:
             return ""
+        max_rows, max_columns, max_cell = limits or (80, 8, 600)
         keys: list[str] = []
         preferred = [
             "name", "company_name", "企业名称", "公司名称", "股东名称", "shareholder_name",
@@ -2796,24 +2800,29 @@ class ResearchWorkflow:
             for key in row.keys():
                 if key not in keys:
                     keys.append(key)
-                if len(keys) >= 8:
+                if len(keys) >= max_columns:
                     break
-            if len(keys) >= 8:
+            if len(keys) >= max_columns:
                 break
         lines: list[str] = []
         if title:
             lines.extend([f"### {title}", ""])
         lines.append("| " + " | ".join(str(key) for key in keys) + " |")
         lines.append("| " + " | ".join("---" for _ in keys) + " |")
-        for row in rows[:80]:
+        clipped_cells = 0
+        for row in rows[:max_rows]:
             cells: list[str] = []
             for key in keys:
                 cell = self._structured_scalar_to_text(row.get(key))
                 cell = cell.replace("\r\n", "<br>").replace("\n", "<br>").replace("|", " / ")
-                cells.append(_clip(cell, 600))
+                if len(cell) > max_cell:
+                    clipped_cells += 1
+                cells.append(_clip(cell, max_cell))
             lines.append("| " + " | ".join(cells) + " |")
-        if len(rows) > 80:
-            lines.append(f"\n> 已截取前 80 条记录，完整返回共 {len(rows)} 条。")
+        if len(rows) > max_rows:
+            lines.append(f"\n> 已截取前 {max_rows} 条记录，完整返回共 {len(rows)} 条。")
+        if limits and (clipped_cells or any(set(row) - set(keys) for row in rows)):
+            lines.append(f"\n> 公司风险格式化存在字段截断：长字段{clipped_cells}处；未展示列或字段请回原始返回核对。")
         return "\n".join(lines)
     def _mcp_error_is_disabled_tool(self, payload: dict[str, Any]) -> bool:
         text = json.dumps(payload or {}, ensure_ascii=False).lower()
@@ -3002,6 +3011,12 @@ class ResearchWorkflow:
             content,
             "text/markdown; charset=utf-8",
         )
+        metadata = dict(metadata)
+        raw_response = metadata.pop("company_qcc_raw_response", None)
+        if raw_response is not None:
+            metadata["raw_response_key"] = research_store.put_text(
+                f"projects/{project.id}/structured/{provider}_{module}_{_now_key()}_raw.json",
+                json.dumps(raw_response, ensure_ascii=False), "application/json; charset=utf-8")
         source_metadata = {
             "provider": provider,
             "module": module,
@@ -3278,9 +3293,14 @@ class ResearchWorkflow:
         added = 0
         candidates = intake.get("structured_target_candidates") or [target]
         disabled_tools: set[str] = set()
+        company_risk = self._standardize_target_type(project, intake, target) == "company"
+        if company_risk:
+            project.company_judicial_query_attempts = []
         for provider, url, tools in endpoints:
             session, ok, error = self._mcp_initialize(url, headers, timeout=timeout)
             if not ok:
+                if company_risk and provider == "qcc_risk":
+                    project.company_judicial_query_attempts.append({"tool": "qcc_risk初始化", "status": "failed"})
                 _emit(emit, "structured_data", "qcc_mcp_agent", "企查查 MCP 初始化失败", error, status="warning")
                 continue
             for index, (tool, module) in enumerate(tools, 1):
@@ -3290,14 +3310,42 @@ class ResearchWorkflow:
                 for candidate in candidates:
                     payload, session = self._mcp_call_tool(url, headers, tool, {"searchKey": candidate}, session=session, request_id=10 + index, timeout=timeout)
                     if payload.get("error"):
+                        if company_risk and provider == "qcc_risk":
+                            project.company_judicial_query_attempts.append({"tool": tool, "query": candidate,
+                                "status": "failed", "retrieved_at": datetime.now().isoformat(timespec="seconds")})
                         if self._mcp_error_is_disabled_tool(payload):
                             disabled_tools.add(tool)
                             saved = True
                             break
                         _emit(emit, "structured_data", "qcc_mcp_agent", "企查查工具调用失败", f"{tool}: {json.dumps(payload, ensure_ascii=False)[:400]}", status="warning")
                         continue
-                    text = self._extract_mcp_text(payload)
-                    if self._save_structured_source(db, project, provider, module, f"企查查-{tool}-{target}", text, {"tool": tool, "target": target, "query": candidate}, emit=emit, intake=intake):
+                    text = self._extract_mcp_text(payload, preserve_company_risk=True) if company_risk and provider == "qcc_risk" else self._extract_mcp_text(payload)
+                    query_meta = {"tool": tool, "target": target, "query": candidate,
+                                  "query_status": "success", "retrieved_at": datetime.now().isoformat(timespec="seconds")}
+                    if company_risk and provider == "qcc_risk":
+                        query_meta["company_qcc_raw_response"] = payload
+                        project.company_judicial_query_attempts.append({"tool": tool, "query": candidate,
+                            "retrieved_at": query_meta["retrieved_at"], "status": "returned"})
+                        from company_risk import drilldown_tools, document_requests
+                        scan_entity_ok, _ = self._structured_entity_matches_request(text, query_meta, intake)
+                        if tool == "get_company_risk_scan" and scan_entity_ok:
+                            queued = {name for name, _module in tools}
+                            tools.extend((name, "诉讼/制裁") for name in drilldown_tools(text) if name not in queued)
+                        if tool == "get_judicial_documents" and scan_entity_ok:
+                            for case_number, document_id in document_requests(text):
+                                detail, session = self._mcp_call_tool(url, headers, "get_judicial_document_detail",
+                                    {"searchKey": candidate, "documentId": document_id, "section": "全部"},
+                                    session=session, request_id=100 + index, timeout=timeout)
+                                project.company_judicial_query_attempts.append({"tool": "get_judicial_document_detail",
+                                    "case_number": case_number, "status": "failed" if detail.get("error") else "returned"})
+                                if not detail.get("error"):
+                                    detail_text = self._extract_mcp_text(detail, preserve_company_risk=True)
+                                    if self._save_structured_source(db, project, provider, module,
+                                        f"企查查-get_judicial_document_detail-{case_number}-{target}", detail_text,
+                                        {**query_meta, "company_qcc_raw_response": detail, "tool": "get_judicial_document_detail", "case_number": case_number,
+                                         "document_id": document_id}, emit=emit, intake=intake):
+                                        added += 1
+                    if self._save_structured_source(db, project, provider, module, f"企查查-{tool}-{target}", text, query_meta, emit=emit, intake=intake):
                         added += 1
                         saved = True
                         break
@@ -4199,6 +4247,22 @@ class ResearchWorkflow:
             # Markdown tables or field-per-line records.
             text = html.unescape("\n".join([source.content or "", source.summary or ""]))
             text = re.sub(r"<[^>]+>", " ", text)
+            if str(getattr(project, "target_type", "")) == "company" and meta.get("provider") == "qcc_risk":
+                if meta.get("query_status") in {"failed", "error", "quota_exceeded", "unauthorized"}:
+                    continue
+                from report_agents.company_judicial import _structured
+                observations = _structured(source.content or "", str(meta.get("tool") or ""),
+                                           str(project.target_name or ""), {}, Counter())
+                for record in observations:
+                    anchor = record.get("case_number") or record.get("factor") or record.get("fields", {}).get("公告日期") or "摘要"
+                    quote = record.get("evidence_quote") or next((line for line in (source.content or "").splitlines() if anchor in line), "")
+                    facts.append({"fact": record["fact"], "category": "company_risk_observation",
+                        "claim_type": record["kind"], "subject": project.target_name,
+                        "source_title": source.title, "source_url": source.url,
+                        "evidence_quote": quote, "confidence": 0.75,
+                        "module": meta.get("module") or "企业司法负面核查", "provider": "qcc_risk",
+                        "evidence_scope": "target_direct", "entity_validation": meta.get("entity_validation"),
+                        "cleaning_method": "deterministic_structured", "source_grade": self._source_grade(source, meta.get("quality") or {})})
             for field, pattern in field_patterns.items():
                 match = re.search(pattern, text, flags=re.I)
                 if not match:
@@ -4258,6 +4322,10 @@ class ResearchWorkflow:
                 if not claim_numbers <= quote_numbers:
                     continue
             source_meta = (getattr(source, "source_metadata", {}) or {}) if source else {}
+            if target_type == 'company' and source_meta.get('provider') == 'qcc_risk':
+                # Provider prose may itself assert historical innocence or
+                # normal operations. Only literal rule observations are admitted.
+                continue
             affiliation_context = source_meta.get("person_affiliation") if isinstance(source_meta.get("person_affiliation"), dict) else {}
             affiliation_person = re.sub(r"\s+", "", str(affiliation_context.get("person_name") or "")).lower()
             affiliation_name = str(affiliation_context.get("affiliation_name") or "").strip()
@@ -5321,6 +5389,11 @@ class ResearchWorkflow:
         for record in people_package.get("facts", []) + people_package.get("source_notes", []):
             for evidence_id in record.get("evidence_ids", []):
                 people_by_id[evidence_id.upper()].append(record)
+        judicial_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        judicial_package = getattr(project, "company_judicial_package", {})
+        for record in judicial_package.get("facts", []) + judicial_package.get("source_notes", []) + judicial_package.get("coverage", []):
+            for evidence_id in record.get("evidence_ids", []):
+                judicial_by_id[evidence_id.upper()].append(record)
         facts_by_id: dict[str, dict[str, Any]] = {}
         for item in facts:
             url = str(item.get("source_url") or "").rstrip("/")
@@ -5359,7 +5432,8 @@ class ResearchWorkflow:
                         or (chapter == 5 and canonical in reputation_by_id)
                         or (chapter == 6 and canonical in business_by_id)
                         or (chapter == 7 and canonical in management_by_id)
-                        or (chapter == 8 and canonical in people_by_id)):
+                        or (chapter == 8 and canonical in people_by_id)
+                        or (chapter == 9 and canonical in judicial_by_id)):
                     chapters_by_id.setdefault(canonical, set()).add(chapter)
                 elif canonical not in chapters_by_id:
                     # Keep the citation visible in chapter 13 even when it is
@@ -5389,14 +5463,14 @@ class ResearchWorkflow:
             chapters_by_id[evidence_id] = {0}
         for evidence_id, chapters in sorted(chapters_by_id.items(), key=lambda value: (min(value[1]), value[0])):
             item = facts_by_id.get(evidence_id, {})
-            if any(evidence_id in mapping for mapping in (governance_by_id, history_by_id, operations_by_id, reputation_by_id, business_by_id, management_by_id, people_by_id)):
+            if any(evidence_id in mapping for mapping in (governance_by_id, history_by_id, operations_by_id, reputation_by_id, business_by_id, management_by_id, people_by_id, judicial_by_id)):
                 # A page-level industry/related classification may have hidden
                 # a literal issuer declaration recovered for chapter 2. Keep
                 # the source ID, and show the actual field-level claim used.
                 admitted = (governance_by_id.get(evidence_id, []) + history_by_id.get(evidence_id, [])
-                            + operations_by_id.get(evidence_id, []) + reputation_by_id.get(evidence_id, []) + business_by_id.get(evidence_id, []) + management_by_id.get(evidence_id, []) + people_by_id.get(evidence_id, []))
+                            + operations_by_id.get(evidence_id, []) + reputation_by_id.get(evidence_id, []) + business_by_id.get(evidence_id, []) + management_by_id.get(evidence_id, []) + people_by_id.get(evidence_id, []) + judicial_by_id.get(evidence_id, []))
                 labels = [label for label, mapping in [("第二章", governance_by_id), ("第三章", history_by_id),
-                                                       ("第四章", operations_by_id), ("第五章", reputation_by_id), ("第六章", business_by_id), ("第七章", management_by_id), ("第八章", people_by_id)] if evidence_id in mapping]
+                                                       ("第四章", operations_by_id), ("第五章", reputation_by_id), ("第六章", business_by_id), ("第七章", management_by_id), ("第八章", people_by_id), ("第九章", judicial_by_id)] if evidence_id in mapping]
                 label = "／".join(labels) + "原文核对："
                 item = {**item, "source_url": admitted[0]["source_url"],
                         "source_title": admitted[0]["source_title"],
@@ -5545,6 +5619,8 @@ class ResearchWorkflow:
                 errors.append("第七章管理团队未形成可交付证据，需人工复核")
             if getattr(project, "company_people_diagnostic", {}).get("degraded"):
                 errors.append("第八章文化与人员情况未形成可交付证据，需人工复核")
+            if getattr(project, "company_judicial_diagnostic", {}).get("degraded"):
+                errors.append("第九章司法记录未形成可交付证据，需人工复核")
             source_heading = re.search(r"(?m)^##\s*13[.、．]", report or "")
             next_heading = re.search(r"(?m)^##\s*14[.、．]", report or "")
             body_before_sources = (report or "")[:source_heading.start()] if source_heading else (report or "")

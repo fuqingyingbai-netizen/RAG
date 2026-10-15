@@ -35,11 +35,13 @@ def extract_company_pdf(payload):
         used+=len(text)
     table_status=extract_business_tables(payload,pages)
     management_status=extract_management_tables(payload,pages)
+    judicial_status=extract_judicial_tables(payload,pages)
     return {'content':'\n\n'.join(blocks),'pages':len(reader.pages),'document_pages':pages,
             'document_extraction':{'method':'embedded_pdf_text','extracted_pages':len(pages),
                                    'omitted_pages':len(reader.pages)-len(pages),'needs_ocr_pages':needs_ocr,
                                    'complete':len(pages)==len(reader.pages) and not needs_ocr,
-                                   'business_tables':table_status,'management_tables':management_status}}
+                                   'business_tables':table_status,'management_tables':management_status,
+                                   'judicial_tables':judicial_status}}
 
 
 def extract_business_tables(payload,pages):
@@ -74,6 +76,15 @@ def extract_management_tables(payload,pages):
                 selected.add(n)
                 if n>p['page'] and re.search(r'报酬情况|薪酬情况|从公司获得的税前报酬',compact_page(by_page[n])):break
     return _extract_grids(payload,pages,selected,'COMPANY_PDF_MANAGEMENT_MAX_PAGES')
+
+
+def extract_judicial_tables(payload,pages):
+    selected=set()
+    for p in pages:
+        text=compact_page(p)
+        if all(s in text for s in ('涉案金额','预计负债','进展')):
+            selected.update((p['page'],p['page']+1))
+    return _extract_grids(payload,pages,selected,'COMPANY_PDF_JUDICIAL_MAX_PAGES')
 
 
 def _extract_grids(payload,pages,selected,limit_name):
