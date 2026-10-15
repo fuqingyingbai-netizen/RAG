@@ -654,7 +654,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v11-diagnostic-repair",
+            "industry": "industry-report-evidence-v12-review-status",
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -964,12 +964,9 @@ class ResearchWorkflow:
         project.status = "report_generating"
         db.commit()
         existing_report = self._latest_artifact(project, "desktop_report")
-        legacy_industry_report = (
-            self._latest_quality_artifact(project, "desktop_report")
-            if standardized_type == "industry" and existing_report is not None and (existing_report.artifact_metadata or {}).get("quality_warning")
-            else None
-        )
-        reusable_report = legacy_industry_report or existing_report
+        # Recheck the latest report, including its degradations. Never replace a
+        # newer review draft with an older candidate simply because it had no warning.
+        reusable_report = existing_report
         use_existing_report = (
             resume_enabled
             and use_existing_cleaned
@@ -977,10 +974,11 @@ class ResearchWorkflow:
             and reusable_report is not None
             and (
                 (reusable_report.artifact_metadata or {}).get("report_pipeline_version") == report_pipeline_version
-                or legacy_industry_report is not None
             )
-            and not (reusable_report.artifact_metadata or {}).get("quality_warning")
+            and (standardized_type == 'industry' or not (reusable_report.artifact_metadata or {}).get("quality_warning"))
         )
+        quality_diagnostic_artifact = None
+        report_quality_warning = ''
         if use_existing_report:
             # A stage-level resume must not keep exporting an old report whose
             # model-written source list predates the deterministic audit index.
@@ -994,18 +992,27 @@ class ResearchWorkflow:
                     report = sanitize_nested_report_chapter_headings(report, expected)
             report = self._append_report_evidence_index(project, report, cleaned, emit=emit)
             report = self._normalize_report_date(report)
-            self._validate_delivery_report(project, report)
+            reused_delivery_metadata = {}
+            if standardized_type == 'industry':
+                project.industry_report_degradations = list((reusable_report.artifact_metadata or {}).get('generation_degradations') or [])
+                report, reused_delivery_metadata = self._prepare_industry_delivery(project, report, risk, emit=emit)
+                report_quality_warning = reused_delivery_metadata.get('quality_warning', '')
+            else:
+                self._validate_delivery_report(project, report)
             report_artifact = self.save_artifact(
                 db,
                 project,
                 "desktop_report",
-                _project_doc_title(project, "行业研究报告" if standardized_type == "industry" else "背景调查报告"),
+                _project_doc_title(project, "行业研究报告" if standardized_type == "industry" else "背景调查报告") + ('（待复核稿）' if report_quality_warning else ''),
                 report,
-                {"agent": "report_writer", "reexported_from_artifact_id": reusable_report.id, "report_pipeline_version": report_pipeline_version, "delivery_status": "final_candidate"},
+                {"agent": "report_writer", "reexported_from_artifact_id": reusable_report.id, "report_pipeline_version": report_pipeline_version,
+                 "delivery_status": "final_candidate", **reused_delivery_metadata},
             )
-            _emit(emit, "report", "desktop_report_agent", "阶段级续跑：复用通过版报告正文并重新导出 Word", f"from_artifact_id={reusable_report.id}, new_artifact_id={report_artifact.id}", artifact_id=report_artifact.id, status="done")
+            _emit(emit, "report", "desktop_report_agent", "阶段级续跑：复用报告正文并重新检查交付状态、导出 Word", f"from_artifact_id={reusable_report.id}, new_artifact_id={report_artifact.id}", artifact_id=report_artifact.id, status="done")
         else:
             _emit(emit, "report", "desktop_report_agent", "开始生成桌面研究报告", "", status="running")
+            if standardized_type == 'industry':
+                project.industry_report_degradations = []
             try:
                 report = self.generate_report(project, cleaned, risk, emit=emit, intake=normalized_intake)
             except Exception as exc:
@@ -1013,6 +1020,9 @@ class ResearchWorkflow:
                 if os.getenv("REPORT_TEMPLATE_FALLBACK_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}:
                     _emit(emit, "report", "desktop_report_agent", "报告生成失败，使用模板降级生成", str(exc), status="fallback")
                     report = self._fallback_report(project, cleaned, risk)
+                    if standardized_type == 'industry':
+                        project.industry_report_degradations = list(getattr(project, 'industry_report_degradations', []) or []) + [
+                            {'chapter': None, 'message': '报告生成异常，使用模板事实摘录；综合判断需人工复核。'}]
                 else:
                     _emit(emit, "report", "desktop_report_agent", "报告生成失败", str(exc), status="error")
                     raise
@@ -1037,21 +1047,19 @@ class ResearchWorkflow:
             report = self._append_report_evidence_index(project, report, cleaned, emit=emit)
             report = self._normalize_report_date(report)
             report_quality_warning = ""
-            try:
-                self._validate_delivery_report(project, report)
-            except RuntimeError as exc:
-                if os.getenv("REPORT_SAVE_REVIEW_DRAFT_ON_GATE_FAIL", "true").strip().lower() not in {"1", "true", "yes", "on"}:
-                    raise
-                report_quality_warning = str(exc)
-                _emit(
-                    emit,
-                    "report",
-                    "desktop_report_agent",
-                    "报告交付质量闸门未通过，已保存待复核稿",
-                    report_quality_warning,
-                    status="fallback",
-                )
-                report = self._prepend_review_draft_notice(report, report_quality_warning)
+            industry_delivery_metadata = {}
+            if standardized_type == 'industry':
+                report, industry_delivery_metadata = self._prepare_industry_delivery(project, report, risk, emit=emit)
+                report_quality_warning = industry_delivery_metadata.get('quality_warning', '')
+            else:
+                try:
+                    self._validate_delivery_report(project, report)
+                except RuntimeError as exc:
+                    if os.getenv("REPORT_SAVE_REVIEW_DRAFT_ON_GATE_FAIL", "true").strip().lower() not in {"1", "true", "yes", "on"}:
+                        raise
+                    report_quality_warning = str(exc)
+                    _emit(emit, 'report', 'desktop_report_agent', '报告交付质量闸门未通过，已保存待复核稿', report_quality_warning, status='fallback')
+                    report = self._prepend_review_draft_notice(report, report_quality_warning)
             report_artifact = self.save_artifact(
                 db,
                 project,
@@ -1061,28 +1069,22 @@ class ResearchWorkflow:
                 {
                     "agent": "report_writer",
                     "report_pipeline_version": report_pipeline_version,
-                    **({"industry_evidence_diagnostic": getattr(project, "industry_delivery_diagnostic", {}),
-                         "quality_issues": getattr(project, "industry_quality_issues", []),
-                         "generation_degradations": getattr(project, "industry_report_degradations", [])} if standardized_type == "industry" else {}),
+                    **industry_delivery_metadata,
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
                 },
             )
-            quality_diagnostic_artifact = None
-            if report_quality_warning:
-                quality_diagnostic_artifact = self.save_artifact(
-                    db,
-                    project,
-                    "report_quality_diagnostic",
-                    _project_doc_title(project, "报告质量诊断"),
-                    self._build_report_quality_diagnostic(project, report, report_quality_warning),
-                    {"agent": "report_quality_gate", "report_artifact_id": report_artifact.id, "quality_warning": report_quality_warning},
-                )
             _emit(emit, "report", "desktop_report_agent", "桌面研究报告已生成", "", status="done")
+        if report_quality_warning:
+            quality_diagnostic_artifact = self.save_artifact(
+                db, project, 'report_quality_diagnostic', _project_doc_title(project, '报告质量诊断'),
+                self._build_report_quality_diagnostic(project, report, report_quality_warning),
+                {'agent': 'report_quality_gate', 'report_artifact_id': report_artifact.id, 'quality_warning': report_quality_warning,
+                 **({'delivery_review_reasons': (report_artifact.artifact_metadata or {}).get('delivery_review_reasons', [])} if standardized_type == 'industry' else {})})
         checkpoint("report")
 
         artifacts = [plan_artifact, quality_artifact, cleaned_artifact, risk_artifact, report_artifact]
-        if 'quality_diagnostic_artifact' in locals() and quality_diagnostic_artifact is not None:
+        if quality_diagnostic_artifact is not None:
             artifacts.append(quality_diagnostic_artifact)
         if generate_proposal:
             project.status = "proposal_generating"
@@ -5761,8 +5763,62 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         )
         return notice + (report or "").lstrip()
 
+    def _prepare_industry_delivery(self, project: ResearchProject, report: str, risk_json: str,
+                                   emit: TraceEmitter | None = None) -> tuple[str, dict]:
+        """Use the same delivery decision for generated reports and reexports."""
+        try:
+            from .industry_research import delivery_review_reasons
+        except ImportError:
+            from industry_research import delivery_review_reasons
+        gate_warning = ''
+        try:
+            self._validate_delivery_report(project, report)
+        except RuntimeError as exc:
+            if os.getenv('REPORT_SAVE_REVIEW_DRAFT_ON_GATE_FAIL', 'true').strip().lower() not in {'1', 'true', 'yes', 'on'}:
+                raise
+            gate_warning = str(exc)
+        degradations = list(getattr(project, 'industry_report_degradations', []) or [])
+        # Preserve an explicit legacy fallback notice even if its old metadata was lost.
+        if not degradations and ('模型摘要未通过校验' in report or '模型摘要未通过引用或目录校验' in report):
+            degradations.append({'chapter': 1, 'message': '摘要沿用模型校验失败后的事实摘录，综合判断需人工复核。'})
+        risk = _plain_json(risk_json)
+        reasons = delivery_review_reasons(getattr(project, 'industry_scope', {}) or {},
+                                         risk if isinstance(risk, dict) else {}, degradations)
+        issues = list(getattr(project, 'industry_quality_issues', []) or [])
+        if gate_warning:
+            reasons += [{'code': 'evidence_gate_failed', 'chapter': issue.get('chapter'), 'message': issue['message']}
+                        for issue in issues if issue.get('message')]
+            if not any(r['code'] == 'evidence_gate_failed' for r in reasons):
+                reasons.append({'code': 'evidence_gate_failed', 'chapter': None, 'message': gate_warning})
+        project.industry_delivery_review_reasons = reasons
+        warning = '行业报告需人工复核：' + '；'.join(r['message'] for r in reasons) if reasons else ''
+        # Replace our own old notice, so a reexport cannot show stale review reasons.
+        report = re.sub(r'\A\s*> \*\*待人工复核稿\*\*.*?(?:\n\s*\n|\Z)', '', report, count=1, flags=re.S).lstrip()
+        if warning:
+            report = ('> **待人工复核稿**：报告已生成，部分证据核验、章节综合写作或风险评估仍需复核。'
+                      '请完成下列事项后再作为正式交付稿使用。\n>\n> 复核原因（摘要）：'
+                      + warning[:600] + ('……完整原因见报告质量诊断。' if len(warning) > 600 else '') + '\n\n' + report)
+            _emit(emit, 'report', 'desktop_report_agent', '行业报告保存为待复核稿', warning,
+                  review_reason_count=len(reasons), status='fallback')
+        return report, {'delivery_status': 'review_draft' if reasons else 'final_candidate',
+                        'delivery_review_reasons': reasons, 'quality_issues': issues,
+                        'industry_evidence_diagnostic': getattr(project, 'industry_delivery_diagnostic', {}),
+                        'generation_degradations': degradations,
+                        **({'quality_warning': warning} if warning else {})}
+
     def _build_report_quality_diagnostic(self, project: ResearchProject, report: str, warning: str) -> str:
         """Persist a reviewable diagnosis alongside a failed-but-exported Word draft."""
+        if str(project.target_type or '').lower() == 'industry':
+            reasons = getattr(project, 'industry_delivery_review_reasons', []) or []
+            def cell(value):
+                return re.sub(r'\s+', ' ', str(value or '-')).replace('|', '/')
+            rows = '\n'.join(f'| {cell(r.get("chapter"))} | {cell(r.get("dimension"))} | {cell(r.get("message"))} |'
+                             for r in reasons) or f'| - | - | {cell(warning)} |'
+            return (f'# {_project_doc_title(project, "报告质量诊断")}\n\n状态：待复核稿，生成完成不代表已经通过正式交付验收。\n\n'
+                    '## 复核原因\n\n| 章节 | 风险维度 | 需要复核的事项 |\n| --- | --- | --- |\n' + rows + '\n\n'
+                    '## 复核动作\n\n- 对照第15章来源索引核验正文引用、数值与口径。\n'
+                    '- 章节采用事实摘录时，人工复核综合判断；补证后重新评估尚未完成的启用风险维度。\n'
+                    '- 未启用的资本市场和核心企业尽调不列为必做补采；Word页面版式检查单独查看。\n')
         failures = [item.strip() for item in re.split(r"；|;", warning or "") if item.strip()]
         chapter_rows = []
         matches = list(REPORT_CHAPTER_HEADING_RE.finditer(report or ""))

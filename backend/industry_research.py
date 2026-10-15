@@ -223,6 +223,40 @@ def risk_level(score: float) -> str:
     return 'low' if score < 40 else 'medium' if score < 70 else 'high' if score < 85 else 'critical'
 
 
+def delivery_review_reasons(scope: dict, risk: dict, degradations: list) -> list[dict]:
+    """Writing and assessment completion are separate from citation integrity."""
+    disabled = ({8, 9} if scope.get('capital_market') == 'none' else set()) | ({12} if not scope.get('named_companies') else set())
+    reasons = []
+    for note in degradations:
+        if not isinstance(note, dict):
+            continue
+        chapter = note.get('chapter')
+        if isinstance(chapter, str) and chapter.isdigit():
+            chapter = int(chapter)
+        if chapter in disabled or (chapter is not None and chapter not in range(1, 15)):
+            continue
+        message = str(note.get('message') or '').strip()
+        if message:
+            reasons.append({'code': 'chapter_generation_degraded' if chapter is not None else 'report_generation_degraded',
+                            'chapter': chapter, 'message': message})
+    dimensions = {d.get('name'): d for d in (risk.get('dimensions') or []) if isinstance(d, dict)}
+    for name in active_risk_dimensions(scope):
+        row = dimensions.get(name) or {}
+        score = row.get('score')
+        assessed = (isinstance(score, (float, int)) and not isinstance(score, bool) and 0 <= score <= 100
+                    and row.get('level') in {'low', 'medium', 'high', 'critical'} and bool(row.get('evidence_ids')))
+        if not assessed:
+            reason = str(row.get('reason') or '未取得有效的评分结果。').strip()
+            reasons.append({'code': 'risk_assessment_incomplete', 'chapter': 14, 'dimension': name,
+                            'unknown_cause': row.get('unknown_cause') or 'assessment_unavailable',
+                            'message': f'{name}尚未完成有效评估：{reason}'})
+    distinct = {}
+    for reason in reasons:
+        key = (reason['code'], reason.get('chapter'), reason.get('dimension'), reason['message'])
+        distinct.setdefault(key, reason)
+    return list(distinct.values())
+
+
 CHAPTER_MODULES = {
     '行业基础定义与产业链全景': ('行业定义与边界', '细分赛道与产业链'),
     '政策环境分析与近期政策摘录': ('政策与监管',),

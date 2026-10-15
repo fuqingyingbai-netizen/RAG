@@ -289,11 +289,31 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
         'target_type': 'industry', 'include_capital_markets': False, 'as_of_date': '2026-01-31'})
     assert added == 4 and project.status == 'completed'
     report = next(a for a in artifacts if a.artifact_type == 'desktop_report')
-    assert report.artifact_metadata['delivery_status'] == 'final_candidate'
+    assert report.artifact_metadata['delivery_status'] == 'review_draft'
+    assert any(r['code'] == 'risk_assessment_incomplete' for r in report.artifact_metadata['delivery_review_reasons'])
+    assert any(a.artifact_type == 'report_quality_diagnostic' for a in artifacts)
     assert '## 16. 后续研究点' in report.content
     with zipfile.ZipFile(io.BytesIO(exports[0])) as archive:
         assert archive.testzip() is None and 'word/document.xml' in archive.namelist()
     assert any(a.artifact_type == 'proposal' for a in artifacts)
+
+    # A newer review draft must survive resume even if an older candidate exists.
+    older = SimpleNamespace(id=999, artifact_type='desktop_report', title='旧候选稿', version=1,
+        content=report.content, artifact_metadata={'report_pipeline_version':report.artifact_metadata['report_pipeline_version'],
+        'delivery_status':'final_candidate'}, created_at=datetime(2020,1,1))
+    project.artifacts.append(older)
+    def no_new_report(*args, **kwargs):
+        raise AssertionError('Resume should reuse the latest body without another model call')
+    workflow.generate_report=no_new_report
+    monkeypatch.setenv('WORKFLOW_RESUME_ENABLED','true')
+    resumed,_=workflow.run_project(database,project,[],[],intake={
+        'target_type':'industry','include_capital_markets':False,'as_of_date':'2026-01-31'})
+    reexported=next(a for a in resumed if a.artifact_type=='desktop_report')
+    assert reexported.artifact_metadata['reexported_from_artifact_id']==report.id
+    assert reexported.artifact_metadata['delivery_status']=='review_draft'
+    assert reexported.artifact_metadata['delivery_review_reasons']==report.artifact_metadata['delivery_review_reasons']
+    assert reexported.content.count('**待人工复核稿**')==1
+    assert any(a.artifact_type=='report_quality_diagnostic' for a in resumed)
 
 
 def test_proposal_follows_seven_sections_and_industry_scope():
