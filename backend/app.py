@@ -11,6 +11,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 import api as api_module
 import research_api as research_api_module
+import company_knowledge as company_knowledge_module
 from database import init_db
 
 BASE_DIR = BACKEND_DIR.parent
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
 
     app.include_router(api_module.router)
     app.include_router(research_api_module.router)
+    app.include_router(company_knowledge_module.router)
 
     # serve frontend static files at root
     if FRONTEND_DIR.exists():
