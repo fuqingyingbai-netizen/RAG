@@ -623,7 +623,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v21-judicial-scope-and-proceedings",
+            "company": "company-report-evidence-v22-directed-diligence-and-money-bases",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -737,12 +737,17 @@ class ResearchWorkflow:
             if (source.content or source.summary or "").strip()
             and not self._is_failed_extraction_source(source)
         )
+        company_diligence_queries = []
+        if standardized_type == "company":
+            from report_agents.company_diligence import diligence_discovery_queries
+            company_diligence_queries = diligence_discovery_queries(list(project.sources or []), str(project.target_name or ""))
         skip_web_search = bool(
             resume_enabled
             and not force_refresh
             and sources_match_intake
             and required_modules
             and all(existing_module_counts.get(module, 0) >= resume_min_per_module for module in required_modules)
+            and not company_diligence_queries
         )
         if skip_web_search:
             _emit(
@@ -1064,6 +1069,9 @@ class ResearchWorkflow:
                        if standardized_type == "company" else {}),
                     **({"company_judicial_diagnostic": getattr(project, "company_judicial_diagnostic", {}),
                         "company_judicial_evidence": getattr(project, "company_judicial_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_diligence_diagnostic": getattr(project, "company_diligence_diagnostic", {}),
+                        "company_diligence_evidence": getattr(project, "company_diligence_package", {})}
                        if standardized_type == "company" else {}),
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
@@ -3481,6 +3489,7 @@ class ResearchWorkflow:
 
         added = 0
         discovered_affiliations: set[str] = set()
+        discovered_company_diligence: set[str] = set()
         seen_urls = {s.url for s in project.sources if s.url}
         host_counts: defaultdict[str, int] = defaultdict(int)
         authority_host_counts: defaultdict[str, int] = defaultdict(int)
@@ -3823,6 +3832,8 @@ class ResearchWorkflow:
                             "authority_domains": include_domains,
                             "authority_required": int(query_item.get("authority_required") or 0),
                             "evidence_scope": query_item.get("evidence_scope") or "",
+                            "diligence_entity": query_item.get("diligence_entity") or "",
+                            "diligence_relationship_source": query_item.get("diligence_relationship_source") or "",
                             "industry_name": query_item.get("industry_name") or "",
                             "segment_name": query_item.get("segment_name") or "",
                             "company_role": query_item.get("company_role") or "",
@@ -4007,6 +4018,14 @@ class ResearchWorkflow:
                         discovered_affiliations=new_names,
                         status="running",
                     )
+            if str(intake.get("target_type") or "").lower() == "company" and round_index < max_rounds:
+                from report_agents.company_diligence import diligence_discovery_queries
+                company_discovery = diligence_discovery_queries(list(project.sources or []),
+                    str(intake.get("target_name") or project.target_name or ""), discovered_company_diligence)
+                if company_discovery:
+                    discovery_items.extend(company_discovery)
+                    _emit(emit, "web_search", "company_diligence_discovery_agent",
+                        "根据原件关系补充专项资料检索", "；".join(item["query"] for item in company_discovery), status="running")
             next_query_items = discovery_items + self._gap_queries(plan, intake, gaps)
             if round_index == 1 and pending_open_web_queries:
                 next_query_items = pending_open_web_queries + next_query_items
@@ -4820,6 +4839,8 @@ class ResearchWorkflow:
         intake: dict[str, Any] | None = None,
     ) -> str:
         target_type = (intake or {}).get("target_type") or self._standardize_target_type(project, intake or {})
+        if target_type == "company":
+            project.company_research_intake = dict(intake or {})
         if target_type == "industry":
             # Transient generation context: no schema migration is required and
             # all downstream agents can read the same normalized scope.
@@ -5394,6 +5415,10 @@ class ResearchWorkflow:
         for record in judicial_package.get("facts", []) + judicial_package.get("source_notes", []) + judicial_package.get("coverage", []):
             for evidence_id in record.get("evidence_ids", []):
                 judicial_by_id[evidence_id.upper()].append(record)
+        diligence_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_diligence_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                diligence_by_id[evidence_id.upper()].append(record)
         facts_by_id: dict[str, dict[str, Any]] = {}
         for item in facts:
             url = str(item.get("source_url") or "").rstrip("/")
@@ -5433,7 +5458,8 @@ class ResearchWorkflow:
                         or (chapter == 6 and canonical in business_by_id)
                         or (chapter == 7 and canonical in management_by_id)
                         or (chapter == 8 and canonical in people_by_id)
-                        or (chapter == 9 and canonical in judicial_by_id)):
+                        or (chapter == 9 and canonical in judicial_by_id)
+                        or (chapter == 10 and canonical in diligence_by_id)):
                     chapters_by_id.setdefault(canonical, set()).add(chapter)
                 elif canonical not in chapters_by_id:
                     # Keep the citation visible in chapter 13 even when it is
@@ -5463,14 +5489,14 @@ class ResearchWorkflow:
             chapters_by_id[evidence_id] = {0}
         for evidence_id, chapters in sorted(chapters_by_id.items(), key=lambda value: (min(value[1]), value[0])):
             item = facts_by_id.get(evidence_id, {})
-            if any(evidence_id in mapping for mapping in (governance_by_id, history_by_id, operations_by_id, reputation_by_id, business_by_id, management_by_id, people_by_id, judicial_by_id)):
+            if any(evidence_id in mapping for mapping in (governance_by_id, history_by_id, operations_by_id, reputation_by_id, business_by_id, management_by_id, people_by_id, judicial_by_id, diligence_by_id)):
                 # A page-level industry/related classification may have hidden
                 # a literal issuer declaration recovered for chapter 2. Keep
                 # the source ID, and show the actual field-level claim used.
                 admitted = (governance_by_id.get(evidence_id, []) + history_by_id.get(evidence_id, [])
-                            + operations_by_id.get(evidence_id, []) + reputation_by_id.get(evidence_id, []) + business_by_id.get(evidence_id, []) + management_by_id.get(evidence_id, []) + people_by_id.get(evidence_id, []) + judicial_by_id.get(evidence_id, []))
+                            + operations_by_id.get(evidence_id, []) + reputation_by_id.get(evidence_id, []) + business_by_id.get(evidence_id, []) + management_by_id.get(evidence_id, []) + people_by_id.get(evidence_id, []) + judicial_by_id.get(evidence_id, []) + diligence_by_id.get(evidence_id, []))
                 labels = [label for label, mapping in [("第二章", governance_by_id), ("第三章", history_by_id),
-                                                       ("第四章", operations_by_id), ("第五章", reputation_by_id), ("第六章", business_by_id), ("第七章", management_by_id), ("第八章", people_by_id), ("第九章", judicial_by_id)] if evidence_id in mapping]
+                                                       ("第四章", operations_by_id), ("第五章", reputation_by_id), ("第六章", business_by_id), ("第七章", management_by_id), ("第八章", people_by_id), ("第九章", judicial_by_id), ("第十章", diligence_by_id)] if evidence_id in mapping]
                 label = "／".join(labels) + "原文核对："
                 item = {**item, "source_url": admitted[0]["source_url"],
                         "source_title": admitted[0]["source_title"],
@@ -5621,6 +5647,8 @@ class ResearchWorkflow:
                 errors.append("第八章文化与人员情况未形成可交付证据，需人工复核")
             if getattr(project, "company_judicial_diagnostic", {}).get("degraded"):
                 errors.append("第九章司法记录未形成可交付证据，需人工复核")
+            if getattr(project, "company_diligence_diagnostic", {}).get("degraded"):
+                errors.append("第十章专项核查未形成具体可追溯对象，需人工复核")
             source_heading = re.search(r"(?m)^##\s*13[.、．]", report or "")
             next_heading = re.search(r"(?m)^##\s*14[.、．]", report or "")
             body_before_sources = (report or "")[:source_heading.start()] if source_heading else (report or "")
