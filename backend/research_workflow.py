@@ -680,7 +680,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v13-risk-grounded",
+            "industry": "industry-report-evidence-v14-claim-semantics",
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -4693,7 +4693,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
 {_clip(risk_evidence, 30000)}
 
 评分口径必须统一：overall_score 和各维度 score 均为“风险分”，0 表示风险最低，100 表示风险最高。信息缺失必须列为 unknown/待核验，不能仅因“未搜索到、未提供、无法排除”就判为高风险。代表企业材料只能作为行业样本或竞争格局信号，不能写成目标公司经营风险。
-各维度只能使用 dimension_evidence_ids 中列出的编号；reason 中的编号必须同时列入 evidence_ids。理由每维120字以内，只写支撑该评分的判断，数值只可使用对应事实allowed_numbers中的值；禁止使用来源标题、URL或统计定义中的其他数字补结论。完整原文保留在事实库供审计，评分输入只授权fact中的单个指标。政策目标不能写成已经实现的市场集中度。没有已核验数值时可以用适用定性证据作克制判断，禁止新增定量结论；证据不足仍返回unknown。
+各维度只能使用 dimension_evidence_ids 中列出的编号；reason 中的编号必须同时列入 evidence_ids。理由每维120字以内，只写支撑该评分的判断，数值只可使用对应事实allowed_numbers中的值；禁止使用来源标题、URL或统计定义中的其他数字补结论。完整原文保留在事实库供审计，评分输入只授权fact中的单个指标。预测值须在同一分句明确预计/预测，不同事实编号不等于独立来源；同一发布方的卡片不能声称多源一致。政策目标不能写成已经实现的市场集中度。没有已核验数值时可以用适用定性证据作克制判断，禁止新增定量结论；证据不足仍返回unknown。
 
 请只输出 JSON，结构为：
 {{
@@ -4782,6 +4782,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                   '"level":"unknown|low|medium|high|critical","reason":"...","evidence_ids":[]}]}。'
                   '每维理由120字以内，只用该维dimension_evidence_ids中的编号；理由引用必须同时列入evidence_ids。'
                   '数字只可用对应证据allowed_numbers，禁止从先前失败理由补数据；没有定量证据可作有依据的定性判断。'
+                  '预测数字必须在同一分句明确预计/预测；同一发布方的多张卡片不能写成多源印证。'
                   '保留政策目标、预测与实际统计的区别，企业样本不能评分行业整体。证据不足返回score=null、level=unknown，'
                   '不能为了修复凑分。无需返回其他维度、总分或额外章节。\n' + json.dumps(package, ensure_ascii=False))
         repair_diagnostic = {'attempted': True, 'attempts': 1, 'requested_dimensions': sorted(requested),
@@ -4825,9 +4826,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         facts = parsed.get("facts") or []
         if target_type == "industry":
             try:
-                from .industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions
+                from .industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions, source_document_key
             except ImportError:
-                from industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions
+                from industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions, source_document_key
             facts = balanced_risk_facts(facts)
         for fact in facts:
             if not isinstance(fact, dict):
@@ -4848,6 +4849,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 row["evidence_scope"] = fact.get("evidence_scope")
             if target_type == "industry":
                 row['fact'] = risk_fact_text(fact)[:700]
+                row['source_document_key'] = source_document_key(fact.get('source_url', ''))
                 row["evidence_id"] = fact.get("evidence_id")
                 row["evidence_scope"] = fact.get("evidence_scope")
                 row["industry_name"] = fact.get("industry_name")

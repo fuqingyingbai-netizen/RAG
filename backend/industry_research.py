@@ -6,9 +6,10 @@ import re
 from decimal import Decimal, InvalidOperation
 from datetime import date
 from typing import Any
+from urllib.parse import urlsplit, parse_qsl, urlencode
 
 INDUSTRY_POLICY_VERSION = 'industry-scope-v3'
-INDUSTRY_RISK_VERSION = 'industry-risk-v2-bounded-repair'
+INDUSTRY_RISK_VERSION = 'industry-risk-v3-claim-semantics'
 INDUSTRY_RISK_DIMENSIONS = (
     '政策与监管风险', '市场增长与需求风险', '竞争格局与集中度风险',
     '商业化与盈利模式风险', '技术迭代与替代风险', '资本热度与估值风险', '数据口径与证据可靠性风险',
@@ -161,24 +162,28 @@ def normalize_risk(parsed: Any, facts: list[dict], scope: dict | None = None) ->
                                'context': evidence[eid].get('numeric_context') or {}} for eid in ids}
         unverified_numbers = [n for n in numeric_mentions(str(row.get('reason') or ''))
                               if not any(numeric_supported(n, eid, numeric_cards) for eid in ids)]
-        if not ids or invalid_reason_ids or unverified_numbers or isinstance(score, bool) or not isinstance(score, (int, float)) or not 0 <= score <= 100:
+        semantic_issues = claim_semantic_issues(str(row.get('reason') or ''), [evidence[eid] for eid in ids])
+        if not ids or invalid_reason_ids or unverified_numbers or semantic_issues or isinstance(score, bool) or not isinstance(score, (int, float)) or not 0 <= score <= 100:
             candidates = [eid for eid, fact in evidence.items() if risk_fact_applicable(fact, name)]
             cause = ('no_applicable_evidence' if not candidates else 'model_abstained' if score is None and row.get('level') == 'unknown'
                      else 'missing_model_citations' if not supplied_ids
                      else 'invalid_citations' if not ids else 'invalid_reason_citations' if invalid_reason_ids
-                     else 'unverified_reason_numbers' if unverified_numbers else 'invalid_score')
+                     else 'unverified_reason_numbers' if unverified_numbers
+                     else semantic_issues[0]['code'] if semantic_issues else 'invalid_score')
             explanations = {'no_applicable_evidence':'本次评分证据包没有适用的行业事实',
                 'missing_model_citations':'模型未提供评分证据编号', 'invalid_citations':'评分引用没有适用的行业事实',
                 'invalid_reason_citations':'评分理由引用了未授权或不适用的编号',
                 'unverified_reason_numbers':'评分理由含未通过对应指标校验的数值', 'invalid_score':'模型评分值不符合0至100的风险分格式',
-                'model_abstained':'模型认为现有证据不足，保留unknown'}
+                'model_abstained':'模型认为现有证据不足，保留unknown',
+                'forecast_presented_as_actual':'评分理由未保留对应数值的预测属性',
+                'source_corroboration_overstated':'评分理由声称多源印证，但引用来源不足或来自同一发布方'}
             row = {'name': name, 'score': None, 'level': 'unknown', 'reason': explanations[cause] + '，暂不评分。',
                    'evidence_ids': [], 'evidence_sources': [], 'unknown_cause': cause,
                    'candidate_evidence_count': len(candidates),
                    'validation_diagnostic': {'original_reason': str(supplied.get(name, {}).get('reason') or '')[:3000],
                        'original_score': score, 'supplied_evidence_ids': list(supplied_ids)[:30],
                        'admissible_evidence_ids': ids, 'invalid_reason_evidence_ids': sorted(invalid_reason_ids),
-                       'unverified_numbers': list(dict.fromkeys(unverified_numbers))}}
+                       'unverified_numbers': list(dict.fromkeys(unverified_numbers)), 'semantic_issues': semantic_issues}}
             unknowns.append(name + '：' + row['reason'])
         else:
             row.update(name=name, evidence_ids=ids, level=risk_level(score),
@@ -230,7 +235,7 @@ def risk_fact_text(fact: dict) -> str:
 def risk_repair_package(payload: dict, normalized: dict, limit: int = 18000) -> dict:
     """Repair only rejected scores with retained candidates, using complete JSON."""
     eligible = {'missing_model_citations', 'invalid_citations', 'invalid_reason_citations',
-                'unverified_reason_numbers', 'invalid_score'}
+                'unverified_reason_numbers', 'invalid_score', 'forecast_presented_as_actual', 'source_corroboration_overstated'}
     requests = []
     mapping = payload.get('dimension_evidence_ids') or {}
     for row in normalized.get('dimensions', []):
@@ -242,6 +247,7 @@ def risk_repair_package(payload: dict, normalized: dict, limit: int = 18000) -> 
         requests.append({'name': row['name'], 'previous_score': diagnostic['original_score'],
             'previous_reason': str(diagnostic.get('original_reason') or '')[:500],
             'failure': row['unknown_cause'],
+            'semantic_issues': diagnostic.get('semantic_issues', [])[:5],
             'unverified_numbers': [str(n)[:80] for n in diagnostic.get('unverified_numbers', [])[:10]],
             'invalid_reason_evidence_ids': [str(e)[:64] for e in diagnostic.get('invalid_reason_evidence_ids', [])[:12]]})
     result = {'dimensions_to_repair': requests, 'facts': [], 'dimension_evidence_ids': {}}
@@ -255,7 +261,7 @@ def risk_repair_package(payload: dict, normalized: dict, limit: int = 18000) -> 
                 original = group[index]
                 seen.add(original['evidence_id'])
                 ordered.append({key: original.get(key) for key in ('evidence_id', 'fact', 'module', 'source_url',
-                    'numeric_context', 'numeric_validation', 'allowed_numbers')})
+                    'numeric_context', 'numeric_validation', 'allowed_numbers', 'source_document_key')})
     for fact in ordered:
         result['facts'].append(fact)
         retained = {f['evidence_id'] for f in result['facts']}
@@ -646,6 +652,61 @@ def numeric_supported(number: str, eid: str, numeric: dict) -> bool:
     return number_key(number) is not None and number_key(number) == number_key(value)
 
 
+def source_document_key(url: str) -> str:
+    """Collapse transport, fragment and tracking variants, preserving document query IDs."""
+    try:
+        parts = urlsplit(str(url or '').strip())
+        if parts.scheme.lower() not in {'http', 'https'} or not parts.hostname:
+            return ''
+        host = parts.hostname.lower().removeprefix('www.')
+        if parts.port and parts.port not in {80, 443}:
+            host += ':' + str(parts.port)
+        query = sorted((key, value) for key, value in parse_qsl(parts.query, keep_blank_values=True)
+                       if not key.lower().startswith('utm_') and key.lower() not in {'spm', 'from', 'fbclid', 'gclid'})
+        return host + (parts.path.rstrip('/') or '/') + ('?' + urlencode(query) if query else '')
+    except ValueError:
+        return ''
+
+
+def claim_semantic_issues(text: str, facts: list[dict]) -> list[dict]:
+    """Conservative claim checks; passing is not proof of all prose semantics."""
+    by_id = {f['evidence_id']: f for f in facts if f.get('evidence_id')}
+    issues = []
+    for line in text.splitlines():
+        cited = set(re.findall(EVIDENCE_ID_PATTERN, line, re.I))
+        rows = [f for eid, f in by_id.items() if not cited or eid in cited]
+        numeric = {f['evidence_id']: {'context': f.get('numeric_context') or {},
+                                    'validation': f.get('numeric_validation') or {}} for f in rows}
+        # Labels must travel with the number, not an unrelated prediction later in the line.
+        for clause in re.split(r'[，；;。！？\n]|(?<!\d),|,(?!\d)', numeric_scan_text(line)):
+            for number in numeric_mentions(clause):
+                supporting = [f for f in rows if numeric_supported(number, f['evidence_id'], numeric)]
+                if (supporting and all((f.get('numeric_context') or {}).get('is_forecast') is True for f in supporting)
+                        and not re.search(r'预测|预计|预估|估计|有望|或将|情景|假设|目标|锚定|力争|争取|forecast|projected|estimated', clause, re.I)):
+                    issues.append({'code':'forecast_presented_as_actual', 'number':number,
+                        'evidence_ids':[f['evidence_id'] for f in supporting],
+                        'message':f'预测值{number}未在同一分句保留预测、预估或目标标记。'})
+        claims = list(re.finditer(r'多源(?:预测|数据|信息|证据)?(?:一致|印证|验证)|多(?:家机构|个来源|个独立来源|方)(?:预测|数据|信息)?(?:一致|印证|验证)|交叉(?:验证|印证)|相互印证', line))
+        claims = [m for m in claims if not re.search(r'未|无|不能|尚不|缺少|缺乏|不足|待', line[max(0,m.start()-10):m.start()])]
+        claims = [m for m in claims if not re.match(r'性?(?:尚待|待|需)(?:核验|验证|确认)', line[m.end():])]
+        if claims:
+            keys = {source_document_key(f.get('source_url', '')) for f in rows} - {''}
+            # Conservative publisher grouping, including portal/mobile subdomains.
+            # This is not a full public-suffix or original-research identity resolver.
+            publishers = set()
+            for key in keys:
+                host = key.split('/')[0].split(':')[0]
+                labels = host.split('.')
+                suffix = '.'.join(labels[-2:])
+                depth = 3 if suffix in {'com.cn','gov.cn','org.cn','net.cn','edu.cn','ac.cn','co.uk','org.uk','com.au','co.jp'} else 2
+                publishers.add(host if all(x.isdecimal() for x in labels) else '.'.join(labels[-depth:]))
+            if len(publishers) < 2:
+                issues.append({'code':'source_corroboration_overstated', 'document_count':len(keys),
+                    'publisher_count':len(publishers), 'evidence_ids':[f['evidence_id'] for f in rows],
+                    'message':'多源印证声明没有至少两个不同发布方的可追溯来源；多张卡片或同站不同网页不足以证明来源独立。'})
+    return list({json.dumps(issue, sort_keys=True, ensure_ascii=False): issue for issue in issues}.values())
+
+
 def mark_unverified_numbers(section: str, facts: list[dict]) -> str:
     numeric = {f.get('evidence_id'): {'validation': f.get('numeric_validation') or {},
                                     'context': f.get('numeric_context') or {}} for f in facts}
@@ -812,7 +873,8 @@ def append_evidence_index(report: str, payload: dict, outline: list, packages: d
     return updated, {'referenced_sources': len(referenced), 'total_fact_sources': len(total_sources),
                      'evidence_ids': sorted(cited_ids), 'chapter_evidence_ids': chapter_ids,
                      'numeric_evidence': {f['evidence_id']: {'validation': f.get('numeric_validation') or {},
-                                         'fact': str(f.get('fact', ''))[:900], 'context': f.get('numeric_context') or {}}
+                                         'fact': str(f.get('fact', ''))[:900], 'context': f.get('numeric_context') or {},
+                                         'source_url': f.get('source_url', '')}
                                           for f in facts if f.get('evidence_id') in cited_ids}}
 
 
@@ -850,11 +912,16 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
         if re.search(r'(?:不存在|没有|无)(?:任何)?(?:行业风险|监管风险|技术风险)', body):
             errors.append(f'第{chapter}章存在确定无风险的越界结论。')
         for line in body.splitlines():
+            line_ids = set(re.findall(EVIDENCE_ID_PATTERN, line, re.I)) & allowed
+            numeric = diagnostic.get('numeric_evidence', {})
+            cards = [{'evidence_id':eid, 'source_url':numeric.get(eid, {}).get('source_url', ''),
+                      'numeric_context':numeric.get(eid, {}).get('context') or {},
+                      'numeric_validation':numeric.get(eid, {}).get('validation') or {}} for eid in line_ids]
+            for issue in claim_semantic_issues(line, cards):
+                errors.append(f'第{chapter}章语义核验：' + issue['message'])
             numbers = numeric_mentions(line)
             if not numbers:
                 continue
-            line_ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', line, flags=re.I)) & allowed
-            numeric = diagnostic.get('numeric_evidence', {})
             for number in numbers:
                 supported = any(numeric_supported(number, eid, numeric) for eid in line_ids)
                 if not supported and '待核验' not in line:
