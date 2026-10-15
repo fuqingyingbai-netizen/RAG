@@ -153,7 +153,7 @@ def test_budgeted_risk_payload_maps_only_retained_applicable_ids():
 
 def test_industry_risk_schema_requires_ids_for_every_enabled_dimension():
     w = ResearchWorkflow.__new__(ResearchWorkflow); prompts=[]
-    w._invoke = lambda role,prompt,**kw: (prompts.append(prompt) or '{"dimensions":[]}')
+    w._invoke_industry_risk = lambda role,prompt,**kw: (prompts.append(prompt) or '{"dimensions":[]}')
     p=SimpleNamespace(title='测试', target_name='人工智能', industry='人工智能', target_type='industry', industry_scope=SCOPE)
     w.assess_risk(p, '{"facts":[]}')
     schema=json.loads(prompts[0].split('请只输出 JSON，结构为：')[1])

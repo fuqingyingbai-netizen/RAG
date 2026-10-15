@@ -8,6 +8,7 @@ from datetime import date
 from typing import Any
 
 INDUSTRY_POLICY_VERSION = 'industry-scope-v3'
+INDUSTRY_RISK_VERSION = 'industry-risk-v2-bounded-repair'
 INDUSTRY_RISK_DIMENSIONS = (
     '政策与监管风险', '市场增长与需求风险', '竞争格局与集中度风险',
     '商业化与盈利模式风险', '技术迭代与替代风险', '资本热度与估值风险', '数据口径与证据可靠性风险',
@@ -137,7 +138,8 @@ def normalize_risk(parsed: Any, facts: list[dict], scope: dict | None = None) ->
     evidence = {str(f.get('evidence_id')): f for f in facts if f.get('evidence_id')
                 and f.get('eligible_for_risk_scoring') is not False and f.get('eligible_for_report') is not False
                 and f.get('scope_match') == 'in_scope'}
-    supplied = {d.get('name'): d for d in result.get('dimensions', []) if isinstance(d, dict)}
+    supplied_rows = result.get('dimensions')
+    supplied = {d.get('name'): d for d in supplied_rows if isinstance(d, dict)} if isinstance(supplied_rows, list) else {}
     dimensions = []
     unknowns = list(result.get('unknowns') or [])
     if (scope or {}).get('capital_market') == 'none':
@@ -147,31 +149,37 @@ def normalize_risk(parsed: Any, facts: list[dict], scope: dict | None = None) ->
                                            if not any(word in str(note) for word in capital_words)]
     for name in active_risk_dimensions(scope):
         row = dict(supplied.get(name) or {})
-        ids = list(dict.fromkeys(eid for eid in row.get('evidence_ids', []) if isinstance(eid, str) and eid in evidence))
+        supplied_ids = row.get('evidence_ids') if isinstance(row.get('evidence_ids'), list) else []
+        ids = list(dict.fromkeys(eid for eid in supplied_ids if isinstance(eid, str) and eid in evidence))
         # One company's condition is a sample, never proof of an industry-wide score.
         ids = [eid for eid in ids if evidence[eid].get('evidence_scope') in {'industry_level', 'segment_level', 'capital_market'}]
         score = row.get('score')
         ids = [eid for eid in ids if risk_fact_applicable(evidence[eid], name)]
-        reason_ids = set(re.findall(r'(?<![A-Z0-9-])E-[A-Z0-9-]{6,}(?![A-Z0-9-])', str(row.get('reason') or ''), re.I))
+        reason_ids = set(re.findall(EVIDENCE_ID_PATTERN, str(row.get('reason') or ''), re.I))
         invalid_reason_ids = reason_ids - set(ids)
         numeric_cards = {eid: {'validation': evidence[eid].get('numeric_validation') or {},
                                'context': evidence[eid].get('numeric_context') or {}} for eid in ids}
-        unverified_numbers = [n for n in re.findall(NUMBER_PATTERN, str(row.get('reason') or ''))
+        unverified_numbers = [n for n in numeric_mentions(str(row.get('reason') or ''))
                               if not any(numeric_supported(n, eid, numeric_cards) for eid in ids)]
         if not ids or invalid_reason_ids or unverified_numbers or isinstance(score, bool) or not isinstance(score, (int, float)) or not 0 <= score <= 100:
             candidates = [eid for eid, fact in evidence.items() if risk_fact_applicable(fact, name)]
-            supplied_ids = row.get('evidence_ids') or []
-            cause = ('no_applicable_evidence' if not candidates else 'missing_model_citations' if not supplied_ids
+            cause = ('no_applicable_evidence' if not candidates else 'model_abstained' if score is None and row.get('level') == 'unknown'
+                     else 'missing_model_citations' if not supplied_ids
                      else 'invalid_citations' if not ids else 'invalid_reason_citations' if invalid_reason_ids
                      else 'unverified_reason_numbers' if unverified_numbers else 'invalid_score')
             explanations = {'no_applicable_evidence':'本次评分证据包没有适用的行业事实',
                 'missing_model_citations':'模型未提供评分证据编号', 'invalid_citations':'评分引用没有适用的行业事实',
                 'invalid_reason_citations':'评分理由引用了未授权或不适用的编号',
-                'unverified_reason_numbers':'评分理由含未通过对应指标校验的数值', 'invalid_score':'模型评分值不符合0至100的风险分格式'}
+                'unverified_reason_numbers':'评分理由含未通过对应指标校验的数值', 'invalid_score':'模型评分值不符合0至100的风险分格式',
+                'model_abstained':'模型认为现有证据不足，保留unknown'}
             row = {'name': name, 'score': None, 'level': 'unknown', 'reason': explanations[cause] + '，暂不评分。',
                    'evidence_ids': [], 'evidence_sources': [], 'unknown_cause': cause,
-                   'candidate_evidence_count': len(candidates)}
-            unknowns.append(name + '：缺少有效评分证据。')
+                   'candidate_evidence_count': len(candidates),
+                   'validation_diagnostic': {'original_reason': str(supplied.get(name, {}).get('reason') or '')[:3000],
+                       'original_score': score, 'supplied_evidence_ids': list(supplied_ids)[:30],
+                       'admissible_evidence_ids': ids, 'invalid_reason_evidence_ids': sorted(invalid_reason_ids),
+                       'unverified_numbers': list(dict.fromkeys(unverified_numbers))}}
+            unknowns.append(name + '：' + row['reason'])
         else:
             row.update(name=name, evidence_ids=ids, level=risk_level(score),
                        evidence_sources=[evidence[eid].get('source_url', '') for eid in ids])
@@ -217,6 +225,48 @@ def risk_fact_text(fact: dict) -> str:
                 f'口径：{context.get("definition", "")}；'
                 f'性质：{"预测" if context.get("is_forecast") else "原来源统计"}。')
     return str(fact.get('fact') or '')
+
+
+def risk_repair_package(payload: dict, normalized: dict, limit: int = 18000) -> dict:
+    """Repair only rejected scores with retained candidates, using complete JSON."""
+    eligible = {'missing_model_citations', 'invalid_citations', 'invalid_reason_citations',
+                'unverified_reason_numbers', 'invalid_score'}
+    requests = []
+    mapping = payload.get('dimension_evidence_ids') or {}
+    for row in normalized.get('dimensions', []):
+        diagnostic = row.get('validation_diagnostic') or {}
+        # A deliberate model abstention is not an invitation to manufacture a score.
+        if (row.get('unknown_cause') not in eligible or diagnostic.get('original_score') is None
+                or not mapping.get(row.get('name'))):
+            continue
+        requests.append({'name': row['name'], 'previous_score': diagnostic['original_score'],
+            'previous_reason': str(diagnostic.get('original_reason') or '')[:500],
+            'failure': row['unknown_cause'],
+            'unverified_numbers': [str(n)[:80] for n in diagnostic.get('unverified_numbers', [])[:10]],
+            'invalid_reason_evidence_ids': [str(e)[:64] for e in diagnostic.get('invalid_reason_evidence_ids', [])[:12]]})
+    result = {'dimensions_to_repair': requests, 'facts': [], 'dimension_evidence_ids': {}}
+    while len(json.dumps(result, ensure_ascii=False)) > limit and requests:
+        requests.pop()
+    groups = [[f for f in payload.get('facts', []) if f.get('evidence_id') in mapping.get(r['name'], [])] for r in requests]
+    ordered, seen = [], set()
+    for index in range(max((len(g) for g in groups), default=0)):
+        for group in groups:
+            if index < len(group) and group[index]['evidence_id'] not in seen:
+                original = group[index]
+                seen.add(original['evidence_id'])
+                ordered.append({key: original.get(key) for key in ('evidence_id', 'fact', 'module', 'source_url',
+                    'numeric_context', 'numeric_validation', 'allowed_numbers')})
+    for fact in ordered:
+        result['facts'].append(fact)
+        retained = {f['evidence_id'] for f in result['facts']}
+        result['dimension_evidence_ids'] = {r['name']: [eid for eid in mapping[r['name']] if eid in retained] for r in requests}
+        if len(json.dumps(result, ensure_ascii=False)) > limit:
+            result['facts'].pop()
+            break
+    retained = {f['evidence_id'] for f in result['facts']}
+    result['dimension_evidence_ids'] = {r['name']: [eid for eid in mapping[r['name']] if eid in retained] for r in requests}
+    result['dimensions_to_repair'] = [r for r in requests if result['dimension_evidence_ids'].get(r['name'])]
+    return result
 
 
 def risk_level(score: float) -> str:
@@ -331,8 +381,8 @@ def package_risk_evidence(package: dict, payload: dict, risk: dict, include_all:
                 if eid in by_id and eid not in existing:
                     facts.append(by_id[eid]); existing.add(eid)
     allowed = {f.get('evidence_id') for f in facts}
-    dimensions = [d for d in risk.get('dimensions', []) if d.get('evidence_ids')
-                  and set(d['evidence_ids']) <= allowed]
+    dimensions = [{k:v for k,v in d.items() if k != 'validation_diagnostic'} for d in risk.get('dimensions', [])
+                  if d.get('evidence_ids') and set(d['evidence_ids']) <= allowed]
     scoped_risk = {'dimensions': dimensions, 'overall_score': risk.get('overall_score') if include_all else None,
                   'risk_level': risk.get('risk_level') if include_all else 'unknown',
                   'unknowns': risk.get('unknowns', []) if include_all else []}
@@ -492,7 +542,7 @@ def extract_industry_source_facts(sources: list, scope: dict) -> list[dict]:
                 definition = re.split(r'[，,：:]', prefix[:metric.end()])[-1].strip()
                 year_tokens = re.findall(r'20\d{2}', prefix)
                 region_names = {regions[x] for x in re.findall('|'.join(regions), quote)}
-                value_match = re.fullmatch(r'([\d,.]+)\s*(.*)', number.group())
+                value_match = re.fullmatch(r'([+-]?[\d,.]+)\s*(.*)', number.group())
                 context = {'metric': metric.group(), 'value': value_match[1], 'unit': value_match[2],
                            'definition': definition if any(str(n).lower() in definition.lower() for n in subjects if n) else '',
                            'geography': next(iter(region_names)) if len(region_names) == 1 else '',
@@ -548,11 +598,24 @@ def unique_search_queries(rows: list[dict], seen: set) -> list[dict]:
 
 
 NUMBER_UNITS = r'%|％|万亿元|万亿美元|亿元|万元|亿美元|万美元|美元|人民币元|元|EB|PB|TB|GB|MB|EFLOPS|PFLOPS|TFLOPS'
-NUMBER_PATTERN = rf'\d[\d,.]*\s*(?i:{NUMBER_UNITS})'
+NUMBER_PATTERN = rf'(?<![A-Za-z0-9_.+\-])[+-]?\d[\d,.]*\s*(?i:{NUMBER_UNITS})(?![A-Za-z0-9_])'
+EVIDENCE_ID_PATTERN = r'(?<![A-Z0-9-])E-[A-Z0-9-]{6,}(?![A-Z0-9-])'
+
+
+def numeric_scan_text(text: str) -> str:
+    """Mask identifiers without joining adjacent words or moving claim positions."""
+    mask = lambda m: ' ' * len(m[0])
+    text = re.sub(EVIDENCE_ID_PATTERN, mask, text, flags=re.I)
+    return re.sub(r'(?:https?|structured)://[^\s<>\[\]()，。；、！？]+', mask, text, flags=re.I)
+
+
+def numeric_mentions(text: str) -> list[str]:
+    """Find claim numbers, never hexadecimal IDs or URL/link destinations."""
+    return re.findall(NUMBER_PATTERN, numeric_scan_text(text))
 
 
 def number_key(value: str) -> tuple | None:
-    match = re.fullmatch(rf'([\d,.]+)\s*({NUMBER_UNITS})', value.strip(), re.I)
+    match = re.fullmatch(rf'([+-]?[\d,.]+)\s*({NUMBER_UNITS})', value.strip(), re.I)
     if not match:
         return None
     try:
@@ -588,7 +651,7 @@ def mark_unverified_numbers(section: str, facts: list[dict]) -> str:
                                     'context': f.get('numeric_context') or {}} for f in facts}
     lines = []
     for line in section.splitlines():
-        numbers = re.findall(NUMBER_PATTERN, line)
+        numbers = numeric_mentions(line)
         ids = re.findall(r'\bE-[A-Z0-9-]{6,}\b', line, flags=re.I)
         if numbers and '待核验' not in line and any(not any(numeric_supported(n, eid, numeric) for eid in ids) for n in numbers):
             line += ' （数值口径待核验，不用于行业合计或评分）'
@@ -599,7 +662,7 @@ def mark_unverified_numbers(section: str, facts: list[dict]) -> str:
 def annotate_fact(fact: dict, scope: dict) -> dict:
     item = dict(fact)
     if (item.get('cleaning_method') == 'llm' and item.get('evidence_quote_verified') is True
-            and item.get('evidence_quote') and (item.get('numeric_context') or re.search(NUMBER_PATTERN, str(item.get('fact') or '')))):
+            and item.get('evidence_quote') and (item.get('numeric_context') or numeric_mentions(str(item.get('fact') or '')))):
         quote = str(item['evidence_quote']).strip()
         if quote != str(item.get('fact') or '').strip():
             item['original_model_fact'] = item.get('original_model_fact') or item.get('fact')
@@ -633,8 +696,8 @@ def annotate_fact(fact: dict, scope: dict) -> dict:
         identity += '\nllm_numeric_quote\n' + json.dumps(item.get('numeric_context') or {}, sort_keys=True, ensure_ascii=False)
     item['evidence_id'] = 'E-' + hashlib.sha256(identity.encode()).hexdigest()[:12].upper()
     numeric = item.get('numeric_context') if isinstance(item.get('numeric_context'), dict) else {}
-    numerical = bool(numeric or re.search(NUMBER_PATTERN, blob, re.I)
-                     or re.search(r'\d[\d,.]*\s*(?:亿|万|CAGR|PE|PB|PS)', blob, re.I))
+    numerical = bool(numeric or numeric_mentions(blob)
+                     or re.search(r'\d[\d,.]*\s*(?:亿|万|CAGR|PE|PB|PS)', numeric_scan_text(blob), re.I))
     if numerical:
         required = ('metric', 'unit', 'geography', 'period', 'definition')
         missing = [key for key in required if not numeric.get(key)]
@@ -663,7 +726,7 @@ def annotate_fact(fact: dict, scope: dict) -> dict:
         if expected_number is not None:
             grounded = item.get('cleaning_method') in {'industry_rule', 'llm'}
             evidence = str(item.get('evidence_quote') or '') if grounded else str(item.get('fact') or '') + ' ' + str(item.get('evidence_quote') or '')
-            quote_numbers = re.findall(NUMBER_PATTERN, evidence)
+            quote_numbers = numeric_mentions(evidence)
             if not any(number_key(n) == expected_number for n in quote_numbers):
                 missing.append('value_not_in_evidence_quote')
             if grounded:
@@ -787,7 +850,7 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
         if re.search(r'(?:不存在|没有|无)(?:任何)?(?:行业风险|监管风险|技术风险)', body):
             errors.append(f'第{chapter}章存在确定无风险的越界结论。')
         for line in body.splitlines():
-            numbers = re.findall(NUMBER_PATTERN, line)
+            numbers = numeric_mentions(line)
             if not numbers:
                 continue
             line_ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', line, flags=re.I)) & allowed
@@ -803,7 +866,7 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
     market_body = re.search(r'(?ms)^##\s*4[.、．][^\n]*\n(.*?)(?=^##\s*5[.、．]|\Z)', report)
     market_ids &= set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', market_body[1], re.I)) if market_body else set()
     numeric = diagnostic.get('numeric_evidence') or {}
-    if any(re.search(NUMBER_PATTERN, str(numeric.get(eid, {}).get('fact') or '')) for eid in market_ids):
+    if any(numeric_mentions(str(numeric.get(eid, {}).get('fact') or '')) for eid in market_ids):
         if not any(numeric.get(eid, {}).get('validation', {}).get('passed') is True for eid in market_ids):
             errors.append('市场规模章节尚无口径完整的数值证据，仅可作为待复核稿交付。')
     if '研究边界与口径' not in report:

@@ -225,7 +225,7 @@ def test_fabricated_source_is_quarantined_and_uploaded_source_gets_internal_refe
 def test_partial_risk_score_stays_unknown_through_workflow():
     workflow = ResearchWorkflow.__new__(ResearchWorkflow)
     policy = fact()
-    workflow._invoke = lambda *a, **kw: json.dumps({'dimensions': [
+    workflow._invoke_industry_risk = lambda *a, **kw: json.dumps({'dimensions': [
         {'name': '政策与监管风险', 'score': 10, 'evidence_ids': [policy['evidence_id']]}]})
     project = SimpleNamespace(title='机器人研究', target_name='机器人', target_type='industry', industry='机器人')
     assessed = json.loads(workflow.assess_risk(project, json.dumps({'facts': [policy]})))
@@ -276,6 +276,7 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
             return f'## {index}. {title}\n\n' + ('已核验公开事实 ' + ids[0] if ids else '待核验')
         return '{"facts": [], "information_gaps": []}'
     workflow._invoke = invoke
+    workflow._invoke_industry_risk = invoke
     workflow._invoke_industry_report = invoke
     def save(db, project, kind, title, content, metadata=None, **kwargs):
         artifact = SimpleNamespace(id=len(project.artifacts) + 1, artifact_type=kind, title=title,
@@ -304,6 +305,7 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     project.artifacts.append(older)
     def no_new_report(*args, **kwargs):
         raise AssertionError('Resume should reuse the latest body without another model call')
+    original_generate_report=workflow.generate_report
     workflow.generate_report=no_new_report
     monkeypatch.setenv('WORKFLOW_RESUME_ENABLED','true')
     resumed,_=workflow.run_project(database,project,[],[],intake={
@@ -314,6 +316,23 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     assert reexported.artifact_metadata['delivery_review_reasons']==report.artifact_metadata['delivery_review_reasons']
     assert reexported.content.count('**待人工复核稿**')==1
     assert any(a.artifact_type=='report_quality_diagnostic' for a in resumed)
+
+    # A changed risk pipeline invalidates only risk/report even with reusable facts.
+    prior_risk=next(a for a in artifacts if a.artifact_type=='risk_assessment')
+    prior_risk.artifact_metadata['risk_pipeline_version']='legacy'
+    workflow.generate_report=original_generate_report
+    risk_calls=[]
+    def assess_again(*a,**kw):
+        risk_calls.append(a)
+        return json.dumps(unknown_risk(scope=project.industry_scope))
+    workflow.assess_risk=assess_again
+    refreshed,_=workflow.run_project(database,project,[],[],intake={
+        'target_type':'industry','include_capital_markets':False,'as_of_date':'2026-01-31'})
+    new_risk=next(a for a in refreshed if a.artifact_type=='risk_assessment')
+    new_report=next(a for a in refreshed if a.artifact_type=='desktop_report')
+    assert len(risk_calls)==1 and new_risk.id!=prior_risk.id
+    assert new_risk.artifact_metadata['risk_pipeline_version']=='industry-risk-v2-bounded-repair'
+    assert 'reexported_from_artifact_id' not in new_report.artifact_metadata
 
 
 def test_proposal_follows_seven_sections_and_industry_scope():

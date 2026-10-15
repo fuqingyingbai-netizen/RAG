@@ -369,6 +369,32 @@ class ResearchWorkflow:
                   duration_ms=int((time.monotonic()-started)*1000), degraded=True, status='fallback')
             return ''
 
+    def _invoke_industry_risk(self, role: str, prompt: str, emit=None, repair: bool = False) -> str:
+        """Risk scoring and its one local repair never use hidden SDK retries."""
+        if not os.getenv('ARK_API_KEY') or not os.getenv('MODEL'):
+            return ''
+        attribute = '_industry_risk_repair_model' if repair else '_industry_risk_model'
+        model = getattr(self, attribute, None)
+        if model is None:
+            model = init_chat_model(model=os.environ['MODEL'], model_provider='openai',
+                api_key=os.environ['ARK_API_KEY'], base_url=os.getenv('BASE_URL'), temperature=0.1,
+                timeout=_env_int('INDUSTRY_RISK_REPAIR_TIMEOUT_SECONDS' if repair else 'INDUSTRY_RISK_TIMEOUT_SECONDS',
+                                 45 if repair else 90, 10, 180), max_retries=0, max_tokens=2500 if repair else 4000)
+            setattr(self, attribute, model)
+        started = time.monotonic()
+        _emit(emit, 'llm', role, '正在调用行业风险模型', f'input_chars={len(prompt)}', input_chars=len(prompt), status='running')
+        try:
+            result = model.invoke([{'role': 'system', 'content': '只用允许的证据与指标；评分理由简短，缺证返回unknown，输出完整JSON。'},
+                                   {'role': 'user', 'content': prompt}])
+            content = str(result.content or '')
+            _emit(emit, 'llm', role, '行业风险模型调用完成', f'chars={len(content)}',
+                  duration_ms=int((time.monotonic()-started)*1000), status='done')
+            return content
+        except Exception as exc:
+            _emit(emit, 'llm', role, '行业风险模型超时或失败，保留待核验结果', str(exc)[:800],
+                  duration_ms=int((time.monotonic()-started)*1000), status='fallback')
+            return ''
+
     def _invoke_industry_cleaning(self, role: str, prompt: str, emit=None, timeout_seconds=60) -> str:
         """Industry enrichment gets a bounded request with no hidden SDK retries."""
         if not os.getenv('ARK_API_KEY') or not os.getenv('MODEL'):
@@ -632,7 +658,7 @@ class ResearchWorkflow:
             if standardized_type == "person"
             else "company-evidence-v8-entity-bound"
             if standardized_type == "company"
-            else "industry-evidence-v6-metric-grounded"
+            else "industry-evidence-v7-token-safe-numbers"
             if standardized_type == "industry"
             else "default-v4-auditable"
         )
@@ -654,7 +680,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v12-review-status",
+            "industry": "industry-report-evidence-v13-risk-grounded",
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -940,10 +966,17 @@ class ResearchWorkflow:
         project.status = "risk_scoring"
         db.commit()
         existing_risk = self._latest_artifact(project, "risk_assessment")
+        if standardized_type == 'industry':
+            try:
+                from .industry_research import INDUSTRY_RISK_VERSION
+            except ImportError:
+                from industry_research import INDUSTRY_RISK_VERSION
         # A risk assessment is derived from the cleaned facts. Never reuse it when
         # cleaning was invalidated or regenerated, otherwise the report mixes new
         # evidence with a stale score from the previous pipeline.
         use_existing_risk = resume_enabled and not force_refresh and use_existing_cleaned and existing_risk is not None
+        if standardized_type == 'industry' and use_existing_risk:
+            use_existing_risk = (existing_risk.artifact_metadata or {}).get('risk_pipeline_version') == INDUSTRY_RISK_VERSION
         if use_existing_risk:
             risk_artifact = existing_risk
             risk = existing_risk.content
@@ -957,7 +990,8 @@ class ResearchWorkflow:
                 _emit(emit, "risk", "risk_assessment_agent", "风险研判失败，使用降级评分", str(exc), status="fallback")
                 fallback = unknown_industry_risk(scope=getattr(project, "industry_scope", {})) if standardized_type == "industry" else self._fallback_risk(cleaned)
                 risk = json.dumps(fallback | {"workflow_error": _error_json("risk", exc)}, ensure_ascii=False, indent=2)
-            risk_artifact = self.save_artifact(db, project, "risk_assessment", _project_doc_title(project, "风险研判"), risk, {"agent": "risk_assessment"})
+            risk_artifact = self.save_artifact(db, project, "risk_assessment", _project_doc_title(project, "风险研判"), risk,
+                {"agent": "risk_assessment", **({'risk_pipeline_version': INDUSTRY_RISK_VERSION} if standardized_type == 'industry' else {})})
             _emit(emit, "risk", "risk_assessment_agent", "风险研判完成", "", status="done")
         checkpoint("risk")
 
@@ -4659,7 +4693,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
 {_clip(risk_evidence, 30000)}
 
 评分口径必须统一：overall_score 和各维度 score 均为“风险分”，0 表示风险最低，100 表示风险最高。信息缺失必须列为 unknown/待核验，不能仅因“未搜索到、未提供、无法排除”就判为高风险。代表企业材料只能作为行业样本或竞争格局信号，不能写成目标公司经营风险。
-各维度只能使用 dimension_evidence_ids 中列出的编号；reason 中的编号必须同时列入 evidence_ids。数值卡的 fact 是唯一通过归属校验的指标；evidence_quote 中其他数值仅供核对，不能借用其增速、规模或比例作评分结论。政策目标不能写成已经实现的市场集中度。
+各维度只能使用 dimension_evidence_ids 中列出的编号；reason 中的编号必须同时列入 evidence_ids。理由每维120字以内，只写支撑该评分的判断，数值只可使用对应事实allowed_numbers中的值；禁止使用来源标题、URL或统计定义中的其他数字补结论。完整原文保留在事实库供审计，评分输入只授权fact中的单个指标。政策目标不能写成已经实现的市场集中度。没有已核验数值时可以用适用定性证据作克制判断，禁止新增定量结论；证据不足仍返回unknown。
 
 请只输出 JSON，结构为：
 {{
@@ -4671,7 +4705,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
   "recommended_followups": ["..."]
 }}
 """
-            answer = self._invoke("行业风险研判 Agent", prompt, emit=emit)
+            answer = self._invoke_industry_risk("行业风险研判 Agent", prompt, emit=emit)
             parsed = _plain_json(answer)
             if isinstance(parsed, dict):
                 # Only facts actually sent within the model's budget can authorize scores.
@@ -4679,9 +4713,13 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 cleaned_payload = _plain_json(cleaned_json)
                 retained = [f for f in cleaned_payload.get('facts', []) if f.get('evidence_id') in retained_ids] if isinstance(cleaned_payload, dict) else []
                 parsed = normalize_industry_risk(parsed, retained, getattr(project, "industry_scope", {}))
+                parsed = self._repair_industry_risk(parsed, json.loads(risk_evidence), retained,
+                                                    getattr(project, 'industry_scope', {}), emit=emit)
                 _emit(emit, "risk", "risk_assessment_agent", "模型行业风险评分完成", f"risk_level={parsed.get('risk_level')}", risk_level=parsed.get("risk_level"), status="done")
                 return json.dumps(parsed, ensure_ascii=False, indent=2)
             fallback = unknown_industry_risk(scope=getattr(project, "industry_scope", {}))
+            fallback['validation_diagnostics'] = {'primary_status': 'empty_or_invalid_json',
+                'model_response_excerpt': answer[:3000], 'repair': {'attempted': False, 'attempts': 0}}
             _emit(emit, "risk", "risk_assessment_agent", "使用规则降级行业评分", f"risk_level={fallback.get('risk_level')}", risk_level=fallback.get("risk_level"), status="fallback")
             return json.dumps(fallback, ensure_ascii=False, indent=2)
         prompt = f"""
@@ -4725,6 +4763,60 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         _emit(emit, "risk", "risk_assessment_agent", "使用规则降级评分", f"risk_level={fallback.get('risk_level')}", risk_level=fallback.get("risk_level"), status="fallback")
         return json.dumps(fallback, ensure_ascii=False, indent=2)
 
+    def _repair_industry_risk(self, normalized: dict, evidence: dict, retained: list[dict], scope: dict,
+                              emit: TraceEmitter | None = None) -> dict:
+        try:
+            from .industry_research import risk_repair_package, risk_level
+        except ImportError:
+            from industry_research import risk_repair_package, risk_level
+        initial_diagnostics = [{'name': row['name'], 'cause': row.get('unknown_cause'),
+                                **row['validation_diagnostic']} for row in normalized['dimensions'] if row.get('validation_diagnostic')]
+        diagnostic = {'primary_status': 'validated', 'initial_rejections': initial_diagnostics,
+                      'repair': {'attempted': False, 'attempts': 0}}
+        result = {**normalized, 'validation_diagnostics': diagnostic}
+        package = risk_repair_package(evidence, normalized)
+        requested = {row['name'] for row in package['dimensions_to_repair']}
+        if not requested:
+            return result
+        prompt = ('仅修复下列失败风险维度，返回完整JSON {"dimensions":[{"name":"...","score":null,'
+                  '"level":"unknown|low|medium|high|critical","reason":"...","evidence_ids":[]}]}。'
+                  '每维理由120字以内，只用该维dimension_evidence_ids中的编号；理由引用必须同时列入evidence_ids。'
+                  '数字只可用对应证据allowed_numbers，禁止从先前失败理由补数据；没有定量证据可作有依据的定性判断。'
+                  '保留政策目标、预测与实际统计的区别，企业样本不能评分行业整体。证据不足返回score=null、level=unknown，'
+                  '不能为了修复凑分。无需返回其他维度、总分或额外章节。\n' + json.dumps(package, ensure_ascii=False))
+        repair_diagnostic = {'attempted': True, 'attempts': 1, 'requested_dimensions': sorted(requested),
+                             'input_chars': len(prompt), 'repaired_dimensions': [], 'remaining_dimensions': sorted(requested)}
+        diagnostic['repair'] = repair_diagnostic
+        _emit(emit, 'risk', 'risk_assessment_agent', '部分行业评分未通过校验，尝试一次局部修复',
+              '、'.join(sorted(requested)), status='warning')
+        try:
+            answer = self._invoke_industry_risk('行业风险修复 Agent', prompt, emit=emit, repair=True)
+            parsed = _plain_json(answer)
+        except Exception as exc:
+            parsed = None
+            repair_diagnostic['exception_type'] = type(exc).__name__
+        if not isinstance(parsed, dict):
+            repair_diagnostic['status'] = 'empty_or_invalid_json'
+            return result
+        repair_ids = {f['evidence_id'] for f in package['facts']}
+        repair_retained = [f for f in retained if f.get('evidence_id') in repair_ids]
+        checked = normalize_industry_risk(parsed, repair_retained, scope)
+        accepted = {row['name']: row for row in checked['dimensions'] if row['name'] in requested and row.get('score') is not None}
+        result['dimensions'] = [accepted.get(row['name'], row) for row in normalized['dimensions']]
+        scores = [row['score'] for row in result['dimensions'] if row.get('score') is not None]
+        result['assessed_dimension_count'] = len(scores)
+        result['overall_score'] = round(sum(scores)/len(scores), 1) if len(scores) == len(result['dimensions']) else None
+        result['risk_level'] = risk_level(result['overall_score']) if result['overall_score'] is not None else 'unknown'
+        result['unknowns'] = [note for note in normalized.get('unknowns', [])
+                              if not any(str(note).startswith(name+'：') for name in accepted)]
+        repair_diagnostic.update(status='complete' if len(accepted)==len(requested) else 'partial' if accepted else 'rejected',
+            repaired_dimensions=sorted(accepted), remaining_dimensions=sorted(requested-set(accepted)),
+            rejected_diagnostics=[{'name':row['name'], 'cause':row.get('unknown_cause'), **(row.get('validation_diagnostic') or {})}
+                for row in checked['dimensions'] if row['name'] in requested and row.get('score') is None])
+        _emit(emit, 'risk', 'risk_assessment_agent', '行业评分局部修复校验完成',
+              f'repaired={len(accepted)}, remaining={len(requested)-len(accepted)}', status='done' if accepted else 'fallback')
+        return result
+
     def _risk_evidence_payload(self, cleaned_json: str, target_type: str = "") -> str:
         parsed = _plain_json(cleaned_json)
         if not isinstance(parsed, dict):
@@ -4764,7 +4856,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 row["attribution_boundary"] = fact.get("attribution_boundary")
                 row["numeric_context"] = fact.get("numeric_context")
                 row["numeric_validation"] = fact.get("numeric_validation")
-                row['evidence_quote'] = str(fact.get('evidence_quote') or '')[:500]
+                context = fact.get('numeric_context') or {}
+                row['allowed_numbers'] = ([str(context.get('value')) + str(context.get('unit'))]
+                    if (fact.get('numeric_validation') or {}).get('passed') is True else [])
             rows.append(row)
             if len(rows) >= 60:
                 break
