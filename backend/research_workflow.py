@@ -625,7 +625,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v30-case-display-references",
+            "company": "company-report-evidence-v32-literal-notes-and-citations",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -5274,6 +5274,27 @@ class ResearchWorkflow:
     ) -> str:
         if not report.strip():
             return report
+        if target_type == "company":
+            from report_agents.company_delivery import company_followup_rows, company_followup_plan
+            groups=company_followup_rows(report)
+            rows=['## 14. 后续研究建议','',
+                  '以下按章节列出代表性核验重点，每章最多两项；其余口径、缺口和边界保留在对应章节。核验优先级不等于企业风险等级。','',
+                  '| 待核验事项 | 建议核验方式 | 优先级 | 建议材料 |',
+                  '| --- | --- | --- | --- |']
+            for group in groups:
+                items='<br>'.join(group['items'])
+                if group['additional']:items+=f"<br>另{group['additional']}项核验条件见第{group['chapter']}章对应小节。"
+                plans=[company_followup_plan(item) for item in group['items']]
+                action='<br>'.join(dict.fromkeys(plan[0] for plan in plans))
+                priority='高' if any(plan[1]=='高' for plan in plans) else '中'
+                materials='<br>'.join(dict.fromkeys(plan[2] for plan in plans))
+                rows.append(f"| 第{group['chapter']}章：{items.replace('|','／')} | {action} | {priority} | {materials} |")
+            if not groups:rows.append('尚未提取出可操作的后续核验项目；需结合章节缺口复核，不能视为已排除风险。')
+            replacement='\n'.join(rows)+'\n\n'
+            pattern=r'(?ms)^##\s*14[.、．][^\n]*\n.*?(?=^##\s+(?!14[.、．])|\Z)'
+            result=re.sub(pattern,lambda _:replacement,report) if re.search(pattern,report) else report.rstrip()+'\n\n'+replacement
+            _emit(emit,'report','desktop_report_agent','公司待核验事项已按章节归并到第14章',f'chapters={len(groups)}',status='done')
+            return result.rstrip()+'\n'
         softened = self._soften_gap_phrasing(report)
         # Rebuild this generated appendix on every run. Older reports may contain
         # clipped Markdown table rows that should never be carried into delivery.
@@ -5305,31 +5326,8 @@ class ResearchWorkflow:
             deduped.append(item)
             if len(deduped) >= 15:
                 break
-        if not deduped and target_type != "company":
+        if not deduped:
             return softened
-        if target_type == "company":
-            rows = [
-                "## 14. 后续研究建议",
-                "",
-            ]
-            if not deduped:
-                rows.append("本次桌面研究未形成额外待核验事项。")
-            else:
-                rows.extend([
-                    "| 待核验事项 | 建议核验方式 | 优先级 | 建议材料 |",
-                    "| --- | --- | --- | --- |",
-                ])
-                for item in deduped:
-                    _reason, action, priority, materials = self._verification_plan_for_gap(item)
-                    rows.append(f"| {item.replace('|', ' / ')} | {action} | {priority} | {materials} |")
-            replacement = "\n".join(rows).rstrip() + "\n\n"
-            pattern = r"(?ms)^##\s*14[.、．][^\n]*\n.*?(?=^##\s+(?!14[.、．])|\Z)"
-            if re.search(pattern, softened):
-                softened = re.sub(pattern, replacement, softened)
-            else:
-                softened = softened.rstrip() + "\n\n" + replacement
-            _emit(emit, "report", "desktop_report_agent", "公司待核验事项已集中到第14章", f"items={len(deduped)}", status="done")
-            return softened.rstrip() + "\n"
         rows = [
             "## 集中式待核验清单",
             "",
@@ -5652,6 +5650,8 @@ class ResearchWorkflow:
         emit: TraceEmitter | None = None,
     ) -> str:
         """Build chapter 13 from E-IDs actually present in company chapters 1-12."""
+        from report_agents.company_delivery import source_excerpt
+        from report_agents.company_governance import cited_evidence_ids
         outline = CompanyReportAgent().outline
         summary_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for record in getattr(project, "company_summary_package", {}).get("facts", []):
@@ -5733,7 +5733,7 @@ class ResearchWorkflow:
                 continue
             end = chapter_matches[position + 1].start() if position + 1 < len(chapter_matches) else len(report)
             section = report[match.end():end]
-            for evidence_id in set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", section, flags=re.I)):
+            for evidence_id in set(cited_evidence_ids(section)):
                 canonical = evidence_id.upper()
                 cited_ids.add(canonical)
                 item = facts_by_id.get(canonical) or facts_by_id.get(evidence_id)
@@ -5789,19 +5789,18 @@ class ResearchWorkflow:
                             + operations_by_id.get(evidence_id, []) + reputation_by_id.get(evidence_id, []) + business_by_id.get(evidence_id, []) + management_by_id.get(evidence_id, []) + people_by_id.get(evidence_id, []) + judicial_by_id.get(evidence_id, []) + diligence_by_id.get(evidence_id, []) + risk_register_by_id.get(evidence_id, []) + assessment_by_id.get(evidence_id, []))
                 labels = [label for label, mapping in [("第一章", summary_by_id), ("第二章", governance_by_id), ("第三章", history_by_id),
                                                        ("第四章", operations_by_id), ("第五章", reputation_by_id), ("第六章", business_by_id), ("第七章", management_by_id), ("第八章", people_by_id), ("第九章", judicial_by_id), ("第十章", diligence_by_id), ("第十一章", risk_register_by_id), ("第十二章", assessment_by_id)] if evidence_id in mapping]
-                label = "／".join(labels) + "原文核对："
+                label = labels[0] + "原文核对："
                 # Deduplicated claims can cite several originals. Their
                 # E-IDs must keep their own URL/title, not all be redirected
                 # to the first merged record's document and physical pages.
                 item = {**item, "source_url": item.get("source_url") or admitted[0]["source_url"],
                         "source_title": item.get("source_title") or admitted[0]["source_title"],
-                        "fact": label + "；".join(
-                            (r.get("field") or r.get("metric") or r.get("aspect") or r.get("summary_topic") or r["kind"]) + "=" + str(
+                        "fact": label + "；".join(dict.fromkeys(str(
                                 r.get("value") if r.get("field") else r.get("fact") or r.get("entity") or r.get("value") or "")
-                            for r in admitted[:3])}
+                            for r in admitted[:3]))}
             url = str(item.get("source_url") or "").rstrip("/")
-            source_title = re.sub(r"\s+", " ", str(item.get("source_title") or "公开来源")).replace("|", "/")[:48]
-            fact = re.sub(r"\s+", " ", str(item.get("fact") or item.get("evidence_quote") or "正文引用证据编号，事实卡待回溯")).replace("|", "/")[:90]
+            source_title = source_excerpt(str(item.get("source_title") or "公开来源").replace("|", "/"),48)
+            fact = source_excerpt(str(item.get("fact") or item.get("evidence_quote") or "正文引用证据编号，事实卡待回溯").replace("|", "/"),90)
             supports = "、".join(
                 f"第 {chapter} 章" if 1 <= chapter <= len(outline) else "正文引用位置待回溯"
                 for chapter in sorted(chapters)
@@ -5962,7 +5961,8 @@ class ResearchWorkflow:
                 if source_heading and next_heading and next_heading.start() > source_heading.start()
                 else ""
             )
-            body_evidence_ids = set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", body_before_sources, flags=re.I))
+            from report_agents.company_governance import cited_evidence_ids
+            body_evidence_ids = set(cited_evidence_ids(body_before_sources))
             indexed_evidence_ids = set(re.findall(r"(?m)^\|\s*(E-[A-Z0-9-]{6,})\s*\|", source_index, flags=re.I))
             missing_index_ids = {value.upper() for value in body_evidence_ids} - {value.upper() for value in indexed_evidence_ids}
             if missing_index_ids:
@@ -5977,7 +5977,7 @@ class ResearchWorkflow:
                 section = (report or "")[match.end():end]
                 compact = re.sub(r"\s+", "", section)
                 no_evidence_notice = "本次已检索公开来源未形成可引用记录；相关核验事项见第14章。" in section
-                if len(compact) >= 320 and not no_evidence_notice and not re.search(r"\bE-[A-Z0-9-]{6,}\b", section, flags=re.I):
+                if len(compact) >= 320 and not no_evidence_notice and not cited_evidence_ids(section):
                     errors.append(f"第{chapter}章存在实质性内容但没有证据编号")
             # A desktop search can establish only what its sources show.  Do
             # not let a report turn a non-hit into a clean legal conclusion or
@@ -6089,7 +6089,10 @@ class ResearchWorkflow:
             end = matches[position + 1].start() if position + 1 < len(matches) else len(report)
             body = (report or "")[match.end():end]
             no_evidence = "本次已检索公开来源未形成可引用记录；相关核验事项见第14章。" in body
-            evidence_ids = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", body, flags=re.I)))
+            if str(project.target_type).lower()=="company":
+                from report_agents.company_governance import cited_evidence_ids
+                evidence_ids=sorted(set(cited_evidence_ids(body)))
+            else:evidence_ids=sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b",body,flags=re.I)))
             if no_evidence or (len(re.sub(r"\s+", "", body)) >= 320 and not evidence_ids):
                 chapter_rows.append(f"| 第 {chapter} 章 | {'无可引用记录' if no_evidence else '实质性内容缺少 E-ID'} | {', '.join(evidence_ids) or '-'} |")
         failure_lines = "\n".join(f"- {item}" for item in failures) or "- 未记录具体失败原因。"

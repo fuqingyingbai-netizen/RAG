@@ -4,7 +4,7 @@ import re
 from collections import Counter,defaultdict
 from urllib.parse import urlparse
 
-from .company_evidence import source_body,document_pages,pending_ocr_notice
+from .company_evidence import source_body,document_pages,pending_ocr_notice,annotate_page_notes,labelled_original_note
 from .company_governance import cited_evidence_ids
 from .company_governance import EID,_table,compact,get,refs
 from .company_history import _issuer_hosts
@@ -46,6 +46,10 @@ def table_metrics(page):
         years=re.findall(r'20\d{2}',header[1])
         if len(set(years))!=len(years):continue
         rows+=_metric_block(raw[header.end():end],years,page['page'],view=view,offset=header.end())
+    for row in rows:
+        if row.get('source_metric'):
+            display=annotate_page_notes(row['source_metric'],[page])
+            if display!=row['source_metric']:row['display_metric']=display
     return rows
 
 
@@ -163,6 +167,7 @@ def _policy_rows(pages,period,target=''):
             quote=_prose(raw)
             if not 25<=len(quote)<=650:continue
             if re.search(r'会计期间|会计政策|计入当期损益|确认为负债|摊销|预计负债|包括短期薪酬|其他长期职工福利',quote):continue
+            if re.search(r'设定提存计划|设定受益计划',quote) and re.search(r'期初余额|本期增加|本期减少|期末余额|缴费基数|计提和缴纳',quote):continue
             if quote.count('•')>3 or quote.count('%')>4 or re.search(r'B[1-9]\.\d|主要绩效指标摘要',quote):continue
             if re.search(r'以下措施|如下|下表|流程图',quote):continue
             subjects=['我们','本公司','本集团','公司']+([target,short] if target else [])
@@ -303,10 +308,10 @@ def render_people(p):
             if key not in formulas:formulas.append(key)
     if formulas:
         lines+=['','原表定义（不自动统一为年度口径）：']
-        for text,page,eid in formulas:lines+=['- '+text+f' [{eid}]（物理页{page}）']
+        for text,page,eid in formulas:lines+=['- '+labelled_original_note(text)+f' [{eid}]（物理页{page}）']
     lines+=['','总体与分类公式可能采用不同分子/分母，培训分类占比也未必是该类别全员受训覆盖率。未确认定义一致前，不做同业流失率或培训覆盖率排名。',
             '','### '+HEADINGS[4],'']
-    for n in p['source_notes']:lines+=['- 原页范围/说明：'+n['text']+f" [{n['evidence_id']}]（物理页{n['page']}）"]
+    for n in p['source_notes']:lines+=['- 原页范围/说明：'+labelled_original_note(n['text'])+f" [{n['evidence_id']}]（物理页{n['page']}）"]
     lines+=['- 公开文化、培养及员工调查属于公司披露；员工满意度的量表与方法见第五章，激励执行阶段见第四章，具体管理人员任职变动见第七章，避免把相同数据重复打分。']
     lines+=['- '+g for g in p['information_gaps']]
     return '\n'.join(lines)
@@ -314,7 +319,7 @@ def render_people(p):
 
 def metric_table(rows):
     return _table(['指标原名','统计期','本期值／原单位','比较期值','口径及来源'],[
-        [r.get('source_metric',r['metric']),r['period'],r['value']+r['unit'],r['previous_period']+' '+(r['previous_value']+r['unit'] if r['previous_value'] not in {'/','—','-'} else '未载'),
+        [r.get('display_metric') or r.get('source_metric',r['metric']),r['period'],r['value']+r['unit'],r['previous_period']+' '+(r['previous_value']+r['unit'] if r['previous_value'] not in {'/','—','-'} else '未载'),
          ('同名值/公式差异待核；' if r.get('difference') else '')+r.get('population_note','公司自报；按原定义核对')+'；'+refs(r)+f"（物理页{r['page']}）"] for r in rows])
 
 

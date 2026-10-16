@@ -21,7 +21,7 @@ EID = re.compile(r"E-[A-Z0-9-]{6,}", re.I)
 
 def cited_evidence_ids(text):
     """Citation syntax, not words such as E-learning in a literal quote."""
-    return re.findall(r'\[('+EID.pattern+r')\]',str(text or ''),re.I)
+    return re.findall(r'[\[［]('+EID.pattern+r')[\]］]',str(text or ''),re.I)
 
 
 MISSING = {"", "-", "--", "待查", "待核验", "暂无", "暂无数据", "未披露", "null", "none", "n/a"}

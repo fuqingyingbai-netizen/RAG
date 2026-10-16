@@ -615,7 +615,10 @@ def markdown_to_docx_bytes(
             body.append(_paragraph(line, bullet=True, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, keep_lines=company_claim_index))
             i += 1
             continue
-        body.append(_paragraph(line, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, keep_lines=company_claim_index))
+        following=next((value.strip() for value in lines[i+1:] if value.strip()),'')
+        preface=company_claim_index and (following.startswith('|') or (len(line)<=120 and line.endswith(('：',':')) and following.startswith(('- ','* '))))
+        body.append(_paragraph(line, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks,
+                               keep_lines=company_claim_index,keep_next=preface))
         i += 1
 
     document_xml = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

@@ -13,6 +13,7 @@ from .company_governance import cited_evidence_ids
 from .company_governance import EID, _filing_period, _period_rank, _primary_filing, _table, compact, get, refs
 from .company_history import _issuer_hosts
 from .report_prompts import _company_fact_has_trusted_target_anchor
+from .company_evidence import document_pages,annotate_page_notes
 
 TITLE='组织治理与运营管理评估'
 HEADINGS=('组织架构合理性','决策机制','权责划分','执行流程','内部激励','企业应变能力','组织创新能力')
@@ -68,6 +69,7 @@ def _sentences(raw,target):
 
 
 def build_operations_package(cleaned,target,sources=None,*,governance=None,limit=30000):
+    page_lookup={str(get(s,'url')):document_pages(s) for s in sources or []}
     by_source=defaultdict(list)
     for f in cleaned.get('facts') or []:
         if isinstance(f,dict) and EID.fullmatch(str(f.get('evidence_id') or '')):
@@ -76,6 +78,7 @@ def build_operations_package(cleaned,target,sources=None,*,governance=None,limit
     def add(card,aspect,text,period,mode,**extra):
         if not text or len(text)>620:return
         record=dict(kind='operations',aspect=aspect,fact=text,evidence_quote=text,evidence_scope='target_direct',
+                    display_fact=annotate_page_notes(text,page_lookup.get(card.get('source_url'),[])),
                     evidence_id=card['evidence_id'],evidence_ids=[card['evidence_id']],source_url=card.get('source_url',''),
                     source_title=card.get('source_title',''),period=period or '文件期未明确',mode=mode,**extra)
         key=(aspect,period,mode,compact(text))
@@ -110,6 +113,9 @@ def build_operations_package(cleaned,target,sources=None,*,governance=None,limit
         if not (primary or official):
             counts['non_primary_context_excluded']+=1;continue
         card=cards[0];period=_filing_period(src)
+        if not period:
+            report_year=re.search(r'(20\d{2})年?(?:可持续发展|环境社会及管治|环境社会和治理|社会责任|ESG)报告',str(get(src,'title')))
+            if report_year:period=report_year[1]+'年可持续发展报告（文件期）'
         if charter and not period:
             m=re.search(r'(20\d{2})\s*年\s*(\d{1,2})\s*月',raw[:400])
             period=m[1]+'年'+m[2]+'月章程' if m else '章程版本日期未载'
@@ -209,7 +215,7 @@ def render_operations(package):
         lines+=['### '+aspect,'']
         if rows:
             lines+=_table(['资料期／口径','已取得的具体记录','证据性质','来源'],[
-                [r['period'],r['fact'],r['mode'],refs(r)] for r in rows])
+                [r['period'],r.get('display_fact',r['fact']),r['mode'],refs(r)] for r in rows])
         else:lines+=['本章尚未取得可据以评估该维度的具体记录，结论待核验。']
         lines+=['',BOUNDARIES[aspect],'']
     lines+=['### 后续核验材料','']+['- '+gap for gap in package['information_gaps']]

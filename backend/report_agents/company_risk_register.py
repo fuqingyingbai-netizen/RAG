@@ -531,7 +531,7 @@ def build_risk_register(cleaned, target, sources=None, *, industry='', intake=No
                            'dated_subsidiary_relations': len(relations), 'filters': dict(counts)}}
 
 
-def _recall_lines(group):
+def _recall_lines(group,display_context=None):
     r = group[0]['fact_record']
     lines = [r['publication_date'] + '公告；实施日：' + (r['effective_date'] or '待核对') + '。' + refs(r), '']
     rows = []
@@ -549,10 +549,20 @@ def _recall_lines(group):
         link = record.get('relationship')
         if link and (link['entity'], link['as_of']) not in seen:
             seen.add((link['entity'], link['as_of']))
+            signature=json.dumps([link,record['relationship_timing']],ensure_ascii=False,sort_keys=True)
+            shown=(display_context or {}).get('relationships',set())
+            if signature in shown:
+                lines+=['归属核对：'+link['entity']+'；'+link['as_of']+'，物理页'+str(link['page'])
+                        +'；持股及责任边界同本节前项相同原件。'+refs(link),'']
+                continue
+            if display_context is not None:display_context.setdefault('relationships',set()).add(signature)
             lines += ['归属依据：' + link['entity'] + '在' + link['as_of'] + '子公司表的直接/间接持股列分别为'
                       + link['direct_pct'] + '/' + link['indirect_pct'] + '；物理页' + str(link['page'])
                       + '。' + refs(link) + record['relationship_timing'] + '；该截至日关系不证明公告日股权未变化，也不直接确认母公司法律责任。', '']
-    return lines + [r['boundary'], '']
+    if display_context is None or r['boundary'] not in display_context.setdefault('boundaries',set()):
+        lines += [r['boundary'],'']
+        if display_context is not None:display_context['boundaries'].add(r['boundary'])
+    return lines
 
 
 def render_risk_register(p):
@@ -566,6 +576,7 @@ def render_risk_register(p):
             lines += ['该类尚未形成足以支持模板负面描述的具体事件判断。应依据对应核查目录补证，当前不能据此排除风险。', '']
             continue
         rendered_recalls = set()
+        display_context={};followup_origins={}
         for e in group:
             r = e['fact_record']
             if e['kind'] == 'recall':
@@ -577,7 +588,7 @@ def render_risk_register(p):
             if e['kind'] == 'recall':
                 peers = [x for x in group if x['kind'] == 'recall' and
                          (x['fact_record']['source_url'], x['fact_record']['defect_quote'], x['fact_record']['remedy_quote']) == key]
-                lines += _recall_lines(peers)
+                lines += _recall_lines(peers,display_context)
             else:
                 records = e.get('supporting_records') or [r]
                 if e.get('supporting_records'):
@@ -588,7 +599,13 @@ def render_risk_register(p):
                       str(x.get('period') or x.get('date') or '按原件') + ('；物理页' + str(x['page']) if x.get('page') else '') + refs(x),
                       _display_fact(x)] for x in records]))
                 lines += ['']
-            lines += ['判断：' + e['assessment'], '', '跟进：' + e['followup'] + ' 核查顺序：' + e['priority'] + '；' + e['company_severity'] + '。', '']
+            followup=e['followup']
+            if e['kind']=='recall':
+                signature=(followup,e['priority'],e['company_severity'])
+                if signature in followup_origins:
+                    followup='核验要求同本节'+followup_origins[signature]+'公告召回项；按本批次编号/车型及VIN分别核对整改与实际成本。'
+                else:followup_origins[signature]=r['publication_date']
+            lines += ['判断：' + e['assessment'], '', '跟进：' + followup + ' 核查顺序：' + e['priority'] + '；' + e['company_severity'] + '。', '']
     turnover = [r for r in p['facts'] if r['kind'] == 'turnover']
     if turnover:
         lines += ['### 人员指标的解释边界', '',

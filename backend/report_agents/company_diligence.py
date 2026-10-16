@@ -468,6 +468,10 @@ def display_diligence_fact(record):
     if record.get('kind')=='execution_followup' and (record.get('display_reference') or {}).get('chapter')==9:
         return ('原件案件阶段：'+record.get('stage','待核')+'；执行披露：'+record.get('execution','待核')
                 +'；涉案金额字段：'+record.get('amount','待核')+'；判决主文及诉讼费用详见第九章同事项。')
+    if record.get('kind')=='purchase_accounting':
+        original=record['fact']
+        sentence=re.search(r'\bAs at \d{1,2} [A-Z][a-z]+ 20\d{2},\s+the net carrying amount of goodwill amounted to (?:RMB|US\$|HK\$)[\d,]+(?:\.\d+)?\.',original,re.I)
+        if sentence:return sentence[0]
     return record['fact']
 
 

@@ -5,7 +5,7 @@ from collections import Counter,defaultdict
 from datetime import date
 from urllib.parse import urlparse
 
-from .company_evidence import source_body,document_pages,pending_ocr_notice
+from .company_evidence import source_body,document_pages,pending_ocr_notice,without_sequence_footers
 from .company_governance import cited_evidence_ids
 from .company_governance import EID,_filing_period,_table,compact,get,refs
 from .company_business import _cell,_prose,_clean
@@ -138,7 +138,8 @@ def appointments(pages,raw):
 
 def biography_rows(pages,names,period,target):
     text='';spans=[]
-    for page in pages:
+    prose_pages=without_sequence_footers(pages)
+    for page in prose_pages:
         body=_prose(_clean(page['text'],target));spans.append((len(text),page['page']));text+=body+'\n'
     alternatives='|'.join(re.escape(n) for n in sorted(names,key=len,reverse=True))
     if not alternatives:return []
@@ -161,6 +162,8 @@ def biography_rows(pages,names,period,target):
         end=m.end()+last_offset;used=[n for start,n in spans if m.start()<=start<=end]
         rows.append({'kind':'biography','entity':m['name'],'period':period,'as_of':period_date(period) or period,
                      'page':page,'pages':list(dict.fromkeys([page]+used)),'fact':fact,'evidence_quote':fact,
+                     'source_text_transformations':[change for p in prose_pages if p['page'] in [page]+used
+                                                    for change in p.get('source_text_transformations',[])],
                      'mode':'公司公开履历自述，历史经历不等于现职或个人业绩核验'})
     return rows
 

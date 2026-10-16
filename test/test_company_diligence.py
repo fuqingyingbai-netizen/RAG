@@ -231,7 +231,8 @@ def test_checked_chapter10_is_protected_from_editor_and_source_index_uses_origin
     chapter=t.split('## 10.')[1].split('## 11.')[0]
     assert '100万元' in chapter and '资金完全合规' not in chapter and 'FFFFFFFFFFFF' not in chapter
     result=ResearchWorkflow.__new__(ResearchWorkflow)._append_company_claim_evidence_index(p,t,[c],total_traceable_sources=1,eligible_company_sources=1)
-    assert '第十章原文核对' in result and '公司无融资，无异常资金往来' not in result.split('## 13.')[1]
+    index=result.split('## 13.')[1]
+    assert '第 10 章' in index and '100万元' in index and '公司无融资，无异常资金往来' not in index
 
 
 def test_empty_chapter_keeps_specific_scope_gaps_after_marker_pass():
