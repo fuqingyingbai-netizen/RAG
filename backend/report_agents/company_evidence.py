@@ -84,4 +84,15 @@ def annotate_page_notes(quote,pages):
 
 
 def labelled_original_note(text):
-    return re.sub(r'^\s*(\d{1,3})\s*(?=[\u4e00-\u9fff])',r'原文标号\1：',text)
+    first=re.match(r'^\s*(\d{1,3})\s*(?=[\u4e00-\u9fff])',text)
+    if not first:return text
+    display=re.sub(r'^\s*(\d{1,3})\s*(?=[\u4e00-\u9fff])',r'原文标号\1：',text)
+    # Two PDF columns can flatten consecutive footnote definitions into one
+    # line. A following definition marker is not an increase of that amount.
+    number=int(first[1])+1
+    while True:
+        pattern=r'\s+'+str(number)+r'\s+(?=仅包括|仅包含|不包括|不含|指(?:公司|员工|本)|涵盖|依照|按照)'
+        updated,count=re.subn(pattern,'；原文标号'+str(number)+'：',display,count=1)
+        if not count:break
+        display=updated;number+=1
+    return display

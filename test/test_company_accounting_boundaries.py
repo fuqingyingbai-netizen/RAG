@@ -1,4 +1,4 @@
-from report_agents.company_evidence import annotate_page_notes
+from report_agents.company_evidence import annotate_page_notes, labelled_original_note
 from report_agents.company_history import _date, _event_status, build_history_package
 from report_agents.company_diligence import classify_quote, display_diligence_fact
 from test_company_history import filing, history
@@ -8,6 +8,17 @@ def test_same_page_agenda_number_never_changes_calendar_or_quantity():
     quote='公司于2025年6月12日召开会议，调整6人获授数量。'
     page={'page':1,'text':quote+'\n6 本议案详细说明如下并附授予名单。'}
     assert annotate_page_notes(quote,[page])==quote
+
+
+def test_consecutive_column_note_definitions_are_not_joined_into_a_quantity():
+    raw='12 申诉系统新增多个渠道，因此数据量上涨 13 仅包括中国内地员工数据'
+    display=labelled_original_note(raw)
+    assert '数据量上涨；原文标号13：仅包括' in display
+    assert '上涨 13' in raw
+
+
+def test_actual_quantity_in_numbered_note_is_not_another_definition():
+    assert labelled_original_note('12 员工投诉同比上涨 13 %，当期共计20条。')=='原文标号12：员工投诉同比上涨 13 %，当期共计20条。'
 
 
 def test_board_action_date_wins_over_performance_year():
