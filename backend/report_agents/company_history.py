@@ -33,14 +33,14 @@ AMOUNT = r'[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)\.\d{2}'
 def accounting_background(text):
     """Accounting rules and measurement definitions are not issuer actions."""
     value=compact(text)
-    return bool(re.search(r'财务报表的编制基础|财务报表按照财政部|金融资产的分类|债务工具.*是指|合同现金流量特征与基本借贷安排相一致|交易性金融负债为纳入合并范围|公允价值变动.*计入当期损益',value))
+    return bool(re.search(r'财务报表的编制基础|财务报表按照财政部|信息披露编报规则|金融资产的分类|债务工具.*是指|合同现金流量特征与基本借贷安排相一致|交易性金融负债为纳入合并范围|公允价值变动.*计入当期损益',value))
 
 
 def _date(text, event=True):
     text=_normalize_year(text)
     dates=[m for m in DATE.finditer(text) if m.start()==0 or text[m.start()-1] not in '-—至']
     dates=[m for m in dates if not re.match(r'[\s）)]*(?:的?总股本|的?股本|为基数)',text[m.end():])]
-    dates=[m for m in dates if m[2] or not re.match(r'(?:度|限制性股票|股票期权|个人业绩|绩效)',text[m.end():])]
+    dates=[m for m in dates if m[2] or not re.match(r'(?:度(?![，,]?(?:本集团|本公司|公司))|限制性股票|股票期权|个人业绩|绩效)',text[m.end():])]
     dates=[m for m in dates if not re.search(r'目标|愿景|规划',text[m.end():m.end()+14])]
     if not dates:
         return ''
@@ -79,6 +79,7 @@ def _event_status(text):
     # A restriction on an employee's shares is not the completion status of
     # the board's repurchase decision.
     text=re.sub(r'尚未解除限售|尚未行权|未解除限售','',text)
+    text=re.sub(r'员工持股计划|股权激励计划|股票期权激励计划|限制性股票激励计划','相应制度',text)
     if re.search(r'尚未|尚待|未完成',text):
         return '尚未完成'
     if re.search(r'提议|提议以|提出.{0,25}(?:利润分配|分红|派发)',text):
@@ -328,6 +329,11 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
                 if starts:sentence='\n\n'.join(paragraphs[starts[-1]:]).strip()
             sentence=re.sub(r'\s+',' ',sentence).strip()
             sentence=re.sub(r'(?<=[\u4e00-\u9fff\d])\s+(?=[\u4e00-\u9fff\d])','',sentence)
+            action_start=re.search(r'20\d{2}年(?:度)?(?:\d{1,2}月(?:\d{1,2}日)?)?[，,]?(?:本集团|本公司|公司)(?:合计回购|已完成|完成|以|发行|签署)',sentence)
+            if action_start and re.search(r'财务报表|本年增加|本年减少',sentence[:action_start.start()]):
+                # Financial-note page furniture and preceding balance tables
+                # are retained in source storage, never as the action's date.
+                sentence=sentence[action_start.start():]
             sentence=re.sub(re.escape(target)+r'\s*20\d{2}年(?:半年度|年度|第[一三]季度)报告(?:全文|摘要)?\d{0,3}','',sentence)
             sentence=re.sub(r'^\d{1,3}(?=前述|本公司|本集团|公司)','',sentence)
             sentence=re.sub(r'\[\d+(?:-\d+)?\]','',sentence)
@@ -459,7 +465,8 @@ def render_history(package):
     legacy=[r for r in package['facts'] if r['kind']=='legacy']
     lines=[f'## 3. {TITLE}','','### '+HEADINGS[0],'']
     lines+=_table(['事件日期','类型','原文事件','状态边界','来源'],[
-        [r['period'],r['event_type'],r['fact'],r['status']+('；第三方资料记载' if r['source_rank']<3 else ''),refs(r)] for r in events])
+        [r['period']+('（排序用；原文含多时点）' if len({m[1] for m in DATE.finditer(_normalize_year(r['fact']))})>1 else ''),
+         r['event_type'],r['fact'],r['status']+('；第三方资料记载' if r['source_rank']<3 else ''),refs(r)] for r in events])
     if events:
         lines+=['','登记成立、改制、签约、核准、发行和挂牌日期各按原文动作保留；“拟议/签约”不代表交割或资金到账。资本公积转增、送股不当作外部现金融资，原币金额、股份数量与每股价格不相互替代。']
         lines+=['官网沿革中的创业及产品表述属于公司自述，创业起点不替代登记成立日期；发布、投产、下线等动作本身不能证明市场认可或商业成功。所列为已取得材料中的代表节点，不能视为完整融资及变更记录。']

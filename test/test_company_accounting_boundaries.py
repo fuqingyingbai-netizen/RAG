@@ -20,6 +20,23 @@ def test_dividend_proposal_not_completed_payment():
     assert _event_status('董事会于2026年3月30日提议以总股本为基数向普通股股东派发现金股利。')=='计划／拟议'
 
 
+def test_employee_scheme_year_is_not_the_application_date():
+    assert _date('公司向登记公司提交注销2021年限制性股票尚未解除限售股份的申请。')==''
+    assert _date('2025年度，本集团合计回购库存股，授予员工持股计划。')=='2025'
+    assert _event_status('2025年度，本集团合计回购库存股并授予员工持股计划。')=='原文记载已发生'
+
+
+def test_note_header_and_balance_dates_do_not_override_following_actual_action():
+    name='青禾制造股份有限公司'
+    raw='2025年度财务报表附注库存股2024年12月31日本年增加本年减少2023年12月31日，2025年度，本集团合计回购库存股人民币100万元，在2025年度授予员工持股计划。'
+    p=history(name,filing(name,raw))
+    event=next(r for r in p['facts'] if r['kind']=='event')
+    assert event['period']=='2025' and event['status']=='原文记载已发生'
+    assert '财务报表附注' not in event['fact']
+    rule='本集团按照公开发行证券公司信息披露编报规则（2010年修订）编制，本公司为在交易所上市的H股公司。'
+    assert not any(r['kind']=='event' for r in history(name,filing(name,rule))['facts'])
+
+
 def test_accounting_standard_and_instrument_definitions_do_not_become_history():
     name='青禾制造股份有限公司'
     standard='本公司的财务报表按照财政部于2006年2月15日发布的企业会计准则编制。'
