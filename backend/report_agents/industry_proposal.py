@@ -32,9 +32,15 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
             continue
         tasks.append((f"第{item.get('chapter')}章综合写作", str(item.get('message') or '章节采用来源摘录'),
                       '复核对应章节来源、属性和判断；证据不足时保留缺口，不强行补结论。', '高', '本章来源原文和引用索引'))
+    structured_tasks = getattr(project,'industry_verification_tasks',None)
+    if isinstance(structured_tasks,list):
+        # The current report and proposal share one prioritized gap list. Do
+        # not rescan prose or silently truncate late technical/quality tasks.
+        tasks=[tuple(t.get(k,'') for k in ('topic','reason','action','priority','materials'))
+               for t in structured_tasks if isinstance(t,dict)]
     def cell(value):
         return re.sub(r'\s+', ' ', str(value)).replace('|', '/')
-    task_rows = '\n'.join('| ' + ' | '.join(cell(v) for v in row) + ' |' for row in tasks[:18])
+    task_rows = '\n'.join('| ' + ' | '.join(cell(v) for v in row) + ' |' for row in tasks)
     task_section = ('| 专项任务 | 本轮未完成原因 | 核验动作 | 优先级 | 所需材料 |\n| --- | --- | --- | --- | --- |\n' + task_rows
                     if tasks else '本轮专项任务尚待确认；启动前应依据最新报告和风险诊断逐项确认，不将通用研究框架视为已完成的专项分析。')
     conditional_rows = ''

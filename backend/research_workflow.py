@@ -724,7 +724,7 @@ class ResearchWorkflow:
             if standardized_type == "person"
             else "company-evidence-v8-entity-bound"
             if standardized_type == "company"
-            else "industry-evidence-v10-source-authority"
+            else "industry-evidence-v11-atomic-passages"
             if standardized_type == "industry"
             else "default-v4-auditable"
         )
@@ -746,7 +746,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v18-delivery-contracts",
+            "industry": "industry-report-evidence-v19-consistent-synthesis",
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -1159,6 +1159,8 @@ class ResearchWorkflow:
                 report,
                 emit=emit,
                 target_type=standardized_type,
+                industry_project=project if standardized_type=='industry' else None,
+                industry_risk_json=risk if standardized_type=='industry' else '{}',
             )
             report = self._prepend_industry_scope_card(project, report)
             report = self._append_professional_evidence_assets(project, report, cleaned, emit=emit)
@@ -2642,7 +2644,11 @@ class ResearchWorkflow:
         payload=_plain_json(cleaned)
         if not isinstance(payload,dict) or not isinstance(payload.get('facts'),list):
             return cleaned  # Preserve the existing invalid-JSON/index failure path.
-        payload['facts']=attach_provenance(payload['facts'],self._active_industry_sources(project))
+        body_snapshots={}
+        payload['facts']=attach_provenance(payload['facts'],self._active_industry_sources(project),body_snapshots)
+        # Keep the exact body version alongside the immutable cleaned artifact;
+        # later source-row refreshes cannot move these offsets to another body.
+        payload['source_body_snapshots']=body_snapshots
         for fact in payload['facts']:
             if fact['provenance']['locator']['status']!='verified':
                 fact.update(eligible_for_report=False,eligible_for_risk_scoring=False,requires_human_review=True)
@@ -5349,10 +5355,19 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         report: str,
         emit: TraceEmitter | None = None,
         target_type: str = "",
+        industry_project=None,
+        industry_risk_json: str = '{}',
     ) -> str:
         if not report.strip():
             return report
         if target_type == 'industry':
+            if industry_project is not None:
+                from industry_delivery import finalize_synthesis
+                result,tasks=finalize_synthesis(report,getattr(industry_project,'industry_evidence_payload',{}) or {},
+                    _plain_json(industry_risk_json) or {},getattr(industry_project,'industry_report_degradations',[]) or [],
+                    getattr(industry_project,'industry_scope',{}) or {})
+                industry_project.industry_verification_tasks=tasks
+                return result
             try:
                 from .industry_claims import industry_gap_plan
             except ImportError:
@@ -6102,6 +6117,18 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             from .industry_research import delivery_review_reasons
         except ImportError:
             from industry_research import delivery_review_reasons
+        risk = _plain_json(risk_json)
+        risk = risk if isinstance(risk, dict) else {}
+        payload = getattr(project, 'industry_evidence_payload', {}) or {}
+        degradations = list(getattr(project, 'industry_report_degradations', []) or [])
+        if not degradations and ('模型摘要未通过校验' in report or '模型摘要未通过引用或目录校验' in report):
+            degradations.append({'chapter': 1, 'message': '摘要沿用模型校验失败后的事实摘录，综合判断需人工复核。'})
+        from industry_delivery import finalize_synthesis
+        # Rebuild from current artifacts on both first export and reexport.
+        report, tasks = finalize_synthesis(report,payload,risk,degradations,getattr(project,'industry_scope',{}) or {})
+        project.industry_verification_tasks = tasks
+        if payload.get('facts'):
+            report = self._append_report_evidence_index(project,report,json.dumps(payload,ensure_ascii=False),emit=emit)
         gate_warning = ''
         try:
             self._validate_delivery_report(project, report)
@@ -6109,10 +6136,6 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             if os.getenv('REPORT_SAVE_REVIEW_DRAFT_ON_GATE_FAIL', 'true').strip().lower() not in {'1', 'true', 'yes', 'on'}:
                 raise
             gate_warning = str(exc)
-        degradations = list(getattr(project, 'industry_report_degradations', []) or [])
-        # Preserve an explicit legacy fallback notice even if its old metadata was lost.
-        if not degradations and ('模型摘要未通过校验' in report or '模型摘要未通过引用或目录校验' in report):
-            degradations.append({'chapter': 1, 'message': '摘要沿用模型校验失败后的事实摘录，综合判断需人工复核。'})
         risk = _plain_json(risk_json)
         project.industry_risk_transparency = (risk or {}).get('risk_transparency', {}) if isinstance(risk, dict) else {}
         reasons = delivery_review_reasons(getattr(project, 'industry_scope', {}) or {},
@@ -6148,6 +6171,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             _emit(emit, 'report', 'desktop_report_agent', '行业报告保存为待复核稿', warning,
                   review_reason_count=len(reasons), status='fallback')
         return report, {'delivery_status': 'review_draft' if reasons else 'final_candidate',
+                        'verification_tasks': tasks,
+                        'synthesis_contract_version': 'industry-synthesis-v1',
                         'risk_transparency': project.industry_risk_transparency,
                         'delivery_review_reasons': reasons, 'quality_issues': issues,
                         'industry_evidence_diagnostic': getattr(project, 'industry_delivery_diagnostic', {}),
@@ -6652,9 +6677,15 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         docs = []
         for index, fact in enumerate(facts):
             text = str(fact.get("fact") or "").strip()
+            if project.target_type=='industry':
+                if fact.get('claim_type')=='source_excerpt':
+                    text=str(((fact.get('provenance') or {}).get('locator') or {}).get('quote') or fact.get('evidence_quote') or text).strip()
+                else:
+                    from industry_research import risk_fact_text
+                    text=risk_fact_text(fact)
             if not text:
                 continue
-            evidence = str(fact.get("evidence_quote") or "").strip()
+            evidence = '' if project.target_type=='industry' else str(fact.get("evidence_quote") or "").strip()
             if evidence and evidence not in text:
                 text = f"{text}\n\n证据摘录：{evidence}"
             docs.append(

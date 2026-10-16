@@ -8,7 +8,7 @@ import re
 from array import array
 from collections import OrderedDict
 
-VERSION = 'industry-evidence-contract-v1'
+VERSION = 'industry-evidence-contract-v2-atomic-passages'
 
 # Requirements describe research questions, not an obligation to manufacture data.
 REQUIREMENTS = (
@@ -47,6 +47,7 @@ def source_fingerprint(sources: list) -> str:
         meta=source.source_metadata or {}
         row={'document':_locator_key(source.url),'body_sha256':hashlib.sha256(body.encode()).hexdigest(),
             'title':source.title,'type':source.source_type,'credibility':getattr(source,'credibility_score',None),
+            'publication':{k:meta.get(k) for k in ('published_date','published_at','publication_date','publisher','provider')},
             'scope':{k:meta.get(k) for k in ('module','evidence_scope','company_role','industry_name','segment_name','company_name')}}
         rows.add(json.dumps(row,sort_keys=True,ensure_ascii=False))
     return hashlib.sha256(json.dumps(sorted(rows),ensure_ascii=False).encode()).hexdigest()
@@ -93,6 +94,8 @@ def source_coverage(sources: list, requirements: list[dict]) -> dict:
             meta = source.source_metadata or {}
             if meta.get('module') != req['module'] or meta.get('evidence_scope') == 'representative_company':
                 continue
+            from industry_grounding import sample_boundary
+            if sample_boundary({'source_title':source.title,'source_type':source.source_type}):continue
             body = stored_body(source)
             if body and _metric_present(body,req):
                 key = source_document_key(source.url)
@@ -105,7 +108,7 @@ def source_coverage(sources: list, requirements: list[dict]) -> dict:
                                 for r in rows if r['status']=='missing']}
 
 
-def attach_provenance(facts: list[dict], sources: list) -> list[dict]:
+def attach_provenance(facts: list[dict], sources: list, body_snapshots: dict | None = None) -> list[dict]:
     """Locate stored quotes in immutable body hashes, never in search summaries."""
     from industry_research import source_document_key
     by_url = {}
@@ -140,10 +143,40 @@ def attach_provenance(facts: list[dict], sources: list) -> list[dict]:
                 if offset<0:continue
                 start=positions[offset];end=positions[offset+len(needle)-1]+1;mode='whitespace_case_normalized'
             locator = {'status':'verified', 'source_id':getattr(source,'id',None),
-                'source_object_key':getattr(source,'object_key',''), 'body_field':'research_sources.content',
+                'source_object_key':getattr(source,'object_key',''), 'body_field':'research_sources.content_snapshot',
+                'body_version_id':'sha256:'+hashlib.sha256(body.encode()).hexdigest(),
+                'archive_binding_status':'not_verified',
                 'source_document_key':_locator_key(source.url),
                 'body_sha256':hashlib.sha256(body.encode()).hexdigest(),
                 'start':start, 'end':end, 'match_mode':mode, 'quote':body[start:end]}
+            anchor=str(fact.get('scope_anchor_quote') or '')
+            if anchor:
+                anchor_start=body.find(anchor)
+                if anchor_start<0:
+                    fact.update(eligible_for_report=False,eligible_for_risk_scoring=False)
+                    fact['scope_anchor_validation']='unlocated'
+                else:
+                    locator['scope_anchor']={'start':anchor_start,'end':anchor_start+len(anchor),'quote':anchor}
+            if body_snapshots is not None:
+                digest=locator['body_sha256']
+                body_snapshots.setdefault(digest,{'content':body,'body_sha256':digest,
+                    'source_url':source.url,'source_id':getattr(source,'id',None),'source_title':source.title,
+                    'archive_object_key':getattr(source,'object_key',''),'archive_binding_status':'not_verified'})
+                locator['body_field']=f'cleaned_facts.source_body_snapshots.{digest}.content'
+                locator['snapshot_key']=digest
+            from industry_grounding import source_metadata
+            if source.title:fact['source_title']=source.title
+            for name,value in source_metadata(source).items():
+                if value and not fact.get(name):fact[name]=value
+            from industry_grounding import sample_boundary
+            boundary=sample_boundary(fact)
+            if boundary:
+                fact.update(evidence_scope='representative_company',eligible_for_risk_scoring=False,
+                            sample_boundary_reason=boundary,attribution_boundary=boundary)
+            # A raw-page card is an audit container. Its located passage, not
+            # later unlocated paragraphs, is the writer's authorization.
+            if fact.get('claim_type')=='source_excerpt':
+                fact['attribution_boundary'] = '仅定位摘录可供转述；较长页面内容仅保留审计，完整语义仍待复核。'
             break
         fact['provenance'] = {'version':VERSION, 'locator':locator}
         result.append(fact)
@@ -151,6 +184,8 @@ def attach_provenance(facts: list[dict], sources: list) -> list[dict]:
 
 
 def fact_requirement_ids(fact: dict, requirements: list[dict], verified_only: bool = False) -> list[str]:
+    from industry_grounding import sample_boundary
+    if sample_boundary(fact):return []
     if fact.get('scope_match')!='in_scope' or fact.get('eligible_for_report') is False:
         return []
     locator_ok = (fact.get('provenance') or {}).get('locator',{}).get('status')=='verified'

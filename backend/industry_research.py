@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import urlsplit, parse_qsl, urlencode
 
 INDUSTRY_POLICY_VERSION = 'industry-scope-v3'
-INDUSTRY_RISK_VERSION = 'industry-risk-v6-claim-contracts'
+INDUSTRY_RISK_VERSION = 'industry-risk-v7-sample-boundaries'
 INDUSTRY_RISK_DIMENSIONS = (
     '政策与监管风险', '市场增长与需求风险', '竞争格局与集中度风险',
     '商业化与盈利模式风险', '技术迭代与替代风险', '资本热度与估值风险', '数据口径与证据可靠性风险',
@@ -178,7 +178,8 @@ def normalize_risk(parsed: Any, facts: list[dict], scope: dict | None = None) ->
                 'model_abstained':'模型认为现有证据不足，保留unknown',
                 'forecast_presented_as_actual':'评分理由未保留对应数值的预测属性',
                 'source_corroboration_overstated':'评分理由声称多源印证，但引用来源不足或来自同一发布方'}
-            row = {'name': name, 'score': None, 'level': 'unknown', 'reason': explanations[cause] + '，暂不评分。',
+            explanation = explanations.get(cause, next((i['message'] for i in semantic_issues if i['code'] == cause), '评分证据不符合适用边界'))
+            row = {'name': name, 'score': None, 'level': 'unknown', 'reason': explanation + '，暂不评分。',
                    'evidence_ids': [], 'evidence_sources': [], 'unknown_cause': cause,
                    'candidate_evidence_count': len(candidates),
                    'validation_diagnostic': {'original_reason': str(supplied.get(name, {}).get('reason') or '')[:3000],
@@ -211,6 +212,9 @@ RISK_MODULES = {
 
 
 def risk_fact_applicable(fact: dict, name: str) -> bool:
+    from industry_grounding import sample_boundary
+    if sample_boundary(fact):
+        return False
     if (fact.get('eligible_for_risk_scoring') is False or fact.get('eligible_for_report') is False
             or fact.get('scope_match') != 'in_scope'
             or fact.get('evidence_scope') not in {'industry_level', 'segment_level', 'capital_market'}):
@@ -226,10 +230,14 @@ def risk_fact_applicable(fact: dict, name: str) -> bool:
 def risk_fact_text(fact: dict) -> str:
     """A single verified numeric context cannot authorize other numbers in its quote."""
     context = fact.get('numeric_context') or {}
-    if fact.get('numeric_validation', {}).get('passed') is True:
+    if (fact.get('numeric_validation') or {}).get('passed') is True:
         return (f'{"预测/目标值：" if context.get("is_forecast") else "来源报告值："}{context.get("period", "")} {context.get("geography", "")} '
                 f'{context.get("metric", "")}：{context.get("value", "")}{context.get("unit", "")}；'
                 f'口径：{context.get("definition", "")}。')
+    from industry_grounding import complete_excerpt
+    if fact.get('claim_type') == 'source_excerpt':
+        # Only the located quote authorizes writing; the rest is audit material.
+        return complete_excerpt(fact.get('evidence_quote') or fact.get('fact')) or '来源摘录未形成完整句子，需核对原文。'
     return str(fact.get('fact') or '')
 
 
@@ -345,18 +353,22 @@ def select_chapter_evidence(payload: dict, title: str, requirements: list[str], 
             continue
         if title == '行业核心公司主体全面尽调' and fact.get('company_role') != 'requested_due_diligence':
             continue
+        from industry_grounding import passage_tasks
+        tasks = passage_tasks(fact)
         blob = ' '.join(str(fact.get(k) or '') for k in ('fact', 'source_title', 'module'))
         module_match = fact.get('module') in expected
         keywords = [word for item in requirements for word in re.split(r'[/｜、，\s]+', item) if len(word) >= 2]
         hits = sum(word in blob for word in keywords)
         derived = title in {'摘要', '行业判断与综合评估', '综合评估', '信息来源', '后续研究点'}
-        if not module_match and not hits and not derived:
+        task_match = bool(tasks & ({'产业链分层'} if '产业链' in title else
+                                  {'技术测试条件', '技术性能', '技术成本'} if title == '技术路线对比' else set()))
+        if not module_match and not hits and not derived and not task_match:
             continue
         # Structured facts must not lose to source excerpts merely because the
         # excerpt inherits a publisher score while the cleaner omits it.
         structured = fact.get('claim_type') != 'source_excerpt'
         verified_numeric = fact.get('numeric_validation', {}).get('passed') is True
-        candidates.append((int(module_match), int(structured), int(verified_numeric), hits,
+        candidates.append((int(task_match), int(module_match), int(structured), int(verified_numeric), hits,
                            float(fact.get('quality_score') or fact.get('confidence') or 0), fact))
     candidates.sort(key=lambda row: row[:-1], reverse=True)
     focused = []
@@ -372,13 +384,27 @@ def select_chapter_evidence(payload: dict, title: str, requirements: list[str], 
         from .industry_evidence import diverse_evidence
     except ImportError:
         from industry_evidence import diverse_evidence
-    focused=diverse_evidence(focused,payload.get('evidence_requirements') or [],12)
+    # Reserve a card per chapter task before general diversity; otherwise twelve
+    # macro statistics can crowd every test condition or chain definition out.
+    task_names = ({'产业链分层'} if '产业链' in title else
+                  {'技术测试条件', '技术性能', '技术成本'} if title == '技术路线对比' else set())
+    reserved, covered = [], set()
+    for fact in focused:
+        present = passage_tasks(fact) & task_names
+        if present - covered:
+            reserved.append(fact); covered |= present
+    remaining = [f for f in focused if f not in reserved]
+    focused = reserved + diverse_evidence(remaining,payload.get('evidence_requirements') or [],max(0,12-len(reserved)))
     # Put evidence first and omit the full ledger; bounded model prompts must not
     # be consumed by metadata before the actual fact cards are reached.
     coverage=(payload.get('evidence_coverage') or {}).get('requirements',[])
     questions=[{'question':r['question'],'status':r['status'],'verified_fact_count':len(r.get('verified_evidence_ids',[]))}
                for r in coverage if r['module'] in expected or title in {'摘要','综合评估','后续研究点'}]
     return {'facts': focused, 'industry_scope': payload.get('industry_scope') or {},
+            'selection_coverage': {'candidate_count':len(candidates), 'selected_count':len(focused),
+                'task_candidates': {name:sum(name in passage_tasks(row[-1]) for row in candidates) for name in sorted(task_names)},
+                'task_selected': {name:sum(name in passage_tasks(f) for f in focused) for name in sorted(task_names)},
+                'absence_scope':'仅反映本章保留的证据，不代表全部来源或公开资料不存在该信息'},
             'research_questions_status':questions,
             'information_gaps': (payload.get('information_gaps') or [])[:20]}
 
@@ -409,13 +435,23 @@ def bounded_package(package: dict, limit: int = 20000) -> str:
     """Keep JSON intact under a prompt budget, prioritizing concise fact cards."""
     result = {**package, 'facts': []}
     for original in package.get('facts', []):
-        fact = dict(original)
+        fields = {'evidence_id','fact','source_url','source_title','source_type','source_grade','provider','publisher',
+            'date','published_date','module','category','claim_type','evidence_scope','scope_match','company_role',
+            'industry_name','segment_name','attribution_boundary','sample_boundary_reason','cleaning_method',
+            'is_structured_evidence','evidence_quote','evidence_quote_verified','numeric_context','numeric_validation',
+            'eligible_for_report','eligible_for_risk_scoring','requires_human_review','allowed_numbers','source_document_key','provenance'}
+        fact = {k:v for k,v in original.items() if k in fields}
         # Diagnostic model prose must never re-enter a writer's evidence input.
         fact.pop('original_model_fact', None)
         if isinstance(fact.get('provenance'),dict):
             fact['provenance']={**fact['provenance'], 'locator':{k:v for k,v in (fact['provenance'].get('locator') or {}).items() if k!='quote'}}
-        fact['fact'] = str(fact.get('fact') or '')[:900]
-        fact['evidence_quote'] = str(fact.get('evidence_quote') or '')[:500]
+        # Keep the original card in the audit library; writers receive the
+        # authorized metric or complete located passage, never a raw page tail.
+        fact['fact'] = risk_fact_text(fact)
+        if len(fact['fact']) > 900:
+            from industry_grounding import complete_excerpt
+            fact['fact'] = complete_excerpt(fact['fact'],900) or '较长原文待核对，暂不转述。'
+        fact['evidence_quote'] = str(fact.get('evidence_quote') or '')[:650]
         result['facts'].append(fact)
         if len(json.dumps(result, ensure_ascii=False)) > limit:
             result['facts'].pop(); break
@@ -460,6 +496,10 @@ def industry_excerpt(text: str, module: str, limit: int) -> str:
                 r'商业模式|盈利模式|收入结构|订阅|按量计费|毛利率|净利率']
     if module != '商业模式与盈利逻辑':
         patterns = patterns[:1]
+    if module in {'技术路线对比','技术演进与平台生态'}:
+        patterns.append(r'统一硬件|统一软件|测试环境|测试条件|测试模型|吞吐量|首\s*token|token/s|单位.{0,12}成本')
+    if module in {'细分赛道与产业链','行业定义与边界'}:
+        patterns.append(r'上游.{0,180}中游.{0,180}下游')
     matches = []
     for priority, pattern in enumerate(reversed(patterns)):
         for match in re.finditer(pattern, text):
@@ -508,7 +548,7 @@ def company_filing_source(source: Any) -> bool:
     return bool(re.search(r'公司|股份|集团|有限公司', title) or not re.search(r'行业|产业|市场|技术|监管', title))
 
 
-FORECAST_MARKERS = r'预测|预计|预估|估计|有望|或将|情景|假设|目标|锚定|力争|争取|forecast|projected|estimated'
+FORECAST_MARKERS = r'预测|预计|预估|估计|有望|或将|情景|假设|目标|锚定|力争|争取|第[一二三]步到20\d{2}年|forecast|projected|estimated'
 
 
 def local_forecast_attribute(quote: str, metric: str, value, unit: str):
@@ -552,23 +592,27 @@ def extract_industry_source_facts(sources: list, scope: dict) -> list[dict]:
     """
     facts = []
     subjects = [scope.get('industry_name'), *scope.get('segments', [])]
-    metric_pattern = r'市场规模|核心产业规模|产业规模|营业收入|营收|收入|毛利率|净利率|渗透率|市场份额|占比|复合增长率|CAGR|同比增长|同比增幅|增速'
+    metric_pattern = r'市场规模|核心产业规模|产业规模|营业收入|营收|收入|毛利率|净利率|渗透率|市场份额|占比|复合增长率|CAGR|同比增长|同比增幅|增速|吞吐量|首\s*token\s*(?:响应)?延迟|推理成功率'
     business_pattern = r'订阅|按量计费|按调用量|商业模式|盈利模式|收入结构|收费模式|服务收费'
-    regions = {'我国': '中国大陆', '全国': '中国大陆', '中国大陆': '中国大陆', '中国': '中国大陆',
-               '全球': '全球', '美国': '美国', '欧洲': '欧洲', '欧盟': '欧盟'}
+    from industry_grounding import source_metadata, metric_period_region, sample_boundary, TASK_PATTERNS
     for source in sources:
-        body = str(source.content or '').replace('\x00', '')
+        from industry_evidence import stored_body
+        body = stored_body(source).replace('\x00', '')
         if not body.strip() or not str(source.url or '').startswith(('https://', 'http://')):
             continue
         meta = source.source_metadata or {}
         seen, selected = set(), []
         # Keep original sentence boundaries; no concatenation across PDF pages or snippets.
         sentences = re.split(r'[。！？；;\n]+', body)
+        scope_anchor = next((s.strip() for s in sentences if 12<=len(s.strip())<=650 and
+                             any(str(n).lower() in s.lower() for n in subjects if n)), '')
         for sentence in sentences:
             quote = re.sub(r'\s+', ' ', sentence).strip(' -*#\t')
             if not 12 <= len(quote) <= 650 or quote in seen:
                 continue
-            if not any(str(n).lower() in quote.lower() for n in subjects if n):
+            relevant_source = any(str(n).lower() in (str(source.title or '')+' '+body[:600]).lower() for n in subjects if n)
+            task_match = any(re.search(p,quote,re.I) for p in TASK_PATTERNS.values())
+            if not any(str(n).lower() in quote.lower() for n in subjects if n) and not (relevant_source and task_match):
                 continue
             if any(word in quote for word in ('如果需要', '以下是基于', '摘要要点', '免责声明', '不连续原文片段')):
                 continue
@@ -577,10 +621,17 @@ def extract_industry_source_facts(sources: list, scope: dict) -> list[dict]:
                     'source_url': source.url, 'module': meta.get('module') or '其他',
                     'evidence_scope': meta.get('evidence_scope') or 'industry_level',
                     'industry_name': scope.get('industry_name'), 'category': 'industry',
+                    'scope_anchor_quote':scope_anchor,
                     'claim_type': 'fact', 'is_structured_evidence': True,
                     'cleaning_method': 'industry_rule', 'evidence_quote_verified': True,
-                    'confidence': min(.9, float(source.credibility_score or 50) / 100)}
-            if company_filing_source(source):
+                    'confidence': min(.9, float(source.credibility_score or 50) / 100), **source_metadata(source)}
+            if task_match:
+                base['module'] = '细分赛道与产业链' if re.search(TASK_PATTERNS['产业链分层'],quote) else '技术路线对比'
+                if base['module'] == '技术路线对比' and re.search(r'实测|横评|测试', str(source.title or '')):
+                    self_report = re.search(r'本公司|我司|本平台|自持|旗下|自研|为.{0,20}服务商代表',body[:3500])
+                    base['claim_type'] = 'vendor_benchmark' if self_report and source.source_type not in {'government','regulatory'} else 'benchmark_sample'
+                    base['requires_human_review'] = True
+            if company_filing_source(source) or sample_boundary(base):
                 base['evidence_scope'] = 'representative_company'
             numeric_cards = []
             for number in re.finditer(NUMBER_PATTERN, quote):
@@ -593,23 +644,27 @@ def extract_industry_source_facts(sources: list, scope: dict) -> list[dict]:
                 if re.search(NUMBER_PATTERN, prefix[metric.end():]):
                     continue
                 definition = re.split(r'[，,：:]', prefix[:metric.end()])[-1].strip()
-                year_tokens = re.findall(r'20\d{2}', prefix)
-                region_names = {regions[x] for x in re.findall('|'.join(regions), quote)}
                 value_match = re.fullmatch(r'([+-]?[\d,.]+)\s*(.*)', number.group())
+                period, region = metric_period_region(quote, metric.group(), value_match[1], value_match[2])
                 context = {'metric': metric.group(), 'value': value_match[1], 'unit': value_match[2],
                            'definition': definition if any(str(n).lower() in definition.lower() for n in subjects if n) else '',
-                           'geography': next(iter(region_names)) if len(region_names) == 1 else '',
-                           'period': year_tokens[0] if len(set(year_tokens)) == 1 else '',
+                           'geography': region, 'period': period,
                            'is_forecast': local_forecast_attribute(quote, metric.group(), value_match[1], value_match[2]) is True}
                 numeric_cards.append({**base, 'numeric_context': context})
             if numeric_cards:
                 selected.extend(numeric_cards[:3])
-            elif meta.get('module') == '商业模式与盈利逻辑' and re.search(business_pattern, quote):
+            elif task_match or (meta.get('module') == '商业模式与盈利逻辑' and re.search(business_pattern, quote)):
                 # Isolate qualitative business evidence from unrelated page-level numbers.
                 selected.append(base)
-            if len(selected) >= 6:
-                break
-        facts.extend(selected[:6])
+        # Reserve qualitative conditions/chain passages as well as numeric
+        # cards; early market statistics must not consume the entire source.
+        from industry_grounding import passage_tasks
+        reserved, covered = [], set()
+        for card in selected:
+            tasks = passage_tasks(card)
+            if tasks - covered:
+                reserved.append(card); covered |= tasks
+        facts.extend((reserved + [c for c in selected if c not in reserved])[:10])
     return facts
 
 
@@ -650,7 +705,7 @@ def unique_search_queries(rows: list[dict], seen: set) -> list[dict]:
     return distinct
 
 
-NUMBER_UNITS = r'%|％|万亿元|万亿美元|亿元|万元|亿美元|万美元|美元|人民币元|元|EB|PB|TB|GB|MB|EFLOPS|PFLOPS|TFLOPS'
+NUMBER_UNITS = r'%|％|万亿元|万亿美元|亿元|万元|亿美元|万美元|美元|人民币元|元|EB|PB|TB|GB|MB|EFLOPS|PFLOPS|TFLOPS|tokens?/s|ms|毫秒'
 NUMBER_PATTERN = rf'(?<![A-Za-z0-9_.+\-])[+-]?\d[\d,.]*\s*(?i:{NUMBER_UNITS})(?![A-Za-z0-9_])'
 EVIDENCE_ID_PATTERN = r'(?<![A-Z0-9-])E-[A-Z0-9-]{6,}(?![A-Z0-9-])'
 
@@ -777,6 +832,11 @@ def mark_unverified_numbers(section: str, facts: list[dict]) -> str:
 
 def annotate_fact(fact: dict, scope: dict) -> dict:
     item = dict(fact)
+    from industry_grounding import sample_boundary, metric_period_region
+    boundary = sample_boundary(item)
+    if boundary:
+        item.update(evidence_scope='representative_company', eligible_for_risk_scoring=False,
+                    attribution_boundary=boundary, sample_boundary_reason=boundary)
     from industry_claims import public_source_type
     origin = public_source_type(item.get('source_url'))
     if origin == 'web_search' and str(item.get('source_url') or '').startswith(('http://', 'https://')) and (
@@ -792,6 +852,8 @@ def annotate_fact(fact: dict, scope: dict) -> dict:
             item['fact'] = quote
             item['grounding_status'] = 'numeric_source_quote'
     blob = ' '.join(str(item.get(key) or '') for key in ('fact', 'evidence_quote', 'source_title'))
+    if item.get('cleaning_method')=='industry_rule' and item.get('evidence_quote_verified') is True:
+        blob += ' '+str(item.get('scope_anchor_quote') or '')
     declared = str(item.get('scope_match') or '')
     names = [scope.get('industry_name'), *scope.get('segments', []), *scope.get('named_companies', [])]
     actual_match = any(str(name).lower().replace(' ', '') in blob.lower().replace(' ', '') for name in names if name)
@@ -819,6 +881,16 @@ def annotate_fact(fact: dict, scope: dict) -> dict:
                                           context.get('value'), str(context.get('unit') or ''))
         if nature is not None:
             context['is_forecast'] = nature
+        local_period, local_region = metric_period_region(str(item.get('evidence_quote') or ''), str(context.get('metric') or ''), context.get('value'), str(context.get('unit') or ''))
+        if local_region:
+            context['geography'] = local_region
+        # A cutoff year or publication year is not the metric's statistical year.
+        claimed_years = re.findall(r'20\d{2}',str(context.get('period') or ''))
+        if claimed_years and any(y not in str(item.get('evidence_quote') or '') for y in claimed_years):
+            context['period'] = ''
+            item['period_validation_warning'] = '数值引文未给出所填统计期，不能以报告截止日期补齐。'
+        elif local_period and (not context.get('period') or len(set(claimed_years))==1):
+            context['period'] = local_period
         item['numeric_context'] = context
     identity = str(item.get('source_url') or '') + '\n' + str(item.get('fact') or '')
     if item.get('cleaning_method') == 'industry_rule':
@@ -916,6 +988,11 @@ def append_evidence_index(report: str, payload: dict, outline: list, packages: d
         chapter_ids[index] = [f.get('evidence_id') for f in selected if f.get('evidence_id')]
         chapter_match = re.search(rf'(?ms)^##\s*{index}[.、．][^\n]*\n(.*?)(?=^##\s*\d+[.、．]|\Z)', report)
         mentioned = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', chapter_match[1], re.I)) if chapter_match else set()
+        if index == 14:
+            # This chapter is rendered from the validated risk artifact, not a
+            # model prompt. Its exact referenced facts define its source set.
+            selected = [f for f in facts if f.get('evidence_id') in mentioned and f.get('eligible_for_report') is not False]
+            chapter_ids[index] = [f['evidence_id'] for f in selected]
         for fact in selected:
             eid = str(fact.get('evidence_id') or '')
             url = str(fact.get('source_url') or '')
@@ -934,9 +1011,13 @@ def append_evidence_index(report: str, payload: dict, outline: list, packages: d
         fact = record['fact']
         locator = ((fact.get('provenance') or {}).get('locator') or {})
         location = ('原文位置：' + str(locator.get('start')) + '–' + str(locator.get('end'))) if locator.get('status') == 'verified' else '原文定位待核验'
-        source = cell(fact.get('source_title')) + '<br>' + record['url'] + '<br>' + cell(fact.get('date') or fact.get('fact_date') or '日期待核验') + '<br>' + location
+        version = str(locator.get('body_version_id') or ('sha256:'+locator['body_sha256'] if locator.get('body_sha256') else '正文版本待核验'))
+        source = cell(fact.get('source_title')) + '<br>' + record['url'] + '<br>发布：' + cell(fact.get('published_date') or fact.get('date') or fact.get('fact_date') or '日期待核验') + '<br>' + location + ' / ' + version
         chapters = '、'.join(str(n) for n in sorted(record['chapters']))
-        rows.append(f'| {eid}（第{chapters}章） | {source} | {cell(record["text"])} | {cell(fact.get("provider") or fact.get("source_type") or "保存来源正文")} / {cell(fact.get("source_grade"))} |')
+        from industry_grounding import complete_excerpt
+        from urllib.parse import urlsplit
+        excerpt = complete_excerpt(record['text'],160) or (risk_fact_text(fact) if (fact.get('numeric_validation') or {}).get('passed') else '')
+        rows.append(f'| {eid}（第{chapters}章） | {source} | {cell(excerpt or "完整原文见定位；本摘录不足以单独形成判断，待核验。")} | {cell(fact.get("publisher") or fact.get("provider") or urlsplit(record["url"]).hostname or fact.get("source_type") or "保存来源正文")} / {cell(fact.get("source_grade"))} |')
     lines = ['## 15. 信息来源（自动生成审计索引）', '',
              '本索引列出章节正文实际引用且属于对应证据包的事实编号；同一来源的不同事实可支持多个章节。', '',
              '| 证据编号及支持章节 | 原始来源与定位 | 信息点 | 获取方式与信源等级 |',
@@ -954,6 +1035,8 @@ def append_evidence_index(report: str, payload: dict, outline: list, packages: d
                      'evidence_ids': sorted(cited_ids), 'chapter_evidence_ids': chapter_ids,
                      'numeric_evidence': {f['evidence_id']: {'validation': f.get('numeric_validation') or {},
                                          'fact': str(f.get('fact', ''))[:900], 'context': f.get('numeric_context') or {},
+                                         'evidence_quote': f.get('evidence_quote',''), 'source_title':f.get('source_title',''),
+                                         'claim_type':f.get('claim_type'), 'module':f.get('module'),
                                          'source_url': f.get('source_url', ''), 'evidence_scope': f.get('evidence_scope'),
                                          'eligible_for_risk_scoring': f.get('eligible_for_risk_scoring')}
                                           for f in facts if f.get('evidence_id') in cited_ids}}
@@ -987,7 +1070,7 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
             errors.append(f'第{chapter}章引用了不属于本章的证据编号：' + '、'.join(sorted(missing)))
         if ids & allowed and chapter < 15:
             cited_chapters += 1
-        if chapter not in disabled and len(re.sub(r'\s+', '', body)) >= 120 and not ids & allowed:
+        if chapter not in disabled and chapter != 16 and len(re.sub(r'\s+', '', body)) >= 120 and not ids & allowed:
             errors.append(f'第{chapter}章存在分析正文但缺少有效证据编号。')
         if chapter in {3, 4, 6, 7} and not ids & allowed:
             errors.append(f'核心第{chapter}章缺少有效政策、规模、竞争或技术证据。')
@@ -999,6 +1082,8 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
             cards = [{'evidence_id':eid, 'source_url':numeric.get(eid, {}).get('source_url', ''),
                       'evidence_scope':numeric.get(eid, {}).get('evidence_scope'),
                       'eligible_for_risk_scoring':numeric.get(eid, {}).get('eligible_for_risk_scoring'),
+                      'fact':numeric.get(eid,{}).get('fact',''), 'evidence_quote':numeric.get(eid,{}).get('evidence_quote',''),
+                      'source_title':numeric.get(eid,{}).get('source_title',''), 'claim_type':numeric.get(eid,{}).get('claim_type'),
                       'numeric_context':numeric.get(eid, {}).get('context') or {},
                       'numeric_validation':numeric.get(eid, {}).get('validation') or {}} for eid in line_ids]
             for issue in claim_semantic_issues(line, cards):
@@ -1010,6 +1095,9 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
                 supported = any(numeric_supported(number, eid, numeric) for eid in line_ids)
                 if not supported and '待核验' not in line:
                     errors.append(f'第{chapter}章数值 {number} 缺少同一行的有效口径证据或待核验标注。')
+        from industry_claims import table_completeness_issues
+        for issue in table_completeness_issues(body):
+            errors.append(f'第{chapter}章表格核验：'+issue['message'])
     if not valid or cited_chapters < 4:
         errors.append('至少四个研究章节需要引用有效事实，当前证据覆盖不足。')
     market_ids = set((diagnostic.get('chapter_evidence_ids') or {}).get(4,
@@ -1051,11 +1139,14 @@ def trace_snapshot(events: list[dict], limit: int = 2000) -> tuple[list[dict], d
 
 def balanced_risk_facts(facts: list[dict], limit: int = 60) -> list[dict]:
     from industry_evidence import evidence_requirements, fact_requirement_ids
+    from industry_grounding import sample_boundary
     groups = {}
     for fact in facts:
         if not isinstance(fact, dict) or fact.get('eligible_for_risk_scoring') is False or fact.get('scope_match') != 'in_scope':
             continue
         if fact.get('evidence_scope') not in {'industry_level', 'segment_level', 'capital_market'}:
+            continue
+        if sample_boundary(fact):
             continue
         if (fact.get('module') == '竞争格局与代表企业'
                 and not risk_fact_applicable(fact, '竞争格局与集中度风险')):

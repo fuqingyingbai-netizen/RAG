@@ -310,7 +310,7 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     assert report.artifact_metadata['claim_ledger_artifact_id']==ledger_artifact.id
     assert all(c['entailment_status']=='not_evaluated' for c in ledger['claims'])
     cleaned_contract=json.loads(next(a.content for a in artifacts if a.artifact_type=='cleaned_facts'))
-    assert cleaned_contract['evidence_coverage']['version']=='industry-evidence-contract-v1'
+    assert cleaned_contract['evidence_coverage']['version']=='industry-evidence-contract-v2-atomic-passages'
 
     # A newer review draft must survive resume even if an older candidate exists.
     older = SimpleNamespace(id=999, artifact_type='desktop_report', title='旧候选稿', version=1,
@@ -352,7 +352,7 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     new_risk=next(a for a in refreshed if a.artifact_type=='risk_assessment')
     new_report=next(a for a in refreshed if a.artifact_type=='desktop_report')
     assert len(risk_calls)==1 and new_risk.id!=prior_risk.id
-    assert new_risk.artifact_metadata['risk_pipeline_version']=='industry-risk-v6-claim-contracts'
+    assert new_risk.artifact_metadata['risk_pipeline_version']=='industry-risk-v7-sample-boundaries'
     assert 'reexported_from_artifact_id' not in new_report.artifact_metadata
 
     # Same source set and pipeline version do not authorize a stale downstream

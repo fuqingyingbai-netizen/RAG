@@ -74,7 +74,10 @@ def test_unsupported_numeric_unit_fails_closed():
 def test_original_model_prose_is_diagnostic_only_and_never_writer_evidence():
     card=numeric_card()
     sent=json.loads(bounded_package({'facts':[card]}))['facts'][0]
-    assert sent['fact']==QUOTE and 'original_model_fact' not in sent
+    # Writers get only the authorized metric; the multi-metric source quote is
+    # retained separately for audit and must not license its unrelated growth.
+    assert '101.34EB' in sent['fact'] and '42.86%' not in sent['fact']
+    assert 'original_model_fact' not in sent and card['evidence_quote']==QUOTE
 
 
 def test_industry_annual_report_is_not_a_company_filing():

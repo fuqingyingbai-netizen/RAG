@@ -28,6 +28,8 @@ INDUSTRY_FEW_SHOT = """
 - 第14章须区分模型风险分、指标证据覆盖和评分可信度；评分尚未人工校准，原文引用通过不能表述为评分可靠，不能虚构可信度概率。
 - 数值字段完整或原文可定位不能写成来源真实性已验证、证据充分或高确定性；同一行不能同时标已验证和待核验。来源观点必须明确归属。
 - 企业数量不能推出市场集中度；跨期或未授权的增速不能直接比较。发布与施行日期分开，处罚上限绑定违法类型；律所及企业解读不得称为政策原文。
+- 上市企业或供应商样本只能列为样本观察，来源自己称“行业平均”也不能据此外推。占比不能推出进入壁垒，缺少执行材料不能推出政策执行效力存疑。
+- 只列有来源的预测，不自建未经计算验证的金额或区间；“待核验”不能授权新增预测值。不得将本章选证范围扩大为“所有清洗事实/全部公开资料均无”。
 """
 
 # Evidence-density-driven chapter writing (company v8 pattern):
@@ -94,10 +96,13 @@ class IndustryReportAgent:
         # Chapter 9: when capital_market is "none", skip the model call.
         industry_scope = getattr(project, "industry_scope", {}) or {}
         capital_market = str(industry_scope.get("capital_market") or "")
+        from industry_delivery import risk_status_section, tasks_section, finalize_synthesis
+        sections_by_index[14] = risk_status_section(risk, industry_scope, self.outline[13][0])
+        sections_by_index[16] = tasks_section([], self.outline[15][0])
 
         # Pre-allocate zero-evidence chapters and capital_market=none chapter.
         for index, (section_title, _requirements) in enumerate(self.outline, 1):
-            if index in {15, 16}:
+            if index in {14, 15, 16}:
                 continue
             fact_count = section_fact_counts.get(index, 0)
             if index == 12 and not industry_scope.get("named_companies"):
@@ -173,6 +178,8 @@ class IndustryReportAgent:
         if not draft.strip():
             return ""
         final = self._edit(project, draft, risk_json, section_fact_counts, invoke, clip, emit, trace_emit)
+        final, tasks = finalize_synthesis(final, payload, risk, project.industry_report_degradations, industry_scope)
+        project.industry_verification_tasks = tasks
         final = ensure_delivery_sections(project, final, self.report_kind)
         emit(trace_emit, "report", self.trace_agent, "目标行业桌面研究报告完成", f"chars={len(final)}", chars=len(final), status="done")
         return final
@@ -297,14 +304,12 @@ class IndustryReportAgent:
             # Render the single authorized metric with its nature in the same
             # clause. Raw multi-metric quotes remain in the audit library.
             text = risk_fact_text(fact)
+            from industry_grounding import sample_boundary, complete_excerpt
+            boundary = sample_boundary(fact)
+            if boundary:
+                text = f'样本观察（{boundary}）：' + text
             if len(text) > 700:
-                parts = re.split(r'(?<=[。！？；;，])', text)
-                text = ''
-                for part in parts:
-                    if len(text + part) > 700:
-                        break
-                    text += part
-                text = text or '原文较长，具体内容待核验。'
+                text = complete_excerpt(text,700) or '原文较长，具体内容待核验。'
             line = f'- {text} [{fact["evidence_id"]}]({fact.get("source_url", "")})'
             line = mark_unverified_numbers(line, [fact])
             if claim_semantic_issues(line, [fact]):
@@ -344,6 +349,8 @@ class IndustryReportAgent:
             reasons.append('invalid_citation')
         if index == 1 and summary_length(section) > 600:
             reasons.append('summary_too_long')
+        if index != 1 and re.search(r'(?m)^###\s*(?:摘要|行业基础定义与产业链全景)\s*$',section):
+            reasons.append('section_task_conflict')
         return reasons
 
     def _validate_section(self, section, package, index, title, invoke, emit, trace_emit, degradations=None):
@@ -396,6 +403,11 @@ class IndustryReportAgent:
                               'growth_comparison_unsupported':'增速比较口径不足', 'policy_primary_source_missing':'缺少政策原文',
                               'policy_penalty_scope_conflict':'处罚适用类型错误', 'policy_effective_date_conflict':'政策生效日期错误',
                               'evidence_gap_as_business_risk':'证据缺口误作经营风险'}
+                    labels.update({'entry_barrier_inference_unsupported':'进入壁垒推断缺证',
+                        'evidence_gap_as_policy_effect':'缺证误作执行低效','derived_forecast_unvalidated':'新增预测数值缺少验证',
+                        'policy_causal_inference_unsupported':'政策效果推断缺证','evidence_absence_overstated':'选证范围被扩大',
+                        'sample_extrapolation_unsupported':'企业样本外推行业','table_total_incomplete':'表格列示与总数不一致',
+                        'section_task_conflict':'子标题与本章任务不符'})
                     explanation = '、'.join(labels.get(reason, reason) for reason in repair_reasons)
                     degradations.append({'chapter': index, 'initial_validation_reasons': initial_reasons,
                         'repair_validation_reasons': repair_reasons,
