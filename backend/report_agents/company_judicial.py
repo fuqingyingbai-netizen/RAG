@@ -17,6 +17,12 @@ DETAILS={'get_judicial_documents':'裁判文书','get_service_announcement':'劳
 CASE=re.compile(r'[（(]\d{4}[）)][\w\u4e00-\u9fff]+?\d+号(?:之[一二三四五六七八九十\d]+)?')
 
 
+def displayed_case_key(record):
+    """Exact case/version anchor for a cross-chapter display reference."""
+    return tuple(compact(record.get(k)) for k in ('source_url','case_description','period','page',
+                 'amount','stage','execution','result'))
+
+
 def markdown_tables(text):
     header=None
     for line in text.splitlines():
@@ -58,9 +64,12 @@ def stage(result):
 
 def _base(card,source,kind):
     eid=card['evidence_id']
+    metadata=get(source,'source_metadata',{}) or {}
+    queried=metadata.get('retrieved_at')
+    created=get(source,'created_at')
     return {'kind':kind,'source_url':str(get(source,'url')),'source_title':str(get(source,'title')),
-            'evidence_id':eid,'evidence_ids':[eid],'retrieved_at':str(get(source,'created_at') or
-             (get(source,'source_metadata',{}) or {}).get('retrieved_at') or '查询时间未留存')}
+            'evidence_id':eid,'evidence_ids':[eid],'retrieved_at':str(queried or created or '查询时间未留存'),
+            'retrieved_at_basis':'query_metadata' if queried else ('source_created_at' if created else 'unknown')}
 
 
 def _structured(raw,tool,target,base,counts):
@@ -271,7 +280,10 @@ def render_judicial(p):
                     'not_configured':'未配置接入','initialization_failed':'连接初始化失败',
                     'transport_failed':'网络调用异常'}.get(attempt.get('reason'),'平台暂不可用')
             lines+=['- 专业平台尚未查询：'+attempt.get('tool','风险接口')+'（'+reason+'）；不计为无记录，需补齐查询。']
-    for c in p['coverage']:lines+=['- '+c['fact']+'；'+c['retrieved_at']+' '+refs(c)]
+    for c in p['coverage']:
+        date=c['retrieved_at']
+        if c.get('retrieved_at_basis')=='source_created_at':date='入库时间'+date+'（原查询时间未单列）'
+        lines+=['- '+c['fact']+'；'+date+' '+refs(c)]
     scans=[r for r in f if r['kind']=='scan']
     if scans:lines+=_table(['扫描因子','接口条目数','明细工具与证据'],[[r['factor'],str(r['count']),r['detail_tool']+'；'+refs(r)] for r in scans])
     for r in f:

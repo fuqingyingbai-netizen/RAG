@@ -380,7 +380,11 @@ def _cell(value):
 
 
 def refs(record):
-    return ''.join(f'[{eid}]' for eid in record['evidence_ids'])
+    return ''.join(f'[{eid}]' for eid in dict.fromkeys(record['evidence_ids']))
+
+
+def combined_refs(records):
+    return refs({'evidence_ids':[eid for record in records for eid in record['evidence_ids']]})
 
 
 def provenance(record):

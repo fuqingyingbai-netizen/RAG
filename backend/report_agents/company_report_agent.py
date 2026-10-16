@@ -20,7 +20,7 @@ from .company_summary import (
     package_fingerprint,
     summary_errors,
 )
-from .company_governance import build_governance_package, render_governance, governance_errors
+from .company_governance import build_governance_package, render_governance, governance_errors, cited_evidence_ids
 from .company_history import build_history_package, render_history, history_errors
 from .company_operations import build_operations_package, render_operations, operations_errors
 from .company_reputation import build_reputation_package, render_reputation, reputation_errors
@@ -228,7 +228,7 @@ class CompanyReportAgent:
                 project.company_governance_package = package_payload
                 chapter = self._write_governance(project, package_payload, emit, trace_emit)
                 sections_by_index[2] = chapter
-                section_evidence_ids[2] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+                section_evidence_ids[2] = sorted(set(cited_evidence_ids(chapter)))
             elif index == 3:
                 try:
                     parsed = json.loads(cleaned_json or "{}")
@@ -242,7 +242,7 @@ class CompanyReportAgent:
                 project.company_history_package = package_payload
                 chapter = self._write_history(project, package_payload, emit, trace_emit)
                 sections_by_index[3] = chapter
-                section_evidence_ids[3] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+                section_evidence_ids[3] = sorted(set(cited_evidence_ids(chapter)))
             elif index == 4:
                 try:
                     parsed = json.loads(cleaned_json or "{}")
@@ -256,7 +256,7 @@ class CompanyReportAgent:
                 project.company_operations_package = package_payload
                 chapter = self._write_operations(project, package_payload, emit, trace_emit)
                 sections_by_index[4] = chapter
-                section_evidence_ids[4] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+                section_evidence_ids[4] = sorted(set(cited_evidence_ids(chapter)))
             elif index == 5:
                 try:
                     parsed = json.loads(cleaned_json or "{}")
@@ -269,7 +269,7 @@ class CompanyReportAgent:
                 project.company_reputation_package = package_payload
                 chapter = self._write_reputation(project, package_payload, emit, trace_emit)
                 sections_by_index[5] = chapter
-                section_evidence_ids[5] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+                section_evidence_ids[5] = sorted(set(cited_evidence_ids(chapter)))
             elif index == 6:
                 try:
                     parsed = json.loads(cleaned_json or "{}")
@@ -282,7 +282,7 @@ class CompanyReportAgent:
                 project.company_business_package = package_payload
                 chapter = self._write_business(project, package_payload, emit, trace_emit)
                 sections_by_index[6] = chapter
-                section_evidence_ids[6] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+                section_evidence_ids[6] = sorted(set(cited_evidence_ids(chapter)))
             elif index == 7:
                 try:
                     parsed = json.loads(cleaned_json or "{}")
@@ -295,7 +295,7 @@ class CompanyReportAgent:
                 project.company_management_package = package_payload
                 chapter = self._write_management(project, package_payload, emit, trace_emit)
                 sections_by_index[7] = chapter
-                section_evidence_ids[7] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+                section_evidence_ids[7] = sorted(set(cited_evidence_ids(chapter)))
             elif index == 8:
                 try:
                     parsed = json.loads(cleaned_json or "{}")
@@ -308,7 +308,7 @@ class CompanyReportAgent:
                 project.company_people_package = package_payload
                 chapter = self._write_people(project, package_payload, emit, trace_emit)
                 sections_by_index[8] = chapter
-                section_evidence_ids[8] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+                section_evidence_ids[8] = sorted(set(cited_evidence_ids(chapter)))
             elif index == 9:
                 try:
                     parsed = json.loads(cleaned_json or "{}")
@@ -322,7 +322,7 @@ class CompanyReportAgent:
                 project.company_judicial_package = package_payload
                 chapter = self._write_judicial(project, package_payload, emit, trace_emit)
                 sections_by_index[9] = chapter
-                section_evidence_ids[9] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+                section_evidence_ids[9] = sorted(set(cited_evidence_ids(chapter)))
             elif index == 10:
                 try:
                     parsed = json.loads(cleaned_json or "{}")
@@ -338,7 +338,7 @@ class CompanyReportAgent:
                 project.company_diligence_package = package_payload
                 chapter = self._write_diligence(project, package_payload, emit, trace_emit)
                 sections_by_index[10] = chapter
-                section_evidence_ids[10] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+                section_evidence_ids[10] = sorted(set(cited_evidence_ids(chapter)))
             elif index == 11:
                 try:
                     parsed = json.loads(cleaned_json or "{}")
@@ -350,11 +350,12 @@ class CompanyReportAgent:
                     industry=str(getattr(project, "industry", "") or ""),
                     intake=getattr(project, "company_research_intake", {}),
                     query_attempts=getattr(project, "company_judicial_query_attempts", []),
+                    displayed_judicial=getattr(project,"company_judicial_package",{}),
                 )
                 project.company_risk_register_package = package_payload
                 chapter = self._write_risk_register(project, package_payload, emit, trace_emit)
                 sections_by_index[11] = chapter
-                section_evidence_ids[11] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+                section_evidence_ids[11] = sorted(set(cited_evidence_ids(chapter)))
             elif index == 12:
                 try:
                     parsed = json.loads(cleaned_json or "{}")
@@ -369,7 +370,7 @@ class CompanyReportAgent:
                 project.company_assessment_package = package_payload
                 chapter = self._write_assessment(project, package_payload, emit, trace_emit)
                 sections_by_index[12] = chapter
-                section_evidence_ids[12] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I)))
+                section_evidence_ids[12] = sorted(set(cited_evidence_ids(chapter)))
             elif index <= 12:
                 package = _focused_cleaned_json(
                     cleaned_json,
@@ -490,7 +491,7 @@ class CompanyReportAgent:
         summary = self._write_summary(project, cleaned_json, sections_by_index, invoke, emit, trace_emit)
         sections_by_index[1] = summary
         # Only IDs actually cited in the checked summary count as its usage.
-        section_evidence_ids[1] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", summary, flags=re.I)))
+        section_evidence_ids[1] = sorted(set(cited_evidence_ids(summary)))
         sections = [sections_by_index[index] for index in range(1, len(self.outline) + 1) if sections_by_index.get(index)]
         draft = "\n\n".join(sections)
         if not draft.strip():
@@ -542,7 +543,7 @@ class CompanyReportAgent:
             "version": package["version"], **package["diagnostic"],
             "conflicts": package["conflicts"], "information_gaps": package["information_gaps"],
             "errors": errors, "degraded": bool(errors),
-            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
         }
         emit(trace_emit, "report", self.trace_agent, "第二章按字段证据完成核对与排版",
              json.dumps(project.company_governance_diagnostic, ensure_ascii=False),
@@ -555,7 +556,7 @@ class CompanyReportAgent:
         project.company_history_diagnostic = {
             "version": package["version"], **package["diagnostic"], "errors": errors,
             "degraded": bool(errors), "information_gaps": package["information_gaps"],
-            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
         }
         emit(trace_emit, "report", self.trace_agent, "第三章沿革与成长质量核对完成",
              json.dumps(project.company_history_diagnostic, ensure_ascii=False),
@@ -568,7 +569,7 @@ class CompanyReportAgent:
         project.company_operations_diagnostic = {
             "version": package["version"], **package["diagnostic"], "errors": errors,
             "degraded": bool(errors), "information_gaps": package["information_gaps"],
-            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
         }
         emit(trace_emit, "report", self.trace_agent, "第四章治理制度与运行记录核对完成",
              json.dumps(project.company_operations_diagnostic, ensure_ascii=False),
@@ -581,7 +582,7 @@ class CompanyReportAgent:
         project.company_reputation_diagnostic = {
             "version": package["version"], **package["diagnostic"], "errors": errors,
             "degraded": bool(errors), "information_gaps": package["information_gaps"],
-            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
         }
         emit(trace_emit, "report", self.trace_agent, "第五章评价主体与同口径对标核对完成",
              json.dumps(project.company_reputation_diagnostic, ensure_ascii=False),
@@ -594,7 +595,7 @@ class CompanyReportAgent:
         project.company_business_diagnostic = {
             "version": package["version"], **package["diagnostic"], "errors": errors,
             "degraded": bool(errors), "information_gaps": package["information_gaps"],
-            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
         }
         emit(trace_emit, "report", self.trace_agent, "第六章业务口径与研发阶段核对完成",
              json.dumps(project.company_business_diagnostic, ensure_ascii=False),
@@ -607,7 +608,7 @@ class CompanyReportAgent:
         project.company_management_diagnostic = {
             "version": package["version"], **package["diagnostic"], "errors": errors,
             "degraded": bool(errors), "information_gaps": package["information_gaps"],
-            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
         }
         emit(trace_emit, "report", self.trace_agent, "第七章人员任职与时点核对完成",
              json.dumps(project.company_management_diagnostic, ensure_ascii=False),
@@ -620,7 +621,7 @@ class CompanyReportAgent:
         project.company_people_diagnostic = {
             "version": package["version"], **package["diagnostic"], "errors": errors,
             "degraded": bool(errors), "information_gaps": package["information_gaps"],
-            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
         }
         emit(trace_emit, "report", self.trace_agent, "第八章人员指标与文化实践核对完成",
              json.dumps(project.company_people_diagnostic, ensure_ascii=False),
@@ -633,7 +634,7 @@ class CompanyReportAgent:
         project.company_judicial_diagnostic = {
             "version": package["version"], **package["diagnostic"], "errors": errors,
             "degraded": bool(errors), "information_gaps": package["information_gaps"],
-            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
         }
         emit(trace_emit, "report", self.trace_agent, "第九章司法记录与范围核对完成",
              json.dumps(project.company_judicial_diagnostic, ensure_ascii=False),
@@ -646,7 +647,7 @@ class CompanyReportAgent:
         project.company_diligence_diagnostic = {
             "version": package["version"], **package["diagnostic"], "errors": errors,
             "degraded": bool(errors), "information_gaps": package["information_gaps"],
-            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
         }
         emit(trace_emit, "report", self.trace_agent, "第十章专项对象与核查边界核对完成",
              json.dumps(project.company_diligence_diagnostic, ensure_ascii=False),
@@ -659,7 +660,7 @@ class CompanyReportAgent:
         project.company_risk_register_diagnostic = {
             "version": package["version"], **package["diagnostic"], "errors": errors,
             "degraded": bool(errors), "information_gaps": package["information_gaps"],
-            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
         }
         emit(trace_emit, "report", self.trace_agent, "第十一章具体风险与模板核查目录核对完成",
              json.dumps(project.company_risk_register_diagnostic, ensure_ascii=False),
@@ -672,7 +673,7 @@ class CompanyReportAgent:
         project.company_assessment_diagnostic = {
             "version": package["version"], **package["diagnostic"], "errors": errors,
             "degraded": bool(errors), "information_gaps": package["information_gaps"],
-            "cited_evidence_ids": sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", chapter, re.I))),
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
         }
         emit(trace_emit, "report", self.trace_agent, "第十二章公司评价及评分计算核对完成",
              json.dumps(project.company_assessment_diagnostic, ensure_ascii=False),
@@ -732,10 +733,10 @@ class CompanyReportAgent:
             rebuilt_errors = summary_errors(rebuilt, package)
             diagnostic["errors"] = rebuilt_errors
             diagnostic["degraded"] = bool(rebuilt_errors)
-            diagnostic["cited_evidence_ids"] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", rebuilt, flags=re.I)))
+            diagnostic["cited_evidence_ids"] = sorted(set(cited_evidence_ids(rebuilt)))
             emit(trace_emit, "report", self.trace_agent, "公司摘要已按原文事实重建", "模型草稿越界；" + "；".join(errors), status="fallback")
             return rebuilt
-        diagnostic["cited_evidence_ids"] = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", answer, flags=re.I)))
+        diagnostic["cited_evidence_ids"] = sorted(set(cited_evidence_ids(answer)))
         emit(trace_emit, "report", self.trace_agent, "公司摘要完成且通过结构与引用校验", f"chars={len(answer)}, delivered_cards={len(package['facts'])}", status="done")
         return answer
 

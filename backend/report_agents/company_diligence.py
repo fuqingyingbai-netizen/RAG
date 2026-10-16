@@ -9,10 +9,10 @@ from urllib.parse import urlparse
 from opencc import OpenCC
 
 from .company_evidence import source_body, document_pages, pending_ocr_notice
-from .company_governance import EID, get, refs, _table
+from .company_governance import EID, get, refs, _table, cited_evidence_ids
 from .company_history import _issuer_hosts
 
-VERSION='company-diligence-v1'
+VERSION='company-diligence-v2-cross-chapter-display'
 TITLE='定向穿透专项尽职调查'
 _CC=OpenCC('t2s')
 LEGAL=r'[\u4e00-\u9fffA-Za-z（）()·]{2,55}(?:股份有限公司|有限责任公司|有限公司)'
@@ -378,7 +378,9 @@ def build_diligence_package(cleaned,target,sources=None,*,prior_packages=None,in
             records.append({**r,'kind':'financing','stream':'融资情况','entity':target,'mode':'第三章已核对的具体融资事件；用途仍按原件核对'})
     for r in prior_packages.get('judicial',{}).get('facts',[]):
         if r.get('kind')=='disclosed_case' and re.search(r'执行|未决|审理',r.get('stage','')+r.get('execution','')):
-            records.append({**r,'kind':'execution_followup','stream':'追偿与执行','entity':r.get('case_description') or target,'mode':'第九章具体案件接续，不重复作司法风险结论'})
+            records.append({**r,'kind':'execution_followup','stream':'追偿与执行','entity':r.get('case_description') or target,
+                            'display_reference':{'chapter':9,'section':'发行人及专项法律文件列示事项'},
+                            'mode':'第九章具体案件接续，不重复作司法风险结论'})
     # Keep concrete examples of distinct states as triggers. Chapter 9 retains
     # all rows; repeating them here would neither complete nor deepen the check.
     encumbrances=defaultdict(list)
@@ -415,8 +417,7 @@ def build_diligence_package(cleaned,target,sources=None,*,prior_packages=None,in
         # At most three explicit triggers, preserving scope and chronology.
         chosen=select_rows(rs,3)
         tasks.append({'task_id':'D10-'+str(len(tasks)+1).zfill(2),'stream':stream,'triggers':chosen,
-                      'object':chosen[0]['entity']+'；'+str(chosen[0].get('period') or chosen[0].get('date') or '记录时期未绑定')+'；'+
-                               (chosen[0]['case_description']+'；执行情况：'+chosen[0].get('execution','待核') if chosen[0].get('case_description') else chosen[0]['fact']),
+                      'object':task_object(chosen[0]),
                       'action':action,'materials':materials,'closure_criteria':close,'status':'待核验，未发送函证/未完成线下尽调',
                       'evidence_ids':sorted({e for r in chosen for e in r['evidence_ids']}),
                       'priority':'具体证据触发的核验事项；核验顺序不等于风险等级'})
@@ -449,6 +450,27 @@ def build_diligence_package(cleaned,target,sources=None,*,prior_packages=None,in
                           'task_count':len(tasks),'filters':dict(counts)}}
 
 
+def task_object(record):
+    parts=[record['entity'],str(record.get('period') or record.get('date') or '记录时期未绑定')]
+    if record.get('case_description'):
+        if folded(record['case_description'])!=folded(record['entity']):parts.append(record['case_description'])
+        parts.append('执行情况：'+record.get('execution','待核'))
+    else:
+        fact=record['fact']
+        # Detailed allocations remain in the financing table, once. A short
+        # trigger keeps its actual amount, never just a generic checklist.
+        if record.get('kind')=='fund_use' and '其中' in fact:fact=fact.split('其中',1)[0].rstrip('，,；; ')
+        parts.append(fact)
+    return '；'.join(parts)
+
+
+def display_diligence_fact(record):
+    if record.get('kind')=='execution_followup' and (record.get('display_reference') or {}).get('chapter')==9:
+        return ('原件案件阶段：'+record.get('stage','待核')+'；执行披露：'+record.get('execution','待核')
+                +'；涉案金额字段：'+record.get('amount','待核')+'；判决主文及诉讼费用详见第九章同事项。')
+    return record['fact']
+
+
 def render_diligence(p):
     lines=['## 10. '+TITLE,'','### 本项目核查方向与触发依据','']
     for request in p.get('research_requests') or []:lines+=['- 项目输入的研究要求：'+request.replace('E-','E－')+'（作为研究范围，未作为企业事实）']
@@ -469,7 +491,7 @@ def render_diligence(p):
         selected=select_rows(group,quota)
         lines+=['本节证据包保留'+str(len(group))+'项原文记录，以下展示'+str(len(selected))+'项；按来源时期分别理解，不作全量覆盖结论。','']
         lines+=_table(['主体/文件期','原文核对记录','含义与边界','出处'],[
-            [r['entity']+'；'+r.get('period','原记录时期'),r['fact'],r.get('mode','')+'；'+r.get('stage_note','')+'；'+r.get('negotiation_note',''),
+            [r['entity']+'；'+r.get('period','原记录时期'),display_diligence_fact(r),r.get('mode','')+'；'+r.get('stage_note','')+'；'+r.get('negotiation_note',''),
              refs(r)+(f"（物理页{r['page']}）" if r.get('page') else '')] for r in selected])
     relations=[r for r in p['facts'] if r['kind']=='relationship']
     if relations:
@@ -491,5 +513,5 @@ def diligence_errors(text,p):
     if text.strip()!=render_diligence(p).strip():errors.append('第十章出现未受定向核查证据或明确委托支持的改写')
     if not p['tasks']:errors.append('第十章尚无具体证据触发的专项核查对象')
     allowed={e for r in p['facts'] for e in r['evidence_ids']}
-    if set(re.findall(r'\bE-[A-Z0-9-]{6,}\b',text,re.I))-allowed:errors.append('第十章存在未知证据编号')
+    if set(cited_evidence_ids(text))-allowed:errors.append('第十章存在未知证据编号')
     return errors

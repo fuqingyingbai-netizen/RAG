@@ -15,11 +15,11 @@ from .company_diligence import (
     period_of,
 )
 from .company_evidence import document_pages, source_body
-from .company_governance import EID, get, refs, _table
-from .company_judicial import build_judicial_package
+from .company_governance import EID, get, refs, _table, cited_evidence_ids, combined_refs
+from .company_judicial import build_judicial_package, displayed_case_key
 from .company_people import build_people_package
 
-VERSION = 'company-risk-register-v1'
+VERSION = 'company-risk-register-v2-case-display-references'
 TITLE = '风险核查'
 CATEGORIES = ('组织与管理风险', '业务与运营风险', '行业特殊风险')
 BAD_FETCH = {'failed', 'fetch_timeout', 'invalid_pdf_response', 'blocked_or_challenge',
@@ -371,7 +371,7 @@ def checklist_requirements(item):
     return '对应主体、期间和具体事件的原始经营/监管/司法材料及后续处理；不能仅凭关键词或信息缺口认定发生。'
 
 
-def build_risk_register(cleaned, target, sources=None, *, industry='', intake=None, query_attempts=None):
+def build_risk_register(cleaned, target, sources=None, *, industry='', intake=None, query_attempts=None, displayed_judicial=None):
     sources = list(sources or [])
     intake = intake or {}
     as_of = iso_date(intake.get('as_of_date'))
@@ -503,6 +503,7 @@ def build_risk_register(cleaned, target, sources=None, *, industry='', intake=No
         unique.setdefault(key, r)
     facts = list(unique.values())
     entries = list({e['id']: e for e in entries}.values())
+    attach_case_display_references(entries, displayed_judicial)
     gaps = [
         '召回检索和来源解析并非全量覆盖；403、跳转首页、空结果不能证明没有记录。',
         '已披露的具体风险事项不等于集团重大性已量化；须核对实际敞口、整改、发生概率及当前状态。',
@@ -591,7 +592,7 @@ def render_risk_register(p):
     turnover = [r for r in p['facts'] if r['kind'] == 'turnover']
     if turnover:
         lines += ['### 人员指标的解释边界', '',
-                  '已取得员工流失率披露，但不同期间、主动/被动及公式分母须按第八章核对。净人数变化不等于流失或裁员，未有可比基准不能认定高流失。' + ''.join(refs(r) for r in turnover[:2]), '']
+                  '已取得员工流失率披露，但不同期间、主动/被动及公式分母须按第八章核对。净人数变化不等于流失或裁员，未有可比基准不能认定高流失。' + combined_refs(turnover[:2]), '']
     counts = p['diagnostic']['checklist_states']
     state_labels = {'requires_event_evidence': '需要具体事件证据',
                     'outside_declared_sector_scope': '不在当前声明行业核查范围',
@@ -604,7 +605,19 @@ def render_risk_register(p):
     return '\n'.join(lines).strip()
 
 
+def attach_case_display_references(entries, displayed_judicial):
+    shown={displayed_case_key(r) for r in (displayed_judicial or {}).get('facts',[])
+           if r.get('kind')=='disclosed_case'}
+    for entry in entries:
+        r=entry['fact_record']
+        if r.get('kind')=='disclosed_case' and displayed_case_key(r) in shown:
+            entry['fact_record']={**r,'display_reference':{'chapter':9,'section':'发行人及专项法律文件列示事项'}}
+
+
 def _display_fact(record):
+    if record.get('kind')=='disclosed_case' and (record.get('display_reference') or {}).get('chapter')==9:
+        return ('原件案件阶段：'+record.get('stage','待核')+'；执行披露：'+record.get('execution','待核')
+                +'；涉案金额字段：'+record.get('amount','待核')+'；判决主文及诉讼费用详见第九章同事项。')
     if record.get('kind') == 'labour':
         return (record.get('case_number', '') + '；目标主体角色：' + record.get('role', '待核')
                 + '；' + record.get('stage', '') + '；' + record.get('amount', '金额待核'))
@@ -635,7 +648,7 @@ def risk_register_errors(text, p):
     if not p.get('entries'):
         errors.append('尚未形成具体可追溯风险事项，需要补充原件核查')
     allowed = {e for r in p.get('facts', []) for e in r.get('evidence_ids', [])}
-    if set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', text, re.I)) - allowed:
+    if set(cited_evidence_ids(text)) - allowed:
         errors.append('出现未进入风险原件包的证据编号')
     for e in p.get('entries', []):
         if not e['evidence_ids'] or not e.get('assessment') or not e.get('followup'):

@@ -14,7 +14,7 @@ from decimal import Decimal, InvalidOperation
 from .company_business import build_business_package
 from .company_diligence import exchange, folded, host_of, issuer_heading, period_of, LEGAL
 from .company_evidence import document_pages, source_body
-from .company_governance import build_governance_package, _table, refs, get
+from .company_governance import build_governance_package, _table, refs, get, cited_evidence_ids, combined_refs
 from .company_history import build_history_package, financial_rows, METRICS
 from .company_management import build_management_package, latest_roles
 from .company_risk_register import (
@@ -586,14 +586,14 @@ def render_assessment(p):
     lines += [a['formula'], '', '### 分项评价与原件依据', '']
     lines += _table(['评估维度/固定权重', '1—5分', '判断依据及边界'],
                     [[d['name'] + ' ' + str(d['weight']) + '%', str(d['score']) if d['score'] is not None else '未评分',
-                      d['reason'] + ''.join(refs(r) for r in _sample(d['records'], 2))] for d in p['dimensions']])
+                      d['reason'] + combined_refs(_sample(d['records'], 2))] for d in p['dimensions']])
     lines += ['', '### 已核经营变化、优势与制约', '']
     by_metric = {m: _latest_metric(p['financial_observations'], m) for m in METRICS}
     prof, prof_error = by_metric[METRICS[1]];cash, cash_error = by_metric[METRICS[2]]
     if (not prof_error and not cash_error and prof[0]['cutoff'] == cash[0]['cutoff']
             and prof[0]['period_kind'] == cash[0]['period_kind'] and prof[0]['unit'] == cash[0]['unit']
             and decimal(prof[0]['value']) > 0 and decimal(cash[0]['value']) > 0):
-        lines += ['- 已观察到盈利与经营现金净流入并存，支持当期经营存在现金回流；仍需结合同比变化、受限资金与后续支出判断，不能直接推出现金充裕或全部业务真实。' + refs(prof[0]) + refs(cash[0])]
+        lines += ['- 已观察到盈利与经营现金净流入并存，支持当期经营存在现金回流；仍需结合同比变化、受限资金与后续支出判断，不能直接推出现金充裕或全部业务真实。' + combined_refs([prof[0],cash[0]])]
     funding = next(d for d in p['dimensions'] if d['id'] == 'funding')
     if funding['score'] is not None:
         lines += ['- 已完成的融资体现近期资本执行结果；其募集净额、时间和主体见对应原件，不将该结果外推为所有子公司资金可自由调用。' + refs(funding['records'][0])]
@@ -625,7 +625,7 @@ def render_assessment(p):
     if p['current_roles']:
         dates = sorted({r.get('as_of', '') for r in p['current_roles'] if r.get('as_of')})
         lines += ['', '团队配置已有岗位与任职记录，最近已得任职披露截至' + (dates[-1] if dates else '原件所列时点')
-                  + '。这些记录不直接证明执行稳定性或人员能力评分。' + ''.join(refs(r) for r in _sample(p['current_roles'], 2))]
+                  + '。这些记录不直接证明执行稳定性或人员能力评分。' + combined_refs(_sample(p['current_roles'], 2))]
     lines += ['', '下一阶段应围绕上列具体事项补足判断条件。尚未量化的安全整改、回收/资金影响和关键评价缺口不能被经营正分抵消；是否进入交易或投资决策应结合委托方具体条件，不预设通用TS禁签门槛。', '',
               '### 分项锚点', '']
     for d in p['dimensions']:
@@ -665,6 +665,6 @@ def assessment_errors(text, p):
     if aggregate_scores(p['dimensions']) != p['aggregate']:
         errors.append('分项与综合计算不一致')
     allowed = {e for r in p['facts'] for e in r.get('evidence_ids', [])}
-    if set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', text, re.I)) - allowed:
+    if set(cited_evidence_ids(text)) - allowed:
         errors.append('综合评价出现无原件定位的证据编号')
     return errors

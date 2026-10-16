@@ -47,6 +47,28 @@ def test_zero_hit_and_record_counts_never_become_global_assurances():
     assert '不能相加为案件数' in t and judicial_errors(t,p)==[]
 
 
+def test_explicit_query_time_wins_over_later_database_import_time():
+    c,s=structured('get_company_risk_scan',SCAN)
+    s['created_at']='2026-10-16T09:30:00'
+    p=package((c,s));t=render_judicial(p)
+    assert all(r['retrieved_at']=='2026-10-15T10:00:00' and r['retrieved_at_basis']=='query_metadata' for r in p['facts'])
+    assert '2026-10-15T10:00:00' in t and '2026-10-16T09:30:00' not in t
+
+
+def test_source_created_time_is_labelled_as_import_time_when_query_time_missing():
+    c,s=structured('get_company_risk_scan',SCAN)
+    s['source_metadata'].pop('retrieved_at');s['created_at']='2026-10-16T09:30:00'
+    p=package((c,s));t=render_judicial(p)
+    assert all(r['retrieved_at_basis']=='source_created_at' for r in p['facts'])
+    assert '入库时间2026-10-16T09:30:00（原查询时间未单列）' in t
+
+
+def test_missing_query_and_import_times_stay_unknown():
+    c,s=structured('get_company_risk_scan',SCAN);s['source_metadata'].pop('retrieved_at')
+    p=package((c,s))
+    assert all(r['retrieved_at_basis']=='unknown' and r['retrieved_at']=='查询时间未留存' for r in p['facts'])
+
+
 def test_provider_nohit_prose_is_cleaned_into_scoped_lookup():
     p=package(structured('get_administrative_penalty','| 字段 | 值 |\n| --- | --- |\n| 摘要 | 当前未发现行政处罚，经营良好，无历史遗留违规。 |'))
     t=render_judicial(p)
