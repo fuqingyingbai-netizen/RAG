@@ -79,6 +79,7 @@ def _esc(text: str) -> str:
 # or explanatory text.  A generic non-whitespace match made that explanation
 # part of the Word hyperlink.
 _URL_RE = re.compile(r"https?://[A-Za-z0-9][A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]*", flags=re.I)
+_LINK_OR_URL_RE = re.compile(r'\[([^\]]+)\]\((https?://[^)\s]+)\)|' + _URL_RE.pattern, flags=re.I)
 _EVIDENCE_ID_RE = re.compile(r"\bE-[A-Z0-9-]{6,}\b", flags=re.I)
 
 
@@ -128,21 +129,25 @@ def _run(
         if index:
             body.append("<w:br/>")
         cursor = 0
-        for match in _URL_RE.finditer(part):
-            url = _normalize_url(match.group(0))
+        for match in _LINK_OR_URL_RE.finditer(part):
+            markdown_link = match.group(1) is not None
+            url = _normalize_url(match.group(2) if markdown_link else match.group(0))
+            label = match.group(1) if markdown_link else url
             if match.start() > cursor:
                 body.append(_plain_runs(part[cursor:match.start()], bold_xml, evidence_bookmarks, suppress_evidence_links))
             if url:
                 if hyperlink_id:
                     rid = hyperlink_id(url)
+                    bookmark = (evidence_bookmarks or {}).get(label.upper()) if markdown_link and not suppress_evidence_links else None
+                    target = f'w:anchor="{bookmark[1]}"' if bookmark else f'r:id="{rid}"'
                     body.append(
-                        f'<w:hyperlink r:id="{rid}"><w:r><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/>'
+                        f'<w:hyperlink {target}><w:r><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/>'
                         f'<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/></w:rPr>'
-                        f'<w:t xml:space="preserve">{_esc(url)}</w:t></w:r></w:hyperlink>'
+                        f'<w:t xml:space="preserve">{_esc(label)}</w:t></w:r></w:hyperlink>'
                     )
                 else:
                     body.append(f'<w:r><w:rPr>{bold_xml}<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/></w:rPr><w:t xml:space="preserve">{_esc(url)}</w:t></w:r>')
-            cursor = match.start() + len(url)
+            cursor = match.end() if markdown_link else match.start() + len(url)
         if cursor < len(part):
             body.append(_plain_runs(part[cursor:], bold_xml, evidence_bookmarks, suppress_evidence_links))
     return "".join(body) or f'<w:r><w:rPr>{bold_xml}</w:rPr><w:t/></w:r>'
@@ -157,10 +162,11 @@ def _normalize_inline_breaks(text: str) -> str:
     return re.sub(r"<\s*br\s*/?\s*>", "\n", text, flags=re.I)
 
 
-def _clean_inline_markdown(text: str) -> str:
+def _clean_inline_markdown(text: str, preserve_links: bool = False) -> str:
     text = _normalize_inline_breaks(text)
     text = re.sub(r"!\[([^\]]*)\]\([^)]+\)", r"\1", text)
-    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)",
+                  lambda m: m[0] if preserve_links and m[2].startswith(('https://', 'http://')) else m[1], text)
     text = re.sub(r"^\s*>\s*", "", text)
     text = re.sub(r"`([^`]*)`", r"\1", text)
     text = text.replace("**", "").replace("__", "")
@@ -184,8 +190,8 @@ def _table(
     if not rows:
         return ""
     width = max(len(row) for row in rows)
-    table_width = 9360
-    col_width = max(900, table_width // max(1, min(width, 8)))
+    table_width = 9026  # A4 width11906 minus two1440-twip margins.
+    col_width = table_width // max(1, width)
     grid = "".join(f'<w:gridCol w:w="{col_width}"/>' for _ in range(width))
     xml = [
         f'<w:tbl><w:tblPr><w:tblW w:w="{table_width}" w:type="dxa"/>'
@@ -201,6 +207,8 @@ def _table(
     ]
     for ridx, row in enumerate(rows):
         xml.append("<w:tr>")
+        if ridx == 0:
+            xml.append('<w:trPr><w:tblHeader/></w:trPr>')
         padded = row + [""] * (width - len(row))
         for cidx, cell in enumerate(padded):
             shade = '<w:shd w:fill="EAF1F8"/>' if ridx == 0 else ""
@@ -231,7 +239,7 @@ def _paragraph(
     bookmark_start = f'<w:bookmarkStart w:id="{bookmark[0]}" w:name="{bookmark[1]}"/>' if bookmark else ""
     bookmark_end = f'<w:bookmarkEnd w:id="{bookmark[0]}"/>' if bookmark else ""
     runs = _run(
-        prefix + _clean_inline_markdown(text),
+        prefix + _clean_inline_markdown(text, preserve_links=True),
         hyperlink_id=hyperlink_id,
         evidence_bookmarks=evidence_bookmarks,
         suppress_evidence_links=suppress_evidence_links,
@@ -254,7 +262,12 @@ def _parse_table(
     i = start
     while i < len(lines) and "|" in lines[i]:
         if not _is_separator_row(lines[i]):
-            rows.append([cell.strip() for cell in lines[i].strip().strip("|").split("|")])
+            cells = [cell.strip() for cell in re.split(r'(?<!\\)\|', lines[i].strip().strip('|'))]
+            cells = [cell.replace('\\|', '/') for cell in cells]
+            if rows and len(cells) > len(rows[0]):
+                width = len(rows[0])
+                cells = cells[:width-1] + [' / '.join(c for c in cells[width-1:] if c)]
+            rows.append(cells)
         i += 1
     return _table(rows, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks), i
 
@@ -364,8 +377,8 @@ def _collect_headings(lines: list[str], outline: list[tuple[str, list[str]]] | N
     return headings
 
 
-def _cover(title: str, headings: list[tuple[int, str]], review_draft: bool = True) -> str:
-    subtitle = "背景调查与桌面研究报告"
+def _cover(title: str, headings: list[tuple[int, str]], review_draft: bool = True, document_kind: str = 'report') -> str:
+    subtitle = "行业研究项目建议书" if document_kind == 'industry_proposal' else "背景调查与桌面研究报告"
     date_text = datetime.now().strftime("%Y-%m-%d")
     first_chapter = next((text for level, text in headings if level == 2), "")
     return (
@@ -375,17 +388,17 @@ def _cover(title: str, headings: list[tuple[int, str]], review_draft: bool = Tru
         + '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="360" w:after="120"/></w:pPr>'
         + _run(f"报告日期：{date_text}") + "</w:p>"
         + '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="120"/></w:pPr>'
-        + _run(
+        + _run("保密级别：Confidential | 项目建议书待确认稿，范围、周期、人员与报价须双方确认" if document_kind == 'industry_proposal' else (
             "保密级别：Confidential | 自动生成待复核稿，正式交付前需人工复核"
             if review_draft
             else "保密级别：Confidential | 证据可追溯桌面研究交付版"
-        ) + "</w:p>"
+        )) + "</w:p>"
         + (_paragraph(f"核心起始章节：{first_chapter}", style="ReportSubtitle") if first_chapter else "")
         + _page_break()
     )
 
 
-def _toc(headings: list[tuple[int, str]]) -> str:
+def _toc(headings: list[tuple[int, str]], bookmarks: dict | None = None) -> str:
     # Keep the generated front-matter directory readable while preserving the
     # same chapter/subtitle hierarchy that Word shows in its navigation pane.
     items = [(level, text) for level, text in headings if level <= 3][:80]
@@ -394,9 +407,15 @@ def _toc(headings: list[tuple[int, str]]) -> str:
     xml = [_paragraph("目录", style="ToCTitle")]
     for level, text in items:
         left = 240 + (level - 1) * 360
+        bookmark = (bookmarks or {}).get(text)
+        content = _run(text)
+        if bookmark:
+            content = (f'<w:hyperlink w:anchor="{bookmark[1]}" w:history="1">{content}</w:hyperlink>'
+                       + '<w:r><w:t xml:space="preserve">  </w:t></w:r>'
+                       + f'<w:fldSimple w:instr=" PAGEREF {bookmark[1]} \\h "><w:r><w:t>—</w:t></w:r></w:fldSimple>')
         xml.append(
             f'<w:p><w:pPr><w:ind w:left="{left}"/><w:spacing w:after="80"/></w:pPr>'
-            f'{_run(text)}</w:p>'
+            f'{content}</w:p>'
         )
     xml.append(_page_break())
     return "".join(xml)
@@ -426,6 +445,7 @@ def markdown_to_docx_bytes(
     title: str = "桌面研究交付物",
     review_draft: bool = True,
     outline: list[tuple[str, list[str]]] | None = None,
+    document_kind: str = 'report',
 ) -> bytes:
     lines = (markdown or "").replace("\r\n", "\n").split("\n")
     company_claim_index = bool(re.search(r"(?m)^##\s*13[.、．]\s*信息来源（自动生成审计索引）", markdown or ""))
@@ -441,6 +461,10 @@ def markdown_to_docx_bytes(
     }
     outline_map = _outline_subheading_map(outline)
     headings = _collect_headings(lines, outline=outline)
+    if document_kind == 'industry_proposal':
+        headings = [(level, text) for level, text in headings if level != 3 or _is_report_chapter_heading(text)]
+    chapter_bookmarks = {text: (5000+i, f'chapter_{i}') for i, (level, text) in enumerate(headings, 1)
+                         if level == 2} if document_kind.startswith('industry_') else {}
     visible_title = title
     if headings and headings[0][0] == 1:
         visible_title = headings[0][1]
@@ -472,6 +496,8 @@ def markdown_to_docx_bytes(
         "bmp": "image/bmp",
         "svg": "image/svg+xml",
     }
+    if chapter_bookmarks:
+        relationships.append('  <Relationship Id="rIdSettings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>')
     in_code = False
     current_chapter: int | None = None
     i = 0
@@ -519,6 +545,9 @@ def markdown_to_docx_bytes(
         if heading:
             level = len(heading.group(1))
             text = _clean_inline_markdown(heading.group(2).strip())
+            if level == 1 and document_kind.startswith('industry_'):
+                i += 1
+                continue
             if level == 1:
                 style = "ReportTitle"
             elif level == 2 and _is_report_chapter_heading(text):
@@ -535,7 +564,8 @@ def markdown_to_docx_bytes(
                         style = "Heading2"
                     else:
                         style = "SectionHeading"
-            body.append(_paragraph(text, style=style, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks))
+            body.append(_paragraph(text, style=style, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks,
+                                   bookmark=chapter_bookmarks.get(text)))
             i += 1
             continue
         quote = re.match(r"^>\s*(.*)$", line)
@@ -559,8 +589,8 @@ def markdown_to_docx_bytes(
     document_xml = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <w:body>
-    {_cover(visible_title, headings, review_draft=review_draft)}
-    {_toc(headings)}
+    {_cover(visible_title, headings, review_draft=review_draft, document_kind=document_kind)}
+    {_toc(headings, chapter_bookmarks)}
     {''.join(body) or _paragraph(visible_title, style="ReportTitle")}
     <w:sectPr><w:footerReference w:type="default" r:id="rId2" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:footer="720"/></w:sectPr>
   </w:body>
@@ -575,6 +605,8 @@ def markdown_to_docx_bytes(
         )
         + "\n</Types>",
     )
+    if chapter_bookmarks:
+        content_types = content_types.replace('</Types>', '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>')
     word_rels = (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">\n'
@@ -587,6 +619,8 @@ def markdown_to_docx_bytes(
         docx.writestr("word/_rels/document.xml.rels", word_rels)
         docx.writestr("word/document.xml", document_xml)
         docx.writestr("word/styles.xml", STYLES_XML)
+        if chapter_bookmarks:
+            docx.writestr('word/settings.xml', '<?xml version="1.0" encoding="UTF-8"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:updateFields w:val="true"/></w:settings>')
         docx.writestr("word/footer1.xml", _footer_xml(review_draft))
         docx.writestr("docProps/core.xml", CORE_XML)
         docx.writestr("docProps/app.xml", APP_XML)

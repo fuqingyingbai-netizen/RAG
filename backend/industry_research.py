@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import urlsplit, parse_qsl, urlencode
 
 INDUSTRY_POLICY_VERSION = 'industry-scope-v3'
-INDUSTRY_RISK_VERSION = 'industry-risk-v5-diverse-evidence'
+INDUSTRY_RISK_VERSION = 'industry-risk-v6-claim-contracts'
 INDUSTRY_RISK_DIMENSIONS = (
     '政策与监管风险', '市场增长与需求风险', '竞争格局与集中度风险',
     '商业化与盈利模式风险', '技术迭代与替代风险', '资本热度与估值风险', '数据口径与证据可靠性风险',
@@ -751,6 +751,8 @@ def claim_semantic_issues(text: str, facts: list[dict]) -> list[dict]:
                 issues.append({'code':'source_corroboration_overstated', 'document_count':len(keys),
                     'publisher_count':len(publishers), 'evidence_ids':[f['evidence_id'] for f in rows],
                     'message':'多源印证声明没有至少两个不同发布方的可追溯来源；多张卡片或同站不同网页不足以证明来源独立。'})
+    from industry_claims import claim_contract_issues
+    issues.extend(claim_contract_issues(text, facts))
     return list({json.dumps(issue, sort_keys=True, ensure_ascii=False): issue for issue in issues}.values())
 
 
@@ -762,13 +764,26 @@ def mark_unverified_numbers(section: str, facts: list[dict]) -> str:
         numbers = numeric_mentions(line)
         ids = re.findall(r'\bE-[A-Z0-9-]{6,}\b', line, flags=re.I)
         if numbers and '待核验' not in line and any(not any(numeric_supported(n, eid, numeric) for eid in ids) for n in numbers):
-            line += ' （数值口径待核验，不用于行业合计或评分）'
+            line = re.sub(r'已验证|已核验', '待核验', line)
+            note = '（数值口径待核验，不用于行业合计或评分）'
+            if line.strip().startswith('|') and line.rstrip().endswith('|'):
+                # Keep the annotation inside the last cell, never add a column.
+                line = line.rstrip()[:-1].rstrip() + ' ' + note + ' |'
+            else:
+                line += ' ' + note
         lines.append(line)
     return '\n'.join(lines)
 
 
 def annotate_fact(fact: dict, scope: dict) -> dict:
     item = dict(fact)
+    from industry_claims import public_source_type
+    origin = public_source_type(item.get('source_url'))
+    if origin == 'web_search' and str(item.get('source_url') or '').startswith(('http://', 'https://')) and (
+            item.get('source_type') in {'government', 'regulatory', 'court', 'filing'} or item.get('source_grade') == 'A'):
+        item['source_type'] = origin
+        item['source_grade'] = 'C'
+        item['source_classification_warning'] = '标题或正文不能证明官方来源，按实际域名降级。'
     if (item.get('cleaning_method') == 'llm' and item.get('evidence_quote_verified') is True
             and item.get('evidence_quote') and (item.get('numeric_context') or numeric_mentions(str(item.get('fact') or '')))):
         quote = str(item['evidence_quote']).strip()
@@ -881,10 +896,12 @@ def annotate_fact(fact: dict, scope: dict) -> dict:
 def append_evidence_index(report: str, payload: dict, outline: list, packages: dict | None = None) -> tuple[str, dict]:
     """Index the same evidence packages that writers received, including valid reuse."""
     rows = []
+    indexed = {}
     referenced = set()
     cited_ids = set()
     chapter_ids = {}
     facts = [f for f in payload.get('facts', []) if isinstance(f, dict)]
+    originals = {f.get('evidence_id'): f for f in facts if f.get('evidence_id')}
     total_sources = {f.get('source_url') for f in facts if f.get('eligible_for_report') is not False and f.get('source_url')}
     for index, (title, requirements) in enumerate(outline, 1):
         if index == 15:
@@ -910,11 +927,19 @@ def append_evidence_index(report: str, payload: dict, outline: list, packages: d
             def cell(value):
                 return re.sub(r'\s+', ' ', str(value or '待标注')).replace('|', '/')[:160]
             audit_text = fact.get('evidence_quote') if fact.get('cleaning_method') == 'llm' and fact.get('numeric_context') else fact.get('fact')
-            rows.append(f'| [{eid}]({url}) | 第 {index} 章 | {cell(audit_text)} | {cell(fact.get("provider") or fact.get("source_type"))} / {cell(fact.get("source_grade"))} |')
+            record = indexed.setdefault(eid, {'fact': {**originals.get(eid, {}), **fact}, 'text': audit_text, 'chapters': set(), 'url': url})
+            record['chapters'].add(index)
             referenced.add(url)
+    for eid, record in indexed.items():
+        fact = record['fact']
+        locator = ((fact.get('provenance') or {}).get('locator') or {})
+        location = ('原文位置：' + str(locator.get('start')) + '–' + str(locator.get('end'))) if locator.get('status') == 'verified' else '原文定位待核验'
+        source = cell(fact.get('source_title')) + '<br>' + record['url'] + '<br>' + cell(fact.get('date') or fact.get('fact_date') or '日期待核验') + '<br>' + location
+        chapters = '、'.join(str(n) for n in sorted(record['chapters']))
+        rows.append(f'| {eid}（第{chapters}章） | {source} | {cell(record["text"])} | {cell(fact.get("provider") or fact.get("source_type") or "保存来源正文")} / {cell(fact.get("source_grade"))} |')
     lines = ['## 15. 信息来源（自动生成审计索引）', '',
              '本索引列出章节正文实际引用且属于对应证据包的事实编号；同一来源的不同事实可支持多个章节。', '',
-             '| 证据编号与原始来源 | 支持章节 | 信息点 | 获取工具与信源等级 |',
+             '| 证据编号及支持章节 | 原始来源与定位 | 信息点 | 获取方式与信源等级 |',
              '| --- | --- | --- | --- |', *rows, '',
              f'> 已纳入章节证据包的唯一来源：{len(referenced)} / 清洗事实库可追溯来源：{len(total_sources)}。', '']
     if not rows:
@@ -929,7 +954,8 @@ def append_evidence_index(report: str, payload: dict, outline: list, packages: d
                      'evidence_ids': sorted(cited_ids), 'chapter_evidence_ids': chapter_ids,
                      'numeric_evidence': {f['evidence_id']: {'validation': f.get('numeric_validation') or {},
                                          'fact': str(f.get('fact', ''))[:900], 'context': f.get('numeric_context') or {},
-                                         'source_url': f.get('source_url', '')}
+                                         'source_url': f.get('source_url', ''), 'evidence_scope': f.get('evidence_scope'),
+                                         'eligible_for_risk_scoring': f.get('eligible_for_risk_scoring')}
                                           for f in facts if f.get('evidence_id') in cited_ids}}
 
 
@@ -944,10 +970,11 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
     cited_chapters = 0
     for position, match in enumerate(chapters):
         chapter = int(match.group(1))
-        if chapter >= 15:
+        if chapter == 15:
             continue
         end = chapters[position + 1].start() if position + 1 < len(chapters) else len(report)
         body = report[match.end():end]
+        body = re.split(r'(?m)^## (?:集中式待核验清单|报告编制说明)', body)[0]
         if chapter == 1 and summary_length(report[match.start():end]) > 600:
             errors.append('摘要正文超过600字，需要压缩并保留事实引用。')
         ids = set(re.findall(r'\bE-[A-Z0-9-]{6,}\b', body, flags=re.I))
@@ -958,7 +985,7 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
         missing = ids - allowed
         if missing:
             errors.append(f'第{chapter}章引用了不属于本章的证据编号：' + '、'.join(sorted(missing)))
-        if ids & allowed:
+        if ids & allowed and chapter < 15:
             cited_chapters += 1
         if chapter not in disabled and len(re.sub(r'\s+', '', body)) >= 120 and not ids & allowed:
             errors.append(f'第{chapter}章存在分析正文但缺少有效证据编号。')
@@ -970,6 +997,8 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
             line_ids = set(re.findall(EVIDENCE_ID_PATTERN, line, re.I)) & allowed
             numeric = diagnostic.get('numeric_evidence', {})
             cards = [{'evidence_id':eid, 'source_url':numeric.get(eid, {}).get('source_url', ''),
+                      'evidence_scope':numeric.get(eid, {}).get('evidence_scope'),
+                      'eligible_for_risk_scoring':numeric.get(eid, {}).get('eligible_for_risk_scoring'),
                       'numeric_context':numeric.get(eid, {}).get('context') or {},
                       'numeric_validation':numeric.get(eid, {}).get('validation') or {}} for eid in line_ids]
             for issue in claim_semantic_issues(line, cards):
@@ -993,6 +1022,17 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
             errors.append('市场规模章节尚无口径完整的数值证据，仅可作为待复核稿交付。')
     if '研究边界与口径' not in report:
         errors.append('缺少研究边界与口径。')
+    bodies = {}
+    for position, match in enumerate(chapters):
+        chapter = int(match[1])
+        if chapter == 15 or chapter in disabled:
+            continue
+        end = chapters[position+1].start() if position+1 < len(chapters) else len(report)
+        body = re.split(r'(?m)^## (?:集中式待核验清单|报告编制说明)', report[match.end():end])[0]
+        key = re.sub(r'\s+', '', body)
+        if len(key) >= 120 and key in bodies:
+            errors.append(f'第{chapter}章与第{bodies[key]}章正文完全重复，尚未完成各自章节任务。')
+        bodies[key] = chapter
     return list(dict.fromkeys(errors))
 
 

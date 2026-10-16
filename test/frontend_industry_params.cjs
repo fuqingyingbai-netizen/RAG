@@ -30,6 +30,8 @@ assert.equal(resumed.research_purpose, '投资判断');
 assert.ok(state.modulesByTarget.industry.some(row => row.value === '技术路线对比'));
 console.log('Industry form and resume parameters passed');
 const page = fs.readFileSync('frontend/index.html', 'utf8');
+assert.ok(page.includes("artifact.metadata?.proposal_confirmation_status === 'pending'"));
+assert.ok(page.includes('建议书待确认'));
 assert.ok(page.includes('artifact.metadata?.risk_transparency?.version'));
 assert.ok(page.includes("dimension.score ?? '未评估'")); // A risk score of zero is a real score.
 assert.ok(page.includes('dimension.evidence_support.verified_metric_count'));

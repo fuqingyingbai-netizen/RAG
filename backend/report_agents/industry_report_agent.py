@@ -26,6 +26,8 @@ INDUSTRY_FEW_SHOT = """
 - 需关注信号：市场规模口径不统一、政策强监管、核心部件外购、商业化慢、估值透支等都要进入风险提示。
 - 证据不足处正文只写"待核验"，不要反复写"暂无充分公开证据"；所有缺口统一进入集中式待核验清单，不得编造市场规模、融资金额、政策原文、上市估值、客户或供应商数据。
 - 第14章须区分模型风险分、指标证据覆盖和评分可信度；评分尚未人工校准，原文引用通过不能表述为评分可靠，不能虚构可信度概率。
+- 数值字段完整或原文可定位不能写成来源真实性已验证、证据充分或高确定性；同一行不能同时标已验证和待核验。来源观点必须明确归属。
+- 企业数量不能推出市场集中度；跨期或未授权的增速不能直接比较。发布与施行日期分开，处罚上限绑定违法类型；律所及企业解读不得称为政策原文。
 """
 
 # Evidence-density-driven chapter writing (company v8 pattern):
@@ -185,6 +187,10 @@ class IndustryReportAgent:
             few_shot = ''
             section_structure = (f'只输出 `## 1. {section_title}` 标题、研究范围、3至5项主要发现和证据限制。'
                                  '使用短段落或要点，目标450字以内，不使用表格或子标题。')
+        elif index == 16:
+            few_shot = ''
+            section_structure = (f'只输出 `## {index}. {section_title}`。逐项列待完成问题、原始来源核对动作、所需资料和完成条件，'
+                                 '引用对应证据编号。不得复制市场规模摘录或综合评估，不编造已经完成的访谈、补搜或采购。')
         elif rich_evidence:
             few_shot = INDUSTRY_FEW_SHOT
             section_structure = INDUSTRY_SECTION_STRUCTURES.get(index, "")
@@ -268,11 +274,25 @@ class IndustryReportAgent:
                 continue
             seen.add(key)
             facts.append(fact)
+        if index == 16:
+            rows = []
+            for fact in facts[:8]:
+                context = fact.get('numeric_context') or {}
+                topic = str(context.get('metric') or fact.get('module') or '来源判断')
+                rows.append(f'- 核对{topic}的原始披露、时间与地域口径，确认适用范围及缺失字段；取得证据前保留未知。 [{fact["evidence_id"]}]({fact.get("source_url", "")})')
+            return f'## {index}. {title}\n\n' + ('\n\n'.join(dict.fromkeys(rows)) or '待核验：补充市场口径、竞争指标、技术测试与商业化披露，并为每项任务确认来源、责任人和完成条件。')
+        if index == 5:
+            facts = [f for f in facts if re.search(r'发布|开源|政策|推出|发布会|热度|关注|搜索指数', risk_fact_text(f))][:4]
+        if index == 11:
+            facts = [f for f in facts if (f.get('numeric_context') or {}).get('is_forecast') is True][:4]
         if index == 1:
             # A synthesis fallback remains short, traceable and explicit about its limits.
             facts = facts[:5]
         heading = f'## {index}. {title}\n\n'
         body = '以下为已完成章节的主要事实摘要；模型摘要未通过校验，综合判断需人工复核。\n\n' if index == 1 else ''
+        body += {5: '热度成因和事件时间线尚待核验；以下仅为来源事件摘录，不推定传播机制。\n\n',
+                 11: '尚未形成情景对照与触发条件；以下仅列来源预测，不作为确定性展望。\n\n',
+                 14: '综合评估尚待完成；以下为可追溯背景，不能替代风险未知项和证据缺口的复核。\n\n'}.get(index, '')
         for fact in facts:
             # Render the single authorized metric with its nature in the same
             # clause. Raw multi-metric quotes remain in the audit library.
@@ -371,7 +391,11 @@ class IndustryReportAgent:
                 if degradations is not None:
                     labels = {'wrong_heading':'标题不符', 'duplicate_chapter_heading':'章节标题重复',
                               'missing_citation':'缺少引用', 'invalid_citation':'引用不在修复证据包', 'summary_too_long':'摘要超长',
-                              'forecast_presented_as_actual':'预测属性缺失', 'source_corroboration_overstated':'多源印证依据不足'}
+                              'forecast_presented_as_actual':'预测属性缺失', 'source_corroboration_overstated':'多源印证依据不足',
+                              'evidence_status_conflict':'证据状态矛盾', 'concentration_inference_unsupported':'集中度推断缺证',
+                              'growth_comparison_unsupported':'增速比较口径不足', 'policy_primary_source_missing':'缺少政策原文',
+                              'policy_penalty_scope_conflict':'处罚适用类型错误', 'policy_effective_date_conflict':'政策生效日期错误',
+                              'evidence_gap_as_business_risk':'证据缺口误作经营风险'}
                     explanation = '、'.join(labels.get(reason, reason) for reason in repair_reasons)
                     degradations.append({'chapter': index, 'initial_validation_reasons': initial_reasons,
                         'repair_validation_reasons': repair_reasons,

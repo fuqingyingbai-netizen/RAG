@@ -237,7 +237,7 @@ def test_industry_report_gets_a_deterministic_ledger_in_chapter_15():
     result = workflow._append_report_evidence_index(project, report, json.dumps({"facts": facts}, ensure_ascii=False))
 
     assert "## 15. 信息来源（自动生成审计索引）" in result
-    assert "| 证据编号与原始来源 | 支持章节 | 信息点 | 获取工具与信源等级 |" in result
+    assert "| 证据编号及支持章节 | 原始来源与定位 | 信息点 | 获取方式与信源等级 |" in result
     assert "E-" in result
     assert "已纳入章节证据包的唯一来源：90 / 清洗事实库可追溯来源：90。" in result
 

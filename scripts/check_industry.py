@@ -110,7 +110,7 @@ def main(argv=None):
         parser.error('--output must not overwrite saved source artifacts')
     if not args.replay_only:
         files = (sorted((ROOT / 'test').glob('test_industry_*.py')) if args.full else
-                 [ROOT / 'test' / name for name in ['test_industry_evidence_contract.py','test_industry_runs.py','test_industry_fallback.py','test_industry_risk_support.py','test_industry_claim_semantics.py', 'test_industry_risk_repair.py']])
+                 [ROOT / 'test' / name for name in ['test_industry_evidence_contract.py','test_industry_runs.py','test_industry_delivery_contracts.py','test_industry_fallback.py','test_industry_risk_support.py','test_industry_claim_semantics.py', 'test_industry_risk_repair.py']])
         env = {**os.environ, 'PYTHONUTF8':'1', 'PYTHONPATH':str(ROOT / 'backend')}
         code = subprocess.run([sys.executable, '-m', 'pytest', *map(str, files), '-q', '--tb=short'], cwd=ROOT, env=env).returncode
         if code:

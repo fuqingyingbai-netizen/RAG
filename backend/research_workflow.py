@@ -724,7 +724,7 @@ class ResearchWorkflow:
             if standardized_type == "person"
             else "company-evidence-v8-entity-bound"
             if standardized_type == "company"
-            else "industry-evidence-v9-local-nature"
+            else "industry-evidence-v10-source-authority"
             if standardized_type == "industry"
             else "default-v4-auditable"
         )
@@ -746,7 +746,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v17-validated-fallback",
+            "industry": "industry-report-evidence-v18-delivery-contracts",
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -1242,7 +1242,7 @@ class ResearchWorkflow:
             project.status = "proposal_generating"
             db.commit()
             existing_proposal = self._latest_artifact(project, "proposal")
-            if resume_enabled and use_existing_report and existing_proposal is not None:
+            if resume_enabled and use_existing_report and existing_proposal is not None and standardized_type != 'industry':
                 proposal_artifact = self.save_artifact(
                     db,
                     project,
@@ -2263,17 +2263,16 @@ class ResearchWorkflow:
         return get_research_strategy("person").affiliation_discovery_queries(target, affiliations)
 
     def _detect_source_type(self, host: str, title: str, url: str) -> str:
+        try:
+            from .industry_claims import public_source_type
+        except ImportError:
+            from industry_claims import public_source_type
+        detected = public_source_type(url)
+        if detected != 'web_search':
+            return detected
         text = f"{host} {title} {url}".lower()
         if any(key in text for key in ["qcc.com", "tianyancha.com", "aiqicha.baidu.com", "qixin.com", "企查查", "天眼查", "爱企查", "启信宝"]):
             return "business_database"
-        if any(key in text for key in ["court", "法院", "裁判文书"]):
-            return "court"
-        if any(key in text for key in ["cninfo.com.cn", "sse.com.cn", "szse.cn", "hkexnews.hk", "sec.gov"]):
-            return "filing"
-        if any(key in text for key in ["csrc.gov.cn", "pbc.gov.cn", "nfra.gov.cn", "samr.gov.cn", "creditchina.gov.cn"]):
-            return "regulatory"
-        if any(key in text for key in ["gov.cn", "政府", "监管", "处罚"]):
-            return "government"
         if any(key in text for key in ["36kr", "tmtpost", "news", "新闻", "媒体"]):
             return "news"
         return "web_search"
@@ -2398,6 +2397,13 @@ class ResearchWorkflow:
             return "A" if source_type in {"court", "regulatory", "filing"} else "B"
         if provider in {"qcc", "tyc", "xiniu"} or platform in {"企查查", "天眼查", "稀牛"}:
             return "B"
+        if url.startswith(('http://', 'https://')) and source_type in {'government', 'court', 'regulatory', 'filing'}:
+            try:
+                from .industry_claims import public_source_type
+            except ImportError:
+                from industry_claims import public_source_type
+            if public_source_type(url) == 'web_search':
+                return 'C'
         if source_type in {"government", "court", "regulatory", "filing"}:
             repost_signal = any(token in f"{title} {content}" for token in ["转载", "来源：", "转自"])
             return "B" if repost_signal else "A"
@@ -5346,6 +5352,30 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
     ) -> str:
         if not report.strip():
             return report
+        if target_type == 'industry':
+            try:
+                from .industry_claims import industry_gap_plan
+            except ImportError:
+                from industry_claims import industry_gap_plan
+            clean = re.sub(r'(?ms)^## 集中式待核验清单\s*$.*\Z', '', report).rstrip()
+            items = []
+            for line in clean.splitlines():
+                item = re.sub(r'^\s*[-*>\d.)、\s]+', '', line).strip()
+                if (line.lstrip().startswith(('#', '|')) or len(item) < 12 or len(item) > 240
+                        or re.fullmatch(r'.{0,8}待核验(?:事项|清单).{0,8}', item)
+                        or not re.search(r'待核验|缺少|缺乏|未披露|尚未|证据不足|无法确认', item)):
+                    continue
+                if item not in items:
+                    items.append(item)
+                if len(items) == 15:
+                    break
+            if not items:
+                return clean
+            rows = ['## 集中式待核验清单', '', '| 待核验事项 | 原因 | 核验动作 | 优先级 | 所需材料 |', '| --- | --- | --- | --- | --- |']
+            for item in items:
+                reason, action, priority, materials = industry_gap_plan(item)
+                rows.append('| ' + ' | '.join(str(v).replace('|', '/') for v in (item, reason, action, priority, materials)) + ' |')
+            return clean + '\n\n' + '\n'.join(rows) + '\n'
         softened = self._soften_gap_phrasing(report)
         # Rebuild this generated appendix on every run. Older reports may contain
         # clipped Markdown table rows that should never be carried into delivery.
@@ -6192,6 +6222,15 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
     ) -> str:
         assets: list[str] = []
         target_type = str(project.target_type or "").lower()
+        if target_type == 'industry':
+            # A sector is not a legal entity: company officers are not sector
+            # relationships. No governance graph or company screenshots are
+            # eligible until an explicit industry edge contract is available.
+            report = re.sub(r'(?mi)^#{2,5}\s*核心关系网络图\s*\n?', '', report)
+            report = re.sub(r'(?ms)^```mermaid\s*.*?^```\s*', '', report)
+            report = re.sub(r'(?mi)^!\[[^\]]*(?:关系网图|关系网络图|关系图)[^\]]*\]\([^)]+\)\s*$', '', report)
+            report = re.sub(r'(?m)^> 注：本图根据已取得的结构化证据生成[^\n]*\n?', '', report)
+            return report
         if target_type == "company":
             # Company reports have two distinct questions: who owns the
             # company, and who can actually influence or control it.  Keeping
@@ -6302,6 +6341,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         graph_kind: str = "relationship",
         emit: TraceEmitter | None = None,
     ) -> str:
+        if str(project.target_type or '').lower() == 'industry':
+            return ''
         nodes = self._professional_graph_nodes(project, graph_kind)
         if len(nodes) < 3:
             seen = {name for name, _relation, _note in nodes}
@@ -6782,6 +6823,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 artifact_metadata["vector_indexed"] = False
                 artifact_metadata["vector_index_status"] = "error"
                 artifact_metadata["vector_index_error"] = str(exc)
+        if artifact_type == 'proposal' and project.target_type == 'industry':
+            artifact_metadata.update(delivery_status='review_draft', proposal_confirmation_status='pending',
+                                     quality_warning='建议书的范围、周期、人员、报价及验收标准需双方确认。')
         if artifact_type in {"desktop_report", "proposal"}:
             try:
                 docx_payload = markdown_to_docx_bytes(
@@ -6789,6 +6833,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                     title=title,
                     review_draft=bool(artifact_metadata.get("quality_warning")),
                     outline=self._select_report_outline(project) if artifact_type == "desktop_report" else None,
+                    document_kind=('industry_proposal' if artifact_type == 'proposal' else 'industry_report') if project.target_type == 'industry' else 'report',
                 )
                 if project.target_type == 'industry':
                     try:
@@ -7608,7 +7653,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             except ImportError:
                 from report_agents.industry_proposal import build_industry_proposal
             _emit(emit, "proposal", "proposal_agent", "行业建议书按研究范围和七章模板生成", "人员、周期和报价保留确认项", status="done")
-            return build_industry_proposal(project)
+            return build_industry_proposal(project, report=report, risk_json=risk_json)
         if (
             str(project.target_type or "").lower() == "company"
             and os.getenv("COMPANY_PROPOSAL_LLM_ENABLED", "false").strip().lower() not in {"1", "true", "yes", "on"}

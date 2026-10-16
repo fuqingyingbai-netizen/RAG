@@ -1,12 +1,50 @@
 """A bounded proposal matching the reference template's seven sections."""
+import json
+import re
 
 
-def build_industry_proposal(project) -> str:
+def build_industry_proposal(project, report='', risk_json='{}') -> str:
     scope = getattr(project, 'industry_scope', {}) or {}
     segments = '、'.join(scope.get('segments') or [project.target_name])
     companies = '、'.join(scope.get('named_companies') or []) or '未指定；企业主体尽调不在本轮默认范围'
     capital = '纳入一级融资、IPO、估值与二级市场概览' if scope.get('capital_market') == 'summary' else '不纳入资本市场指标'
+    try:
+        risk = json.loads(risk_json) if isinstance(risk_json, str) else (risk_json or {})
+    except (ValueError, TypeError):
+        risk = {}
+    tasks = []
+    for row in risk.get('dimensions', []):
+        if row.get('score') is not None or row.get('applicable') is False or row.get('status') in {'disabled', 'not_applicable'}:
+            continue
+        name = str(row.get('name') or '')
+        if not name or ('资本' in name and scope.get('capital_market') != 'summary'):
+            continue
+        from industry_claims import industry_gap_plan
+        reason = str(row.get('reason') or row.get('unknown_cause') or '证据尚不足以完成评估')
+        if not re.search(r'[\u4e00-\u9fff]', reason):
+            reason = '适用证据、引用或数值校验尚未通过，需核对原始资料。'
+        _why, action, priority, materials = industry_gap_plan(name)
+        tasks.append((name, reason, action, priority, materials))
+    if re.search(r'技术路线.{0,40}(?:缺失|缺少|待核验)|无法构建横向对比', report):
+        tasks.append(('技术路线对比', '报告尚未形成同条件技术比较', '补充原始测试配置、性能和单位成本，不能用算力市场规模代替技术对比。', '高', '测试报告、环境与版本说明'))
+    for item in getattr(project, 'industry_report_degradations', []) or []:
+        if item.get('chapter') in {8, 9} and scope.get('capital_market') != 'summary':
+            continue
+        tasks.append((f"第{item.get('chapter')}章综合写作", str(item.get('message') or '章节采用来源摘录'),
+                      '复核对应章节来源、属性和判断；证据不足时保留缺口，不强行补结论。', '高', '本章来源原文和引用索引'))
+    def cell(value):
+        return re.sub(r'\s+', ' ', str(value)).replace('|', '/')
+    task_rows = '\n'.join('| ' + ' | '.join(cell(v) for v in row) + ' |' for row in tasks[:18])
+    task_section = ('| 专项任务 | 本轮未完成原因 | 核验动作 | 优先级 | 所需材料 |\n| --- | --- | --- | --- | --- |\n' + task_rows
+                    if tasks else '本轮专项任务尚待确认；启动前应依据最新报告和风险诊断逐项确认，不将通用研究框架视为已完成的专项分析。')
+    conditional_rows = ''
+    if scope.get('named_companies'):
+        conditional_rows += '| 核心企业 | 仅对已指定企业核对注册、股权、经营和风险 | 独立企业证据清单及核验边界 |\n'
+    if scope.get('capital_market') == 'summary':
+        conditional_rows += '| 资本市场 | 核对融资、IPO、并购、估值与交易情绪 | 数据期间一致的资本事件表 |\n'
     return f'''# {project.title}：行业研究项目建议书
+
+状态：待确认稿。范围、排期、投入人员、费用及验收条件须双方确认后实施；本稿不构成已确认报价。
 
 ## 1. 项目基本情况
 
@@ -26,6 +64,10 @@ def build_industry_proposal(project) -> str:
 
 优先核验对决策影响大的缺口：规模统计是否同口径、关键政策是否仍适用、技术路线的性能与成本是否有可比数据、需求和商业化是否有原始披露支持。来源观点单独标注，预测必须列假设，企业样本不能替代行业整体统计。
 
+本轮专项任务如下。完成标准为问题与原始资料逐项对应，形成可追溯结论，或明确保留缺证原因和下一步；不能以增加网页数量替代指标核验。
+
+{task_section}
+
 ## 3. 项目调研框架与主要研究范围
 
 | 研究方向 | 工作内容 | 预期产物 |
@@ -34,9 +76,9 @@ def build_industry_proposal(project) -> str:
 | 政策和监管 | 核对文件发布机构、有效期、准入要求及地域适用性 | 政策摘录与影响清单 |
 | 竞争和技术 | 对比玩家层次、市场份额、路线性能、成本和成熟度 | 可比企业与技术路线表 |
 | 商业化和前景 | 核对产品、客户、定价与需求驱动，建立不同情景 | 商业化判断与可验证假设 |
-| 核心企业 | 仅对指定企业核对注册、股权、经营、产品、客户供应商和风险 | 独立企业证据清单及核验边界 |
-| 资本市场 | 仅在启用时研究融资、IPO、并购、估值与交易情绪 | 数据期间一致的资本事件表 |
-| 风险和综合评估 | 绑定有效证据，区分已验证信号、推演和未知事项 | 风险矩阵和后续核验优先级 |
+{conditional_rows}| 风险和综合评估 | 绑定有效证据，区分已验证信号、推演和未知事项 | 风险矩阵和后续核验优先级 |
+
+验收口径：市场表逐项注明期间、地域、定义、单位及实际或预测属性；技术比较注明同一测试条件和版本；每项判断能追溯至原始来源与证据编号。样本数量、赛道覆盖、修改轮次、确认人及确认日期在启动会书面确认，未确认不得以空表视为达标。无法取得的数据逐项记录原因，由双方决定补采、缩减范围或保留未知。行业代表样本比较不等于独立企业主体尽调；关闭的模块不列入交付。
 
 ## 4. 项目调研方法与渠道资源
 
@@ -55,6 +97,10 @@ def build_industry_proposal(project) -> str:
 | 深度核验 | 对高优先级缺口执行数据库核验、专家及企业访谈 | 按渠道可联系性确认 |
 | 复核交付 | 来源回溯、口径一致性检查、报告审阅和修改 | 与客户约定复核窗口 |
 
+排期确认项：各阶段预计工作日、客户资料提供截止日、访谈等待上限、阶段负责人、验收确认人及修改轮次均须填入双方确认的工作计划。依赖材料或渠道延迟时，先书面说明影响和调整日期，再变更交付时间。
+
+客户配合清单：确认研究范围与排除项、提供可共享资料及使用授权、指定资料/访谈联系人、确认受访对象与审批责任、按节点反馈复核意见。历史数据截止日保持上述口径；新增来源仅在其覆盖该截止日时使用，需扩展时间范围则另行确认。
+
 中期简报为可选交付；最终交付包括行业研究报告、来源索引、技术与企业对比表、风险矩阵和后续研究清单。无法取得的数据注明原因及补充路径。周期不把渠道等待时间算成已经完成的调研。
 
 ## 6. 项目团队安排
@@ -66,6 +112,8 @@ def build_industry_proposal(project) -> str:
 ## 7. 项目报价与保密条款
 
 咨询费用总金额、币种、税费口径及付款节点待双方确认。报价应区分研究人员工时、数据采购、专家访谈、差旅、资料翻译及其他专项费用；额外样本企业、范围扩大和新增访谈另行确认费用与周期。
+
+报价确认表须列费用项目、计量单位、数量、单价、含税金额、是否包含在总价及批准人。数据库、专家和差旅未经预算批准不采购；客户追加范围先确认费用与工期。人员姓名、履历和工时未落实时保持待确认，不能自动填入推测信息。
 
 可约定启动预付、中期交付和最终验收分阶段付款，比例及期限在合同中确定。本建议书不生成未经报价确认的金额或折扣。
 
