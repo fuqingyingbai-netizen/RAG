@@ -238,6 +238,7 @@ def classify_quote(quote):
     t=_CC.convert(quote);low=t.lower()
     from .company_history import accounting_background
     if accounting_background(t):return None
+    if re.search(r'(?:从|自)取得.{0,25}(?:实际)?控制权之日起|when.{0,20}control.{0,20}obtained',low):return None
     if re.search(r'unaudited pro forma|for the purpose of.*pro forma|备考|假设.{0,25}(?:交易|收购|完成|已发生)',low):return 'pro_forma','大额资金往来','备考假设/模拟影响，非实际提款或付款'
     if re.search(r'未(?:使用|付)|not paid yet',low):return 'payment_pending','大额资金往来','未付/未使用，不能写成已全部支付'
     if re.search(r'(?:采用|拟)?发行股份.{0,30}募集配套资金|拟发行债券',low):return 'financing_plan','融资情况','融资/交易方案披露；完成、到账和实际用途另行核验'
@@ -474,6 +475,8 @@ def display_diligence_fact(record):
         original=record['fact']
         sentence=re.search(r'\bAs at \d{1,2} [A-Z][a-z]+ 20\d{2},\s+the net carrying amount of goodwill amounted to (?:RMB|US\$|HK\$)[\d,]+(?:\.\d+)?\.',original,re.I)
         if sentence:return sentence[0]
+    if record.get('kind')=='closing' and '该项收购' in record['fact'] and len(folded(record['fact']))<100:
+        return record['fact']+'（本句未单列收购标的，需结合所引原页上下文核对，不合并为同一笔交易。）'
     return record['fact']
 
 

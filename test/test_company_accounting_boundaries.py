@@ -1,6 +1,6 @@
 from report_agents.company_evidence import annotate_page_notes
 from report_agents.company_history import _date, _event_status, build_history_package
-from report_agents.company_diligence import classify_quote
+from report_agents.company_diligence import classify_quote, display_diligence_fact
 from test_company_history import filing, history
 
 
@@ -57,6 +57,17 @@ def test_impairment_test_assumptions_not_labelled_proforma_cash():
     quote='商誉账面价值为人民币300,000千元，审计师测试商誉减值模型所用关键假设及审批控制。'
     assert classify_quote(quote)[0]=='purchase_accounting'
     assert classify_quote('备考假设本次收购于期初已完成，支付现金人民币100万元。')[0]=='pro_forma'
+
+
+def test_control_date_accounting_policy_not_actual_consolidation():
+    assert classify_quote('从取得子公司的实际控制权之日起，本集团开始将其纳入合并范围；') is None
+    assert classify_quote('公司于2025年4月完成收购，将青禾元件公司纳入合并范围。')[0]=='closing'
+
+
+def test_short_closing_reference_does_not_invent_or_merge_acquisition_targets():
+    record={'kind':'closing','fact':'于2025年12月，本集团完成了该项收购。','page':400}
+    assert '本句未单列收购标的' in display_diligence_fact(record)
+    assert record['fact']=='于2025年12月，本集团完成了该项收购。'
 
 
 def test_integer_original_financial_table_is_available_to_history():
