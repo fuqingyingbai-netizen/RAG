@@ -213,6 +213,7 @@ def _table(
     if company:
         if compact_source:weights=[22,10,53,15]
         elif rows[0]==['姓名','职务／披露时点','履历要点（公司自述）','出处']:weights=[10,18,50,22]
+        elif rows[0]==['字段','登记记录','来源']:weights=[22,53,25]
         else:
             # Give long evidence prose space without devoting the same width
             # to a two-character name or a short numeric column. Use typical
@@ -269,6 +270,7 @@ def _paragraph(
     suppress_evidence_links: bool = False,
     compact_url_labels: bool = False,
     keep_next: bool = False,
+    keep_lines: bool = False,
 ) -> str:
     style_xml = f'<w:pStyle w:val="{style}"/>' if style else ""
     indent_xml = '<w:ind w:left="420" w:hanging="220"/>' if bullet else ""
@@ -283,7 +285,7 @@ def _paragraph(
         compact_url_labels=compact_url_labels,
     )
     after='60' if style=='CompanyTable' else '120'
-    keep_xml='<w:keepNext/><w:keepLines/>' if keep_next else ''
+    keep_xml=('<w:keepNext/>' if keep_next else '')+('<w:keepLines/>' if keep_next or keep_lines else '')
     return f"<w:p><w:pPr>{style_xml}{indent_xml}{keep_xml}<w:spacing w:after=\"{after}\"/></w:pPr>{bookmark_start}{runs}{bookmark_end}</w:p>"
 
 
@@ -434,18 +436,22 @@ def _cover(title: str, headings: list[tuple[int, str]], review_draft: bool = Tru
     )
 
 
-def _toc(headings: list[tuple[int, str]]) -> str:
+def _toc(headings: list[tuple[int, str]], chapter_bookmarks: dict[str, tuple[int, str]] | None = None) -> str:
     # Keep the generated front-matter directory readable while preserving the
     # same chapter/subtitle hierarchy that Word shows in its navigation pane.
-    items = [(level, text) for level, text in headings if level <= 3][:80]
+    items = ([(level,text) for level,text in headings if level==2] if chapter_bookmarks is not None
+             else [(level,text) for level,text in headings if level<=3][:80])
     if not items:
         return ""
     xml = [_paragraph("目录", style="ToCTitle")]
     for level, text in items:
         left = 240 + (level - 1) * 360
+        runs=_run(text)
+        if chapter_bookmarks and text in chapter_bookmarks:
+            runs=f'<w:hyperlink w:anchor="{chapter_bookmarks[text][1]}" w:history="1">{runs}</w:hyperlink>'
         xml.append(
             f'<w:p><w:pPr><w:ind w:left="{left}"/><w:spacing w:after="80"/></w:pPr>'
-            f'{_run(text)}</w:p>'
+            f'{runs}</w:p>'
         )
     xml.append(_page_break())
     return "".join(xml)
@@ -490,6 +496,8 @@ def markdown_to_docx_bytes(
     }
     outline_map = _outline_subheading_map(outline)
     headings = _collect_headings(lines, outline=outline)
+    chapter_bookmarks = {text:(index+1,f'company_chapter_{index+1}')
+                         for index,text in enumerate(dict.fromkeys(text for level,text in headings if level==2))} if company_claim_index else None
     visible_title = title
     if headings and headings[0][0] == 1:
         visible_title = headings[0][1]
@@ -554,7 +562,10 @@ def markdown_to_docx_bytes(
                 media.append((media_name, data, mime))
                 relationships.append(f'  <Relationship Id="{rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/{media_name}"/>')
                 content_type_defaults[ext] = mime
-                body.append(_paragraph(alt, style="SectionHeading", evidence_bookmarks=evidence_bookmarks))
+                previous=next((value.strip() for value in reversed(lines[:i]) if value.strip()),'')
+                has_caption=company_claim_index and bool(re.match(r'^#{2,6}\s+',previous)) and _clean_inline_markdown(re.sub(r'^#{2,6}\s+','',previous))==alt
+                if not has_caption:
+                    body.append(_paragraph(alt, style="SectionHeading", evidence_bookmarks=evidence_bookmarks, keep_next=company_claim_index))
                 body.append(_image_drawing(rid, alt))
             else:
                 body.append(_paragraph(f"{alt}：{image.group(2)}", evidence_bookmarks=evidence_bookmarks))
@@ -584,32 +595,34 @@ def markdown_to_docx_bytes(
                         style = "Heading2"
                     else:
                         style = "SectionHeading"
-            body.append(_paragraph(text, style=style, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, keep_next=company_claim_index))
+            body.append(_paragraph(text, style=style, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks,
+                                   bookmark=chapter_bookmarks.get(text) if chapter_bookmarks and level==2 else None,
+                                   keep_next=company_claim_index))
             i += 1
             continue
         quote = re.match(r"^>\s*(.*)$", line)
         if quote:
-            body.append(_paragraph(quote.group(1), hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks))
+            body.append(_paragraph(quote.group(1), hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, keep_lines=company_claim_index))
             i += 1
             continue
         bullet = re.match(r"^[-*]\s+(.*)$", line)
         if bullet:
-            body.append(_paragraph(bullet.group(1), bullet=True, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks))
+            body.append(_paragraph(bullet.group(1), bullet=True, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, keep_lines=company_claim_index))
             i += 1
             continue
         numbered = re.match(r"^\d+[.)、]\s*(.*)$", line)
         if numbered:
-            body.append(_paragraph(line, bullet=True, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks))
+            body.append(_paragraph(line, bullet=True, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, keep_lines=company_claim_index))
             i += 1
             continue
-        body.append(_paragraph(line, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks))
+        body.append(_paragraph(line, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, keep_lines=company_claim_index))
         i += 1
 
     document_xml = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <w:body>
     {_cover(visible_title, headings, review_draft=review_draft)}
-    {_toc(headings)}
+    {_toc(headings, chapter_bookmarks)}
     {''.join(body) or _paragraph(visible_title, style="ReportTitle")}
     <w:sectPr><w:footerReference w:type="default" r:id="rId2" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:footer="720"/></w:sectPr>
   </w:body>
