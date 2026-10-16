@@ -12,6 +12,16 @@ import company_knowledge as kb
 
 @pytest.fixture
 def client(monkeypatch):
+    # These tests exercise the original cloud SSE adapter independently of the
+    # catalogue/ACL layer, which is covered by test_company_workspace.py.
+    import company_workspace as ws
+    async def scope(*args):
+        return {}
+    async def adapter(cfg, question):
+        async for event in kb.cloud_answer({key: value for key, value in cfg.items() if key != 'allowed_documents'}, question):
+            yield event
+    monkeypatch.setattr(ws, 'prepare_scope', scope)
+    monkeypatch.setattr(ws, 'grounded_answer', adapter)
     for key, value in {'API_KEY': 'test-secret', 'BASE_URL': 'https://test.cn-beijing.maas.aliyuncs.com',
                        'AGENT_ID': 'aid-test', 'INDEX_ID': 'test-index'}.items():
         monkeypatch.setenv('BAILIAN_KNOWLEDGE_' + key, value)
