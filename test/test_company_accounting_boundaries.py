@@ -61,6 +61,7 @@ def test_impairment_test_assumptions_not_labelled_proforma_cash():
 
 def test_control_date_accounting_policy_not_actual_consolidation():
     assert classify_quote('从取得子公司的实际控制权之日起，本集团开始将其纳入合并范围；') is None
+    assert classify_quote('从丧失实际控制权之日起停止纳入合并范围。') is None
     assert classify_quote('公司于2025年4月完成收购，将青禾元件公司纳入合并范围。')[0]=='closing'
 
 

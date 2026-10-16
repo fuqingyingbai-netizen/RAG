@@ -238,7 +238,7 @@ def classify_quote(quote):
     t=_CC.convert(quote);low=t.lower()
     from .company_history import accounting_background
     if accounting_background(t):return None
-    if re.search(r'(?:从|自)取得.{0,25}(?:实际)?控制权之日起|when.{0,20}control.{0,20}obtained',low):return None
+    if re.search(r'(?:从|自).{0,35}控制权之日起|when.{0,20}control.{0,20}obtained',low):return None
     if re.search(r'unaudited pro forma|for the purpose of.*pro forma|备考|假设.{0,25}(?:交易|收购|完成|已发生)',low):return 'pro_forma','大额资金往来','备考假设/模拟影响，非实际提款或付款'
     if re.search(r'未(?:使用|付)|not paid yet',low):return 'payment_pending','大额资金往来','未付/未使用，不能写成已全部支付'
     if re.search(r'(?:采用|拟)?发行股份.{0,30}募集配套资金|拟发行债券',low):return 'financing_plan','融资情况','融资/交易方案披露；完成、到账和实际用途另行核验'
@@ -276,6 +276,7 @@ def disclosure_rows(source,pages,base):
             category=classify_quote(quote)
             if not category:continue
             kind,stream,mode=category
+            if kind=='consolidation' and re.search(r'详见|见附注',quote):continue
             if kind in {'strategy','closing','consideration','purchase_accounting','consolidation'} and not re.search(r'[。.!?；]$',quote):continue
             if len(re.findall(r'\d[\d,.]*',quote))>18:continue
             if kind=='payment_pending':
