@@ -75,7 +75,10 @@ def annotate_page_notes(quote,pages):
         notes={m[1] for m in re.finditer(r'(?m)^[ \t]*(\d{1,3})[ \t]+(?=[\u4e00-\u9fffA-Za-z])[^\n]{8,}',text)}
         display=quote
         for number in sorted(notes,key=len,reverse=True):
-            display=re.sub(r'(?<=[\u4e00-\u9fff])\s*'+re.escape(number)+r'\s*(?=[\u4e00-\u9fff])','〔注'+number+'〕',display)
+            # Numbered agenda items can resemble footnote definitions. Even
+            # when one exists on the page, an ordinary date/quantity is not a
+            # note reference (for example "2025年6月12日").
+            display=re.sub(r'(?<=[\u4e00-\u9fff])\s*'+re.escape(number)+r'\s*(?![年月日人元股岁次个项倍%％])(?=[\u4e00-\u9fff])','〔注'+number+'〕',display)
         return display
     return quote
 

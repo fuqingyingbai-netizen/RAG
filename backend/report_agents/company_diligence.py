@@ -236,7 +236,9 @@ def _sentences(text):
 
 def classify_quote(quote):
     t=_CC.convert(quote);low=t.lower()
-    if re.search(r'unaudited pro forma|for the purpose of.*pro forma|备考|假设',low):return 'pro_forma','大额资金往来','备考假设/模拟影响，非实际提款或付款'
+    from .company_history import accounting_background
+    if accounting_background(t):return None
+    if re.search(r'unaudited pro forma|for the purpose of.*pro forma|备考|假设.{0,25}(?:交易|收购|完成|已发生)',low):return 'pro_forma','大额资金往来','备考假设/模拟影响，非实际提款或付款'
     if re.search(r'未(?:使用|付)|not paid yet',low):return 'payment_pending','大额资金往来','未付/未使用，不能写成已全部支付'
     if re.search(r'(?:采用|拟)?发行股份.{0,30}募集配套资金|拟发行债券',low):return 'financing_plan','融资情况','融资/交易方案披露；完成、到账和实际用途另行核验'
     if re.search(r'完成.*(?:配售|发行)|配售.*净额|已使用.*(?:配售|募集)|used.*net proceeds',low):return 'fund_use' if re.search(r'已使用|used',low) else 'financing','融资情况','公司融资及资金使用披露，非银行流水独立核验'

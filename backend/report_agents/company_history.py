@@ -30,10 +30,17 @@ PENDING = re.compile(r'拟|计划|预计|将于|尚未|尚待|待完成|不超�
 AMOUNT = r'[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)\.\d{2}'
 
 
+def accounting_background(text):
+    """Accounting rules and measurement definitions are not issuer actions."""
+    value=compact(text)
+    return bool(re.search(r'财务报表的编制基础|财务报表按照财政部|金融资产的分类|债务工具.*是指|合同现金流量特征与基本借贷安排相一致|交易性金融负债为纳入合并范围|公允价值变动.*计入当期损益',value))
+
+
 def _date(text, event=True):
     text=_normalize_year(text)
     dates=[m for m in DATE.finditer(text) if m.start()==0 or text[m.start()-1] not in '-—至']
     dates=[m for m in dates if not re.match(r'[\s）)]*(?:的?总股本|的?股本|为基数)',text[m.end():])]
+    dates=[m for m in dates if m[2] or not re.match(r'(?:度|限制性股票|股票期权|个人业绩|绩效)',text[m.end():])]
     dates=[m for m in dates if not re.search(r'目标|愿景|规划',text[m.end():m.end()+14])]
     if not dates:
         return ''
@@ -42,10 +49,12 @@ def _date(text, event=True):
     chosen=[]
     for i,m in enumerate(dates):
         clause=text[m.end():dates[i+1].start() if i+1<len(dates) else len(text)]
-        if (EVENT_WORDS.search(clause) or re.search(r'实施完成|实施完毕|完成',clause)) and not re.match(r'[^，。；]{0,45}(?:核准|批准|披露|公告)',clause):
+        if (EVENT_WORDS.search(clause) or re.search(r'实施完成|实施完毕|完成|召开|审议通过',clause)) and not re.match(r'[^，。；]{0,45}(?:核准|批准|披露|公告)',clause):
             chosen.append(m)
     if not chosen and re.search(r'(?:并于|于)\d{1,2}月\d{1,2}日[^。]{0,20}上市',text):
         return ''  # Execution year omitted; do not substitute approval date.
+    if event and not chosen:
+        return ''  # A scheme/cohort year alone does not date the issuer action.
     m=max(chosen or dates,key=lambda x:(bool(x[3]),bool(x[2]),x.start())) if event else dates[0]
     y,month,day=m.groups()
     return y+('-'+month.zfill(2) if month else '')+('-'+day.zfill(2) if day else '')
@@ -67,8 +76,13 @@ def _event_kind(text):
 def _event_status(text):
     # Signature is a completed signing action, not completed acquisition or
     # funding. Do not let the word "完成" elsewhere erase that distinction.
+    # A restriction on an employee's shares is not the completion status of
+    # the board's repurchase decision.
+    text=re.sub(r'尚未解除限售|尚未行权|未解除限售','',text)
     if re.search(r'尚未|尚待|未完成',text):
         return '尚未完成'
+    if re.search(r'提议|提议以|提出.{0,25}(?:利润分配|分红|派发)',text):
+        return '计划／拟议'
     if re.search(r'拟|计划|预计|将于|将凭借|将逐步|并将|意向|不超过',text):
         return '计划／拟议'
     if re.search(r'签署|签订|达成协议',text) and not re.search(r'交割完成|完成交割|收购完成|完成收购|资金到账|配售完成',text):
@@ -280,7 +294,14 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
                     event_type='资本事项' if '交易所上市' in value else '创业起点（公司自述）' if re.search(r'创立|创业|成立.*起步',value) else '业务动作',
                     status='官网沿革记载（公司自述）',date_basis='year_heading')
         if period:
-            for metric in financial_rows(raw,period):
+            financial=financial_rows(raw,period)
+            if primary and not financial:
+                # Reuse the same original-page/header/unit checks as chapter
+                # 12; integer 千元 tables must not become a false data gap.
+                from .company_assessment import financial_observations
+                financial=[{k:r[k] for k in ('metric','value','previous_value','unit','yoy','period','page') if k in r}
+                           for r in financial_observations(src,{'entity':target})]
+            for metric in financial:
                 quote=f"{metric['metric']}（{metric['unit']}）：本期{metric['value']}，上年同期{metric['previous_value']}"+(f"，同比{metric['yoy']}。" if metric['yoy'] else '。')
                 add(f,'performance',quote,source_rank=rank,**metric)
         # Only bounded, explicit issuer actions become milestones. Personal
@@ -317,6 +338,8 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
                 continue
             if RULE.search(sentence) or NON_EVENT.search(sentence) or re.search(r'用户查询|若你需要|先生|女士|工作经历|任职经历|前10名股东|上述股东|□||☑',sentence):
                 continue
+            if accounting_background(sentence) or ('该项收购' in sentence and len(sentence)<100):
+                continue
             if sentence.count('《')>3 or sentence.count('》')>3:
                 counts['layout_noise']+=1;continue
             if re.search(re.escape(target)+r'公开发行20\d{2}年公司债券.{0,15}募集说明书',sentence):
@@ -346,7 +369,7 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
                 continue
             date=_date(claim)
             if date and EVENT_WORDS.search(claim) and re.search(re.escape(target)+r'|本公司|本集团',claim):
-                if not re.search(r'子公司|行业|先生|女士',claim) and not NON_EVENT.search(claim):
+                if not re.search(r'子公司|行业|先生|女士',claim) and not NON_EVENT.search(claim) and not accounting_background(claim):
                     add(atom,'event',claim,period=date,source_rank=rank,event_type=_event_kind(claim),status=_event_status(claim))
             if re.search(r'历史遗留|未决诉讼|权属纠纷|历史债务|违规担保',claim) and re.search(r'判决|立案|收到|发生|承担',claim):
                 add(atom,'legacy',claim,period=date or str(atom.get('date') or ''),source_rank=rank)
