@@ -11,10 +11,14 @@ from .company_governance import EID,_table,_period_rank,compact,get,refs,_primar
 from .company_history import _issuer_hosts
 from .company_management import issuer as management_issuer
 from .company_text import OriginalTextView
+try:
+    from ..company_charts import VERSION as CHART_VERSION
+except ImportError:
+    from company_charts import VERSION as CHART_VERSION
 
 TITLE='行业口碑、产品认可度与同业竞争地位研判'
 HEADINGS=('员工评价','竞品评价','合作方评价','行业地位','技术实力','综合软实力','同业对标')
-VERSION='company-reputation-v2-script-and-single-year-tables'
+VERSION='company-reputation-v3-vector-score-charts'
 METRICS={
  '员工满意度分数':('员工评价','分数'), '员工敬业度分数':('员工评价','分数'),
  '客户满意度':('综合软实力','%'), '接获的客户投诉数目':('综合软实力','宗'),
@@ -115,6 +119,34 @@ def _market_period(text):
     return ''
 
 
+def survey_chart_rows(page,source_sha,*,as_of_year=None):
+    rows=[]
+    if not re.fullmatch(r'[a-f0-9]{64}',str(source_sha or '')):return rows
+    for chart in page.get('survey_charts') or []:
+        if (chart.get('version')!=CHART_VERSION or chart.get('method')!='native_vector_line_chart'
+                or chart.get('source_sha256')!=source_sha or chart.get('page')!=page.get('page')):continue
+        caption=OriginalTextView(chart.get('caption'))
+        if compact(caption.text) not in compact(OriginalTextView(page['text']).text):continue
+        scale=re.search(r'[（(]满分\s*(\d+(?:\.\d+)?)\s*分[）)]',caption.text)
+        if not scale or scale[1]!=chart.get('score_scale'):continue
+        points=chart.get('points') or []
+        if len(points)<2 or any(not re.fullmatch(r'20\d{2}',str(p.get('year',''))) for p in points):continue
+        if as_of_year and any(int(p['year'])>as_of_year for p in points):continue
+        if any(int(a['year'])>=int(b['year']) for a,b in zip(points,points[1:])):continue
+        if any(not re.fullmatch(r'\d+(?:\.\d+)?',str(p.get('value',''))) for p in points):continue
+        if any(not 0<=float(p['value'])<=float(scale[1]) for p in points):continue
+        metric=caption.text[:scale.start()].strip();original_metric=caption.quote(0,scale.start()).strip()
+        prior,current=points[-2:]
+        unit='分数';suffix='（满分'+scale[1]+'分）'
+        rows.append({'aspect':'员工评价','metric':metric,'source_metric':original_metric,'unit':unit,
+            'value':current['value']+suffix,'previous_value':prior['value']+suffix,
+            'period':current['year']+'年','previous_period':prior['year']+'年','page':page['page'],
+            'fact':original_metric+'：'+current['year']+'年'+current['value']+'分'+suffix+'；'+prior['year']+'年'+prior['value']+'分'+suffix,
+            'evidence_quote':chart['caption'],'chart_evidence':chart,'population_scope':original_metric,
+            'definition':'图题原名及原始量表；年份、数值标签、折线顶点与坐标轴独立核对，不等同全体员工满意度'})
+    return rows
+
+
 def _market_rows(text,aliases):
     """Narrative benchmark rows require a stated period, scope and metric.
 
@@ -179,7 +211,10 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000):
         counts['low_text_pdf_pages']+=len(extraction.get('needs_ocr_pages') or [])
         issuer=management_issuer(source,target,hosts)
         if issuer:
+            report_year=re.search(r'20\d{2}',raw[:1500])
             for page in document_pages(source):
+                chart_rows=survey_chart_rows(page,(extraction.get('survey_charts') or {}).get('source_sha256'),
+                                             as_of_year=int(report_year[0]) if report_year else None)
                 view=OriginalTextView(page['text'])
                 method=re.search(r'(?:我们|本公司|本集团)[^。；\n]{0,25}(?:开展|组织|实施)[^。；\n]{0,30}员工(?:敬业度|满意度)调查[^。；]{0,220}[。；]',view.text)
                 if method and not re.search(r'没有|未曾|未开展|尚未',method[0]):
@@ -188,8 +223,9 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000):
                     quote=view.quote(method.start(),method.end())
                     add(card,'survey_method','员工评价',quote,period=year[0]+'年' if year else '文件年度未绑定',
                         page=page['page'],evidence_quote=quote,mode='公司披露的调查方法，非本项目独立调查',
-                        survey_scope=view.quote(chart.start(),chart.end()) if chart else '',rank=4 if chart else 2)
-                for row in survey_table_rows(page):
+                        survey_scope=view.quote(chart.start(),chart.end()) if chart else '',
+                        chart_bound=bool(chart_rows),rank=4 if chart else 2)
+                for row in survey_table_rows(page)+chart_rows:
                     aspect=row.pop('aspect');claim=row.pop('fact')
                     note='公司披露的调查分数；不是独立访谈，分数与NPS目标不相互替代。' if aspect=='员工评价' else '公司披露指标；不能据此认定市场整体认可或无投诉。'
                     if row['metric'] in {'客户满意度','用户满意度'}:
@@ -248,7 +284,7 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000):
     selected=[]
     # One latest period per survey metric; preserve source conflicts instead of
     # overwriting values or treating alternative units as equal.
-    for metric in METRICS:
+    for metric in dict.fromkeys(r['metric'] for r in records if r['kind']=='survey'):
         rows=sorted([r for r in records if r['kind']=='survey' and r['metric']==metric],key=lambda r:(_period_rank(r['period']),r['rank']),reverse=True)
         if not rows:continue
         latest=rows[0];same=[r for r in rows if r['period']==latest['period']]
@@ -301,7 +337,9 @@ def render_reputation(package):
             for r in methods:
                 lines+=['- '+r['period']+'，'+r['mode']+'：'+r['fact']+' '+refs(r)+f"（物理页{r['page']}）"]
                 if r.get('survey_scope'):
-                    lines+=['- 原件另有“'+r['survey_scope']+'”图表；尚未可靠绑定各年图示分值，不能猜读为全体员工满意度或认定未披露调查结果。']
+                    if r.get('chart_bound'):
+                        lines+=['- “'+r['survey_scope']+'”已按原图标签和坐标核对；样本人群按图题保留，不扩写为全体员工满意度。']
+                    else:lines+=['- 原件另有“'+r['survey_scope']+'”图表；尚未可靠绑定各年图示分值，不能猜读为全体员工满意度或认定未披露调查结果。']
             if rows:
                 lines+=_table(['指标','当期值','比较期值','性质与范围','来源／页码'],[
                     [r.get('source_metric',r['metric']),r['period']+' '+_value(r['value'],r['unit']),r['previous_period']+' '+_value(r['previous_value'],r['unit']),

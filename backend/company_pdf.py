@@ -5,6 +5,7 @@ from io import BytesIO
 
 from pypdf import PdfReader
 from company_ocr import native_text_issue, enrich_pdf_pages
+from company_charts import extract_survey_charts
 
 
 def _limit(name,default,minimum,maximum):
@@ -50,13 +51,14 @@ def extract_company_pdf(payload):
     table_status=extract_business_tables(payload,pages)
     management_status=extract_management_tables(payload,pages)
     judicial_status=extract_judicial_tables(payload,pages)
+    chart_status=extract_survey_charts(payload,pages)
     return {'content':'\n\n'.join(blocks),'pages':len(reader.pages),'document_pages':pages,
             'document_extraction':{'method':'embedded_pdf_text_with_selective_ocr' if ocr['accepted_pages'] else 'embedded_pdf_text','extracted_pages':len(pages),
                                    'omitted_pages':len(reader.pages)-len(pages),'needs_ocr_pages':needs_ocr,
                                    'ocr_content_budget_omitted_pages':budget_omitted,
                                    'complete':len(pages)==len(reader.pages) and not needs_ocr,'ocr':ocr,
                                    'business_tables':table_status,'management_tables':management_status,
-                                   'judicial_tables':judicial_status}}
+                                   'judicial_tables':judicial_status,'survey_charts':chart_status}}
 
 
 def extract_business_tables(payload,pages):

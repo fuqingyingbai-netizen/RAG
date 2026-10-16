@@ -612,7 +612,7 @@ class ResearchWorkflow:
         cleaning_pipeline_version = (
             "person-evidence-v10-anchor-quarantine"
             if standardized_type == "person"
-            else "company-evidence-v10-original-issuer-script-matching"
+            else "company-evidence-v11-vector-survey-charts"
             if standardized_type == "company"
             else "industry-evidence-v1-scoped"
             if standardized_type == "industry"
@@ -625,7 +625,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v28-script-and-single-year-metrics",
+            "company": "company-report-evidence-v29-vector-survey-charts",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -649,6 +649,7 @@ class ResearchWorkflow:
         resume_enabled = os.getenv("WORKFLOW_RESUME_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
         force_refresh = bool(normalized_intake.get("force_refresh_from_upload_ocr"))
         company_ocr_retry = standardized_type == 'company' and os.getenv('COMPANY_PDF_OCR_RETRY_PENDING','false').lower() in {'true','1','on'}
+        company_chart_pending = bool(self._company_chart_refresh_candidates(project)) if standardized_type == 'company' else False
         intake_fingerprint = self._intake_evidence_fingerprint(normalized_intake)
         sources_match_intake = self._project_sources_match_intake(project, normalized_intake)
         existing_report = self._latest_artifact(project, "desktop_report")
@@ -659,6 +660,7 @@ class ResearchWorkflow:
             resume_enabled
             and not force_refresh
             and not company_ocr_retry
+            and not company_chart_pending
             and len(getattr(project, "sources", []) or []) > 0
             and sources_match_intake
             and existing_cleaned_for_reuse is not None
@@ -842,6 +844,16 @@ class ResearchWorkflow:
             db.rollback()
             _emit(emit, "ocr", "ocr_extraction_agent", "OCR 提取失败，继续工作流", str(exc), status="fallback")
 
+        chart_count = 0
+        if standardized_type == 'company':
+            try:
+                chart_count = self.enrich_company_survey_charts(db, project, emit=emit)
+                if chart_count:db.expire(project, ["sources"])
+            except Exception as exc:
+                db.rollback()
+                _emit(emit, "charts", "company_chart_agent", "公司图表补取失败，保留原资料",
+                      type(exc).__name__, status="warning")
+
         if not (getattr(project, "sources", []) or []):
             message = (
                 "未采集到任何可用于报告的来源，已停止生成空报告。"
@@ -891,7 +903,7 @@ class ResearchWorkflow:
         use_existing_cleaned = (
             resume_enabled
             and not force_refresh
-            and not (standardized_type == 'company' and (ocr_count or company_ocr_retry))
+            and not (standardized_type == 'company' and (ocr_count or company_ocr_retry or chart_count or company_chart_pending))
             and sources_match_intake
             and existing_cleaned is not None
             and (existing_cleaned.artifact_metadata or {}).get("pipeline_version") == cleaning_pipeline_version
@@ -2564,6 +2576,65 @@ class ResearchWorkflow:
         if attempted:
             db.commit()
         _emit(emit, 'ocr', 'ocr_extraction_agent', '公司按页OCR检查完成', f'refreshed_sources={refreshed}; failed/partial/pages remain explicit', status='done')
+        return refreshed
+
+    def _company_chart_refresh_candidates(self, project):
+        if str(getattr(project,'target_type','')).lower()!='company':return []
+        from company_charts import VERSION,looks_like_survey_chart
+        from report_agents.company_evidence import document_pages,source_body
+        retry=os.getenv('COMPANY_PDF_CHART_RETRY_PENDING','false').lower() in {'true','1','on'}
+        candidates=[]
+        for source in list(getattr(project,'sources',[]) or []):
+            meta=source.source_metadata or {}
+            if meta.get('entity_validation') in {'rejected','ambiguous','related_entity_context'}:continue
+            if source_body(source)[1]=='discovery_summary':continue
+            extraction=meta.get('document_extraction') or {}
+            previous=extraction.get('survey_charts') or meta.get('survey_chart_refresh') or {}
+            if previous.get('version')==VERSION and not retry:continue
+            if urlparse(source.url or '').scheme not in {'http','https'}:continue
+            if any(looks_like_survey_chart(p['text']) for p in document_pages(source)):candidates.append(source)
+        return candidates
+
+    def enrich_company_survey_charts(self, db, project, emit=None):
+        from company_charts import VERSION
+        candidates=self._company_chart_refresh_candidates(project)
+        maximum=_env_int('COMPANY_PDF_CHART_MAX_SOURCES',4,1,20)
+        refreshed=0
+        for source in candidates[:maximum]:
+            _emit(emit,'charts','company_chart_agent','公司调查图表补充版面提取',
+                  '重新取得完整PDF；年份/标签/曲线/坐标一致时才写入图表记录。',url=source.url,status='running')
+            fetched=self._fetch_web_url_with_timeout(source.url,False,emit=emit,document_profile='company')
+            meta=dict(source.source_metadata or {})
+            extraction=fetched.get('document_extraction') or {}
+            charts=extraction.get('survey_charts') or {}
+            if fetched.get('content') and fetched.get('document_pages') and charts.get('version')==VERSION:
+                # Replace one coherent original, never attach new coordinates
+                # to an earlier body merely because its URL is unchanged.
+                old_sha=((meta.get('document_extraction') or {}).get('ocr') or {}).get('source_sha256')
+                new_sha=charts.get('source_sha256')
+                if old_sha and new_sha and old_sha!=new_sha:
+                    snapshot=json.dumps({'content':source.content,'source_metadata':meta},ensure_ascii=False)
+                    snapshot_sha=hashlib.sha256(snapshot.encode('utf-8')).hexdigest()
+                    key=research_store.put_text(f'projects/{project.id}/source_revisions/{source.id}_{snapshot_sha}.json',
+                        snapshot,'application/json; charset=utf-8')
+                    meta['previous_document_revision']={'source_sha256':old_sha,'object_key':key}
+                source.content=fetched['content']
+                meta.update(document_pages=fetched['document_pages'],document_extraction=extraction,
+                            content_kind='pdf_text_extracted',fetch_status=fetched.get('status') or 'done',
+                            content_retrieved_at=datetime.now().isoformat(timespec='seconds'))
+                refreshed+=1
+                status='done' if not (charts.get('unresolved_pages') or charts.get('pending_pages')) else 'warning'
+                detail=f"charts={charts.get('charts',0)}; unresolved={charts.get('unresolved_pages',[])}; pending={charts.get('pending_pages',[])}"
+            else:
+                meta['survey_chart_refresh']={'version':VERSION,'status':'failed','reason':fetched.get('status') or 'failed',
+                                              'retrieved_at':datetime.now().isoformat(timespec='seconds')}
+                detail='获取或提取失败；原文及原图表缺口保留，不表示没有披露。';status='warning'
+            source.source_metadata=meta
+            _emit(emit,'charts','company_chart_agent','公司图表提取状态已保存',detail,url=source.url,status=status)
+        if candidates:db.commit()
+        if len(candidates)>maximum:
+            _emit(emit,'charts','company_chart_agent','公司图表来源预算未覆盖全部原件',
+                  f'pending_sources={len(candidates)-maximum}',status='warning')
         return refreshed
 
     def _should_use_vision_for_source(self, source: ResearchSource) -> bool:
