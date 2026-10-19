@@ -16,7 +16,7 @@ createApp({
       assistantPosition: JSON.parse(localStorage.getItem('assistantPosition') || '{"right":22,"bottom":22}'), assistantDrag: null, assistantWasDragged: false, assistantSuppressClick: false, assistantContextSummary: '',
       assistantMessages: [{ text: '你好，我是系统使用向导。可以教你提交任务、下载报告、复核资料和使用知识库，也可以陪你日常聊天。', isUser: false }],
       assistantNavigation: [],
-      sessionId: 'source_assistant_' + Date.now(),
+      sessionId: 'system_guide_' + Date.now(),
       modulesByTarget: { company: [
         { label: '公司背景', value: '公司背景' }, { label: '负面新闻', value: '负面新闻' },
         { label: '诉讼 / 制裁', value: '诉讼/制裁' }, { label: '股东高管', value: '股东高管' },
@@ -116,7 +116,7 @@ createApp({
         localStorage.setItem('accessToken', this.token); this.loadAssistantState(); await this.loadProjects();
       } catch (e) { ElementPlus.ElMessage.error(e.message); } finally { this.authLoading = false; }
     },
-    handleLogout() { this.token = ''; this.currentUser = null; this.authStep = 'role'; this.authMode = 'login'; this.authForm.admin_code = ''; this.projects = []; this.knowledgeResults = []; localStorage.removeItem('accessToken'); },
+    handleLogout() { this.assistantOpen = false; this.assistantMessages = []; this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantLoading = false; this.token = ''; this.currentUser = null; this.authStep = 'role'; this.authMode = 'login'; this.authForm.admin_code = ''; this.projects = []; this.knowledgeResults = []; localStorage.removeItem('accessToken'); },
     switchView(view) { this.activeView = view; localStorage.setItem('activeView', view); if (view === 'tasks' || view === 'review') { this.loadProjects(); this.refreshVisibleTaskProgress(); } if (view === 'sources') this.loadRepository(); },
     splitLines(text) { return (text || '').split('\n').map(x => x.trim()).filter(Boolean); },
     industryRunFields(targetType, intake = null) {
@@ -692,6 +692,8 @@ createApp({
     },
     assistantStorageKey() { return `systemGuide:v1:${this.currentUser?.username || 'anonymous'}`; },
     loadAssistantState() {
+      this.assistantMessages = [{ text: '你好，我是系统使用向导。可以解答系统操作，也可以日常聊天。', isUser: false }];
+      this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantNavigation = [];
       try {
         const raw = localStorage.getItem(this.assistantStorageKey());
         if (!raw) return;

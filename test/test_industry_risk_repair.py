@@ -205,5 +205,5 @@ def test_company_risk_route_never_uses_industry_model_or_repair():
     w=ResearchWorkflow.__new__(ResearchWorkflow)
     w._invoke_industry_risk=lambda *a,**kw:pytest.fail('Company route must stay separate')
     w._invoke=lambda *a,**kw:'{"dimensions":[],"risk_level":"unknown"}'
-    p=SimpleNamespace(title='企业测试',target_name='样本企业',target_type='company',industry='机器人')
+    p=SimpleNamespace(title='企业测试',target_name='样本企业',target_type='company',industry='机器人', sources=[], artifacts=[])
     assert isinstance(json.loads(w.assess_risk(p,'{"facts":[]}')),dict)

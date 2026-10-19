@@ -267,10 +267,11 @@ def test_person_and_industry_risk_paths_keep_their_own_model_dispatch():
     for kind in ('person', 'industry'):
         calls = []
         w = ResearchWorkflow.__new__(ResearchWorkflow)
-        w._invoke = lambda agent, prompt, **kw: calls.append(agent) or json.dumps({'dimensions': [], 'overall_score': None})
+        w._invoke = lambda agent, prompt, **kw: calls.append('person') or json.dumps({'dimensions': [], 'overall_score': None})
+        w._invoke_industry_risk = lambda agent, prompt, **kw: calls.append('industry') or json.dumps({'dimensions': [], 'overall_score': None})
         p = SimpleNamespace(target_type=kind, title='测试', target_name='独立对象', industry='测试', sources=[])
         w.assess_risk(p, '{}')
-        assert len(calls) == 1 and not hasattr(p, 'company_risk_register_package')
+        assert calls == [kind] and not hasattr(p, 'company_risk_register_package')
 
 
 def judicial_row(**kw):

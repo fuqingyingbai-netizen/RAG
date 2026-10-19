@@ -629,4 +629,4 @@ Markdown 作为检索原件，Word 继续用于下载。默认仅本人和管理
 专业平台 `structured://` 查询定位不作为网页链接；没有公开链接时显示平台查询记录。原网站可能更新、下架或需要登录，链接台账不能完整还原历史网页。
 本地研究向量索引默认关闭（`RESEARCH_LEGACY_RAG_ENABLED=false`），原批量重建入口返回 410；公司知识库继续独立完成 RAG。
 
-外部付费接口的手动验收与自动回归分开：博查真实调用需显式设置 `RUN_BOCHA_LIVE_TESTS=1`；企查查 MCP 脚本使用其 CLI 参数运行。
+外部付费接口的手动验收与自动回归分开：博查真实调用需显式设置 `RUN_BOCHA_LIVE_TESTS=1`；搜索及模型诊断需 `RUN_LIVE_PROVIDER_TESTS=1`；企查查 MCP 脚本使用其 CLI 参数运行。
