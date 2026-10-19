@@ -225,7 +225,7 @@ def test_fabricated_source_is_quarantined_and_uploaded_source_gets_internal_refe
 def test_partial_risk_score_stays_unknown_through_workflow():
     workflow = ResearchWorkflow.__new__(ResearchWorkflow)
     policy = fact()
-    workflow._invoke = lambda *a, **kw: json.dumps({'dimensions': [
+    workflow._invoke_industry_risk = lambda *a, **kw: json.dumps({'dimensions': [
         {'name': '政策与监管风险', 'score': 10, 'evidence_ids': [policy['evidence_id']]}]})
     project = SimpleNamespace(title='机器人研究', target_name='机器人', target_type='industry', industry='机器人')
     assessed = json.loads(workflow.assess_risk(project, json.dumps({'facts': [policy]})))
@@ -276,6 +276,7 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
             return f'## {index}. {title}\n\n' + ('已核验公开事实 ' + ids[0] if ids else '待核验')
         return '{"facts": [], "information_gaps": []}'
     workflow._invoke = invoke
+    workflow._invoke_industry_risk = invoke
     workflow._invoke_industry_report = invoke
     def save(db, project, kind, title, content, metadata=None, **kwargs):
         artifact = SimpleNamespace(id=len(project.artifacts) + 1, artifact_type=kind, title=title,
@@ -288,12 +289,75 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     artifacts, added = workflow.run_project(database, project, [], [], intake={
         'target_type': 'industry', 'include_capital_markets': False, 'as_of_date': '2026-01-31'})
     assert added == 4 and project.status == 'completed'
+    risk_artifact = next(a for a in artifacts if a.artifact_type == 'risk_assessment')
+    assert risk_artifact.artifact_metadata['risk_transparency']['calibration_status'] == 'not_calibrated'
     report = next(a for a in artifacts if a.artifact_type == 'desktop_report')
-    assert report.artifact_metadata['delivery_status'] == 'final_candidate'
+    assert report.artifact_metadata['delivery_status'] == 'review_draft'
+    assert report.artifact_metadata['risk_transparency'] == risk_artifact.artifact_metadata['risk_transparency']
+    assert any(r['code'] == 'risk_assessment_incomplete' for r in report.artifact_metadata['delivery_review_reasons'])
+    assert any(a.artifact_type == 'report_quality_diagnostic' for a in artifacts)
     assert '## 16. 后续研究点' in report.content
     with zipfile.ZipFile(io.BytesIO(exports[0])) as archive:
         assert archive.testzip() is None and 'word/document.xml' in archive.namelist()
     assert any(a.artifact_type == 'proposal' for a in artifacts)
+    ledger_artifact=next(a for a in artifacts if a.artifact_type=='industry_claim_ledger')
+    ledger=json.loads(ledger_artifact.content)
+    assert ledger['dependencies']['report_artifact_id']==report.id
+    assert report.artifact_metadata['claim_ledger_artifact_id']==ledger_artifact.id
+    assert all(c['entailment_status']=='not_evaluated' for c in ledger['claims'])
+    cleaned_contract=json.loads(next(a.content for a in artifacts if a.artifact_type=='cleaned_facts'))
+    assert cleaned_contract['evidence_coverage']['version']=='industry-evidence-contract-v1'
+
+    # A newer review draft must survive resume even if an older candidate exists.
+    older = SimpleNamespace(id=999, artifact_type='desktop_report', title='旧候选稿', version=1,
+        content=report.content, artifact_metadata={'report_pipeline_version':report.artifact_metadata['report_pipeline_version'],
+        'delivery_status':'final_candidate'}, created_at=datetime(2020,1,1))
+    project.artifacts.append(older)
+    def no_new_report(*args, **kwargs):
+        raise AssertionError('Resume should reuse the latest body without another model call')
+    original_generate_report=workflow.generate_report
+    workflow.generate_report=no_new_report
+    monkeypatch.setenv('WORKFLOW_RESUME_ENABLED','true')
+    resumed,_=workflow.run_project(database,project,[],[],intake={
+        'target_type':'industry','include_capital_markets':False,'as_of_date':'2026-01-31'})
+    reexported=next(a for a in resumed if a.artifact_type=='desktop_report')
+    assert reexported.artifact_metadata['reexported_from_artifact_id']==report.id
+    assert reexported.artifact_metadata['delivery_status']=='review_draft'
+    assert reexported.artifact_metadata['delivery_review_reasons']==report.artifact_metadata['delivery_review_reasons']
+    assert reexported.content.count('**待人工复核稿**')==1
+    assert any(a.artifact_type=='report_quality_diagnostic' for a in resumed)
+    reexported_ledger=next(a for a in resumed if a.artifact_type=='industry_claim_ledger')
+    assert json.loads(reexported_ledger.content)['dependencies']['report_artifact_id']==reexported.id
+    assert reexported_ledger.id!=ledger_artifact.id
+
+    # A changed risk pipeline invalidates only risk/report even with reusable facts.
+    prior_risk=next(a for a in artifacts if a.artifact_type=='risk_assessment')
+    prior_risk.artifact_metadata['risk_pipeline_version']='legacy'
+    workflow.generate_report=original_generate_report
+    risk_calls=[]
+    def assess_again(*a,**kw):
+        risk_calls.append(a)
+        return json.dumps(unknown_risk(scope=project.industry_scope))
+    workflow.assess_risk=assess_again
+    refreshed,_=workflow.run_project(database,project,[],[],intake={
+        'target_type':'industry','include_capital_markets':False,'as_of_date':'2026-01-31'})
+    new_risk=next(a for a in refreshed if a.artifact_type=='risk_assessment')
+    new_report=next(a for a in refreshed if a.artifact_type=='desktop_report')
+    assert len(risk_calls)==1 and new_risk.id!=prior_risk.id
+    assert new_risk.artifact_metadata['risk_pipeline_version']=='industry-risk-v5-diverse-evidence'
+    assert 'reexported_from_artifact_id' not in new_report.artifact_metadata
+
+    # Same source set and pipeline version do not authorize a stale downstream
+    # score after the saved fact payload has been revised.
+    reused_cleaned=next(a for a in refreshed if a.artifact_type=='cleaned_facts')
+    revised_payload=json.loads(reused_cleaned.content)
+    revised_payload['information_gaps'].append('新增已审阅的证据缺口。')
+    reused_cleaned.content=json.dumps(revised_payload,ensure_ascii=False)
+    revised,_=workflow.run_project(database,project,[],[],intake={
+        'target_type':'industry','include_capital_markets':False,'as_of_date':'2026-01-31'})
+    latest_risk=next(a for a in revised if a.artifact_type=='risk_assessment')
+    assert len(risk_calls)==2 and latest_risk.id!=new_risk.id
+    assert latest_risk.artifact_metadata['cleaned_sha256']!=new_risk.artifact_metadata['cleaned_sha256']
 
 
 def test_proposal_follows_seven_sections_and_industry_scope():

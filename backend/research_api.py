@@ -665,6 +665,8 @@ def _format_mock_trace_summary(summary: dict) -> str:
 
 
 def _is_report_trace_demo_question(question: str) -> bool:
+    if os.getenv('RESEARCH_DEMO_ENABLED','false').strip().lower() not in {'1','true','yes','on'}:
+        return False
     compact = re.sub(r"\s+", "", question or "")
     return "马云" in compact and any(token in compact for token in ("背景调查报告", "背调报告", "报告", "溯源", "来源"))
 
@@ -1282,7 +1284,9 @@ def _refresh_failed_upload_ocr(db: Session, project: ResearchProject) -> dict[st
 async def get_report_trace_summary(
     query: str = Query(..., min_length=1),
 ):
-    return _mock_mayun_trace_summary(query)
+    if os.getenv('RESEARCH_DEMO_ENABLED','false').strip().lower() not in {'1','true','yes','on'}:
+        raise HTTPException(status_code=404,detail='演示追溯未启用，请在具体项目中查看真实来源。')
+    return {**_mock_mayun_trace_summary(query),'is_demo':True,'data_origin':'static_demo'}
 
 
 @router.post("/projects", response_model=ResearchProjectResponse)
@@ -2219,7 +2223,7 @@ async def download_artifact(
         except Exception:
             content = artifact.content
 
-    ext = "json" if artifact.artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment"} else "md"
+    ext = "json" if artifact.artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger"} else "md"
     filename = f"{_safe_download_name(artifact.title, artifact.artifact_type)}_v{artifact.version}.{ext}"
     media_type = "application/json; charset=utf-8" if ext == "json" else "text/markdown; charset=utf-8"
     return Response(
