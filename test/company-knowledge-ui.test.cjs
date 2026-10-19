@@ -135,12 +135,12 @@ test('upload summary distinguishes ready, processing and failure', () => {
 });
 
 test('project collections group only accessible loaded documents', () => {
-  const context = {projectOptions:['Project B','Project A'],documents:[{project:'Project A',industry:'汽车'},{project:'Project A',industry:'汽车'},{project:'Project B',industry:'消费'}]};
+  const context = {projectOptions:['Project B','Project A'],readableDocuments:[{project:'Project A',industry:'汽车'},{project:'Project A',industry:'汽车'},{project:'Project B',industry:'消费'}]};
   const projects = component.computed.projectCollections.call(context);
   assert.equal(projects[0].name,'Project A'); assert.equal(projects[0].count,2); assert.equal(projects[0].industry,'汽车');
 });
 test('recent reading ignores inaccessible or removed files and preserves reading order', () => {
-  const context = {readingHistory:['missing','b','a'],documents:[{id:'a'},{id:'b'}]};
+  const context = {readingHistory:['missing','b','a','locked'],documents:[{id:'a',can_read:true},{id:'b',can_read:true},{id:'locked',can_read:false}]};
   assert.deepEqual(Array.from(component.computed.recentlyRead.call(context).map(doc => doc.id)),['b','a']);
 });
 test('sorting by recency preserves filtered list and handles missing dates', () => {
@@ -150,7 +150,7 @@ test('sorting by recency preserves filtered list and handles missing dates', () 
 });
 
 test('project research uses current ready files and preserves an explicit selection', () => {
- const context = libraryContext(); Object.assign(context,{libraryScopeFiltered:true,filteredDocuments:[{id:'a',state:'ready'},{id:'b',state:'parsing'}],$nextTick:callback => callback(),$refs:{}});
+ const context = libraryContext(); Object.assign(context,{libraryScopeFiltered:true,filteredDocuments:[{id:'a',state:'ready',can_read:true},{id:'b',state:'parsing',can_read:true},{id:'locked',state:'ready',can_read:false}],$nextTick:callback => callback(),$refs:{}});
  context.askLibrary(); assert.deepEqual(Array.from(context.selectedIds),['a']); assert.equal(context.mode,'chat');
  context.selectedIds=['explicit']; context.askLibrary(); assert.deepEqual(Array.from(context.selectedIds),['explicit']);
 });
@@ -160,6 +160,28 @@ function paginationContext(count, page = 1, size = 10) {
  for(const key of ['libraryPageCount','currentLibraryPage','pagedDocuments','libraryPageRange','libraryPageNumbers']) Object.defineProperty(context,key,{get:()=>component.computed[key].call(context)});
  return context;
 }
+
+test('my projects filters by ownership and summary uses a server-owned scope', () => {
+ const context = libraryContext(); context.documents=[{id:'mine',is_owner:true},{id:'other',is_owner:false}];
+ context.browseMyProject();
+ assert.equal(context.mineOnly,true);
+ assert.deepEqual(Array.from(component.computed.filteredDocuments.call(context).map(doc=>doc.id)),['mine']);
+ let submitted='';context.sendQuestion=question=>{submitted=question;}; context.summarizeMyProjects();
+ assert.equal(context.chatScope,'my-projects');assert.equal(context.mode,'chat');assert.match(submitted,/Markdown/);
+ context.changeScope([]);assert.equal(context.chatScope,'accessible');
+});
+
+test('locked documents cannot become selected evidence and sensitive files force restricted access', () => {
+ const context=libraryContext();context.toggleSelection({id:'locked',state:'ready',can_read:false});
+ assert.equal(context.selectedIds.length,0);
+ context.uploadForm.confidentiality='secret';context.syncConfidentiality();assert.equal(context.uploadForm.visibility,'restricted');
+});
+
+test('answer tables preserve text safely without interpreting document HTML', () => {
+ const blocks=component.methods.answerBlocks('Summary\n\n| Project | Count |\n| --- | --- |\n| <script>alert(1)</script> | 2 |\nAfter');
+ assert.equal(blocks[1].type,'table');assert.equal(blocks[1].rows[0][0],'<script>alert(1)</script>');
+ assert.equal(blocks[2].text,'After');
+});
 test('pagination has disjoint pages, a partial last page and an empty range',()=>{
  const context = paginationContext(23,2);
  assert.deepEqual(Array.from(context.pagedDocuments.map(doc=>doc.id)),[10,11,12,13,14,15,16,17,18,19]);

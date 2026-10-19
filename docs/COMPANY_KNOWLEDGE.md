@@ -57,6 +57,11 @@ COMPANY_KNOWLEDGE_BUCKET=company-knowledge
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
 | GET | /company-knowledge/status | 配置与账号状态 |
+| GET | /company-knowledge/my-projects | 按当前账号 ID 统计本人上传的项目与资料 |
+| POST | /company-knowledge/documents/{id}/access-requests | 提交受限资料访问申请 |
+| GET | /company-knowledge/access-requests/mine | 查看本人申请和审批结果 |
+| GET | /company-knowledge/access-requests | 管理员查看权限申请 |
+| POST | /company-knowledge/access-requests/{id}/decision | 管理员批准或拒绝，保存处理说明 |
 | GET | /company-knowledge/documents | 分页目录，refresh=true 同步云端历史资料 |
 | POST | /company-knowledge/uploads | multipart 单文件上传，前端批量逐份提交，返回 202 |
 | PATCH | /company-knowledge/documents/{id} | 修改分类、复核与权限 |
@@ -65,7 +70,7 @@ COMPANY_KNOWLEDGE_BUCKET=company-knowledge
 | GET | /company-knowledge/documents/{id}/original | 原件预览，download=true 下载 |
 | GET | /company-knowledge/documents/{id}/preview?page=1 | 分页解析片段 |
 | GET | /company-knowledge/documents/{id}/page?page=1 | PDF 原件逐页图片，响应头返回总页数 |
-| POST | /company-knowledge/chat/stream | SSE，可传 document_ids（本地目录 ID） |
+| POST | /company-knowledge/chat/stream | SSE，可传 document_ids（本地目录 ID）或 scope=my-projects |
 
 官方参考：[RAG API](https://help.aliyun.com/zh/model-studio/rag-api-overview)、[上传租约](https://help.aliyun.com/zh/model-studio/rag-api-upload-lease)、[注册文件](https://help.aliyun.com/zh/model-studio/rag-api-add-file)、[任务状态](https://help.aliyun.com/zh/model-studio/rag-api-get-sync-job-status)。
 
@@ -106,3 +111,19 @@ node --test test/company-knowledge-ui.test.cjs
 桌面宽度大于 960px 时，公司知识库使用视口高度布局。系统侧栏固定，知识分类侧栏独立保留；右侧搜索、筛选、表头和底部分页保持可见，文件行在单独区域滚动。较小屏幕保留流式布局，避免固定区域挤占操作空间。
 
 19 条前端测试通过，新增空列表/末页、筛选重置、页码边界、超过 100 份目录完整读取验证。真实浏览器确认：列表滚至底部时，系统导航、知识分类、搜索筛选、表头及分页栏均仍可见。
+
+## 2026-10-19 我的项目、保密等级与权限审批
+
+研究首页新增“我的项目”统计图，资料库侧栏可仅查看本人上传的资料。新上传写入 owner_user_id，旧资料仅在缺少 ID 时兼容上传者账号名。云端历史导入且无上传者的资料不会自动算成某个员工的项目。这是上传归属，不等同于个人参与职责认定。
+
+可点击“AI 总结我的项目”，或直接提问“总结我做了哪些项目”。后端按登录账号计算归属，不接受客户端指定其他账号 ID。项目、资料数量来自本人目录全量统计；内容总结仍依据已完成索引的片段。无命中时只展示目录统计，不编造成果。回答中的 Markdown 表格渲染为可读表格，单元格用文本绑定，不执行文档 HTML。
+
+保密等级为 internal（内部）、confidential（敏感）、secret（机密）。敏感和机密文件在上传/修改时都由后端强制 restricted，仅上传者、管理员及已授权成员能读取。旧资料保持原可见范围，保密等级初始为内部；管理员应按实际内容调整。当前等级设置在文件级，同项目文件可以有不同等级。
+
+已获知识库资格的普通账号可看到受限资料的基础目录（标题、项目、等级）并申请权限，看不到原件、解析文本、云端 ID 或成员名单。管理员顶部“权限审批”每 6 秒刷新待审数量，可批准或拒绝，拒绝后可重新申请。审批结果保存在 company_access_requests；批准后读取、下载和后续问答同时生效。全站新注册账号仍需管理员先加入 COMPANY_KNOWLEDGE_USERS，不会因公开注册自动获得企业资料权限。
+
+启动时以可重复执行的加列操作升级既有目录，新增 owner_user_id、confidentiality 和申请表。数据库与原件路径保持沿用。
+
+本轮自动化验证：42 项后端测试、22 项前端测试通过；覆盖个人归属、自然语言项目总结、强制保密、申请/审批、普通员工越权拦截及原有索引、预览、对话流程。
+
+真实验收：管理员和 kb_employee_test 两个独立浏览器会话均通过登录页进入；管理员上传机密 TXT，普通员工申请，管理员先拒绝再批准重新申请，验证授权前后的预览、下载和真实百炼问答。员工上传另一份项目资料，项目统计和 AI 总结表格仅包含本人归属，无浏览器运行错误。合成验收资料已通过删除接口移除；结果和截图保存于忽略提交的 work/knowledge-workbench/。
