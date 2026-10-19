@@ -29,6 +29,27 @@ class KnowledgeError(Exception):
         self.status_code = status_code
 
 
+def upload_category():
+    return os.getenv('BAILIAN_KNOWLEDGE_CATEGORY_ID', 'default').strip() or 'default'
+
+
+def oss_upload_url(value):
+    url = safe_url(value)
+    host = urlsplit(url).hostname or ''
+    return url if host.endswith('.aliyuncs.com') and '.oss-' in host else ''
+
+
+async def cloud_rpc(client, cfg, path, payload=None, *, method='POST', params=None):
+    response = await client.request(method, cfg['base_url'] + path, headers=headers(cfg), json=payload, params=params)
+    if response.status_code != 200:
+        raise provider_error(response.status_code)
+    result = response.json()
+    if (result.get('success') is False or str(result.get('code', '')).lower() not in ('success', '200', '')
+            or str(result.get('status_code', result.get('status', '200'))).upper() not in ('200', 'SUCCESS')):
+        raise KnowledgeError('云端操作未成功，请检查服务权限或文件格式后重试。')
+    return result.get('data') or {}
+
+
 def settings():
     names = ('API_KEY', 'BASE_URL', 'AGENT_ID', 'INDEX_ID')
     cfg = {name.lower(): os.getenv('BAILIAN_KNOWLEDGE_' + name, '').strip() for name in names}
@@ -87,7 +108,8 @@ async def list_cloud_documents(cfg, page_number=1, page_size=100):
             'id': row['doc_id'], 'title': row.get('doc_name', ''),
             'format': str(row.get('doc_type', '')).upper(), 'size': row.get('size', 0),
             'status': row.get('status', ''), 'status_message': row.get('message', ''),
-            'category': row.get('categoryName') or '公司资料', 'tags': row.get('tags') or [],
+            'category': row.get('categoryName') or '公司资料',
+            'tags': row.get('tags') if isinstance(row.get('tags'), list) else [tag for tag in str(row.get('tags') or '').split(',') if tag],
             'modified_at': row.get('gmt_modified'),
         } for row in result.get('rows', []) if row.get('doc_id')],
             'total_count': result.get('total_count', 0), 'page_number': page_number, 'page_size': page_size}
@@ -195,9 +217,16 @@ class HistoryMessage(BaseModel):
 class KnowledgeQuestion(BaseModel):
     message: str = Field(min_length=1, max_length=1500)
     history: list[HistoryMessage] = Field(default_factory=list, max_length=20)
+    document_ids: list[str] = Field(default_factory=list, max_length=20)
 
 
 async def cloud_answer(cfg, question):
+    if 'allowed_documents' in cfg:
+        from company_workspace import grounded_answer
+        async with asyncio.timeout(240):
+            async for event in grounded_answer(cfg, question):
+                yield event
+        return
     payload = {'input': {'messages': [m.model_dump() for m in question.history] +
                         [{'role': 'user', 'content': question.message.strip()}]},
                'parameters': {'agent_options': {'agent_id': cfg['agent_id']}}, 'stream': True}
@@ -270,10 +299,9 @@ def knowledge_status(user: User = Depends(get_current_user)):
     except KnowledgeError:
         configured = False
     return {'configured': configured, 'access_allowed': has_access(user),
-            'name': '公司资料测试库', 'provider': '阿里云百炼', 'is_admin': user.role == 'admin'}
+            'name': '公司知识库', 'provider': '阿里云百炼', 'is_admin': user.role == 'admin', 'username': user.username}
 
 
-@router.get('/documents')
 async def documents(page_number: int = Query(1, ge=1), page_size: int = Query(100, ge=1, le=100),
                     _: User = Depends(require_knowledge_user)):
     try:
@@ -285,13 +313,15 @@ async def documents(page_number: int = Query(1, ge=1), page_size: int = Query(10
 
 
 @router.post('/chat/stream')
-async def chat(question: KnowledgeQuestion, _: User = Depends(require_knowledge_user)):
+async def chat(question: KnowledgeQuestion, user: User = Depends(require_knowledge_user)):
     if not question.message.strip():
         raise HTTPException(422, '问题不能为空。')
     if sum(len(m.content) for m in question.history) > 60000:
         raise HTTPException(422, '对话内容过长，请开始新对话。')
     try:
         cfg = settings()
+        from company_workspace import prepare_scope
+        cfg['allowed_documents'] = await prepare_scope(cfg, user, question.document_ids)
     except KnowledgeError as exc:
         raise HTTPException(exc.status_code, str(exc)) from None
 
@@ -301,3 +331,7 @@ async def chat(question: KnowledgeQuestion, _: User = Depends(require_knowledge_
 
     return StreamingResponse(stream(), media_type='text/event-stream',
                              headers={'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no'})
+
+
+from company_workspace import workspace_router
+router.include_router(workspace_router)

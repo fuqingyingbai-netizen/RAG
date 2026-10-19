@@ -12,21 +12,40 @@ from .report_prompts import (
     company_section_evidence_budget,
 )
 from .report_style import REFERENCE_REPORT_STYLE, REPORT_CHAPTER_HEADING_RE, ensure_delivery_sections, normalize_report_headings
+from .company_summary import (
+    build_company_summary_package,
+    build_company_summary_prompt,
+    fallback_company_summary,
+    normalize_company_summary,
+    package_fingerprint,
+    summary_errors,
+)
+from .company_governance import build_governance_package, render_governance, governance_errors, cited_evidence_ids
+from .company_history import build_history_package, render_history, history_errors
+from .company_operations import build_operations_package, render_operations, operations_errors
+from .company_reputation import build_reputation_package, render_reputation, reputation_errors
+from .company_business import build_business_package, render_business, business_errors
+from .company_management import build_management_package, render_management, management_errors
+from .company_people import build_people_package, render_people, people_errors
+from .company_judicial import build_judicial_package, render_judicial, judicial_errors
+from .company_diligence import build_diligence_package, render_diligence, diligence_errors
+from .company_risk_register import build_risk_register, dictionary as risk_dictionary, render_risk_register, risk_register_errors
+from .company_assessment import build_assessment_package, render_assessment, assessment_errors
 
 
 COMPANY_REPORT_OUTLINE = [
     ("摘要", ["报告概述", "核心发现点", "需关注信号", "公司所属赛道竞争格局", "总体评估"]),
     ("主体工商基本信息核查股东关系与治理底盘", ["主体工商信息表", "股权与治理信息表", "股东/实控人/关联方关系网图", "治理底盘判断"]),
-    ("历史沿革与融资", ["历史工商变更与成立基础", "业务发展历程与历史沿革（时间线）", "历史遗留问题", "融资情况总表", "上市规范性瑕疵"]),
+    ("历史沿革与成长质量", ["历史工商变更", "业务发展历程与关键节点", "同口径成长质量核对", "历史遗留事项与核验边界"]),
     ("组织治理与运营管理评估", ["组织架构合理性", "决策机制", "权责划分", "执行流程", "内部激励", "企业应变能力", "组织创新能力"]),
     ("行业口碑、产品认可度与同业竞争地位研判", ["员工评价", "竞品评价", "合作方评价", "行业地位", "技术实力", "综合软实力", "同业对标"]),
     ("主营业务真实经营情况核验", ["分部门业务运营数据核验表", "核心业务板块运营进展核验表", "关键经营事实与风险研判", "视觉/图谱证据说明"]),
-    ("核心管理团队风险研判", ["管理层履历与岗位配置", "产业资源与商业化能力映射", "关联关系图谱与治理集中度", "管理能力与团队掌控力评估", "派系斗争、人事动荡与商业腐败信号", "供应商/经销体系关系型合作信号研判", "本章待核验事项汇总（集中式）"]),
-    ("企业文化及人员流失情况", ["内部文化价值观与文化践行引导", "团队激励与人才结构现状", "人才储备、培养与梯队建设", "销售/研发/技术等核心岗位人员流失情况", "风险研判汇总（本章专属）"]),
+    ("核心管理团队风险研判", ["管理层履历与岗位配置", "任职变动与时间线", "产业资源及明确关联关系", "管理能力与团队掌控力评估", "派系斗争、人事动荡与商业腐败信号", "本章待核验事项"]),
+    ("企业文化及人员流失情况", ["内部文化价值观与文化践行引导", "团队激励与人才结构现状", "人才储备、培养与梯队建设", "销售/研发/技术等核心岗位人员流失情况", "核验判断与具体缺口"]),
     ("企业司法负面核查", ["核心事实汇总", "风险事项分类核查表", "视觉证据/图谱证据", "结论与行动建议"]),
     ("定向穿透专项尽职调查", ["融资情况", "资金使用合规性", "战略布局", "业务真实性", "大额资金往来", "客户指定专项", "技术/供应商/资金往来穿透"]),
-    ("风险核查", ["组织与管理风险", "业务与运营风险", "行业特殊风险", "合规法律风险", "资本与估值风险"]),
-    ("综合评价", ["整体评级", "分项评分表", "核心优势", "核心扣分项", "关键判断", "投资推进建议"]),
+    ("风险核查", ["组织与管理风险", "业务与运营风险", "行业特殊风险", "具体事项与有边界的判断", "75项核查目录及扩展事项"]),
+    ("综合评价", ["综合判断与评分口径", "分项评价与原件依据", "经营变化、优势与制约", "历史资本事项状态", "具体风险与推进条件", "显式评分锚点"]),
     ("信息来源", ["信息点", "来源标题", "URL", "可信度", "支持章节"]),
     ("后续研究建议", ["待确认信息点（集中式缺口清单）", "下一步深度研究方向与优先级排序", "关键行动提示"]),
 ]
@@ -55,9 +74,9 @@ COMPANY_SECTION_STRUCTURES = {
 """,
     3: """
 目标公司报告专属章节输出骨架：
-## 3. 历史沿革与融资
+## 3. 历史沿革与成长质量
 
-明确历史工商变更、业务发展历程、融资情况、历史沿革、历史遗留问题和上市规范性瑕疵。建议按时间线输出"时间｜事件｜业务/资本含义｜证据来源｜待核验事项"。
+分别列明事件日期、工商/业务/资本动作、签约或完成状态及来源；以同口径经营数据核对成长质量。历史遗留事项须有具体事件证据；不从上市、融资或缺失材料推出无瑕疵或持续增长。
 """,
     4: """
 目标公司报告专属章节输出骨架：
@@ -81,13 +100,14 @@ COMPANY_SECTION_STRUCTURES = {
 目标公司报告专属章节输出骨架：
 ## 7. 核心管理团队（深度/基础）风险研判
 
-摸清管理层履历、产业资源及关联关系，评估管理能力、团队掌控力，排查派系斗争、人事动荡等治理隐患。可结合采购、供应商、经销体系中的商业腐败、压货、虚增业绩、关系型合作信号。
+摸清管理层履历、产业资源及关联关系，按来源时点区分任职、候选提名、正式聘任与离任；评估管理能力、团队掌控力，核查具体治理事件。供应链few-shot与本章标题错位，不能套作无腐败/无异常结论；关联数量或亲属关系不直接证明派系或利益输送。
 """,
     8: """
 目标公司报告专属章节输出骨架：
 ## 8. 企业文化及人员流失情况
 
 了解企业内部文化价值观、践行与引导方式，关注团队激励、人才储备及培养、梯队建设，以及销售/研发/技术等核心岗位人员流失情况。
+人数、次数、人次、时数及统计范围分开；流失率保留原始公式与期间，不能机械年化或用净减员推断裁员。公司实践、计划目标和员工真实感受分开，信息缺口不直接判为高风险。
 """,
     9: """
 目标公司报告专属章节输出骨架：
@@ -100,18 +120,19 @@ COMPANY_SECTION_STRUCTURES = {
 ## 10. 定向穿透专项尽职调查
 
 针对融资情况、资金使用合规性、战略布局、业务真实性、大额资金往来或客户指定事项开展专项穿透核验。标题下必须明确本项目最需要穿透的方向。
+方向来自明确委托或具体证据触发；客户指定指委托方要求，不能从“现有客户”推定。融资额度、提款、对价及净现金流、备考与实际、母公司单体和集团合并分别列示。公开未检出、案例入选及一般研究要求不证明交易合规或已完成尽调。
 """,
     11: """
 目标公司报告专属章节输出骨架：
 ## 11. 风险核查
 
-根据风险字典逐类识别，不得泛泛罗列。建议表格：风险类别｜本项目信号｜具体表现｜证据来源｜风险等级｜核验动作。
+按模板三类及75项核查目录核对；模板描述不是目标公司事实。具体事项保留主体、时期、原件定位、影响判断和核验动作；核查优先级与公司整体严重程度分开，不由信息缺口或模型打分平均出风险等级。召回、司法及资金等扩展事项明确标记。
 """,
     12: """
 目标公司报告专属章节输出骨架：
 ## 12. 综合评价
 
-综合上述研究内容，对目标公司进行总结打分。建议结构：整体评级、分项评分表、核心优势、核心扣分项、关键判断、投资推进建议。
+综合已核研究内容评价公司。公司表现分与证据可靠程度、风险严重程度分别列示；分项锚点、固定权重、原件事实与计算路径可追溯。不按证据覆盖度给企业质量分，不编造信用等级；缺项不填默认分、不剔除后假装完整均分。历史IPO/融资、名义持股、技术宣传与当前结果分别核对。
 """,
     13: """
 目标公司报告专属章节输出骨架：
@@ -128,12 +149,11 @@ COMPANY_SECTION_STRUCTURES = {
 }
 
 
-COMPANY_RISK_TAXONOMY = """
-公司风险核查字典：
-- 组织与管理风险：管理层缺乏执行战斗力、战略缺乏延续性、缺乏行业经验、能力与企业发展需求不匹配、决策流程不科学、决策保守、创始人缺乏决策话语权、核心团队年纪偏大或能力不足、家族化管理、交叉管理职责不清、文化导向不健康、资源分配不均、派系内斗、信息不共享、员工流失率高、核心岗位流失、排外、晋升路径不清、监察制度不足、管理流于形式、核心资源掌控造假等。
-- 业务与运营风险：业绩收入造假、总部带头造假、经销体系紊乱、压货、刷单、客户数量造假、产品参数不符、美化报表、实验室数据误导投资人、研发进度及投入夸大、用户数量夸大、供应链能力夸大、专利侵权、销售区域恶性竞争、销售个人获利、不正当获客、偷税漏税、社保问题、区域腐败、产品壁垒不足、研发回报周期长、消防/环评/用工/贸易风险、现金流不足。
-- 行业特殊风险：消费行业关注业绩夸大、虚假宣传、商业模式单一、产品线单一、供应链薄弱、质量安全；医药/医疗器械关注研发审批、临床数据验真、产业化、医生认可、专利合作、渠道；硬科技关注PPT公司、研发慢、商务弱、闭门造车、场景局限、造血弱、人才流失；新能源关注虚假项目、融资套现、重炒作轻业务、资源与业务错配、竞争力不明显、盲目投入、生产管理落后、客情关系差。
-"""
+COMPANY_RISK_TAXONOMY = (
+    "公司风险核查字典（模板75个问题，不是已发生事实或默认评分）：\n"
+    + "\n".join(item['id'] + ' ' + item['category'] + ('／' + item['sector'] if item['sector'] else '')
+                + '：' + item['label'] for item in risk_dictionary()['items'])
+)
 
 
 COMPANY_SECTION_FEW_SHOTS = {
@@ -141,13 +161,13 @@ COMPANY_SECTION_FEW_SHOTS = {
 摘要 few-shot 表达锚点：
 执行摘要：写清公司成立时间、定位、团队、网站/产品状态。核心发现要覆盖团队、产品、融资/客户、技术或经营亮点。关键验证要列修正与确认。需关注信号要包括工商/融资/产品/媒体覆盖/经营数据缺口。竞争格局要列头部/腰部/初创/海外竞品及相对劣势。评估要写优势与核心风险。
 """,
-    2: "few-shot：目标公司主要股东之间暂未发现重大公开矛盾或实质性冲突，核心决策权仍较集中，其他股东多以投资人或资源支持角色参与。现阶段未发现股东关系对公司经营稳定性造成重大不利影响。",
-    3: "few-shot：目标公司发展路径整体较为顺畅，已完成从单一配件生产到多品类业务布局的扩张，业务规模实现较快增长。经调研，暂未发现重大历史遗留问题、未决事项或影响上市规范性的重大瑕疵。",
-    7: "few-shot：采购、供应商及经销体系整体保持运转稳定，暂未发现商业贿赂、商业腐败、压货或虚增业绩等重大异常。但核心供应商质量稳定性、老板关系型合作、经销商人员交叉及国内销售商业关系仍需作为后续核验重点。",
-    9: "few-shot：目标公司名下存在若干司法案件，主要涉及劳动争议及外观设计专利纠纷，相关案件均已结案，未对公司业务造成重大实质影响。现阶段未发现足以影响上市进程的重大诉讼或负面信息。",
+    2: "表达参考：持股、任职及明确披露的控制关系分别列示，数据期分开；股东冲突、决策权及治理稳定性须由对应事件、协议或决议支持，不从模板示例预设结论。",
+    3: "表达参考：先列可核对的沿革事件及完成状态，再根据同口径经营变化讨论成长质量；不直接套用示例中的发展顺畅、快速增长或无重大遗留问题结论。",
+    7: "表达参考：按具体人员、岗位、任职时点及履历证据核对团队；变动和治理事件须有对应记录。原表本章few-shot实际为供应链话题，与标题错位，不作为公司无异常或无腐败判断依据。",
+    9: "表达参考：依具体主体、案号、角色、程序、金额和原件列示核查结果；接口计数、零命中、公司自报及专项法律意见各有覆盖范围，不套用示例中的全部结案、无重大影响或无上市风险结论。",
     12: """
 综合评价 few-shot 表达锚点：
-可对公司、团队、产品、商业化、融资能力、治理规范性分别评分。写清优势、风险、关键判断和推进建议；不要把创始人个人评价替代公司整体评价，但可将核心团队作为评分维度。
+按已取得的具体结果及明确锚点评价公司表现，写清优势、制约及下一阶段判断条件；公司分、证据可靠程度和风险严重程度分开。未评分维度保留原权重，不取任意默认分，不把创始人身份/任期或单个技术项目当作公司能力，不编造信用评级或通用交易门槛。
 """,
     13: "信息来源 few-shot：公开可验证来源应逐项列明平台/标题/URL/工具/验证状态，例如工商数据库、司法数据库、官网、新闻、招股书、招聘平台、专利数据库、应用商店、融资数据库、访谈纪要等。",
     14: "后续研究建议 few-shot：高优先级关注融资与注册实体、股东结构、核心产品状态、收入/客户/产能数据；中优先级关注团队关系、供应商/经销商穿透、竞品差异；低优先级关注社交媒体、长尾舆情与品牌传播。",
@@ -191,7 +211,167 @@ class CompanyReportAgent:
         all_used_urls: set[str] = set()
         for index, (section_title, requirements) in enumerate(self.outline, 1):
             package_payload: dict[str, Any]
-            if index <= 12:
+            if index == 1:
+                # The summary is assembled after substantive chapters. Its
+                # cards are selected and budgeted independently below.
+                package_payload = {"facts": []}
+                section_evidence_ids[1] = []
+            elif index == 2:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_governance_package(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                )
+                project.company_governance_package = package_payload
+                chapter = self._write_governance(project, package_payload, emit, trace_emit)
+                sections_by_index[2] = chapter
+                section_evidence_ids[2] = sorted(set(cited_evidence_ids(chapter)))
+            elif index == 3:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_history_package(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                    governance=getattr(project, "company_governance_package", {}),
+                )
+                project.company_history_package = package_payload
+                chapter = self._write_history(project, package_payload, emit, trace_emit)
+                sections_by_index[3] = chapter
+                section_evidence_ids[3] = sorted(set(cited_evidence_ids(chapter)))
+            elif index == 4:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_operations_package(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                    governance=getattr(project, "company_governance_package", {}),
+                )
+                project.company_operations_package = package_payload
+                chapter = self._write_operations(project, package_payload, emit, trace_emit)
+                sections_by_index[4] = chapter
+                section_evidence_ids[4] = sorted(set(cited_evidence_ids(chapter)))
+            elif index == 5:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_reputation_package(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                )
+                project.company_reputation_package = package_payload
+                chapter = self._write_reputation(project, package_payload, emit, trace_emit)
+                sections_by_index[5] = chapter
+                section_evidence_ids[5] = sorted(set(cited_evidence_ids(chapter)))
+            elif index == 6:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_business_package(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                )
+                project.company_business_package = package_payload
+                chapter = self._write_business(project, package_payload, emit, trace_emit)
+                sections_by_index[6] = chapter
+                section_evidence_ids[6] = sorted(set(cited_evidence_ids(chapter)))
+            elif index == 7:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_management_package(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                )
+                project.company_management_package = package_payload
+                chapter = self._write_management(project, package_payload, emit, trace_emit)
+                sections_by_index[7] = chapter
+                section_evidence_ids[7] = sorted(set(cited_evidence_ids(chapter)))
+            elif index == 8:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_people_package(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                )
+                project.company_people_package = package_payload
+                chapter = self._write_people(project, package_payload, emit, trace_emit)
+                sections_by_index[8] = chapter
+                section_evidence_ids[8] = sorted(set(cited_evidence_ids(chapter)))
+            elif index == 9:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_judicial_package(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                    query_attempts=getattr(project, "company_judicial_query_attempts", []),
+                )
+                project.company_judicial_package = package_payload
+                chapter = self._write_judicial(project, package_payload, emit, trace_emit)
+                sections_by_index[9] = chapter
+                section_evidence_ids[9] = sorted(set(cited_evidence_ids(chapter)))
+            elif index == 10:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_diligence_package(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                    prior_packages={"history": getattr(project, "company_history_package", {}),
+                                    "judicial": getattr(project, "company_judicial_package", {})},
+                    intake=getattr(project, "company_research_intake", {}),
+                )
+                project.company_diligence_package = package_payload
+                chapter = self._write_diligence(project, package_payload, emit, trace_emit)
+                sections_by_index[10] = chapter
+                section_evidence_ids[10] = sorted(set(cited_evidence_ids(chapter)))
+            elif index == 11:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_risk_register(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                    industry=str(getattr(project, "industry", "") or ""),
+                    intake=getattr(project, "company_research_intake", {}),
+                    query_attempts=getattr(project, "company_judicial_query_attempts", []),
+                    displayed_judicial=getattr(project,"company_judicial_package",{}),
+                )
+                project.company_risk_register_package = package_payload
+                chapter = self._write_risk_register(project, package_payload, emit, trace_emit)
+                sections_by_index[11] = chapter
+                section_evidence_ids[11] = sorted(set(cited_evidence_ids(chapter)))
+            elif index == 12:
+                try:
+                    parsed = json.loads(cleaned_json or "{}")
+                except (ValueError, TypeError):
+                    parsed = {}
+                package_payload = build_assessment_package(
+                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                    list(getattr(project, "sources", []) or []),
+                    industry=str(getattr(project, "industry", "") or ""),
+                    intake=getattr(project, "company_research_intake", {}),
+                )
+                project.company_assessment_package = package_payload
+                chapter = self._write_assessment(project, package_payload, emit, trace_emit)
+                sections_by_index[12] = chapter
+                section_evidence_ids[12] = sorted(set(cited_evidence_ids(chapter)))
+            elif index <= 12:
                 package = _focused_cleaned_json(
                     cleaned_json,
                     section_title,
@@ -228,13 +408,16 @@ class CompanyReportAgent:
                 except (TypeError, ValueError, json.JSONDecodeError):
                     package_payload = {}
                 package_payload["facts"] = []
+            if index <= 12:
+                all_used_urls.update(str(r.get("source_url") or "") for r in package_payload.get("facts", [])
+                                     if isinstance(r, dict) and r.get("source_url"))
             section_packages[index] = json.dumps(package_payload, ensure_ascii=False)
         emit(
             trace_emit,
             "report",
             self.trace_agent,
             "公司章节证据分桶完成",
-            f"unique_sources={len(all_used_urls)}, chapter_budgets=6-15, cross_chapter_reuse=true",
+            f"unique_package_sources={len(all_used_urls)}, verified_chapters=12, cross_chapter_reuse=true",
             status="done",
         )
 
@@ -242,15 +425,23 @@ class CompanyReportAgent:
         # Keeping a short placeholder avoids spending a model call on a source
         # list that the model must never invent.
         sections_by_index[13] = "## 13. 信息来源\n\n本章由系统根据正文实际引用的证据编号自动生成。"
-        try:
-            verification_payload = json.loads(section_packages[14])
-        except (TypeError, ValueError, json.JSONDecodeError):
-            verification_payload = {}
-        verification_gaps = [
-            re.sub(r"\s+", " ", str(item or "")).strip()
-            for item in (verification_payload.get("information_gaps") or [])[:12]
-            if str(item or "").strip()
-        ]
+        # The generic cleaning gaps predate the chapter-specific original
+        # document checks. Repeating them resurrects already recovered facts
+        # (e.g. product lines or judicial details) as false 'missing' findings.
+        verification_gaps = []
+        verification_gaps = list(dict.fromkeys(
+            verification_gaps + getattr(project, "company_governance_package", {}).get("information_gaps", [])
+            + getattr(project, "company_history_package", {}).get("information_gaps", [])
+            + getattr(project, "company_operations_package", {}).get("information_gaps", [])
+            + getattr(project, "company_reputation_package", {}).get("information_gaps", [])
+            + getattr(project, "company_business_package", {}).get("information_gaps", [])
+            + getattr(project, "company_management_package", {}).get("information_gaps", [])
+            + getattr(project, "company_people_package", {}).get("information_gaps", [])
+            + getattr(project, "company_judicial_package", {}).get("information_gaps", [])
+            + getattr(project, "company_diligence_package", {}).get("information_gaps", [])
+            + getattr(project, "company_risk_register_package", {}).get("information_gaps", [])
+            + getattr(project, "company_assessment_package", {}).get("information_gaps", [])
+        ))
         sections_by_index[14] = "## 14. 后续研究建议\n\n" + (
             "\n".join(f"- 待核验：{item}" for item in verification_gaps)
             if verification_gaps
@@ -260,7 +451,7 @@ class CompanyReportAgent:
         with ThreadPoolExecutor(max_workers=min(workers, len(self.outline))) as executor:
             futures = {}
             for index, (section_title, requirements) in enumerate(self.outline, 1):
-                if index in {13, 14}:
+                if index in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}:
                     continue
                 fact_count = len(json.loads(section_packages[index]).get("facts", []))
                 if index <= 12 and fact_count == 0:
@@ -297,6 +488,10 @@ class CompanyReportAgent:
                     section = f"## {index}. {section_title}\n\n待核验。本章节需要后续补充核验：{'; '.join(requirements)}。"
                 if section.strip():
                     sections_by_index[index] = section
+        summary = self._write_summary(project, cleaned_json, sections_by_index, invoke, emit, trace_emit)
+        sections_by_index[1] = summary
+        # Only IDs actually cited in the checked summary count as its usage.
+        section_evidence_ids[1] = sorted(set(cited_evidence_ids(summary)))
         sections = [sections_by_index[index] for index in range(1, len(self.outline) + 1) if sections_by_index.get(index)]
         draft = "\n\n".join(sections)
         if not draft.strip():
@@ -311,10 +506,239 @@ class CompanyReportAgent:
         else:
             final = draft
         final = self._lock_standard_outline(final, sections_by_index)
+        # A later wording editor cannot silently replace a checked summary
+        # with a fresh, ungrounded set of claims.
+        final = re.sub(r"(?ms)^##\s*1[.、．][^\n]*\n.*?(?=^##\s*2[.、．]|\Z)", summary + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*2[.、．][^\n]*\n.*?(?=^##\s*3[.、．]|\Z)",
+                       lambda _m: sections_by_index[2] + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*3[.、．][^\n]*\n.*?(?=^##\s*4[.、．]|\Z)",
+                       lambda _m: sections_by_index[3] + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*4[.、．][^\n]*\n.*?(?=^##\s*5[.、．]|\Z)",
+                       lambda _m: sections_by_index[4] + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*5[.、．][^\n]*\n.*?(?=^##\s*6[.、．]|\Z)",
+                       lambda _m: sections_by_index[5] + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*6[.、．][^\n]*\n.*?(?=^##\s*7[.、．]|\Z)",
+                       lambda _m: sections_by_index[6] + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*7[.、．][^\n]*\n.*?(?=^##\s*8[.、．]|\Z)",
+                       lambda _m: sections_by_index[7] + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*8[.、．][^\n]*\n.*?(?=^##\s*9[.、．]|\Z)",
+                       lambda _m: sections_by_index[8] + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*9[.、．][^\n]*\n.*?(?=^##\s*10[.、．]|\Z)",
+                       lambda _m: sections_by_index[9] + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*10[.、．][^\n]*\n.*?(?=^##\s*11[.、．]|\Z)",
+                       lambda _m: sections_by_index[10] + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*11[.、．][^\n]*\n.*?(?=^##\s*12[.、．]|\Z)",
+                       lambda _m: sections_by_index[11] + "\n\n", final, count=1)
+        final = re.sub(r"(?ms)^##\s*12[.、．][^\n]*\n.*?(?=^##\s*13[.、．]|\Z)",
+                       lambda _m: sections_by_index[12] + "\n\n", final, count=1)
         final = self._ensure_section_evidence_markers(final, section_evidence_ids)
         final = ensure_delivery_sections(project, final, self.report_kind)
         emit(trace_emit, "report", self.trace_agent, "目标公司桌面研究报告完成", f"chars={len(final)}", chars=len(final), status="done")
         return final
+
+    def _write_governance(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_governance(package)
+        errors = governance_errors(chapter, package)
+        project.company_governance_diagnostic = {
+            "version": package["version"], **package["diagnostic"],
+            "conflicts": package["conflicts"], "information_gaps": package["information_gaps"],
+            "errors": errors, "degraded": bool(errors),
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第二章按字段证据完成核对与排版",
+             json.dumps(project.company_governance_diagnostic, ensure_ascii=False),
+             section=self.outline[1][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_history(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_history(package)
+        errors = history_errors(chapter, package)
+        project.company_history_diagnostic = {
+            "version": package["version"], **package["diagnostic"], "errors": errors,
+            "degraded": bool(errors), "information_gaps": package["information_gaps"],
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第三章沿革与成长质量核对完成",
+             json.dumps(project.company_history_diagnostic, ensure_ascii=False),
+             section=self.outline[2][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_operations(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_operations(package)
+        errors = operations_errors(chapter, package)
+        project.company_operations_diagnostic = {
+            "version": package["version"], **package["diagnostic"], "errors": errors,
+            "degraded": bool(errors), "information_gaps": package["information_gaps"],
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第四章治理制度与运行记录核对完成",
+             json.dumps(project.company_operations_diagnostic, ensure_ascii=False),
+             section=self.outline[3][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_reputation(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_reputation(package)
+        errors = reputation_errors(chapter, package)
+        project.company_reputation_diagnostic = {
+            "version": package["version"], **package["diagnostic"], "errors": errors,
+            "degraded": bool(errors), "information_gaps": package["information_gaps"],
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第五章评价主体与同口径对标核对完成",
+             json.dumps(project.company_reputation_diagnostic, ensure_ascii=False),
+             section=self.outline[4][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_business(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_business(package)
+        errors = business_errors(chapter, package)
+        project.company_business_diagnostic = {
+            "version": package["version"], **package["diagnostic"], "errors": errors,
+            "degraded": bool(errors), "information_gaps": package["information_gaps"],
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第六章业务口径与研发阶段核对完成",
+             json.dumps(project.company_business_diagnostic, ensure_ascii=False),
+             section=self.outline[5][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_management(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_management(package)
+        errors = management_errors(chapter, package)
+        project.company_management_diagnostic = {
+            "version": package["version"], **package["diagnostic"], "errors": errors,
+            "degraded": bool(errors), "information_gaps": package["information_gaps"],
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第七章人员任职与时点核对完成",
+             json.dumps(project.company_management_diagnostic, ensure_ascii=False),
+             section=self.outline[6][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_people(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_people(package)
+        errors = people_errors(chapter, package)
+        project.company_people_diagnostic = {
+            "version": package["version"], **package["diagnostic"], "errors": errors,
+            "degraded": bool(errors), "information_gaps": package["information_gaps"],
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第八章人员指标与文化实践核对完成",
+             json.dumps(project.company_people_diagnostic, ensure_ascii=False),
+             section=self.outline[7][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_judicial(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_judicial(package)
+        errors = judicial_errors(chapter, package)
+        project.company_judicial_diagnostic = {
+            "version": package["version"], **package["diagnostic"], "errors": errors,
+            "degraded": bool(errors), "information_gaps": package["information_gaps"],
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第九章司法记录与范围核对完成",
+             json.dumps(project.company_judicial_diagnostic, ensure_ascii=False),
+             section=self.outline[8][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_diligence(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_diligence(package)
+        errors = diligence_errors(chapter, package)
+        project.company_diligence_diagnostic = {
+            "version": package["version"], **package["diagnostic"], "errors": errors,
+            "degraded": bool(errors), "information_gaps": package["information_gaps"],
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第十章专项对象与核查边界核对完成",
+             json.dumps(project.company_diligence_diagnostic, ensure_ascii=False),
+             section=self.outline[9][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_risk_register(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_risk_register(package)
+        errors = risk_register_errors(chapter, package)
+        project.company_risk_register_diagnostic = {
+            "version": package["version"], **package["diagnostic"], "errors": errors,
+            "degraded": bool(errors), "information_gaps": package["information_gaps"],
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第十一章具体风险与模板核查目录核对完成",
+             json.dumps(project.company_risk_register_diagnostic, ensure_ascii=False),
+             section=self.outline[10][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_assessment(self, project: Any, package: dict, emit, trace_emit=None) -> str:
+        chapter = render_assessment(package)
+        errors = assessment_errors(chapter, package)
+        project.company_assessment_diagnostic = {
+            "version": package["version"], **package["diagnostic"], "errors": errors,
+            "degraded": bool(errors), "information_gaps": package["information_gaps"],
+            "cited_evidence_ids": sorted(set(cited_evidence_ids(chapter))),
+        }
+        emit(trace_emit, "report", self.trace_agent, "第十二章公司评价及评分计算核对完成",
+             json.dumps(project.company_assessment_diagnostic, ensure_ascii=False),
+             section=self.outline[11][0], status="fallback" if errors else "done")
+        return chapter
+
+    def _write_summary(self, project: Any, cleaned_json: str, completed_sections: dict[int, str], invoke, emit, trace_emit=None) -> str:
+        try:
+            cleaned = json.loads(cleaned_json or "{}")
+        except (TypeError, ValueError):
+            cleaned = {}
+        if not isinstance(cleaned, dict):
+            cleaned = {}
+        package = build_company_summary_package(cleaned, str(project.target_name or ""), list(getattr(project, "sources", []) or []))
+        project.company_summary_package = package
+        diagnostic = {
+            "version": "company-summary-v1",
+            "package_fingerprint": package_fingerprint(package),
+            "delivered_evidence_ids": sorted({fact["evidence_id"] for fact in package["facts"]}),
+            "delivered_cards": len(package["facts"]),
+            "package_chars": len(json.dumps(package, ensure_ascii=False)),
+            "selection": package.get("selection_diagnostic", {}),
+            "repair_attempted": False, "degraded": False, "errors": [],
+        }
+        project.company_summary_diagnostic = diagnostic
+        emit(trace_emit, "report", self.trace_agent, "公司摘要完整证据包已准备", json.dumps(diagnostic, ensure_ascii=False), status="done")
+        if not package["facts"]:
+            diagnostic.update(degraded=True, errors=["没有主体匹配的摘要证据"])
+            return fallback_company_summary(project, package)
+        prompt = build_company_summary_prompt(project, package, completed_sections)
+        answer = ""
+        try:
+            answer = normalize_company_summary(invoke(f"{self.report_kind}摘要 Agent", prompt, trace_emit))
+            errors = summary_errors(answer, package)
+            if errors:
+                diagnostic["repair_attempted"] = True
+                diagnostic["errors"] = errors
+                # The previous draft locates the exact failing claim. It is
+                # explicitly not evidence; all corrections still use the same
+                # complete cards and undergo the identical validator.
+                repair = (
+                    prompt
+                    + "\n待修订草稿（不是证据；其中与事实卡不符的内容必须删除或按事实卡纠正）：\n"
+                    + answer
+                    + "\n校验错误如下，请逐项修正；已正确的事实不要重写为其他判断。仍返回上述五键JSON：\n"
+                    + "\n".join(errors)
+                )
+                answer = normalize_company_summary(invoke(f"{self.report_kind}摘要修订 Agent", repair, trace_emit))
+                errors = summary_errors(answer, package)
+        except Exception as exc:
+            errors = [f"摘要模型调用失败：{type(exc).__name__}"]
+        diagnostic["errors"] = errors
+        if errors:
+            diagnostic["model_errors"] = errors
+            diagnostic["rebuilt_from_evidence"] = True
+            rebuilt = fallback_company_summary(project, package)
+            rebuilt_errors = summary_errors(rebuilt, package)
+            diagnostic["errors"] = rebuilt_errors
+            diagnostic["degraded"] = bool(rebuilt_errors)
+            diagnostic["cited_evidence_ids"] = sorted(set(cited_evidence_ids(rebuilt)))
+            emit(trace_emit, "report", self.trace_agent, "公司摘要已按原文事实重建", "模型草稿越界；" + "；".join(errors), status="fallback")
+            return rebuilt
+        diagnostic["cited_evidence_ids"] = sorted(set(cited_evidence_ids(answer)))
+        emit(trace_emit, "report", self.trace_agent, "公司摘要完成且通过结构与引用校验", f"chars={len(answer)}, delivered_cards={len(package['facts'])}", status="done")
+        return answer
 
     def _write_section(self, project: Any, cleaned_json: str, risk_json: str, index: int, section_title: str, requirements: list[str], invoke: Callable[[str, str, Any], str], clip: Callable[[str, int], str], emit: Callable[..., None], trace_emit: Any) -> str:
         emit(trace_emit, "report", self.trace_agent, "章节写作启动", f"{index}/{len(self.outline)} {section_title}", section=section_title, status="running")
@@ -418,12 +842,7 @@ class CompanyReportAgent:
             section = report[match.start():end].rstrip()
             index = int(match.group(1))
             expected = [value for value in section_evidence_ids.get(index, []) if value]
-            if 1 <= index <= 12 and not expected:
-                section = (
-                    report[match.start():match.end()]
-                    + "\n\n本次已检索公开来源未形成可引用记录；相关核验事项见第14章。"
-                )
-            missing = [value for value in expected if value not in section]
+            missing = [value for value in expected if value not in section] if index not in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12} else []
             if missing:
                 section += "\n\n> 本章引用证据：" + "、".join(f"[{value}]" for value in missing)
             chunks.append(section + ("\n\n" if position + 1 < len(matches) else ""))

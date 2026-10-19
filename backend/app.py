@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from pathlib import Path
 import os
 import sys
@@ -20,6 +21,10 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Cute Cat Bot API")
+
+    @app.exception_handler(company_knowledge_module.KnowledgeError)
+    async def _knowledge_error(request, exc):
+        return JSONResponse(status_code=exc.status_code, content={'detail': str(exc)})
 
     @app.on_event("startup")
     async def _startup_init_db():
