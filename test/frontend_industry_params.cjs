@@ -3,11 +3,22 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 let definition;
-const app = { use() { return this; }, mount() {} };
+const knowledge = vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../frontend/company-knowledge.js'), 'utf8') + '\nCompanyKnowledge;');
+let knowledgeRegistered = false;
+const app = {
+  component(name, value) {
+    assert.equal(name, 'company-knowledge');
+    assert.equal(value, knowledge);
+    knowledgeRegistered = true;
+    return this;
+  },
+  use() { return this; }, mount() {},
+};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../frontend/script.js'), 'utf8'), {
   Vue: { createApp(value) { definition = value; return app; } },
-  ElementPlus: {}, localStorage: { getItem() { return null; } }, Date, JSON,
+  ElementPlus: {}, CompanyKnowledge: knowledge, localStorage: { getItem() { return null; } }, Date, JSON,
 });
+assert.ok(knowledgeRegistered);
 const state = definition.data();
 state.form.industryFocus = '协作机器人';
 state.form.excludedSegments = '军工、玩具';

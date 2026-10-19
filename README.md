@@ -1,10 +1,14 @@
 # SuperMew 项目说明
 
+## 公司知识库（百炼托管 RAG）
+
+「公司知识库」菜单已接入百炼云端文档列表、流式问答、引用片段和返回的原件链接。资料上传与更新目前在百炼控制台进行；接入配置、员工授权和当前功能范围见 [公司知识库接入说明](docs/COMPANY_KNOWLEDGE.md)。
+
 Agent的项目记录，方便后续持续更新与展示。
 
-## 当前 Windows 环境启动（2026-10-13 恢复）
+## 当前 Windows 环境启动（2026-10-14 验证）
 
-在 `D:\rag\RAG` 执行：
+在当前项目根目录（本机为 `E:\projects\RAG`）执行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1 -Background
@@ -14,12 +18,29 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1 -Background
 页面：`http://127.0.0.1:8010/`；API 文档：`http://127.0.0.1:8010/docs`。
 不传 `-Background` 时后端在当前终端运行，可用 Ctrl+C 停止。
 
-当前 `.venv` 使用项目内 `.python` 下的独立 Python 3.12.14，保留了原依赖。
-模型路径已经迁移到当前目录。Docker 继续使用原 `volumes` 数据，启动脚本等待服务健康后再启动后端。
+本机 `.venv` 已从 `E:\RAG.zip` 恢复并绑定可用的 Python 3.12.14，模型路径已迁移到当前目录。
+本地模型是 BGE-small-zh，输出 512 维；`.env` 中的 `DENSE_EMBEDDING_DIM` 必须与模型和集合一致。
+启动脚本自动识别其他目录部署的健康 Milvus、MinIO、etcd 并复用，仅启动本项目的 PostgreSQL 和 Redis。
+也可显式传入 `-ReuseVectorServices`。后台模式会等待后端 API 就绪后再报告成功。
+新机器仍需自行安装 Python 依赖并配置 `.env`，这些运行文件不提交到 Git。
 原 MinIO 镜像无法下载，`docker-compose.override.yml` 改为从
 [同版本官方源码](https://github.com/minio/minio/tree/RELEASE.2024-05-28T17-19-04Z)构建本地镜像。
 MinIO 构建文件位于 `docker/minio`，源码归档首次缺失时启动脚本会下载并校验。
-原环境配置备份与后台日志也位于该目录。连通性检查不会创建或重跑研究项目。
+后台日志位于 `work/environment-recovery`。连通性检查不会创建或重跑研究项目。
+
+### 本地管理员与公司流程验证
+
+```powershell
+# 创建管理员：交互输入密码（至少 12 位），不会改动已有同名账号
+.\.venv\Scripts\python.exe .\scripts\create-admin.py --username admin
+
+# 实际登录并运行公司研究，保存 trace 和两份 Word 下载结果
+.\.venv\Scripts\python.exe .\scripts\smoke-research.py --username admin --company "比亚迪股份有限公司"
+```
+
+脚本也支持通过 `BOOTSTRAP_ADMIN_PASSWORD` 环境变量传入密码；不要把真实密码提交到仓库。
+本次创建的管理员凭据保存在本机忽略目录 `work/local-admin.json`。
+流程验证日志保存在 `work/smoke-research/`，检查记录见 [本地运行验证记录](docs/LOCAL_RUN_CHECK_2026-10-14.md)。
 
 ## 行业研究线路
 

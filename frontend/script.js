@@ -38,8 +38,9 @@ createApp({
   computed: {
     isAuthenticated() { return !!this.token && !!this.currentUser; },
     authRoleLabel() { return this.authRole === 'admin' ? '管理员' : '普通用户'; },
-    pageTitle() { return this.activeView === 'tasks' ? '任务管理' : this.activeView === 'sources' ? '溯源库' : this.activeView === 'review' ? '复核与一手资料' : '提交尽调任务'; },
+    pageTitle() { return this.activeView === 'company-knowledge' ? '公司知识库' : this.activeView === 'tasks' ? '任务管理' : this.activeView === 'sources' ? '溯源库' : this.activeView === 'review' ? '复核与一手资料' : '提交尽调任务'; },
     pageSubtitle() {
+      if (this.activeView === 'company-knowledge') return '让每一份资料，成为下一次决策的起点。';
       if (this.activeView === 'tasks') return '查看任务成果、下载报告，并跟踪工作流 trace。';
       if (this.activeView === 'sources') return '检索项目资料、Markdown 报告和清洗事实，并使用 AI 小助手问答。';
       if (this.activeView === 'review') return '上传人工修订报告、专家访谈和走访资料，触发二阶段再生成。';
@@ -806,8 +807,11 @@ createApp({
     timelineType(status) { if (status === 'done') return 'success'; if (status === 'error') return 'danger'; if (status === 'fallback' || status === 'warning') return 'warning'; return 'primary'; },
     artifactTypeLabel(type) { return ({ project_intake: '项目参数', research_plan: '研究计划', source_quality: '来源质量', cleaned_facts: '清洗事实库', risk_assessment: '风险研判', desktop_report: '桌面研究报告', report_quality_diagnostic: '报告质量诊断', industry_claim_ledger: '结论证据台账', industry_run: '运行记录', proposal: '项目建议书' })[type] || type; },
     targetTypeLabel(type) { return ({ person: '目标人', company: '目标公司', industry: '目标行业' })[type] || type || '-'; },
-    formatTime(value) { return value ? new Date(value).toLocaleString() : '-'; },
+    formatTime(value) {
+      const timestamp = this.eventTimestampMs({ timestamp: value });
+      return timestamp ? new Date(timestamp).toLocaleString() : '-';
+    },
     escapeHtml(text) { const div = document.createElement('div'); div.textContent = text || ''; return div.innerHTML; },
     parseMarkdown(text) { return window.marked ? marked.parse(text || '') : this.escapeHtml(text || ''); }
   }
-}).use(ElementPlus).mount('#app');
+}).component('company-knowledge', CompanyKnowledge).use(ElementPlus).mount('#app');

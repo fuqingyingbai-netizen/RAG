@@ -208,12 +208,23 @@ def _project_doc_title(project: ResearchProject, suffix: str) -> str:
     return f"{name}{suffix}"
 
 
-def _plain_json(text: str) -> Any:
+def _plain_json(text: str, *, allow_preface: bool = True) -> Any:
     try:
         from .json_utils import parse_json_output
     except ImportError:
         from json_utils import parse_json_output
-    return parse_json_output(text)
+    parsed = parse_json_output(text)
+    if parsed is not None or not allow_preface or not isinstance(text, str):
+        return parsed
+    # Preserve company/person replies with an introductory sentence. Industry
+    # model outputs opt into strict parsing; stored JSON is always parsed first.
+    for pattern in (r"```(?:json)?\s*(.*)```", r"```(?:json)?\s*(.*?)```"):
+        wrapper = re.search(pattern, text, flags=re.S)
+        if wrapper:
+            parsed = parse_json_output(wrapper.group(1))
+            if parsed is not None:
+                return parsed
+    return None
 
 
 def _env_int(name: str, default: int, minimum: int = 1, maximum: int = 600) -> int:
@@ -4771,7 +4782,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                     timeout_seconds=min(remaining, _env_int('INDUSTRY_CLEANING_TIMEOUT_SECONDS', 60, 10, 120)))
             else:
                 answer = self._invoke("数据清洗 Agent", prompt, emit=emit)
-            parsed = _plain_json(answer)
+            parsed = _plain_json(answer, allow_preface=not industry_mode)
             if isinstance(parsed, dict):
                 if industry_mode:
                     with health_lock:
@@ -4911,7 +4922,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
 }}
 """
             answer = self._invoke_industry_risk("行业风险研判 Agent", prompt, emit=emit)
-            parsed = _plain_json(answer)
+            parsed = _plain_json(answer, allow_preface=False)
             # Support counts describe the exact bounded input even when the model abstains or returns invalid JSON.
             retained_ids = {f.get('evidence_id') for f in json.loads(risk_evidence).get('facts', [])}
             cleaned_payload = _plain_json(cleaned_json)

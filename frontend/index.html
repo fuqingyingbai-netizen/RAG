@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="company-knowledge.css" />
 </head>
 <body>
 <main id="app" v-cloak>
@@ -46,14 +47,16 @@
         <el-menu-item index="tasks"><i class="fa-solid fa-list-check"></i><span>任务管理</span></el-menu-item>
         <el-menu-item index="review"><i class="fa-solid fa-pen-to-square"></i><span>复核与一手资料</span></el-menu-item>
         <el-menu-item index="sources"><i class="fa-solid fa-database"></i><span>溯源库</span></el-menu-item>
+        <el-menu-item index="company-knowledge" class="company-knowledge-nav"><i class="fa-solid fa-book-open"></i><span>公司知识库</span></el-menu-item>
       </el-menu>
       <div class="sidebar-note"><span>当前用户</span><strong>{{ currentUser?.username }}</strong><small>{{ currentUser?.role }}</small><el-button type="danger" plain @click="handleLogout">退出登录</el-button></div>
     </el-aside>
 
-    <el-container class="app-shell">
+    <el-container class="app-shell" :class="{ 'company-knowledge-shell': activeView === 'company-knowledge' }">
       <el-header height="76px" class="topbar"><div><h1>{{ pageTitle }}</h1><p>{{ pageSubtitle }}</p></div><el-space><el-tag type="success" effect="light">{{ currentUser?.role }}</el-tag><el-button text @click="handleLogout">退出</el-button></el-space></el-header>
       <el-main>
-        <section class="summary-band"><div><span>任务总数</span><strong>{{ projects.length }}</strong></div><div><span>生成中</span><strong>{{ generatingCount }}</strong></div><div><span>可下载</span><strong>{{ readyCount }}</strong></div><div><span>溯源条目</span><strong>{{ sourceCount }}</strong></div></section>
+        <section v-if="activeView !== 'company-knowledge'" class="summary-band"><div><span>任务总数</span><strong>{{ projects.length }}</strong></div><div><span>生成中</span><strong>{{ generatingCount }}</strong></div><div><span>可下载</span><strong>{{ readyCount }}</strong></div><div><span>溯源条目</span><strong>{{ sourceCount }}</strong></div></section>
+        <company-knowledge v-if="activeView === 'company-knowledge'" :projects="projects"></company-knowledge>
 
         <section v-if="activeView === 'submit'">
           <el-card shadow="never" class="panel-card">
@@ -107,6 +110,7 @@
                           <div style="max-height: 320px; overflow: auto"><p v-for="(reason, n) in artifact.metadata.delivery_review_reasons" :key="n">{{ reason.message }}</p></div>
                         </el-popover>
                         <el-tag v-else-if="artifact.metadata?.proposal_confirmation_status !== 'pending' && artifact.metadata?.delivery_status === 'review_draft'" type="warning" size="small">待复核稿</el-tag>
+                        <el-tag v-else-if="artifact.metadata?.proposal_confirmation_status !== 'pending' && artifact.metadata?.quality_warning" type="warning" size="small">待复核稿</el-tag>
                         <el-popover v-if="artifact.metadata?.generation_degradations?.length" trigger="click" width="460">
                           <template #reference><el-button text type="warning">部分章节使用事实摘录</el-button></template>
                           <div style="max-height: 300px; overflow: auto"><p v-for="(issue, n) in artifact.metadata.generation_degradations" :key="n">{{ issue.message }}</p></div>
@@ -251,8 +255,8 @@
       </el-main>
     </el-container>
 
-    <button class="assistant-fab" :style="assistantFabStyle" @mousedown.stop.prevent="startAssistantDrag" @click="toggleAssistant"><img src="aizhushou.png" alt="AI 小助手" /></button>
-    <section v-if="assistantOpen" class="assistant-panel" :style="assistantPanelStyle">
+    <button v-if="activeView !== 'company-knowledge'" class="assistant-fab" :style="assistantFabStyle" @mousedown.stop.prevent="startAssistantDrag" @click="toggleAssistant"><img src="aizhushou.png" alt="AI 小助手" /></button>
+    <section v-if="assistantOpen && activeView !== 'company-knowledge'" class="assistant-panel" :style="assistantPanelStyle">
       <header class="assistant-drag-handle" @mousedown.prevent="startAssistantDrag"><strong>AI 小助手</strong><el-button text @click="assistantOpen = false">关闭</el-button></header>
       <div class="assistant-messages" ref="assistantMessages"><div v-for="(msg, index) in assistantMessages" :key="index" :class="['assistant-msg', msg.isUser ? 'user' : 'bot']" v-html="msg.isUser ? escapeHtml(msg.text) : parseMarkdown(msg.text)"></div></div>
       <div class="assistant-input"><el-input v-model="assistantInput" placeholder="问问现有资料和报告..." @keyup.enter="sendAssistantMessage" ></el-input><el-button type="primary" :loading="assistantLoading" @click="sendAssistantMessage">发送</el-button></div>
@@ -261,6 +265,7 @@
 </main>
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+<script src="company-knowledge.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

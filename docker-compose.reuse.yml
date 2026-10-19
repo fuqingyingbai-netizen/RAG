@@ -1,0 +1,5 @@
+# Use the healthy vector deployment's existing network without taking ownership.
+networks:
+  default:
+    name: milvus
+    external: true

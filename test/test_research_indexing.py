@@ -92,4 +92,3 @@ def test_incomplete_embedding_batch_is_not_reported_as_success(monkeypatch):
     writer = module.MilvusWriter(embedding_service=embedding, milvus_manager=SimpleNamespace())
     with pytest.raises(RuntimeError, match='incomplete'):
         writer.write_documents([{'text':'fact'}])
-
