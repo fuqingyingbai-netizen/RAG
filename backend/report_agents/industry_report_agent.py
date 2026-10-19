@@ -10,9 +10,9 @@ from .report_style import REPORT_CHAPTER_HEADING_RE, REFERENCE_REPORT_STYLE, ens
 
 from .industry_template import INDUSTRY_REPORT_OUTLINE
 try:
-    from ..industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers, summary_package, summary_length
+    from ..industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers, summary_package, summary_length, claim_semantic_issues, risk_fact_text
 except ImportError:
-    from industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers, summary_package, summary_length
+    from industry_research import package_risk_evidence, bounded_package, mark_unverified_numbers, summary_package, summary_length, claim_semantic_issues, risk_fact_text
 
 INDUSTRY_SECTION_STRUCTURES = {
     index: f"## {index}. {title}\n\n本节内容要求：" + "；".join(requirements)
@@ -25,6 +25,7 @@ INDUSTRY_FEW_SHOT = """
 - 竞争格局速览：头部/腰部/初创/海外玩家分别列示，写清资金、客户、技术、产能或渠道差距。
 - 需关注信号：市场规模口径不统一、政策强监管、核心部件外购、商业化慢、估值透支等都要进入风险提示。
 - 证据不足处正文只写"待核验"，不要反复写"暂无充分公开证据"；所有缺口统一进入集中式待核验清单，不得编造市场规模、融资金额、政策原文、上市估值、客户或供应商数据。
+- 第14章须区分模型风险分、指标证据覆盖和评分可信度；评分尚未人工校准，原文引用通过不能表述为评分可靠，不能虚构可信度概率。
 """
 
 # Evidence-density-driven chapter writing (company v8 pattern):
@@ -221,7 +222,8 @@ class IndustryReportAgent:
 7. 不要为了完成任务书逐项填充无证据内容。没有可写内容的子项直接省略；表格只有在存在至少两条可比较事实时才使用。
 8. 每个 ### 子标题下的正文必须有对应的清洗事实来源；禁止为没有证据的子标题编造正文。
 9. 同一章节内部避免重复同一论点；同一来源的不同事实可以分别支持不同章节，摘要可以概括实体章节中已引用的事实。
-10. ### 子标题总数硬性上限：rich_evidence 章节最多 12 个，稀疏章节最多 3 个。超过上限的必须合并或删除，不是列出更多子标题。
+10. 预测、预估、情景或目标数值须在数值所在分句明确标记，不能当成已实现统计。多张证据卡或同一发布方不同页面不等于独立来源，不得据此声称多源一致或交叉印证。
+11. ### 子标题总数硬性上限：rich_evidence 章节最多 12 个，稀疏章节最多 3 个。超过上限的必须合并或删除，不是列出更多子标题。
 """
         prompt += f"\n章节格式硬性要求：本章顶级标题必须且只能是 `## {index}. {section_title}`（两个#号）。正文子标题用 `###`（三个#号）。禁止将章节标题写成 `# {index}.`（一个#号）。\n"
         if not rich_evidence and index <= 14:
@@ -259,7 +261,9 @@ class IndustryReportAgent:
     def _fallback_section(self, package, index, title):
         facts, seen = [], set()
         for fact in package.get('facts', []):
-            key = re.sub(r'\s+', '', str(fact.get('fact') or ''))
+            if fact.get('eligible_for_report') is False:
+                continue
+            key = re.sub(r'\s+', '', risk_fact_text(fact))
             if not key or key in seen or not fact.get('evidence_id'):
                 continue
             seen.add(key)
@@ -267,10 +271,29 @@ class IndustryReportAgent:
         if index == 1:
             # A synthesis fallback remains short, traceable and explicit about its limits.
             facts = facts[:5]
-        body = '\n\n'.join(f'- {str(f.get("fact") or "")[:60 if index == 1 else 700]} [{f["evidence_id"]}]({f.get("source_url", "")})' for f in facts)
-        if index == 1:
-            body = '以下为已完成章节的主要事实摘要；模型摘要未通过校验，综合判断需人工复核。\n\n' + body
-        return f'## {index}. {title}\n\n' + (body or '待核验。本次证据不足，相关事项见第16章。')
+        heading = f'## {index}. {title}\n\n'
+        body = '以下为已完成章节的主要事实摘要；模型摘要未通过校验，综合判断需人工复核。\n\n' if index == 1 else ''
+        for fact in facts:
+            # Render the single authorized metric with its nature in the same
+            # clause. Raw multi-metric quotes remain in the audit library.
+            text = risk_fact_text(fact)
+            if len(text) > 700:
+                parts = re.split(r'(?<=[。！？；;，])', text)
+                text = ''
+                for part in parts:
+                    if len(text + part) > 700:
+                        break
+                    text += part
+                text = text or '原文较长，具体内容待核验。'
+            line = f'- {text} [{fact["evidence_id"]}]({fact.get("source_url", "")})'
+            line = mark_unverified_numbers(line, [fact])
+            if claim_semantic_issues(line, [fact]):
+                line = f'- 该来源的数值或综合表述需复核，暂不转述其判断。 [{fact["evidence_id"]}]({fact.get("source_url", "")})'
+            candidate = body + line + '\n\n'
+            if index == 1 and summary_length(heading + candidate) > 600:
+                continue
+            body = candidate
+        return heading + (body.strip() or '待核验。本次证据不足，相关事项见第16章。')
 
     def _edit(self, project: Any, draft: str, risk_json: str, section_fact_counts: dict[int, int], invoke: Callable[[str, str, Any], str], clip: Callable[[str, int], str], emit: Callable[..., None], trace_emit: Any) -> str:
         # Chapters have already been audited independently. A whole-report model
@@ -312,6 +335,7 @@ class IndustryReportAgent:
         if index == 1:
             section = mark_unverified_numbers(section, facts)
         initial_reasons = self._section_validation_reasons(section, allowed, index, title)
+        initial_reasons += list(dict.fromkeys(x['code'] for x in claim_semantic_issues(section, facts)))
         if initial_reasons:
             emit(trace_emit, 'report', self.trace_agent, '章节校验未通过，尝试一次局部修复',
                  f'chapter={index}; reasons={",".join(initial_reasons)}', status='warning', validation_reasons=initial_reasons)
@@ -321,7 +345,9 @@ class IndustryReportAgent:
             repair_facts = repair_package['facts']
             repair_allowed = {f.get('evidence_id') for f in repair_facts if f.get('evidence_id')}
             prompt = (f'仅修复第{index}章，顶级标题为 {expected_heading}。删除无证据结论，保留合法来源编号。'
-                      '只输出本章；不能新增数字或证据编号。\n证据：' + json.dumps(repair_package, ensure_ascii=False)
+                      '只输出本章；不能新增数字或证据编号。预测值须在同一分句保留预计/预测标记；'
+                      '多卡片或同一发布方不等于独立来源，禁止无据声称多源一致。'
+                      '\n校验原因：' + ','.join(initial_reasons) + '\n证据：' + json.dumps(repair_package, ensure_ascii=False)
                       + '\n待修复章节：\n' + section[:8000])
             if index == 1:
                 prompt += '\n摘要压缩至450字以内，最多5项发现，保留来源编号和数值待核验提示。禁止表格和章节复述。'
@@ -334,6 +360,7 @@ class IndustryReportAgent:
             if index == 1:
                 repaired = mark_unverified_numbers(repaired, repair_facts)
             repair_reasons = self._section_validation_reasons(repaired, repair_allowed, index, title)
+            repair_reasons += list(dict.fromkeys(x['code'] for x in claim_semantic_issues(repaired, repair_facts)))
             if repair_error:
                 repair_reasons.append('model_error:' + repair_error)
             if not repair_reasons:
@@ -343,7 +370,8 @@ class IndustryReportAgent:
                 section = self._fallback_section(package, index, title)
                 if degradations is not None:
                     labels = {'wrong_heading':'标题不符', 'duplicate_chapter_heading':'章节标题重复',
-                              'missing_citation':'缺少引用', 'invalid_citation':'引用不在修复证据包', 'summary_too_long':'摘要超长'}
+                              'missing_citation':'缺少引用', 'invalid_citation':'引用不在修复证据包', 'summary_too_long':'摘要超长',
+                              'forecast_presented_as_actual':'预测属性缺失', 'source_corroboration_overstated':'多源印证依据不足'}
                     explanation = '、'.join(labels.get(reason, reason) for reason in repair_reasons)
                     degradations.append({'chapter': index, 'initial_validation_reasons': initial_reasons,
                         'repair_validation_reasons': repair_reasons,

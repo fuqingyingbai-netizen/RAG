@@ -243,7 +243,11 @@ def test_industry_report_gets_a_deterministic_ledger_in_chapter_15():
     assert "## 15. 信息来源（自动生成审计索引）" in result
     assert "| 证据编号与原始来源 | 支持章节 | 信息点 | 获取工具与信源等级 |" in result
     assert "E-" in result
-    assert "已纳入章节证据包的唯一来源：90 / 清洗事实库可追溯来源：90。" in result
+    used,total=map(int,re.search(r'已纳入章节证据包的唯一来源：(\d+) / 清洗事实库可追溯来源：(\d+)',result).groups())
+    # Delivery selection is bounded; all original fact sources stay in the
+    # ledger. Requiring all 90 in the Word index defeated its readability cap.
+    assert 30 <= used <= total == 90
+    assert 'https://evidence.example.com/industry/' in result
 
 
 def test_industry_scope_card_is_inserted_before_first_report_chapter():
@@ -534,6 +538,8 @@ def test_professional_fields_are_extracted_without_llm_and_keep_person_boundary(
     assert all(item["subject"] == "蚂蚁科技集团股份有限公司" for item in facts)
     assert all(item["eligible_for_risk_scoring"] is False for item in facts)
     assert all("\u4e0d\u5f97\u5f52\u56e0\u4e3a\u76ee\u6807\u4eba\u7269" in item["attribution_boundary"] for item in facts)
+    source.source_metadata['canonical_company_name']='另一家公司股份有限公司'
+    assert workflow._extract_professional_structured_facts([source],project)==[]
 
 
 def test_company_ledger_uses_actual_body_citations_and_allows_cross_chapter_reuse():
@@ -971,7 +977,7 @@ def test_company_report_outline_matches_standard_delivery_structure():
     assert titles == [
         "\u6458\u8981",
         "\u4e3b\u4f53\u5de5\u5546\u57fa\u672c\u4fe1\u606f\u6838\u67e5\u80a1\u4e1c\u5173\u7cfb\u4e0e\u6cbb\u7406\u5e95\u76d8",
-        "\u5386\u53f2\u6cbf\u9769\u4e0e\u878d\u8d44",
+        "历史沿革与成长质量",
         "\u7ec4\u7ec7\u6cbb\u7406\u4e0e\u8fd0\u8425\u7ba1\u7406\u8bc4\u4f30",
         "\u884c\u4e1a\u53e3\u7891\u3001\u4ea7\u54c1\u8ba4\u53ef\u5ea6\u4e0e\u540c\u4e1a\u7ade\u4e89\u5730\u4f4d\u7814\u5224",
         "\u4e3b\u8425\u4e1a\u52a1\u771f\u5b9e\u7ecf\u8425\u60c5\u51b5\u6838\u9a8c",

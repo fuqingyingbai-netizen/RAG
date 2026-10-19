@@ -121,6 +121,9 @@ class QccMcpClient:
         return self.request("tools/call", {"name": name, "arguments": arguments})
 
 
+# CLI helper functions require explicit server/token arguments, not pytest fixtures.
+__test__ = False
+
 def compact_tools(payload: dict[str, Any]) -> list[dict[str, Any]]:
     result = payload.get("result") or {}
     tools = result.get("tools") or payload.get("tools") or []

@@ -1,0 +1,8 @@
+[
+  {"name":"meeting_is_not_concentration", "module":"竞争格局与代表企业", "body":"2025年有关部门召开人工智能企业座谈会，共7家企业参加，讨论公平竞争。", "expected_candidate":[]},
+  {"name":"quantified_concentration", "module":"竞争格局与代表企业", "body":"2025年我国机器人行业CR3为60%，分母为本行业全年销售收入。", "expected_candidate":["concentration"]},
+  {"name":"missing_share_not_positive_evidence", "module":"竞争格局与代表企业", "body":"2025年行业报告未披露市场份额，其他业务毛利率为30%。", "expected_candidate":[]},
+  {"name":"company_customer_share_not_industry", "module":"竞争格局与代表企业", "scope":"representative_company", "body":"2025年公司某类客户市场份额60%，统计仅含本公司客户。", "expected_candidate":[]},
+  {"name":"summary_not_original", "module":"市场规模与增长", "body":"", "summary":"2025年机器人市场规模为100亿元，同比增长20%。", "expected_candidate":[]},
+  {"name":"observed_market", "module":"市场规模与增长", "body":"2025年我国机器人市场规模为100亿元，同比增长20%。", "expected_candidate":["market_size","growth"]}
+]

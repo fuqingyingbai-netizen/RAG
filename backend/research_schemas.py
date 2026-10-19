@@ -130,7 +130,8 @@ class ResearchRevisionRequest(BaseModel):
     base_artifact_id: Optional[int] = None
 
 class ResearchAssistantRequest(BaseModel):
-    message: str
+    current_page: str = Field(default="submit", max_length=40)
+    message: str = Field(min_length=1, max_length=6000)
     project_id: Optional[int] = None
     limit: int = 8
     history_summary: str = ""

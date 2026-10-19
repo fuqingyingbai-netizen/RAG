@@ -155,6 +155,10 @@ class IndustryResearchStrategy(BaseResearchStrategy):
         def classify(module: str, query: str) -> dict[str, Any]:
             if module == "投融资与资本市场":
                 return {"evidence_scope": "capital_market"}
+            if module == '竞争格局与代表企业':
+                if any(word in query for word in ('年报','招股书','业务分部','企业经营')):
+                    return {'evidence_scope':'representative_company','company_role':'benchmark'}
+                return {'evidence_scope':'industry_level'}
             if module == '商业模式与盈利逻辑':
                 if any(word in query for word in ('代表企业', '上市公司', '年报', '招股书', '业务分部')):
                     return {'evidence_scope': 'representative_company', 'company_role': 'benchmark'}

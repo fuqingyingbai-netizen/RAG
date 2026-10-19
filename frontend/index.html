@@ -106,10 +106,21 @@
                       <div v-for="artifact in downloadableArtifacts(row)" :key="artifact.id" class="artifact-item">
                         <div>
                           <span>{{ artifact.title || artifactTypeLabel(artifact.artifact_type) }} v{{ artifact.version }}</span>
+                          <div v-if="artifact.artifact_type === 'desktop_report'" class="table-subtext">
+                            公司知识库：{{ knowledgeStatus(artifact) }} · {{ artifact.metadata?.knowledge_review || '待复核' }}
+                            <el-button v-if="!artifact.metadata?.knowledge_sync_status || artifact.metadata?.knowledge_sync_status === 'failed'" link type="primary" @click="retryKnowledge(artifact)">重试归档</el-button>
+                            <el-button link type="primary" @click="openMyKnowledgeProjects">前往我的项目</el-button>
+                          </div>
                           <div v-if="artifact.metadata?.quality_warning || artifact.metadata?.delivery_status === 'review_draft'" class="table-subtext">
                             <el-tag size="small" type="warning">待复核稿</el-tag>
                             <span>请先复核报告中的质量说明，再用于正式交付。</span>
                           </div>
+                        <el-popover v-if="artifact.metadata?.delivery_status === 'review_draft' && artifact.metadata?.delivery_review_reasons?.length" trigger="click" width="480">
+                          <template #reference><el-button type="warning" plain size="small">待复核稿 · {{ artifact.metadata.delivery_review_reasons.length }}项原因</el-button></template>
+                          <p>报告已生成，以下事项完成复核后再作为正式交付稿使用。</p>
+                          <div style="max-height: 320px; overflow: auto"><p v-for="(reason, n) in artifact.metadata.delivery_review_reasons" :key="n">{{ reason.message }}</p></div>
+                        </el-popover>
+                        <el-tag v-else-if="artifact.metadata?.delivery_status === 'review_draft'" type="warning" size="small">待复核稿</el-tag>
                         <el-popover v-if="artifact.metadata?.generation_degradations?.length" trigger="click" width="460">
                           <template #reference><el-button text type="warning">部分章节使用事实摘录</el-button></template>
                           <div style="max-height: 300px; overflow: auto"><p v-for="(issue, n) in artifact.metadata.generation_degradations" :key="n">{{ issue.message }}</p></div>
@@ -126,6 +137,23 @@
                           <p>结构化事实：{{ artifact.metadata.industry_evidence_diagnostic.fact_quality.structured_fact_count }} 条</p>
                           <p>口径字段完整的数值事实：{{ artifact.metadata.industry_evidence_diagnostic.fact_quality.verified_numeric_fact_count }} 条</p>
                           <p>口径检查包括指标、单位、地域、统计期和原文引用；来源数据本身仍需核验。</p>
+                        </el-popover>
+                        <el-popover v-if="row.target_type === 'industry' && artifact.metadata?.risk_transparency?.version" trigger="click" width="640">
+                          <template #reference><el-button text>风险分与证据覆盖</el-button></template>
+                          <p>{{ artifact.metadata.risk_transparency.notice }}</p>
+                          <p>{{ artifact.metadata.risk_transparency.aggregation_notice }}</p>
+                          <p>指标覆盖仅统计本次评分包；原文可定位不代表整句判断已被证实。</p>
+                          <div style="max-height: 340px; overflow: auto">
+                            <table style="width: 100%; text-align: left">
+                              <thead><tr><th>风险维度</th><th>风险分</th><th>核验指标/要求指标</th><th>已定位引用/事实</th><th>评分可信度</th></tr></thead>
+                              <tbody><tr v-for="dimension in artifact.metadata.risk_transparency.dimensions" :key="dimension.name">
+                                <td>{{ dimension.name }}</td><td>{{ dimension.score ?? '未评估' }}</td>
+                                <td>{{ dimension.evidence_support.verified_metric_count }}/{{ dimension.evidence_support.required_metric_count }}</td>
+                                <td>{{ dimension.evidence_support.located_cited_fact_count }}/{{ dimension.evidence_support.cited_fact_count }}</td>
+                                <td>尚未校准</td>
+                              </tr></tbody>
+                            </table>
+                          </div>
                         </el-popover>
                         <el-tag v-if="artifact.artifact_type === 'cleaned_facts' && row.target_type === 'industry'" :type="artifact.metadata?.vector_index_status === 'completed' ? 'success' : 'info'" size="small">事实索引：{{ artifact.metadata?.vector_index_status || '未确认' }} / {{ artifact.metadata?.vector_indexed_count || 0 }} 条</el-tag>
                         </div>
@@ -219,17 +247,17 @@
 
         <section v-if="activeView === 'sources'">
           <el-card shadow="never" class="panel-card">
-            <template #header><div class="card-header"><div><p class="eyebrow">Source Repository</p><h2>溯源库</h2></div><el-button type="primary" plain :loading="reindexing" @click="reindexVectors">重建向量索引</el-button></div></template>
-            <el-alert title="这里承接原来的智能问答能力：搜索框检索项目资料和报告，右下角 AI 助手可基于现有知识库进行问答。" type="info" show-icon :closable="false" class="source-alert" ></el-alert>
-            <div class="table-toolbar"><div class="table-meta">显示 {{ knowledgeResults.length }} 条来源、上传资料和产物</div><el-input v-model="knowledgeQuery" clearable placeholder="搜索标题、项目、报告或清洗事实" class="table-search" @clear="loadRepository" @keyup.enter="searchKnowledge"><template #append><el-button @click="searchKnowledge"><i class="fa-solid fa-search"></i></el-button></template></el-input></div>
+            <template #header><div class="card-header"><div><p class="eyebrow">Source Repository</p><h2>溯源库</h2></div><el-button plain @click="loadRepository">刷新记录</el-button></div></template>
+            <el-alert title="来源记录用于核对报告依据。公开网页点击查看原始来源；专业平台可能需要登录。网页正文仅临时处理，报告问答请前往公司知识库。" type="info" show-icon :closable="false" class="source-alert" ></el-alert>
+            <div class="table-toolbar"><div class="table-meta">显示 {{ knowledgeResults.length }} 条来源、上传资料和产物</div><el-input v-model="knowledgeQuery" clearable placeholder="搜索来源标题、链接或关键词" class="table-search" @clear="loadRepository" @keyup.enter="searchKnowledge"><template #append><el-button @click="searchKnowledge"><i class="fa-solid fa-search"></i></el-button></template></el-input></div>
             <el-table :data="pagedKnowledgeResults" class="source-table" empty-text="暂无溯源库条目">
               <el-table-column prop="title" label="标题" min-width="220" ></el-table-column>
-              <el-table-column label="链接" min-width="260"><template #default="{ row }"><el-link v-if="isExternalUrl(row.url)" :href="row.url" target="_blank" type="primary">{{ row.url }}</el-link><el-button v-else-if="row.kind === 'artifact'" link type="primary" @click="downloadArtifact(row)">下载产物</el-button><el-button v-else-if="row.has_download" link type="primary" @click="downloadSource(row)">下载资料</el-button><span v-else class="table-subtext">-</span></template></el-table-column>
+              <el-table-column label="链接" min-width="260"><template #default="{ row }"><el-link v-if="isExternalUrl(row.original_url || row.url)" :href="row.original_url || row.url" target="_blank" type="primary">查看原始来源</el-link><el-button v-else-if="row.kind === 'artifact'" link type="primary" @click="downloadArtifact(row)">下载产物</el-button><el-button v-else-if="row.has_download" link type="primary" @click="downloadSource(row)">下载资料</el-button><span v-else class="table-subtext">-</span></template></el-table-column>
               <el-table-column label="类型" width="150"><template #default="{ row }">{{ row.kind === 'artifact' ? artifactTypeLabel(row.artifact_type) : row.source_type }}</template></el-table-column>
-              <el-table-column label="正文" width="150"><template #default="{ row }"><el-tag v-if="row.kind === 'source'" size="small" :type="sourceContentTagType(row)">{{ sourceContentLabel(row) }}</el-tag><span v-else class="table-subtext">产物</span></template></el-table-column>
+              <el-table-column label="平台" width="150"><template #default="{ row }">{{ row.platform || row.source_type || '系统产物' }}</template></el-table-column>
               <el-table-column label="项目" width="180"><template #default="{ row }">{{ row.project_title || row.project_id }}</template></el-table-column>
-              <el-table-column label="摘要" min-width="360"><template #default="{ row }"><span class="snippet">{{ row.snippet }}</span></template></el-table-column>
-              <el-table-column label="操作" width="120"><template #default="{ row }"><el-button v-if="row.kind === 'artifact'" link type="primary" @click="downloadArtifact(row)">下载</el-button><el-button v-else-if="row.has_download" link type="primary" @click="downloadSource(row)">下载</el-button><el-link v-else-if="row.url" :href="row.url" target="_blank" type="primary">打开</el-link></template></el-table-column>
+              <el-table-column label="记录 / 引用摘录" min-width="300"><template #default="{ row }"><span class="snippet">{{ row.snippet }}</span></template></el-table-column>
+              <el-table-column label="记录时间" width="180"><template #default="{ row }">{{ formatTime(row.created_at) }}</template></el-table-column><el-table-column label="操作" width="120"><template #default="{ row }"><el-button v-if="row.kind === 'artifact'" link type="primary" @click="downloadArtifact(row)">下载</el-button><el-button v-else-if="row.has_download" link type="primary" @click="downloadSource(row)">下载</el-button><el-link v-else-if="isExternalUrl(row.original_url || row.url)" :href="row.original_url || row.url" target="_blank" rel="noopener noreferrer" type="primary">打开原站</el-link><span v-else class="table-subtext">平台查询记录</span></template></el-table-column>
             </el-table>
             <div class="pagination-bar"><el-pagination background layout="prev, pager, next, sizes, total" :total="knowledgeResults.length" v-model:current-page="sourcePage" v-model:page-size="sourcePageSize" :page-sizes="[20,50,100,300]" ></el-pagination></div>
           </el-card>
@@ -237,11 +265,11 @@
       </el-main>
     </el-container>
 
-    <button v-if="activeView !== 'company-knowledge'" class="assistant-fab" :style="assistantFabStyle" @mousedown.stop.prevent="startAssistantDrag" @click="toggleAssistant"><img src="aizhushou.png" alt="AI 小助手" /></button>
-    <section v-if="assistantOpen && activeView !== 'company-knowledge'" class="assistant-panel" :style="assistantPanelStyle">
-      <header class="assistant-drag-handle" @mousedown.prevent="startAssistantDrag"><strong>AI 小助手</strong><el-button text @click="assistantOpen = false">关闭</el-button></header>
-      <div class="assistant-messages" ref="assistantMessages"><div v-for="(msg, index) in assistantMessages" :key="index" :class="['assistant-msg', msg.isUser ? 'user' : 'bot']" v-html="msg.isUser ? escapeHtml(msg.text) : parseMarkdown(msg.text)"></div></div>
-      <div class="assistant-input"><el-input v-model="assistantInput" placeholder="问问现有资料和报告..." @keyup.enter="sendAssistantMessage" ></el-input><el-button type="primary" :loading="assistantLoading" @click="sendAssistantMessage">发送</el-button></div>
+    <button class="assistant-fab" aria-label="打开系统使用向导" :style="assistantFabStyle" @mousedown.stop.prevent="startAssistantDrag" @click="toggleAssistant"><img src="aizhushou.png" alt="AI 小助手" /></button>
+    <section v-if="assistantOpen" class="assistant-panel" :style="assistantPanelStyle">
+      <header class="assistant-drag-handle" @mousedown.prevent="startAssistantDrag"><strong>使用向导 · 聊天</strong><el-button text @click="assistantOpen = false">关闭</el-button></header>
+      <div class="assistant-messages" ref="assistantMessages"><div class="assistant-shortcuts"><el-button size="small" @click="askGuide('新人怎么开始？')">新人入门</el-button><el-button size="small" @click="askGuide('这个页面怎么用？')">当前页面帮助</el-button></div><div v-for="(msg, index) in assistantMessages" :key="index" :class="['assistant-msg', msg.isUser ? 'user' : 'bot']" v-html="msg.isUser ? escapeHtml(msg.text) : parseMarkdown(msg.text)"></div></div>
+      <div class="assistant-footer"><div class="assistant-shortcuts"><el-button v-for="item in assistantNavigation" :key="item.view" size="small" @click="switchView(item.view)">{{ item.label }}</el-button></div><div class="assistant-input"><el-input v-model="assistantInput" placeholder="问操作方法，或随便聊聊…" @keyup.enter="sendAssistantMessage" ></el-input><el-button type="primary" :loading="assistantLoading" @click="sendAssistantMessage">发送</el-button></div></div>
     </section>
   </el-container>
 </main>

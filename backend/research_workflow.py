@@ -1,4 +1,4 @@
-﻿import json
+import json
 import base64
 import html
 import math
@@ -25,6 +25,7 @@ from langchain.chat_models import init_chat_model
 from sqlalchemy.orm import Session, object_session
 
 try:
+    from .company_platform import CompanyPlatformAudit, restore_platform_audit
     from .industry_research import normalize_scope, scope_fingerprint, source_in_current_run, normalize_risk as normalize_industry_risk, unknown_risk as unknown_industry_risk, annotate_fact as annotate_industry_fact, append_evidence_index as append_industry_index, delivery_errors as industry_delivery_errors, company_filing_source
     from .docx_exporter import markdown_to_docx_bytes
     from .models import ResearchArtifact, ResearchProject, ResearchSource
@@ -35,6 +36,7 @@ try:
     from .research_strategies import get_research_strategy
     from .web_search import web_search_provider
 except ImportError:
+    from company_platform import CompanyPlatformAudit, restore_platform_audit
     from industry_research import normalize_scope, scope_fingerprint, source_in_current_run, normalize_risk as normalize_industry_risk, unknown_risk as unknown_industry_risk, annotate_fact as annotate_industry_fact, append_evidence_index as append_industry_index, delivery_errors as industry_delivery_errors, company_filing_source
     from docx_exporter import markdown_to_docx_bytes
     from models import ResearchArtifact, ResearchProject, ResearchSource
@@ -352,6 +354,26 @@ class ResearchWorkflow:
         )
         return self._person_report_editor_model
 
+    def _invoke_company_summary(self, role: str, prompt: str, emit: TraceEmitter | None = None) -> str:
+        """One bounded request per summary attempt, with no hidden SDK retries."""
+        if not os.getenv("ARK_API_KEY") or not os.getenv("MODEL"):
+            return ""
+        repair = "修订" in role
+        try:
+            model = init_chat_model(
+                model=os.environ["MODEL"], model_provider="openai",
+                api_key=os.environ["ARK_API_KEY"], base_url=os.getenv("BASE_URL"),
+                temperature=0.1, max_tokens=2400, max_retries=0,
+                timeout=_env_int("COMPANY_SUMMARY_REPAIR_TIMEOUT_SECONDS" if repair else "COMPANY_SUMMARY_TIMEOUT_SECONDS", 45 if repair else 75, 10, 180),
+            )
+            response = model.invoke([
+                {"role": "system", "content": "只依据完整事实卡撰写中文公司摘要，保留主体、时间、数值单位和证据编号。"},
+                {"role": "user", "content": prompt},
+            ])
+            return str(response.content or "")
+        except Exception as exc:
+            _emit(emit, "llm", role, "公司摘要模型调用失败", type(exc).__name__, status="fallback")
+            return ""
     def _invoke_industry_report(self, role: str, prompt: str, emit: TraceEmitter | None = None) -> str:
         """Bound industry chapter requests; a local repair gets no SDK retries."""
         repair = '修复 Agent' in role
@@ -378,6 +400,32 @@ class ResearchWorkflow:
         except Exception as exc:
             _emit(emit, 'llm', role, '行业章节模型超时或失败，使用来源事实摘录', str(exc)[:800],
                   duration_ms=int((time.monotonic()-started)*1000), degraded=True, status='fallback')
+            return ''
+
+    def _invoke_industry_risk(self, role: str, prompt: str, emit=None, repair: bool = False) -> str:
+        """Risk scoring and its one local repair never use hidden SDK retries."""
+        if not os.getenv('ARK_API_KEY') or not os.getenv('MODEL'):
+            return ''
+        attribute = '_industry_risk_repair_model' if repair else '_industry_risk_model'
+        model = getattr(self, attribute, None)
+        if model is None:
+            model = init_chat_model(model=os.environ['MODEL'], model_provider='openai',
+                api_key=os.environ['ARK_API_KEY'], base_url=os.getenv('BASE_URL'), temperature=0.1,
+                timeout=_env_int('INDUSTRY_RISK_REPAIR_TIMEOUT_SECONDS' if repair else 'INDUSTRY_RISK_TIMEOUT_SECONDS',
+                                 45 if repair else 90, 10, 180), max_retries=0, max_tokens=2500 if repair else 4000)
+            setattr(self, attribute, model)
+        started = time.monotonic()
+        _emit(emit, 'llm', role, '正在调用行业风险模型', f'input_chars={len(prompt)}', input_chars=len(prompt), status='running')
+        try:
+            result = model.invoke([{'role': 'system', 'content': '只用允许的证据与指标；评分理由简短，缺证返回unknown，输出完整JSON。'},
+                                   {'role': 'user', 'content': prompt}])
+            content = str(result.content or '')
+            _emit(emit, 'llm', role, '行业风险模型调用完成', f'chars={len(content)}',
+                  duration_ms=int((time.monotonic()-started)*1000), status='done')
+            return content
+        except Exception as exc:
+            _emit(emit, 'llm', role, '行业风险模型超时或失败，保留待核验结果', str(exc)[:800],
+                  duration_ms=int((time.monotonic()-started)*1000), status='fallback')
             return ''
 
     def _invoke_industry_cleaning(self, role: str, prompt: str, emit=None, timeout_seconds=60) -> str:
@@ -641,9 +689,9 @@ class ResearchWorkflow:
         cleaning_pipeline_version = (
             "person-evidence-v10-anchor-quarantine"
             if standardized_type == "person"
-            else "company-evidence-v8-entity-bound"
+            else "company-evidence-v11-vector-survey-charts"
             if standardized_type == "company"
-            else "industry-evidence-v6-metric-grounded"
+            else "industry-evidence-v9-local-nature"
             if standardized_type == "industry"
             else "default-v4-auditable"
         )
@@ -654,7 +702,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v12-citation-index",
+            "company": "company-report-evidence-v37-column-notes",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -665,7 +713,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v11-diagnostic-repair",
+            "industry": "industry-report-evidence-v17-validated-fallback",
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -677,6 +725,8 @@ class ResearchWorkflow:
 
         resume_enabled = os.getenv("WORKFLOW_RESUME_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
         force_refresh = bool(normalized_intake.get("force_refresh_from_upload_ocr"))
+        company_ocr_retry = standardized_type == 'company' and os.getenv('COMPANY_PDF_OCR_RETRY_PENDING','false').lower() in {'true','1','on'}
+        company_chart_pending = bool(self._company_chart_refresh_candidates(project)) if standardized_type == 'company' else False
         intake_fingerprint = self._intake_evidence_fingerprint(normalized_intake)
         if standardized_type == "industry":
             setattr(project, "industry_scope_fingerprint", scope_fingerprint(normalized_intake, source_only=True))
@@ -687,7 +737,10 @@ class ResearchWorkflow:
         existing_risk_for_reuse = self._latest_artifact(project, "risk_assessment")
         can_reuse_final_outputs = (
             resume_enabled
+            and standardized_type != 'industry'  # Industry reexports must refresh evidence/claim diagnostics.
             and not force_refresh
+            and not company_ocr_retry
+            and not company_chart_pending
             and len(getattr(project, "sources", []) or []) > 0
             and sources_match_intake
             and existing_cleaned_for_reuse is not None
@@ -732,6 +785,7 @@ class ResearchWorkflow:
             project.status = "completed"
             project.updated_at = datetime.utcnow()
             db.commit()
+            self._finalize_source_records(db, project, emit)
             _emit(emit, "done", "workflow", "已复用既有产物并完成", "", status="done")
             return artifacts, 0
 
@@ -770,13 +824,23 @@ class ResearchWorkflow:
             if (source.content or source.summary or "").strip()
             and not self._is_failed_extraction_source(source)
         )
+        company_diligence_queries = []
+        if standardized_type == "company":
+            from report_agents.company_diligence import diligence_discovery_queries
+            company_diligence_queries = diligence_discovery_queries(list(project.sources or []), str(project.target_name or ""))
+            from report_agents.company_risk_register import recall_discovery_queries
+            company_diligence_queries += recall_discovery_queries(list(project.sources or []), str(project.target_name or ""))
         skip_web_search = bool(
             resume_enabled
             and not force_refresh
             and sources_match_intake
             and required_modules
             and all(existing_module_counts.get(module, 0) >= resume_min_per_module for module in required_modules)
+            and not company_diligence_queries
         )
+        if standardized_type == 'industry' and plan.get('evidence_requirements'):
+            evidence_gaps = self._industry_retrieval_gaps(project,plan)
+            skip_web_search = skip_web_search and not evidence_gaps
         if skip_web_search:
             _emit(
                 emit,
@@ -854,6 +918,7 @@ class ResearchWorkflow:
             _emit(emit, "structured_data", "structured_data_agent", "专业数据库来源缺失，质量闸门拦截", message, status="error")
             raise RuntimeError(message)
 
+        ocr_count = 0
         try:
             ocr_count = self.enrich_ocr_sources(db, project, emit=emit)
             if ocr_count:
@@ -862,6 +927,16 @@ class ResearchWorkflow:
         except Exception as exc:
             db.rollback()
             _emit(emit, "ocr", "ocr_extraction_agent", "OCR 提取失败，继续工作流", str(exc), status="fallback")
+
+        chart_count = 0
+        if standardized_type == 'company':
+            try:
+                chart_count = self.enrich_company_survey_charts(db, project, emit=emit)
+                if chart_count:db.expire(project, ["sources"])
+            except Exception as exc:
+                db.rollback()
+                _emit(emit, "charts", "company_chart_agent", "公司图表补取失败，保留原资料",
+                      type(exc).__name__, status="warning")
 
         if not (getattr(project, "sources", []) or []):
             message = (
@@ -912,11 +987,20 @@ class ResearchWorkflow:
         use_existing_cleaned = (
             resume_enabled
             and not force_refresh
+            and not (standardized_type == 'company' and (ocr_count or company_ocr_retry or chart_count or company_chart_pending))
             and sources_match_intake
             and existing_cleaned is not None
             and (existing_cleaned.artifact_metadata or {}).get("pipeline_version") == cleaning_pipeline_version
             and (existing_cleaned.artifact_metadata or {}).get("intake_fingerprint") == intake_fingerprint
         )
+        industry_source_snapshot=None
+        if standardized_type=='industry':
+            try:
+                from .industry_evidence import source_fingerprint
+            except ImportError:
+                from industry_evidence import source_fingerprint
+            industry_source_snapshot=source_fingerprint(self._active_industry_sources(project))
+            use_existing_cleaned=use_existing_cleaned and (existing_cleaned.artifact_metadata or {}).get('source_fingerprint')==industry_source_snapshot
         if use_existing_cleaned:
             cleaned_artifact = existing_cleaned
             cleaned = existing_cleaned.content
@@ -932,6 +1016,9 @@ class ResearchWorkflow:
                     raise
                 _emit(emit, "cleaning", "data_cleaning_agent", "事实清洗失败，使用降级清洗", str(exc), status="fallback")
                 cleaned = json.dumps(self._fallback_clean(project) | {"workflow_error": _error_json("cleaning", exc)}, ensure_ascii=False, indent=2)
+            if standardized_type == 'industry':
+                cleaned = self._prepare_industry_evidence(project,cleaned,plan)
+            prepared_payload=_plain_json(cleaned) if standardized_type=='industry' else {}
             cleaned_artifact = self.save_artifact(
                 db,
                 project,
@@ -943,18 +1030,35 @@ class ResearchWorkflow:
                     "source_count": len(project.sources),
                     "pipeline_version": cleaning_pipeline_version,
                     "intake_fingerprint": intake_fingerprint,
+                    **({'source_fingerprint':industry_source_snapshot} if standardized_type=='industry' else {}),
+                    **({'provenance_summary':prepared_payload.get('provenance_summary',{})}
+                       if standardized_type=='industry' and isinstance(prepared_payload,dict) else {}),
                 },
             )
             _emit(emit, "cleaning", "data_cleaning_agent", "清洗事实库已入库", f"artifact_id={cleaned_artifact.id}", artifact_id=cleaned_artifact.id, status="done")
         checkpoint("cleaning")
+        if standardized_type=='industry':
+            project.industry_evidence_payload=_plain_json(cleaned) or {}
 
         project.status = "risk_scoring"
+        if standardized_type == "company":
+            project.company_research_intake = dict(intake or {})
         db.commit()
         existing_risk = self._latest_artifact(project, "risk_assessment")
+        industry_risk_inputs=({'cleaned_artifact_id':cleaned_artifact.id,
+            'cleaned_sha256':hashlib.sha256(cleaned.encode()).hexdigest()} if standardized_type=='industry' else {})
+        if standardized_type == 'industry':
+            try:
+                from .industry_research import INDUSTRY_RISK_VERSION
+            except ImportError:
+                from industry_research import INDUSTRY_RISK_VERSION
         # A risk assessment is derived from the cleaned facts. Never reuse it when
         # cleaning was invalidated or regenerated, otherwise the report mixes new
         # evidence with a stale score from the previous pipeline.
         use_existing_risk = resume_enabled and not force_refresh and use_existing_cleaned and existing_risk is not None
+        if standardized_type == 'industry' and use_existing_risk:
+            use_existing_risk = ((existing_risk.artifact_metadata or {}).get('risk_pipeline_version') == INDUSTRY_RISK_VERSION
+                and all((existing_risk.artifact_metadata or {}).get(k)==v for k,v in industry_risk_inputs.items()))
         if use_existing_risk:
             risk_artifact = existing_risk
             risk = existing_risk.content
@@ -966,21 +1070,25 @@ class ResearchWorkflow:
             except Exception as exc:
                 db.rollback()
                 _emit(emit, "risk", "risk_assessment_agent", "风险研判失败，使用降级评分", str(exc), status="fallback")
-                fallback = unknown_industry_risk(scope=getattr(project, "industry_scope", {})) if standardized_type == "industry" else self._fallback_risk(cleaned)
+                fallback = ({"overall_score": None, "risk_level": "unknown", "dimensions": [],
+                             "key_risks": [], "unknowns": ["公司原件风险登记失败，需复核；未回退到关键词评分。"]}
+                            if standardized_type == "company" else unknown_industry_risk(scope=getattr(project, "industry_scope", {})) if standardized_type == "industry" else self._fallback_risk(cleaned))
                 risk = json.dumps(fallback | {"workflow_error": _error_json("risk", exc)}, ensure_ascii=False, indent=2)
-            risk_artifact = self.save_artifact(db, project, "risk_assessment", _project_doc_title(project, "风险研判"), risk, {"agent": "risk_assessment"})
+            risk_artifact = self.save_artifact(db, project, "risk_assessment", _project_doc_title(project, "风险研判"), risk,
+                {"agent": "risk_assessment", **industry_risk_inputs,
+                 **({'risk_pipeline_version': INDUSTRY_RISK_VERSION,
+                     'risk_transparency': (_plain_json(risk) or {}).get('risk_transparency', {})} if standardized_type == 'industry' else {})})
             _emit(emit, "risk", "risk_assessment_agent", "风险研判完成", "", status="done")
         checkpoint("risk")
+        industry_report_inputs=({**industry_risk_inputs,'risk_artifact_id':risk_artifact.id,
+            'risk_sha256':hashlib.sha256(risk.encode()).hexdigest()} if standardized_type=='industry' else {})
 
         project.status = "report_generating"
         db.commit()
         existing_report = self._latest_artifact(project, "desktop_report")
-        legacy_industry_report = (
-            self._latest_quality_artifact(project, "desktop_report")
-            if standardized_type == "industry" and existing_report is not None and (existing_report.artifact_metadata or {}).get("quality_warning")
-            else None
-        )
-        reusable_report = legacy_industry_report or existing_report
+        # Recheck the latest report, including its degradations. Never replace a
+        # newer review draft with an older candidate simply because it had no warning.
+        reusable_report = existing_report
         use_existing_report = (
             resume_enabled
             and use_existing_cleaned
@@ -988,10 +1096,13 @@ class ResearchWorkflow:
             and reusable_report is not None
             and (
                 (reusable_report.artifact_metadata or {}).get("report_pipeline_version") == report_pipeline_version
-                or legacy_industry_report is not None
             )
-            and not (reusable_report.artifact_metadata or {}).get("quality_warning")
+            and (standardized_type == 'industry' or not (reusable_report.artifact_metadata or {}).get("quality_warning"))
         )
+        if standardized_type=='industry' and use_existing_report:
+            use_existing_report=all((reusable_report.artifact_metadata or {}).get(k)==v for k,v in industry_report_inputs.items())
+        quality_diagnostic_artifact = None
+        report_quality_warning = ''
         if use_existing_report:
             # A stage-level resume must not keep exporting an old report whose
             # model-written source list predates the deterministic audit index.
@@ -1005,18 +1116,27 @@ class ResearchWorkflow:
                     report = sanitize_nested_report_chapter_headings(report, expected)
             report = self._append_report_evidence_index(project, report, cleaned, emit=emit)
             report = self._normalize_report_date(report)
-            self._validate_delivery_report(project, report)
+            reused_delivery_metadata = {}
+            if standardized_type == 'industry':
+                project.industry_report_degradations = list((reusable_report.artifact_metadata or {}).get('generation_degradations') or [])
+                report, reused_delivery_metadata = self._prepare_industry_delivery(project, report, risk, emit=emit)
+                report_quality_warning = reused_delivery_metadata.get('quality_warning', '')
+            else:
+                self._validate_delivery_report(project, report)
             report_artifact = self.save_artifact(
                 db,
                 project,
                 "desktop_report",
-                _project_doc_title(project, "行业研究报告" if standardized_type == "industry" else "背景调查报告"),
+                _project_doc_title(project, "行业研究报告" if standardized_type == "industry" else "背景调查报告") + ('（待复核稿）' if report_quality_warning else ''),
                 report,
-                {"agent": "report_writer", "reexported_from_artifact_id": reusable_report.id, "report_pipeline_version": report_pipeline_version, "delivery_status": "final_candidate"},
+                {"agent": "report_writer", "reexported_from_artifact_id": reusable_report.id, "report_pipeline_version": report_pipeline_version,
+                 **industry_report_inputs,"delivery_status": "final_candidate", **reused_delivery_metadata},
             )
-            _emit(emit, "report", "desktop_report_agent", "阶段级续跑：复用通过版报告正文并重新导出 Word", f"from_artifact_id={reusable_report.id}, new_artifact_id={report_artifact.id}", artifact_id=report_artifact.id, status="done")
+            _emit(emit, "report", "desktop_report_agent", "阶段级续跑：复用报告正文并重新检查交付状态、导出 Word", f"from_artifact_id={reusable_report.id}, new_artifact_id={report_artifact.id}", artifact_id=report_artifact.id, status="done")
         else:
             _emit(emit, "report", "desktop_report_agent", "开始生成桌面研究报告", "", status="running")
+            if standardized_type == 'industry':
+                project.industry_report_degradations = []
             try:
                 report = self.generate_report(project, cleaned, risk, emit=emit, intake=normalized_intake)
             except Exception as exc:
@@ -1024,6 +1144,9 @@ class ResearchWorkflow:
                 if os.getenv("REPORT_TEMPLATE_FALLBACK_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}:
                     _emit(emit, "report", "desktop_report_agent", "报告生成失败，使用模板降级生成", str(exc), status="fallback")
                     report = self._fallback_report(project, cleaned, risk)
+                    if standardized_type == 'industry':
+                        project.industry_report_degradations = list(getattr(project, 'industry_report_degradations', []) or []) + [
+                            {'chapter': None, 'message': '报告生成异常，使用模板事实摘录；综合判断需人工复核。'}]
                 else:
                     _emit(emit, "report", "desktop_report_agent", "报告生成失败", str(exc), status="error")
                     raise
@@ -1048,21 +1171,19 @@ class ResearchWorkflow:
             report = self._append_report_evidence_index(project, report, cleaned, emit=emit)
             report = self._normalize_report_date(report)
             report_quality_warning = ""
-            try:
-                self._validate_delivery_report(project, report)
-            except RuntimeError as exc:
-                if os.getenv("REPORT_SAVE_REVIEW_DRAFT_ON_GATE_FAIL", "true").strip().lower() not in {"1", "true", "yes", "on"}:
-                    raise
-                report_quality_warning = str(exc)
-                _emit(
-                    emit,
-                    "report",
-                    "desktop_report_agent",
-                    "报告交付质量闸门未通过，已保存待复核稿",
-                    report_quality_warning,
-                    status="fallback",
-                )
-                report = self._prepend_review_draft_notice(report, report_quality_warning)
+            industry_delivery_metadata = {}
+            if standardized_type == 'industry':
+                report, industry_delivery_metadata = self._prepare_industry_delivery(project, report, risk, emit=emit)
+                report_quality_warning = industry_delivery_metadata.get('quality_warning', '')
+            else:
+                try:
+                    self._validate_delivery_report(project, report)
+                except RuntimeError as exc:
+                    if os.getenv("REPORT_SAVE_REVIEW_DRAFT_ON_GATE_FAIL", "true").strip().lower() not in {"1", "true", "yes", "on"}:
+                        raise
+                    report_quality_warning = str(exc)
+                    _emit(emit, 'report', 'desktop_report_agent', '报告交付质量闸门未通过，已保存待复核稿', report_quality_warning, status='fallback')
+                    report = self._prepend_review_draft_notice(report, report_quality_warning)
             report_artifact = self.save_artifact(
                 db,
                 project,
@@ -1072,28 +1193,83 @@ class ResearchWorkflow:
                 {
                     "agent": "report_writer",
                     "report_pipeline_version": report_pipeline_version,
-                    **({"industry_evidence_diagnostic": getattr(project, "industry_delivery_diagnostic", {}),
-                         "quality_issues": getattr(project, "industry_quality_issues", []),
-                         "generation_degradations": getattr(project, "industry_report_degradations", [])} if standardized_type == "industry" else {}),
+                    **({"company_summary_diagnostic": getattr(project, "company_summary_diagnostic", {}),
+                        "company_summary_evidence": getattr(project, "company_summary_package", {}),
+                        "company_professional_platform_attempts": getattr(project, "company_professional_platform_attempts", [])}
+                       if standardized_type == "company" else {}),
+                    **({"company_governance_diagnostic": getattr(project, "company_governance_diagnostic", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_governance_evidence": getattr(project, "company_governance_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_history_diagnostic": getattr(project, "company_history_diagnostic", {}),
+                        "company_history_evidence": getattr(project, "company_history_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_operations_diagnostic": getattr(project, "company_operations_diagnostic", {}),
+                        "company_operations_evidence": getattr(project, "company_operations_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_reputation_diagnostic": getattr(project, "company_reputation_diagnostic", {}),
+                        "company_reputation_evidence": getattr(project, "company_reputation_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_business_diagnostic": getattr(project, "company_business_diagnostic", {}),
+                        "company_business_evidence": getattr(project, "company_business_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_management_diagnostic": getattr(project, "company_management_diagnostic", {}),
+                        "company_management_evidence": getattr(project, "company_management_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_people_diagnostic": getattr(project, "company_people_diagnostic", {}),
+                        "company_people_evidence": getattr(project, "company_people_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_judicial_diagnostic": getattr(project, "company_judicial_diagnostic", {}),
+                        "company_judicial_evidence": getattr(project, "company_judicial_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_diligence_diagnostic": getattr(project, "company_diligence_diagnostic", {}),
+                        "company_diligence_evidence": getattr(project, "company_diligence_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_risk_register_diagnostic": getattr(project, "company_risk_register_diagnostic", {}),
+                        "company_risk_register_evidence": getattr(project, "company_risk_register_package", {})}
+                       if standardized_type == "company" else {}),
+                    **({"company_assessment_diagnostic": getattr(project, "company_assessment_diagnostic", {}),
+                        "company_assessment_evidence": getattr(project, "company_assessment_package", {})}
+                       if standardized_type == "company" else {}),
+                    **industry_report_inputs,
+                    **industry_delivery_metadata,
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
                 },
             )
-            quality_diagnostic_artifact = None
-            if report_quality_warning:
-                quality_diagnostic_artifact = self.save_artifact(
-                    db,
-                    project,
-                    "report_quality_diagnostic",
-                    _project_doc_title(project, "报告质量诊断"),
-                    self._build_report_quality_diagnostic(project, report, report_quality_warning),
-                    {"agent": "report_quality_gate", "report_artifact_id": report_artifact.id, "quality_warning": report_quality_warning},
-                )
             _emit(emit, "report", "desktop_report_agent", "桌面研究报告已生成", "", status="done")
+        if report_quality_warning:
+            quality_diagnostic_artifact = self.save_artifact(
+                db, project, 'report_quality_diagnostic', _project_doc_title(project, '报告质量诊断'),
+                self._build_report_quality_diagnostic(project, report, report_quality_warning),
+                {'agent': 'report_quality_gate', 'report_artifact_id': report_artifact.id, 'quality_warning': report_quality_warning,
+                 **({'delivery_review_reasons': (report_artifact.artifact_metadata or {}).get('delivery_review_reasons', [])} if standardized_type == 'industry' else {})})
+        claim_artifact=None
+        if standardized_type=='industry':
+            try:
+                from .industry_evidence import claim_ledger, VERSION
+            except ImportError:
+                from industry_evidence import claim_ledger, VERSION
+            payload=_plain_json(cleaned) or {}
+            dependencies={'cleaned_artifact_id':cleaned_artifact.id,'risk_artifact_id':risk_artifact.id,
+                'report_artifact_id':report_artifact.id,'intake_fingerprint':intake_fingerprint,
+                'report_sha256':hashlib.sha256(report.encode()).hexdigest(),
+                'cleaned_sha256':hashlib.sha256(cleaned.encode()).hexdigest(),
+                'risk_sha256':hashlib.sha256(risk.encode()).hexdigest(),
+                'cleaning_version':cleaning_pipeline_version,'report_version':report_pipeline_version}
+            ledger=claim_ledger(report,payload.get('facts',[]),getattr(project,'industry_delivery_diagnostic',{}),
+                payload.get('evidence_coverage') or {},dependencies)
+            claim_artifact=self.save_artifact(db,project,'industry_claim_ledger',_project_doc_title(project,'结论证据台账'),
+                json.dumps(ledger,ensure_ascii=False,indent=2),{'agent':'industry_evidence_audit',
+                    'evidence_contract_version':VERSION,**dependencies,**ledger['summary']})
+            report_artifact.artifact_metadata={**(report_artifact.artifact_metadata or {}),
+                'claim_ledger_artifact_id':claim_artifact.id,'claim_reference_summary':ledger['summary']}
         checkpoint("report")
 
         artifacts = [plan_artifact, quality_artifact, cleaned_artifact, risk_artifact, report_artifact]
-        if 'quality_diagnostic_artifact' in locals() and quality_diagnostic_artifact is not None:
+        if claim_artifact is not None:
+            artifacts.append(claim_artifact)
+        if quality_diagnostic_artifact is not None:
             artifacts.append(quality_diagnostic_artifact)
         if generate_proposal:
             project.status = "proposal_generating"
@@ -1143,8 +1319,19 @@ class ResearchWorkflow:
         project.status = "completed"
         project.updated_at = datetime.utcnow()
         db.commit()
+        self._finalize_source_records(db, project, emit)
         _emit(emit, "done", "workflow", "工作流完成", "", status="done")
         return artifacts, sources_added
+
+    def _finalize_source_records(self, db, project, emit=None):
+        try:
+            from source_retention import finalize_web_sources
+            count = finalize_web_sources(db, project, research_store)
+            _emit(emit, 'retention', 'source_records', '来源记录已保留，临时网页正文已清理',
+                  f'count={count}', status='done')
+        except Exception:
+            db.rollback()
+            _emit(emit, 'retention', 'source_records', '临时正文清理未完成，来源记录仍可用', '', status='warning')
 
     def _latest_artifact(self, project: ResearchProject, artifact_type: str) -> ResearchArtifact | None:
         session = object_session(project)
@@ -1362,7 +1549,7 @@ class ResearchWorkflow:
     def _project_sources_match_intake(self, project: ResearchProject, intake: dict[str, Any]) -> bool:
         target_type = str(intake.get("target_type") or project.target_type or "").lower()
         sources = list(getattr(project, "sources", []) or [])
-        if not sources:
+        if not sources or any((s.source_metadata or {}).get("retention_policy") == "record_only" for s in sources):
             return False
         if target_type == "industry":
             fingerprint = scope_fingerprint(intake, source_only=True)
@@ -1756,6 +1943,13 @@ class ResearchWorkflow:
                     "required_source_types": strategy.required_source_types(module),
                 }
             )
+        if intake.get('target_type') == 'industry':
+            try:
+                from .industry_evidence import evidence_requirements, VERSION
+            except ImportError:
+                from industry_evidence import evidence_requirements, VERSION
+            plan['evidence_contract_version'] = VERSION
+            plan['evidence_requirements'] = evidence_requirements(plan['modules'],intake.get('industry_scope') or {})
         _emit(emit, "planning", "research_planning_agent", "研究计划生成完成", "", status="done")
         return plan
 
@@ -1863,7 +2057,17 @@ class ResearchWorkflow:
                     rows.insert(0, {'module': module, 'query': f'{target} {scope.get("geography", "")} {suffixes[module]}',
                                     'evidence_scope': 'industry_level', 'industry_name': target,
                                     'search_tier': 'open_web', 'gap_reason': next((gap for gap in gaps if str(gap).startswith(module)), '')})
-            return rows[:24]
+            requirements = {r['id']:r for r in plan.get('evidence_requirements',[])}
+            targeted = []
+            for gap in gaps:
+                match = re.search(r'\[需求:([^\]]+)\]',str(gap))
+                req = requirements.get(match[1]) if match else None
+                if req:
+                    targeted.append({'module':req['module'],'query':f'{target} {scope.get("geography", "")} {req["query_terms"]}',
+                        'search_tier':'open_web','evidence_scope':'industry_level','industry_name':target,
+                        'requirement_id':req['id'],'gap_reason':str(gap)})
+            generic_missing={str(g).split('：',1)[0] for g in gaps if '[需求:' not in str(g)}
+            return (targeted + [r for r in rows if r.get('module') in generic_missing])[:24]
         target = (intake.get("target_name") or "").strip()
         items: list[dict[str, str]] = []
         routes: list[tuple[tuple[str, ...], str, tuple[str, ...]]] = [
@@ -2397,6 +2601,11 @@ class ResearchWorkflow:
             flags.append("ocr_done")
         elif quality.get("needs_ocr"):
             flags.append("ocr_pending")
+        document = meta.get('document_extraction') or {}
+        if (document.get('ocr') or {}).get('accepted_pages'):
+            flags.append('ocr_transcribed_requires_fact_review')
+        if document.get('needs_ocr_pages') and 'ocr_pending' not in flags:
+            flags.append('ocr_pending')
         if not (source.content or "").strip() and (source.summary or "").strip():
             flags.append("summary_only")
         return flags
@@ -2435,7 +2644,7 @@ class ResearchWorkflow:
         for module in [m.get("name") for m in plan.get("modules", []) if isinstance(m, dict)]:
             if module and module_counts.get(module, 0) < min_sources:
                 gaps.append(f"{module}：有效来源不足，当前 {module_counts.get(module, 0)} 条，目标 {min_sources} 条")
-        return {
+        result = {
             "source_count": len(sources),
             "average_score": round(total_score / len(sources), 2) if sources else 0,
             "module_counts": dict(module_counts),
@@ -2444,6 +2653,51 @@ class ResearchWorkflow:
             "ocr_items": [],
             "sources": source_rows[:500],
         }
+        if project.target_type=='industry' and plan.get('evidence_requirements'):
+            try:
+                from .industry_evidence import source_coverage
+            except ImportError:
+                from industry_evidence import source_coverage
+            coverage=source_coverage([s for s in sources if not self._is_failed_extraction_source(s)],plan['evidence_requirements'])
+            result['evidence_coverage']=coverage
+            result['information_gaps']=list(dict.fromkeys(gaps+coverage['information_gaps']))
+        return result
+
+    def _industry_retrieval_gaps(self, project, plan):
+        try:
+            from .industry_evidence import source_coverage, VERSION
+        except ImportError:
+            from industry_evidence import source_coverage, VERSION
+        gaps=source_coverage(self._active_industry_sources(project),plan.get('evidence_requirements',[]))['information_gaps']
+        previous=self._latest_artifact(project,'cleaned_facts')
+        payload=_plain_json(previous.content) if previous else {}
+        coverage=(payload.get('evidence_coverage') or {}) if isinstance(payload,dict) else {}
+        if coverage.get('version')==VERSION and payload.get('industry_scope')==getattr(project,'industry_scope',{}):
+            active_ids={r['id'] for r in plan.get('evidence_requirements',[])}
+            gaps += [g for g in coverage.get('information_gaps',[]) if any(f'[需求:{rid}]' in g for rid in active_ids)]
+        return list(dict.fromkeys(gaps))
+
+    def _prepare_industry_evidence(self, project, cleaned, plan):
+        try:
+            from .industry_evidence import attach_provenance, fact_coverage
+        except ImportError:
+            from industry_evidence import attach_provenance, fact_coverage
+        payload=_plain_json(cleaned)
+        if not isinstance(payload,dict) or not isinstance(payload.get('facts'),list):
+            return cleaned  # Preserve the existing invalid-JSON/index failure path.
+        payload['facts']=attach_provenance(payload['facts'],self._active_industry_sources(project))
+        for fact in payload['facts']:
+            if fact['provenance']['locator']['status']!='verified':
+                fact.update(eligible_for_report=False,eligible_for_risk_scoring=False,requires_human_review=True)
+                fact['provenance']['quarantine_reason']='unlocated_source_quote'
+        payload['evidence_requirements']=plan.get('evidence_requirements',[])
+        payload['provenance_summary']={'total_fact_count':len(payload['facts']),
+            'located_fact_count':sum(f['provenance']['locator']['status']=='verified' for f in payload['facts']),
+            'quarantined_fact_count':sum(f['provenance']['locator']['status']!='verified' for f in payload['facts']),
+            'index_eligible_fact_count':sum(f.get('eligible_for_report') is not False for f in payload['facts'])}
+        payload['evidence_coverage']=fact_coverage(payload['facts'],payload['evidence_requirements'])
+        payload['information_gaps']=list(dict.fromkeys(list(payload.get('information_gaps') or [])+payload['evidence_coverage']['information_gaps']))
+        return json.dumps(payload,ensure_ascii=False,indent=2)
 
     def _apply_authority_coverage_requirements(self, quality: dict[str, Any], target_type: str, scope: dict | None = None) -> dict[str, Any]:
         result = dict(quality or {})
@@ -2465,8 +2719,118 @@ class ResearchWorkflow:
         result["information_gaps"] = list(dict.fromkeys(list(result.get("information_gaps") or []) + gaps))
         return result
     def enrich_ocr_sources(self, db: Session, project: ResearchProject, emit: TraceEmitter | None = None) -> int:
-        _emit(emit, "ocr", "ocr_extraction_agent", "OCR 当前跳过", "", status="skipped")
-        return 0
+        if str(project.target_type or '').lower() != 'company':
+            _emit(emit, "ocr", "ocr_extraction_agent", "当前链路未启用OCR", "", status="skipped")
+            return 0
+        from company_ocr import VERSION, _integer
+        if os.getenv('COMPANY_PDF_OCR_ENABLED', 'true').lower() in {'false', '0', 'off'}:
+            _emit(emit, 'ocr', 'ocr_extraction_agent', '公司按页OCR已关闭', '原待识别页保留', status='skipped')
+            return 0
+        maximum = _integer('COMPANY_PDF_OCR_MAX_SOURCES', 4, 1, 20)
+        refreshed = 0
+        attempted = 0
+        for source in list(project.sources or []):
+            meta = dict(source.source_metadata or {})
+            extraction = meta.get('document_extraction') or {}
+            # Fresh company fetches already ran page-selective OCR. Do not
+            # refetch them or silently promote partial OCR to a complete run.
+            previous_ocr=extraction.get('ocr') or {}
+            retry_pending=os.getenv('COMPANY_PDF_OCR_RETRY_PENDING', 'false').lower() in {'true','1','on'}
+            if (previous_ocr.get('version') == VERSION and previous_ocr.get('status') not in {'busy','unavailable','disabled'} and not retry_pending):
+                continue
+            pending = extraction.get('needs_ocr_pages') or []
+            pdf = str(source.url or '').split('?', 1)[0].lower().endswith('.pdf') or 'pdf' in str(meta.get('fetched_content_type') or '')
+            if not pdf or not pending:
+                continue
+            if attempted >= maximum:
+                _emit(emit, 'ocr', 'ocr_extraction_agent', '扫描页待后续处理', '本轮来源预算已用完，原缺口保留', url=source.url, status='warning')
+                continue
+            attempted += 1
+            _emit(emit, 'ocr', 'ocr_extraction_agent', '公司PDF按页补充识别', f'pending_pages={len(pending)}', url=source.url, status='running')
+            fetched = self._fetch_web_url_with_timeout(source.url, False, emit=emit, document_profile='company')
+            if fetched.get('document_extraction') and fetched.get('document_pages'):
+                source.content = fetched.get('content') or source.content
+                meta.update(document_pages=fetched['document_pages'], document_extraction=fetched['document_extraction'])
+                if fetched.get('content'):
+                    meta.update(content_kind='pdf_text_extracted', fetch_status=fetched.get('status') or 'done',
+                                fetched_content_type=fetched.get('content_type') or 'application/pdf',
+                                fetched_pages=fetched.get('pages') or 0)
+                ocr = fetched['document_extraction'].get('ocr') or {}
+                meta['ocr_status'] = ocr.get('status', 'pending')
+                refreshed += 1
+                detail = f"accepted={len(ocr.get('accepted_pages') or [])}, pending={len(ocr.get('pending_pages') or [])}"
+                status = 'done'
+            else:
+                # Fetch failure must not erase original text/coverage or be
+                # represented as an empty search result.
+                meta['ocr_retry'] = {'status': fetched.get('status') or 'failed', 'error': fetched.get('error') or ''}
+                detail = '重新获取失败，保留原文字与待识别页'
+                status = 'warning'
+            source.source_metadata = meta
+            _emit(emit, 'ocr', 'ocr_extraction_agent', '公司PDF识别状态已保存', detail, url=source.url, status=status)
+        if attempted:
+            db.commit()
+        _emit(emit, 'ocr', 'ocr_extraction_agent', '公司按页OCR检查完成', f'refreshed_sources={refreshed}; failed/partial/pages remain explicit', status='done')
+        return refreshed
+
+    def _company_chart_refresh_candidates(self, project):
+        if str(getattr(project,'target_type','')).lower()!='company':return []
+        from company_charts import VERSION,looks_like_survey_chart
+        from report_agents.company_evidence import document_pages,source_body
+        retry=os.getenv('COMPANY_PDF_CHART_RETRY_PENDING','false').lower() in {'true','1','on'}
+        candidates=[]
+        for source in list(getattr(project,'sources',[]) or []):
+            meta=source.source_metadata or {}
+            if meta.get('entity_validation') in {'rejected','ambiguous','related_entity_context'}:continue
+            if source_body(source)[1]=='discovery_summary':continue
+            extraction=meta.get('document_extraction') or {}
+            previous=extraction.get('survey_charts') or meta.get('survey_chart_refresh') or {}
+            if previous.get('version')==VERSION and not retry:continue
+            if urlparse(source.url or '').scheme not in {'http','https'}:continue
+            if any(looks_like_survey_chart(p['text']) for p in document_pages(source)):candidates.append(source)
+        return candidates
+
+    def enrich_company_survey_charts(self, db, project, emit=None):
+        from company_charts import VERSION
+        candidates=self._company_chart_refresh_candidates(project)
+        maximum=_env_int('COMPANY_PDF_CHART_MAX_SOURCES',4,1,20)
+        refreshed=0
+        for source in candidates[:maximum]:
+            _emit(emit,'charts','company_chart_agent','公司调查图表补充版面提取',
+                  '重新取得完整PDF；年份/标签/曲线/坐标一致时才写入图表记录。',url=source.url,status='running')
+            fetched=self._fetch_web_url_with_timeout(source.url,False,emit=emit,document_profile='company')
+            meta=dict(source.source_metadata or {})
+            extraction=fetched.get('document_extraction') or {}
+            charts=extraction.get('survey_charts') or {}
+            if fetched.get('content') and fetched.get('document_pages') and charts.get('version')==VERSION:
+                # Replace one coherent original, never attach new coordinates
+                # to an earlier body merely because its URL is unchanged.
+                old_sha=((meta.get('document_extraction') or {}).get('ocr') or {}).get('source_sha256')
+                new_sha=charts.get('source_sha256')
+                if old_sha and new_sha and old_sha!=new_sha:
+                    snapshot=json.dumps({'content':source.content,'source_metadata':meta},ensure_ascii=False)
+                    snapshot_sha=hashlib.sha256(snapshot.encode('utf-8')).hexdigest()
+                    key=research_store.put_text(f'projects/{project.id}/source_revisions/{source.id}_{snapshot_sha}.json',
+                        snapshot,'application/json; charset=utf-8')
+                    meta['previous_document_revision']={'source_sha256':old_sha,'object_key':key}
+                source.content=fetched['content']
+                meta.update(document_pages=fetched['document_pages'],document_extraction=extraction,
+                            content_kind='pdf_text_extracted',fetch_status=fetched.get('status') or 'done',
+                            content_retrieved_at=datetime.now().isoformat(timespec='seconds'))
+                refreshed+=1
+                status='done' if not (charts.get('unresolved_pages') or charts.get('pending_pages')) else 'warning'
+                detail=f"charts={charts.get('charts',0)}; unresolved={charts.get('unresolved_pages',[])}; pending={charts.get('pending_pages',[])}"
+            else:
+                meta['survey_chart_refresh']={'version':VERSION,'status':'failed','reason':fetched.get('status') or 'failed',
+                                              'retrieved_at':datetime.now().isoformat(timespec='seconds')}
+                detail='获取或提取失败；原文及原图表缺口保留，不表示没有披露。';status='warning'
+            source.source_metadata=meta
+            _emit(emit,'charts','company_chart_agent','公司图表提取状态已保存',detail,url=source.url,status=status)
+        if candidates:db.commit()
+        if len(candidates)>maximum:
+            _emit(emit,'charts','company_chart_agent','公司图表来源预算未覆盖全部原件',
+                  f'pending_sources={len(candidates)-maximum}',status='warning')
+        return refreshed
 
     def _should_use_vision_for_source(self, source: ResearchSource) -> bool:
         return False
@@ -2695,7 +3059,7 @@ class ResearchWorkflow:
         request_id: int = 10,
         timeout: int = 45,
     ) -> tuple[dict[str, Any], requests.Session]:
-        return self._mcp_rpc(
+        payload, active_session = self._mcp_rpc(
             url,
             headers,
             "tools/call",
@@ -2704,8 +3068,14 @@ class ResearchWorkflow:
             request_id=request_id,
             timeout=timeout,
         )
+        result = payload.get("result", payload)
+        blocks = result.get("content", []) if isinstance(result, dict) else []
+        message = "\n".join(str(item.get("text") or "") for item in blocks if isinstance(item, dict)) if isinstance(blocks, list) else ""
+        if (isinstance(result, dict) and result.get("isError")) or message.lstrip().lower().startswith("error calling tool"):
+            return {"error": {"code": "tool_execution_error", "message": message[:800] or "MCP工具执行失败"}}, active_session
+        return payload, active_session
 
-    def _extract_mcp_text(self, payload: dict[str, Any]) -> str:
+    def _extract_mcp_text(self, payload: dict[str, Any], *, preserve_company_risk: bool = False) -> str:
         if payload.get("error"):
             return json.dumps(payload, ensure_ascii=False, indent=2)
         result = payload.get("result", payload)
@@ -2718,10 +3088,10 @@ class ResearchWorkflow:
                     if text:
                         blocks.append(str(text))
         if blocks:
-            return "\n\n".join(self._structured_json_to_markdown(block) for block in blocks)
-        return self._structured_json_to_markdown(result)
+            return "\n\n".join(self._structured_json_to_markdown(block, limits=(500, 32, 12000) if preserve_company_risk else None) for block in blocks)
+        return self._structured_json_to_markdown(result, limits=(500, 32, 12000) if preserve_company_risk else None)
 
-    def _structured_json_to_markdown(self, value: Any, title: str = "") -> str:
+    def _structured_json_to_markdown(self, value: Any, title: str = "", limits=None) -> str:
         if isinstance(value, str):
             clean = value.strip()
             if not clean:
@@ -2730,12 +3100,12 @@ class ResearchWorkflow:
                 parsed = json.loads(clean)
             except Exception:
                 return clean
-            return self._structured_json_to_markdown(parsed, title=title)
+            return self._structured_json_to_markdown(parsed, title=title, limits=limits)
         if isinstance(value, list):
             if not value:
                 return "暂无记录"
             if all(isinstance(item, dict) for item in value):
-                return self._dict_list_to_markdown_table(value, title=title)
+                return self._dict_list_to_markdown_table(value, title=title, limits=limits)
             return "\n".join(f"- {self._structured_scalar_to_text(item)}" for item in value)
         if not isinstance(value, dict):
             return self._structured_scalar_to_text(value)
@@ -2744,15 +3114,15 @@ class ResearchWorkflow:
         for key, item in value.items():
             label = str(key)
             if isinstance(item, list) and item and all(isinstance(row, dict) for row in item):
-                sections.append(self._dict_list_to_markdown_table(item, title=label))
+                sections.append(self._dict_list_to_markdown_table(item, title=label, limits=limits))
             elif isinstance(item, dict):
-                sections.append(self._structured_json_to_markdown(item, title=label))
+                sections.append(self._structured_json_to_markdown(item, title=label, limits=limits))
             elif isinstance(item, list):
-                sections.append(f"### {label}\n\n{self._structured_json_to_markdown(item, title=label)}")
+                sections.append(f"### {label}\n\n{self._structured_json_to_markdown(item, title=label, limits=limits)}")
             else:
                 scalar_rows.append({"字段": label, "值": self._structured_scalar_to_text(item)})
         if scalar_rows:
-            sections.insert(0, self._dict_list_to_markdown_table(scalar_rows, title=title or "基础字段"))
+            sections.insert(0, self._dict_list_to_markdown_table(scalar_rows, title=title or "基础字段", limits=limits))
         return "\n\n".join(part for part in sections if part.strip()) or json.dumps(value, ensure_ascii=False, indent=2)
 
     def _structured_scalar_to_text(self, value: Any) -> str:
@@ -2763,9 +3133,10 @@ class ResearchWorkflow:
         text = str(value).strip()
         return text if text else "待查"
 
-    def _dict_list_to_markdown_table(self, rows: list[dict[str, Any]], title: str = "") -> str:
+    def _dict_list_to_markdown_table(self, rows: list[dict[str, Any]], title: str = "", limits=None) -> str:
         if not rows:
             return ""
+        max_rows, max_columns, max_cell = limits or (80, 8, 600)
         keys: list[str] = []
         preferred = [
             "name", "company_name", "企业名称", "公司名称", "股东名称", "shareholder_name",
@@ -2780,24 +3151,29 @@ class ResearchWorkflow:
             for key in row.keys():
                 if key not in keys:
                     keys.append(key)
-                if len(keys) >= 8:
+                if len(keys) >= max_columns:
                     break
-            if len(keys) >= 8:
+            if len(keys) >= max_columns:
                 break
         lines: list[str] = []
         if title:
             lines.extend([f"### {title}", ""])
         lines.append("| " + " | ".join(str(key) for key in keys) + " |")
         lines.append("| " + " | ".join("---" for _ in keys) + " |")
-        for row in rows[:80]:
+        clipped_cells = 0
+        for row in rows[:max_rows]:
             cells: list[str] = []
             for key in keys:
                 cell = self._structured_scalar_to_text(row.get(key))
                 cell = cell.replace("\r\n", "<br>").replace("\n", "<br>").replace("|", " / ")
-                cells.append(_clip(cell, 600))
+                if len(cell) > max_cell:
+                    clipped_cells += 1
+                cells.append(_clip(cell, max_cell))
             lines.append("| " + " | ".join(cells) + " |")
-        if len(rows) > 80:
-            lines.append(f"\n> 已截取前 80 条记录，完整返回共 {len(rows)} 条。")
+        if len(rows) > max_rows:
+            lines.append(f"\n> 已截取前 {max_rows} 条记录，完整返回共 {len(rows)} 条。")
+        if limits and (clipped_cells or any(set(row) - set(keys) for row in rows)):
+            lines.append(f"\n> 公司风险格式化存在字段截断：长字段{clipped_cells}处；未展示列或字段请回原始返回核对。")
         return "\n".join(lines)
     def _mcp_error_is_disabled_tool(self, payload: dict[str, Any]) -> bool:
         text = json.dumps(payload or {}, ensure_ascii=False).lower()
@@ -2980,15 +3356,25 @@ class ResearchWorkflow:
             .first()
         )
         if exists:
-            return False
+            if (exists.source_metadata or {}).get('retention_policy') != 'record_only':
+                return False
+            db.delete(exists)
+            db.flush()
         object_key = research_store.put_text(
             f"projects/{project.id}/structured/{provider}_{module}_{_now_key()}.md",
             content,
             "text/markdown; charset=utf-8",
         )
+        metadata = dict(metadata)
+        raw_response = metadata.pop("company_qcc_raw_response", None)
+        if raw_response is not None:
+            metadata["raw_response_key"] = research_store.put_text(
+                f"projects/{project.id}/structured/{provider}_{module}_{_now_key()}_raw.json",
+                json.dumps(raw_response, ensure_ascii=False), "application/json; charset=utf-8")
         source_metadata = {
             "provider": provider,
             "module": module,
+            "retention_policy": "transient_platform_body",
             "content_kind": "structured_data",
             "entity_validation": "related_entity_context" if related_entity_context else "verified",
             "entity_validation_reason": entity_reason,
@@ -3032,14 +3418,37 @@ class ResearchWorkflow:
         if not target:
             return 0
         added = 0
+        company = self._standardize_target_type(project, intake, target) == "company"
+        if company:
+            project.company_professional_platform_attempts = []
+            project.company_judicial_query_attempts = []
         collectors = [self._collect_qcc_sources, self._collect_tyc_sources, self._collect_xiniu_sources]
         for collector in collectors:
             try:
                 added += collector(db, project, target, intake, emit=emit)
             except Exception as exc:
                 _emit(emit, "structured_data", "structured_data_agent", "结构化采集失败", str(exc), status="warning")
+        if company:
+            audit = {"attempts": getattr(project, "company_professional_platform_attempts", []),
+                     "judicial_query_attempts": getattr(project, "company_judicial_query_attempts", [])}
+            self.save_artifact(db, project, "professional_platform_audit", "专业平台查询覆盖记录",
+                               json.dumps(audit, ensure_ascii=False), {"provider_audit_version": 1})
+            failures = sum(r["status"] in {"failed", "not_queried"} for r in audit["attempts"])
+            if failures:
+                _emit(emit, "structured_data", "structured_data_agent", "专业平台存在未完成查询",
+                      f"失败或未查询={failures}；平台不可用不表示企业无记录。", status="warning")
         _emit(emit, "structured_data", "structured_data_agent", "结构化采集完成", f"sources_added={added}", sources_added=added, status="done")
         return added
+
+    def _company_platform_audit(self, project, intake, target, provider, credential):
+        if not hasattr(self, "_company_platform_failure_cache"):
+            self._company_platform_failure_cache = {}
+        return CompanyPlatformAudit(project, provider, credential, self._company_platform_failure_cache,
+                                    self._standardize_target_type(project, intake, target) == "company")
+
+    def _emit_platform_stop(self, audit, emit):
+        _emit(emit, "structured_data", audit.provider + "_mcp_agent", "专业平台暂不可用，停止本轮调用",
+              f"{audit.provider}: {audit.stop_reason}；后续工具未查询，不计为企业无记录。", status="warning")
 
     def collect_person_affiliation_structured_sources(
         self,
@@ -3235,7 +3644,12 @@ class ResearchWorkflow:
 
     def _collect_qcc_sources(self, db: Session, project: ResearchProject, target: str, intake: dict[str, Any], emit: TraceEmitter | None = None) -> int:
         token = os.getenv("QCC_API_KEY", "").strip()
+        audit = self._company_platform_audit(project, intake, target, "qcc", token)
+        audit.planned(["get_company_registration_info", "get_shareholder_info", "get_key_personnel",
+                       "get_company_profile", "get_company_risk_scan", "get_administrative_penalty", "get_recruitment_info"])
         if not token:
+            audit.stop_reason = "not_configured"
+            audit.finish_unqueried()
             _emit(emit, "structured_data", "qcc_mcp_agent", "企查查 API Key 为空，跳过", "", status="skipped")
             return 0
         if token.lower().startswith("bearer "):
@@ -3259,33 +3673,83 @@ class ResearchWorkflow:
         ]
         if os.getenv("QCC_ENABLE_IPR_TOOLS", "false").strip().lower() in {"1", "true", "yes", "on"}:
             endpoints.append(("qcc_ipr", os.getenv("QCC_MCP_IPR_URL", "https://agent.qcc.com/mcp/ipr/stream"), [("get_patents", "技术实力")]))
+            audit.planned(["get_patents"])
+        if audit.cached_failure():
+            self._emit_platform_stop(audit, emit)
+            return 0
         added = 0
         candidates = intake.get("structured_target_candidates") or [target]
         disabled_tools: set[str] = set()
+        company_risk = self._standardize_target_type(project, intake, target) == "company"
+        if company_risk:
+            project.company_judicial_query_attempts = []
         for provider, url, tools in endpoints:
-            session, ok, error = self._mcp_initialize(url, headers, timeout=timeout)
+            session, ok, error = audit.initialize(self._mcp_initialize, url, headers, timeout=timeout)
             if not ok:
+                if audit.result(provider + "初始化", {}, {"error": error}):
+                    self._emit_platform_stop(audit, emit)
+                    return added
+                for tool, _ in tools:
+                    audit.record(tool, {}, "not_queried", "initialization_failed")
+                if company_risk and provider == "qcc_risk":
+                    project.company_judicial_query_attempts.append({"tool": "qcc_risk初始化", "status": "failed"})
                 _emit(emit, "structured_data", "qcc_mcp_agent", "企查查 MCP 初始化失败", error, status="warning")
                 continue
             for index, (tool, module) in enumerate(tools, 1):
                 if tool in disabled_tools:
                     continue
                 saved = False
+                failed = False
                 for candidate in candidates:
-                    payload, session = self._mcp_call_tool(url, headers, tool, {"searchKey": candidate}, session=session, request_id=10 + index, timeout=timeout)
+                    payload, session = audit.call(self._mcp_call_tool, url, headers, tool, {"searchKey": candidate}, session=session, request_id=10 + index, timeout=timeout)
+                    if audit.result(tool, {"searchKey": candidate}, payload):
+                        self._emit_platform_stop(audit, emit)
+                        return added
                     if payload.get("error"):
+                        failed = True
                         if self._mcp_error_is_disabled_tool(payload):
                             disabled_tools.add(tool)
                             saved = True
                             break
                         _emit(emit, "structured_data", "qcc_mcp_agent", "企查查工具调用失败", f"{tool}: {json.dumps(payload, ensure_ascii=False)[:400]}", status="warning")
                         continue
-                    text = self._extract_mcp_text(payload)
-                    if self._save_structured_source(db, project, provider, module, f"企查查-{tool}-{target}", text, {"tool": tool, "target": target, "query": candidate}, emit=emit, intake=intake):
+                    text = self._extract_mcp_text(payload, preserve_company_risk=True) if company_risk and provider == "qcc_risk" else self._extract_mcp_text(payload)
+                    query_meta = {"tool": tool, "target": target, "query": candidate,
+                                  "query_status": "success", "retrieved_at": datetime.now().isoformat(timespec="seconds")}
+                    if company_risk and provider == "qcc_risk":
+                        query_meta["company_qcc_raw_response"] = payload
+                        from company_risk import drilldown_tools, document_requests
+                        scan_entity_ok, _ = self._structured_entity_matches_request(text, query_meta, intake)
+                        if tool == "get_company_risk_scan" and scan_entity_ok:
+                            queued = {name for name, _module in tools}
+                            tools.extend((name, "诉讼/制裁") for name in drilldown_tools(text) if name not in queued)
+                            audit.planned([name for name, _module in tools])
+                        if tool == "get_judicial_documents" and scan_entity_ok:
+                            for case_number, document_id in document_requests(text):
+                                detail, session = audit.call(self._mcp_call_tool, url, headers, "get_judicial_document_detail",
+                                    {"searchKey": candidate, "documentId": document_id, "section": "全部"},
+                                    session=session, request_id=100 + index, timeout=timeout)
+                                if audit.result("get_judicial_document_detail", {"searchKey": candidate,
+                                                "documentId": document_id, "section": "全部"}, detail):
+                                    # The list already returned successfully. A failed
+                                    # detail lookup must not discard that original.
+                                    if self._save_structured_source(db, project, provider, module,
+                                        f"企查查-{tool}-{target}", text, query_meta, emit=emit, intake=intake):
+                                        added += 1
+                                    self._emit_platform_stop(audit, emit)
+                                    return added
+                                if not detail.get("error"):
+                                    detail_text = self._extract_mcp_text(detail, preserve_company_risk=True)
+                                    if self._save_structured_source(db, project, provider, module,
+                                        f"企查查-get_judicial_document_detail-{case_number}-{target}", detail_text,
+                                        {**query_meta, "company_qcc_raw_response": detail, "tool": "get_judicial_document_detail", "case_number": case_number,
+                                         "document_id": document_id}, emit=emit, intake=intake):
+                                        added += 1
+                    if self._save_structured_source(db, project, provider, module, f"企查查-{tool}-{target}", text, query_meta, emit=emit, intake=intake):
                         added += 1
                         saved = True
                         break
-                if not saved:
+                if not saved and not failed:
                     _emit(
                         emit,
                         "structured_data",
@@ -3298,21 +3762,34 @@ class ResearchWorkflow:
 
     def _collect_tyc_sources(self, db: Session, project: ResearchProject, target: str, intake: dict[str, Any], emit: TraceEmitter | None = None) -> int:
         api_key = (os.getenv("TYC_API_KEY") or os.getenv("TENC_API_KEY") or "").strip()
+        audit = self._company_platform_audit(project, intake, target, "tyc", api_key)
+        audit.planned(["search_companies", "get_company_basic_profile", "get_company_people", "get_company_group_profile", "search_patents"])
         if not api_key:
+            audit.stop_reason = "not_configured"
+            audit.finish_unqueried()
             _emit(emit, "structured_data", "tyc_mcp_agent", "天眼查 API Key 为空，跳过", "", status="skipped")
+            return 0
+        if audit.cached_failure():
+            self._emit_platform_stop(audit, emit)
             return 0
         url = os.getenv("TYC_MCP_URL", "https://mcp.tianyancha.com/v1").strip()
         headers = {"Authorization": api_key}
         timeout = _env_int("STRUCTURED_SOURCE_TIMEOUT_SECONDS", 45, 10, 180)
-        session, ok, error = self._mcp_initialize(url, headers, timeout=timeout)
+        session, ok, error = audit.initialize(self._mcp_initialize, url, headers, timeout=timeout)
         if not ok:
+            audit.result("initialize", {}, {"error": error})
+            audit.stop_reason = audit.stop_reason or "initialization_failed"
+            audit.finish_unqueried()
             _emit(emit, "structured_data", "tyc_mcp_agent", "天眼查 MCP 初始化失败", error, status="warning")
             return 0
         added = 0
         candidates = intake.get("structured_target_candidates") or [target]
         anchor = {"company_name": target, "company_id": ""}
         for candidate in candidates:
-            payload, session = self._mcp_call_tool(url, headers, "search_companies", {"query": candidate, "page": 1, "page_size": 5}, session=session, request_id=20, timeout=timeout)
+            payload, session = audit.call(self._mcp_call_tool, url, headers, "search_companies", {"query": candidate, "page": 1, "page_size": 5}, session=session, request_id=20, timeout=timeout)
+            if audit.result("search_companies", {"query": candidate, "page": 1, "page_size": 5}, payload):
+                self._emit_platform_stop(audit, emit)
+                return added
             if payload.get("error"):
                 _emit(emit, "structured_data", "tyc_mcp_agent", "天眼查搜索失败", json.dumps(payload, ensure_ascii=False)[:400], status="warning")
                 continue
@@ -3332,7 +3809,10 @@ class ResearchWorkflow:
             ("search_patents", "技术实力", {"query": subject_args["company_name"], "applicant": subject_args["company_name"], "page": 1, "page_size": 20}),
         ]
         for index, (tool, module, args) in enumerate(detail_tools, 1):
-            payload, session = self._mcp_call_tool(url, headers, tool, args, session=session, request_id=30 + index, timeout=timeout)
+            payload, session = audit.call(self._mcp_call_tool, url, headers, tool, args, session=session, request_id=30 + index, timeout=timeout)
+            if audit.result(tool, args, payload):
+                self._emit_platform_stop(audit, emit)
+                return added
             if payload.get("error"):
                 _emit(emit, "structured_data", "tyc_mcp_agent", "天眼查工具调用失败", f"{tool}: {json.dumps(payload, ensure_ascii=False)[:400]}", status="warning")
                 continue
@@ -3343,15 +3823,7 @@ class ResearchWorkflow:
 
     def _collect_xiniu_sources(self, db: Session, project: ResearchProject, target: str, intake: dict[str, Any], emit: TraceEmitter | None = None) -> int:
         api_key = os.getenv("XINIU_API_KEY", "").strip()
-        if not api_key:
-            return 0
-        base_url = os.getenv("XINIU_MCP_URL", "https://vip.xiniudata.com/mcp").strip()
-        url = base_url if "api_key=" in base_url else f"{base_url}{'&' if '?' in base_url else '?'}{urlencode({'api_key': api_key})}"
-        timeout = _env_int("STRUCTURED_SOURCE_TIMEOUT_SECONDS", 45, 10, 180)
-        session, ok, error = self._mcp_initialize(url, {}, timeout=timeout)
-        if not ok:
-            _emit(emit, "structured_data", "xiniu_mcp_agent", "稀牛 MCP 初始化失败", error, status="warning")
-            return 0
+        audit = self._company_platform_audit(project, intake, target, "xiniu", api_key)
         aspects = [
             ("企业基本信息", "公司背景"),
             ("融资状况分析", "融资情报"),
@@ -3359,6 +3831,24 @@ class ResearchWorkflow:
             ("团队人物及招聘分析", "管理团队"),
             ("风险评估", "风险核查"),
         ]
+        audit.planned(["get_company_info:" + aspect for aspect, _module in aspects])
+        if not api_key:
+            audit.stop_reason = "not_configured"
+            audit.finish_unqueried()
+            return 0
+        if audit.cached_failure():
+            self._emit_platform_stop(audit, emit)
+            return 0
+        base_url = os.getenv("XINIU_MCP_URL", "https://vip.xiniudata.com/mcp").strip()
+        url = base_url if "api_key=" in base_url else f"{base_url}{'&' if '?' in base_url else '?'}{urlencode({'api_key': api_key})}"
+        timeout = _env_int("STRUCTURED_SOURCE_TIMEOUT_SECONDS", 45, 10, 180)
+        session, ok, error = audit.initialize(self._mcp_initialize, url, {}, timeout=timeout)
+        if not ok:
+            audit.result("initialize", {}, {"error": error})
+            audit.stop_reason = audit.stop_reason or "initialization_failed"
+            audit.finish_unqueried()
+            _emit(emit, "structured_data", "xiniu_mcp_agent", "稀牛 MCP 初始化失败", error, status="warning")
+            return 0
         added = 0
         raw_candidates = intake.get("structured_target_candidates") or [target]
         candidates: list[str] = []
@@ -3369,16 +3859,23 @@ class ResearchWorkflow:
         for index, (aspect, module) in enumerate(aspects, 1):
             saved = False
             for candidate in candidates:
-                payload, session = self._mcp_call_tool(url, {}, "get_company_info", {"firm_name": candidate, "aspect": aspect}, session=session, request_id=30 + index, timeout=timeout)
+                payload, session = audit.call(self._mcp_call_tool, url, {}, "get_company_info", {"firm_name": candidate, "aspect": aspect}, session=session, request_id=30 + index, timeout=timeout)
+                if audit.result("get_company_info:" + aspect, {"firm_name": candidate, "aspect": aspect}, payload):
+                    self._emit_platform_stop(audit, emit)
+                    return added
                 if payload.get("error"):
                     _emit(emit, "structured_data", "xiniu_mcp_agent", "稀牛工具调用失败", json.dumps(payload, ensure_ascii=False)[:400], status="warning")
+                    error_text = json.dumps(payload, ensure_ascii=False).lower()
+                    if any(marker in error_text for marker in ("余额不足", "配额", "quota", "insufficient", "invalid_token", "unauthorized")):
+                        _emit(emit, "structured_data", "xiniu_mcp_agent", "稀牛账号额度或权限不可用，停止本轮调用", "平台调用失败不是目标企业无记录。", status="warning")
+                        return added
                     continue
                 text = self._extract_mcp_text(payload)
                 if self._save_structured_source(db, project, "xiniu", module, f"稀牛-{aspect}-{target}", text, {"tool": "get_company_info", "aspect": aspect, "target": target, "query": candidate}, emit=emit, intake=intake):
                     added += 1
                     saved = True
                     break
-            if not saved:
+            if not saved and "get_company_info:" + aspect not in audit.failed_tools:
                 _emit(emit, "structured_data", "xiniu_mcp_agent", "稀牛未命中有效数据", aspect, status="warning")
         return added
     def collect_web_sources(
@@ -3401,6 +3898,23 @@ class ResearchWorkflow:
             return 0
 
         expanded_query_items = self._expand_search_queries(plan, intake)
+        discovered_company_recalls: set[str] = set()
+        if str(intake.get("target_type") or "").lower() == "company":
+            from report_agents.company_risk_register import recall_discovery_queries
+            from report_agents.company_assessment import assessment_discovery_queries
+            expanded_query_items = recall_discovery_queries(list(project.sources or []),
+                str(intake.get("target_name") or project.target_name or ""), discovered_company_recalls) + assessment_discovery_queries(
+                str(intake.get("target_name") or project.target_name or "")) + expanded_query_items
+        if intake.get('target_type')=='industry' and plan.get('evidence_requirements') and not intake.get('search_queries'):
+            active=self._active_industry_sources(project)
+            counts=Counter(str((s.source_metadata or {}).get('module') or '') for s in active if (s.content or '').strip())
+            minimum=int((plan.get('coverage_thresholds') or {}).get('min_sources_per_module') or FIXED_MIN_SOURCES_PER_MODULE)
+            if active and all(counts.get(m['name'],0)>=minimum for m in plan.get('modules',[])):
+                gaps=self._industry_retrieval_gaps(project,plan)
+                if gaps:
+                    expanded_query_items=self._gap_queries(plan,intake,gaps)
+                    _emit(emit,'web_search','coverage_agent','复用已有来源，仅补采指标证据缺口',
+                          f'queries={len(expanded_query_items)}',status='running')
         person_mode = str(intake.get("target_type") or "").lower() == "person"
         authority_queries = [item for item in expanded_query_items if item.get("search_tier") == "authority_first"]
         pending_open_web_queries = [item for item in expanded_query_items if item.get("search_tier") != "authority_first"] if authority_queries else []
@@ -3417,8 +3931,9 @@ class ResearchWorkflow:
 
         added = 0
         discovered_affiliations: set[str] = set()
+        discovered_company_diligence: set[str] = set()
         active_sources = self._active_industry_sources(project)
-        seen_urls = {s.url for s in active_sources if s.url}
+        seen_urls = {s.url for s in active_sources if s.url and (s.source_metadata or {}).get("retention_policy") != "record_only"}
         host_counts: defaultdict[str, int] = defaultdict(int)
         authority_host_counts: defaultdict[str, int] = defaultdict(int)
         tech_content_saved = 0
@@ -3675,7 +4190,8 @@ class ResearchWorkflow:
                                 browser_fetch_allowed=allow_browser,
                                 status="running",
                             )
-                            fetched = self._fetch_web_url_with_timeout(url, allow_browser=allow_browser, emit=emit)
+                            fetch_options = {'document_profile': 'company'} if project.target_type == 'company' else {}
+                            fetched = self._fetch_web_url_with_timeout(url, allow_browser=allow_browser, emit=emit, **fetch_options)
                             _emit(
                                 emit,
                                 "web_search",
@@ -3709,7 +4225,10 @@ class ResearchWorkflow:
                             )
                             if fetched.get("images"):
                                 item_metadata["images"] = fetched.get("images")
-                            if len(fetched_clean) > len(cleaned_probe):
+                            for document_key in ('document_pages', 'document_extraction'):
+                                if fetched.get(document_key) is not None:
+                                    item_metadata[document_key] = fetched[document_key]
+                            if len(fetched_clean) > len(cleaned_probe) or (project.target_type == 'company' and fetched.get('status') == 'done' and fetched_clean):
                                 content = fetched_text
                                 raw_content = fetched_text
                                 cleaned_probe = fetched_clean
@@ -3772,6 +4291,10 @@ class ResearchWorkflow:
                             "authority_domains": include_domains,
                             "authority_required": int(query_item.get("authority_required") or 0),
                             "evidence_scope": query_item.get("evidence_scope") or "",
+                            "diligence_entity": query_item.get("diligence_entity") or "",
+                            "diligence_relationship_source": query_item.get("diligence_relationship_source") or "",
+                            "recall_entity": query_item.get("recall_entity") or "",
+                            "recall_relationship_source": query_item.get("recall_relationship_source") or "",
                             "industry_name": query_item.get("industry_name") or "",
                             "segment_name": query_item.get("segment_name") or "",
                             "company_role": query_item.get("company_role") or "",
@@ -3871,6 +4394,7 @@ class ResearchWorkflow:
                         except ImportError:
                             from json_utils import strip_nul
                         title, summary, stored_text, metadata = strip_nul([str(title or ''), str(summary or ''), stored_text, metadata])
+                        metadata["retention_policy"] = "transient_web_body"
                         object_key = research_store.put_text(
                             f"projects/{project.id}/raw_web/{_now_key()}_{added}.txt",
                             stored_text,
@@ -3965,6 +4489,17 @@ class ResearchWorkflow:
                         discovered_affiliations=new_names,
                         status="running",
                     )
+            if str(intake.get("target_type") or "").lower() == "company" and round_index < max_rounds:
+                from report_agents.company_diligence import diligence_discovery_queries
+                company_discovery = diligence_discovery_queries(list(project.sources or []),
+                    str(intake.get("target_name") or project.target_name or ""), discovered_company_diligence)
+                from report_agents.company_risk_register import recall_discovery_queries
+                company_discovery += recall_discovery_queries(list(project.sources or []),
+                    str(intake.get("target_name") or project.target_name or ""), discovered_company_recalls)
+                if company_discovery:
+                    discovery_items.extend(company_discovery)
+                    _emit(emit, "web_search", "company_diligence_discovery_agent",
+                        "根据原件关系补充专项资料检索", "；".join(item["query"] for item in company_discovery), status="running")
             next_query_items = discovery_items + self._gap_queries(plan, intake, gaps)
             if round_index == 1 and pending_open_web_queries:
                 next_query_items = pending_open_web_queries + next_query_items
@@ -3988,13 +4523,21 @@ class ResearchWorkflow:
         _emit(emit, "web_search", "online_search_agent", "在线来源采集结束", "", status="done")
         return added
 
-    def _fetch_web_url_with_timeout(self, url: str, allow_browser: bool, emit: TraceEmitter | None = None) -> dict[str, Any]:
+    def _fetch_web_url_with_timeout(self, url: str, allow_browser: bool, emit: TraceEmitter | None = None, *, document_profile: str = '') -> dict[str, Any]:
         timeout_seconds = _env_int("WEB_FETCH_TOTAL_TIMEOUT_SECONDS", 45, 5, 180)
+        if document_profile == 'company':
+            # Company PDFs may include hundreds of native pages plus bounded
+            # OCR and its queue wait; the old 45s wrapper discarded good results.
+            from company_ocr import _integer
+            ocr_seconds=_integer('COMPANY_PDF_OCR_MAX_SECONDS',60,1,600)
+            default=max(timeout_seconds, 60+2*ocr_seconds)
+            timeout_seconds=_env_int('COMPANY_PDF_FETCH_TOTAL_TIMEOUT_SECONDS',default,30,1500)
         result_queue: queue.Queue[tuple[str, Any]] = queue.Queue(maxsize=1)
 
         def worker() -> None:
             try:
-                result_queue.put(("ok", web_search_provider.fetch_url(url, allow_browser=allow_browser)))
+                options = {'document_profile': document_profile} if document_profile else {}
+                result_queue.put(("ok", web_search_provider.fetch_url(url, allow_browser=allow_browser, **options)))
             except Exception as exc:
                 result_queue.put(("error", exc))
 
@@ -4082,6 +4625,7 @@ class ResearchWorkflow:
                 max_chars=_env_int("CLEANING_MAX_CHARS_PER_BATCH", 8000, 1000, 30000),
                 max_chars_per_source=max_chars_per_source,
                 max_batches=None,
+                target_type=str(project.target_type or ''),
                 industry=project.target_type == 'industry',
             )
             _emit(
@@ -4103,7 +4647,7 @@ class ResearchWorkflow:
         deduped = self._annotate_evidence_facts(project, self._dedupe_facts(all_facts))
         if person_mode:
             self._validate_person_cleaned_facts(deduped)
-        evidence_ledger = self._build_evidence_ledger(self._active_industry_sources(project), selected_sources)
+        evidence_ledger = self._build_evidence_ledger(self._active_industry_sources(project), selected_sources, target_type=str(project.target_type or ''))
         result = {
             "facts": deduped,
             **({"industry_scope": getattr(project, "industry_scope", {})} if project.target_type == "industry" else {}),
@@ -4223,6 +4767,22 @@ class ResearchWorkflow:
             # Markdown tables or field-per-line records.
             text = html.unescape("\n".join([source.content or "", source.summary or ""]))
             text = re.sub(r"<[^>]+>", " ", text)
+            if str(getattr(project, "target_type", "")) == "company" and meta.get("provider") == "qcc_risk":
+                if meta.get("query_status") in {"failed", "error", "quota_exceeded", "unauthorized"}:
+                    continue
+                from report_agents.company_judicial import _structured
+                observations = _structured(source.content or "", str(meta.get("tool") or ""),
+                                           str(project.target_name or ""), {}, Counter())
+                for record in observations:
+                    anchor = record.get("case_number") or record.get("factor") or record.get("fields", {}).get("公告日期") or "摘要"
+                    quote = record.get("evidence_quote") or next((line for line in (source.content or "").splitlines() if anchor in line), "")
+                    facts.append({"fact": record["fact"], "category": "company_risk_observation",
+                        "claim_type": record["kind"], "subject": project.target_name,
+                        "source_title": source.title, "source_url": source.url,
+                        "evidence_quote": quote, "confidence": 0.75,
+                        "module": meta.get("module") or "企业司法负面核查", "provider": "qcc_risk",
+                        "evidence_scope": "target_direct", "entity_validation": meta.get("entity_validation"),
+                        "cleaning_method": "deterministic_structured", "source_grade": self._source_grade(source, meta.get("quality") or {})})
             for field, pattern in field_patterns.items():
                 match = re.search(pattern, text, flags=re.I)
                 if not match:
@@ -4270,7 +4830,22 @@ class ResearchWorkflow:
                 continue
             blob = re.sub(r"\s+", "", f"{text} {quote}").lower()
             source = source_by_url.get(url)
+            if target_type == 'company':
+                from report_agents.company_evidence import source_body
+                original, origin = source_body(source) if source else ('', 'discovery_summary')
+                normalized_quote = re.sub(r'\s+', '', html.unescape(quote))
+                normalized_original = re.sub(r'\s+', '', html.unescape(original))
+                if origin == 'discovery_summary' or not normalized_quote or normalized_quote not in normalized_original:
+                    continue
+                claim_numbers = set(re.findall(r'\d+(?:,\d{3})*(?:\.\d+)?', text))
+                quote_numbers = set(re.findall(r'\d+(?:,\d{3})*(?:\.\d+)?', quote))
+                if not claim_numbers <= quote_numbers:
+                    continue
             source_meta = (getattr(source, "source_metadata", {}) or {}) if source else {}
+            if target_type == 'company' and source_meta.get('provider') == 'qcc_risk':
+                # Provider prose may itself assert historical innocence or
+                # normal operations. Only literal rule observations are admitted.
+                continue
             affiliation_context = source_meta.get("person_affiliation") if isinstance(source_meta.get("person_affiliation"), dict) else {}
             affiliation_person = re.sub(r"\s+", "", str(affiliation_context.get("person_name") or "")).lower()
             affiliation_name = str(affiliation_context.get("affiliation_name") or "").strip()
@@ -4378,7 +4953,7 @@ class ResearchWorkflow:
             except ImportError:
                 from industry_research import industry_cleaning_sources
             model_sources = industry_cleaning_sources(safe_sources, _env_int('CLEANING_LLM_SOURCES_PER_MODULE', 6, 1, 30))
-        batches = self._source_context_batches(model_sources, industry=project.target_type == 'industry')
+        batches = self._source_context_batches(model_sources, industry=project.target_type == 'industry', target_type=str(project.target_type or ''))
         _emit(emit, "cleaning", "data_cleaning_agent", "开始深度清洗", "", status="running")
         llm_results = self._clean_batches_with_llm(project, plan, quality, batches, emit=emit)
         deterministic = self._fast_clean_sources(safe_sources, project=project, emit=emit)
@@ -4390,7 +4965,7 @@ class ResearchWorkflow:
             all_facts.extend(self._extract_sentence_facts(safe_sources, project))
         all_facts.extend(self._sanitize_structured_facts(llm_results.get("facts", []), project))
         deduped = self._annotate_evidence_facts(project, self._dedupe_facts(all_facts))
-        evidence_ledger = self._build_evidence_ledger(project.sources, safe_sources)
+        evidence_ledger = self._build_evidence_ledger(project.sources, safe_sources, target_type=str(project.target_type or ''))
         result = {
             "facts": deduped,
             **({"industry_scope": getattr(project, "industry_scope", {})} if project.target_type == "industry" else {}),
@@ -4639,6 +5214,20 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
 
     def assess_risk(self, project: ResearchProject, cleaned_json: str, emit: TraceEmitter | None = None) -> str:
         target_type = str(project.target_type or "").lower()
+        if target_type == "company":
+            from report_agents.company_risk_register import build_risk_register
+            cleaned = _plain_json(cleaned_json)
+            package = build_risk_register(
+                cleaned if isinstance(cleaned, dict) else {}, str(project.target_name or ""),
+                list(project.sources or []), industry=str(project.industry or ""),
+                intake=getattr(project, "company_research_intake", {}),
+                query_attempts=getattr(project, "company_judicial_query_attempts", []),
+            )
+            project.company_risk_register_package = package
+            _emit(emit, "risk", "risk_assessment_agent", "公司风险原件登记完成",
+                  json.dumps(package["diagnostic"], ensure_ascii=False),
+                  risk_level=package["risk_level"], status="done")
+            return json.dumps(package, ensure_ascii=False, indent=2)
         risk_evidence = self._risk_evidence_payload(cleaned_json, target_type=target_type)
         company_evidence_rule = ""
         evidence_id_field = ""
@@ -4650,8 +5239,10 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         if target_type == "industry":
             try:
                 from .industry_research import active_risk_dimensions
+                from .industry_risk import scoring_rubric
             except ImportError:
                 from industry_research import active_risk_dimensions
+                from industry_risk import scoring_rubric
             applicable = active_risk_dimensions(getattr(project, "industry_scope", {}))
             dimension_schema = json.dumps([{'name': name, 'evidence_ids': [], 'score': None,
                 'level': 'unknown|low|medium|high|critical', 'reason': '...', 'evidence_sources': []}
@@ -4668,7 +5259,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
 {_clip(risk_evidence, 30000)}
 
 评分口径必须统一：overall_score 和各维度 score 均为“风险分”，0 表示风险最低，100 表示风险最高。信息缺失必须列为 unknown/待核验，不能仅因“未搜索到、未提供、无法排除”就判为高风险。代表企业材料只能作为行业样本或竞争格局信号，不能写成目标公司经营风险。
-各维度只能使用 dimension_evidence_ids 中列出的编号；reason 中的编号必须同时列入 evidence_ids。数值卡的 fact 是唯一通过归属校验的指标；evidence_quote 中其他数值仅供核对，不能借用其增速、规模或比例作评分结论。政策目标不能写成已经实现的市场集中度。
+评分参考：{json.dumps(scoring_rubric(getattr(project, 'industry_scope', {})), ensure_ascii=False)}
+各维度只能使用 dimension_evidence_ids 中列出的编号；reason 中的编号必须同时列入 evidence_ids。理由每维120字以内，只写支撑该评分的判断，数值只可使用对应事实allowed_numbers中的值；禁止使用来源标题、URL或统计定义中的其他数字补结论。完整原文保留在事实库供审计，评分输入只授权fact中的单个指标。预测值须在同一分句明确预计/预测，不同事实编号不等于独立来源；同一发布方的卡片不能声称多源一致。政策目标不能写成已经实现的市场集中度。没有已核验数值时可以用适用定性证据作克制判断，禁止新增定量结论；证据不足仍返回unknown。
 
 请只输出 JSON，结构为：
 {{
@@ -4680,17 +5272,27 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
   "recommended_followups": ["..."]
 }}
 """
-            answer = self._invoke("行业风险研判 Agent", prompt, emit=emit)
+            answer = self._invoke_industry_risk("行业风险研判 Agent", prompt, emit=emit)
             parsed = _plain_json(answer, allow_preface=False)
+            # Support counts describe the exact bounded input even when the model abstains or returns invalid JSON.
+            retained_ids = {f.get('evidence_id') for f in json.loads(risk_evidence).get('facts', [])}
+            cleaned_payload = _plain_json(cleaned_json)
+            retained = [f for f in cleaned_payload.get('facts', []) if f.get('evidence_id') in retained_ids] if isinstance(cleaned_payload, dict) else []
             if isinstance(parsed, dict):
                 # Only facts actually sent within the model's budget can authorize scores.
-                retained_ids = {f.get('evidence_id') for f in json.loads(risk_evidence).get('facts', [])}
-                cleaned_payload = _plain_json(cleaned_json)
-                retained = [f for f in cleaned_payload.get('facts', []) if f.get('evidence_id') in retained_ids] if isinstance(cleaned_payload, dict) else []
                 parsed = normalize_industry_risk(parsed, retained, getattr(project, "industry_scope", {}))
+                parsed = self._repair_industry_risk(parsed, json.loads(risk_evidence), retained,
+                                                    getattr(project, 'industry_scope', {}), emit=emit)
                 _emit(emit, "risk", "risk_assessment_agent", "模型行业风险评分完成", f"risk_level={parsed.get('risk_level')}", risk_level=parsed.get("risk_level"), status="done")
                 return json.dumps(parsed, ensure_ascii=False, indent=2)
             fallback = unknown_industry_risk(scope=getattr(project, "industry_scope", {}))
+            try:
+                from .industry_risk import attach_risk_support
+            except ImportError:
+                from industry_risk import attach_risk_support
+            fallback = attach_risk_support(fallback, retained, getattr(project, 'industry_scope', {}))
+            fallback['validation_diagnostics'] = {'primary_status': 'empty_or_invalid_json',
+                'model_response_excerpt': answer[:3000], 'repair': {'attempted': False, 'attempts': 0}}
             _emit(emit, "risk", "risk_assessment_agent", "使用规则降级行业评分", f"risk_level={fallback.get('risk_level')}", risk_level=fallback.get("risk_level"), status="fallback")
             return json.dumps(fallback, ensure_ascii=False, indent=2)
         prompt = f"""
@@ -4734,6 +5336,67 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         _emit(emit, "risk", "risk_assessment_agent", "使用规则降级评分", f"risk_level={fallback.get('risk_level')}", risk_level=fallback.get("risk_level"), status="fallback")
         return json.dumps(fallback, ensure_ascii=False, indent=2)
 
+    def _repair_industry_risk(self, normalized: dict, evidence: dict, retained: list[dict], scope: dict,
+                              emit: TraceEmitter | None = None) -> dict:
+        try:
+            from .industry_research import risk_repair_package, risk_level
+        except ImportError:
+            from industry_research import risk_repair_package, risk_level
+        initial_diagnostics = [{'name': row['name'], 'cause': row.get('unknown_cause'),
+                                **row['validation_diagnostic']} for row in normalized['dimensions'] if row.get('validation_diagnostic')]
+        diagnostic = {'primary_status': 'validated', 'initial_rejections': initial_diagnostics,
+                      'repair': {'attempted': False, 'attempts': 0}}
+        result = {**normalized, 'validation_diagnostics': diagnostic}
+        package = risk_repair_package(evidence, normalized)
+        requested = {row['name'] for row in package['dimensions_to_repair']}
+        if not requested:
+            return result
+        prompt = ('仅修复下列失败风险维度，返回完整JSON {"dimensions":[{"name":"...","score":null,'
+                  '"level":"unknown|low|medium|high|critical","reason":"...","evidence_ids":[]}]}。'
+                  '每维理由120字以内，只用该维dimension_evidence_ids中的编号；理由引用必须同时列入evidence_ids。'
+                  '数字只可用对应证据allowed_numbers，禁止从先前失败理由补数据；没有定量证据可作有依据的定性判断。'
+                  '预测数字必须在同一分句明确预计/预测；同一发布方的多张卡片不能写成多源印证。'
+                  '保留政策目标、预测与实际统计的区别，企业样本不能评分行业整体。证据不足返回score=null、level=unknown，'
+                  '不能为了修复凑分。无需返回其他维度、总分或额外章节。\n'
+                  + json.dumps(normalized.get('scoring_methodology') or {}, ensure_ascii=False)
+                  + '\n' + json.dumps(package, ensure_ascii=False))
+        repair_diagnostic = {'attempted': True, 'attempts': 1, 'requested_dimensions': sorted(requested),
+                             'input_chars': len(prompt), 'repaired_dimensions': [], 'remaining_dimensions': sorted(requested)}
+        diagnostic['repair'] = repair_diagnostic
+        _emit(emit, 'risk', 'risk_assessment_agent', '部分行业评分未通过校验，尝试一次局部修复',
+              '、'.join(sorted(requested)), status='warning')
+        try:
+            answer = self._invoke_industry_risk('行业风险修复 Agent', prompt, emit=emit, repair=True)
+            parsed = _plain_json(answer)
+        except Exception as exc:
+            parsed = None
+            repair_diagnostic['exception_type'] = type(exc).__name__
+        if not isinstance(parsed, dict):
+            repair_diagnostic['status'] = 'empty_or_invalid_json'
+            return result
+        repair_ids = {f['evidence_id'] for f in package['facts']}
+        repair_retained = [f for f in retained if f.get('evidence_id') in repair_ids]
+        checked = normalize_industry_risk(parsed, repair_retained, scope)
+        accepted = {row['name']: row for row in checked['dimensions'] if row['name'] in requested and row.get('score') is not None}
+        result['dimensions'] = [accepted.get(row['name'], row) for row in normalized['dimensions']]
+        scores = [row['score'] for row in result['dimensions'] if row.get('score') is not None]
+        result['assessed_dimension_count'] = len(scores)
+        result['overall_score'] = round(sum(scores)/len(scores), 1) if len(scores) == len(result['dimensions']) else None
+        result['risk_level'] = risk_level(result['overall_score']) if result['overall_score'] is not None else 'unknown'
+        result['unknowns'] = [note for note in normalized.get('unknowns', [])
+                              if not any(str(note).startswith(name+'：') for name in accepted)]
+        repair_diagnostic.update(status='complete' if len(accepted)==len(requested) else 'partial' if accepted else 'rejected',
+            repaired_dimensions=sorted(accepted), remaining_dimensions=sorted(requested-set(accepted)),
+            rejected_diagnostics=[{'name':row['name'], 'cause':row.get('unknown_cause'), **(row.get('validation_diagnostic') or {})}
+                for row in checked['dimensions'] if row['name'] in requested and row.get('score') is None])
+        _emit(emit, 'risk', 'risk_assessment_agent', '行业评分局部修复校验完成',
+              f'repaired={len(accepted)}, remaining={len(requested)-len(accepted)}', status='done' if accepted else 'fallback')
+        try:
+            from .industry_risk import attach_risk_support
+        except ImportError:
+            from industry_risk import attach_risk_support
+        return attach_risk_support(result, retained, scope)
+
     def _risk_evidence_payload(self, cleaned_json: str, target_type: str = "") -> str:
         parsed = _plain_json(cleaned_json)
         if not isinstance(parsed, dict):
@@ -4742,9 +5405,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         facts = parsed.get("facts") or []
         if target_type == "industry":
             try:
-                from .industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions
+                from .industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions, source_document_key
             except ImportError:
-                from industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions
+                from industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions, source_document_key
             facts = balanced_risk_facts(facts)
         for fact in facts:
             if not isinstance(fact, dict):
@@ -4765,6 +5428,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 row["evidence_scope"] = fact.get("evidence_scope")
             if target_type == "industry":
                 row['fact'] = risk_fact_text(fact)[:700]
+                row['source_document_key'] = source_document_key(fact.get('source_url', ''))
                 row["evidence_id"] = fact.get("evidence_id")
                 row["evidence_scope"] = fact.get("evidence_scope")
                 row["industry_name"] = fact.get("industry_name")
@@ -4773,7 +5437,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 row["attribution_boundary"] = fact.get("attribution_boundary")
                 row["numeric_context"] = fact.get("numeric_context")
                 row["numeric_validation"] = fact.get("numeric_validation")
-                row['evidence_quote'] = str(fact.get('evidence_quote') or '')[:500]
+                context = fact.get('numeric_context') or {}
+                row['allowed_numbers'] = ([str(context.get('value')) + str(context.get('unit'))]
+                    if (fact.get('numeric_validation') or {}).get('passed') is True else [])
             rows.append(row)
             if len(rows) >= 60:
                 break
@@ -4893,6 +5559,25 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         intake: dict[str, Any] | None = None,
     ) -> str:
         target_type = (intake or {}).get("target_type") or self._standardize_target_type(project, intake or {})
+        if target_type == "company":
+            project.company_research_intake = dict(intake or {})
+            if not hasattr(project, "company_professional_platform_attempts"):
+                audits = [a for a in getattr(project, "artifacts", [])
+                          if a.artifact_type == "professional_platform_audit"]
+                if audits:
+                    latest = max(audits, key=lambda a: a.version or 0)
+                    try:
+                        restore_platform_audit(project, json.loads(latest.content))
+                    except (ValueError, TypeError):
+                        _emit(emit, "report", "desktop_report_agent", "专业平台覆盖记录无法读取",
+                              "本轮不据此认定已查询或无记录。", status="warning")
+            # A template fallback after a writer failure must not inherit
+            # successful diagnostics from an earlier generation attempt.
+            project.company_verified_chapters_required = True
+            project.company_summary_package = {}
+            for chapter_key in ("summary", "governance", "history", "operations", "reputation", "business",
+                                "management", "people", "judicial", "diligence", "risk_register", "assessment"):
+                setattr(project, f"company_{chapter_key}_diagnostic", {})
         if target_type == "industry":
             # Transient generation context: no schema migration is required and
             # all downstream agents can read the same normalized scope.
@@ -4925,6 +5610,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 emit(event)
 
         def report_invoke(role: str, prompt: str, trace_emit: TraceEmitter | None = None) -> str:
+            if target_type == "company" and (role.endswith("摘要 Agent") or role.endswith("摘要修订 Agent")):
+                return self._invoke_company_summary(role, prompt, emit=trace_emit)
             if target_type == 'industry':
                 return self._invoke_industry_report(role, prompt, emit=trace_emit)
             if target_type == "person" and role.endswith("总编 Agent"):
@@ -5054,6 +5741,27 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
     ) -> str:
         if not report.strip():
             return report
+        if target_type == "company":
+            from report_agents.company_delivery import company_followup_rows, company_followup_plan
+            groups=company_followup_rows(report)
+            rows=['## 14. 后续研究建议','',
+                  '以下按章节列出代表性核验重点，每章最多两项；其余口径、缺口和边界保留在对应章节。核验优先级不等于企业风险等级。','',
+                  '| 待核验事项 | 建议核验方式 | 优先级 | 建议材料 |',
+                  '| --- | --- | --- | --- |']
+            for group in groups:
+                items='<br>'.join(group['items'])
+                if group['additional']:items+=f"<br>另{group['additional']}项核验条件见第{group['chapter']}章对应小节。"
+                plans=[company_followup_plan(item) for item in group['items']]
+                action='<br>'.join(dict.fromkeys(plan[0] for plan in plans))
+                priority='高' if any(plan[1]=='高' for plan in plans) else '中'
+                materials='<br>'.join(dict.fromkeys(plan[2] for plan in plans))
+                rows.append(f"| 第{group['chapter']}章：{items.replace('|','／')} | {action} | {priority} | {materials} |")
+            if not groups:rows.append('尚未提取出可操作的后续核验项目；需结合章节缺口复核，不能视为已排除风险。')
+            replacement='\n'.join(rows)+'\n\n'
+            pattern=r'(?ms)^##\s*14[.、．][^\n]*\n.*?(?=^##\s+(?!14[.、．])|\Z)'
+            result=re.sub(pattern,lambda _:replacement,report) if re.search(pattern,report) else report.rstrip()+'\n\n'+replacement
+            _emit(emit,'report','desktop_report_agent','公司待核验事项已按章节归并到第14章',f'chapters={len(groups)}',status='done')
+            return result.rstrip()+'\n'
         softened = self._soften_gap_phrasing(report)
         # Rebuild this generated appendix on every run. Older reports may contain
         # clipped Markdown table rows that should never be carried into delivery.
@@ -5085,31 +5793,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             deduped.append(item)
             if len(deduped) >= 15:
                 break
-        if not deduped and target_type != "company":
+        if not deduped:
             return softened
-        if target_type == "company":
-            rows = [
-                "## 14. 后续研究建议",
-                "",
-            ]
-            if not deduped:
-                rows.append("本次桌面研究未形成额外待核验事项。")
-            else:
-                rows.extend([
-                    "| 待核验事项 | 建议核验方式 | 优先级 | 建议材料 |",
-                    "| --- | --- | --- | --- |",
-                ])
-                for item in deduped:
-                    _reason, action, priority, materials = self._verification_plan_for_gap(item)
-                    rows.append(f"| {item.replace('|', ' / ')} | {action} | {priority} | {materials} |")
-            replacement = "\n".join(rows).rstrip() + "\n\n"
-            pattern = r"(?ms)^##\s*14[.、．][^\n]*\n.*?(?=^##\s+(?!14[.、．])|\Z)"
-            if re.search(pattern, softened):
-                softened = re.sub(pattern, replacement, softened)
-            else:
-                softened = softened.rstrip() + "\n\n" + replacement
-            _emit(emit, "report", "desktop_report_agent", "公司待核验事项已集中到第14章", f"items={len(deduped)}", status="done")
-            return softened.rstrip() + "\n"
         rows = [
             "## 集中式待核验清单",
             "",
@@ -5202,8 +5887,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                                                       getattr(project, "industry_section_packages", None))
             facts = payload.get('facts', [])
             diagnostic['fact_quality'] = {
-                'structured_fact_count': sum(f.get('is_structured_evidence') is True for f in facts),
-                'verified_numeric_fact_count': sum(f.get('numeric_validation', {}).get('passed') is True for f in facts),
+                'structured_fact_count': sum(f.get('is_structured_evidence') is True and f.get('eligible_for_report') is not False for f in facts),
+                'verified_numeric_fact_count': sum(f.get('numeric_validation', {}).get('passed') is True and f.get('eligible_for_report') is not False for f in facts),
                 'rule_extracted_fact_count': sum(f.get('cleaning_method') == 'industry_rule' for f in facts),
                 'llm_extracted_fact_count': sum(f.get('cleaning_method') == 'llm' for f in facts),
             }
@@ -5450,7 +6135,58 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         emit: TraceEmitter | None = None,
     ) -> str:
         """Build chapter 13 from E-IDs actually present in company chapters 1-12."""
+        from report_agents.company_delivery import source_excerpt
+        from report_agents.company_governance import cited_evidence_ids
         outline = CompanyReportAgent().outline
+        summary_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_summary_package", {}).get("facts", []):
+            summary_by_id[str(record.get("evidence_id") or "").upper()].append(record)
+        governance_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_governance_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                governance_by_id[evidence_id.upper()].append(record)
+        history_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_history_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                history_by_id[evidence_id.upper()].append(record)
+        operations_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_operations_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                operations_by_id[evidence_id.upper()].append(record)
+        reputation_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_reputation_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                reputation_by_id[evidence_id.upper()].append(record)
+        business_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_business_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                business_by_id[evidence_id.upper()].append(record)
+        management_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_management_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                management_by_id[evidence_id.upper()].append(record)
+        people_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        people_package = getattr(project, "company_people_package", {})
+        for record in people_package.get("facts", []) + people_package.get("source_notes", []):
+            for evidence_id in record.get("evidence_ids", []):
+                people_by_id[evidence_id.upper()].append(record)
+        judicial_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        judicial_package = getattr(project, "company_judicial_package", {})
+        for record in judicial_package.get("facts", []) + judicial_package.get("source_notes", []) + judicial_package.get("coverage", []):
+            for evidence_id in record.get("evidence_ids", []):
+                judicial_by_id[evidence_id.upper()].append(record)
+        diligence_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_diligence_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                diligence_by_id[evidence_id.upper()].append(record)
+        risk_register_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_risk_register_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                risk_register_by_id[evidence_id.upper()].append(record)
+        assessment_by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in getattr(project, "company_assessment_package", {}).get("facts", []):
+            for evidence_id in record.get("evidence_ids", []):
+                assessment_by_id[evidence_id.upper()].append(record)
         facts_by_id: dict[str, dict[str, Any]] = {}
         for item in facts:
             url = str(item.get("source_url") or "").rstrip("/")
@@ -5466,6 +6202,13 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             if evidence_id:
                 facts_by_id.setdefault(evidence_id, item)
 
+        for evidence_id, records in risk_register_by_id.items():
+            # Original-document recovery can supply an event the cleaner
+            # omitted altogether. Its source-bound locator must still resolve.
+            facts_by_id.setdefault(evidence_id, records[0])
+        for evidence_id, records in assessment_by_id.items():
+            facts_by_id.setdefault(evidence_id, records[0])
+
         chapters_by_id: dict[str, set[int]] = {}
         cited_ids: set[str] = set()
         chapter_matches = list(REPORT_CHAPTER_HEADING_RE.finditer(report or ""))
@@ -5475,14 +6218,25 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 continue
             end = chapter_matches[position + 1].start() if position + 1 < len(chapter_matches) else len(report)
             section = report[match.end():end]
-            for evidence_id in set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", section, flags=re.I)):
+            for evidence_id in set(cited_evidence_ids(section)):
                 canonical = evidence_id.upper()
                 cited_ids.add(canonical)
                 item = facts_by_id.get(canonical) or facts_by_id.get(evidence_id)
                 if not item:
                     continue
                 scope = str(item.get("evidence_scope") or classify_company_fact_scope(item, str(project.target_name or "")))
-                if scope == "target_direct" or (scope == "industry_context" and chapter == 5):
+                if (scope == "target_direct" or (scope == "industry_context" and chapter == 5)
+                        or (chapter == 2 and canonical in governance_by_id)
+                        or (chapter == 3 and canonical in history_by_id)
+                        or (chapter == 4 and canonical in operations_by_id)
+                        or (chapter == 5 and canonical in reputation_by_id)
+                        or (chapter == 6 and canonical in business_by_id)
+                        or (chapter == 7 and canonical in management_by_id)
+                        or (chapter == 8 and canonical in people_by_id)
+                        or (chapter == 9 and canonical in judicial_by_id)
+                        or (chapter == 10 and canonical in diligence_by_id)
+                        or (chapter == 11 and canonical in risk_register_by_id)
+                        or (chapter == 12 and canonical in assessment_by_id)):
                     chapters_by_id.setdefault(canonical, set()).add(chapter)
                 elif canonical not in chapters_by_id:
                     # Keep the citation visible in chapter 13 even when it is
@@ -5512,11 +6266,28 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             chapters_by_id[evidence_id] = {0}
         for evidence_id, chapters in sorted(chapters_by_id.items(), key=lambda value: (min(value[1]), value[0])):
             item = facts_by_id.get(evidence_id, {})
+            if any(evidence_id in mapping for mapping in (summary_by_id, governance_by_id, history_by_id, operations_by_id, reputation_by_id, business_by_id, management_by_id, people_by_id, judicial_by_id, diligence_by_id, risk_register_by_id, assessment_by_id)):
+                # A page-level industry/related classification may have hidden
+                # a literal issuer declaration recovered for chapter 2. Keep
+                # the source ID, and show the actual field-level claim used.
+                admitted = (summary_by_id.get(evidence_id, []) + governance_by_id.get(evidence_id, []) + history_by_id.get(evidence_id, [])
+                            + operations_by_id.get(evidence_id, []) + reputation_by_id.get(evidence_id, []) + business_by_id.get(evidence_id, []) + management_by_id.get(evidence_id, []) + people_by_id.get(evidence_id, []) + judicial_by_id.get(evidence_id, []) + diligence_by_id.get(evidence_id, []) + risk_register_by_id.get(evidence_id, []) + assessment_by_id.get(evidence_id, []))
+                labels = [label for label, mapping in [("第一章", summary_by_id), ("第二章", governance_by_id), ("第三章", history_by_id),
+                                                       ("第四章", operations_by_id), ("第五章", reputation_by_id), ("第六章", business_by_id), ("第七章", management_by_id), ("第八章", people_by_id), ("第九章", judicial_by_id), ("第十章", diligence_by_id), ("第十一章", risk_register_by_id), ("第十二章", assessment_by_id)] if evidence_id in mapping]
+                label = labels[0] + "原文核对："
+                # Deduplicated claims can cite several originals. Their
+                # E-IDs must keep their own URL/title, not all be redirected
+                # to the first merged record's document and physical pages.
+                item = {**item, "source_url": item.get("source_url") or admitted[0]["source_url"],
+                        "source_title": item.get("source_title") or admitted[0]["source_title"],
+                        "fact": label + "；".join(dict.fromkeys(str(
+                                r.get("value") if r.get("field") else r.get("fact") or r.get("entity") or r.get("value") or "")
+                            for r in admitted[:3]))}
             url = str(item.get("source_url") or "").rstrip("/")
-            source_title = re.sub(r"\s+", " ", str(item.get("source_title") or "公开来源")).replace("|", "/")[:48]
-            fact = re.sub(r"\s+", " ", str(item.get("fact") or item.get("evidence_quote") or "正文引用证据编号，事实卡待回溯")).replace("|", "/")[:90]
+            source_title = source_excerpt(str(item.get("source_title") or "公开来源").replace("|", "/"),48)
+            fact = source_excerpt(str(item.get("fact") or item.get("evidence_quote") or "正文引用证据编号，事实卡待回溯").replace("|", "/"),90)
             supports = "、".join(
-                f"第 {chapter} 章：{outline[chapter - 1][0]}" if 1 <= chapter <= len(outline) else "正文引用位置待回溯"
+                f"第 {chapter} 章" if 1 <= chapter <= len(outline) else "正文引用位置待回溯"
                 for chapter in sorted(chapters)
             )
             if url.startswith(("http://", "https://")):
@@ -5644,6 +6415,36 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         if target_type != "company" and sourced_sections < min_sourced_sections:
             errors.append(f"双来源覆盖章节不足：{sourced_sections}/{expected_chapters}（最低{min_sourced_sections}）")
         if target_type == "company":
+            if getattr(project, "company_summary_diagnostic", {}).get("degraded"):
+                errors.append("第一章摘要未通过校验，原文摘录需人工复核")
+            if getattr(project, "company_governance_diagnostic", {}).get("degraded"):
+                errors.append("第二章工商股权核查未形成可交付证据，需人工复核")
+            if getattr(project, "company_history_diagnostic", {}).get("degraded"):
+                errors.append("第三章沿革与成长质量未形成可交付证据，需人工复核")
+            if getattr(project, "company_operations_diagnostic", {}).get("degraded"):
+                errors.append("第四章治理与运营未形成可交付证据，需人工复核")
+            if getattr(project, "company_reputation_diagnostic", {}).get("degraded"):
+                errors.append("第五章评价与对标未形成可交付证据，需人工复核")
+            if getattr(project, "company_business_diagnostic", {}).get("degraded"):
+                errors.append("第六章经营与研发进展未形成可交付证据，需人工复核")
+            if getattr(project, "company_management_diagnostic", {}).get("degraded"):
+                errors.append("第七章管理团队未形成可交付证据，需人工复核")
+            if getattr(project, "company_people_diagnostic", {}).get("degraded"):
+                errors.append("第八章文化与人员情况未形成可交付证据，需人工复核")
+            if getattr(project, "company_judicial_diagnostic", {}).get("degraded"):
+                errors.append("第九章司法记录未形成可交付证据，需人工复核")
+            if getattr(project, "company_diligence_diagnostic", {}).get("degraded"):
+                errors.append("第十章专项核查未形成具体可追溯对象，需人工复核")
+            if getattr(project, "company_risk_register_diagnostic", {}).get("degraded"):
+                errors.append("第十一章风险事项或75项核查目录未通过核对，需人工复核")
+            if getattr(project, "company_assessment_diagnostic", {}).get("degraded"):
+                errors.append("第十二章综合评价或评分计算未通过核对，需人工复核")
+            if getattr(project, "company_verified_chapters_required", False):
+                for number, key in enumerate(("summary", "governance", "history", "operations", "reputation", "business",
+                                             "management", "people", "judicial", "diligence", "risk_register", "assessment"), 1):
+                    diagnostic = getattr(project, f"company_{key}_diagnostic", {})
+                    if not diagnostic or "degraded" not in diagnostic:
+                        errors.append(f"第{number}章缺少本轮原件核对结果，降级模板不能代替验收")
             source_heading = re.search(r"(?m)^##\s*13[.、．]", report or "")
             next_heading = re.search(r"(?m)^##\s*14[.、．]", report or "")
             body_before_sources = (report or "")[:source_heading.start()] if source_heading else (report or "")
@@ -5652,7 +6453,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 if source_heading and next_heading and next_heading.start() > source_heading.start()
                 else ""
             )
-            body_evidence_ids = set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", body_before_sources, flags=re.I))
+            from report_agents.company_governance import cited_evidence_ids
+            body_evidence_ids = set(cited_evidence_ids(body_before_sources))
             indexed_evidence_ids = set(re.findall(r"(?m)^\|\s*(E-[A-Z0-9-]{6,})\s*\|", source_index, flags=re.I))
             missing_index_ids = {value.upper() for value in body_evidence_ids} - {value.upper() for value in indexed_evidence_ids}
             if missing_index_ids:
@@ -5667,19 +6469,14 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 section = (report or "")[match.end():end]
                 compact = re.sub(r"\s+", "", section)
                 no_evidence_notice = "本次已检索公开来源未形成可引用记录；相关核验事项见第14章。" in section
-                if len(compact) >= 320 and not no_evidence_notice and not re.search(r"\bE-[A-Z0-9-]{6,}\b", section, flags=re.I):
+                if len(compact) >= 320 and not no_evidence_notice and not cited_evidence_ids(section):
                     errors.append(f"第{chapter}章存在实质性内容但没有证据编号")
             # A desktop search can establish only what its sources show.  Do
             # not let a report turn a non-hit into a clean legal conclusion or
             # a zero-risk score.  Such language must be backed by a reviewed
             # official record, which this automated delivery path cannot prove.
-            overclaim_patterns = (
-                r"(?:司法与)?合规底盘干净",
-                r"(?:无|不存在)(?:历史)?(?:行政处罚|诉讼|失信|被执行|违法记录)",
-                r"法律合规风险\s*[：:]?\s*0(?:\s|$)",
-                r"企业无历史遗留违规",
-            )
-            if any(re.search(pattern, report or "", flags=re.I) for pattern in overclaim_patterns):
+            from report_agents.company_delivery import company_overclaims
+            if company_overclaims(report):
                 errors.append("存在将公开检索未命中表述为确定不存在/零风险的公司结论")
         if not audit_match:
             errors.append("缺少自动生成的审计引用索引")
@@ -5772,8 +6569,91 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         )
         return notice + (report or "").lstrip()
 
+    def _prepare_industry_delivery(self, project: ResearchProject, report: str, risk_json: str,
+                                   emit: TraceEmitter | None = None) -> tuple[str, dict]:
+        """Use the same delivery decision for generated reports and reexports."""
+        report = re.sub(r'(?m)^> \*\*风险评分说明\*\*：[^\n]*(?:\n\s*\n)?', '', report, count=1).lstrip()
+        try:
+            from .industry_research import delivery_review_reasons
+        except ImportError:
+            from industry_research import delivery_review_reasons
+        gate_warning = ''
+        try:
+            self._validate_delivery_report(project, report)
+        except RuntimeError as exc:
+            if os.getenv('REPORT_SAVE_REVIEW_DRAFT_ON_GATE_FAIL', 'true').strip().lower() not in {'1', 'true', 'yes', 'on'}:
+                raise
+            gate_warning = str(exc)
+        degradations = list(getattr(project, 'industry_report_degradations', []) or [])
+        # Preserve an explicit legacy fallback notice even if its old metadata was lost.
+        if not degradations and ('模型摘要未通过校验' in report or '模型摘要未通过引用或目录校验' in report):
+            degradations.append({'chapter': 1, 'message': '摘要沿用模型校验失败后的事实摘录，综合判断需人工复核。'})
+        risk = _plain_json(risk_json)
+        project.industry_risk_transparency = (risk or {}).get('risk_transparency', {}) if isinstance(risk, dict) else {}
+        reasons = delivery_review_reasons(getattr(project, 'industry_scope', {}) or {},
+                                         risk if isinstance(risk, dict) else {}, degradations)
+        payload=getattr(project,'industry_evidence_payload',{}) or {}
+        if payload.get('evidence_coverage'):
+            try:
+                from .industry_evidence import claim_ledger
+            except ImportError:
+                from industry_evidence import claim_ledger
+            audit=claim_ledger(report,payload.get('facts',[]),getattr(project,'industry_delivery_diagnostic',{}),
+                               payload['evidence_coverage'],{})
+            unlocated={c['chapter'] for c in audit['claims'] if 'unlocated_source_quote' in c['issues']}
+            reasons += [{'code':'source_locator_missing','chapter':chapter,
+                         'message':f'第{chapter}章引用的事实尚未定位到已保存来源原文，需核对结论证据台账。'}
+                        for chapter in sorted(unlocated)]
+        issues = list(getattr(project, 'industry_quality_issues', []) or [])
+        if gate_warning:
+            reasons += [{'code': 'evidence_gate_failed', 'chapter': issue.get('chapter'), 'message': issue['message']}
+                        for issue in issues if issue.get('message')]
+            if not any(r['code'] == 'evidence_gate_failed' for r in reasons):
+                reasons.append({'code': 'evidence_gate_failed', 'chapter': None, 'message': gate_warning})
+        project.industry_delivery_review_reasons = reasons
+        warning = '行业报告需人工复核：' + '；'.join(r['message'] for r in reasons) if reasons else ''
+        # Replace our own old notice, so a reexport cannot show stale review reasons.
+        report = re.sub(r'\A\s*> \*\*待人工复核稿\*\*.*?(?:\n\s*\n|\Z)', '', report, count=1, flags=re.S).lstrip()
+        if project.industry_risk_transparency:
+            report = ('> **风险评分说明**：' + project.industry_risk_transparency['notice'] + '\n\n' + report)
+        if warning:
+            report = ('> **待人工复核稿**：报告已生成，部分证据核验、章节综合写作或风险评估仍需复核。'
+                      '请完成下列事项后再作为正式交付稿使用。\n>\n> 复核原因（摘要）：'
+                      + warning[:600] + ('……完整原因见报告质量诊断。' if len(warning) > 600 else '') + '\n\n' + report)
+            _emit(emit, 'report', 'desktop_report_agent', '行业报告保存为待复核稿', warning,
+                  review_reason_count=len(reasons), status='fallback')
+        return report, {'delivery_status': 'review_draft' if reasons else 'final_candidate',
+                        'risk_transparency': project.industry_risk_transparency,
+                        'delivery_review_reasons': reasons, 'quality_issues': issues,
+                        'industry_evidence_diagnostic': getattr(project, 'industry_delivery_diagnostic', {}),
+                        'generation_degradations': degradations,
+                        **({'quality_warning': warning} if warning else {})}
+
     def _build_report_quality_diagnostic(self, project: ResearchProject, report: str, warning: str) -> str:
         """Persist a reviewable diagnosis alongside a failed-but-exported Word draft."""
+        if str(project.target_type or '').lower() == 'industry':
+            reasons = getattr(project, 'industry_delivery_review_reasons', []) or []
+            def cell(value):
+                return re.sub(r'\s+', ' ', str(value or '-')).replace('|', '/')
+            rows = '\n'.join(f'| {cell(r.get("chapter"))} | {cell(r.get("dimension"))} | {cell(r.get("message"))} |'
+                             for r in reasons) or f'| - | - | {cell(warning)} |'
+            coverage=(getattr(project,'industry_evidence_payload',{}) or {}).get('evidence_coverage') or {}
+            labels={'verified':'已核验','candidate':'待核验候选','missing':'缺证'}
+            requirements='\n'.join(f'| {cell(r.get("question"))} | {labels.get(r.get("status"),"待核验")} | {len(r.get("verified_evidence_ids",[]))} |'
+                                   for r in coverage.get('requirements',[]))
+            coverage_section=('## 指标证据覆盖\n\n候选原文不等于已核验事实；缺证不自动判高风险。\n\n'
+                '| 研究问题 | 状态 | 完整事实数 |\n| --- | --- | --- |\n'+requirements+'\n\n') if requirements else ''
+            try:
+                from .industry_risk import risk_support_markdown
+            except ImportError:
+                from industry_risk import risk_support_markdown
+            risk_section = risk_support_markdown(getattr(project, 'industry_risk_transparency', {}))
+            return (f'# {_project_doc_title(project, "报告质量诊断")}\n\n状态：待复核稿，生成完成不代表已经通过正式交付验收。\n\n'
+                    '## 复核原因\n\n| 章节 | 风险维度 | 需要复核的事项 |\n| --- | --- | --- |\n' + rows + '\n\n'
+                    + coverage_section + risk_section +
+                    '## 复核动作\n\n- 对照第15章来源索引核验正文引用、数值与口径。\n'
+                    '- 章节采用事实摘录时，人工复核综合判断；补证后重新评估尚未完成的启用风险维度。\n'
+                    '- 未启用的资本市场和核心企业尽调不列为必做补采；Word页面版式检查单独查看。\n')
         failures = [item.strip() for item in re.split(r"；|;", warning or "") if item.strip()]
         chapter_rows = []
         matches = list(REPORT_CHAPTER_HEADING_RE.finditer(report or ""))
@@ -5784,7 +6664,10 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             end = matches[position + 1].start() if position + 1 < len(matches) else len(report)
             body = (report or "")[match.end():end]
             no_evidence = "本次已检索公开来源未形成可引用记录；相关核验事项见第14章。" in body
-            evidence_ids = sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b", body, flags=re.I)))
+            if str(project.target_type).lower()=="company":
+                from report_agents.company_governance import cited_evidence_ids
+                evidence_ids=sorted(set(cited_evidence_ids(body)))
+            else:evidence_ids=sorted(set(re.findall(r"\bE-[A-Z0-9-]{6,}\b",body,flags=re.I)))
             if no_evidence or (len(re.sub(r"\s+", "", body)) >= 320 and not evidence_ids):
                 chapter_rows.append(f"| 第 {chapter} 章 | {'无可引用记录' if no_evidence else '实质性内容缺少 E-ID'} | {', '.join(evidence_ids) or '-'} |")
         failure_lines = "\n".join(f"- {item}" for item in failures) or "- 未记录具体失败原因。"
@@ -5881,12 +6764,12 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         if equity_key:
             blocks.extend([
                 "### 股权结构分析示意图", "", f"![股权结构分析示意图]({equity_key})", "",
-                "> 注：本图仅展示已取得结构化证据中的股东/投资方及持股信息；未披露或待核验安排不作推定。", "",
+                "> 注：本图最多展示10个已核对的股东节点；完整记录及数据时点以本章表格为准，不由登记持股推定实际控制。", "",
             ])
         if control_key:
             blocks.extend([
                 "### 实控人/关联方分析示意图", "", f"![实控人/关联方分析示意图]({control_key})", "",
-                "> 注：本图基于已取得的法定代表人、管理人员、股东及关联方结构化证据生成，不代表对未披露控制关系的确认。", "",
+                "> 注：本图最多展示10个已核对节点；边线只代表标注的任职或明确披露关系，各自时点以本章表格为准，不补出未披露的一致行动或控制关系。", "",
             ])
         block = "\n".join(blocks).rstrip() + "\n\n"
         chapter = re.search(r"(?mi)^##\s*2[.、．]\s*[^\n]*(?:工商|股东|治理)[^\n]*$", report)
@@ -5927,8 +6810,16 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         graph_kind: str = "relationship",
         emit: TraceEmitter | None = None,
     ) -> str:
-        nodes = self._professional_graph_nodes(project, graph_kind)
-        if len(nodes) < 3:
+        company_package = getattr(project, "company_governance_package", None) if str(project.target_type or "").lower() == "company" else None
+        if company_package is not None:
+            try:
+                from .report_agents.company_governance import governance_graph_nodes
+            except ImportError:
+                from report_agents.company_governance import governance_graph_nodes
+            nodes = governance_graph_nodes(company_package, graph_kind)
+        else:
+            nodes = self._professional_graph_nodes(project, graph_kind)
+        if len(nodes) < 3 and company_package is None:
             seen = {name for name, _relation, _note in nodes}
             for node in self._cleaned_fact_graph_nodes(project, cleaned_json):
                 if node[0] not in seen:
@@ -5942,11 +6833,14 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             return html.escape(str(value or ""), quote=True)
 
         def short_text(value: str, limit: int = 24) -> str:
-            value = re.sub(r"\s+", "", str(value or ""))
+            value = re.sub(r"\s+", " " if company_package is not None and re.search(r"[A-Za-z]", str(value or "")) else "", str(value or "")).strip()
             return value if len(value) <= limit else value[: max(0, limit - 3)] + "..."
 
         def wrap_lines(value: str, limit: int = 15, max_lines: int = 2) -> list[str]:
             value = short_text(value, limit * max_lines)
+            if company_package is not None and re.search(r"[A-Za-z]", value):
+                from textwrap import wrap
+                return wrap(value, width=limit, break_long_words=False, break_on_hyphens=False)[:max_lines] or [""]
             return [value[index:index + limit] for index in range(0, len(value), limit)][:max_lines] or [""]
 
         def node_kind(name: str) -> str:
@@ -5954,7 +6848,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 "公司", "集团", "基金", "资本", "控股", "大学", "学院",
                 "协会", "商会", "实验室", "研究院", "中心", "机构",
             )
-            return "organization" if any(token in str(name) for token in organization_suffixes) else "person"
+            english_org = company_package is not None and re.search(r"\b(?:LIMITED|LTD|INC|LLC|CORPORATION|PLC|LP)\b", name, re.I)
+            return "organization" if english_org or any(token in str(name) for token in organization_suffixes) else "person"
 
         if not nodes:
             _emit(emit, "report", "desktop_report_agent", "关系网图数据不足，已跳过空图", graph_kind, status="warning")
@@ -5978,13 +6873,16 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             f'<text x="44" y="48" font-family="Microsoft YaHei, Arial" font-size="25" font-weight="700" fill="#1f2937">{esc(title)}</text>',
             '<text x="44" y="78" font-family="Microsoft YaHei, Arial" font-size="14" fill="#64748b">分析示意图：基于已取得的结构化记录与可追溯事实生成；待核验关系不代表已确认事实。</text>',
         ]
+        if company_package is not None:
+            svg.append('<text x="44" y="102" font-family="Microsoft YaHei, Arial" font-size="13" fill="#64748b">图示最多10个已核对节点；完整记录及各自数据时点见第二章表格。边线关系以节点标签为准。</text>')
         for x, y, side, name, relation, note in positions:
             edge_x = x + 160 if side == "left" else x - 160
             dash = ' stroke-dasharray="7 5"' if "待核验" in relation or "不足" in name else ""
             svg.append(f'<line x1="{center_x}" y1="{center_y}" x2="{edge_x}" y2="{y}" stroke="#94a3b8" stroke-width="1.8"{dash}/>')
             label_x = center_x - 145 if side == "left" else center_x + 145
             label_y = int((center_y + y) / 2)
-            svg.append(f'<text x="{label_x}" y="{label_y}" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">{esc(short_text(relation, 12))}</text>')
+            if company_package is None:
+                svg.append(f'<text x="{label_x}" y="{label_y}" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">{esc(short_text(relation, 12))}</text>')
 
         svg.append(f'<rect x="{center_x - 145}" y="{center_y - 46}" rx="10" ry="10" width="290" height="92" fill="#2563eb" stroke="#1d4ed8"/>')
         for offset, line in enumerate(wrap_lines(project.target_name or project.title or "目标公司", 15, 2)):
@@ -6150,6 +7048,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         for fact in facts[:500]:
             if not isinstance(fact, dict):
                 continue
+            if project.target_type=='industry' and fact.get('eligible_for_report') is False:
+                continue
             blob = " ".join(str(fact.get(key) or "") for key in ("subject", "predicate", "object", "claim", "fact", "content"))
             compact = re.sub(r"\s+", "", blob)
             if target and target not in compact:
@@ -6224,6 +7124,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             raise ValueError("清洗事实 JSON 无效，未执行事实索引；请检查清洗产物后重试。")
         else:
             facts = [fact for fact in (parsed.get("facts") or []) if isinstance(fact, dict)]
+        if project.target_type=='industry':
+            facts=[fact for fact in facts if fact.get('eligible_for_report') is not False]
         if not facts:
             return 0
 
@@ -6368,7 +7270,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             .first()
         )
         version = (current.version + 1) if current else 1
-        suffix = "json" if artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment"} else "md"
+        suffix = "json" if artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "professional_platform_audit", "industry_claim_ledger"} else "md"
         artifact_metadata = dict(metadata or {})
         index_job = None
         object_key = research_store.put_text(
@@ -6391,7 +7293,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                     raise ValueError("清洗事实 JSON 无效，未执行事实索引；请检查清洗产物后重试。")
                 sync = os.getenv("VECTOR_INDEX_SYNC", "false").strip().lower() in {"1", "true", "yes", "on"}
                 asynchronous = os.getenv("VECTOR_INDEX_ASYNC", "true").strip().lower() in {"1", "true", "yes", "on"}
-                if sync or asynchronous:
+                if (sync or asynchronous) and os.getenv("RESEARCH_LEGACY_RAG_ENABLED", "false").lower() in ("true", "1"):
                     index_job = (content, version, markdown_key, sync)
                     artifact_metadata.update(vector_indexed=False, vector_indexed_count=0, vector_index_status="queued")
                 else:
@@ -6451,6 +7353,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         project.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(artifact)
+        if artifact_type == "desktop_report":
+            from report_knowledge import sync_report_safely
+            sync_report_safely(db, project, artifact)
         if index_job:
             self.start_artifact_index(db, project, artifact, wait_seconds=_env_int("VECTOR_INDEX_SYNC_TIMEOUT_SECONDS", 30, 1, 3600) if index_job[3] else 0)
             db.refresh(artifact)
@@ -6631,6 +7536,22 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         """Attach durable IDs and a report-use boundary to every fact card."""
         target_type = str(getattr(project, "target_type", "") or "").lower()
         target = str(getattr(project, "target_name", "") or "")
+        original_issuers = {}
+        issuer_conflicts = set()
+        if target_type == 'company':
+            from report_agents.company_evidence import source_body
+            from report_agents.company_management import issuer
+            from report_agents.company_history import _issuer_hosts
+            from report_agents.company_text import issuer_anchor
+            from report_agents.company_governance import get as company_get
+            sources = list(getattr(project, 'sources', []) or [])
+            hosts = _issuer_hosts(sources, target)
+            for source in sources:
+                if source_body(source)[1] == 'discovery_summary':continue
+                anchor=issuer_anchor(company_get(source,'content',''),target)
+                url=str(company_get(source,'url',''))
+                if anchor.get('conflicting_heading'):issuer_conflicts.add(url)
+                elif issuer(source,target,hosts):original_issuers[url] = anchor
         annotated: list[dict[str, Any]] = []
         industry_sources = self._active_industry_sources(project) if target_type == "industry" else []
         industry_by_url = {str(s.url).rstrip('/'): s for s in industry_sources if s.url}
@@ -6644,6 +7565,19 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 str(item.get("source_title") or ""),
             ))
             if target_type == "company":
+                # Identity comes from the retrieved original, never from an
+                # extractor-invented issuer field or search title alone.
+                item.pop('source_issuer_name', None)
+                item.pop('source_issuer_quote', None)
+                if (str(item.get('source_url') or '') in issuer_conflicts
+                        and item.get('source_entity_validation')!='rejected'):
+                    item['source_entity_validation']='related_entity_context'
+                anchor = original_issuers.get(str(item.get('source_url') or ''))
+                if (anchor and item.get('eligible_for_report') is not False
+                        and item.get('source_entity_validation') not in {'rejected','ambiguous','related_entity_context'}
+                        and item.get('entity_match') not in {'mismatch','ambiguous','out_of_scope'}):
+                    item.update(source_issuer_name=anchor['issuer_name'],source_issuer_quote=anchor['evidence_quote'],
+                                source_entity_validation='matched_original_issuer')
                 scope = classify_company_fact_scope(item, target)
                 item["evidence_scope"] = scope
                 # A context item is retained for the industry chapter but never
@@ -6711,6 +7645,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         self,
         sources: list[ResearchSource],
         cleaned_sources: list[ResearchSource],
+        *, target_type: str = '',
     ) -> list[dict[str, Any]]:
         cleaned_ids = {
             getattr(source, "id", None) or (source.url or id(source))
@@ -6720,6 +7655,10 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         seen_content_keys: set[str] = set()
         for source in sources:
             meta = source.source_metadata or {}
+            discovery_only = False
+            if target_type == 'company':
+                from report_agents.company_evidence import source_body
+                discovery_only = source_body(source)[1] == 'discovery_summary'
             quality = meta.get("quality") if isinstance(meta.get("quality"), dict) else {}
             source_key = getattr(source, "id", None) or (source.url or id(source))
             failed = self._is_failed_extraction_source(source)
@@ -6751,10 +7690,10 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 "content_kind": meta.get("content_kind") or meta.get("extraction_status") or "",
                 "content_chars": len(source.content or source.summary or ""),
                 "duplicate": duplicate,
-                "usable_for_hard_fact": bool(not failed and safe and self._source_grade(source, quality) in {"A", "B"}),
+                "usable_for_hard_fact": bool(not failed and safe and not discovery_only and self._source_grade(source, quality) in {"A", "B"}),
                 "deterministically_processed": processed,
                 "deterministically_cleaned": cleaned,
-                "status": "duplicate" if duplicate else "cleaned" if cleaned else "rejected",
+                "status": "duplicate" if duplicate else "discovery_only" if discovery_only else "cleaned" if cleaned else "rejected",
                 "rejected_reason": "duplicate" if duplicate else "failed_extraction" if failed else "entity_mismatch" if not safe else "empty_content",
             })
         return rows
@@ -6776,13 +7715,30 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         raw_text_limit = _env_int("CLEANING_RAW_TEXT_LIMIT", 20000, 1000, 200000)
         progress_every = _env_int("CLEANING_PROGRESS_EVERY", 10, 1, 100)
         total = len(sources)
+        company_mode = str(getattr(project, 'target_type', '') or '').lower() == 'company'
         for index, source in enumerate(sources, 1):
             if total and (index == 1 or index % progress_every == 0):
                 _emit(emit, "cleaning", "data_cleaning_agent", "规则清洗来源片段", "", status="running")
             meta = source.source_metadata or {}
             quality = meta.get("quality") or {}
             raw_parts = []
-            for part in [source.summary or "", source.content or "", meta.get("ocr_text") or ""]:
+            text_origin = ''
+            if company_mode:
+                from report_agents.company_evidence import source_body
+                body, text_origin = source_body(source)
+                parts = [body]
+            else:
+                parts = [source.summary or "", source.content or "", meta.get("ocr_text") or ""]
+            if project.target_type=='industry':
+                try:
+                    from .industry_evidence import stored_body
+                except ImportError:
+                    from industry_evidence import stored_body
+                parts=[stored_body(source)]
+                if not parts[0].strip():
+                    source_errors+=1
+                    continue
+            for part in parts:
                 part_text = str(part or "").strip()
                 if part_text:
                     raw_parts.append(part_text[:raw_text_limit])
@@ -6823,7 +7779,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             if target_type == "person":
                 report_eligible = bool(affiliation_context) or identity_confidence not in {"low", "rejected"}
             elif target_type == "company":
-                report_eligible = entity_validation != "rejected"
+                report_eligible = entity_validation != "rejected" and text_origin != 'discovery_summary'
             else:
                 report_eligible = True
             fact_category = (
@@ -6841,12 +7797,13 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                     else "unknown"
                 )
             fact_card = {
-                "fact": _clip(text, source_clip_limit),
+                "fact": text[:source_clip_limit] if target_type=='industry' else _clip(text, source_clip_limit),
                 "category": fact_category,
                 "claim_type": "source_excerpt",
+                **({'text_origin': text_origin, 'claim_type': 'discovery_summary' if text_origin == 'discovery_summary' else 'source_excerpt'} if company_mode else {}),
                 "source_title": source.title,
                 "source_url": source.url,
-                "evidence_quote": _clip(text, evidence_limit),
+                "evidence_quote": text[:evidence_limit] if target_type=='industry' else _clip(text, evidence_limit),
                 "source_type": source.source_type,
                 "is_structured_evidence": is_structured_source,
                 "source_entity_validation": entity_validation,
@@ -6902,10 +7859,15 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             "discarded_patterns": ["duplicate source snippets removed", "only fully empty sources removed"],
             "information_gaps": gaps,
         }
-    def _source_context(self, sources: list[ResearchSource], max_chars_per_source: int = 5000, industry: bool = False) -> str:
+    def _source_context(self, sources: list[ResearchSource], max_chars_per_source: int = 5000, industry: bool = False, *, target_type: str = '') -> str:
         blocks = []
         for idx, source in enumerate(sources, 1):
             text = source.content or source.summary
+            if target_type == 'company':
+                from report_agents.company_evidence import source_body
+                text, origin = source_body(source)
+                if origin == 'discovery_summary':
+                    continue  # Discovery leads cannot become model-extracted facts.
             meta = source.source_metadata or {}
             quality = meta.get("quality") or {}
             is_structured_source = self._is_structured_professional_source(source)
@@ -6947,14 +7909,16 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         max_chars: int = 18000,
         max_chars_per_source: int = 5000,
         max_batches: int | None = None,
+        target_type: str = '',
         industry: bool = False,
     ) -> list[str]:
         batches: list[str] = []
         current: list[str] = []
         current_len = 0
         for source in sources:
-            block = (self._source_context([source], max_chars_per_source=max_chars_per_source, industry=True)
-                     if industry else self._source_context([source], max_chars_per_source=max_chars_per_source))
+            block = self._source_context([source], max_chars_per_source=max_chars_per_source, target_type=target_type, industry=industry)
+            if not block:
+                continue
             if current and current_len + len(block) > max_chars:
                 batches.append("\n\n---\n\n".join(current))
                 if max_batches and len(batches) >= max_batches:
@@ -7086,6 +8050,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         return str(meta.get("extraction_status") or "").lower() in {"failed", "pending"} or text.startswith(("[解析失败", "[待解析"))
 
     def _fallback_clean(self, project: ResearchProject) -> dict[str, Any]:
+        if str(project.target_type or '').lower() == 'company':
+            return self._fast_clean_sources(project.sources, project=project)
         if project.target_type == "industry":
             sources = self._select_cleaning_sources(self._active_industry_sources(project), project=project)
             payload = self._fast_clean_sources(sources, project=project)

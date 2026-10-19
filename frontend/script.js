@@ -14,8 +14,9 @@ createApp({
       knowledgeQuery: '', knowledgeResults: [],
       assistantOpen: false, assistantInput: '', assistantLoading: false,
       assistantPosition: JSON.parse(localStorage.getItem('assistantPosition') || '{"right":22,"bottom":22}'), assistantDrag: null, assistantWasDragged: false, assistantSuppressClick: false, assistantContextSummary: '',
-      assistantMessages: [{ text: '你好，我可以帮你基于已入库资料、报告和知识库做问答。', isUser: false }],
-      sessionId: 'source_assistant_' + Date.now(),
+      assistantMessages: [{ text: '你好，我是系统使用向导。可以教你提交任务、下载报告、复核资料和使用知识库，也可以陪你日常聊天。', isUser: false }],
+      assistantNavigation: [],
+      sessionId: 'system_guide_' + Date.now(),
       modulesByTarget: { company: [
         { label: '公司背景', value: '公司背景' }, { label: '负面新闻', value: '负面新闻' },
         { label: '诉讼 / 制裁', value: '诉讼/制裁' }, { label: '股东高管', value: '股东高管' },
@@ -42,7 +43,7 @@ createApp({
     pageSubtitle() {
       if (this.activeView === 'company-knowledge') return '让每一份资料，成为下一次决策的起点。';
       if (this.activeView === 'tasks') return '查看任务成果、下载报告，并跟踪工作流 trace。';
-      if (this.activeView === 'sources') return '检索项目资料、Markdown 报告和清洗事实，并使用 AI 小助手问答。';
+      if (this.activeView === 'sources') return '查看来源记录，打开原始网站核对；报告问答请前往公司知识库。';
       if (this.activeView === 'review') return '上传人工修订报告、专家访谈和走访资料，触发二阶段再生成。';
       return '填写核心输入，提交一个新的 AI 尽调任务。';
     },
@@ -115,7 +116,7 @@ createApp({
         localStorage.setItem('accessToken', this.token); this.loadAssistantState(); await this.loadProjects();
       } catch (e) { ElementPlus.ElMessage.error(e.message); } finally { this.authLoading = false; }
     },
-    handleLogout() { this.token = ''; this.currentUser = null; this.authStep = 'role'; this.authMode = 'login'; this.authForm.admin_code = ''; this.projects = []; this.knowledgeResults = []; localStorage.removeItem('accessToken'); },
+    handleLogout() { this.assistantOpen = false; this.assistantMessages = []; this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantLoading = false; this.token = ''; this.currentUser = null; this.authStep = 'role'; this.authMode = 'login'; this.authForm.admin_code = ''; this.projects = []; this.knowledgeResults = []; localStorage.removeItem('accessToken'); },
     switchView(view) { this.activeView = view; localStorage.setItem('activeView', view); if (view === 'tasks' || view === 'review') { this.loadProjects(); this.refreshVisibleTaskProgress(); } if (view === 'sources') this.loadRepository(); },
     splitLines(text) { return (text || '').split('\n').map(x => x.trim()).filter(Boolean); },
     industryRunFields(targetType, intake = null) {
@@ -648,7 +649,7 @@ createApp({
       if (kind === 'summary_only' || kind === 'low_content' || chars < 300) return 'warning';
       return 'success';
     },
-    isExternalUrl(url) { return /^https?:\/\//i.test(url || ''); },
+    isExternalUrl(value) { try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) && !!url.hostname && !url.username && !url.password; } catch { return false; } },
     toggleAssistant() {
       if (this.assistantWasDragged || this.assistantSuppressClick) {
         this.assistantWasDragged = false;
@@ -689,8 +690,10 @@ createApp({
       window.removeEventListener('mousemove', this.onAssistantDrag);
       localStorage.setItem('assistantPosition', JSON.stringify(this.assistantPosition));
     },
-    assistantStorageKey() { return `researchAssistant:${this.currentUser?.username || 'anonymous'}`; },
+    assistantStorageKey() { return `systemGuide:v1:${this.currentUser?.username || 'anonymous'}`; },
     loadAssistantState() {
+      this.assistantMessages = [{ text: '你好，我是系统使用向导。可以解答系统操作，也可以日常聊天。', isUser: false }];
+      this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantNavigation = [];
       try {
         const raw = localStorage.getItem(this.assistantStorageKey());
         if (!raw) return;
@@ -721,35 +724,20 @@ createApp({
       ];
       this.saveAssistantState();
     },
-    getBuiltInAssistantAnswer(question) {
-      const normalized = (question || '').replace(/\s+/g, '').toLowerCase();
-      if (['视频生成', '文生视频', '视频模型', 'video generation'].some(term => normalized.includes(term))) {
-        return `根据内置研究资料，视频生成模型研究可重点关注以下方向：
-
-1. **技术路线**：当前重点在时空一致性、长时序稳定性、角色与镜头控制，以及音画同步能力。[1]
-2. **应用场景**：广告素材、短视频创作、影视预演、游戏资产和企业营销是主要落地场景。[1]
-3. **商业化**：常见模式包括 API 调用、订阅制创作工具、行业工作流软件和定制服务；应结合推理成本、速度与付费转化评估。[2]
-4. **风险点**：需要关注训练数据版权、肖像与深度伪造、内容安全、算力成本和合规要求。[2]
-
-资料来源：
-
-[1] 内置研究资料：视频生成模型技术与应用框架
-[2] 内置研究资料：视频生成商业化与风险核查要点`;
-      }
-      if (['脑机', '脑机接口', 'bci', 'brain-computer'].some(term => normalized.includes(term))) {
-        return `根据内置研究资料，脑机接口（BCI）行业可按“信号采集—解码算法—交互/治疗应用—临床与监管”进行研究：
-
-1. **技术分层**：非侵入式 EEG 等方案部署较易但信号分辨率有限；侵入式方案信号质量更高，但涉及手术安全性和监管审批。[1]
-2. **核心应用**：运动与语言障碍辅助、神经康复、假肢控制和神经疾病研究，是当前价值和临床证据最集中的方向。[1]
-3. **产业链与壁垒**：传感器、电极、算法、系统集成与医疗服务共同构成产业链；临床证据、数据质量和算法泛化是核心壁垒。[2]
-4. **风险观察**：建议重点核验临床进度、监管路径、真实使用数据、硬件可靠性、数据隐私与伦理治理。[2]
-
-资料来源：
-
-[1] 内置研究资料：脑机接口技术路线与应用场景
-[2] 内置研究资料：脑机接口产业链、临床与合规框架`;
-      }
-      return '';
+    askGuide(question) { this.assistantInput = question; return this.sendAssistantMessage(); },
+    async retryKnowledge(artifact) {
+      try {
+        const response = await this.authFetch('/research/artifacts/' + artifact.id + '/knowledge/retry', { method: 'POST' });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.detail || '重试失败');
+        artifact.metadata = result.metadata;
+        ElementPlus.ElMessage[result.metadata.knowledge_sync_status === 'failed' ? 'warning' : 'success'](
+          result.metadata.knowledge_sync_status === 'failed' ? '归档暂未完成，请联系管理员检查配置。' : '报告已加入知识库处理队列');
+      } catch (error) { ElementPlus.ElMessage.error(error.message); }
+    },
+    openMyKnowledgeProjects() { sessionStorage.setItem("companyKnowledgeOpenMyProjects", "1"); this.switchView("company-knowledge"); },
+    knowledgeStatus(artifact) {
+      return ({ queued: '等待索引', uploading: '上传中', parsing: '解析中', indexing: '索引中', ready: '可问答', failed: '入库失败', deleted: '已从知识库移除' })[artifact.metadata?.knowledge_sync_status] || '尚未归档';
     },
     async sendAssistantMessage() {
       const text = this.assistantInput.trim(); if (!text || this.assistantLoading) return;
@@ -758,15 +746,10 @@ createApp({
       const bot = { text: '', isUser: false }; this.assistantMessages.push(bot);
       let timeout = null;
       try {
-        const builtInAnswer = this.getBuiltInAssistantAnswer(text);
-        if (builtInAnswer) {
-          bot.text = builtInAnswer;
-          return;
-        }
         const recentMessages = this.assistantMessages.slice(-20).map(msg => ({ role: msg.isUser ? 'user' : 'assistant', content: msg.text || '' }));
         const controller = new AbortController();
         timeout = setTimeout(() => controller.abort(), 120000);
-        const r = await this.authFetch('/research/assistant/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ message: text, limit: 8, history_summary: this.assistantContextSummary, recent_messages: recentMessages }) });
+        const r = await this.authFetch('/research/assistant/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ message: text, current_page: this.activeView, history_summary: this.assistantContextSummary, recent_messages: recentMessages }) });
         if (!r.ok) throw new Error('助手请求失败');
         const reader = r.body.getReader(), decoder = new TextDecoder(); let buffer = '';
         while (true) {
@@ -777,6 +760,7 @@ createApp({
             const raw = eventStr.slice(6); if (raw === '[DONE]') continue;
             const event = JSON.parse(raw);
             if (event.type === 'status' && !bot.text) { bot.text = event.content || '正在处理...'; bot._status = true; }
+            if (event.type === 'navigation') this.assistantNavigation = (event.items || []).filter(item => ['submit','tasks','review','sources','company-knowledge'].includes(item.view));
             if (event.type === 'content') { if (bot._status) { bot.text = ''; bot._status = false; } bot.text += event.content; }
             if (event.type === 'error') { if (bot._status) { bot.text = ''; bot._status = false; } bot.text += `\n[Error: ${event.content}]`; }
           }
@@ -805,13 +789,25 @@ createApp({
     },
     statusType(status) { if (status === 'completed') return 'success'; if (status === 'failed') return 'danger'; if (status === 'draft') return 'info'; return 'warning'; },
     timelineType(status) { if (status === 'done') return 'success'; if (status === 'error') return 'danger'; if (status === 'fallback' || status === 'warning') return 'warning'; return 'primary'; },
-    artifactTypeLabel(type) { return ({ project_intake: '项目参数', research_plan: '研究计划', source_quality: '来源质量', cleaned_facts: '清洗事实库', risk_assessment: '风险研判', desktop_report: '桌面研究报告', report_quality_diagnostic: '报告质量诊断', proposal: '项目建议书' })[type] || type; },
+    artifactTypeLabel(type) { return ({ project_intake: '项目参数', research_plan: '研究计划', source_quality: '来源质量', cleaned_facts: '清洗事实库', risk_assessment: '风险研判', desktop_report: '桌面研究报告', report_quality_diagnostic: '报告质量诊断', industry_claim_ledger: '结论证据台账', proposal: '项目建议书' })[type] || type; },
     targetTypeLabel(type) { return ({ person: '目标人', company: '目标公司', industry: '目标行业' })[type] || type || '-'; },
     formatTime(value) {
       const timestamp = this.eventTimestampMs({ timestamp: value });
       return timestamp ? new Date(timestamp).toLocaleString() : '-';
     },
     escapeHtml(text) { const div = document.createElement('div'); div.textContent = text || ''; return div.innerHTML; },
-    parseMarkdown(text) { return window.marked ? marked.parse(text || '') : this.escapeHtml(text || ''); }
+    parseMarkdown(text) {
+      if (!window.marked) return this.escapeHtml(text || '');
+      const fragment = document.createElement('template');
+      fragment.innerHTML = marked.parse(text || '');
+      const allowed = new Set(['P','BR','STRONG','EM','DEL','UL','OL','LI','H1','H2','H3','H4','H5','H6','BLOCKQUOTE','PRE','CODE','HR','TABLE','THEAD','TBODY','TR','TH','TD','A']);
+      for (const node of [...fragment.content.querySelectorAll('*')]) {
+        if (!allowed.has(node.tagName)) { node.replaceWith(document.createTextNode(node.textContent || '')); continue; }
+        const href = node.tagName === 'A' ? node.getAttribute('href') : '';
+        for (const attribute of [...node.attributes]) node.removeAttribute(attribute.name);
+        if (href && this.isExternalUrl(href)) { node.setAttribute('href', href); node.setAttribute('target', '_blank'); node.setAttribute('rel', 'noopener noreferrer'); }
+      }
+      return fragment.innerHTML;
+    }
   }
 }).component('company-knowledge', CompanyKnowledge).use(ElementPlus).mount('#app');
