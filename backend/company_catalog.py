@@ -31,6 +31,9 @@ class CompanyDocument(Base):
     object_key: Mapped[str] = mapped_column(String(500), default='')
     owner: Mapped[str] = mapped_column(String(100), default='')
     owner_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    research_project_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    research_artifact_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    is_current: Mapped[int] = mapped_column(Integer, default=1)
     project: Mapped[str] = mapped_column(String(200), default='')
     industry: Mapped[str] = mapped_column(String(100), default='')
     category: Mapped[str] = mapped_column(String(50), default='项目原件')
@@ -85,6 +88,11 @@ def ensure_company_schema(engine):
         additions.append('ADD COLUMN owner_user_id INTEGER')
     if 'confidentiality' not in columns:
         additions.append("ADD COLUMN confidentiality VARCHAR(20) DEFAULT 'internal' NOT NULL")
+    for column in ('research_project_id', 'research_artifact_id'):
+        if column not in columns:
+            additions.append('ADD COLUMN ' + column + ' INTEGER')
+    if 'is_current' not in columns:
+        additions.append('ADD COLUMN is_current INTEGER DEFAULT 1 NOT NULL')
     if additions:
         with engine.begin() as connection:
             for clause in additions:
@@ -129,7 +137,8 @@ def serialize(doc, user, request_status=''):
     readable = can_read(doc, user)
     locked = not readable
     values = {key: getattr(doc, key) for key in ('id', 'title', 'format', 'size', 'owner', 'owner_user_id',
-              'project', 'industry', 'category', 'review', 'version', 'visibility', 'confidentiality', 'state')}
+              'project', 'industry', 'category', 'review', 'version', 'visibility', 'confidentiality', 'state',
+              'research_project_id', 'research_artifact_id', 'is_current')}
     values['status_message'] = doc.status_message if readable else '需要管理员批准后才能阅读、下载或用于问答。'
     return values | {
         'confidentiality_label': CONFIDENTIALITY_LABELS.get(doc.confidentiality, doc.confidentiality),

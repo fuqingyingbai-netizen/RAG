@@ -88,6 +88,10 @@ const CompanyKnowledge = {
         if (!this.service.configured) throw new Error('公司知识库尚未配置，请联系管理员。');
         try { this.favorites = JSON.parse(localStorage.getItem('companyKnowledgeFavorites:' + this.service.username) || '[]'); } catch { this.favorites = []; }
         if (!this.viewRestored) this.restoreLibraryView();
+        if (sessionStorage.getItem('companyKnowledgeOpenMyProjects') === '1') {
+          sessionStorage.removeItem('companyKnowledgeOpenMyProjects');
+          this.browseLibrary(); this.mineOnly = true;
+        }
         await Promise.all([this.loadDocuments(), this.loadMyProjects(), this.loadAccessRequests()]);
       } catch (error) { this.serviceError = error.message; }
     },
@@ -138,7 +142,7 @@ const CompanyKnowledge = {
     askLibrary() {
       if (this.busy) return;
       if (!this.selectedIds.length && this.libraryScopeFiltered) {
-        const ids = this.filteredDocuments.filter(doc => doc.can_read && doc.state === 'ready').map(doc => doc.id);
+        const ids = this.filteredDocuments.filter(doc => doc.can_read && doc.state === 'ready' && doc.is_current !== 0).map(doc => doc.id);
         if (!ids.length) { ElementPlus.ElMessage.info('当前范围没有可检索资料。'); return; }
         if (ids.length > 20) { ElementPlus.ElMessage.info('当前范围超过 20 份资料，请先勾选需要研究的文件。'); return; }
         this.changeScope(ids);

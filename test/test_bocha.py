@@ -4,6 +4,10 @@ import sys
 from pathlib import Path
 
 import requests
+import pytest
+
+# These are real, quota-consuming provider smoke tests, not offline regressions.
+pytestmark = pytest.mark.skipif(os.getenv("RUN_BOCHA_LIVE_TESTS") != "1", reason="Set RUN_BOCHA_LIVE_TESTS=1 to run paid Bocha smoke tests")
 from dotenv import load_dotenv
 
 # 修复 Windows 终端 UTF-8 编码问题

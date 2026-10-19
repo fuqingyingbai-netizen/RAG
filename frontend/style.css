@@ -36,3 +36,5 @@
 .assistant-fab{cursor:grab;user-select:none;touch-action:none}
 .assistant-fab:active{cursor:grabbing}
 @media(max-width:960px){.primary-result-grid,.review-grid{grid-template-columns:1fr}}
+
+.assistant-panel{max-height:calc(100dvh - 140px);border-radius:12px;overflow:hidden}.assistant-shortcuts{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px}.assistant-shortcuts .el-button{margin-left:0}.assistant-footer{border-top:1px solid var(--line)}.assistant-footer .assistant-input{border-top:0}.assistant-messages{touch-action:pan-y}

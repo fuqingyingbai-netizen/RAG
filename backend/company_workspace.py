@@ -150,7 +150,7 @@ async def prepare_scope(cfg, user, requested, scope='accessible'):
             if any(doc.state != 'ready' for doc in selected):
                 raise HTTPException(409, '所选资料尚未完成索引，请等待处理完成。')
         else:
-            selected = [doc for doc in visible.values() if doc.state == 'ready']
+            selected = [doc for doc in visible.values() if doc.state == 'ready' and doc.is_current]
         # Empty never means an unfiltered search.
         return {doc.cloud_id: {'id': doc.id, 'title': doc.title, 'review': doc.review,
                  'version': doc.version, 'project': doc.project, 'industry': doc.industry,
