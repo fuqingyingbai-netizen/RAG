@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="company-knowledge.css" />
+  <link rel="stylesheet" href="navigation.css" />
 </head>
 <body>
 <main id="app" v-cloak>
@@ -42,11 +43,14 @@
   <el-container class="app-frame" v-else>
     <el-aside width="248px" class="sidebar">
       <div class="sidebar-brand"><img src="logo.png" alt="观复咨询" class="sidebar-logo" /></div>
-      <el-menu :default-active="activeView" class="side-menu" @select="switchView">
-        <el-menu-item index="submit"><i class="fa-solid fa-paper-plane"></i><span>提交尽调任务</span></el-menu-item>
-        <el-menu-item index="tasks"><i class="fa-solid fa-list-check"></i><span>任务管理</span></el-menu-item>
-        <el-menu-item index="review"><i class="fa-solid fa-pen-to-square"></i><span>复核与一手资料</span></el-menu-item>
-        <el-menu-item index="sources"><i class="fa-solid fa-database"></i><span>溯源库</span></el-menu-item>
+      <el-menu :default-active="activeView" :default-openeds="['due-diligence']" class="side-menu" @select="switchView">
+        <el-sub-menu index="due-diligence" class="research-nav-group">
+          <template #title><i class="fa-solid fa-folder-tree" aria-hidden="true"></i><span>尽调工作台</span></template>
+          <el-menu-item index="submit"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i><span>提交尽调任务</span></el-menu-item>
+          <el-menu-item index="tasks"><i class="fa-solid fa-list-check" aria-hidden="true"></i><span>任务管理</span></el-menu-item>
+          <el-menu-item index="review"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><span>复核与一手资料</span></el-menu-item>
+          <el-menu-item index="sources"><i class="fa-solid fa-database" aria-hidden="true"></i><span>溯源库</span></el-menu-item>
+        </el-sub-menu>
         <el-menu-item index="company-knowledge" class="company-knowledge-nav"><i class="fa-solid fa-book-open"></i><span>公司知识库</span></el-menu-item>
       </el-menu>
       <div class="sidebar-note"><span>当前用户</span><strong>{{ currentUser?.username }}</strong><small>{{ currentUser?.role }}</small><el-button type="danger" plain @click="handleLogout">退出登录</el-button></div>
@@ -68,6 +72,17 @@
               <el-form-item :label="targetPrimaryLabel"><el-input v-model="form.companyName" ></el-input></el-form-item>
               <el-form-item :label="targetSecondaryLabel"><el-input v-if="form.targetType === 'company'" v-model="form.identifier" ></el-input><el-input v-else v-model="form.targetContext" :placeholder="targetSecondaryPlaceholder" clearable></el-input></el-form-item>
               <el-row v-if="form.targetType === 'company'" :gutter="14"><el-col :xs="24" :sm="12"><el-form-item label="行业"><el-input v-model="form.industry" ></el-input></el-form-item></el-col><el-col :xs="24" :sm="12"><el-form-item label="地区"><el-input v-model="form.region" ></el-input></el-form-item></el-col></el-row>
+              <template v-if="form.targetType === 'industry'">
+                <el-form-item label="重点赛道（选填，多个用顿号分隔）"><el-input v-model="form.industryFocus" placeholder="例如：协作机器人、焊接机器人；留空研究主行业"></el-input></el-form-item>
+                <el-form-item label="不纳入的赛道（选填）"><el-input v-model="form.excludedSegments" placeholder="填写本次不研究的范围"></el-input></el-form-item>
+                <el-row :gutter="14">
+                  <el-col :xs="24" :sm="12"><el-form-item label="研究地域"><el-input v-model="form.region" placeholder="留空默认中国大陆"></el-input></el-form-item></el-col>
+                  <el-col :xs="24" :sm="12"><el-form-item label="数据截止日"><el-date-picker v-model="form.asOfDate" type="date" value-format="YYYY-MM-DD" placeholder="留空采用本次提交日期" class="full"></el-date-picker></el-form-item></el-col>
+                </el-row>
+                <el-form-item label="研究用途"><el-select v-model="form.researchPurpose" class="full"><el-option v-for="purpose in ['日常了解', '战略研究', '投资判断', '尽调支持']" :key="purpose" :label="purpose" :value="purpose"></el-option></el-select></el-form-item>
+                <div class="search-setting"><div><strong>纳入资本市场研究</strong><span>一级融资、IPO、估值和二级市场概览；关闭后这些章节仅说明研究范围。</span></div><el-switch v-model="form.includeCapitalMarkets"></el-switch></div>
+                <p class="detail-note">报告采用 16 章目录。填写核心企业后，启用核心企业公开资料尽调；关注产品可写在重点问题中。不同企业与行业整体结论分别呈现。</p>
+              </template>
               <el-form-item label="查什么"><el-select v-model="form.ddType" class="full"><el-option v-for="type in ddTypes" :key="type" :label="type" :value="type" ></el-option></el-select></el-form-item>
               <el-form-item label="重点模块"><el-checkbox-group v-model="form.modules" class="checkbox-grid"><el-checkbox v-for="module in modules" :key="module.value" :label="module.value">{{ module.label }}</el-checkbox></el-checkbox-group></el-form-item>
               <div class="search-setting"><div><strong>开启 AI 搜索</strong><span>公开网络、新闻、官方来源和制裁名单检索</span></div><el-switch v-model="form.aiSearchEnabled" ></el-switch></div>
@@ -95,8 +110,27 @@
                             <el-tag size="small" type="warning">待复核稿</el-tag>
                             <span>请先复核报告中的质量说明，再用于正式交付。</span>
                           </div>
+                        <el-popover v-if="artifact.metadata?.generation_degradations?.length" trigger="click" width="460">
+                          <template #reference><el-button text type="warning">部分章节使用事实摘录</el-button></template>
+                          <div style="max-height: 300px; overflow: auto"><p v-for="(issue, n) in artifact.metadata.generation_degradations" :key="n">{{ issue.message }}</p></div>
+                        </el-popover>
+                        <el-popover v-if="artifact.metadata?.quality_issues?.length" trigger="click" width="460">
+                          <template #reference><el-button text type="warning">查看 {{ artifact.metadata.quality_issues.length }} 项核验问题</el-button></template>
+                          <div style="max-height: 300px; overflow: auto"><p v-for="(issue, n) in artifact.metadata.quality_issues" :key="n">{{ issue.message }}</p></div>
+                        </el-popover>
+                        <el-tag v-if="artifact.metadata?.docx_export_error" type="danger" size="small">Word 导出失败</el-tag>
+                        <el-tag v-if="row.target_type === 'industry' && artifact.metadata?.docx_integrity_status === 'passed'" type="success" size="small">Word 文件检查通过</el-tag>
+                        <el-tag v-if="!artifact.metadata?.docx_export_error && artifact.metadata?.docx_render_status === 'unavailable'" type="info" size="small">版式未校验</el-tag>
+                        <el-popover v-if="row.target_type === 'industry' && artifact.metadata?.industry_evidence_diagnostic?.fact_quality" trigger="click" width="380">
+                          <template #reference><el-button text>查看事实质量</el-button></template>
+                          <p>结构化事实：{{ artifact.metadata.industry_evidence_diagnostic.fact_quality.structured_fact_count }} 条</p>
+                          <p>口径字段完整的数值事实：{{ artifact.metadata.industry_evidence_diagnostic.fact_quality.verified_numeric_fact_count }} 条</p>
+                          <p>口径检查包括指标、单位、地域、统计期和原文引用；来源数据本身仍需核验。</p>
+                        </el-popover>
+                        <el-tag v-if="artifact.artifact_type === 'cleaned_facts' && row.target_type === 'industry'" :type="artifact.metadata?.vector_index_status === 'completed' ? 'success' : 'info'" size="small">事实索引：{{ artifact.metadata?.vector_index_status || '未确认' }} / {{ artifact.metadata?.vector_indexed_count || 0 }} 条</el-tag>
                         </div>
                         <el-space>
+                          <el-button v-if="row.target_type === 'industry' && artifact.artifact_type === 'cleaned_facts' && ['failed', 'error', 'background_timeout', 'disabled'].includes(artifact.metadata?.vector_index_status)" plain @click="retryArtifactIndex(row, artifact)">重试索引</el-button>
                           <el-button type="primary" plain @click="downloadArtifact(artifact)">下载</el-button>
                           <el-button type="danger" plain @click="deleteArtifact(row, artifact)">删除</el-button>
                         </el-space>
@@ -121,6 +155,8 @@
                       <div v-if="row.target_type === 'person' && intakeFor(row).identity_anchors"><span>身份锚点</span><strong>{{ intakeFor(row).identity_anchors }}</strong></div>
                       <div v-if="row.target_type === 'company'"><span>统一社会信用代码</span><strong>{{ intakeFor(row).official_identifier || '-' }}</strong></div>
                       <div v-if="row.target_type === 'industry'"><span>重点公司/产品</span><strong>{{ intakeFor(row).focus_entities || '-' }}</strong></div>
+                      <div v-if="row.target_type === 'industry'"><span>研究范围</span><strong>{{ intakeFor(row).industry_scope?.segments?.join('、') || intakeFor(row).industry_focus || row.target_name }}</strong></div>
+                      <div v-if="row.target_type === 'industry'"><span>地域与数据截止日</span><strong>{{ intakeFor(row).industry_scope?.geography || intakeFor(row).region || '-' }} / {{ intakeFor(row).as_of_date || '-' }}</strong></div>
                       <div v-if="row.target_type === 'company'"><span>行业</span><strong>{{ row.industry || intakeFor(row).industry || '-' }}</strong></div>
                       <div v-if="row.target_type === 'company'"><span>地区</span><strong>{{ intakeFor(row).region || '-' }}</strong></div>
                       <div><span>尽调类型</span><strong>{{ intakeFor(row).research_type || '-' }}</strong></div>

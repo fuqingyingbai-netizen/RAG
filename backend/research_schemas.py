@@ -1,6 +1,8 @@
 ﻿from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from datetime import date
+
+from pydantic import BaseModel, Field, StrictBool, field_validator, model_validator
 
 
 class ResearchProjectCreate(BaseModel):
@@ -10,6 +12,12 @@ class ResearchProjectCreate(BaseModel):
     industry: str = ""
     description: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def valid_industry_intake(self):
+        if self.target_type in {"industry", "sector", "行业", "赛道"}:
+            ResearchRunRequest.model_validate(self.metadata)
+        return self
 
 
 class ResearchProjectResponse(BaseModel):
@@ -83,11 +91,31 @@ class ResearchRunRequest(BaseModel):
     # not require users to understand research taxonomy; the workflow converts
     # them into a bounded ``industry_scope`` with explicit assumptions.
     industry_focus: str = ""
+    industry_segments: list[str] = Field(default_factory=list)
+    excluded_segments: list[str] = Field(default_factory=list)
     research_purpose: str = ""
-    include_capital_markets: Optional[bool] = None
+    include_capital_markets: Optional[StrictBool] = None
     as_of_date: str = ""
+    industry_scope: dict[str, Any] = Field(default_factory=dict)
     min_sources_per_module: int = 5
     max_search_rounds: int = 3
+
+    @field_validator("as_of_date")
+    @classmethod
+    def valid_cutoff(cls, value: str) -> str:
+        if value:
+            parsed = date.fromisoformat(value)
+            if value != parsed.isoformat():
+                raise ValueError("数据截止日必须为 YYYY-MM-DD")
+        return value
+
+    @field_validator("industry_scope")
+    @classmethod
+    def valid_saved_scope(cls, value: dict) -> dict:
+        cutoff = value.get("as_of_date")
+        if cutoff and (not isinstance(cutoff, str) or date.fromisoformat(cutoff).isoformat() != cutoff):
+            raise ValueError("保存范围中的数据截止日必须为 YYYY-MM-DD")
+        return value
 
 
 class ResearchRunResponse(BaseModel):

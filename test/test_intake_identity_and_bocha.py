@@ -37,6 +37,7 @@ def test_person_identity_skeleton_includes_affiliation():
 
 def test_bocha_result_is_normalized(monkeypatch):
     monkeypatch.setenv("BOCHA_API_KEY", "test-key")
+    monkeypatch.setenv("BOCHA_FETCH_ENABLED", "true")
     response = Mock()
     response.raise_for_status.return_value = None
     response.json.return_value = {"code": 200, "data": {"webPages": {"value": [{"name": "示例结果", "url": "https://example.com/a", "snippet": "摘要", "siteName": "示例站"}]}}}

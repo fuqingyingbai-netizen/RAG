@@ -117,3 +117,44 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1 -Background
 浏览器验证通过：资料搜索、收藏、阅读目录切换、针对文档提问、Enter 发送、范围传递、回答引用返回阅读页、本地文件选择与移除。原有提交、任务、复核和溯源页面均可正常打开；任务仍显示已完成的公司项目，溯源表仍正常加载，原 AI 小助手在原页面仍可见。本次检查浏览器无 error / warn，两个 JavaScript 文件语法检查与 `git diff --check` 均通过；未重新执行报告生成或后台完整测试。窄屏采用单列知识空间与独立的问答布局，当前视觉验证使用默认桌面视口。
 
 效果图：`work/company-knowledge-preview.png`、`work/company-knowledge-chat-preview.png`。本次未提交或推送代码。
+
+## 公司与行业分支集成检查（2026-10-15）
+
+集成分支为 `codex/integration`，公司侧基于 `ae0a88a`（含知识库提交 `bf78133`），行业侧基于 `109d95d`。本次解决 `.env.example`、`backend/research_workflow.py`、`frontend/index.html`、`scripts/start-local.ps1` 四处合并冲突。
+
+- 配置示例同时保留百炼知识库配置和行业清洗、章节超时配置。
+- 公共 JSON 解析优先调用行业侧的完整 JSON / 外层围栏解析器，保留字符串内部代码围栏。公司、人物路径保留原先允许说明文字包围 JSON 代码块的行为；行业模型清洗和风险评分显式采用严格解析，未放宽行业证据或质量检查。
+- 报告成果区同时保留公司侧待复核提示，以及行业侧的章节降级、核验问题、Word 文件检查、版式未校验和事实质量信息，避免重复展示待复核标签。
+- 启动脚本保留外部健康向量服务复用和后台就绪等待；需要本地 MinIO 时采用行业侧带异常处理的镜像检查，仍校验源码归档哈希。
+- 自动合并后的行业前端测试原先没有加载知识库组件；测试现按实际组件注册关系加载并验证，行业参数、续跑和知识库前端回归均通过。
+- 搜索归一化测试显式开启它所验证的 `BOCHA_FETCH_ENABLED`，避免本机关闭预抓取的配置污染离线用例；未改生产搜索开关。
+
+离线后端回归共 259 项，254 通过、5 失败。覆盖行业从采集到 Word 的模拟流程、行业范围和评分、公司与人物隔离、JSON 解析、异步索引、知识库鉴权与流式问答等。失败项均可在合并前的公司提交 `ae0a88a` 单独复现：
+
+1. `test_person_report_gets_deterministic_audit_index_from_fact_library`：旧索引标题、提示语预期与当前输出不一致。
+2. `test_report_evidence_packages_keep_person_company_and_industry_match_rules_separate`：人物证据过滤结果与 fixture 预期不一致。
+3. `test_professional_fields_are_extracted_without_llm_and_keep_person_boundary`：专业字段抽取未命中 fixture 预期。
+4. `test_company_quality_gate_accepts_sparse_but_fully_traceable_fourteen_chapter_report`：fixture 中占位链接被现有质量闸门拒绝。
+5. `test_report_placeholder_urls_are_removed_before_export`：替代提示语与测试预期不一致。
+
+上述 5 项均位于 `test/test_evidence_ledger_and_section_packages.py`，本次未通过放宽质量规则或修改断言掩盖它们。初次回归另有搜索预抓取测试失败，旧公司提交也能复现，已通过用例配置隔离修复。回归日志：`work/integration-tests.log`、`work/integration-tests.xml`；旧提交对照日志：`work/integration-baseline-tests.log`、`work/integration-baseline-tests.xml`。
+
+前端两组 Node 回归通过：行业参数及组件注册验证、知识库的 3 个引用合并/进度用例。两个前端 JS 通过语法检查，PowerShell 启动脚本通过 AST 语法检查，`git diff --check` 通过。Docker 的 PostgreSQL、Redis、Milvus、MinIO、etcd 当前均 healthy；未额外执行缺镜像重建或首次安装分支。
+
+浏览器使用 `127.0.0.1:8011` 的临时集成服务及独立 SQLite 数据库，仅创建公司、行业兼容示例项目，不写原项目数据库。已检查登录、公司/行业表单切换、行业研究范围和资本开关、公司与行业成果展开、待复核提示、行业事实质量弹窗及公司知识库菜单；知识库真实读取到 5 份云端资料。控制台无 error / warn。截图：`work/integration-industry-form.png`、`work/integration-task-quality.png`、`work/integration-knowledge.png`。本次未运行真实的公司或行业新报告，也未新增云端资料、发起付费模型问答或重建原项目索引。
+
+本次只在集成分支准备冲突修复与验证记录，未执行合并提交、推送或修改 `main`。存在上述基线失败，因此不应将本次结论表述为全库测试通过；正式合入主分支前仍需双方复核，并跟踪原有失败。
+
+## 五项基线测试修正（2026-10-15）
+
+本地已通过 `01468dd` 合并双方代码，并快进到 `main`。随后逐项复现上述 5 项失败：原测试文件为 50 通过、5 失败。检查后确认这 5 项属于测试样例或断言与现有业务契约不一致，本轮没有修改生产代码、主体匹配规则、证据准入规则或交付质量闸门。
+
+- 人物索引使用第 14 章紧凑索引。更新旧标题和提示语断言，同时检查全部 60 个原始来源链接及对应唯一证据编号，保留追溯完整性验证。
+- 线路隔离样例原先只有“可审计事实”，没有姓名、来源主体或履历内容，人物章节相关性评分为零。补齐可核验的姓名、任职和来源标题后，分别验证人物身份不匹配、公司主体不匹配和行业范围不匹配仅影响各自线路；公司侧不再以空结果作为隔离成功的依据。另增加已标记身份确认但与目标人物和章节无关的负例，确保不会仅凭该标记放行无关事实。
+- 关联企业字段样例缺少主体校验所需的顶层企业锚点。补齐企业法定全称及原始企业名称字段后，确认企业名称、统一社会信用代码、法定代表人和注册资本均可确定性提取，并保持“关联企业事实不得归因为人物个人事实或风险”的边界。新增缺少锚点、返回不同企业和已被拒绝三种反例，均保持不提取。
+- 公司报告正例改用不触发占位链接拦截的保留测试域名 `registry.test`。新增 `example.com`、`www.example.org`、`example.net` 三种负例，均必须被原交付质量闸门拒绝，未放宽真实报告准入规则。
+- 占位图谱链接原本已经正确删除，并替换成待补充真实来源的提示。更新断言以验证该提示的意义，同时检查清理操作可重复执行且结果不变。
+
+修正后该文件 62 项测试全部通过，较原先增加 7 个边界用例。沿用集成检查的离线后端范围，共 **266 项全部通过**，包含公司、人物、行业、知识库、JSON 解析、异步索引和 Word 结构等回归；仍有 49 条既有 `datetime.utcnow()` 弃用警告。行业前端参数/组件注册验证与知识库 3 项 Node 回归通过，`git diff --check` 通过。该结论不包含需要真实外部搜索、付费模型或新报告生成的在线测试。
+
+日志分别保存在 `work/known-failures-before.log`、`work/known-failures-after.log`、`work/known-failures-regression.log`，并有同名 XML 结果。本轮修改仅涉及 `test/test_evidence_ledger_and_section_packages.py` 和本记录，尚未提交或推送；未跟踪目录 `news-forwarder/` 保持原状。
