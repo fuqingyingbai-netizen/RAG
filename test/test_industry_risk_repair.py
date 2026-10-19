@@ -204,6 +204,7 @@ def test_risk_models_have_bounded_timeouts_and_no_sdk_retry(monkeypatch):
 def test_company_risk_route_never_uses_industry_model_or_repair():
     w=ResearchWorkflow.__new__(ResearchWorkflow)
     w._invoke_industry_risk=lambda *a,**kw:pytest.fail('Company route must stay separate')
-    w._invoke=lambda *a,**kw:'{"dimensions":[],"risk_level":"unknown"}'
-    p=SimpleNamespace(title='企业测试',target_name='样本企业',target_type='company',industry='机器人')
-    assert isinstance(json.loads(w.assess_risk(p,'{"facts":[]}')),dict)
+    w._invoke=lambda *a,**kw:pytest.fail('Company original-source register must not invoke a legacy scoring model')
+    p=SimpleNamespace(title='企业测试',target_name='样本企业',target_type='company',industry='机器人',sources=[])
+    result=json.loads(w.assess_risk(p,'{"facts":[]}'))
+    assert result['version'].startswith('company-risk-register-')

@@ -237,10 +237,11 @@ def test_company_llm_quote_must_exist_in_original_and_extra_numbers_rejected():
     assert not w._sanitize_structured_facts([dict(good,fact=s.content+'研发占比9.78%。')],p)
 
 
-def test_company_evidence_policy_does_not_change_industry_cleaning_order():
+def test_company_evidence_policy_preserves_industry_body_only_cleaning():
     s=source();w=ResearchWorkflow.__new__(ResearchWorkflow);p=SimpleNamespace(target_type='industry',target_name='食品')
     r=w._fast_clean_sources([s],project=p)['facts'][0]
-    assert r['fact'].startswith('概要要点')
+    assert r['fact'] == s.content
+    assert '概要要点' not in r['fact']
 
 
 class Page:
