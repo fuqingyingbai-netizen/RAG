@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="company-knowledge.css" />
+  <link rel="stylesheet" href="navigation.css" />
 </head>
 <body>
 <main id="app" v-cloak>
@@ -42,11 +43,14 @@
   <el-container class="app-frame" v-else>
     <el-aside width="248px" class="sidebar">
       <div class="sidebar-brand"><img src="logo.png" alt="观复咨询" class="sidebar-logo" /></div>
-      <el-menu :default-active="activeView" class="side-menu" @select="switchView">
-        <el-menu-item index="submit"><i class="fa-solid fa-paper-plane"></i><span>提交尽调任务</span></el-menu-item>
-        <el-menu-item index="tasks"><i class="fa-solid fa-list-check"></i><span>任务管理</span></el-menu-item>
-        <el-menu-item index="review"><i class="fa-solid fa-pen-to-square"></i><span>复核与一手资料</span></el-menu-item>
-        <el-menu-item index="sources"><i class="fa-solid fa-database"></i><span>溯源库</span></el-menu-item>
+      <el-menu :default-active="activeView" :default-openeds="['due-diligence']" class="side-menu" @select="switchView">
+        <el-sub-menu index="due-diligence" class="research-nav-group">
+          <template #title><i class="fa-solid fa-folder-tree" aria-hidden="true"></i><span>尽调工作台</span></template>
+          <el-menu-item index="submit"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i><span>提交尽调任务</span></el-menu-item>
+          <el-menu-item index="tasks"><i class="fa-solid fa-list-check" aria-hidden="true"></i><span>任务管理</span></el-menu-item>
+          <el-menu-item index="review"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><span>复核与一手资料</span></el-menu-item>
+          <el-menu-item index="sources"><i class="fa-solid fa-database" aria-hidden="true"></i><span>溯源库</span></el-menu-item>
+        </el-sub-menu>
         <el-menu-item index="company-knowledge" class="company-knowledge-nav"><i class="fa-solid fa-book-open"></i><span>公司知识库</span></el-menu-item>
       </el-menu>
       <div class="sidebar-note"><span>当前用户</span><strong>{{ currentUser?.username }}</strong><small>{{ currentUser?.role }}</small><el-button type="danger" plain @click="handleLogout">退出登录</el-button></div>
