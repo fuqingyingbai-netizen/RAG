@@ -202,6 +202,6 @@ def test_assistant_role_specific_prompt_and_account_help():
     assert '当前页面：账号管理' in admin_prompt and '【账号管理】' in admin_prompt
     assert '六小时' in guide_answer('如何生成邀请码？', role='admin')
     assert '请联系管理员' in guide_answer('怎么重置密码？', role='user')
-    assert '侧边栏底部' in guide_answer('如何修改密码？', role='user')
+    assert '页面右上角' in guide_answer('如何修改密码？', role='user')
     assert '任务创建人本人' in guide_answer('新人怎么开始？')
     assert guide_answer('这个页面如何使用？', page='home').startswith('### 个人首页')

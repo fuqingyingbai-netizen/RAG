@@ -16,6 +16,22 @@ class QuietHandler(SimpleHTTPRequestHandler):
         pass
 
 
+def check_account_header(page, username, role):
+    header = page.get_by_role('region', name='当前登录账号', exact=True)
+    expect(header).to_have_count(1)
+    expect(header).to_contain_text(username)
+    expect(header).to_contain_text('管理员' if role == 'admin' else '普通用户')
+    expect(page.locator('.sidebar-note, #sidebar-account')).to_have_count(0)
+    for name in ('修改密码', '退出登录'):
+        expect(page.get_by_role('button', name=name, exact=True)).to_have_count(1)
+        expect(header.get_by_role('button', name=name, exact=True)).to_be_visible()
+    bounds = header.bounding_box()
+    assert bounds and bounds['x'] >= 0 and bounds['x'] + bounds['width'] <= page.viewport_size['width'] + 1, bounds
+    identity = header.locator('.topbar-identity').bounding_box()
+    actions = header.locator('.topbar-account-actions').bounding_box()
+    assert identity['x'] + identity['width'] <= actions['x'] + 1, (identity, actions)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--assets-dir', type=Path, default=ROOT / 'work/account-ui/vendor')
@@ -67,6 +83,7 @@ def main():
             context.add_init_script("localStorage.setItem('accessToken','synthetic-ui-token'); localStorage.setItem('assistantPosition', '{\"right\":99999,\"bottom\":99999}');")
             page = context.new_page(); errors = []; page.on('pageerror', lambda error: errors.append(str(error)))
             page.goto(base)
+            check_account_header(page, identity['username'], identity['role'])
             launcher = page.get_by_role('button', name='打开小助手', exact=True)
             expect(launcher).to_be_visible(); launcher.click()
             panel = page.get_by_role('dialog', name='AI 小助手', exact=True)
@@ -86,6 +103,7 @@ def main():
             for view, label in [('submit', '提交尽调任务'), ('tasks', '任务管理'), ('review', '复核与一手资料'), ('sources', '溯源库'), ('company-knowledge', '公司知识库'), ('home', '个人首页')]:
                 message_count = panel.locator('.assistant-msg.user').count()
                 page.locator('.el-menu-item[role="menuitem"]').filter(has_text=label).click()
+                check_account_header(page, identity['username'], identity['role'])
                 expect(panel).to_be_visible()
                 expect(panel.locator('.assistant-msg.user')).to_have_count(message_count)
                 panel.get_by_role('button', name='当前页面帮助', exact=True).click()
@@ -94,6 +112,13 @@ def main():
                 expect(panel.locator('.assistant-msg.user')).to_have_count(message_count + 1)
                 if view in ('home', 'company-knowledge'):
                     page.screenshot(path=str(args.output_dir / f'assistant-global-{view}.png'), animations='disabled')
+                if view == 'company-knowledge':
+                    panel.get_by_role('button', name='关闭小助手', exact=True).click()
+                    page.set_viewport_size({'width': 390, 'height': 844})
+                    check_account_header(page, identity['username'], identity['role'])
+                    page.screenshot(path=str(args.output_dir / 'account-header-knowledge-mobile.png'), animations='disabled')
+                    page.set_viewport_size({'width': 1440, 'height': 900})
+                    launcher.click()
             expect(page.get_by_role('menuitem', name='账号管理', exact=True)).to_have_count(0)
             panel.locator('.assistant-navigation summary').click()
             expect(panel.get_by_role('button', name='个人首页', exact=True)).to_be_visible()
@@ -142,9 +167,21 @@ def main():
             panel.get_by_role('button', name='关闭小助手', exact=True).click(); expect(panel).to_have_count(0)
             expect(launcher).to_be_focused()
             launcher.click(); composer.press('Escape'); expect(panel).to_have_count(0)
+            for width in (1440, 1024, 390, 320):
+                page.set_viewport_size({'width': width, 'height': 900})
+                check_account_header(page, identity['username'], identity['role'])
+            page.get_by_role('button', name='修改密码', exact=True).click()
+            password_dialog = page.get_by_role('dialog', name='修改密码', exact=True)
+            expect(password_dialog).to_be_visible()
+            password_dialog.get_by_role('textbox', name='原密码', exact=True).fill('synthetic-current-password')
+            password_dialog.press('Escape'); expect(password_dialog).not_to_be_visible()
+            page.get_by_role('button', name='修改密码', exact=True).click()
+            expect(password_dialog.get_by_role('textbox', name='原密码', exact=True)).to_have_value('')
+            password_dialog.press('Escape'); expect(password_dialog).not_to_be_visible()
             context.close()
             # Admin-only entry is available on the account management page.
             identity['role'] = 'admin'
+            identity['username'] = 'administrator-with-a-long-name-for-header-layout'
             admin_context = browser.new_context(viewport={'width': 1440, 'height': 900})
             admin_context.route('**/*', route_request)
             admin_context.add_init_script("localStorage.setItem('accessToken','synthetic-admin-token');")
@@ -152,6 +189,7 @@ def main():
             admin_launcher = admin.get_by_role('button', name='打开小助手', exact=True)
             admin.locator('.el-menu-item[role="menuitem"]').filter(has_text='账号管理').click()
             expect(admin.get_by_role('heading', name='账号管理', level=1, exact=True)).to_be_visible()
+            check_account_header(admin, identity['username'], identity['role'])
             admin_launcher.click()
             admin_panel = admin.get_by_role('dialog', name='AI 小助手', exact=True)
             admin_panel.get_by_role('button', name='当前页面帮助', exact=True).click()
@@ -160,6 +198,11 @@ def main():
             admin_panel.locator('.assistant-navigation summary').click()
             expect(admin_panel.get_by_role('button', name='账号管理', exact=True)).to_be_visible()
             admin.screenshot(path=str(args.output_dir / 'assistant-global-accounts.png'), animations='disabled')
+            admin_panel.get_by_role('button', name='关闭小助手', exact=True).click()
+            for width in (1440, 1024, 390, 320):
+                admin.set_viewport_size({'width': width, 'height': 900})
+                check_account_header(admin, identity['username'], identity['role'])
+                admin.screenshot(path=str(args.output_dir / f'account-header-admin-{width}.png'), animations='disabled')
             admin.get_by_role('button', name='退出登录', exact=True).click()
             expect(admin_launcher).to_have_count(0); expect(admin_panel).to_have_count(0)
             admin_context.close()
@@ -174,7 +217,7 @@ def main():
             password_context.close()
             assert not errors, errors
             browser.close()
-            print('Assistant UI passed: all 7 signed-in pages, shared cross-page thread, current-page context, role-filtered navigation, logout/password gate, compact bubbles, fixed composer, multiline/Enter, scrollback, drag/resize and 6 viewport sizes; synthetic replies only.')
+            print('Assistant/account header UI passed: all 7 signed-in pages, single top-right account area, no sidebar duplication, password entry/reset, logout, long usernames and 4 header viewports; shared assistant thread, role navigation and 6 panel viewports; synthetic replies only.')
     finally:
         server.shutdown(); server.server_close(); worker.join(timeout=5)
 

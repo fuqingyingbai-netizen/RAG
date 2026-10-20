@@ -158,7 +158,7 @@ def main():
                 expect(dialog.get_by_text('历史记录暂不可用', exact=True)).to_be_visible()
                 expect(dialog.locator('.rv-body')).to_have_count(0)
                 dialog.get_by_role('button', name='关闭', exact=True).click()
-                page.get_by_role('button', name='退出', exact=True).click()
+                page.get_by_role('button', name='退出登录', exact=True).click()
                 expect(dialog).to_have_count(0)
                 assert not errors, errors
                 browser.close()

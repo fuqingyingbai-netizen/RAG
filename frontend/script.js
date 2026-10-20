@@ -1,5 +1,12 @@
 const { createApp } = Vue;
 
+const TASK_STAGE_LABELS = Object.freeze({
+  planning: '研究规划', collecting: '资料收集', searching: '资料检索', source_assessing: '来源评估',
+  cleaning: '资料清洗', risk_scoring: '风险研判', risk_assessing: '风险研判',
+  report_generating: '报告生成', proposal_generating: '建议书生成', pausing: '正在暂停',
+});
+const TASK_STATE_LABELS = Object.freeze({draft: '未开始', paused: '已暂停', completed: '已完成', failed: '执行失败', diagnostic: '待检查'});
+
 function readAssistantPosition() {
   try {
     const saved = JSON.parse(localStorage.getItem('assistantPosition') || '{}');
@@ -36,7 +43,10 @@ createApp({
       inviteStatus: '', inviteValid: false, inviteChecking: false, inviteRequestId: 0,
       passwordOpen: false, passwordLoading: false, passwordForm: { current_password: '', new_password: '', confirm_password: '' },
       activeView: 'home', mobileNavOpen: false, projects: [], projectMeta: {}, projectDetails: {}, artifactsByProject: {}, sourcesByProject: {}, traceByProject: {},
-      taskSearch: '', selectedFiles: [], submitting: false, reindexing: false,
+      taskSearch: '', taskStatusFilter: '', taskTargetFilter: '', selectedFiles: [], submitting: false, reindexing: false,
+      taskStatusOptions: [{value: '', label: '全部状态'}, {value: 'draft', label: '未开始'},
+        {value: 'active', label: '进行中'}, {value: 'paused', label: '已暂停'}, {value: 'completed', label: '已完成'},
+        {value: 'failed', label: '执行失败'}, {value: 'diagnostic', label: '待检查'}, {value: 'other', label: '其他状态'}],
       reportVersionsOpen: false, reportVersionsProject: null, reportVersionsType: 'desktop_report',
       taskPage: 1, taskPageSize: 12, sourcePage: 1, sourcePageSize: 50,
       nowTick: Date.now(), nowTimer: null, taskRefreshTimer: null, taskRefreshBusy: false, taskRefreshTicks: 0,
@@ -99,14 +109,27 @@ createApp({
     targetSecondaryPlaceholder() { return this.form.targetType === 'person' ? '可填写现任或曾任机构及职位；多个机构用 / 分隔' : this.form.targetType === 'industry' ? '填写需开展公开资料尽调的公司名称；关注产品可写在重点问题中' : ''; },
     filteredProjects() {
       const keyword = this.taskSearch.trim().toLowerCase();
-      if (!keyword) return this.projects;
-      return this.projects.filter(p => [p.title, p.target_name, p.industry, p.status].join(' ').toLowerCase().includes(keyword));
+      return this.projects.filter(p => (!this.taskStatusFilter || this.taskStatusGroup(p.status) === this.taskStatusFilter)
+        && (!this.taskTargetFilter || p.target_type === this.taskTargetFilter)
+        && (!keyword || [p.title, p.target_name, p.industry, p.status, this.taskStatusLabel(p.status),
+          this.taskStatusGroup(p.status) === 'active' ? '进行中' : '',
+          this.targetTypeLabel(p.target_type)].join(' ').toLowerCase().includes(keyword)));
     },
+    hasTaskFilters() { return !!(this.taskSearch.trim() || this.taskStatusFilter || this.taskTargetFilter); },
     pagedProjects() { const start = (this.taskPage - 1) * this.taskPageSize; return this.filteredProjects.slice(start, start + this.taskPageSize); },
     pagedKnowledgeResults() { const start = (this.sourcePage - 1) * this.sourcePageSize; return this.knowledgeResults.slice(start, start + this.sourcePageSize); }
   },
   watch: {
     taskSearch() { this.taskPage = 1; },
+    taskStatusFilter() { this.taskPage = 1; },
+    taskTargetFilter() { this.taskPage = 1; },
+    taskPageSize() { this.taskPage = 1; },
+    filteredProjects(projects) {
+      this.taskPage = Math.min(this.taskPage, Math.max(1, Math.ceil(projects.length / this.taskPageSize)));
+    },
+    pagedProjects(projects) {
+      if (this.reviewProjectId && !projects.some(project => project.id === this.reviewProjectId)) this.clearReviewSelection();
+    },
     knowledgeQuery() { this.sourcePage = 1; },
     'form.targetType'(value) { const defaults = { company: ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], person: this.modulesByTarget.person.map(x => x.value), industry: this.modulesByTarget.industry.map(x => x.value) }; this.form.modules = defaults[value] || defaults.company; this.form.ddType = this.ddTypes[0]; this.form.targetContext = ''; this.form.personContext = ''; this.form.personAliases = ''; if (value === 'person' || value === 'industry') { this.form.industry = ''; this.form.region = ''; } }
   },
@@ -211,8 +234,8 @@ createApp({
       this.projects = []; this.knowledgeResults = []; this.assistantOpen = false; localStorage.removeItem('accessToken');
       this.projectMeta = {}; this.projectDetails = {}; this.artifactsByProject = {}; this.sourcesByProject = {}; this.traceByProject = {};
       this.assistantMessages = []; this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantLoading = false; this.assistantNavigation = []; this.selectedFiles = [];
-      this.form = newResearchForm(); this.taskSearch = ''; this.taskPage = 1;
-      this.reviewProjectId = ''; this.reviewReportFiles = []; this.reviewProposalFiles = []; this.fieldSourceFiles = [];
+      this.form = newResearchForm(); this.resetTaskFilters();
+      this.clearReviewSelection();
       this.closeReportVersions();
       this.knowledgeQuery = '';
     },
@@ -244,7 +267,7 @@ createApp({
         if (sentToken !== this.token) return;
         const index = this.projects.findIndex(item => item.id === project.id);
         if (index < 0) throw new Error('任务已不存在或当前账号无法访问，请刷新首页');
-        this.taskSearch = '';
+        this.resetTaskFilters();
         await this.$nextTick();
         if (sentToken !== this.token) return;
         this.taskPage = Math.floor(index / this.taskPageSize) + 1;
@@ -314,7 +337,7 @@ createApp({
         const r = await this.authFetch('/research/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(createPayload) });
         const project = await r.json().catch(() => ({})); if (!r.ok) throw new Error(project.detail || '创建项目失败');
         this.projectMeta[project.id] = { startDate: this.form.startDate, endDate: this.form.endDate };
-        this.projects.unshift(project); this.switchView('tasks'); ElementPlus.ElMessage.success('任务已提交，正在上传资料并启动工作流');
+        this.resetTaskFilters(); this.projects.unshift(project); this.switchView('tasks'); ElementPlus.ElMessage.success('任务已提交，正在上传资料并启动工作流');
         for (const file of this.selectedFiles) await this.uploadProjectFile(project.id, file);
         await this.runWorkflow(project);
       } catch (e) { ElementPlus.ElMessage.error(e.message); } finally { this.submitting = false; }
@@ -613,6 +636,7 @@ createApp({
     handleReviewReportChange(file, fileList) { this.reviewReportFiles = fileList.map(item => item.raw || item).filter(Boolean); },
     handleReviewProposalChange(file, fileList) { this.reviewProposalFiles = fileList.map(item => item.raw || item).filter(Boolean); },
     handleFieldSourceChange(file, fileList) { this.fieldSourceFiles = fileList.map(item => item.raw || item).filter(Boolean); },
+    clearReviewSelection() { this.reviewProjectId = ''; this.reviewReportFiles = []; this.reviewProposalFiles = []; this.fieldSourceFiles = []; },
     async selectReviewProject(project) {
       this.reviewProjectId = project.id;
       await this.loadProjectDetail(project);
@@ -989,7 +1013,16 @@ createApp({
       if (doneStages.has('proposal')) refined = Math.max(refined, 96);
       return Math.min(99, refined);
     },
-    statusType(status) { if (status === 'completed') return 'success'; if (status === 'failed') return 'danger'; if (status === 'draft') return 'info'; return 'warning'; },
+    taskStatusLabel(status) {
+      if (Object.hasOwn(TASK_STATE_LABELS, status)) return TASK_STATE_LABELS[status];
+      return Object.hasOwn(TASK_STAGE_LABELS, status) ? TASK_STAGE_LABELS[status] : '待处理';
+    },
+    taskStatusGroup(status) {
+      if (Object.hasOwn(TASK_STATE_LABELS, status)) return status;
+      return Object.hasOwn(TASK_STAGE_LABELS, status) ? 'active' : 'other';
+    },
+    resetTaskFilters() { this.taskSearch = ''; this.taskStatusFilter = ''; this.taskTargetFilter = ''; this.taskPage = 1; },
+    statusType(status) { if (status === 'completed') return 'success'; if (status === 'failed') return 'danger'; return this.taskStatusGroup(status) === 'active' ? 'warning' : 'info'; },
     timelineType(status) { if (status === 'done') return 'success'; if (status === 'error') return 'danger'; if (status === 'fallback' || status === 'warning') return 'warning'; return 'primary'; },
     artifactTypeLabel(type) { return ({ project_intake: '项目参数', research_plan: '研究计划', source_quality: '来源质量', cleaned_facts: '清洗事实库', risk_assessment: '风险研判', desktop_report: '桌面研究报告', report_quality_diagnostic: '报告质量诊断', industry_claim_ledger: '结论证据台账', industry_run: '运行记录', proposal: '项目建议书' })[type] || type; },
     targetTypeLabel(type) { return ({ person: '目标人', company: '目标公司', industry: '目标行业' })[type] || type || '-'; },

@@ -234,7 +234,7 @@ const AccountManagement = {
   },
   template: `
     <el-card class="panel-card account-management" shadow="never">
-      <template #header><div class="card-header"><div><p class="eyebrow">Company Accounts</p><h2>账号管理</h2></div><el-tag effect="plain">管理员</el-tag></div></template>
+      <template #header><div class="card-header"><div><p class="eyebrow">Company Accounts</p><h2>账号管理</h2></div></div></template>
       <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="account-alert"></el-alert>
       <el-tabs v-model="tab" @tab-change="onTabChange">
         <el-tab-pane label="账号列表" name="users">

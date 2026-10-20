@@ -33,12 +33,13 @@ const watchdog = setTimeout(() => {console.error('Personal home tests did not fi
   assert.equal(app.activeView, 'tasks');
   app.currentUser = {role: 'user'}; app.switchView('accounts'); assert.equal(app.activeView, 'tasks');
   app.projects = Array.from({length: 25}, (_, index) => ({id: index + 1}));
-  app.taskSearch = 'old filter'; app.taskPage = 1;
+  app.taskSearch = 'old filter'; app.taskStatusFilter = 'failed'; app.taskTargetFilter = 'person'; app.taskPage = 1;
   let ticks = 0, selected;
   app.$nextTick = async () => {if (++ticks === 1) app.taskPage = 1;};
   app.viewProject = async project => {selected = project;};
   await app.openHomeProject({id: 20});
-  assert.equal(app.taskSearch, ''); assert.equal(app.taskPage, 2); assert.equal(selected.id, 20);
+  assert.equal(app.taskSearch, ''); assert.equal(app.taskStatusFilter, ''); assert.equal(app.taskTargetFilter, '');
+  assert.equal(app.taskPage, 2); assert.equal(selected.id, 20);
   app.activeView = 'home'; await app.openHomeProject({id: 999});
   assert.equal(app.activeView, 'home'); assert.match(messages.at(-1), /不存在|无法访问/);
   app.loadProjects = async () => {app.token = 'another-account';};
@@ -49,6 +50,7 @@ const watchdog = setTimeout(() => {console.error('Personal home tests did not fi
   app.handleLogout();
   assert.equal(app.reportVersionsOpen, false); assert.equal(app.reportVersionsProject, null);
   assert.equal(app.activeView, 'home'); assert.equal(app.form.projectName, '');
+  assert.equal(app.taskStatusFilter, ''); assert.equal(app.taskTargetFilter, '');
   assert.equal(app.reviewProjectId, ''); assert.equal(app.fieldSourceFiles.length, 0);
   const late = state(appDefinition); late.token = 'before'; late.projects = [];
   late.authFetch = async () => ({ok: true, json: async () => {late.token = 'after'; return {projects: [{id: 88}]};}});

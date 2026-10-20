@@ -76,16 +76,10 @@
     outline-offset: 3px;
   }
 
-  #app .sidebar .side-menu,
-  #app .sidebar .sidebar-note { display: none; }
+  #app .sidebar .side-menu { display: none; }
 
   #app .sidebar.mobile-nav-open .side-menu {
     display: block;
-    margin-top: 12px;
-  }
-
-  #app .sidebar.mobile-nav-open .sidebar-note {
-    display: grid;
     margin-top: 12px;
   }
 
@@ -96,4 +90,21 @@
   }
 
   #app .app-shell > .topbar { height: auto; min-height: 96px; }
+}
+
+#app .app-shell > .topbar { height: auto; min-height: 88px; padding-top: 18px; padding-bottom: 16px; }
+.topbar-title { flex: 1 1 auto; min-width: 0; }
+.topbar-account { display: flex; flex: 0 0 auto; align-items: center; gap: 16px; max-width: 100%; margin-left: auto; }
+.topbar-identity { display: grid; gap: 5px; min-width: 0; max-width: 200px; }
+.topbar-identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--brand-strong); font-size: 14px; line-height: 1.4; }
+.topbar-identity .el-tag { width: fit-content; }
+.topbar-account-actions { display: flex; flex-shrink: 0; gap: 8px; }
+.topbar-account-actions .el-button { margin: 0; min-height: 32px; }
+@media (max-width: 560px) {
+  #app .app-shell > .topbar { gap: 14px; }
+  .topbar-title { width: 100%; }
+  .topbar-account { width: 100%; justify-content: space-between; gap: 12px; }
+  .topbar-identity { flex: 1 1 auto; max-width: none; }
+  .topbar-account-actions { gap: 6px; }
+  .topbar-account-actions .el-button { min-height: 36px; }
 }
