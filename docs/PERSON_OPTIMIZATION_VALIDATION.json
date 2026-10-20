@@ -192,5 +192,31 @@
     "company_name_present": true,
     "has_embedded_image": false,
     "substantive_text_returned": true
+  },
+  "pre_push_validation": {
+    "verified_at": "2026-10-20T13:02:05",
+    "branch": "codex/company",
+    "integrated_main_commit": "1854f95",
+    "integration_commit": "dbd5b0a",
+    "tests": {
+      "tests": 1214,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 14,
+      "passed": 1200
+    },
+    "frontend": [
+      "frontend_person_params.cjs",
+      "frontend_industry_params.cjs",
+      "system-guide-ui.test.cjs",
+      "node --check frontend/script.js"
+    ],
+    "credentials": "Local .env ignored; current release tree scanned; no API keys included",
+    "deployment": "not_performed",
+    "remaining_acceptance": [
+      "full real-person chapter content manual review",
+      "Word page-by-page visual review",
+      "QCC judicial document query blocked by credits"
+    ]
   }
 }

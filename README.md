@@ -123,7 +123,7 @@ MILVUS_PORT=19530
 MILVUS_COLLECTION=embeddings_collection
 
 # ===== Database / Cache =====
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@127.0.0.1:5432/langchain_app
+DATABASE_URL=postgresql+psycopg2://<db_user>:<db_password>@<db_host>:5432/<db_name>
 REDIS_URL=redis://127.0.0.1:6379/0
 
 # ===== Auth =====
