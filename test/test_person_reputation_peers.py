@@ -169,7 +169,14 @@ def test_legal_name_core_is_only_a_provisional_identity_clue():
     assert contextual_identity(wf, '另一人', '远山软件的林知远接受采访。', value)['confidence'] not in {'high', 'medium'}
 
 
-def test_collector_fetches_peer_identity_separately_and_preserves_primary_quarantine(monkeypatch, tmp_path):
+@pytest.mark.parametrize('target,organization,industry,role,peer_names,peer_companies,evaluator,alias', [
+    ('林知远', '恒川软件', '软件', '董事长', ('陈雨安', '许清和'), ('远山软件', '明川软件'), '顾海', ''),
+    ('沈岚', '青禾精密', '精密制造', '总经理', ('周澄', '吴启'), ('星河制造', '澄海精工'), '叶青', ''),
+    ('苏宁远', '景行医疗', '医疗器械', '技术负责人', ('程遥', '杜衡'), ('远辰医疗', '明德器械'), '方瑾', ''),
+    ('Jordan Vale', 'Harbor Capital', '投资管理', '合伙人', ('Morgan Reed', 'Avery Lane'), ('River Fund', 'Pine Ventures'), 'Alex Chen', '乔丹·韦尔'),
+])
+def test_collector_fetches_peer_identity_separately_and_preserves_primary_quarantine(
+        monkeypatch, tmp_path, target, organization, industry, role, peer_names, peer_companies, evaluator, alias):
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
     from models import Base, ResearchProject, User
@@ -182,16 +189,25 @@ def test_collector_fetches_peer_identity_separately_and_preserves_primary_quaran
     monkeypatch.setattr(store_module.research_store, 'mode', 'local')
     monkeypatch.setattr(store_module.research_store, 'local_root', tmp_path)
     wf = ResearchWorkflow.__new__(ResearchWorkflow)
-    src, first, feedback = discovery()
-    second = dict(first, name='许清和', company='明川软件', role='创始人',
-                  quote='明川软件创始人许清和负责软件产品。',
-                  basis_quote='恒川软件与明川软件同属软件行业，报道将林知远与许清和作为同业人物比较。')
-    original = src.content + second['quote'] + second['basis_quote']
+    value = {'target_type': 'person', 'target_name': target, 'ai_search_enabled': True,
+             'person_anchor': {'known_affiliations': [organization], 'aliases': [alias] if alias else []}}
+    src_url = 'https://news.invalid/a'
+    candidates = []
+    for name, company in zip(peer_names, peer_companies):
+        candidates.append({'name': name, 'company': company, 'role': role,
+                           'source_url': src_url,
+                           'quote': f'{company}的{role}{name}负责{industry}业务，具体职责以该报道对应时期为限。',
+                           'basis_quote': f'{organization}与{company}同属{industry}行业，报道将{target}与{name}作为同业人物比较。'})
+    first, second = candidates
+    feedback = {'kind': 'attributed_opinion', 'evaluator': evaluator, 'relationship': '客户',
+                'quote': f'客户{evaluator}表示，{alias or target}按合同约定完成了交付，此处只记录具名评价，履约结果仍须核对原始文件。',
+                'source_url': src_url}
+    original = ''.join(r['quote'] + r['basis_quote'] for r in candidates) + feedback['quote']
     queries, fetches = [], []
     def search(provider, query, **kw):
         queries.append(query)
         person = next((r['name'] for r in (first, second) if r['name'] in query), '')
-        return [{'url': 'https://official.invalid/' + person if person else src.url, 'title': '公开原件'}]
+        return [{'url': 'https://official.invalid/' + person if person else src_url, 'title': '公开原件'}]
     def fetch(url, **kw):
         fetches.append(url)
         name = url.rsplit('/', 1)[-1]
@@ -205,17 +221,27 @@ def test_collector_fetches_peer_identity_separately_and_preserves_primary_quaran
     with Session(engine) as db:
         user = User(username='chapter-peer-test', password_hash='test')
         db.add(user); db.flush()
-        project = ResearchProject(title='合成人物', target_name='林知远', target_type='person', industry='', description='', created_by_id=user.id)
+        project = ResearchProject(title='合成人物', target_name=target, target_type='person', industry=industry, description='', created_by_id=user.id)
         db.add(project); db.commit()
         project.person_retrieval_audit = {'calls_planned': 30, 'page_fetch_attempts': 33}
-        assert collect(wf, db, project, intake()) == 3
+        assert collect(wf, db, project, value) == 3
         assert len(queries) == 9 and len(fetches) == 3
+        assert all(target in q for q in queries[:5])
+        assert organization in queries[0]
+        assert all(any(name in q for q in queries[5:]) for name in peer_names)
         assert project.person_retrieval_audit['calls_planned'] == 39
         assert project.person_retrieval_audit['page_fetch_attempts'] == 36
         peers = [s for s in project.sources if s.source_metadata.get('person_peer_context')]
         assert len(peers) == 2 and all(s.source_metadata['identity_confidence']=='low' for s in peers)
-        contract = build_packages({'facts': []}, '林知远', PERSON_REPORT_OUTLINE, intake(), project.sources)
-        assert {f['comparison_subject'] for f in contract['chapters'][8]['facts'] if f.get('comparison_subject')} == {'陈雨安', '许清和'}
-        assert all(f['subject']=='林知远' for f in contract['chapters'][7]['facts'])
-        stored = next(s for s in project.sources if s.url==src.url).source_metadata['person_peer_records']
-        assert {r['nomination']['name'] for r in stored} == {'陈雨安', '许清和'}
+        contract = build_packages({'facts': []}, target, PERSON_REPORT_OUTLINE, value, project.sources)
+        assert {f['comparison_subject'] for f in contract['chapters'][8]['facts'] if f.get('comparison_subject')} == set(peer_names)
+        assert contract['chapters'][7]['facts']
+        assert all(f['subject']==target for f in contract['chapters'][7]['facts'])
+        for number in (1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13):
+            assert not any(f.get('comparison_subject') for f in contract['chapters'][number]['facts'])
+        text = render_section(contract['chapters'][8])
+        assert all(name in text for name in peer_names)
+        assert '不排名' in text
+        assert any('同指标' in gap for gap in contract['chapters'][8]['information_gaps'])
+        stored = next(s for s in project.sources if s.url==src_url).source_metadata['person_peer_records']
+        assert {r['nomination']['name'] for r in stored} == set(peer_names)

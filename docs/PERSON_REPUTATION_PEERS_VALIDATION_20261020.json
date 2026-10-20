@@ -298,5 +298,34 @@
     "fetch_budget": 44
   },
   "docx_integrity_ok": true,
-  "docx_dated_opinion_and_peer_table_present": true
+  "docx_dated_opinion_and_peer_table_present": true,
+  "cross_person_regression": {
+    "kind": "synthetic_source_workflow_integration_not_live_report_acceptance",
+    "scenario_industries": [
+      "software",
+      "precision_manufacturing",
+      "medical_devices",
+      "investment_management"
+    ],
+    "roles": [
+      "chair",
+      "general_manager",
+      "technical_lead",
+      "partner"
+    ],
+    "supplied_alias_case": true,
+    "checked": [
+      "identity_clues_in_search",
+      "individual_peer_queries",
+      "feedback_target_attribution",
+      "peer_chapter_isolation",
+      "bounded_search_and_fetch",
+      "no_ranking_without_aligned_metrics"
+    ],
+    "test_file_passed": 20,
+    "person_suite_passed": 165,
+    "xml": "work/person-optimization/person-generalization-final-tests.xml",
+    "new_external_requests": 0,
+    "same_source_volume_or_quality_for_every_person_guaranteed": false
+  }
 }
