@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-20",
+  "briefing_date": "2026-10-23",
+  "chapter_count": 15,
+  "workflow_steps_visible": 6,
+  "speech_or_presentation_controls": false,
+  "citation_counts_match_saved_actual_runs": true,
+  "javascript_syntax": "passed",
+  "offline_external_assets": 0,
+  "browser_checks": [
+    "chapter_filter_shows_7_8_10_11_12",
+    "hidden_chapter_navigation_restores_all_15",
+    "responsive_narrow_view_no_horizontal_overflow",
+    "desktop_layout_reviewed"
+  ],
+  "actual_document_narrow_width_px": 375,
+  "credential_scan": "passed",
+  "research_api_calls_during_page_build": 0,
+  "site_deployment": {
+    "project_id": "appgprj_6ad7316fb71081918703a11bfd44ed8b",
+    "status": "succeeded",
+    "audience": "owner_private",
+    "url": "https://person-report-progress-wangli-20261023.smokybat12.chatgpt.site",
+    "source_commit": "5e69f984924974280582b7a5529e48feb8522865"
+  },
+  "tencent_cloud_reference_page_modified": false,
+  "html_sha256": "8efa90aca449a178e174f708d4c29f7739b22a7ac46042d683f2e2592ee57347",
+  "offline_zip_sha256": "55d75bee22ab4b4f55ed2cc80bd2462b88506e81a3643a2a3fc49bbee1c7abf4"
+}
