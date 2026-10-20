@@ -1,0 +1,302 @@
+{
+  "scope": "new_material_chapter_7_8_followup_not_controlled_accuracy_experiment",
+  "before": "work\\person-optimization\\same-corpus-20261020T155330",
+  "after": "work\\person-optimization\\same-corpus-20261020T164818",
+  "formal_delivery_accepted": false,
+  "final_validation_new_model_requests": 0,
+  "final_validation_retained_responses_used": 11,
+  "retained_source_count": 76,
+  "chapters": [
+    {
+      "chapter": 1,
+      "title": "摘要",
+      "before_cited_ids": 9,
+      "after_cited_ids": 10,
+      "after_review_status": "upstream_review_required",
+      "source_scope_counts": {
+        "person": 10
+      },
+      "remaining_gaps": [],
+      "peer_names": [],
+      "opinion_records": 0
+    },
+    {
+      "chapter": 2,
+      "title": "创始人底色画像",
+      "before_cited_ids": 12,
+      "after_cited_ids": 12,
+      "after_review_status": "needs_model_review",
+      "source_scope_counts": {
+        "person": 12
+      },
+      "remaining_gaps": [
+        "研究维度“教育与早年经历”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“履历断点与矛盾”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“家庭健康等公开信息边界”缺少能回答问题的原文、个人角色或时期证据。"
+      ],
+      "peer_names": [],
+      "opinion_records": 0
+    },
+    {
+      "chapter": 3,
+      "title": "人格特质风险",
+      "before_cited_ids": 3,
+      "after_cited_ids": 3,
+      "after_review_status": "needs_model_review",
+      "source_scope_counts": {
+        "person": 3
+      },
+      "remaining_gaps": [
+        "研究维度“责任心与事业心”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“诚信与利益取舍”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“表达与风险偏好”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“压力下行为与评价者立场”缺少能回答问题的原文、个人角色或时期证据。"
+      ],
+      "peer_names": [],
+      "opinion_records": 0
+    },
+    {
+      "chapter": 4,
+      "title": "经营胜任力、持续创新与迭代能力验证",
+      "before_cited_ids": 12,
+      "after_cited_ids": 12,
+      "after_review_status": "evidence_gaps_remain",
+      "source_scope_counts": {
+        "affiliated_company": 3,
+        "person": 9
+      },
+      "remaining_gaps": [
+        "研究维度“战略设计与行业判断”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“执行与项目结果”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“资本资源与个人职责”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“创新迭代与阶段匹配”缺少能回答问题的原文、个人角色或时期证据。"
+      ],
+      "peer_names": [],
+      "opinion_records": 0
+    },
+    {
+      "chapter": 5,
+      "title": "识人用人、统筹管理及核心经营管控能力",
+      "before_cited_ids": 12,
+      "after_cited_ids": 12,
+      "after_review_status": "needs_model_review",
+      "source_scope_counts": {
+        "person": 12
+      },
+      "remaining_gaps": [
+        "研究维度“权责与授权”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“用人与关键岗位”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“文化与冲突处理”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“经营管控与稳定性”缺少能回答问题的原文、个人角色或时期证据。"
+      ],
+      "peer_names": [],
+      "opinion_records": 0
+    },
+    {
+      "chapter": 6,
+      "title": "核心管理团队背景调研",
+      "before_cited_ids": 12,
+      "after_cited_ids": 12,
+      "after_review_status": "needs_model_review",
+      "source_scope_counts": {
+        "person": 12
+      },
+      "remaining_gaps": [
+        "研究维度“成员履历与职责”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“产业资源与合作基础”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关键人员变动”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“团队治理与关系边界”缺少能回答问题的原文、个人角色或时期证据。"
+      ],
+      "peer_names": [],
+      "opinion_records": 0
+    },
+    {
+      "chapter": 7,
+      "title": "商业操守与个人信用风险核查",
+      "before_cited_ids": 0,
+      "after_cited_ids": 6,
+      "after_review_status": "needs_model_review",
+      "source_scope_counts": {
+        "person": 6
+      },
+      "remaining_gaps": [
+        "未接入授权访谈材料时，多方访谈与口碑交叉验证仍待人工完成。",
+        "具名观点仍须核对评价者利益关系、目标回应和原始处理结果；历史报道及单方指控不得作为当前信用或违法结论。",
+        "研究维度“员工与前同事评价”：缺少关系明确的具名评价；其他人群、公司宣传或匿名说法不能代替。",
+        "研究维度“合作伙伴与客户评价”：缺少关系明确的具名评价；其他人群、公司宣传或匿名说法不能代替。",
+        "研究维度“同行评价与利益立场”：缺少关系明确的具名评价；其他人群、公司宣传或匿名说法不能代替。"
+      ],
+      "peer_names": [],
+      "opinion_records": 1
+    },
+    {
+      "chapter": 8,
+      "title": "同业对标下综合能力与品行隐患评估",
+      "before_cited_ids": 0,
+      "after_cited_ids": 11,
+      "after_review_status": "evidence_gaps_remain",
+      "source_scope_counts": {
+        "comparison_person": 11
+      },
+      "remaining_gaps": [
+        "可比候选李斌尚缺行业原词、发展阶段、对应时期；候选具名不代表比较口径已经对齐。",
+        "可比候选李斌现有资料尚缺已确认的一手披露定位；百科、报道及机构介绍不得自动当作官方任职证明。",
+        "可比候选李书福尚缺行业原词、发展阶段、对应时期；候选具名不代表比较口径已经对齐。",
+        "可比候选李书福现有资料尚缺已确认的一手披露定位；百科、报道及机构介绍不得自动当作官方任职证明。",
+        "目标人物与可比人物的个人职责、指标定义和单位尚需逐项对齐；不以公司营收或股价代替个人能力。",
+        "研究维度“同期间能力与成果”：尚未完成目标与候选人物的同时期、同指标和同单位对齐，不作能力或成果排名。",
+        "研究维度“行为风格与信用证据”：当前候选资料以身份、履历和职责为主，尚不足以比较行为风格或个人信用。"
+      ],
+      "peer_names": [
+        "李书福",
+        "李斌"
+      ],
+      "opinion_records": 0
+    },
+    {
+      "chapter": 9,
+      "title": "关联利益冲突及司法负面核查",
+      "before_cited_ids": 9,
+      "after_cited_ids": 9,
+      "after_review_status": "needs_model_review",
+      "source_scope_counts": {
+        "person": 8,
+        "affiliated_company": 1
+      },
+      "remaining_gaps": [
+        "研究维度“任职持股及控制关系”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关联交易与利益一致性”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“司法事项及当事人身份”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关系时间与透明度缺口”缺少能回答问题的原文、个人角色或时期证据。"
+      ],
+      "peer_names": [],
+      "opinion_records": 0
+    },
+    {
+      "chapter": 10,
+      "title": "专项调研",
+      "before_cited_ids": 12,
+      "after_cited_ids": 12,
+      "after_review_status": "evidence_gaps_remain",
+      "source_scope_counts": {
+        "person": 12
+      },
+      "remaining_gaps": [
+        "委托问题“持股及权益”：需逐条核对变动前后记录及生效时点；多个年份不能自行证明任职或持股变化",
+        "委托问题“任职及职责”：需逐条核对变动前后记录及生效时点；多个年份不能自行证明任职或持股变化",
+        "委托问题“关联关系”：缺少事件时期；平台采集日及企业成立日不能替代",
+        "委托问题“关联关系”：历史变化缺少至少两个可核对时点，单次平台快照不能证明变化",
+        "委托问题“司法及契约事项”：缺少与委托问题直接相关、身份匹配的原文记录",
+        "委托问题“经营与融资”：缺少事件时期；平台采集日及企业成立日不能替代",
+        "委托问题“同业比较”：缺少与委托问题直接相关、身份匹配的原文记录"
+      ],
+      "peer_names": [],
+      "opinion_records": 0
+    },
+    {
+      "chapter": 11,
+      "title": "投后治理及退出风险研判",
+      "before_cited_ids": 12,
+      "after_cited_ids": 12,
+      "after_review_status": "evidence_gaps_remain",
+      "source_scope_counts": {
+        "person": 11,
+        "affiliated_company": 1
+      },
+      "remaining_gaps": [
+        "研究维度“人物实际决策角色”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“投资方沟通与重大事项”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关键岗位与制度承接”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“退出路径及适用条件”缺少能回答问题的原文、个人角色或时期证据。"
+      ],
+      "peer_names": [],
+      "opinion_records": 0
+    },
+    {
+      "chapter": 12,
+      "title": "风险核查",
+      "before_cited_ids": 3,
+      "after_cited_ids": 3,
+      "after_review_status": "evidence_gaps_remain",
+      "source_scope_counts": {
+        "person": 3
+      },
+      "remaining_gaps": [
+        "研究维度“已发现的直接信号”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关联主体间接信号”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“尚未核验及未查询事项”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“风险核查覆盖清单”缺少能回答问题的原文、个人角色或时期证据。"
+      ],
+      "peer_names": [],
+      "opinion_records": 0
+    },
+    {
+      "chapter": 13,
+      "title": "综合评估",
+      "before_cited_ids": 9,
+      "after_cited_ids": 10,
+      "after_review_status": "upstream_review_required",
+      "source_scope_counts": {
+        "person": 10
+      },
+      "remaining_gaps": [],
+      "peer_names": [],
+      "opinion_records": 0
+    },
+    {
+      "chapter": 14,
+      "title": "信息来源",
+      "before_cited_ids": 50,
+      "after_cited_ids": 65,
+      "after_review_status": "source_index",
+      "source_scope_counts": {},
+      "remaining_gaps": [],
+      "peer_names": [
+        "李书福",
+        "李斌"
+      ],
+      "opinion_records": 1
+    },
+    {
+      "chapter": 15,
+      "title": "后续研究点",
+      "before_cited_ids": 0,
+      "after_cited_ids": 0,
+      "after_review_status": "verification_plan",
+      "source_scope_counts": {},
+      "remaining_gaps": [],
+      "peer_names": [],
+      "opinion_records": 0
+    }
+  ],
+  "word_visual_qa": "not_completed_renderer_unavailable",
+  "tests": {
+    "workspace": {
+      "passed": 1286,
+      "skipped": 14,
+      "xml": "work/person-optimization/chapter-7-8-release-tests.xml"
+    },
+    "final_person": {
+      "passed": 162,
+      "xml": "work/person-optimization/chapter-7-8-final-person-tests.xml"
+    }
+  },
+  "live_trials": [
+    "same-corpus-20261020T161806",
+    "same-corpus-20261020T162441",
+    "same-corpus-20261020T163001"
+  ],
+  "observed_new_search_requests": 12,
+  "observed_original_fetch_attempts": 18,
+  "recorded_model_responses": 38,
+  "new_professional_requests": 0,
+  "production_deployment": "not_performed",
+  "final_acquisition_path": {
+    "cumulative_search_calls": 37,
+    "search_budget": 48,
+    "cumulative_fetch_attempts": 44,
+    "fetch_budget": 44
+  },
+  "docx_integrity_ok": true,
+  "docx_dated_opinion_and_peer_table_present": true
+}

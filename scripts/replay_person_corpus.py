@@ -22,10 +22,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('baseline', type=Path)
     parser.add_argument('--live-model', action='store_true', help='Use paid real chapter model calls; otherwise record a model-free evidence replay')
+    parser.add_argument('--chapter-followup', action='store_true', help='Paid bounded new chapter 7/8 searches and source extraction on the retained corpus')
+    parser.add_argument('--retained-chapter-discovery', action='store_true', help='Reuse retained discovery originals; only query nominated peers')
     parser.add_argument('--model-responses', type=Path, help='Reuse retained real model responses for a validation-only replay, no model charges')
     args = parser.parse_args()
     if args.live_model and args.model_responses:
         parser.error('--live-model and --model-responses are mutually exclusive')
+    if args.chapter_followup and not args.live_model:
+        parser.error('--chapter-followup requires --live-model')
+    if args.retained_chapter_discovery and not args.chapter_followup:
+        parser.error('--retained-chapter-discovery requires --chapter-followup')
     baseline = args.baseline.resolve()
     from dotenv import load_dotenv
     load_dotenv(ROOT / '.env')
@@ -78,6 +84,12 @@ def main():
     workflow.collect_web_sources = collect
     workflow.collect_structured_sources = lambda *a, **kw: 0
     workflow.collect_person_affiliation_structured_sources = lambda *a, **kw: 0
+    if not args.chapter_followup:
+        workflow.collect_person_chapter_sources = lambda *a, **kw: 0
+    elif args.retained_chapter_discovery:
+        original_chapter_collection = workflow.collect_person_chapter_sources
+        workflow.collect_person_chapter_sources = lambda db, p, value, emit=None: original_chapter_collection(
+            db, p, {**value, 'person_chapter_followup_mode': 'retained_only'}, emit)
     # Entity resolution for a person is local, but disable any future remote
     # implementation here: this replay is explicitly restricted to the corpus.
     workflow.resolve_business_entity = lambda project, intake, **kw: intake
@@ -113,6 +125,24 @@ def main():
                'new_search_calls': 0, 'new_professional_calls': 0, 'proposal': 'excluded_already_exercised_in_baseline',
                'corpus_sha256': hashlib.sha256((baseline / 'source-snapshots.json').read_bytes()).hexdigest(),
                'intake_sha256': hashlib.sha256((baseline / 'intake.json').read_bytes()).hexdigest()}
+    if args.chapter_followup:
+        summary.update(scope='retained_corpus_plus_bounded_chapter_7_8_research_and_live_models',
+                       baseline_corpus_sha256=summary['corpus_sha256'])
+        original_finalize = workflow._finalize_source_records
+        def finalize(db, project, trace=None):
+            snapshots = [{k: getattr(s, k) for k in ('id', 'source_type', 'title', 'url', 'content', 'summary', 'source_metadata', 'credibility_score')}
+                         for s in project.sources]
+            snapshot_path = run / 'source-snapshots.json'
+            snapshot_path.write_text(json.dumps(safe(snapshots), ensure_ascii=False, indent=2), encoding='utf-8')
+            (run / 'intake.json').write_text(json.dumps(intake, ensure_ascii=False, indent=2), encoding='utf-8')
+            summary['corpus_sha256'] = hashlib.sha256(snapshot_path.read_bytes()).hexdigest()
+            summary['provider_attempts'] = getattr(project, 'person_platform_attempts', [])
+            summary['chapter_followup'] = (getattr(project, 'person_retrieval_audit', {}) or {}).get('chapter_7_8_followup', {})
+            summary['new_search_calls'] = len(summary['chapter_followup'].get('attempts', []))
+            summary['retained_source_count'] = len(snapshots)
+            shutil.copytree(run / 'objects', run / 'objects-before-cleanup', dirs_exist_ok=True)
+            original_finalize(db, project, trace)
+        workflow._finalize_source_records = finalize
     if args.model_responses:
         summary.update(scope='same_corpus_validation_replay_retained_real_model_responses', actual_model_requests=0,
                        model_response_sha256=hashlib.sha256(args.model_responses.read_bytes()).hexdigest(),

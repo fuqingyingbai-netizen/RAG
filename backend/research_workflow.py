@@ -703,7 +703,7 @@ class ResearchWorkflow:
             self._refresh_person_source_identities(project, normalized_intake)
             db.commit()
         cleaning_pipeline_version = (
-            "person-evidence-v16-critical-platform-coverage"
+            "person-evidence-v17-feedback-peer-research"
             if standardized_type == "person"
             else "company-evidence-v11-vector-survey-charts"
             if standardized_type == "company"
@@ -712,7 +712,7 @@ class ResearchWorkflow:
             else "default-v4-auditable"
         )
         report_pipeline_version = {
-            "person": "person-report-v9-review-markers",
+            "person": "person-report-v10-feedback-peer-ledger",
             # v8 additionally indexes structured business records (QCC/Xiniu)
             # and uses evidence-density-aware company chapter writing. Do not
             # reuse a report produced before those delivery rules.
@@ -946,6 +946,13 @@ class ResearchWorkflow:
             _emit(emit, "structured_data", "structured_data_agent", "专业数据库来源缺失，质量闸门拦截", message, status="error")
             raise RuntimeError(message)
 
+        if standardized_type == 'person':
+            try:
+                sources_added += self.collect_person_chapter_sources(db, project, normalized_intake, emit)
+                db.expire(project, ['sources'])
+            except Exception as exc:
+                db.rollback()
+                _emit(emit, 'web_search', 'person_chapter_research', '人物7/8章补证未完成', type(exc).__name__, status='warning')
         ocr_count = 0
         try:
             ocr_count = self.enrich_ocr_sources(db, project, emit=emit)
@@ -3693,6 +3700,13 @@ class ResearchWorkflow:
         added += collect_group(self, db, project, jobs, emit)
         return added
 
+    def collect_person_chapter_sources(self, db, project, intake, emit=None):
+        try:
+            from .person_chapter_research import collect
+        except ImportError:
+            from person_chapter_research import collect
+        return collect(self, db, project, intake, emit)
+
     def _credit_code_is_near_affiliation(
         self,
         project: ResearchProject,
@@ -4018,6 +4032,7 @@ class ResearchWorkflow:
         person_fetch_used = 0
         person_fetch_per_chapter = Counter()
         person_fetch_budget = _env_int("PERSON_WEB_FETCH_BUDGET", 44, 0, 200)
+        person_initial_fetch_budget = person_fetch_budget - (min(6, person_fetch_budget // 3) if person_fetch_budget >= 18 else 0)
 
         added = 0
         discovered_affiliations: set[str] = set()
@@ -4283,7 +4298,7 @@ class ResearchWorkflow:
                         if person_mode and should_refetch:
                             chapter_key = next(iter(query_item.get("person_chapters") or [2]))
                             round_limit = 2 if round_index == 1 else 1
-                            should_refetch = (person_fetch_used < person_fetch_budget
+                            should_refetch = (person_fetch_used < person_initial_fetch_budget
                                               and person_fetch_per_chapter[(chapter_key, round_index)] < round_limit)
                             if should_refetch:
                                 person_fetch_used += 1

@@ -154,6 +154,16 @@ def process_text(text):
 
 def chapter_relevant(fact, chapter):
     text = compact(fact.get('fact', ''))
+    if chapter == 7:
+        if fact.get('feedback_record'):
+            return True
+        try:
+            from .person_chapter_research import feedback_event
+        except ImportError:
+            from person_chapter_research import feedback_event
+        return feedback_event(text, fact.get('subject', '')) or bool(
+            fact.get('claim_type') == 'person_platform_record' and 7 in fact.get('person_chapters', [])
+            and (fact.get('observation') or {}).get('relations') and 'legal' in fact['observation']['relations'])
     if chapter == 3 and '年度报告' in text and '法律责任' in text and re.search(r'真实.{0,8}准确.{0,8}完整', text):
         return False
     if chapter == 8 and not fact.get('comparison_subject'):

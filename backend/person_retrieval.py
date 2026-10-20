@@ -17,7 +17,7 @@ except ImportError:
     from person_evidence import TOPICS, VIEWS, TASKS, compact
     from person_commission import requirements as commission_requirements, event_years, matches as commission_matches
 
-VERSION = 'person-retrieval-v4-chapter-followup'
+VERSION = 'person-retrieval-v5-reserved-reputation-peer-research'
 DIMENSIONS = {
     2: [('education', '教育时间与院校', ('教育', '毕业', '大学', '学历', 'education', 'university', 'degree')),
         ('career', '机构、职位与任职时间', ('任职', '担任', '履历', '创立', 'appointed', 'joined', 'career'))],
@@ -136,6 +136,8 @@ class SearchSession:
         if not self.providers:
             self.providers = list(providers)
         self.budget = integer('PERSON_SEARCH_CALL_BUDGET', 48, 0, 200)
+        self.followup_reserve = min(integer('PERSON_CHAPTER_7_8_CALL_BUDGET', 10, 0, 20), self.budget // 3) if self.budget >= 24 else 0
+        self.initial_budget = self.budget - self.followup_reserve
         self.rows, self.seen = [], set()
         self.chapter_calls = Counter()
         self.unavailable = {}
@@ -190,7 +192,7 @@ class SearchSession:
                                    'search_tier': 'open_web'})
         routed = []
         for item in chosen:
-            if not self.providers or len(self.rows) >= self.budget:
+            if not self.providers or len(self.rows) >= self.initial_budget:
                 break
             chapter = next(iter(item.get('person_chapters') or [2]))
             chapter_limit = min(8, max(5, len(commission_requirements(self.intake)))) if chapter == 10 else 5
@@ -232,6 +234,7 @@ class SearchSession:
     def audit(self, sources):
         return {'version': VERSION, 'identity_anchor': self.intake.get('person_anchor') or {},
                 'call_budget': self.budget, 'calls_planned': len(self.rows),
+                'chapter_7_8_reserved_calls': self.followup_reserve, 'initial_stage_call_budget': self.initial_budget,
                 'budget_exhausted': len(self.rows) >= self.budget, 'attempts': self.rows,
                 'unavailable_providers': self.unavailable,
                 'coverage': coverage(sources, self.intake),

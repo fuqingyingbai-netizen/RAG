@@ -19,7 +19,7 @@ except ImportError:
     from person_commission import requirements as commission_requirements, matches as commission_matches, assess as assess_commission
     from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
 
-VERSION = "person-template-v6-review-markers-20261020"
+VERSION = "person-template-v7-attributed-feedback-and-peers"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
@@ -28,7 +28,7 @@ TOPICS = {
     4: ("经营", "战略", "执行", "创新", "迭代", "融资", "资本", "业绩", "营收", "产品", "技术", "资源", "转型", "growth"),
     5: ("识人", "用人", "管理", "管控", "授权", "文化", "组织", "冲突", "团队", "激励", "离职", "接班"),
     6: ("核心管理", "团队", "高管", "董事", "履历", "产业资源", "派系", "人事", "CEO", "CFO", "CTO", "COO"),
-    7: ("操守", "信用", "口碑", "诚信", "契约", "履约", "员工评价", "合作伙伴", "客户评价", "访谈", "司法", "处罚"),
+    7: ("操守", "信用", "口碑", "诚信", "契约", "履约", "履行", "承诺", "签署", "员工评价", "合作伙伴", "客户评价", "访谈", "司法", "处罚"),
     8: ("同业", "对标", "竞争", "比较", "竞品", "能力短板", "可比", "同行", "benchmark"),
     9: ("关联", "持股", "股权", "代持", "利益冲突", "亲友", "体外", "输送", "诉讼", "司法", "处罚", "控制权", "表决权"),
     10: ("专项", "债务", "资产转移", "真实性", "股东", "知识产权", "专利", "供应链", "质押", "冻结", "纠纷", "创业压力"),
@@ -216,6 +216,29 @@ def build_packages(payload, target, outline, intake=None, sources=()):
     intake = intake or {}
     aliases = (intake.get("person_anchor") or {}).get("aliases") or []
     facts, rejected = normalize_facts(payload, target, aliases, sources)
+    try:
+        from .person_chapter_research import annotated_facts, view_status
+    except ImportError:
+        from person_chapter_research import annotated_facts, view_status
+    supplements = annotated_facts(sources, {**intake, 'target_name': target})
+    known = {f['evidence_id'] for f in facts}
+    for raw in supplements:
+        subject = raw.get('comparison_subject') or target
+        extra, _ = normalize_facts({'facts': [raw]}, subject, sources=sources)
+        for f in extra:
+            if raw.get('feedback_record') and raw['feedback_record']['kind'] == 'attributed_opinion':
+                f.update(opinion_only=True, eligible_for_risk_scoring=False,
+                         attribution_boundary='公开具名观点或单方陈述；不代表指控成立、司法认定或当前信用状况，须核实利益立场、目标回应及处理结果。')
+            if raw.get('comparison_subject'):
+                f['evidence_id'] = 'E-P' + hashlib.sha256((f['source_url'].rstrip('/') + '\n' + f['fact'] + '\npeer=' + subject).encode()).hexdigest()[:14].upper()
+                f.update(subject_scope='comparison_person', subject=subject, eligible_for_risk_scoring=False,
+                         attribution_boundary='可比人物本人资料，仅用于候选对标；不归因目标人物，不代表可比口径已经对齐。')
+                f['observation'].update(subject_scope='comparison_person', subject=subject, issuer=raw['comparison_context']['company'])
+            if f['evidence_id'] not in known:
+                facts.append(f)
+                known.add(f['evidence_id'])
+            elif raw.get('feedback_record'):
+                next(r for r in facts if r['evidence_id'] == f['evidence_id']).update(f)
     cutoff = str(intake.get("as_of_date") or "")
     if re.fullmatch(r"\d{4}-\d{2}-\d{2}", cutoff):
         kept = []
@@ -234,6 +257,10 @@ def build_packages(payload, target, outline, intake=None, sources=()):
         terms = TOPICS.get(chapter, ())
         ranked = []
         for f in facts:
+            if f['subject_scope'] == 'comparison_person' and chapter != 8:
+                continue
+            if f.get('feedback_record') and chapter != 7:
+                continue
             if not chapter_relevant(f, chapter):
                 continue
             if f['subject_scope'] == 'other_person' and chapter != 6:
@@ -260,6 +287,10 @@ def build_packages(payload, target, outline, intake=None, sources=()):
                 # Query labels/titles and a generic "专项" keyword are not
                 # evidence of relevance to the actual commissioned question.
                 hits, module_match = commission_hits * 4, False
+            if chapter == 8 and f['subject_scope'] == 'comparison_person':
+                hits += 4
+            if chapter == 7 and f.get('feedback_record'):
+                hits += 4
             if chapter in {1, 13} or (chapter < 14 and hits):
                 # Unrelated facts never fill an empty chapter.
                 ranked.append((hits + 8 * module_match + (2 if f["subject_scope"] == "person" else 0), f))
@@ -279,7 +310,7 @@ def build_packages(payload, target, outline, intake=None, sources=()):
             if domains[domain] >= 4:
                 continue
             selected.append({**f, "temporal_conflict": f["evidence_id"] in conflicting,
-                             "analysis_allowed": f['subject_scope'] == 'person' and f['evidence_id'] not in conflicting})
+                             "analysis_allowed": f['subject_scope'] == 'person' and not f.get('opinion_only') and f['evidence_id'] not in conflicting})
             domains[domain] += 1
             if len(selected) >= 12:
                 break
@@ -288,8 +319,22 @@ def build_packages(payload, target, outline, intake=None, sources=()):
             gaps.append("本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。")
         if chapter == 7:
             gaps.append("未接入授权访谈材料时，多方访谈与口碑交叉验证仍待人工完成。")
-        if chapter == 8 and len({f.get("comparison_subject") for f in selected if f.get("comparison_subject")}) < 2:
-            gaps.append("缺少至少两位同赛道、同阶段、同角色的可比人物证据，不作横向评级。")
+            if any(f.get('opinion_only') for f in selected):
+                gaps.append('具名观点仍须核对评价者利益关系、目标回应和原始处理结果；历史报道及单方指控不得作为当前信用或违法结论。')
+        if chapter == 8:
+            peers = {f.get('comparison_subject'): f.get('comparison_context', {}) for f in selected if f.get('comparison_subject')}
+            if len(peers) < 2:
+                gaps.append("缺少至少两位同赛道、同阶段、同角色的可比人物证据，不作横向评级。")
+            for name, peer in peers.items():
+                missing = [label for key, label in [('industry', '行业原词'), ('stage', '发展阶段'), ('period', '对应时期')] if not peer.get(key)]
+                if missing:
+                    gaps.append(f'可比候选{name}尚缺' + '、'.join(missing) + '；候选具名不代表比较口径已经对齐。')
+                if not any(f.get('comparison_subject') == name and f.get('individual_peer_page') for f in selected):
+                    gaps.append(f'可比候选{name}尚缺单独身份匹配的原始简介或披露；不能只依赖同一篇比较报道。')
+                if not any(f.get('comparison_subject') == name and f.get('primary_disclosure') for f in selected):
+                    gaps.append(f'可比候选{name}现有资料尚缺已确认的一手披露定位；百科、报道及机构介绍不得自动当作官方任职证明。')
+            if peers:
+                gaps.append('目标人物与可比人物的个人职责、指标定义和单位尚需逐项对齐；不以公司营收或股价代替个人能力。')
         if chapter == 10 and not (intake.get("special_requirements") or intake.get("focus_questions")):
             gaps.append("委托人尚未明确专项方向；已收集线索仅供确定核查范围。")
         if any(f["temporal_conflict"] for f in selected):
@@ -299,6 +344,11 @@ def build_packages(payload, target, outline, intake=None, sources=()):
             gaps.extend('委托问题“' + row['question'] + '”：' + gap for gap in row['gaps'])
         if chapter in VIEWS and chapter not in {1, 10, 13}:
             for view in VIEWS[chapter]:
+                typed_view = view_status(chapter, view, selected)
+                if typed_view is not None:
+                    if not typed_view[0]:
+                        gaps.append(f'研究维度“{view}”：' + typed_view[2])
+                    continue
                 terms = [t for t in re.split(r'与|及|和|、', view) if len(t) >= 2]
                 if not any(any(compact(t) in compact(f['fact']) for t in terms) for f in selected):
                     gaps.append(f'研究维度“{view}”缺少能回答问题的原文、个人角色或时期证据。')
@@ -427,6 +477,21 @@ def render_section(package, claims=()):
         record = f.get('observation') or {}
         period = record.get('period') or '；'.join(r['field'] + '：' + r['source_value'] for r in record.get('role_date_fields', [])) or f['event_date']
         lines.append(f"| {cell(f['fact'])} | {cell(period)} | {cell(f['subject'])}；{cell(boundary)} | [{f['evidence_id']}] |")
+    if chapter == 7 and any(f.get('feedback_record') for f in facts):
+        lines += ['', '### 具名评价与具体事件', '', '| 资料性质 | 评价者及原文身份或关系 | 对应时期 | 证据与边界 |', '| --- | --- | --- | --- |']
+        for f in facts:
+            r = f.get('feedback_record')
+            if r:
+                kind = ('历史争议中的具名单方陈述（未核实）' if r.get('disputed_claim') else '公开具名评价') if r['kind'] == 'attributed_opinion' else '个人契约或承诺事项（履行待核实）'
+                period = cell(r['period']) + '；报道发布：' + cell(r.get('source_published_at')) + '（不代替事件时间）'
+                lines.append(f"| {kind} | {cell(r['evaluator'])}；{cell(r['relationship'])} | {period} | [{f['evidence_id']}] 来源陈述，未完成授权访谈；身份职务不代表利益关系已核实，评价或指控不等于事实成立，不据此评级 |")
+    if chapter == 8 and any(f.get('comparison_subject') for f in facts):
+        lines += ['', '### 可比人物候选与口径核对', '', '| 候选人物与机构 | 来源所列职责 | 行业、阶段、时期 | 证据与限制 |', '| --- | --- | --- | --- |']
+        for f in facts:
+            r = f.get('comparison_context')
+            if r:
+                fields = '；'.join(cell(r.get(k)) for k in ('industry', 'stage', 'period'))
+                lines.append(f"| {cell(r['name'])} / {cell(r['company'])} | {cell(r['role'])} | {fields} | [{f['evidence_id']}] 候选可比性及指标口径待核对，不排名 |")
     analyses = [c for c in claims if c.get("analysis")]
     if analyses:
         lines += ["", "### 基于上述材料的初步分析", ""]
@@ -453,6 +518,15 @@ def render_section(package, claims=()):
     if chapter in VIEWS and not (chapter == 10 and package.get('commission_coverage')):
         lines += ["", "### 本章研究覆盖与核验问题", "", "| 研究维度 | 当前证据边界 |", "| --- | --- |"]
         for view in VIEWS[chapter]:
+            if chapter in {7, 8}:
+                try:
+                    from .person_chapter_research import view_status
+                except ImportError:
+                    from person_chapter_research import view_status
+                _, matches, status = view_status(chapter, view, facts)
+                refs = ' '.join(f"[{f['evidence_id']}]" for f in matches)
+                lines.append(f"| {view} | {status} {refs} |")
+                continue
             terms = [t for t in re.split(r"与|及|和|、", view) if len(t) >= 2]
             matched = [f for f in facts if any(compact(t) in compact(f["fact"]) for t in terms)]
             status = "已收集相关来源陈述，尚须核对个人职责、时期和原件。 " + " ".join(f"[{f['evidence_id']}]" for f in matched[:2]) if matched else "现有材料不足以对该维度作判断，需按第15章补充核验。"
@@ -615,7 +689,7 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
             selected = []
             for index in sorted(sections):
                 for eid in sorted(cited_ids(sections[index])):
-                    if eid in used and eid in by_id and by_id[eid] not in selected:
+                    if eid in used and eid in by_id and by_id[eid]['subject_scope'] != 'comparison_person' and not by_id[eid].get('opinion_only') and by_id[eid] not in selected:
                         selected.append(by_id[eid])
                         break
             conflict_ids = {eid for row in contract['conflicts'] for eid in row['evidence_ids']}

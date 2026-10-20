@@ -106,7 +106,9 @@ def test_three_engines_are_sequential_bounded_and_all_chapters_are_assessed(monk
     audit = session.audit([])
     assert len(audit['attempts']) <= 25
     assert len(audit['coverage']['chapters']) == 15
-    assert audit['budget_exhausted']
+    # The generic rounds stop before spending the reserved reputation/peer pass.
+    assert not audit['budget_exhausted']
+    assert len(audit['attempts']) + audit['chapter_7_8_reserved_calls'] == 25
 
 
 def test_duplicate_queries_cannot_spend_twice_on_same_engine():
