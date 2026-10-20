@@ -10,7 +10,7 @@ function context(options = {}) {
   const app = { component() { return this; }, use() { return this; }, mount() {} };
   const localStorage = { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../frontend/script.js'), 'utf8'), {
-    Vue: { createApp(value) { definition = value; return app; } }, ElementPlus: { ElMessageBox: { confirm: options.confirm || (async () => true) } }, CompanyKnowledge: {}, AccountManagement: {}, PersonalHome: {}, ReportVersions: {}, localStorage, URL,
+    Vue: { createApp(value) { definition = value; return app; } }, ElementPlus: { ElMessage: {warning: value => options.warnings?.push(value)}, ElMessageBox: { confirm: options.confirm || (async () => true) } }, CompanyKnowledge: {}, AccountManagement: {}, PersonalHome: {}, ReportVersions: {}, localStorage, URL, FileReader: options.FileReader,
     TextDecoder, AbortController, setTimeout, clearTimeout, window: options.window,
   });
   const state = definition.data();
@@ -22,6 +22,50 @@ function context(options = {}) {
 function cloudState(session = 'session-1', messages = []) {
   return { session_id: session, sessions: [{ id: session, title: '新对话' }], messages, summary: '', has_more: false, legacy_imported: true };
 }
+
+test('image selection enforces count and size limits without losing the current draft', async () => {
+  const warnings = [];
+  class Reader { readAsDataURL(file) { this.result = 'data:' + file.type + ';base64,AAAA'; this.onload(); } }
+  const { state } = context({ warnings, FileReader: Reader }); state.applyAssistantState(cloudState());
+  state.assistantInput = '解释这个页面';
+  await state.addAssistantImages([{name:'screen.png', type:'image/png', size:100}]);
+  assert.equal(state.assistantImages.length,1);
+  await state.addAssistantImages([{type:'image/png',size:100},{type:'image/png',size:100}]);
+  assert.equal(state.assistantImages.length,1); assert.match(warnings.at(-1),/最多/);
+  await state.addAssistantImages([{type:'image/png',size:4*1024*1024}]);
+  assert.equal(state.assistantImages.length,1); assert.match(warnings.at(-1),/3 MB/);
+  assert.equal(state.assistantInput,'解释这个页面');
+});
+
+test('an image read finishing after logout cannot populate another account draft', async () => {
+  let reader;
+  class Reader { constructor(){reader=this;} readAsDataURL(){} }
+  const { state } = context({FileReader:Reader}); state.currentUser={username:'alice'}; state.applyAssistantState(cloudState('alice'));
+  const selecting=state.addAssistantImages([{name:'private.png',type:'image/png',size:100}]);
+  state.handleLogout(); state.currentUser={username:'bob'}; state.applyAssistantState(cloudState('bob'));
+  reader.result='data:image/png;base64,AAAA'; reader.onload(); await selecting;
+  assert.equal(state.assistantImages.length,0); assert.equal(state.assistantImageBusy,false);
+});
+
+test('image-only messages include transient attachments and do not write a browser history cache', async () => {
+  const { state, storage }=context(); state.currentUser={username:'alice'};state.applyAssistantState(cloudState());
+  state.assistantImages=[{name:'screen.png',url:'data:image/png;base64,AAAA'}]; let payload;
+  const events='data: '+JSON.stringify({type:'content',content:'操作指引'})+'\n\ndata: '+JSON.stringify({type:'memory',saved:true})+'\n\n';let read=false;
+  state.authFetch=async(url,options)=>{payload=JSON.parse(options.body);return {ok:true,body:{getReader:()=>({read:async()=>read?{done:true}:(read=true,{done:false,value:new TextEncoder().encode(events)})})}}};
+  await state.sendAssistantMessage();
+  assert.equal(payload.message,'');assert.deepEqual(payload.images,['data:image/png;base64,AAAA']);
+  assert.equal(state.assistantImages.length,0);assert.equal(state.assistantMessages[1].images.length,1);
+  assert.equal(state.assistantMessages.at(-1).text,'操作指引');assert.ok(!JSON.stringify([...storage]).includes('base64'));
+});
+
+test('pasting a screenshot handles images while plain text keeps normal paste behavior', () => {
+  const {state}=context();let calls=0,prevented=0;
+  state.addAssistantImages=files=>{calls++;assert.equal(files[0].type,'image/png')};
+  state.pasteAssistantImage({clipboardData:{items:[{kind:'string',type:'text/plain'}]},preventDefault(){prevented++}});
+  assert.equal(calls,0);assert.equal(prevented,0);
+  state.pasteAssistantImage({clipboardData:{items:[{kind:'file',type:'image/png',getAsFile:()=>({type:'image/png'})}]},preventDefault(){prevented++}});
+  assert.equal(calls,1);assert.equal(prevented,1);
+});
 
 test('a newly signed-in account cannot inherit the previous account conversation', async () => {
   const { state } = context();

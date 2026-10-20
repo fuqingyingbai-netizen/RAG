@@ -298,6 +298,10 @@ class ResearchWorkflow:
             "industry": IndustryReportAgent(),
         }
 
+    def _get_assistant_model(self):
+        from assistant_model import configured_model
+        return configured_model()
+
     def _get_model(self):
         if self._model is not None:
             return self._model

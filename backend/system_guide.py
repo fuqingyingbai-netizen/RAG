@@ -5,6 +5,7 @@ import time
 
 from assistant_online import TOOLS, execute_tool, now_text
 from assistant_memory import CONTEXT_CHARS, SUMMARY_CHARS, recent_window
+from assistant_model import assistant_model
 from product_guide import (PAGES, GUIDE_TOOL, directory, page_help, guide_context,
                            find_topics, format_topic, normalize, is_product_question, is_guide_request, search_guide, answer_from_lookup)
 
@@ -84,7 +85,7 @@ def chat_prompt(request, role):
 
 def model_answer(workflow, request, role, on_event=None, cancel_event=None):
     product_turn = is_guide_request(request)
-    model = workflow._get_model()
+    model = assistant_model(workflow)
     if model is None:
         if product_turn:
             topics = find_topics(request.message, page_for_role(request.current_page, role), role, limit=3)

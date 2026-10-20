@@ -197,7 +197,8 @@ def recent_window(rows, budget=RECENT_CHARS, limit=12):
 
 
 def summarize(workflow, old_summary, rows):
-    model = workflow._get_model()
+    from assistant_model import assistant_model
+    model = assistant_model(workflow)
     if model is None:
         return ''
     messages = [
@@ -258,6 +259,8 @@ def finish_turn(db, user_id, thread_id, token, request_id, answer, sources, memo
     user_message = db.query(Message).filter(Message.thread_id == thread_id, Message.request_id == request_id,
         Message.role == 'user').one()
     user_message.status = 'completed'
+    if memory.get('image_observation'):
+        user_message.content += '\n[' + clean_text(memory['image_observation'], 1200) + ']'
     reply = Message(thread_id=thread_id, request_id=request_id, role='assistant', content=clean_text(answer, 100000),
                     sources=clean_sources(sources))
     db.add(reply)

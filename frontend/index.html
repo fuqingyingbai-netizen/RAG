@@ -329,6 +329,7 @@
       <div class="assistant-messages" ref="assistantMessages" role="log" aria-label="小助手聊天记录" aria-live="polite" aria-relevant="additions" @scroll="onAssistantScroll">
         <el-button v-if="assistantHasMore" text :disabled="assistantSyncing || assistantLoading" @click="loadOlderAssistant">加载更早消息</el-button>
         <div v-for="(msg, index) in assistantMessages" :key="index" :class="['assistant-msg', msg.isUser ? 'user' : 'bot']">
+          <div v-if="msg.isUser && msg.images?.length" class="assistant-sent-images"><img v-for="(image, imageIndex) in msg.images" :key="imageIndex" :src="image.url" :alt="image.name || '已发送截图'" /><small>原图仅用于本轮识别，不保存到历史或知识库</small></div>
           <div v-if="!msg.isUser && !msg.text" class="assistant-thinking" role="status"><span></span>正在回复…</div>
           <div v-else class="assistant-message-content" v-html="msg.isUser ? escapeHtml(msg.text) : parseMarkdown(msg.text)"></div>
           <small v-if="msg.status === 'interrupted'" class="assistant-interrupted">该条消息的回答已中断</small>
@@ -338,8 +339,10 @@
       <footer class="assistant-footer">
         <button v-if="!assistantFollowLatest" type="button" class="assistant-jump" @click="scrollAssistant(true)">回到最新消息<i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
         <details v-if="assistantNavigation.length" class="assistant-navigation"><summary>相关页面<span>{{assistantNavigation.length}} 个入口</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary><nav aria-label="小助手推荐页面"><button v-for="item in assistantNavigation" :key="item.view" type="button" @click="goToAssistantPage(item.view)">{{item.label}}<i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></button></nav></details>
-        <form class="assistant-input" @submit.prevent="sendAssistantMessage"><el-input ref="assistantComposer" v-model="assistantInput" :disabled="assistantSyncing || !assistantReady" type="textarea" :autosize="{minRows: assistantViewportHeight < 500 ? 1 : 2, maxRows: assistantViewportHeight < 500 ? 2 : 4}" resize="none" maxlength="6000" aria-label="给小助手发送消息" placeholder="输入问题，问问操作方法或聊聊天…" @keydown="onAssistantInputKeydown"></el-input><el-button native-type="submit" type="primary" :loading="assistantLoading" :disabled="!assistantInput.trim() || assistantLoading || assistantSyncing || !assistantReady">发送</el-button></form>
-        <p class="assistant-input-hint">Enter 发送 · Shift + Enter 换行</p>
+        <div v-if="assistantImages.length" class="assistant-image-drafts" aria-label="待发送截图"><figure v-for="(image, imageIndex) in assistantImages" :key="imageIndex"><img :src="image.url" :alt="image.name" /><button type="button" :aria-label="'删除截图 ' + (imageIndex + 1)" @click="assistantImages.splice(imageIndex, 1)">×</button><figcaption>{{ image.name }}</figcaption></figure></div>
+        <div class="assistant-image-tools"><input ref="assistantImagePicker" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden @change="chooseAssistantImages" /><button type="button" :disabled="assistantLoading || assistantSyncing || !assistantReady || assistantImageBusy || assistantImages.length >= 2" @click="$refs.assistantImagePicker.click()">＋ 添加截图</button><small>{{ assistantImageBusy ? '正在读取图片…' : '可粘贴截图 · 最多2张 · 每张3 MB' }}</small></div>
+        <form class="assistant-input" @submit.prevent="sendAssistantMessage"><el-input ref="assistantComposer" v-model="assistantInput" :disabled="assistantSyncing || !assistantReady" type="textarea" :autosize="{minRows: assistantViewportHeight < 500 ? 1 : 2, maxRows: assistantViewportHeight < 500 ? 2 : 4}" resize="none" maxlength="6000" aria-label="给小助手发送消息" placeholder="输入问题，也可粘贴页面截图…" @paste="pasteAssistantImage" @keydown="onAssistantInputKeydown"></el-input><el-button native-type="submit" type="primary" :loading="assistantLoading" :disabled="(!assistantInput.trim() && !assistantImages.length) || assistantLoading || assistantSyncing || !assistantReady || assistantImageBusy">发送</el-button></form>
+        <p class="assistant-input-hint">Enter 发送 · Shift + Enter 换行 · 截图不进入知识库</p>
       </footer>
     </section>
   </el-container>

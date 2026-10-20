@@ -53,6 +53,7 @@ createApp({
       reviewProjectId: '', reviewReportFiles: [], reviewProposalFiles: [], fieldSourceFiles: [], fieldSourceModule: '专家访谈/走访', secondStageRunning: false,
       knowledgeQuery: '', knowledgeResults: [],
       assistantOpen: false, assistantInput: '', assistantLoading: false,
+      assistantImages: [], assistantImageBusy: false, assistantDraftEpoch: 0,
       assistantPosition: readAssistantPosition(), assistantDrag: null, assistantWasDragged: false, assistantSuppressClick: false, assistantContextSummary: '',
       assistantViewportWidth: viewport.width, assistantViewportHeight: viewport.height, assistantViewportTop: viewport.top, assistantFollowLatest: true,
       assistantMessages: [{ text: '你好，我主要负责本系统的使用指南。可以点“功能目录”查找具体操作，或直接问任务、报告、资料和权限怎么使用，也可以日常聊天和查公开信息。', isUser: false }],
@@ -228,6 +229,7 @@ createApp({
       } catch (e) { ElementPlus.ElMessage.error(e.message); } finally { this.authLoading = false; }
     },
     handleLogout() {
+      this.resetAssistantImages();
       this.assistantEpoch++; this.assistantController?.abort(); this.assistantController = null; this.assistantSessionId = ''; this.assistantSessions = []; this.assistantReady = false; this.assistantSyncing = false; this.assistantMemoryStatus = ''; this.assistantHasMore = false;
       this.activeView = 'home'; this.mobileNavOpen = false; localStorage.setItem('activeView', 'home');
       this.token = ''; this.currentUser = null; this.authStep = 'role'; this.authMode = 'login';
@@ -859,6 +861,42 @@ createApp({
         event.preventDefault(); this.sendAssistantMessage();
       }
     },
+    resetAssistantImages() {
+      this.assistantDraftEpoch++; this.assistantImages = []; this.assistantImageBusy = false;
+    },
+    async addAssistantImages(files) {
+      if (this.assistantImageBusy || this.assistantLoading || this.assistantSyncing || !this.assistantReady) return;
+      const selected = Array.from(files || []);
+      if (!selected.length) return;
+      if (selected.length + this.assistantImages.length > 2) return ElementPlus.ElMessage.warning('每次最多发送2张截图');
+      if (selected.some(file => !['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 3 * 1024 * 1024)) {
+        return ElementPlus.ElMessage.warning('请使用单张不超过3 MB的PNG、JPEG或WebP图片');
+      }
+      const epoch = this.assistantEpoch, draft = this.assistantDraftEpoch;
+      this.assistantImageBusy = true;
+      try {
+        const items = [];
+        for (const file of selected) {
+          const url = await new Promise((resolve, reject) => {
+            const reader = new FileReader(); reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('图片读取失败，请重新选择')); reader.readAsDataURL(file);
+          });
+          items.push({name: file.name || '粘贴截图', url});
+        }
+        if (epoch === this.assistantEpoch && draft === this.assistantDraftEpoch) this.assistantImages.push(...items);
+      } catch (error) {
+        if (epoch === this.assistantEpoch && draft === this.assistantDraftEpoch) ElementPlus.ElMessage.warning(error.message);
+      } finally {
+        if (epoch === this.assistantEpoch && draft === this.assistantDraftEpoch) this.assistantImageBusy = false;
+      }
+    },
+    chooseAssistantImages(event) {
+      this.addAssistantImages(event.target.files); event.target.value = '';
+    },
+    pasteAssistantImage(event) {
+      const files = Array.from(event.clipboardData?.items || []).filter(item => item.kind === 'file' && item.type.startsWith('image/')).map(item => item.getAsFile()).filter(Boolean);
+      if (files.length) { event.preventDefault(); this.addAssistantImages(files); }
+    },
     startAssistantDrag(event, kind = 'launcher') {
       if (event.button !== 0 || event.target?.closest?.('button:not(.assistant-fab), input, textarea, a, summary')) return;
       if (this.assistantViewportWidth <= 600) return;
@@ -919,6 +957,7 @@ createApp({
     },
     async loadAssistantState() {
       if (this.assistantSyncing || !this.currentUser) return;
+      this.resetAssistantImages();
       const epoch = ++this.assistantEpoch, key = this.assistantStorageKey();
       this.assistantController?.abort(); this.assistantLoading = false; this.assistantSyncing = true; this.assistantReady = false;
       this.assistantMessages = [{ text: '你好，我主要负责本系统的使用指南。可以点“功能目录”查找功能，或问我具体的操作问题，也支持日常聊天和公开信息查询。', isUser: false }];
@@ -945,6 +984,7 @@ createApp({
       }
       if (startingEpoch !== this.assistantEpoch || !this.currentUser) return;
       const epoch = ++this.assistantEpoch;
+      this.resetAssistantImages();
       this.assistantController?.abort(); this.assistantController = null; this.assistantLoading = false; this.assistantSyncing = true;
       try {
         const url = action === 'clear' ? '/research/assistant/history' : action === 'new' ? '/research/assistant/sessions' : `/research/assistant/sessions/${encodeURIComponent(sessionId)}/activate`;
@@ -995,10 +1035,12 @@ createApp({
       });
     },
     async sendAssistantMessage() {
-      const text = this.assistantInput.trim(); if (!text || this.assistantLoading || this.assistantSyncing) return;
+      const text = this.assistantInput.trim();
+      if ((!text && !this.assistantImages.length) || this.assistantLoading || this.assistantSyncing || this.assistantImageBusy) return;
       if (!this.assistantReady) { this.assistantMemoryStatus = '请先重新加载对话，确保账号历史已同步'; return; }
       const epoch = this.assistantEpoch, sessionId = this.assistantSessionId;
-      this.assistantMessages.push({ text, isUser: true }); this.assistantInput = ''; this.assistantLoading = true; this.assistantMemoryStatus = '正在保存并生成回答…';
+      const images = this.assistantImages.map(image => ({...image})); this.resetAssistantImages();
+      this.assistantMessages.push({ text: text || '请根据截图说明这个系统页面如何操作。', images, isUser: true }); this.assistantInput = ''; this.assistantLoading = true; this.assistantMemoryStatus = '正在保存并生成回答…';
       const userMessage = this.assistantMessages[this.assistantMessages.length - 1];
       this.assistantMessages.push({ text: '', isUser: false });
       const bot = this.assistantMessages[this.assistantMessages.length - 1]; this.scrollAssistant(true);
@@ -1006,9 +1048,9 @@ createApp({
       try {
         const controller = new AbortController(); this.assistantController = controller;
         timeout = setTimeout(() => controller.abort(), 135000);
-        const r = await this.authFetch('/research/assistant/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ message: text, current_page: this.activeView, session_id: sessionId, request_id: globalThis.crypto?.randomUUID?.() }) });
+        const r = await this.authFetch('/research/assistant/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ message: text, ...(images.length ? {images: images.map(image => image.url)} : {}), current_page: this.activeView, session_id: sessionId, request_id: globalThis.crypto?.randomUUID?.() }) });
         if (epoch !== this.assistantEpoch) return;
-        if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || '助手请求失败'); }
+        if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(Array.isArray(data.detail) ? data.detail.map(item => item.msg).join('；') : data.detail || '助手请求失败'); }
         const reader = r.body.getReader(), decoder = new TextDecoder(); let buffer = '';
         while (true) {
           const { done, value } = await reader.read(); if (done) break;

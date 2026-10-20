@@ -164,7 +164,7 @@ def test_assistant_guides_and_chats_without_any_project_or_vector_retrieval(monk
     def invoke(messages):
         captured.extend(messages)
         return SimpleNamespace(content='当然可以，我们聊聊周末的计划。')
-    monkeypatch.setattr(api.research_workflow, '_get_model', lambda: SimpleNamespace(invoke=invoke))
+    monkeypatch.setattr(api.research_workflow, '_get_assistant_model', lambda: SimpleNamespace(invoke=invoke))
     with TestClient(app) as client:
         help_response = client.post('/research/assistant/stream', json={'message': '新人怎么开始？', 'current_page': 'tasks'})
         assert '提交尽调任务' in help_response.text and 'navigation' in help_response.text
@@ -192,7 +192,7 @@ def test_assistant_page_help_and_navigation_follow_actual_login_role(monkeypatch
     app = FastAPI(); app.include_router(api.router)
     app.dependency_overrides[api.get_current_user] = lambda: SimpleNamespace(id=9, username='guide-only', role=role)
     app.dependency_overrides[api.get_db] = lambda: guide_history_db
-    monkeypatch.setattr(api.research_workflow, '_get_model', lambda: pytest.fail('page help must work without a model'))
+    monkeypatch.setattr(api.research_workflow, '_get_assistant_model', lambda: pytest.fail('page help must work without a model'))
     with TestClient(app) as client:
         response = client.post('/research/assistant/stream', json={'message': '这个页面怎么用？', 'current_page': page})
     assert response.status_code == 200

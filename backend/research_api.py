@@ -2134,12 +2134,14 @@ async def research_assistant_stream(
 ):
     from system_guide import page_for_role, model_answer, guide_answer, navigation
     from assistant_memory import start_turn, context_plan, prepare_context, finish_turn, interrupt_turn
+    from assistant_images import answer_screenshot, image_question
     question = request.message.strip()
-    if not question:
+    if not question and not request.images:
         raise HTTPException(400, '问题不能为空')
     page = page_for_role(request.current_page, current_user.role)
     request_id = request.request_id or str(uuid4())
-    thread_id, lease = start_turn(db, current_user.id, request.session_id, question, request_id)
+    stored_question = image_question(question, len(request.images)) if request.images else question
+    thread_id, lease = start_turn(db, current_user.id, request.session_id, stored_question, request_id)
     plan = context_plan(db, current_user.id, thread_id)
     user_id, role = current_user.id, current_user.role
 
@@ -2155,6 +2157,9 @@ async def research_assistant_stream(
                 except RuntimeError:
                     pass  # Event loop closed during a client disconnect.
         def generate():
+            if request.images:
+                answer, observation = answer_screenshot(research_workflow, request, role, emit, cancelled)
+                return answer, dict(memory, image_observation=observation)
             answer = guide_answer(question, page, role)
             if answer:
                 # Deterministic operating instructions remain available without

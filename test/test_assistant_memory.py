@@ -35,7 +35,7 @@ def history(tmp_path, monkeypatch):
     def invoke(messages, **kwargs):
         prompts.append(messages)
         return SimpleNamespace(content='收到，我们继续聊。')
-    monkeypatch.setattr(api.research_workflow, '_get_model', lambda: SimpleNamespace(invoke=invoke))
+    monkeypatch.setattr(api.research_workflow, '_get_assistant_model', lambda: SimpleNamespace(invoke=invoke))
     for name in ('_assistant_project_ids', '_vector_context', '_project_store_context'):
         monkeypatch.setattr(api, name, lambda *a: pytest.fail('assistant must not retrieve project data'))
     with TestClient(app) as client:

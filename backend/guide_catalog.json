@@ -1651,6 +1651,36 @@
           "anchor": "newConversation() { this.controller?.abort(); this.messages = []; this.draft = ''; }"
         }
       ]
+    },
+    {
+      "id": "assistant-images",
+      "page": "home",
+      "title": "小助手发送截图、看图指引与图片保存",
+      "aliases": [
+        "发送截图",
+        "上传截图",
+        "粘贴截图",
+        "发图片",
+        "发送图片",
+        "看图",
+        "图片保存",
+        "视觉模型"
+      ],
+      "body": "打开小助手，在输入框上方点“＋ 添加截图”，或在输入框中粘贴剪贴板图片；可先看缩略图，点图片右上角“×”删除。每次最多2张，单张不超过3 MB，支持静态PNG、JPEG、WebP。补充页面、按钮或报错问题后发送，也可仅发图。助手读取清晰界面文字，再按系统指南说明步骤与权限；图片模糊、目标不明确或不是系统页面时会要求补充，不猜按钮、不自动操作。小助手统一使用阿里视觉语言模型处理文字和截图。原图只用于本轮识别，不进入知识库或溯源库，也不保存到服务端历史；刷新或重新加载后需重新发送。聊天记录仅保留附图数量、识别成功时的短文字观察和回答，观察可能不准确，不代表后台真实状态。",
+      "roles": [
+        "user",
+        "admin"
+      ],
+      "code_refs": [
+        {
+          "path": "backend/assistant_images.py",
+          "anchor": "def answer_screenshot"
+        },
+        {
+          "path": "frontend/script.js",
+          "anchor": "async addAssistantImages"
+        }
+      ]
     }
   ]
 }

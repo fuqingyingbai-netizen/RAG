@@ -187,7 +187,7 @@ def test_long_history_does_not_make_offline_guides_depend_on_summary_model(monke
     app = FastAPI(); app.include_router(api.router)
     app.dependency_overrides[api.get_db] = get_db
     app.dependency_overrides[api.get_current_user] = lambda: SimpleNamespace(id=21, username='guide-long', role='user')
-    monkeypatch.setattr(api.research_workflow, '_get_model', lambda: pytest.fail('local guide must not call any model'))
+    monkeypatch.setattr(api.research_workflow, '_get_assistant_model', lambda: pytest.fail('local guide must not call any model'))
     with TestClient(app) as client:
         sid = client.get('/research/assistant/state').json()['session_id']
         with factory() as db:

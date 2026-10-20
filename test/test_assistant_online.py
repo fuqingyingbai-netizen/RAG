@@ -232,7 +232,7 @@ def test_assistant_endpoint_streams_live_sources_without_project_db_access(monke
             yield db
     import system_guide as guide
     model = FakeModel([assistant_reply(calls=[tool_call('search_web', {'query': '公开消息'})]), assistant_reply('已找到公开消息[1]。')])
-    monkeypatch.setattr(api.research_workflow, '_get_model', lambda: model)
+    monkeypatch.setattr(api.research_workflow, '_get_assistant_model', lambda: model)
     monkeypatch.setattr(guide, 'execute_tool', lambda *a: {'status': 'ok', 'sources': [{'title': '公开来源', 'url': 'https://issuer.test/news'}]})
     for name in ('_vector_context', '_project_store_context', '_assistant_project_ids'):
         monkeypatch.setattr(api, name, lambda *a: pytest.fail('no project retrieval'))
