@@ -101,6 +101,9 @@ def main():
             assert user['width'] < panel.bounding_box()['width'] * .7, user
             expect(panel.locator('.assistant-navigation nav')).not_to_be_visible()
             assert requests[-1]['current_page'] == 'home'
+            panel.get_by_role('button', name='功能目录', exact=True).click()
+            expect(panel.get_by_role('button', name='功能目录', exact=True)).to_be_enabled()
+            assert requests[-1]['message'] == '查看完整功能目录'
             # Moving between real pages keeps the same thread and updates page help.
             handle = panel.locator('.assistant-drag-handle')
             bounds = handle.bounding_box(); page.mouse.move(bounds['x'] + 170, bounds['y'] + 30)

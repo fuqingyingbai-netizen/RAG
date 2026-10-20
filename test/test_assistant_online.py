@@ -169,7 +169,7 @@ def test_ordinary_chat_does_not_execute_any_tools(monkeypatch):
     model = FakeModel([assistant_reply('当然可以，欢迎加入团队！')])
     result = model_answer(SimpleNamespace(_get_model=lambda: model), ResearchAssistantRequest(message='写一句欢迎语'), 'user')
     assert '欢迎加入' in result and len(model.invocations) == 1
-    assert {item['function']['name'] for item in model.schemas} == {'get_weather', 'search_web'}
+    assert {item['function']['name'] for item in model.schemas} == {'get_weather', 'search_web', 'search_system_guide'}
 
 
 def test_weather_tool_followup_uses_history_and_streams_numbered_sources(monkeypatch):

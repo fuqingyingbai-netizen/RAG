@@ -2155,11 +2155,15 @@ async def research_assistant_stream(
                 except RuntimeError:
                     pass  # Event loop closed during a client disconnect.
         def generate():
+            answer = guide_answer(question, page, role)
+            if answer:
+                # Deterministic operating instructions remain available without
+                # any model call, even when a long chat is due for summarization.
+                return answer, memory
             context = prepare_context(research_workflow, plan, emit, cancelled)
             prompt_request = request.model_copy(update={'history_summary': context['summary'],
                 'recent_messages': [{'role': row['role'], 'content': row['content']} for row in context['recent']]})
-            answer = guide_answer(question, page, role)
-            if not answer and not cancelled.is_set():
+            if not cancelled.is_set():
                 answer = model_answer(research_workflow, prompt_request, role, emit, cancelled)
             return answer, context
         try:

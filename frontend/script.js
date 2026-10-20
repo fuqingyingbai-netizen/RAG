@@ -55,7 +55,7 @@ createApp({
       assistantOpen: false, assistantInput: '', assistantLoading: false,
       assistantPosition: readAssistantPosition(), assistantDrag: null, assistantWasDragged: false, assistantSuppressClick: false, assistantContextSummary: '',
       assistantViewportWidth: viewport.width, assistantViewportHeight: viewport.height, assistantViewportTop: viewport.top, assistantFollowLatest: true,
-      assistantMessages: [{ text: '你好，我是系统使用向导。可以教你提交任务、下载报告、复核资料和使用知识库，也可以查天气、联网查公开信息和日常聊天。', isUser: false }],
+      assistantMessages: [{ text: '你好，我主要负责本系统的使用指南。可以点“功能目录”查找具体操作，或直接问任务、报告、资料和权限怎么使用，也可以日常聊天和查公开信息。', isUser: false }],
       assistantNavigation: [],
       assistantSessionId: '', assistantSessions: [], assistantHasMore: false, assistantReady: false,
       assistantSyncing: false, assistantMemoryStatus: '', assistantController: null, assistantEpoch: 0,
@@ -906,7 +906,7 @@ createApp({
       this.assistantFollowLatest = true;
       this.assistantSessionId = data.session_id;
       this.assistantSessions = data.sessions || [];
-      this.assistantMessages = data.messages?.length ? data.messages : [{ text: '你好，我是系统使用向导。可以解答系统操作、查天气和公开信息，也可以日常聊天。', isUser: false }];
+      this.assistantMessages = data.messages?.length ? data.messages : [{ text: '你好，我主要负责本系统的使用指南。可以点“功能目录”查找功能，或问我具体的操作问题，也支持日常聊天和公开信息查询。', isUser: false }];
       this.assistantContextSummary = data.summary || '';
       this.assistantHasMore = !!data.has_more; this.assistantReady = true;
       this.assistantMemoryStatus = data.busy ? '此对话正在生成，可稍后重新加载' : (data.summarized_through ? '已保存到账号 · 较早对话已整理为摘要' : '已保存到账号');
@@ -921,7 +921,7 @@ createApp({
       if (this.assistantSyncing || !this.currentUser) return;
       const epoch = ++this.assistantEpoch, key = this.assistantStorageKey();
       this.assistantController?.abort(); this.assistantLoading = false; this.assistantSyncing = true; this.assistantReady = false;
-      this.assistantMessages = [{ text: '你好，我是系统使用向导。可以解答系统操作、查天气和公开信息，也可以日常聊天。', isUser: false }];
+      this.assistantMessages = [{ text: '你好，我主要负责本系统的使用指南。可以点“功能目录”查找功能，或问我具体的操作问题，也支持日常聊天和公开信息查询。', isUser: false }];
       this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantNavigation = [];
       try {
         let data = await this.assistantJson('/research/assistant/state');

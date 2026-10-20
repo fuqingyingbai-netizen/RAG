@@ -43,6 +43,7 @@
 .assistant-close { width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: #f2f5f9; color: #637083; cursor: pointer; font-size: 16px; }
 .assistant-close:hover { background: #e8eef5; color: var(--brand-strong); }
 .assistant-prompts { flex: 0 0 auto; display: flex; gap: 8px; padding: 0 16px 12px; border-bottom: 1px solid #e7edf4; }
+.assistant-prompts { flex-wrap: wrap; }
 .assistant-prompts button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid #dce5ee; border-radius: 18px; background: #f8fafc; color: #36516f; font: inherit; font-size: 12px; cursor: pointer; }
 .assistant-prompts button:hover { background: #edf4fb; border-color: #b7cce0; }
 .assistant-prompts button:disabled { opacity: .55; cursor: default; }
