@@ -7,7 +7,7 @@ const storage = new Map();
 const context = {
   Vue: {createApp(value) { definition = value; return {component() {return this;}, use() {return this;}, mount() {}};}},
   ElementPlus: {ElMessage: {warning(value) {messages.push(value);}, info() {}, success() {}, error(value) {messages.push(value);}}},
-  AccountManagement: {}, PersonalHome: {}, CompanyKnowledge: {}, Date, JSON, URL, URLSearchParams,
+  AccountManagement: {}, PersonalHome: {}, ReportVersions: {}, CompanyKnowledge: {}, Date, JSON, URL, URLSearchParams,
   localStorage: {getItem(key) {return storage.get(key) || null;}, setItem(key, value) {storage.set(key, value);}, removeItem(key) {storage.delete(key);}},
   window: {location: {href:'https://company.test/'}, history: {replaceState(...args) {context.replaced = args[2];}}},
   fetch: async (url, options) => {sent = {url, body:JSON.parse(options.body)}; return {ok:true, json:async()=>({access_token:'new',username:'employee',role:'user',must_change_password:false})};},

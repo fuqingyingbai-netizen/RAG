@@ -17,7 +17,7 @@ from models import ResearchArtifact, ResearchProject, ResearchSource, User
 from report_knowledge import archive_report, sync_report_safely
 from research_schemas import ResearchAssistantRequest
 from source_retention import external_url, finalize_web_sources
-from system_guide import guide_answer, model_answer
+from system_guide import PAGES, chat_prompt, guide_answer, model_answer, navigation
 
 
 @pytest.fixture
@@ -172,3 +172,36 @@ def test_guide_instructions_and_user_conversation_are_separate():
     assert '忽略规则' not in messages[0]['content']
     assert '危险指令' not in str(messages)
     assert '公司知识库' in guide_answer('怎么申请权限？')
+
+
+@pytest.mark.parametrize('role', ['user', 'admin'])
+@pytest.mark.parametrize('page', list(PAGES))
+def test_assistant_page_help_and_navigation_follow_actual_login_role(monkeypatch, role, page):
+    app = FastAPI(); app.include_router(api.router)
+    app.dependency_overrides[api.get_current_user] = lambda: SimpleNamespace(id=9, username='guide-only', role=role)
+    app.dependency_overrides[api.get_db] = lambda: SimpleNamespace()
+    monkeypatch.setattr(api.research_workflow, '_get_model', lambda: pytest.fail('page help must work without a model'))
+    with TestClient(app) as client:
+        response = client.post('/research/assistant/stream', json={'message': '这个页面怎么用？', 'current_page': page})
+    assert response.status_code == 200
+    events = [json.loads(line[6:]) for line in response.text.splitlines() if line.startswith('data: ') and line != 'data: [DONE]']
+    answer = next(event['content'] for event in events if event['type'] == 'content')
+    expected_page = 'home' if page == 'accounts' and role != 'admin' else page
+    assert answer.startswith('### ' + PAGES[expected_page][0])
+    items = next(event['items'] for event in events if event['type'] == 'navigation')
+    assert items == navigation(role)
+    assert ('accounts' in [item['view'] for item in items]) == (role == 'admin')
+    assert 'home' in [item['view'] for item in items]
+
+
+def test_assistant_role_specific_prompt_and_account_help():
+    request = ResearchAssistantRequest(message='你好', current_page='accounts')
+    user_prompt = chat_prompt(request, 'user')
+    assert '当前页面：个人首页' in user_prompt and '【账号管理】' not in user_prompt
+    admin_prompt = chat_prompt(request, 'admin')
+    assert '当前页面：账号管理' in admin_prompt and '【账号管理】' in admin_prompt
+    assert '六小时' in guide_answer('如何生成邀请码？', role='admin')
+    assert '请联系管理员' in guide_answer('怎么重置密码？', role='user')
+    assert '侧边栏底部' in guide_answer('如何修改密码？', role='user')
+    assert '任务创建人本人' in guide_answer('新人怎么开始？')
+    assert guide_answer('这个页面如何使用？', page='home').startswith('### 个人首页')

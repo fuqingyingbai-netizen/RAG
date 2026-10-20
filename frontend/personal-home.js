@@ -4,7 +4,7 @@ const PersonalHome = {
     currentUser: { type: Object, required: true },
     download: { type: Function, required: true },
   },
-  emits: ['navigate', 'open-project'],
+  emits: ['navigate', 'open-project', 'view-versions'],
   data() { return { home: null, loading: false, error: '', requestId: 0, refreshTimer: null, downloadingId: null }; },
   computed: {
     displayName() { return this.home?.user?.display_name || this.currentUser.username; },
@@ -44,6 +44,7 @@ const PersonalHome = {
     },
     statusType(project) { return project.is_running ? 'warning' : project.status === 'completed' ? 'success' : project.status === 'failed' ? 'danger' : 'info'; },
     targetLabel(value) { return ({ company: '公司研究', industry: '行业研究', person: '人物研究' })[value] || '研究任务'; },
+    recordLabel(version) { return `记录 ${String(version).padStart(3, '0')}`; },
     formatTime(value) {
       if (!value) return '暂无时间记录';
       const normalized = /[zZ]|[+-]\d{2}:\d{2}$/.test(value) ? value : value + 'Z';
@@ -83,10 +84,10 @@ const PersonalHome = {
             <template #header><div class="card-header"><div><p class="eyebrow">Recent Reports</p><h2>最近成果</h2></div><span class="home-section-hint">每项成果显示最新版本</span></div></template>
             <div v-if="!home.recent_reports.length" class="home-empty"><i class="fa-solid fa-file-lines" aria-hidden="true"></i><h3>还没有研究成果</h3><p>生成的研究报告和建议书会显示在这里。</p></div>
             <article v-for="report in home.recent_reports" :key="report.id" class="home-list-item" :aria-label="report.title">
-              <div class="home-item-heading"><h3>{{report.title}}</h3><span class="home-version">v{{report.version}}</span></div>
+              <div class="home-item-heading"><h3>{{report.title}}</h3><span class="home-version">{{recordLabel(report.version)}}</span></div>
               <p class="home-item-context">{{report.project_title}} · {{report.artifact_type === 'proposal' ? '项目建议书' : '研究报告'}}</p>
               <div class="home-report-tags"><el-tag v-if="report.review_label" type="warning" size="small">{{report.review_label}}</el-tag><el-tag v-if="report.export_error" type="danger" size="small">Word 导出异常</el-tag><el-tag v-if="!report.can_download" type="info" size="small">文件暂不可用</el-tag></div>
-              <div class="home-item-footer"><time>{{formatTime(report.created_at)}}</time><div class="home-report-actions"><el-button size="small" plain @click="$emit('open-project', {id:report.project_id})">查看任务</el-button><el-button size="small" type="primary" plain :loading="downloadingId === report.id" :disabled="!report.can_download || (downloadingId !== null && downloadingId !== report.id)" @click="downloadReport(report)">下载</el-button></div></div>
+              <div class="home-item-footer"><time>{{formatTime(report.created_at)}}</time><div class="home-report-actions"><el-button size="small" plain @click="$emit('open-project', {id:report.project_id})">查看任务</el-button><el-button size="small" plain @click="$emit('view-versions', report)">历史版本</el-button><el-button size="small" type="primary" plain :loading="downloadingId === report.id" :disabled="!report.can_download || (downloadingId !== null && downloadingId !== report.id)" @click="downloadReport(report)">下载</el-button></div></div>
             </article>
           </el-card>
         </div>

@@ -2092,15 +2092,15 @@ async def research_assistant_stream(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from system_guide import PAGES, model_answer, guide_answer, navigation
+    from system_guide import page_for_role, model_answer, guide_answer, navigation
     question = request.message.strip()
     if not question:
         raise HTTPException(400, '问题不能为空')
-    page = request.current_page if request.current_page in PAGES else 'submit'
+    page = page_for_role(request.current_page, current_user.role)
 
     async def event_generator():
         yield 'data: ' + json.dumps({'type': 'status', 'content': '正在准备回答…'}, ensure_ascii=False) + '\n\n'
-        answer = guide_answer(question, page)
+        answer = guide_answer(question, page, current_user.role)
         if not answer:
             events = asyncio.Queue()
             loop = asyncio.get_running_loop()
@@ -2136,7 +2136,7 @@ async def research_assistant_stream(
                 if not task.done():
                     task.cancel()
         yield 'data: ' + json.dumps({'type': 'content', 'content': answer}, ensure_ascii=False) + '\n\n'
-        yield 'data: ' + json.dumps({'type': 'navigation', 'items': navigation()}, ensure_ascii=False) + '\n\n'
+        yield 'data: ' + json.dumps({'type': 'navigation', 'items': navigation(current_user.role)}, ensure_ascii=False) + '\n\n'
         yield 'data: [DONE]\n\n'
 
     return StreamingResponse(event_generator(), media_type='text/event-stream',
@@ -2295,3 +2295,7 @@ def retry_report_knowledge(artifact_id: int, db: Session = Depends(get_db),
     from report_knowledge import sync_report_safely
     sync_report_safely(db, project, artifact)
     return {'metadata': artifact.artifact_metadata}
+
+
+from report_versions import create_report_versions_router
+router.include_router(create_report_versions_router(_get_project))

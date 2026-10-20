@@ -1,5 +1,19 @@
 const { createApp } = Vue;
 
+function readAssistantPosition() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('assistantPosition') || '{}');
+    const valid = value => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+    return {right: valid(saved?.right) ? saved.right : 22, bottom: valid(saved?.bottom) ? saved.bottom : 22};
+  } catch (_) { return {right: 22, bottom: 22}; }
+}
+
+function readAssistantViewport() {
+  if (typeof window === 'undefined') return {width: 1280, height: 800, top: 0};
+  return {width: window.innerWidth, height: window.visualViewport?.height || window.innerHeight,
+    top: window.visualViewport?.offsetTop || 0};
+}
+
 function newResearchForm() {
   return {
     projectName: '', startDate: '', endDate: '', companyName: '', identifier: '',
@@ -12,8 +26,9 @@ function newResearchForm() {
 }
 
 createApp({
-  components: { 'account-management': AccountManagement, 'personal-home': PersonalHome },
+  components: { 'account-management': AccountManagement, 'personal-home': PersonalHome, 'report-versions': ReportVersions },
   data() {
+    const viewport = readAssistantViewport();
     return {
       token: localStorage.getItem('accessToken') || '', currentUser: null,
       authStep: 'role', authRole: 'user', authMode: 'login', authLoading: false,
@@ -22,12 +37,14 @@ createApp({
       passwordOpen: false, passwordLoading: false, passwordForm: { current_password: '', new_password: '', confirm_password: '' },
       activeView: 'home', mobileNavOpen: false, projects: [], projectMeta: {}, projectDetails: {}, artifactsByProject: {}, sourcesByProject: {}, traceByProject: {},
       taskSearch: '', selectedFiles: [], submitting: false, reindexing: false,
+      reportVersionsOpen: false, reportVersionsProject: null, reportVersionsType: 'desktop_report',
       taskPage: 1, taskPageSize: 12, sourcePage: 1, sourcePageSize: 50,
       nowTick: Date.now(), nowTimer: null, taskRefreshTimer: null, taskRefreshBusy: false, taskRefreshTicks: 0,
       reviewProjectId: '', reviewReportFiles: [], reviewProposalFiles: [], fieldSourceFiles: [], fieldSourceModule: '专家访谈/走访', secondStageRunning: false,
       knowledgeQuery: '', knowledgeResults: [],
       assistantOpen: false, assistantInput: '', assistantLoading: false,
-      assistantPosition: JSON.parse(localStorage.getItem('assistantPosition') || '{"right":22,"bottom":22}'), assistantDrag: null, assistantWasDragged: false, assistantSuppressClick: false, assistantContextSummary: '',
+      assistantPosition: readAssistantPosition(), assistantDrag: null, assistantWasDragged: false, assistantSuppressClick: false, assistantContextSummary: '',
+      assistantViewportWidth: viewport.width, assistantViewportHeight: viewport.height, assistantViewportTop: viewport.top, assistantFollowLatest: true,
       assistantMessages: [{ text: '你好，我是系统使用向导。可以教你提交任务、下载报告、复核资料和使用知识库，也可以查天气、联网查公开信息和日常聊天。', isUser: false }],
       assistantNavigation: [],
       sessionId: 'system_guide_' + Date.now(),
@@ -59,8 +76,21 @@ createApp({
     generatingCount() { return this.projects.filter(p => !['completed', 'failed', 'draft', 'paused'].includes(p.status)).length; },
     readyCount() { return this.projects.filter(p => p.status === 'completed').length; },
     sourceCount() { return this.knowledgeResults.length; },
-    assistantFabStyle() { return { right: `${this.assistantPosition.right}px`, bottom: `${this.assistantPosition.bottom}px` }; },
-    assistantPanelStyle() { return { right: `${this.assistantPosition.right}px`, bottom: `${this.assistantPosition.bottom + 68}px` }; },
+    assistantFabStyle() {
+      const clamp = (value, maximum) => Math.min(Math.max(16, maximum), Math.max(16, value));
+      return {right: `${clamp(this.assistantPosition.right, this.assistantViewportWidth - 84)}px`,
+        bottom: `${clamp(this.assistantPosition.bottom, this.assistantViewportHeight - 84)}px`};
+    },
+    assistantPanelStyle() {
+      const width = this.assistantViewportWidth, height = this.assistantViewportHeight;
+      if (width <= 600) return {width: `${Math.max(0, width - 24)}px`, height: `${Math.max(0, height - 24)}px`,
+        right: '12px', top: `${this.assistantViewportTop + 12}px`, bottom: 'auto'};
+      const panelWidth = Math.min(460, width - 32), panelHeight = Math.min(640, height - 32);
+      const clamp = (value, maximum) => Math.min(Math.max(16, maximum), Math.max(16, value));
+      return {width: `${panelWidth}px`, height: `${panelHeight}px`,
+        right: `${clamp(this.assistantPosition.right, width - panelWidth - 16)}px`,
+        bottom: `${clamp(this.assistantPosition.bottom, height - panelHeight - 16)}px`};
+    },
     fileLabel() { return this.selectedFiles.length ? this.selectedFiles.map(f => f.name).join('、') : 'BP、公司介绍、工商截图、新闻、访谈纪要等'; },
     modules() { return this.modulesByTarget[this.form.targetType] || this.modulesByTarget.company; },
     ddTypes() { if (this.form.targetType === 'person') return ['人物背景尽调', '诚信与声誉核查', '投前人物综合评估']; if (this.form.targetType === 'industry') return ['行业全景研究', '赛道投资研究', '竞争与技术研究']; return ['商业尽调', '合规尽调', '负面新闻筛查', '综合桌面研究']; },
@@ -81,12 +111,23 @@ createApp({
     'form.targetType'(value) { const defaults = { company: ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], person: this.modulesByTarget.person.map(x => x.value), industry: this.modulesByTarget.industry.map(x => x.value) }; this.form.modules = defaults[value] || defaults.company; this.form.ddType = this.ddTypes[0]; this.form.targetContext = ''; this.form.personContext = ''; this.form.personAliases = ''; if (value === 'person' || value === 'industry') { this.form.industry = ''; this.form.region = ''; } }
   },
     async mounted() {
+      this.updateAssistantViewport();
+      window.addEventListener('resize', this.updateAssistantViewport);
+      window.visualViewport?.addEventListener('resize', this.updateAssistantViewport);
+      window.visualViewport?.addEventListener('scroll', this.updateAssistantViewport);
       this.nowTimer = setInterval(() => { this.nowTick = Date.now(); }, 1000);
       this.taskRefreshTimer = setInterval(() => this.refreshVisibleTaskProgress(), 5000);
       this.readInvitationFromUrl();
       if (this.token) { try { await this.fetchMe(); if (!this.currentUser.must_change_password) { this.ensureAllowedView(); this.loadAssistantState(); await this.loadProjects(); } } catch (_) { this.handleLogout(); } }
     },
-  beforeUnmount() { if (this.nowTimer) clearInterval(this.nowTimer); if (this.taskRefreshTimer) clearInterval(this.taskRefreshTimer); },
+  beforeUnmount() {
+    if (this.nowTimer) clearInterval(this.nowTimer);
+    if (this.taskRefreshTimer) clearInterval(this.taskRefreshTimer);
+    window.removeEventListener('resize', this.updateAssistantViewport);
+    window.visualViewport?.removeEventListener('resize', this.updateAssistantViewport);
+    window.visualViewport?.removeEventListener('scroll', this.updateAssistantViewport);
+    this.stopAssistantDrag();
+  },
   methods: {
     authHeaders(extra = {}) { return this.token ? { ...extra, Authorization: `Bearer ${this.token}` } : extra; },
     async authFetch(url, options = {}) {
@@ -172,6 +213,7 @@ createApp({
       this.assistantMessages = []; this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantLoading = false; this.assistantNavigation = []; this.selectedFiles = [];
       this.form = newResearchForm(); this.taskSearch = ''; this.taskPage = 1;
       this.reviewProjectId = ''; this.reviewReportFiles = []; this.reviewProposalFiles = []; this.fieldSourceFiles = [];
+      this.closeReportVersions();
       this.knowledgeQuery = '';
     },
     openPasswordChange() { this.passwordForm = {current_password:'',new_password:'',confirm_password:''}; this.passwordOpen = true; },
@@ -664,6 +706,12 @@ createApp({
         this.secondStageRunning = false;
       }
     },
+    recordLabel(version) { return Number.isInteger(version) && version > 0 ? `记录 ${String(version).padStart(3, '0')}` : '历史记录'; },
+    openReportVersions(project, artifactType = 'desktop_report') {
+      this.reportVersionsProject = {id: project.id, title: project.title || project.project_title || ''};
+      this.reportVersionsType = artifactType === 'proposal' ? 'proposal' : 'desktop_report'; this.reportVersionsOpen = true;
+    },
+    closeReportVersions() { this.reportVersionsOpen = false; this.reportVersionsProject = null; },
     downloadableArtifacts(project) { return this.artifactsFor(project).filter(a => !['project_intake', 'workflow_trace'].includes(a.artifact_type)); },
     latestDownloadable(project) { return this.downloadableArtifacts(project).find(a => ['desktop_report', 'proposal'].includes(a.artifact_type)) || this.downloadableArtifacts(project)[0]; },
     async deleteProject(project) {
@@ -758,6 +806,10 @@ createApp({
       return 'success';
     },
     isExternalUrl(value) { try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) && !!url.hostname && !url.username && !url.password; } catch { return false; } },
+    updateAssistantViewport() {
+      const viewport = readAssistantViewport();
+      this.assistantViewportWidth = viewport.width; this.assistantViewportHeight = viewport.height; this.assistantViewportTop = viewport.top;
+    },
     toggleAssistant() {
       if (this.assistantWasDragged || this.assistantSuppressClick) {
         this.assistantWasDragged = false;
@@ -765,17 +817,33 @@ createApp({
         return;
       }
       this.assistantOpen = !this.assistantOpen;
-      if (this.assistantOpen) this.scrollAssistant();
+      if (this.assistantOpen) {
+        this.updateAssistantViewport(); this.scrollAssistant(true);
+        this.$nextTick?.(() => this.$refs?.assistantComposer?.focus());
+      }
     },
-    startAssistantDrag(event) {
-      if (event.button !== 0) return;
+    closeAssistant() {
+      this.assistantOpen = false; this.stopAssistantDrag();
+      this.$nextTick?.(() => this.$refs?.assistantLauncher?.focus());
+    },
+    goToAssistantPage(view) { this.switchView(view); this.closeAssistant(); },
+    onAssistantInputKeydown(event) {
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && event.keyCode !== 229) {
+        event.preventDefault(); this.sendAssistantMessage();
+      }
+    },
+    startAssistantDrag(event, kind = 'launcher') {
+      if (event.button !== 0 || event.target?.closest?.('button:not(.assistant-fab), input, textarea, a, summary')) return;
+      if (this.assistantViewportWidth <= 600) return;
       event.preventDefault();
       this.assistantWasDragged = false;
+      const style = kind === 'panel' ? this.assistantPanelStyle : this.assistantFabStyle;
       this.assistantDrag = {
+        kind,
         startX: event.clientX,
         startY: event.clientY,
-        right: this.assistantPosition.right,
-        bottom: this.assistantPosition.bottom
+        right: parseFloat(style.right),
+        bottom: parseFloat(style.bottom)
       };
       window.addEventListener('mousemove', this.onAssistantDrag);
       window.addEventListener('mouseup', this.stopAssistantDrag, { once: true });
@@ -785,19 +853,26 @@ createApp({
       const dx = event.clientX - this.assistantDrag.startX;
       const dy = event.clientY - this.assistantDrag.startY;
       if (Math.abs(dx) + Math.abs(dy) > 4) this.assistantWasDragged = true;
-      const maxRight = Math.max(12, window.innerWidth - 120);
-      const maxBottom = Math.max(12, window.innerHeight - 140);
-      this.assistantPosition.right = Math.min(maxRight, Math.max(12, this.assistantDrag.right - dx));
-      this.assistantPosition.bottom = Math.min(maxBottom, Math.max(12, this.assistantDrag.bottom - dy));
+      const panel = this.assistantDrag.kind === 'panel';
+      const width = panel ? parseFloat(this.assistantPanelStyle.width) : 68;
+      const height = panel ? parseFloat(this.assistantPanelStyle.height) : 68;
+      const maxRight = Math.max(16, this.assistantViewportWidth - width - 16);
+      const maxBottom = Math.max(16, this.assistantViewportHeight - height - 16);
+      this.assistantPosition.right = Math.min(maxRight, Math.max(16, this.assistantDrag.right - dx));
+      this.assistantPosition.bottom = Math.min(maxBottom, Math.max(16, this.assistantDrag.bottom - dy));
     },
     stopAssistantDrag() {
-      if (this.assistantWasDragged) {
+      const changed = this.assistantDrag && this.assistantWasDragged;
+      if (changed && this.assistantDrag.kind === 'launcher') {
         this.assistantSuppressClick = true;
-        setTimeout(() => { this.assistantSuppressClick = false; }, 120);
-      }
+        setTimeout(() => { this.assistantSuppressClick = false; this.assistantWasDragged = false; }, 120);
+      } else { this.assistantWasDragged = false; }
       this.assistantDrag = null;
-      window.removeEventListener('mousemove', this.onAssistantDrag);
-      localStorage.setItem('assistantPosition', JSON.stringify(this.assistantPosition));
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('mousemove', this.onAssistantDrag);
+        window.removeEventListener('mouseup', this.stopAssistantDrag);
+      }
+      if (changed) localStorage.setItem('assistantPosition', JSON.stringify(this.assistantPosition));
     },
     assistantStorageKey() { return `systemGuide:v1:${this.currentUser?.username || 'anonymous'}`; },
     loadAssistantState() {
@@ -848,15 +923,24 @@ createApp({
     knowledgeStatus(artifact) {
       return ({ queued: '等待索引', uploading: '上传中', parsing: '解析中', indexing: '索引中', ready: '可问答', failed: '入库失败', deleted: '已从知识库移除' })[artifact.metadata?.knowledge_sync_status] || '尚未归档';
     },
-    scrollAssistant() {
-      this.$nextTick?.(() => { const feed = this.$refs?.assistantMessages; if (feed) feed.scrollTop = feed.scrollHeight; });
+    onAssistantScroll() {
+      const feed = this.$refs?.assistantMessages;
+      if (feed) this.assistantFollowLatest = feed.scrollHeight - feed.clientHeight - feed.scrollTop < 64;
+    },
+    scrollAssistant(force = false) {
+      if (force) this.assistantFollowLatest = true;
+      if (!this.assistantFollowLatest) return;
+      this.$nextTick?.(() => {
+        const feed = this.$refs?.assistantMessages;
+        if (feed && this.assistantFollowLatest) feed.scrollTop = feed.scrollHeight;
+      });
     },
     async sendAssistantMessage() {
       const text = this.assistantInput.trim(); if (!text || this.assistantLoading) return;
       const sentToken = this.token;
       this.assistantMessages.push({ text, isUser: true }); this.assistantInput = ''; this.assistantLoading = true; this.saveAssistantState();
       this.compactAssistantHistory();
-      const bot = { text: '', isUser: false }; this.assistantMessages.push(bot); this.scrollAssistant();
+      const bot = { text: '', isUser: false }; this.assistantMessages.push(bot); this.scrollAssistant(true);
       let timeout = null;
       try {
         const recentMessages = this.assistantMessages.slice(-20).map(msg => ({ role: msg.isUser ? 'user' : 'assistant', content: msg.text || '' }));
@@ -876,7 +960,8 @@ createApp({
             const event = JSON.parse(raw);
             if (event.type === 'status' && (!bot.text || bot._status)) { bot.text = event.content || '正在处理...'; bot._status = true; }
             if (event.type === 'sources') bot.sources = (Array.isArray(event.sources) ? event.sources : []).filter(source => this.isExternalUrl(source.url)).slice(0, 10);
-            if (event.type === 'navigation') this.assistantNavigation = (event.items || []).filter(item => ['submit','tasks','review','sources','company-knowledge'].includes(item.view));
+            if (event.type === 'navigation') this.assistantNavigation = (event.items || []).filter(item =>
+              ['home','submit','tasks','review','sources','company-knowledge'].includes(item.view) || (item.view === 'accounts' && this.currentUser?.role === 'admin'));
             if (event.type === 'content') { if (bot._status) { bot.text = ''; bot._status = false; } bot.text += event.content; }
             if (event.type === 'error') { if (bot._status) { bot.text = ''; bot._status = false; } bot.text += `\n[Error: ${event.content}]`; }
             this.scrollAssistant();

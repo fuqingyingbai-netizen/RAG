@@ -6,7 +6,7 @@ const messages = [];
 const storage = new Map([['activeView', 'accounts']]);
 const context = {
   Vue: {createApp(value) {appDefinition = value; return {component() {return this;}, use() {return this;}, mount() {}};}},
-  PersonalHome: {}, AccountManagement: {}, CompanyKnowledge: {}, Date, JSON, URL, URLSearchParams,
+  PersonalHome: {}, AccountManagement: {}, ReportVersions: {}, CompanyKnowledge: {}, Date, JSON, URL, URLSearchParams,
   ElementPlus: {ElMessage: {error(value) {messages.push(value);}}},
   localStorage: {getItem(key) {return storage.get(key) || null;}, setItem(key, value) {storage.set(key, value);}, removeItem(key) {storage.delete(key);}},
   document: {visibilityState: 'visible'}, setInterval() {return 1;}, clearInterval() {},
@@ -44,7 +44,10 @@ const watchdog = setTimeout(() => {console.error('Personal home tests did not fi
   app.loadProjects = async () => {app.token = 'another-account';};
   selected = null; await app.openHomeProject({id: 20}); assert.equal(selected, null);
   app.form.projectName = 'private unfinished task'; app.reviewProjectId = '20'; app.fieldSourceFiles = [{name: 'private.pdf'}];
+  app.openReportVersions({id:20, title:'Private report'}, 'proposal');
+  assert.equal(app.reportVersionsOpen, true); assert.equal(app.reportVersionsType, 'proposal');
   app.handleLogout();
+  assert.equal(app.reportVersionsOpen, false); assert.equal(app.reportVersionsProject, null);
   assert.equal(app.activeView, 'home'); assert.equal(app.form.projectName, '');
   assert.equal(app.reviewProjectId, ''); assert.equal(app.fieldSourceFiles.length, 0);
   const late = state(appDefinition); late.token = 'before'; late.projects = [];

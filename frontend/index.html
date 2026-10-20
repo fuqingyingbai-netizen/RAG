@@ -13,6 +13,8 @@
   <link rel="stylesheet" href="navigation.css" />
   <link rel="stylesheet" href="accounts.css" />
   <link rel="stylesheet" href="personal-home.css" />
+  <link rel="stylesheet" href="report-versions.css" />
+  <link rel="stylesheet" href="assistant.css" />
 </head>
 <body>
 <main id="app" v-cloak>
@@ -78,7 +80,7 @@
       <el-header height="76px" class="topbar"><div><h1>{{ pageTitle }}</h1><p>{{ pageSubtitle }}</p></div><el-space><el-tag type="success" effect="light">{{ currentUser?.role === 'admin' ? '管理员' : '普通用户' }}</el-tag><el-button text @click="handleLogout">退出</el-button></el-space></el-header>
       <el-main>
         <section v-if="!['home','company-knowledge','accounts'].includes(activeView)" class="summary-band"><div><span>任务总数</span><strong>{{ projects.length }}</strong></div><div><span>生成中</span><strong>{{ generatingCount }}</strong></div><div><span>可下载</span><strong>{{ readyCount }}</strong></div><div><span>溯源条目</span><strong>{{ sourceCount }}</strong></div></section>
-        <personal-home v-if="activeView === 'home'" :request="authFetch" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @open-project="openHomeProject"></personal-home>
+        <personal-home v-if="activeView === 'home'" :request="authFetch" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @open-project="openHomeProject" @view-versions="report => openReportVersions({id:report.project_id, title:report.project_title}, report.artifact_type)"></personal-home>
         <company-knowledge v-if="activeView === 'company-knowledge'" :projects="projects"></company-knowledge>
 
         <account-management v-if="activeView === 'accounts' && currentUser?.role === 'admin'" :request="authFetch" @session-invalidated="handleLogout"></account-management>
@@ -126,11 +128,11 @@
               <el-table-column type="expand"><template #default="{ row }"><div class="task-expand">
                 <div class="detail-grid primary-result-grid">
                   <section class="detail-panel result-panel">
-                    <div class="workflow-head"><strong>成果下载</strong><el-tag size="small" type="success">{{ downloadableArtifacts(row).length }} 个产物</el-tag></div>
+                    <div class="workflow-head"><strong>成果下载</strong><el-space wrap><el-button plain size="small" @click="openReportVersions(row)">历史版本</el-button><el-tag size="small" type="success">{{ downloadableArtifacts(row).length }} 个产物</el-tag></el-space></div>
                     <div v-if="downloadableArtifacts(row).length" class="artifact-list primary-artifacts">
                       <div v-for="artifact in downloadableArtifacts(row)" :key="artifact.id" class="artifact-item">
                         <div class="artifact-title">
-                          <span>{{ artifact.title || artifactTypeLabel(artifact.artifact_type) }} v{{ artifact.version }}</span>
+                          <span>{{ artifact.title || artifactTypeLabel(artifact.artifact_type) }} · {{ recordLabel(artifact.version) }}</span>
                           <div v-if="artifact.artifact_type === 'desktop_report'" class="table-subtext">
                             公司知识库：{{ knowledgeStatus(artifact) }} · {{ artifact.metadata?.knowledge_review || '待复核' }}
                             <el-button v-if="!artifact.metadata?.knowledge_sync_status || artifact.metadata?.knowledge_sync_status === 'failed'" link type="primary" @click="retryKnowledge(artifact)">重试归档</el-button>
@@ -292,13 +294,29 @@
       </el-main>
     </el-container>
 
-    <button v-if="!['home','company-knowledge','accounts'].includes(activeView)" class="assistant-fab" aria-label="打开系统使用向导" :style="assistantFabStyle" @mousedown.stop.prevent="startAssistantDrag" @click="toggleAssistant"><img src="aizhushou.png" alt="AI 小助手" /></button>
-    <section v-if="assistantOpen && !['home','company-knowledge','accounts'].includes(activeView)" class="assistant-panel" :style="assistantPanelStyle">
-      <header class="assistant-drag-handle" @mousedown.prevent="startAssistantDrag"><strong>使用向导 · 聊天</strong><el-button text @click="assistantOpen = false">关闭</el-button></header>
-      <div class="assistant-messages" ref="assistantMessages"><div class="assistant-shortcuts"><el-button size="small" @click="askGuide('新人怎么开始？')">新人入门</el-button><el-button size="small" @click="askGuide('这个页面怎么用？')">当前页面帮助</el-button></div><div v-for="(msg, index) in assistantMessages" :key="index" :class="['assistant-msg', msg.isUser ? 'user' : 'bot']"><div v-html="msg.isUser ? escapeHtml(msg.text) : parseMarkdown(msg.text)"></div><div v-if="!msg.isUser && msg.sources?.length" class="assistant-sources"><span>本次联网来源</span><template v-for="(source, sourceIndex) in msg.sources" :key="source.url"><a v-if="isExternalUrl(source.url)" :href="source.url" target="_blank" rel="noopener noreferrer"><strong>[{{ source.number || sourceIndex + 1 }}] {{ source.title }}</strong><small>{{ source.provider }}<template v-if="source.published_at"> · 发布：{{ source.published_at }}</template><template v-if="source.observed_at"> · 观测：{{ source.observed_at }}</template><template v-if="source.retrieved_at"> · 查询：{{ source.retrieved_at }}</template></small></a></template></div></div></div>
-      <div class="assistant-footer"><div class="assistant-shortcuts"><el-button v-for="item in assistantNavigation" :key="item.view" size="small" @click="switchView(item.view)">{{ item.label }}</el-button></div><div class="assistant-input"><el-input v-model="assistantInput" placeholder="问操作方法、查天气，或随便聊聊…" @keyup.enter="sendAssistantMessage" ></el-input><el-button type="primary" :loading="assistantLoading" @click="sendAssistantMessage">发送</el-button></div></div>
+    <button v-if="!assistantOpen" ref="assistantLauncher" class="assistant-fab" aria-label="打开小助手" :style="assistantFabStyle" @mousedown.stop="startAssistantDrag($event, 'launcher')" @click="toggleAssistant"><img src="aizhushou.png" alt="" /></button>
+    <section v-if="assistantOpen" class="assistant-panel" :class="{'assistant-compact': assistantViewportHeight < 500}" :style="assistantPanelStyle" role="dialog" aria-labelledby="assistant-title" aria-modal="false" @keydown.esc.stop="closeAssistant">
+      <header class="assistant-drag-handle" @mousedown="startAssistantDrag($event, 'panel')">
+        <div class="assistant-heading"><img src="aizhushou.png" alt="" /><div><strong id="assistant-title">AI 小助手</strong><span>操作指引 · 日常问答</span></div></div>
+        <button type="button" class="assistant-close" aria-label="关闭小助手" @mousedown.stop @click="closeAssistant"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </header>
+      <nav class="assistant-prompts" aria-label="常用提问"><button type="button" :disabled="assistantLoading" @click="askGuide('新人怎么开始？')"><i class="fa-solid fa-compass" aria-hidden="true"></i>新人入门</button><button type="button" :disabled="assistantLoading" @click="askGuide('这个页面怎么用？')"><i class="fa-solid fa-circle-question" aria-hidden="true"></i>当前页面帮助</button></nav>
+      <div class="assistant-messages" ref="assistantMessages" role="log" aria-label="小助手聊天记录" aria-live="polite" aria-relevant="additions" @scroll="onAssistantScroll">
+        <div v-for="(msg, index) in assistantMessages" :key="index" :class="['assistant-msg', msg.isUser ? 'user' : 'bot']">
+          <div v-if="!msg.isUser && !msg.text" class="assistant-thinking" role="status"><span></span>正在回复…</div>
+          <div v-else class="assistant-message-content" v-html="msg.isUser ? escapeHtml(msg.text) : parseMarkdown(msg.text)"></div>
+          <div v-if="!msg.isUser && msg.sources?.length" class="assistant-sources"><span>本次联网来源</span><template v-for="(source, sourceIndex) in msg.sources" :key="source.url"><a v-if="isExternalUrl(source.url)" :href="source.url" target="_blank" rel="noopener noreferrer"><strong>[{{ source.number || sourceIndex + 1 }}] {{ source.title }}</strong><small>{{ source.provider }}<template v-if="source.published_at"> · 发布：{{ source.published_at }}</template><template v-if="source.observed_at"> · 观测：{{ source.observed_at }}</template><template v-if="source.retrieved_at"> · 查询：{{ source.retrieved_at }}</template></small></a></template></div>
+        </div>
+      </div>
+      <footer class="assistant-footer">
+        <button v-if="!assistantFollowLatest" type="button" class="assistant-jump" @click="scrollAssistant(true)">回到最新消息<i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
+        <details v-if="assistantNavigation.length" class="assistant-navigation"><summary>相关页面<span>{{assistantNavigation.length}} 个入口</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary><nav aria-label="小助手推荐页面"><button v-for="item in assistantNavigation" :key="item.view" type="button" @click="goToAssistantPage(item.view)">{{item.label}}<i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></button></nav></details>
+        <form class="assistant-input" @submit.prevent="sendAssistantMessage"><el-input ref="assistantComposer" v-model="assistantInput" type="textarea" :autosize="{minRows: 2, maxRows: assistantViewportHeight < 500 ? 2 : 4}" resize="none" maxlength="6000" aria-label="给小助手发送消息" placeholder="输入问题，问问操作方法或聊聊天…" @keydown="onAssistantInputKeydown"></el-input><el-button native-type="submit" type="primary" :loading="assistantLoading" :disabled="!assistantInput.trim() || assistantLoading">发送</el-button></form>
+        <p class="assistant-input-hint">Enter 发送 · Shift + Enter 换行</p>
+      </footer>
     </section>
   </el-container>
+  <report-versions v-if="isAuthenticated && reportVersionsOpen" :key="token" :project="reportVersionsProject" :initial-type="reportVersionsType" :request="authFetch" :download="downloadArtifact" @close="closeReportVersions"></report-versions>
   <el-dialog v-model="passwordOpen" title="修改密码" width="min(520px, 94vw)" :close-on-click-modal="false" @closed="passwordForm={current_password:'',new_password:'',confirm_password:''}">
     <el-form class="password-form" label-position="top" @submit.prevent="changePassword">
       <el-form-item label="原密码"><el-input v-model="passwordForm.current_password" aria-label="原密码" type="password" show-password autocomplete="current-password" maxlength="128"></el-input></el-form-item>
@@ -315,6 +333,7 @@
 <script src="company-knowledge.js"></script>
 <script src="account-management.js"></script>
 <script src="personal-home.js"></script>
+<script src="report-versions.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

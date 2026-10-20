@@ -76,7 +76,7 @@ def personal_home_only(page, base, output, browser, configure_context):
     expect(member.get_by_text('建议书待确认', exact=True)).to_be_visible()
     report = member.locator('.home-reports article').filter(has_text='本人的行业报告')
     expect(report).to_have_count(1)
-    expect(report.get_by_text('v2', exact=True)).to_be_visible()
+    expect(report.get_by_text('记录 002', exact=True)).to_be_visible()
     with member.expect_download() as download_event:
         report.get_by_role('button', name='下载', exact=True).click()
     assert Path(download_event.value.path()).read_text(encoding='utf-8') == '隔离测试报告正文'
