@@ -155,7 +155,16 @@
   },
   "comparison_reference": "2026-10-20 original real run versus repaired report generation; not a cumulative comparison against 2026-10-15",
   "artifacts": [
-    "deliverables/company-report-comparison-20261020.html",
+    "deliverables/company-report-same-run-20261020.html",
     "deliverables/company-report-verified-20261020.html"
-  ]
+  ],
+  "corrected_version_comparison": {
+    "artifact": "deliverables/company-report-comparison-20261020.html",
+    "validation": "deliverables/company-report-comparison-20261020.validation.json",
+    "baseline": "E:\\projects\\output\\公司报告整体验收_20261016\\比亚迪_最终验收交付\\报告正文.txt",
+    "baseline_text_sha256": "68aad665940aee39b91b3575bdf460059936d041d552156dffe3b394ca30e101",
+    "baseline_accepted_commit": "2464992",
+    "baseline_docx_sha256": "7cc84779aee6886745cbb494fe9fb652dcd30d2488ea6c60cbff46b65ad2df55",
+    "scope": "previous accepted optimized final report versus latest actual repaired report; data corpora differ; existing indicators are not counted as new achievements"
+  }
 }

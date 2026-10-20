@@ -1,6 +1,7 @@
-"""Build a self-contained chapter comparison from actual archived reports.
+"""Build the same-run bug reproduction comparison from actual reports.
 
-Run with --help for input directories. No network, model calls or credentials.
+For the previous accepted optimized version versus the latest output, use
+build_company_version_comparison.py. No network, model calls or credentials.
 """
 import argparse
 import base64

@@ -1,0 +1,138 @@
+{
+  "scope": "BYD real archived report generation replay; not fresh full retrieval or deployment",
+  "regression_passed": 708,
+  "chapters": [
+    {
+      "chapter": 1,
+      "title": "摘要",
+      "kind": "sync",
+      "before_chars": 1091,
+      "after_chars": 1174,
+      "before_sha256": "a01e00b14c06c810cd14c2116e7a09808011a7428d24eec545e517addb10849b",
+      "after_sha256": "1c26bcf835ba56ece6bee04eb31ac33e455eb8cb7f0c17147630432167781ad2"
+    },
+    {
+      "chapter": 2,
+      "title": "主体工商基本信息核查股东关系与治理底盘",
+      "kind": "keep",
+      "before_chars": 3835,
+      "after_chars": 3835,
+      "before_sha256": "59b63f37a3d7b3bb5f2d30a9afdc7df04e32678e97374b846e08037557d5c373",
+      "after_sha256": "5ff7ef7f89e5a7729f53225190e447ea351e159fd55044baa0fdcf5befdc21a8"
+    },
+    {
+      "chapter": 3,
+      "title": "历史沿革与成长质量",
+      "kind": "fix",
+      "before_chars": 4231,
+      "after_chars": 3893,
+      "before_sha256": "ca2883ba38f29669d6d2ff5a367b3e2ea507fa66fb6121bbc69c792049da3653",
+      "after_sha256": "5791fb5d8cb1a8e5604d428cd02dd80f04d8129aa210921b6b997d7349f178c8"
+    },
+    {
+      "chapter": 4,
+      "title": "组织治理与运营管理评估",
+      "kind": "keep",
+      "before_chars": 3959,
+      "after_chars": 3959,
+      "before_sha256": "7214948595c67be366c4aafb3de67daf5bf5b1aa8b20aca8ab10786b1be3ce02",
+      "after_sha256": "7214948595c67be366c4aafb3de67daf5bf5b1aa8b20aca8ab10786b1be3ce02"
+    },
+    {
+      "chapter": 5,
+      "title": "行业口碑、产品认可度与同业竞争地位研判",
+      "kind": "fix",
+      "before_chars": 597,
+      "after_chars": 2255,
+      "before_sha256": "d410b1139ade3b3fefa35095aa79bad00917450f307729ea64ccdd6addc12846",
+      "after_sha256": "7237f58227df7dcc34013a5eebb0664819df23ce2dc7dd19fd89e3a513e8a9de"
+    },
+    {
+      "chapter": 6,
+      "title": "主营业务真实经营情况核验",
+      "kind": "fix",
+      "before_chars": 5594,
+      "after_chars": 6015,
+      "before_sha256": "a0aeb13db152cf9776d257337716c7db95838f792b454795fa57906cf736b0f3",
+      "after_sha256": "36f19ebd376e12160c2ba8b60db682b9d839823c7edac50e7e9fc073c25dc0cf"
+    },
+    {
+      "chapter": 7,
+      "title": "核心管理团队风险研判",
+      "kind": "fix",
+      "before_chars": 10350,
+      "after_chars": 9382,
+      "before_sha256": "6f00ccc43ba2ce6d182ce1b158ffbf7b2898a1d8b1f7fd252dd5c74d6f9f379d",
+      "after_sha256": "b9cdf9807e18e42dd15790972e4f200d13454ed5bb68b0a4dd33c3799cd5b8e8"
+    },
+    {
+      "chapter": 8,
+      "title": "企业文化及人员流失情况",
+      "kind": "fix",
+      "before_chars": 3171,
+      "after_chars": 6165,
+      "before_sha256": "df0f475a8cb0df5676847dcffeb479428af539b9dc62026ff2d431a203e83a61",
+      "after_sha256": "b5affad0d8890a5d65c07626147a0c467d5d2cdf294166274c58a8f077e9cc44"
+    },
+    {
+      "chapter": 9,
+      "title": "企业司法负面核查",
+      "kind": "keep",
+      "before_chars": 16194,
+      "after_chars": 16194,
+      "before_sha256": "14fd7e081edd20ab089dd5c21c363ec005a8d6ba9b0a86acb62ce5b61f48714e",
+      "after_sha256": "14fd7e081edd20ab089dd5c21c363ec005a8d6ba9b0a86acb62ce5b61f48714e"
+    },
+    {
+      "chapter": 10,
+      "title": "定向穿透专项尽职调查",
+      "kind": "keep",
+      "before_chars": 5978,
+      "after_chars": 5978,
+      "before_sha256": "cb9b0f644ec7eaae83dcf9fe5dc809971fbf610eed2cb95f37b7ef6653f241cf",
+      "after_sha256": "cb9b0f644ec7eaae83dcf9fe5dc809971fbf610eed2cb95f37b7ef6653f241cf"
+    },
+    {
+      "chapter": 11,
+      "title": "风险核查",
+      "kind": "sync",
+      "before_chars": 11394,
+      "after_chars": 11490,
+      "before_sha256": "e497aaf42b6dc0da97dc9a9b4d92d5eb6bde6569979c5f22c7a07f146f257b0f",
+      "after_sha256": "721a7d8f86ea46b91159f00f074546a9f2d986b306760ae7acdd35cfb4a0a228"
+    },
+    {
+      "chapter": 12,
+      "title": "综合评价",
+      "kind": "fix",
+      "before_chars": 3947,
+      "after_chars": 4192,
+      "before_sha256": "77820d85bc8de9a6ea6cba963ba9908dea6db84f3757de19b2eb7d788624da57",
+      "after_sha256": "0dd99b61c14027e9c43d9ee43e3d5bc3c683295c02913962a46624a0ba38cd39"
+    },
+    {
+      "chapter": 13,
+      "title": "信息来源（自动生成审计索引）",
+      "kind": "sync",
+      "before_chars": 8730,
+      "after_chars": 9155,
+      "before_sha256": "36edb6d8072c1e122be7caf4ed245397f93d581974b17d2d13271647cbaf4d34",
+      "after_sha256": "1a5a0ff6aa4a31c743916c08658f118d290d7791096cd321e5ca2b9adb4b5f8e"
+    },
+    {
+      "chapter": 14,
+      "title": "后续研究建议",
+      "kind": "sync",
+      "before_chars": 2904,
+      "after_chars": 3074,
+      "before_sha256": "b5ac0428dae008f25597e32c5094ae2dd80a020e6c03aef4253e50db32d8a07a",
+      "after_sha256": "f1b7037ca31e32e1c7fb51c7830aeb8725a534e9bd0617ef24dfb2636c719398"
+    }
+  ],
+  "body_evidence_ids": 39,
+  "indexed_evidence_ids": 39,
+  "inline_image_occurrences": 10,
+  "comparison_sha256": "5cb5300f00646ce144500d121d1a7f5e1fe8646bfc36d98c594ddbaee7c2216d",
+  "before_report_sha256": "c6f58c0dee4dc6496b1b7e2a91bc7f02decd51704db10d0deaf660796e36fc98",
+  "after_report_sha256": "17928e53e2cf2a8c0b9626a0bca32698cddccefcf23274e195b8158d600191ce"
+}
