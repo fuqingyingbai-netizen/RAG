@@ -1,0 +1,357 @@
+{
+  "date": "2026-10-20",
+  "completion_level": "full_research_workflow_completed_content_acceptance_failed",
+  "baseline_run": "work\\person-optimization\\full-live-20261020T130852",
+  "same_corpus_run": "work\\person-optimization\\same-corpus-20261020T131943",
+  "source_count": 35,
+  "web_sources": 29,
+  "qcc_sources": 4,
+  "xiniu_sources": 2,
+  "chapter_count": 15,
+  "baseline_elapsed_seconds": 223.9,
+  "replay_elapsed_seconds": 229.3,
+  "baseline_live_report_model_calls": 12,
+  "replay_live_report_model_calls": 10,
+  "baseline_model_rejections": [
+    {
+      "chapter": 2,
+      "reasons": [
+        "foreign_entity_in_analysis"
+      ]
+    },
+    {
+      "chapter": 7,
+      "reasons": [
+        "indirect_or_conflicting_analysis"
+      ]
+    },
+    {
+      "chapter": 10,
+      "reasons": [
+        "indirect_or_conflicting_analysis"
+      ]
+    }
+  ],
+  "replay_model_rejections": [
+    {
+      "chapter": 2,
+      "reasons": [
+        "statement_not_in_cited_fact",
+        "statement_not_in_cited_fact",
+        "unsupported_analysis",
+        "unsupported_analysis"
+      ]
+    },
+    {
+      "chapter": 5,
+      "reasons": [
+        "unsupported_analysis"
+      ]
+    },
+    {
+      "chapter": 9,
+      "reasons": [
+        "unsupported_analysis",
+        "unsupported_analysis"
+      ]
+    },
+    {
+      "chapter": 13,
+      "reasons": [
+        "unsupported_analysis"
+      ]
+    },
+    {
+      "chapter": 1,
+      "reasons": [
+        "unsupported_analysis"
+      ]
+    }
+  ],
+  "replay_no_evidence_chapters": [
+    7,
+    10
+  ],
+  "replay_errors": [
+    "部分章节模型写作失败或未通过事实校验，已保留来源底稿"
+  ],
+  "delivery_status": "review_draft",
+  "docx_integrity_ok": true,
+  "docx_visual_qa": "unavailable",
+  "replay_new_search_and_professional_calls": 0,
+  "tests_directory_regression": {
+    "tests": 1217,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 14,
+    "passed": 1203
+  },
+  "root_external_scripts_not_passing": [
+    "test_embedding.py: Hugging Face model download/cache unavailable",
+    "test_langsmith_eval.py: LangSmith 401 invalid token"
+  ],
+  "comparison_scope": "same retained 35-source full live corpus before and after scoped company records; not legacy-main baseline",
+  "corpus_sha256": "69edb3834e546cb5da7e8bc64059309e863dd5bf0810b6f46d289ee18820fd05",
+  "intake_sha256": "1b4dc430381625d4541153e19fa1e4a4a4e23de85e4e827fb7d7d76cb39a82e8",
+  "remaining_work": [
+    "Directly relevant personal credit and commissioned special-topic source collection",
+    "Evidence of roles, dates and comparable peers, authorized interviews where needed",
+    "Model statement/analysis validation failures in chapters 1, 2, 5, 9, 13",
+    "Word page rendering and visual QA",
+    "App API/browser full interaction, knowledge indexing and deployment excluded"
+  ],
+  "chapters": [
+    {
+      "chapter": 1,
+      "title": "摘要",
+      "before_eids": 11,
+      "after_eids": 9,
+      "before_text_chars": 18672,
+      "after_text_chars": 2899,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 0,
+      "status": "模型部分输出被拦截，保留底稿：unsupported_analysis",
+      "change": "摘要只消费正文实际引用；仍为待人工复核摘要。",
+      "current_gaps": []
+    },
+    {
+      "chapter": 2,
+      "title": "创始人底色画像",
+      "before_eids": 12,
+      "after_eids": 12,
+      "before_text_chars": 11222,
+      "after_text_chars": 3914,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 3,
+      "status": "模型部分输出被拦截，保留底稿：statement_not_in_cited_fact, statement_not_in_cited_fact, unsupported_analysis, unsupported_analysis",
+      "change": "公司资料退出个人履历；学校、职责与时期仍需逐项核验。",
+      "current_gaps": [
+        "研究维度“职业时间线与职责”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“履历断点与矛盾”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“家庭健康等公开信息边界”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 3,
+      "title": "人格特质风险",
+      "before_eids": 4,
+      "after_eids": 2,
+      "before_text_chars": 17106,
+      "after_text_chars": 939,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 4,
+      "status": "程序校验未拦截；待人工复核",
+      "change": "不再以公司介绍支撑人格判断；来源评价不等于人格结论。",
+      "current_gaps": [
+        "研究维度“责任心与事业心”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“诚信与利益取舍”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“表达与风险偏好”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“压力下行为与评价者立场”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 4,
+      "title": "经营胜任力、持续创新与迭代能力验证",
+      "before_eids": 12,
+      "after_eids": 12,
+      "before_text_chars": 18800,
+      "after_text_chars": 3399,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 3,
+      "status": "程序校验未拦截；待人工复核",
+      "change": "公司经营资料拆成短记录；公司业绩不能直接归因为个人能力。",
+      "current_gaps": [
+        "研究维度“战略设计与行业判断”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“资本资源与个人职责”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“创新迭代与阶段匹配”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 5,
+      "title": "识人用人、统筹管理及核心经营管控能力",
+      "before_eids": 6,
+      "after_eids": 4,
+      "before_text_chars": 17539,
+      "after_text_chars": 1356,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 4,
+      "status": "模型部分输出被拦截，保留底稿：unsupported_analysis",
+      "change": "保留管理相关来源；决策过程、机制和个人贡献需要补证。",
+      "current_gaps": [
+        "研究维度“权责与授权”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“用人与关键岗位”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“文化与冲突处理”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“经营管控与稳定性”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 6,
+      "title": "核心管理团队背景调研",
+      "before_eids": 12,
+      "after_eids": 12,
+      "before_text_chars": 10872,
+      "after_text_chars": 4326,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 4,
+      "status": "程序校验未拦截；待人工复核",
+      "change": "人员任职记录按章节标签入选；团队背景和现任状态仍需原件。",
+      "current_gaps": [
+        "研究维度“成员履历与职责”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“产业资源与合作基础”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关键人员变动”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“团队治理与关系边界”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 7,
+      "title": "商业操守与个人信用风险核查",
+      "before_eids": 4,
+      "after_eids": 0,
+      "before_text_chars": 16842,
+      "after_text_chars": 90,
+      "before_listed_gaps": 1,
+      "after_listed_gaps": 6,
+      "status": "缺少本章可引用证据",
+      "change": "公司资料退出个人信用；公开负面线索不自动生成个人信用评分。",
+      "current_gaps": [
+        "本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。",
+        "未接入授权访谈材料时，多方访谈与口碑交叉验证仍待人工完成。",
+        "研究维度“员工与前同事评价”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“合作伙伴与客户评价”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“同行评价与利益立场”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“契约信用与交叉核验”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 8,
+      "title": "同业对标下综合能力与品行隐患评估",
+      "before_eids": 3,
+      "after_eids": 1,
+      "before_text_chars": 16875,
+      "after_text_chars": 664,
+      "before_listed_gaps": 1,
+      "after_listed_gaps": 5,
+      "status": "程序校验未拦截；待人工复核",
+      "change": "没有两名口径一致的可比人物，不做排名；本轮仍有缺口。",
+      "current_gaps": [
+        "缺少至少两位同赛道、同阶段、同角色的可比人物证据，不作横向评级。",
+        "研究维度“可比人物与筛选口径”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“同期间能力与成果”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“行为风格与信用证据”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“比较局限与待核验项”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 9,
+      "title": "关联利益冲突及司法负面核查",
+      "before_eids": 8,
+      "after_eids": 11,
+      "before_text_chars": 10749,
+      "after_text_chars": 3415,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 4,
+      "status": "模型部分输出被拦截，保留底稿：unsupported_analysis, unsupported_analysis",
+      "change": "企查查角色记录可按结构标签进入；关联企业事项与个人责任分开。",
+      "current_gaps": [
+        "研究维度“任职持股及控制关系”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关联交易与利益一致性”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“司法事项及当事人身份”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关系时间与透明度缺口”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 10,
+      "title": "专项调研",
+      "before_eids": 1,
+      "after_eids": 0,
+      "before_text_chars": 8435,
+      "after_text_chars": 81,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 5,
+      "status": "缺少本章可引用证据",
+      "change": "专项方向保留，但不再用整段公司介绍充当持股及任职变化证据。",
+      "current_gaps": [
+        "本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。",
+        "研究维度“委托专项问题与范围”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“对应原始资料”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“已发现信号与适用边界”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“尚未解决的问题”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 11,
+      "title": "投后治理及退出风险研判",
+      "before_eids": 4,
+      "after_eids": 4,
+      "before_text_chars": 17108,
+      "after_text_chars": 1153,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 4,
+      "status": "程序校验未拦截；待人工复核",
+      "change": "治理资料按主题入选；历史任职不推导当前控制权和退出权。",
+      "current_gaps": [
+        "研究维度“人物实际决策角色”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“投资方沟通与重大事项”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关键岗位与制度承接”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“退出路径及适用条件”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 12,
+      "title": "风险核查",
+      "before_eids": 7,
+      "after_eids": 5,
+      "before_text_chars": 10700,
+      "after_text_chars": 2331,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 4,
+      "status": "程序校验未拦截；待人工复核",
+      "change": "按来源登记核查线索；缺失、未命中及企业风险均不自动评分。",
+      "current_gaps": [
+        "研究维度“已发现的直接信号”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关联主体间接信号”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“尚未核验及未查询事项”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“风险核查覆盖清单”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 13,
+      "title": "综合评估",
+      "before_eids": 11,
+      "after_eids": 9,
+      "before_text_chars": 18886,
+      "after_text_chars": 2829,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 0,
+      "status": "模型部分输出被拦截，保留底稿：unsupported_analysis",
+      "change": "综合评估引用前文章节材料；仍不输出无量表的A/B评级。",
+      "current_gaps": []
+    },
+    {
+      "chapter": 14,
+      "title": "信息来源",
+      "before_eids": 33,
+      "after_eids": 38,
+      "before_text_chars": 26815,
+      "after_text_chars": 12541,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 0,
+      "status": "自动生成核验记录",
+      "change": "索引由正文真实出现的E-ID生成；编号数量不等于独立来源或核实事实数。",
+      "current_gaps": []
+    },
+    {
+      "chapter": 15,
+      "title": "后续研究点",
+      "before_eids": 0,
+      "after_eids": 1,
+      "before_text_chars": 2952,
+      "after_text_chars": 6952,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 0,
+      "status": "自动生成核验记录",
+      "change": "把每个未覆盖研究维度、平台失败及模型拦截集中列入补查计划。",
+      "current_gaps": []
+    }
+  ]
+}

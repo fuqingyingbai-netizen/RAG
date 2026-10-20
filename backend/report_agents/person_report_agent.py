@@ -54,11 +54,10 @@ FALLBACK_MARKER = "本章为自动检索证据底稿内容，尚未进入人工�
 LEGACY_FALLBACK_MARKER = "本章为确定性证据保底内容，尚未完成人工分析复核。"
 
 _BASIC_PROFILE_FACT_KEYWORDS = (
-    "出生", "籍贯", "出生地", "教育", "学校", "学历", "学位", "毕业", "杭州师范",
-    "杭州师范学院", "杭州师范大学", "英语", "外语", "任教", "讲师", "教师",
-    "早年", "成长", "高考", "中国黄页", "海博翻译社", "阿里巴巴", "创办",
-    "创立", "公益", "乡村教师", "湖畔", "蔡崇信", "孙正义", "软银", "蚂蚁", "菜鸟",
+    "出生", "籍贯", "出生地", "教育", "学校", "学历", "学位", "毕业", "专业",
+    "任教", "讲师", "教师", "早年", "成长", "职业", "履历", "任职", "创办", "创立", "公益",
 )
+
 _SENSITIVE_GAP_KEYWORDS = (
     "司法", "诉讼", "失信", "被执行", "限高", "处罚", "监管", "债务", "资产",
     "冻结", "质押", "婚姻", "健康", "腐败", "代持", "控制权", "违法", "违规",
@@ -206,35 +205,12 @@ PERSON_RISK_TAXONOMY = """
 
 
 PERSON_SECTION_FEW_SHOTS = {
-    1: """
-摘要 few-shot 表达锚点：
-执行摘要：LOOT CORE LABS（LOOT），2026年初成立，AI原生内容与游戏创作平台，自比“AI驱动的UGC内容版TikTok”。团队由CEO、产品生态、技术负责人构成。
-核心发现：团队互补性强，需分别写清消费产品直觉、增长/生态经验、AI系统能力等被证据支持的优势。
-关键验证：对履历修正、职位夸大、空白期、公开数据矛盾等逐条列示，写清“已确认/待确认/矛盾点”。
-需关注信号：公开项目不可追踪、教育/履历展示策略、媒体覆盖不足、产品状态不明、创始人无共事历史等，要写成风险信号而非定罪式结论。
-竞争格局：列头部竞品融资、用户、产品差异；没有可靠数字则写“暂无公开可比数据”。
-""",
-    2: """
-底色画像 few-shot 表达锚点：
-教育背景：可写“北外本科、北大国际法硕士，但公开主页仅列Draper University，可能是面向硅谷场景的策略性品牌管理”，前提是材料中有证据。
-职业阶段：按律师期、金融期、法律科技过渡、硅谷创业、产品线联合创始人、当前项目等阶段拆解；每阶段写清时间、角色、可验证成果和待核验点。
-关键修正：如果发现“创立某公司”实为“任VP/产品负责人”，必须明确修正，并区分“叙事美化”与“经历不存在”。
-""",
-    13: """
-综合评估 few-shot 表达锚点：
-团队整体评价可写“三角互补”或其他结构判断，但必须来自事实。单人评分示例：评分B+；优势包括全球化视野、产品直觉、融资治理基础；风险包括无独立规模化成功记录、频繁切换方向、过往项目无市场痕迹、履历叙事夸大。关键判断要落到“0到1能力”“1到10能力”“当前项目待验证点”。
-""",
-    14: """
-信息来源 few-shot 表达锚点：
-公开可验证来源：LinkedIn、公司官网、工商/专业数据库、Twitter/X、Instagram、Google Scholar、论文数据库、新闻报道、应用商店、融资数据库等。必须逐项写“信息点 + URL/来源说明 + 工具 + 用途”，不要只列平台名。
-""",
-    15: """
-后续研究点 few-shot 表达锚点：
-高优先级：注册实体、股东结构、融资动态、核心产品状态、关键业绩数据精确验证。
-中优先级：中文全名/身份信息、履历空白期、核心团队关系溯源、竞品产品形态与差异化。
-低优先级：社交网络完整分析、长尾媒体与个人品牌细节。每一项都要说明为什么影响投资判断。
-""",
+    1: "摘要表达：研究对象与范围；已引用核心事实；关键矛盾；需关注信号；有边界的总体判断。不得引入其他项目示例。",
+    13: "综合评估表达：按前文证据汇总优势、局限、未知项和核验优先级；未建立量表不评分。",
+    14: "信息来源：信息点、原始网址或结构化记录、工具、等级、日期和实际支持章节。",
+    15: "后续研究点：待确认问题、优先级、建议来源、完成核验条件。",
 }
+
 
 
 PERSON_FEW_SHOT = f"""
@@ -250,7 +226,7 @@ PERSON_FEW_SHOT = f"""
 
 
 class PersonReportAgent:
-    report_kind = "BDD目标创始人桌面研究报告"
+    report_kind = "BDD目标人物桌面研究报告"
     trace_agent = "person_report_agent"
     outline = PERSON_REPORT_OUTLINE
 
@@ -264,123 +240,11 @@ class PersonReportAgent:
         emit: Callable[..., None],
         trace_emit: Any = None,
     ) -> str:
-        sections_by_index: dict[int, str] = {}
-        emit(trace_emit, "report", self.trace_agent, "目标人报告团队启动", f"sections={len(self.outline)}", status="running")
-        workers = max(1, min(5, int(os.getenv("REPORT_SECTION_MAX_WORKERS", "2"))))
         try:
-            with ThreadPoolExecutor(max_workers=min(workers, len(self.outline))) as executor:
-                futures = {
-                    executor.submit(
-                        self._write_section,
-                        project,
-                        cleaned_json,
-                        risk_json,
-                        index,
-                        section_title,
-                        requirements,
-                        invoke,
-                        clip,
-                        emit,
-                        trace_emit,
-                    ): index
-                    for index, (section_title, requirements) in enumerate(self.outline, 1)
-                }
-                for future in as_completed(futures):
-                    index = futures[future]
-                    try:
-                        section = future.result()
-                    except Exception as exc:
-                        emit(
-                            trace_emit,
-                            "report",
-                            self.trace_agent,
-                            "章节并发写作失败，保留证据缺口章节",
-                            f"section={index}, error={exc}",
-                            section=self.outline[index - 1][0],
-                            status="fallback",
-                        )
-                        section = ""
-                    if section.strip():
-                        sections_by_index[index] = section
-        except RuntimeError as exc:
-            # A development-server reload may begin interpreter shutdown while a
-            # long-running workflow is still alive. Finish missing sections in the
-            # workflow thread instead of discarding the complete person report.
-            emit(
-                trace_emit,
-                "report",
-                self.trace_agent,
-                "章节并发池不可用，切换串行补写",
-                str(exc),
-                status="fallback",
-            )
-            for index, (section_title, requirements) in enumerate(self.outline, 1):
-                if index in sections_by_index:
-                    continue
-                try:
-                    section = self._write_section(
-                        project,
-                        cleaned_json,
-                        risk_json,
-                        index,
-                        section_title,
-                        requirements,
-                        invoke,
-                        clip,
-                        emit,
-                        trace_emit,
-                    )
-                except Exception as section_exc:
-                    emit(
-                        trace_emit,
-                        "report",
-                        self.trace_agent,
-                        "章节串行补写失败，保留证据缺口章节",
-                        f"section={index}, error={section_exc}",
-                        section=section_title,
-                        status="fallback",
-                    )
-                    section = ""
-                if section.strip():
-                    sections_by_index[index] = section
-        sections = [
-            self._usable_section_or_evidence_fallback(
-                sections_by_index.get(index, ""),
-                cleaned_json,
-                index,
-                title,
-                emit,
-                trace_emit,
-            )
-            for index, (title, _requirements) in enumerate(self.outline, 1)
-        ]
-        draft = "\n\n".join(sections)
-        if not draft.strip():
-            return ""
-        editor_enabled = os.getenv("PERSON_REPORT_EDITOR_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
-        if editor_enabled:
-            edited = self._edit(project, draft, risk_json, invoke, clip, emit, trace_emit)
-        else:
-            emit(
-                trace_emit,
-                "report",
-                self.trace_agent,
-                "轻量总编已跳过，保留经校验章节草稿",
-                "PERSON_REPORT_EDITOR_ENABLED=false",
-                status="skipped",
-            )
-            edited = draft
-        # With the optional editor disabled, the draft already consists of
-        # individually validated sections. Do not parse and reconstruct it.
-        final = (
-            self._reconcile_outline_sections(edited, sections, cleaned_json, emit, trace_emit)
-            if editor_enabled
-            else draft.strip()
-        )
-        final = self._inject_affiliation_ledger(project, final)
-        final = ensure_delivery_sections(project, final, self.report_kind)
-        emit(trace_emit, "report", self.trace_agent, "目标人桌面研究报告完成", f"chars={len(final)}", chars=len(final), status="done")
-        return final
+            from ..person_evidence import generate_person_report
+        except ImportError:
+            from person_evidence import generate_person_report
+        return generate_person_report(project, cleaned_json, risk_json, self.outline, invoke, emit, trace_emit)
 
     def _write_section(self, project: Any, cleaned_json: str, risk_json: str, index: int, section_title: str, requirements: list[str], invoke: Callable[[str, str, Any], str], clip: Callable[[str, int], str], emit: Callable[..., None], trace_emit: Any) -> str:
         emit(trace_emit, "report", self.trace_agent, "章节写作启动", f"{index}/{len(self.outline)} {section_title}", section=section_title, status="running")
@@ -707,17 +571,17 @@ class PersonReportAgent:
 
     def _profile_bucket(self, item: dict[str, Any]) -> str:
         text = " ".join(str(item.get(key) or "") for key in ("module", "fact", "source_title"))
-        if any(keyword in text for keyword in ("教育", "学校", "学历", "学位", "毕业", "杭州师范", "英语", "外语")):
+        if any(keyword in text for keyword in ("教育", "学校", "学历", "学位", "毕业", "专业", "education", "degree")):
             return "教育背景"
-        if any(keyword in text for keyword in ("任教", "讲师", "教师", "中国黄页", "海博翻译社", "阿里巴巴", "创办", "创立", "创业")):
+        if any(keyword in text for keyword in ("任教", "讲师", "教师", "任职", "就职", "创办", "创立", "创业", "career")):
             return "职业路径"
         if any(keyword in text for keyword in ("出生", "籍贯", "出生地", "姓名", "身份")):
             return "基本身份"
         if any(keyword in text for keyword in ("早年", "成长", "高考", "家庭")):
             return "早年经历"
-        if any(keyword in text for keyword in ("公益", "乡村教师", "湖畔", "联合国", "社会职务")):
+        if any(keyword in text for keyword in ("公益", "社会职务", "社会组织", "公共服务")):
             return "公开身份"
-        if any(keyword in text for keyword in ("蔡崇信", "孙正义", "软银", "蚂蚁", "菜鸟", "阿里")):
+        if any(keyword in text for keyword in ("合伙人", "联合创始人", "投资人", "共同持股", "关联关系")):
             return "关键关系"
         return "其他公开履历线索"
 

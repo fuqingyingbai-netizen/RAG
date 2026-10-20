@@ -56,6 +56,15 @@ dev = [
     "pytest>=9.1.1",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["test"]
+pythonpath = ["backend", "."]
+addopts = "--strict-markers"
+markers = [
+    "integration: isolated database or local-service integration checks",
+    "browser: isolated browser-based checks",
+]
+
 [project.optional-dependencies]
 study = [
     "langchain-classic>=0.2.0",

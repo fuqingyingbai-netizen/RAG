@@ -1,0 +1,253 @@
+{
+  "branch": "codex/company",
+  "base_commit": "f637636",
+  "template_version": "person-template-v3-20261020",
+  "tests": {
+    "tests": 1155,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 14,
+    "passed": 1141
+  },
+  "chapters": 15,
+  "offline_cases": 6,
+  "live_scope": "bounded_live_search_original_fetch_and_report",
+  "api_issues": [
+    {
+      "provider": "tyc",
+      "status": "failed",
+      "reason": "unauthorized",
+      "http_status": 401,
+      "credential_requirement": "OAuth or MCP API key; raw OpenAPI token rejected",
+      "date": "2026-10-20"
+    }
+  ],
+  "word_visual_qa": "not_completed_no_libreoffice_at_handoff_path",
+  "final_person_and_export_suite": {
+    "passed": 167,
+    "failed": 0
+  },
+  "completion_level": "full_research_workflow_completed_content_acceptance_failed",
+  "platform_probes_20261020": [
+    {
+      "provider": "企查查",
+      "status": "5项业务返回",
+      "note": "工商、股东、主要人员、企业风险扫描、行政处罚；仅测试比亚迪股份有限公司，非全接口验收"
+    },
+    {
+      "provider": "天眼查",
+      "status": "401 unauthorized",
+      "note": "当前OpenAPI Token不被MCP业务接受，响应要求OAuth或MCP API Key"
+    },
+    {
+      "provider": "稀牛",
+      "status": "quota_exceeded",
+      "note": "明确提示账号余额不足或配额已用完"
+    },
+    {
+      "provider": "博查",
+      "status": "充值后已返回搜索结果",
+      "note": "完成8组对照与原生网站过滤复测；旧403是充值前记录。"
+    },
+    {
+      "provider": "Exa",
+      "status": "返回2条搜索结果",
+      "note": "新请求；本探针未继续抓取和验证结果原文"
+    },
+    {
+      "provider": "Tavily",
+      "status": "返回2条搜索结果",
+      "note": "新请求；本探针未继续抓取和验证结果原文"
+    }
+  ],
+  "followup_person_suite_20261020": {
+    "passed": 72,
+    "failed": 0,
+    "scope": "template_workflow_report_quality_name_normalization"
+  },
+  "resolved_api_issues_20261020": [
+    {
+      "provider": "bocha",
+      "status": "failed",
+      "reason": "access_denied",
+      "http_status": 403,
+      "probe_reused": false,
+      "date": "2026-10-20",
+      "resolved_after_recharge": true
+    },
+    {
+      "provider": "xiniu",
+      "previous_reason": "old_key_quota_exceeded",
+      "resolution": "user_supplied_replacement_key_business_call_passed",
+      "verified_at": "2026-10-20T12:54:35",
+      "tool": "get_company_info",
+      "scope": "one_business_call_user_supplied_replacement_key",
+      "response_chars": 7923,
+      "company_name_present": true,
+      "local_company_worktree_config_updated": true,
+      "all_tools_verified": false
+    },
+    {
+      "provider": "qcc",
+      "previous_reason": "old_token_credit_balance_insufficient",
+      "resolution": "user_supplied_replacement_token_business_call_passed",
+      "verified_at": "2026-10-20T13:03:11",
+      "tool": "get_executive_judicial_docs",
+      "returned_person_match": true,
+      "returned_company_match": true,
+      "returned_record_counts": {
+        "董监高-裁判文书信息": 1
+      },
+      "scope": "one_business_call_user_supplied_replacement_token",
+      "all_tools_verified": false,
+      "local_company_worktree_config_updated": true
+    }
+  ],
+  "three_engine_experiment_20261020": {
+    "main_questions": 8,
+    "total_search_requests": 31,
+    "by_provider": {
+      "bocha": 15,
+      "exa": 8,
+      "tavily": 8
+    },
+    "original_fetch_operations": 23,
+    "regressions_passed": 71,
+    "scope": "top5_discovery_plus_purposive_original_checks_not_full_report_or_global_recall"
+  },
+  "context_optimization_20261020": {
+    "status": "engineering_and_regression_complete_with_documented_data_gaps",
+    "branch": "codex/company",
+    "tests": {
+      "tests": 1189,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 14,
+      "passed": 1175
+    },
+    "frontend": "create_run_resume_second_stage_and_industry_regression_passed",
+    "identity": "name_affiliation_role_context_aliases_questions_uploaded_materials_preserved_and_rechecked",
+    "chapters": 15,
+    "synthetic_retrieval_requests": 34,
+    "production_limits": {
+      "search_calls": 48,
+      "results_per_search": 6,
+      "original_fetches": 44,
+      "professional_business_calls": 18
+    },
+    "live_search_requests": 12,
+    "live_person_samples": 2,
+    "actual_model_calls": 9,
+    "second_sample_model_mode": "deterministic_replay_no_api",
+    "remaining_validation": "完整真实尽调逐章内容、人工身份确认与Word逐页视觉验收仍需后续材料和人工复核",
+    "storage_probe_limitation": "初次抽样发现同秒专业原件重名覆盖，已修复并回归；最新代码仅对保留原始返回作免费回放，未声称覆盖丢失原件。",
+    "artifact": "deliverables/person-context-optimization.html"
+  },
+  "context_live_samples": [
+    {
+      "target": "王传福",
+      "source_count": 6,
+      "fact_count": 184,
+      "scope": "bounded_live_collection_actual_model",
+      "actual_model_calls": 9,
+      "current_record_replay_scope": "retained_real_personnel_responses_current_code_deterministic_replay"
+    },
+    {
+      "target": "董明珠",
+      "source_count": 5,
+      "fact_count": 192,
+      "scope": "bounded_live_collection_deterministic_claim_replay",
+      "actual_model_calls": 0,
+      "current_record_replay_scope": "retained_real_personnel_responses_current_code_deterministic_replay"
+    }
+  ],
+  "xiniu_after_user_recharge_20261020": {
+    "provider": "xiniu",
+    "retrieved_at": "2026-10-20T12:40:19",
+    "scope": "one_business_call_after_user_recharge",
+    "tool": "get_company_info",
+    "arguments": {
+      "firm_name": "比亚迪股份有限公司",
+      "aspect": "团队人物及招聘分析"
+    },
+    "configured_host": "vip.xiniudata.com",
+    "initialize_ok": true,
+    "status": "failed",
+    "reason": "quota_exceeded",
+    "response_chars": 178,
+    "company_name_present": false,
+    "has_embedded_image": false,
+    "screenshot_evidence": "用户截图显示充值积分余额100；不据此推断当前项目API Key所属账户或工具限额。",
+    "official_endpoint_verified": "https://open.xiniudata.com/ 官方首页给出的MCP端点与项目一致",
+    "next_check": "核对充值账号、API Key对应关系及该Key的调用限额；暂不建议重复充值。"
+  },
+  "xiniu_replacement_key_validation": {
+    "provider": "xiniu",
+    "retrieved_at": "2026-10-20T12:54:35",
+    "scope": "one_business_call_user_supplied_replacement_key",
+    "tool": "get_company_info",
+    "arguments": {
+      "firm_name": "比亚迪股份有限公司",
+      "aspect": "团队人物及招聘分析"
+    },
+    "initialize_ok": true,
+    "status": "returned",
+    "reason": "",
+    "response_chars": 7923,
+    "company_name_present": true,
+    "has_embedded_image": false,
+    "substantive_text_returned": true
+  },
+  "pre_push_validation": {
+    "verified_at": "2026-10-20T13:02:05",
+    "branch": "codex/company",
+    "integrated_main_commit": "1854f95",
+    "integration_commit": "dbd5b0a",
+    "tests": {
+      "tests": 1214,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 14,
+      "passed": 1200
+    },
+    "frontend": [
+      "frontend_person_params.cjs",
+      "frontend_industry_params.cjs",
+      "system-guide-ui.test.cjs",
+      "node --check frontend/script.js"
+    ],
+    "credentials": "Local .env ignored; current release tree scanned; no API keys included",
+    "deployment": "not_performed",
+    "remaining_acceptance": [
+      "full real-person chapter content manual review",
+      "Word page-by-page visual review"
+    ],
+    "primary_professional_providers": "QCC judicial documents and Xiniu company/team tools passed with replacement credentials; all-tools acceptance not claimed"
+  },
+  "qcc_replacement_token_validation": {
+    "provider": "qcc",
+    "retrieved_at": "2026-10-20T13:03:11",
+    "scope": "one_business_call_user_supplied_replacement_token",
+    "tool": "get_executive_judicial_docs",
+    "arguments": {
+      "searchKey": "珠海格力电器股份有限公司",
+      "personName": "董明珠"
+    },
+    "initialize_ok": true,
+    "status": "returned",
+    "reason": "",
+    "response_chars": 528,
+    "returned_fields": [
+      "人员名称",
+      "企业名称",
+      "摘要",
+      "董监高-裁判文书信息"
+    ],
+    "returned_list_counts": {
+      "董监高-裁判文书信息": 1
+    },
+    "returned_person_match": true,
+    "returned_company_match": true
+  },
+  "latest_full_live_acceptance": "PERSON_FULL_RUN_VALIDATION_20261020.json"
+}

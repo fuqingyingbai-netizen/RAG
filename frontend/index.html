@@ -1,8 +1,9 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="no-referrer" />
   <title>观复咨询 AI 尽调工作流</title>
   <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -10,6 +11,10 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="company-knowledge.css" />
   <link rel="stylesheet" href="navigation.css" />
+  <link rel="stylesheet" href="accounts.css" />
+  <link rel="stylesheet" href="personal-home.css" />
+  <link rel="stylesheet" href="report-versions.css" />
+  <link rel="stylesheet" href="assistant.css" />
 </head>
 <body>
 <main id="app" v-cloak>
@@ -22,28 +27,42 @@
         <el-button type="primary" size="large" @click="selectAuthRole('user')">普通用户</el-button>
         <el-button size="large" @click="selectAuthRole('admin')">管理员</el-button>
       </div>
-      <el-form v-else class="login-form" @keyup.enter="handleAuthSubmit">
+      <el-form v-else class="login-form" @submit.prevent="handleAuthSubmit" @keyup.enter="handleAuthSubmit">
         <div class="auth-toolbar">
           <div class="auth-mode-actions">
             <el-button :type="authMode === 'login' ? 'primary' : 'default'" @click="authMode = 'login'">登录</el-button>
-            <el-button :type="authMode === 'register' ? 'primary' : 'default'" @click="authMode = 'register'">注册</el-button>
+            <el-button :type="authMode === 'register' ? 'primary' : 'default'" @click="authMode = 'register'">邀请注册</el-button>
           </div>
           <el-button text @click="backToRoleSelect">重新选择</el-button>
         </div>
         <el-alert :title="authRoleLabel + (authMode === 'login' ? '登录' : '注册')" type="info" :closable="false" show-icon></el-alert>
-        <el-input v-model="authForm.username" placeholder="账号" size="large"></el-input>
-        <el-input v-model="authForm.password" placeholder="密码" type="password" size="large" show-password></el-input>
-        <el-input v-if="authMode === 'register' && authRole === 'admin'" v-model="authForm.admin_code" placeholder="管理员邀请码" type="password" size="large" show-password></el-input>
+        <el-input v-if="authMode === 'register'" v-model="authForm.invitation" placeholder="粘贴邀请码（也支持完整邀请链接）" aria-label="邀请码" size="large" maxlength="2048" @input="inviteValid=false; inviteStatus=''; inviteRequestId++" @change="checkInvitation"></el-input>
+        <el-alert v-if="authMode === 'register' && inviteStatus" :title="inviteStatus" :type="inviteValid ? 'success' : 'error'" :closable="false" show-icon class="auth-invite-status"></el-alert>
+        <el-input v-model="authForm.username" placeholder="用户名" aria-label="用户名" autocomplete="username" maxlength="100" size="large"></el-input>
+        <el-input v-model="authForm.password" placeholder="密码" aria-label="密码" :autocomplete="authMode === 'register' ? 'new-password' : 'current-password'" type="password" maxlength="128" size="large" show-password></el-input>
+        <template v-if="authMode === 'register'"><el-input v-model="authForm.confirm_password" placeholder="确认密码" aria-label="确认密码" autocomplete="new-password" type="password" maxlength="128" size="large" show-password></el-input><p class="auth-password-help">密码为8至128位，须包含字母和数字，首尾不能有空白。</p></template>
         <el-button type="primary" size="large" class="full" :loading="authLoading" @click="handleAuthSubmit">{{ authRoleLabel }}{{ authMode === 'login' ? '登录' : '注册' }}</el-button>
-        <el-button text class="full" @click="switchAuthMode">{{ authMode === 'login' ? '没有账号？去注册' : '已有账号？去登录' }}</el-button>
+        <el-button text class="full" @click="switchAuthMode">{{ authMode === 'login' ? '有邀请码？去注册' : '已有账号？去登录' }}</el-button>
       </el-form>
     </el-card>
   </section>
 
+  <section v-else-if="currentUser.must_change_password" class="login-page">
+    <el-card class="password-card" shadow="never"><template #header><h2>请修改临时密码</h2></template>
+      <p class="account-help">{{currentUser.username}}，请设置自己的新密码后继续使用。</p>
+      <el-form class="password-form" label-position="top" @submit.prevent="changePassword">
+        <el-form-item label="临时密码"><el-input v-model="passwordForm.current_password" aria-label="临时密码" type="password" show-password autocomplete="current-password" maxlength="128"></el-input></el-form-item>
+        <el-form-item label="新密码"><el-input v-model="passwordForm.new_password" aria-label="新密码" type="password" show-password autocomplete="new-password" maxlength="128"></el-input></el-form-item>
+        <el-form-item label="确认新密码"><el-input v-model="passwordForm.confirm_password" aria-label="确认新密码" type="password" show-password autocomplete="new-password" maxlength="128"></el-input></el-form-item>
+        <p class="auth-password-help">密码为8至128位，须包含字母和数字，首尾不能有空白。</p><el-button native-type="submit" type="primary" :loading="passwordLoading">修改密码并继续</el-button><el-button @click="handleLogout">退出登录</el-button>
+      </el-form>
+    </el-card>
+  </section>
   <el-container class="app-frame" v-else>
-    <el-aside width="248px" class="sidebar">
-      <div class="sidebar-brand"><img src="logo.png" alt="观复咨询" class="sidebar-logo" /></div>
-      <el-menu :default-active="activeView" :default-openeds="['due-diligence']" class="side-menu" @select="switchView">
+    <el-aside width="248px" class="sidebar" :class="{ 'mobile-nav-open': mobileNavOpen }" @keydown.esc="mobileNavOpen = false">
+      <div class="sidebar-brand"><img src="logo.png" alt="观复咨询" class="sidebar-logo" /><button type="button" class="mobile-nav-toggle" :aria-expanded="mobileNavOpen" aria-controls="primary-navigation" @click="mobileNavOpen = !mobileNavOpen"><i :class="mobileNavOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars'" aria-hidden="true"></i>{{ mobileNavOpen ? '收起导航' : '展开导航' }}</button></div>
+      <el-menu id="primary-navigation" :default-active="activeView" :default-openeds="['due-diligence']" class="side-menu" @select="switchView">
+        <el-menu-item index="home"><i class="fa-solid fa-house" aria-hidden="true"></i><span>个人首页</span></el-menu-item>
         <el-sub-menu index="due-diligence" class="research-nav-group">
           <template #title><i class="fa-solid fa-folder-tree" aria-hidden="true"></i><span>尽调工作台</span></template>
           <el-menu-item index="submit"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i><span>提交尽调任务</span></el-menu-item>
@@ -52,16 +71,24 @@
           <el-menu-item index="sources"><i class="fa-solid fa-database" aria-hidden="true"></i><span>溯源库</span></el-menu-item>
         </el-sub-menu>
         <el-menu-item index="company-knowledge" class="company-knowledge-nav"><i class="fa-solid fa-book-open"></i><span>公司知识库</span></el-menu-item>
+        <el-menu-item v-if="currentUser?.role === 'admin'" index="accounts"><i class="fa-solid fa-users-gear"></i><span>账号管理</span></el-menu-item>
       </el-menu>
-      <div class="sidebar-note"><span>当前用户</span><strong>{{ currentUser?.username }}</strong><small>{{ currentUser?.role }}</small><el-button type="danger" plain @click="handleLogout">退出登录</el-button></div>
     </el-aside>
 
     <el-container class="app-shell" :class="{ 'company-knowledge-shell': activeView === 'company-knowledge' }">
-      <el-header height="76px" class="topbar"><div><h1>{{ pageTitle }}</h1><p>{{ pageSubtitle }}</p></div><el-space><el-tag type="success" effect="light">{{ currentUser?.role }}</el-tag><el-button text @click="handleLogout">退出</el-button></el-space></el-header>
+      <el-header height="auto" class="topbar">
+        <div class="topbar-title"><h1>{{ pageTitle }}</h1><p>{{ pageSubtitle }}</p></div>
+        <section class="topbar-account" aria-label="当前登录账号">
+          <div class="topbar-identity"><strong :title="currentUser?.username">{{ currentUser?.username }}</strong><el-tag size="small" type="success" effect="light">{{ currentUser?.role === 'admin' ? '管理员' : '普通用户' }}</el-tag></div>
+          <div class="topbar-account-actions"><el-button size="small" plain @click="openPasswordChange">修改密码</el-button><el-button size="small" plain type="danger" @click="handleLogout">退出登录</el-button></div>
+        </section>
+      </el-header>
       <el-main>
-        <section v-if="activeView !== 'company-knowledge'" class="summary-band"><div><span>任务总数</span><strong>{{ projects.length }}</strong></div><div><span>生成中</span><strong>{{ generatingCount }}</strong></div><div><span>可下载</span><strong>{{ readyCount }}</strong></div><div><span>溯源条目</span><strong>{{ sourceCount }}</strong></div></section>
+        <section v-if="!['home','company-knowledge','accounts'].includes(activeView)" class="summary-band"><div><span>任务总数</span><strong>{{ projects.length }}</strong></div><div><span>生成中</span><strong>{{ generatingCount }}</strong></div><div><span>可下载</span><strong>{{ readyCount }}</strong></div><div><span>溯源条目</span><strong>{{ sourceCount }}</strong></div></section>
+        <personal-home v-if="activeView === 'home'" :request="authFetch" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @open-project="openHomeProject" @view-versions="report => openReportVersions({id:report.project_id, title:report.project_title}, report.artifact_type)"></personal-home>
         <company-knowledge v-if="activeView === 'company-knowledge'" :projects="projects"></company-knowledge>
 
+        <account-management v-if="activeView === 'accounts' && currentUser?.role === 'admin'" :request="authFetch" @session-invalidated="handleLogout"></account-management>
         <section v-if="activeView === 'submit'">
           <el-card shadow="never" class="panel-card">
             <template #header><div class="card-header"><div><p class="eyebrow">Request Intake</p><h2>新建尽调任务</h2></div><el-tag type="primary" effect="plain">连接现有工作流</el-tag></div></template>
@@ -71,6 +98,10 @@
               <el-form-item label="报告类型"><el-select v-model="form.targetType" class="full"><el-option label="BDD目标人报告" value="person" ></el-option><el-option label="BDD目标公司报告" value="company" ></el-option><el-option label="CDD目标行业报告" value="industry" ></el-option></el-select></el-form-item>
               <el-form-item :label="targetPrimaryLabel"><el-input v-model="form.companyName" ></el-input></el-form-item>
               <el-form-item :label="targetSecondaryLabel"><el-input v-if="form.targetType === 'company'" v-model="form.identifier" ></el-input><el-input v-else v-model="form.targetContext" :placeholder="targetSecondaryPlaceholder" clearable></el-input></el-form-item>
+              <template v-if="form.targetType === 'person'">
+                <el-form-item label="人物补充线索（选填）"><el-input v-model="form.personContext" type="textarea" :rows="3" placeholder="可写任职起止时间、学校、地区、职责或用于排除同名者的信息；也可上传简历等材料"></el-input><small>这些信息用于定位研究对象，报告中的事实仍需来源核实。</small></el-form-item>
+                <el-form-item label="曾用名或中英文姓名（选填，每行一个）"><el-input v-model="form.personAliases" type="textarea" :rows="2"></el-input></el-form-item>
+              </template>
               <el-row v-if="form.targetType === 'company'" :gutter="14"><el-col :xs="24" :sm="12"><el-form-item label="行业"><el-input v-model="form.industry" ></el-input></el-form-item></el-col><el-col :xs="24" :sm="12"><el-form-item label="地区"><el-input v-model="form.region" ></el-input></el-form-item></el-col></el-row>
               <template v-if="form.targetType === 'industry'">
                 <el-form-item label="重点赛道（选填，多个用顿号分隔）"><el-input v-model="form.industryFocus" placeholder="例如：协作机器人、焊接机器人；留空研究主行业"></el-input></el-form-item>
@@ -96,31 +127,42 @@
         <section v-if="activeView === 'tasks'">
           <el-card shadow="never" class="panel-card">
             <template #header><div class="card-header"><div><p class="eyebrow">Task Management</p><h2>任务管理</h2></div><el-button type="primary" @click="switchView('submit')">新建任务</el-button></div></template>
-            <div class="table-toolbar"><div class="table-meta">显示 {{ filteredProjects.length }} 个任务</div><el-input v-model="taskSearch" clearable placeholder="搜索项目、公司、行业、状态" class="table-search" ></el-input></div>
-            <el-table ref="taskTable" :data="pagedProjects" row-key="id" class="task-table" empty-text="暂无任务" @expand-change="onTaskExpand">
+            <div class="table-toolbar task-filter-toolbar" role="search" aria-label="任务筛选">
+              <div class="table-meta">显示 {{ filteredProjects.length }} / {{ projects.length }} 个任务</div>
+              <div class="task-filter-controls">
+                <el-input v-model="taskSearch" clearable placeholder="搜索项目、研究对象、行业或状态" aria-label="搜索任务" class="task-filter-keyword"></el-input>
+                <el-select v-model="taskStatusFilter" clearable placeholder="全部状态" aria-label="任务状态" class="task-filter-select"><el-option v-for="option in taskStatusOptions" :key="option.value" :label="option.label" :value="option.value"></el-option></el-select>
+                <el-select v-model="taskTargetFilter" clearable placeholder="全部研究类型" aria-label="研究类型" class="task-filter-select"><el-option label="全部研究类型" value=""></el-option><el-option label="公司研究" value="company"></el-option><el-option label="人物研究" value="person"></el-option><el-option label="行业研究" value="industry"></el-option></el-select>
+                <el-button :disabled="!hasTaskFilters" @click="resetTaskFilters">清空筛选</el-button>
+              </div>
+            </div>
+            <p class="table-scroll-hint">表格可左右滑动，查看全部信息和操作。</p>
+            <el-table ref="taskTable" :data="pagedProjects" row-key="id" class="task-table" :empty-text="hasTaskFilters ? '暂无符合筛选条件的任务，请调整或清空筛选' : '暂无任务'" @expand-change="onTaskExpand">
               <el-table-column type="expand"><template #default="{ row }"><div class="task-expand">
                 <div class="detail-grid primary-result-grid">
                   <section class="detail-panel result-panel">
-                    <div class="workflow-head"><strong>成果下载</strong><el-tag size="small" type="success">{{ downloadableArtifacts(row).length }} 个产物</el-tag></div>
+                    <div class="workflow-head"><strong>成果下载</strong><el-space wrap><el-button plain size="small" @click="openReportVersions(row)">历史版本</el-button><el-tag size="small" type="success">{{ downloadableArtifacts(row).length }} 个产物</el-tag></el-space></div>
                     <div v-if="downloadableArtifacts(row).length" class="artifact-list primary-artifacts">
                       <div v-for="artifact in downloadableArtifacts(row)" :key="artifact.id" class="artifact-item">
-                        <div>
-                          <span>{{ artifact.title || artifactTypeLabel(artifact.artifact_type) }} v{{ artifact.version }}</span>
+                        <div class="artifact-title">
+                          <span>{{ artifact.title || artifactTypeLabel(artifact.artifact_type) }} · {{ recordLabel(artifact.version) }}</span>
                           <div v-if="artifact.artifact_type === 'desktop_report'" class="table-subtext">
                             公司知识库：{{ knowledgeStatus(artifact) }} · {{ artifact.metadata?.knowledge_review || '待复核' }}
                             <el-button v-if="!artifact.metadata?.knowledge_sync_status || artifact.metadata?.knowledge_sync_status === 'failed'" link type="primary" @click="retryKnowledge(artifact)">重试归档</el-button>
                             <el-button link type="primary" @click="openMyKnowledgeProjects">前往我的项目</el-button>
                           </div>
-                          <div v-if="artifact.metadata?.quality_warning || artifact.metadata?.delivery_status === 'review_draft'" class="table-subtext">
-                            <el-tag size="small" type="warning">待复核稿</el-tag>
-                            <span>请先复核报告中的质量说明，再用于正式交付。</span>
-                          </div>
-                        <el-popover v-if="artifact.metadata?.delivery_status === 'review_draft' && artifact.metadata?.delivery_review_reasons?.length" trigger="click" width="480">
+                          <div v-if="artifact.metadata?.quality_warning || artifact.metadata?.delivery_status === 'review_draft'" class="table-subtext">请先复核报告中的质量说明，再用于正式交付。</div>
+                        </div>
+                        <div class="artifact-statuses">
+                        <el-tag v-if="artifact.metadata?.proposal_confirmation_status === 'pending'" type="warning" size="small">建议书待确认</el-tag>
+                        <el-tag v-if="artifact.artifact_type === 'industry_run'" size="small" :type="statusType(artifact.metadata?.run_status)">最后记录：{{ ({completed: '已完成', failed: '失败', paused: '已暂停', running: '执行中，需结合实时进度核对'})[artifact.metadata?.run_status] || '待核对' }}</el-tag>
+                        <el-popover v-if="artifact.metadata?.proposal_confirmation_status !== 'pending' && artifact.metadata?.delivery_status === 'review_draft' && artifact.metadata?.delivery_review_reasons?.length" trigger="click" width="480">
                           <template #reference><el-button type="warning" plain size="small">待复核稿 · {{ artifact.metadata.delivery_review_reasons.length }}项原因</el-button></template>
                           <p>报告已生成，以下事项完成复核后再作为正式交付稿使用。</p>
                           <div style="max-height: 320px; overflow: auto"><p v-for="(reason, n) in artifact.metadata.delivery_review_reasons" :key="n">{{ reason.message }}</p></div>
                         </el-popover>
-                        <el-tag v-else-if="artifact.metadata?.delivery_status === 'review_draft'" type="warning" size="small">待复核稿</el-tag>
+                        <el-tag v-else-if="artifact.metadata?.proposal_confirmation_status !== 'pending' && artifact.metadata?.delivery_status === 'review_draft'" type="warning" size="small">待复核稿</el-tag>
+                        <el-tag v-else-if="artifact.metadata?.proposal_confirmation_status !== 'pending' && artifact.metadata?.quality_warning" type="warning" size="small">待复核稿</el-tag>
                         <el-popover v-if="artifact.metadata?.generation_degradations?.length" trigger="click" width="460">
                           <template #reference><el-button text type="warning">部分章节使用事实摘录</el-button></template>
                           <div style="max-height: 300px; overflow: auto"><p v-for="(issue, n) in artifact.metadata.generation_degradations" :key="n">{{ issue.message }}</p></div>
@@ -157,17 +199,17 @@
                         </el-popover>
                         <el-tag v-if="artifact.artifact_type === 'cleaned_facts' && row.target_type === 'industry'" :type="artifact.metadata?.vector_index_status === 'completed' ? 'success' : 'info'" size="small">事实索引：{{ artifact.metadata?.vector_index_status || '未确认' }} / {{ artifact.metadata?.vector_indexed_count || 0 }} 条</el-tag>
                         </div>
-                        <el-space>
+                        <div class="artifact-actions">
                           <el-button v-if="row.target_type === 'industry' && artifact.artifact_type === 'cleaned_facts' && ['failed', 'error', 'background_timeout', 'disabled'].includes(artifact.metadata?.vector_index_status)" plain @click="retryArtifactIndex(row, artifact)">重试索引</el-button>
                           <el-button type="primary" plain @click="downloadArtifact(artifact)">下载</el-button>
                           <el-button type="danger" plain @click="deleteArtifact(row, artifact)">删除</el-button>
-                        </el-space>
+                        </div>
                       </div>
                     </div>
                     <el-empty v-else description="暂无可下载成果" :image-size="60" ></el-empty>
                   </section>
                   <section class="detail-panel workflow-panel">
-                    <div class="workflow-head"><strong>工作流进度</strong><el-tag size="small">{{ row.status }}</el-tag></div>
+                    <div class="workflow-head"><strong>工作流进度</strong><el-tag size="small" :type="statusType(row.status)">{{ taskStatusLabel(row.status) }}</el-tag></div>
                     <div v-if="traceFor(row).length" class="trace-scroll"><el-timeline><el-timeline-item v-for="(event, index) in traceFor(row)" :key="index" :type="timelineType(event.status)" :timestamp="event.stage"><div :class="['trace-item', event.heartbeat ? 'trace-heartbeat' : '', heartbeatStale(event) ? 'trace-stale' : '']"><strong><span v-if="event.heartbeat" class="live-dot"></span>{{ event.label }}</strong><p>{{ traceDetail(event) }}</p><div v-if="event.heartbeat" class="trace-meta"><el-tag size="small" :type="heartbeatStale(event) ? 'warning' : 'success'" effect="plain">{{ heartbeatStale(event) ? '可能卡住' : '活跃' }}</el-tag><span>最后心跳 {{ eventAge(event) }}</span><span v-if="event.elapsed_seconds">总耗时 {{ formatDuration(event.elapsed_seconds) }}</span><span v-if="event.current_elapsed_seconds">当前步骤 {{ formatDuration(event.current_elapsed_seconds) }}</span></div><div v-if="event.platform || event.url" class="trace-meta"><el-tag v-if="event.platform" size="small" effect="plain">{{ event.platform }}</el-tag><el-link v-if="event.url && isExternalUrl(event.url)" :href="event.url" target="_blank" type="primary">{{ event.url }}</el-link></div></div></el-timeline-item></el-timeline></div>
                     <el-empty v-else description="暂无工作流记录" :image-size="60" ></el-empty>
                   </section>
@@ -197,10 +239,10 @@
               <el-table-column prop="title" label="项目" min-width="220" ></el-table-column>
               <el-table-column label="研究对象" min-width="220"><template #default="{ row }"><div>{{ row.target_name }}</div><div class="table-subtext">{{ targetTypeLabel(row.target_type) }}</div></template></el-table-column>
               <el-table-column label="项目周期" width="210"><template #default="{ row }">{{ projectPeriod(row) }}</template></el-table-column>
-              <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)" effect="light">{{ row.status }}</el-tag></template></el-table-column>
+              <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)" effect="light">{{ taskStatusLabel(row.status) }}</el-tag></template></el-table-column>
               <el-table-column label="进度" min-width="180"><template #default="{ row }"><el-progress :percentage="progressFor(row)" ></el-progress></template></el-table-column>
               <el-table-column label="更新" width="190"><template #default="{ row }"><div>{{ formatTime(row.updated_at) }}</div><div class="table-subtext">创建 {{ formatTime(row.created_at) }}</div></template></el-table-column>
-              <el-table-column label="操作" width="270" align="right"><template #default="{ row }"><el-button link type="primary" @click="viewProject(row)">查看</el-button><el-button v-if="canPauseProject(row)" link type="warning" @click="pauseProject(row)">暂停</el-button><el-button v-else link type="warning" @click="rerunProject(row)">{{ row.status === 'completed' ? '重跑' : '继续' }}</el-button><el-button link type="primary" :disabled="!latestDownloadable(row)" @click="downloadArtifact(latestDownloadable(row))">下载</el-button><el-button link type="danger" @click="deleteProject(row)">删除</el-button></template></el-table-column>
+              <el-table-column label="操作" width="184" fixed="right" align="center"><template #default="{ row }"><div class="task-row-actions"><el-button link type="primary" @click="viewProject(row)">查看</el-button><el-button link type="primary" :disabled="!latestDownloadable(row)" @click="downloadArtifact(latestDownloadable(row))">下载</el-button><el-button v-if="canPauseProject(row)" link type="warning" @click="pauseProject(row)">暂停</el-button><el-button v-else link type="warning" @click="rerunProject(row)">{{ row.status === 'completed' ? '重跑' : '继续' }}</el-button><el-button link type="danger" @click="deleteProject(row)">删除</el-button></div></template></el-table-column>
             </el-table>
             <div class="pagination-bar"><el-pagination background layout="prev, pager, next, sizes, total" :total="filteredProjects.length" v-model:current-page="taskPage" v-model:page-size="taskPageSize" :page-sizes="[10,12,20,50]" ></el-pagination></div>
           </el-card>
@@ -208,10 +250,18 @@
 
         <section v-if="activeView === 'review'">
           <el-card shadow="never" class="panel-card">
-            <template #header><div class="card-header"><div><p class="eyebrow">Human Review</p><h2>复核与一手资料</h2></div><el-button type="primary" :loading="secondStageRunning" @click="runSecondStage">二阶段再生成</el-button></div></template>
+            <template #header><div class="card-header"><div><p class="eyebrow">Human Review</p><h2>复核与一手资料</h2></div><el-button type="primary" :loading="secondStageRunning" :disabled="!reviewProjectId" @click="runSecondStage">二阶段再生成</el-button></div></template>
             <el-form label-position="top">
-              <div class="table-toolbar"><div class="table-meta">先选择要复核的项目</div><el-input v-model="taskSearch" clearable placeholder="搜索项目、公司、行业、状态" class="table-search" ></el-input></div>
-              <el-table ref="reviewTable" :data="pagedProjects" row-key="id" class="review-project-table" empty-text="暂无任务" highlight-current-row>
+              <div class="table-toolbar task-filter-toolbar" role="search" aria-label="复核任务筛选">
+                <div class="table-meta">先选择要复核的项目 · {{ filteredProjects.length }} / {{ projects.length }} 个任务</div>
+                <div class="task-filter-controls">
+                  <el-input v-model="taskSearch" clearable placeholder="搜索项目、研究对象、行业或状态" aria-label="搜索任务" class="task-filter-keyword"></el-input>
+                  <el-select v-model="taskStatusFilter" clearable placeholder="全部状态" aria-label="任务状态" class="task-filter-select"><el-option v-for="option in taskStatusOptions" :key="option.value" :label="option.label" :value="option.value"></el-option></el-select>
+                  <el-select v-model="taskTargetFilter" clearable placeholder="全部研究类型" aria-label="研究类型" class="task-filter-select"><el-option label="全部研究类型" value=""></el-option><el-option label="公司研究" value="company"></el-option><el-option label="人物研究" value="person"></el-option><el-option label="行业研究" value="industry"></el-option></el-select>
+                  <el-button :disabled="!hasTaskFilters" @click="resetTaskFilters">清空筛选</el-button>
+                </div>
+              </div>
+              <el-table ref="reviewTable" :data="pagedProjects" row-key="id" class="review-project-table" :empty-text="hasTaskFilters ? '暂无符合筛选条件的任务，请调整或清空筛选' : '暂无任务'" highlight-current-row>
                 <el-table-column type="expand"><template #default="{ row }">
                   <div v-if="reviewProjectId === row.id" class="review-inline">
                     <el-alert :title="'当前复核项目：' + (row.title || row.id)" type="success" show-icon :closable="false" class="review-current" ></el-alert>
@@ -235,7 +285,7 @@
                 </template></el-table-column>
                 <el-table-column prop="title" label="项目" min-width="220" ></el-table-column>
                 <el-table-column label="研究对象" min-width="200"><template #default="{ row }">{{ row.target_name || '-' }}</template></el-table-column>
-                <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)" effect="light">{{ row.status }}</el-tag></template></el-table-column>
+                <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)" effect="light">{{ taskStatusLabel(row.status) }}</el-tag></template></el-table-column>
                 <el-table-column label="更新" width="190"><template #default="{ row }">{{ formatTime(row.updated_at) }}</template></el-table-column>
                 <el-table-column label="操作" width="110" align="right"><template #default="{ row }"><el-button link type="primary" @click="selectReviewProject(row)">复核</el-button></template></el-table-column>
               </el-table>
@@ -265,21 +315,52 @@
       </el-main>
     </el-container>
 
-    <button class="assistant-fab" aria-label="打开系统使用向导" :style="assistantFabStyle" @mousedown.stop.prevent="startAssistantDrag" @click="toggleAssistant"><img src="aizhushou.png" alt="AI 小助手" /></button>
-    <section v-if="assistantOpen" class="assistant-panel" :style="assistantPanelStyle">
-      <header class="assistant-drag-handle" @mousedown.prevent="startAssistantDrag"><strong>使用向导 · 聊天</strong><el-button text @click="assistantOpen = false">关闭</el-button></header>
+    <button v-if="!assistantOpen" ref="assistantLauncher" class="assistant-fab" aria-label="打开小助手" :style="assistantFabStyle" @mousedown.stop="startAssistantDrag($event, 'launcher')" @click="toggleAssistant"><img src="aizhushou.png" alt="" /></button>
+    <section v-if="assistantOpen" class="assistant-panel" :class="{'assistant-compact': assistantViewportHeight < 500}" :style="assistantPanelStyle" role="dialog" aria-labelledby="assistant-title" aria-modal="false" @keydown.esc.stop="closeAssistant">
+      <header class="assistant-drag-handle" @mousedown="startAssistantDrag($event, 'panel')">
+        <div class="assistant-heading"><img src="aizhushou.png" alt="" /><div><strong id="assistant-title">AI 小助手</strong><span>操作指引 · 日常问答</span></div></div>
+        <button type="button" class="assistant-close" aria-label="关闭小助手" @mousedown.stop @click="closeAssistant"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </header>
       <div class="assistant-memory-bar">
         <div class="assistant-session-tools"><select aria-label="切换小助手对话" :value="assistantSessionId" :disabled="assistantSyncing" @change="changeAssistantSession('switch', $event.target.value)"><option v-for="session in assistantSessions" :key="session.id" :value="session.id">{{ session.title }}</option></select><el-button size="small" :disabled="assistantSyncing" @click="changeAssistantSession('new')">新对话</el-button><el-button size="small" :disabled="assistantSyncing" @click="loadAssistantState">重新加载</el-button><el-button size="small" type="danger" plain :disabled="assistantSyncing" @click="changeAssistantSession('clear')">清空记录</el-button></div>
         <small role="status">{{ assistantSyncing ? '正在同步对话…' : assistantMemoryStatus }}</small>
       </div>
-      <div class="assistant-messages" ref="assistantMessages"><el-button v-if="assistantHasMore" text :disabled="assistantSyncing || assistantLoading" @click="loadOlderAssistant">加载更早消息</el-button><div class="assistant-shortcuts"><el-button size="small" @click="askGuide('新人怎么开始？')">新人入门</el-button><el-button size="small" @click="askGuide('这个页面怎么用？')">当前页面帮助</el-button></div><div v-for="(msg, index) in assistantMessages" :key="index" :class="['assistant-msg', msg.isUser ? 'user' : 'bot']"><div v-html="msg.isUser ? escapeHtml(msg.text) : parseMarkdown(msg.text)"></div><small v-if="msg.status === 'interrupted'" class="assistant-interrupted">该条消息的回答已中断</small><div v-if="!msg.isUser && msg.sources?.length" class="assistant-sources"><span>本次联网来源</span><template v-for="(source, sourceIndex) in msg.sources" :key="source.url"><a v-if="isExternalUrl(source.url)" :href="source.url" target="_blank" rel="noopener noreferrer"><strong>[{{ source.number || sourceIndex + 1 }}] {{ source.title }}</strong><small>{{ source.provider }}<template v-if="source.published_at"> · 发布：{{ source.published_at }}</template><template v-if="source.observed_at"> · 观测：{{ source.observed_at }}</template><template v-if="source.retrieved_at"> · 查询：{{ source.retrieved_at }}</template></small></a></template></div></div></div>
-      <div class="assistant-footer"><div class="assistant-shortcuts"><el-button v-for="item in assistantNavigation" :key="item.view" size="small" @click="switchView(item.view)">{{ item.label }}</el-button></div><div class="assistant-input"><el-input v-model="assistantInput" :disabled="assistantSyncing || !assistantReady" placeholder="问操作方法、查天气，或随便聊聊…" @keyup.enter="sendAssistantMessage" ></el-input><el-button type="primary" :loading="assistantLoading" :disabled="assistantSyncing || !assistantReady" @click="sendAssistantMessage">发送</el-button></div></div>
+      <nav class="assistant-prompts" aria-label="常用提问"><button type="button" :disabled="assistantLoading || assistantSyncing || !assistantReady" @click="askGuide('新人怎么开始？')"><i class="fa-solid fa-compass" aria-hidden="true"></i>新人入门</button><button type="button" :disabled="assistantLoading || assistantSyncing || !assistantReady" @click="askGuide('这个页面怎么用？')"><i class="fa-solid fa-circle-question" aria-hidden="true"></i>当前页面帮助</button></nav>
+      <div class="assistant-messages" ref="assistantMessages" role="log" aria-label="小助手聊天记录" aria-live="polite" aria-relevant="additions" @scroll="onAssistantScroll">
+        <el-button v-if="assistantHasMore" text :disabled="assistantSyncing || assistantLoading" @click="loadOlderAssistant">加载更早消息</el-button>
+        <div v-for="(msg, index) in assistantMessages" :key="index" :class="['assistant-msg', msg.isUser ? 'user' : 'bot']">
+          <div v-if="!msg.isUser && !msg.text" class="assistant-thinking" role="status"><span></span>正在回复…</div>
+          <div v-else class="assistant-message-content" v-html="msg.isUser ? escapeHtml(msg.text) : parseMarkdown(msg.text)"></div>
+          <small v-if="msg.status === 'interrupted'" class="assistant-interrupted">该条消息的回答已中断</small>
+          <div v-if="!msg.isUser && msg.sources?.length" class="assistant-sources"><span>本次联网来源</span><template v-for="(source, sourceIndex) in msg.sources" :key="source.url"><a v-if="isExternalUrl(source.url)" :href="source.url" target="_blank" rel="noopener noreferrer"><strong>[{{ source.number || sourceIndex + 1 }}] {{ source.title }}</strong><small>{{ source.provider }}<template v-if="source.published_at"> · 发布：{{ source.published_at }}</template><template v-if="source.observed_at"> · 观测：{{ source.observed_at }}</template><template v-if="source.retrieved_at"> · 查询：{{ source.retrieved_at }}</template></small></a></template></div>
+        </div>
+      </div>
+      <footer class="assistant-footer">
+        <button v-if="!assistantFollowLatest" type="button" class="assistant-jump" @click="scrollAssistant(true)">回到最新消息<i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
+        <details v-if="assistantNavigation.length" class="assistant-navigation"><summary>相关页面<span>{{assistantNavigation.length}} 个入口</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary><nav aria-label="小助手推荐页面"><button v-for="item in assistantNavigation" :key="item.view" type="button" @click="goToAssistantPage(item.view)">{{item.label}}<i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></button></nav></details>
+        <form class="assistant-input" @submit.prevent="sendAssistantMessage"><el-input ref="assistantComposer" v-model="assistantInput" :disabled="assistantSyncing || !assistantReady" type="textarea" :autosize="{minRows: assistantViewportHeight < 500 ? 1 : 2, maxRows: assistantViewportHeight < 500 ? 2 : 4}" resize="none" maxlength="6000" aria-label="给小助手发送消息" placeholder="输入问题，问问操作方法或聊聊天…" @keydown="onAssistantInputKeydown"></el-input><el-button native-type="submit" type="primary" :loading="assistantLoading" :disabled="!assistantInput.trim() || assistantLoading || assistantSyncing || !assistantReady">发送</el-button></form>
+        <p class="assistant-input-hint">Enter 发送 · Shift + Enter 换行</p>
+      </footer>
     </section>
   </el-container>
+  <report-versions v-if="isAuthenticated && reportVersionsOpen" :key="token" :project="reportVersionsProject" :initial-type="reportVersionsType" :request="authFetch" :download="downloadArtifact" @close="closeReportVersions"></report-versions>
+  <el-dialog v-model="passwordOpen" title="修改密码" width="min(520px, 94vw)" :close-on-click-modal="false" @closed="passwordForm={current_password:'',new_password:'',confirm_password:''}">
+    <el-form class="password-form" label-position="top" @submit.prevent="changePassword">
+      <el-form-item label="原密码"><el-input v-model="passwordForm.current_password" aria-label="原密码" type="password" show-password autocomplete="current-password" maxlength="128"></el-input></el-form-item>
+      <el-form-item label="新密码"><el-input v-model="passwordForm.new_password" aria-label="新密码" type="password" show-password autocomplete="new-password" maxlength="128"></el-input></el-form-item>
+      <el-form-item label="确认新密码"><el-input v-model="passwordForm.confirm_password" aria-label="确认新密码" type="password" show-password autocomplete="new-password" maxlength="128"></el-input></el-form-item>
+      <p class="auth-password-help">密码为8至128位，须包含字母和数字，首尾不能有空白。</p><el-button native-type="submit" type="primary" :loading="passwordLoading">保存新密码</el-button>
+    </el-form>
+  </el-dialog>
 </main>
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+<script src="vendor/purify-3.4.17.min.js"></script>
+<script src="safe-markdown.js"></script>
 <script src="company-knowledge.js"></script>
+<script src="account-management.js"></script>
+<script src="personal-home.js"></script>
+<script src="report-versions.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

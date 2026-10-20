@@ -18,6 +18,7 @@ from datetime import datetime
 from typing import Any, Callable
 from urllib.parse import urlencode, urlparse
 from pathlib import Path
+from types import SimpleNamespace
 
 import requests
 from dotenv import load_dotenv
@@ -25,7 +26,10 @@ from langchain.chat_models import init_chat_model
 from sqlalchemy.orm import Session, object_session
 
 try:
-    from .company_platform import CompanyPlatformAudit, restore_platform_audit
+    from .person_retrieval import SearchSession as PersonSearchSession, coverage as person_retrieval_coverage
+    from .person_identity import build_anchor as build_identity_anchor, affiliations as identity_affiliations
+    from .person_evidence import VERSION as PERSON_TEMPLATE_VERSION, build_packages as build_person_packages, normalize_facts as normalize_person_facts, append_index as append_person_index, report_audit as audit_person_report, normalize_person_risk, name_in_text as person_name_in_text, matched_name_forms
+    from .company_platform import CompanyPlatformAudit, restore_platform_audit, failure_kind as platform_failure_kind
     from .industry_research import normalize_scope, scope_fingerprint, source_in_current_run, normalize_risk as normalize_industry_risk, unknown_risk as unknown_industry_risk, annotate_fact as annotate_industry_fact, append_evidence_index as append_industry_index, delivery_errors as industry_delivery_errors, company_filing_source
     from .docx_exporter import markdown_to_docx_bytes
     from .models import ResearchArtifact, ResearchProject, ResearchSource
@@ -36,7 +40,10 @@ try:
     from .research_strategies import get_research_strategy
     from .web_search import web_search_provider
 except ImportError:
-    from company_platform import CompanyPlatformAudit, restore_platform_audit
+    from person_retrieval import SearchSession as PersonSearchSession, coverage as person_retrieval_coverage
+    from person_identity import build_anchor as build_identity_anchor, affiliations as identity_affiliations
+    from person_evidence import VERSION as PERSON_TEMPLATE_VERSION, build_packages as build_person_packages, normalize_facts as normalize_person_facts, append_index as append_person_index, report_audit as audit_person_report, normalize_person_risk, name_in_text as person_name_in_text, matched_name_forms
+    from company_platform import CompanyPlatformAudit, restore_platform_audit, failure_kind as platform_failure_kind
     from industry_research import normalize_scope, scope_fingerprint, source_in_current_run, normalize_risk as normalize_industry_risk, unknown_risk as unknown_industry_risk, annotate_fact as annotate_industry_fact, append_evidence_index as append_industry_index, delivery_errors as industry_delivery_errors, company_filing_source
     from docx_exporter import markdown_to_docx_bytes
     from models import ResearchArtifact, ResearchProject, ResearchSource
@@ -61,7 +68,9 @@ FIXED_MIN_SOURCES_PER_MODULE = 5
 FIXED_MAX_SEARCH_ROUNDS = 3
 FIXED_AI_SEARCH_ENABLED = True
 FIXED_GENERATE_PROPOSAL = True
-PERSON_IDENTITY_POLICY_VERSION = "person-identity-v2-proximity"
+PERSON_IDENTITY_POLICY_VERSION = "person-identity-v4-context"
+INDUSTRY_CLEANING_VERSION = "industry-evidence-v16-subject-grounding"
+INDUSTRY_REPORT_VERSION = "industry-report-evidence-v25-question-led"
 
 DEFAULT_RESEARCH_MODULES = [
     "公司背景",
@@ -354,26 +363,6 @@ class ResearchWorkflow:
         )
         return self._person_report_editor_model
 
-    def _invoke_company_summary(self, role: str, prompt: str, emit: TraceEmitter | None = None) -> str:
-        """One bounded request per summary attempt, with no hidden SDK retries."""
-        if not os.getenv("ARK_API_KEY") or not os.getenv("MODEL"):
-            return ""
-        repair = "修订" in role
-        try:
-            model = init_chat_model(
-                model=os.environ["MODEL"], model_provider="openai",
-                api_key=os.environ["ARK_API_KEY"], base_url=os.getenv("BASE_URL"),
-                temperature=0.1, max_tokens=2400, max_retries=0,
-                timeout=_env_int("COMPANY_SUMMARY_REPAIR_TIMEOUT_SECONDS" if repair else "COMPANY_SUMMARY_TIMEOUT_SECONDS", 45 if repair else 75, 10, 180),
-            )
-            response = model.invoke([
-                {"role": "system", "content": "只依据完整事实卡撰写中文公司摘要，保留主体、时间、数值单位和证据编号。"},
-                {"role": "user", "content": prompt},
-            ])
-            return str(response.content or "")
-        except Exception as exc:
-            _emit(emit, "llm", role, "公司摘要模型调用失败", type(exc).__name__, status="fallback")
-            return ""
     def _invoke_industry_report(self, role: str, prompt: str, emit: TraceEmitter | None = None) -> str:
         """Bound industry chapter requests; a local repair gets no SDK retries."""
         repair = '修复 Agent' in role
@@ -449,6 +438,26 @@ class ResearchWorkflow:
             _emit(emit, 'llm', role, '行业清洗模型失败，保留规则事实', str(exc)[:800],
                   duration_ms=int((time.monotonic()-started)*1000), degraded=True, status='fallback')
             return ''
+    def _invoke_company_summary(self, role: str, prompt: str, emit: TraceEmitter | None = None) -> str:
+        """One bounded request per summary attempt, with no hidden SDK retries."""
+        if not os.getenv("ARK_API_KEY") or not os.getenv("MODEL"):
+            return ""
+        repair = "修订" in role
+        try:
+            model = init_chat_model(
+                model=os.environ["MODEL"], model_provider="openai",
+                api_key=os.environ["ARK_API_KEY"], base_url=os.getenv("BASE_URL"),
+                temperature=0.1, max_tokens=2400, max_retries=0,
+                timeout=_env_int("COMPANY_SUMMARY_REPAIR_TIMEOUT_SECONDS" if repair else "COMPANY_SUMMARY_TIMEOUT_SECONDS", 45 if repair else 75, 10, 180),
+            )
+            response = model.invoke([
+                {"role": "system", "content": "只依据完整事实卡撰写中文公司摘要，保留主体、时间、数值单位和证据编号。"},
+                {"role": "user", "content": prompt},
+            ])
+            return str(response.content or "")
+        except Exception as exc:
+            _emit(emit, "llm", role, "公司摘要模型调用失败", type(exc).__name__, status="fallback")
+            return ""
 
     def _get_person_report_section_model(self):
         if self._person_report_section_model is not None:
@@ -475,7 +484,7 @@ class ResearchWorkflow:
         model = self._get_person_report_section_model()
         if not model:
             _emit(emit, "llm", role, "人物报告章节模型未配置，使用证据保底", "", status="fallback")
-            return ""
+            raise RuntimeError("person_model_not_configured")
         try:
             started_at = time.monotonic()
             _emit(
@@ -523,7 +532,7 @@ class ResearchWorkflow:
                 degraded=True,
                 status="fallback",
             )
-            return ""
+            raise
 
     def _invoke_person_report_editor(self, role: str, prompt: str, emit: TraceEmitter | None = None) -> str:
         """Use a short, non-retrying request for bounded person-report editing."""
@@ -657,7 +666,70 @@ class ResearchWorkflow:
         _emit(emit, "vision", role, "视觉模型调用失败，保留人工复核标记", last_error, status="fallback")
         return ""
 
-    def run_project(
+    def run_project(self, db, project, search_queries, focus_questions,
+                    max_results_per_query=FIXED_MAX_RESULTS_PER_QUERY, generate_proposal=True,
+                    emit=None, intake=None, pause_requested=None):
+        target = str((intake or {}).get('target_type') or project.target_type).strip().lower()
+        if target not in {'industry', 'sector', 'market', '行业', '赛道', '市场', '目标行业'}:
+            return self._run_project_impl(db, project, search_queries, focus_questions,
+                max_results_per_query, generate_proposal, emit, intake, pause_requested)
+        try:
+            from .industry_runs import RunJournal, OUTPUTS
+        except ImportError:
+            from industry_runs import RunJournal, OUTPUTS
+        previous = self._latest_artifact(project, 'industry_run')
+        session = object_session(project)
+        existing_ids = ([row[0] for row in session.query(ResearchArtifact.id).filter(ResearchArtifact.project_id == project.id).all()]
+                        if session is not None else [a.id for a in (project.artifacts or [])])
+        journal = RunJournal(project.id, existing_ids,
+                             (previous.artifact_metadata or {}).get('run_id') if previous else None)
+        project.industry_run_id = journal.data['run_id']
+        project.industry_run_started_at = journal.data['started_at']
+        try:
+            record = self.save_artifact(db, project, 'industry_run', _project_doc_title(project, '运行记录'),
+                json.dumps(journal.snapshot(), ensure_ascii=False), {'agent': 'workflow', 'run_status': 'running',
+                    'run_id': journal.data['run_id'], 'run_started_at': journal.data['started_at'],
+                    'journal_version': journal.data['version']})
+        except Exception:
+            db.rollback()
+            project.industry_run_id = None
+            project.industry_run_started_at = None
+            raise
+        def persist():
+            snapshot = journal.snapshot()
+            record.content = json.dumps(snapshot, ensure_ascii=False, indent=2)
+            record.artifact_metadata = {**(record.artifact_metadata or {}), 'run_id': snapshot['run_id'],
+                'run_started_at': snapshot['started_at'], 'run_status': snapshot['status'],
+                'current_stage': snapshot['current_stage'], 'journal_version': snapshot['version']}
+            db.commit()
+        def trace(event):
+            tagged = journal.tag_event(event)
+            if emit:
+                emit(tagged)
+        def checkpoint(stage):
+            outputs = [a for kind in OUTPUTS.get(stage, ()) if (a := self._latest_artifact(project, kind)) is not None]
+            journal.checkpoint(stage, outputs, len(project.sources or []))
+            persist()
+        try:
+            artifacts, added = self._run_project_impl(db, project, search_queries, focus_questions,
+                max_results_per_query, generate_proposal, trace, intake, pause_requested, checkpoint)
+            checkpoint('proposal')
+            journal.finish('completed')
+            persist()
+            return [*artifacts, record], added
+        except Exception as exc:
+            db.rollback()
+            journal.finish('paused' if isinstance(exc, WorkflowPaused) else 'failed', type(exc).__name__)
+            try:
+                persist()
+            except Exception:
+                db.rollback()
+            raise
+        finally:
+            project.industry_run_id = None
+            project.industry_run_started_at = None
+
+    def _run_project_impl(
         self,
         db: Session,
         project: ResearchProject,
@@ -668,8 +740,11 @@ class ResearchWorkflow:
         emit: TraceEmitter | None = None,
         intake: dict[str, Any] | None = None,
         pause_requested: Callable[[], bool] | None = None,
+        stage_checkpoint: Callable[[str], None] | None = None,
     ) -> tuple[list[ResearchArtifact], int]:
         def checkpoint(stage: str) -> None:
+            if stage_checkpoint:
+                stage_checkpoint(stage)
             if pause_requested and pause_requested():
                 project.status = "paused"
                 project.updated_at = datetime.utcnow()
@@ -686,17 +761,23 @@ class ResearchWorkflow:
 
         normalized_intake = self._normalize_intake(project, intake or {}, search_queries, focus_questions)
         standardized_type = normalized_intake["target_type"]
+        if standardized_type == "person":
+            project.person_research_intake = normalized_intake
+            project.person_platform_query_keys = set()
+            project.person_platform_attempts = []
+            self._refresh_person_source_identities(project, normalized_intake)
+            db.commit()
         cleaning_pipeline_version = (
-            "person-evidence-v10-anchor-quarantine"
+            "person-evidence-v13-scoped-company-records"
             if standardized_type == "person"
             else "company-evidence-v11-vector-survey-charts"
             if standardized_type == "company"
-            else "industry-evidence-v9-local-nature"
+            else INDUSTRY_CLEANING_VERSION
             if standardized_type == "industry"
             else "default-v4-auditable"
         )
         report_pipeline_version = {
-            "person": "person-report-evidence-v3-anchor-balanced",
+            "person": "person-report-v6-scoped-chapter-records",
             # v8 additionally indexes structured business records (QCC/Xiniu)
             # and uses evidence-density-aware company chapter writing. Do not
             # reuse a report produced before those delivery rules.
@@ -713,7 +794,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v17-validated-fallback",
+            "industry": INDUSTRY_REPORT_VERSION,
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -737,7 +818,7 @@ class ResearchWorkflow:
         existing_risk_for_reuse = self._latest_artifact(project, "risk_assessment")
         can_reuse_final_outputs = (
             resume_enabled
-            and standardized_type != 'industry'  # Industry reexports must refresh evidence/claim diagnostics.
+            and standardized_type not in {'industry', 'person'}  # Reexports must refresh actual citation/claim diagnostics.
             and not force_refresh
             and not company_ocr_retry
             and not company_chart_pending
@@ -838,6 +919,11 @@ class ResearchWorkflow:
             and all(existing_module_counts.get(module, 0) >= resume_min_per_module for module in required_modules)
             and not company_diligence_queries
         )
+        if standardized_type == "person":
+            prior_retrieval = self._latest_artifact(project, "person_retrieval_audit")
+            skip_web_search = bool(resume_enabled and not force_refresh and sources_match_intake
+                                   and prior_retrieval and (prior_retrieval.artifact_metadata or {}).get("retrieval_version") == "person-retrieval-v2-budget-context"
+                                   and (prior_retrieval.artifact_metadata or {}).get("intake_fingerprint") == intake_fingerprint)
         if standardized_type == 'industry' and plan.get('evidence_requirements'):
             evidence_gaps = self._industry_retrieval_gaps(project,plan)
             skip_web_search = skip_web_search and not evidence_gaps
@@ -873,8 +959,15 @@ class ResearchWorkflow:
                 _emit(emit, "web_search", "online_search_agent", "在线检索失败，进入降级流程", str(exc), status="fallback")
         checkpoint("web_search")
 
+        if standardized_type == "person":
+            previous = self._latest_artifact(project, "person_retrieval_audit")
+            if previous and not getattr(project, "person_retrieval_audit", None):
+                try:
+                    project.person_retrieval_audit = json.loads(previous.content or "{}")
+                except (ValueError, TypeError):
+                    pass
         has_structured_sources = self._project_has_structured_sources(project)
-        if resume_enabled and has_structured_sources:
+        if resume_enabled and has_structured_sources and standardized_type != "person":
             _emit(emit, "structured_data", "structured_data_agent", "已存在专业平台来源，跳过结构化采集", "", status="skipped")
         else:
             try:
@@ -1070,9 +1163,11 @@ class ResearchWorkflow:
             except Exception as exc:
                 db.rollback()
                 _emit(emit, "risk", "risk_assessment_agent", "风险研判失败，使用降级评分", str(exc), status="fallback")
-                fallback = ({"overall_score": None, "risk_level": "unknown", "dimensions": [],
-                             "key_risks": [], "unknowns": ["公司原件风险登记失败，需复核；未回退到关键词评分。"]}
-                            if standardized_type == "company" else unknown_industry_risk(scope=getattr(project, "industry_scope", {})) if standardized_type == "industry" else self._fallback_risk(cleaned))
+                fallback = (unknown_industry_risk(scope=getattr(project, "industry_scope", {}))
+                            if standardized_type == "industry" else
+                            {"overall_score": None, "risk_level": "unknown", "dimensions": [],
+                             "key_risks": [], "unknowns": ["公司原文风险登记失败，需复核；未回退到关键词机械打分。"]}
+                            if standardized_type == "company" else self._fallback_risk(cleaned))
                 risk = json.dumps(fallback | {"workflow_error": _error_json("risk", exc)}, ensure_ascii=False, indent=2)
             risk_artifact = self.save_artifact(db, project, "risk_assessment", _project_doc_title(project, "风险研判"), risk,
                 {"agent": "risk_assessment", **industry_risk_inputs,
@@ -1122,6 +1217,10 @@ class ResearchWorkflow:
                 report, reused_delivery_metadata = self._prepare_industry_delivery(project, report, risk, emit=emit)
                 report_quality_warning = reused_delivery_metadata.get('quality_warning', '')
             else:
+                if standardized_type == "person":
+                    project.person_delivery_diagnostic = (reusable_report.artifact_metadata or {}).get("person_delivery_diagnostic", {})
+                    project.person_research_intake = normalized_intake
+                    report = self._append_report_evidence_index(project, report, cleaned, emit=emit)
                 self._validate_delivery_report(project, report)
             report_artifact = self.save_artifact(
                 db,
@@ -1154,6 +1253,8 @@ class ResearchWorkflow:
                 report,
                 emit=emit,
                 target_type=standardized_type,
+                industry_project=project if standardized_type=='industry' else None,
+                industry_risk_json=risk if standardized_type=='industry' else '{}',
             )
             report = self._prepend_industry_scope_card(project, report)
             report = self._append_professional_evidence_assets(project, report, cleaned, emit=emit)
@@ -1193,6 +1294,12 @@ class ResearchWorkflow:
                 {
                     "agent": "report_writer",
                     "report_pipeline_version": report_pipeline_version,
+                    **industry_report_inputs,
+                    **industry_delivery_metadata,
+                    **({"person_template_version": PERSON_TEMPLATE_VERSION,
+                        "person_delivery_diagnostic": getattr(project, "person_delivery_diagnostic", {}),
+                        "person_platform_attempts": getattr(project, "person_platform_attempts", [])}
+                       if standardized_type == "person" else {}),
                     **({"company_summary_diagnostic": getattr(project, "company_summary_diagnostic", {}),
                         "company_summary_evidence": getattr(project, "company_summary_package", {}),
                         "company_professional_platform_attempts": getattr(project, "company_professional_platform_attempts", [])}
@@ -1231,8 +1338,6 @@ class ResearchWorkflow:
                     **({"company_assessment_diagnostic": getattr(project, "company_assessment_diagnostic", {}),
                         "company_assessment_evidence": getattr(project, "company_assessment_package", {})}
                        if standardized_type == "company" else {}),
-                    **industry_report_inputs,
-                    **industry_delivery_metadata,
                     "delivery_status": "review_draft" if report_quality_warning else "final_candidate",
                     **({"quality_warning": report_quality_warning} if report_quality_warning else {}),
                 },
@@ -1264,6 +1369,26 @@ class ResearchWorkflow:
                     'evidence_contract_version':VERSION,**dependencies,**ledger['summary']})
             report_artifact.artifact_metadata={**(report_artifact.artifact_metadata or {}),
                 'claim_ledger_artifact_id':claim_artifact.id,'claim_reference_summary':ledger['summary']}
+        if standardized_type == 'industry':
+            project.industry_report_dependency = {
+                'report_artifact_id': report_artifact.id, 'report_version': getattr(report_artifact,'version',None),
+                'report_sha256': hashlib.sha256(report.encode()).hexdigest(),
+                'report_created_at': str(getattr(report_artifact,'created_at','') or ''),
+                'cleaned_artifact_id': cleaned_artifact.id, 'risk_artifact_id': risk_artifact.id,
+                'run_id': getattr(project,'industry_run_id',None)}
+        if standardized_type == "person":
+            diagnostic = getattr(project, "person_delivery_diagnostic", {}) or {}
+            dependencies = {"cleaned_artifact_id": cleaned_artifact.id, "risk_artifact_id": risk_artifact.id,
+                            "report_artifact_id": report_artifact.id, "template_version": PERSON_TEMPLATE_VERSION,
+                            "report_sha256": hashlib.sha256(report.encode()).hexdigest()}
+            contract = getattr(project, "person_evidence_contract", {}) or {}
+            claim_artifact = self.save_artifact(db, project, "person_claim_ledger", _project_doc_title(project, "人物逐章证据与验收台账"),
+                json.dumps({**dependencies, "diagnostic": diagnostic, "facts": contract.get("facts", []),
+                            "rejected_facts": contract.get("rejected", []),
+                            "platform_attempts": getattr(project, "person_platform_attempts", [])}, ensure_ascii=False, indent=2),
+                dependencies)
+            report_artifact.artifact_metadata = {**(report_artifact.artifact_metadata or {}),
+                "person_claim_ledger_artifact_id": claim_artifact.id, "person_delivery_diagnostic": diagnostic}
         checkpoint("report")
 
         artifacts = [plan_artifact, quality_artifact, cleaned_artifact, risk_artifact, report_artifact]
@@ -1275,7 +1400,7 @@ class ResearchWorkflow:
             project.status = "proposal_generating"
             db.commit()
             existing_proposal = self._latest_artifact(project, "proposal")
-            if resume_enabled and use_existing_report and existing_proposal is not None:
+            if resume_enabled and use_existing_report and existing_proposal is not None and standardized_type != 'industry':
                 proposal_artifact = self.save_artifact(
                     db,
                     project,
@@ -1448,14 +1573,19 @@ class ResearchWorkflow:
             "focus_modules": modules,
             "ai_search_enabled": bool(intake.get("ai_search_enabled", FIXED_AI_SEARCH_ENABLED)),
             "special_requirements": (intake.get("special_requirements") or project.description or "").strip(),
-            "search_queries": [q.strip() for q in search_queries if q.strip()],
-            "focus_questions": [q.strip() for q in focus_questions if q.strip()],
+            "search_queries": [q.strip() for q in intake.get("search_queries", search_queries) if q.strip()],
+            "focus_questions": [q.strip() for q in intake.get("focus_questions", focus_questions) if q.strip()],
             "min_sources_per_module": FIXED_MIN_SOURCES_PER_MODULE,
             "max_search_rounds": FIXED_MAX_SEARCH_ROUNDS,
             "force_refresh_from_upload_ocr": bool(intake.get("force_refresh_from_upload_ocr")),
         }
         if target_type == "person":
-            normalized["affiliations"] = strategy.normalize_affiliations(str(normalized.get("affiliation") or ""))
+            normalized["person_aliases"] = [str(a).strip() for a in intake.get("person_aliases", []) if str(a).strip()][:12]
+            normalized["as_of_date"] = str(intake.get("as_of_date") or "").strip()
+            normalized["affiliation_raw"] = normalized["affiliation"]
+            normalized["person_context"] = str(intake.get("person_context") or "").strip()
+            normalized["uploaded_identity_clues"] = list(intake.get("uploaded_identity_clues") or [])
+            normalized["affiliations"] = identity_affiliations(normalized["affiliation_raw"])
             if normalized["affiliations"]:
                 # Keep each related entity as an independent structured-data
                 # target.  Downstream collectors should see "阿里巴巴、蚂蚁集团、
@@ -1475,47 +1605,28 @@ class ResearchWorkflow:
         return normalized
 
     def _build_person_anchor(self, intake: dict[str, Any]) -> dict[str, Any]:
-        """Create a user-seeded person anchor used for recall and attribution.
+        return build_identity_anchor(intake)
 
-        This is not a keyword hard filter. It gives later stages the context to
-        classify a source as a direct person fact, affiliation fact, background
-        context, or quarantine candidate after the source has been collected.
-        """
-        target = str(intake.get("target_name") or "").strip()
-        aliases = [target]
-        latin = re.sub(r"[^A-Za-z ]", "", target).strip()
-        chinese = "".join(re.findall(r"[\u4e00-\u9fff]", target))
-        if latin and latin not in aliases:
-            aliases.append(latin)
-        if chinese and chinese not in aliases:
-            aliases.append(chinese)
-        explicit_anchors = [
-            item.strip()
-            for item in re.split(r"\s*[/／|｜,，;；、]\s*", str(intake.get("identity_anchors") or ""))
-            if len(item.strip()) >= 2
-        ]
-        affiliations = list(intake.get("affiliations") or [])
-        affiliations.extend(self._person_affiliation_anchors(str(intake.get("associated_company") or "")))
-        affiliations.extend(self._person_affiliation_anchors(str(intake.get("affiliation") or "")))
-        focus_entities = [
-            item.strip()
-            for item in re.split(r"\s*[/／|｜,，;；、]\s*", str(intake.get("focus_entities") or ""))
-            if len(item.strip()) >= 2
-        ]
-        known_affiliations: list[str] = []
-        seen: set[str] = set()
-        for item in affiliations + focus_entities:
-            key = re.sub(r"\s+", "", item).lower()
-            if key and key not in seen:
-                seen.add(key)
-                known_affiliations.append(item)
-        return {
-            "target_person": target,
-            "aliases": [item for item in aliases if item],
-            "known_affiliations": known_affiliations,
-            "identity_anchors": explicit_anchors,
-            "anchor_status": "user_seeded" if target else "missing_target",
-        }
+    def _refresh_person_source_identities(self, project, intake):
+        """A changed employer or biography cannot inherit an old namesake match."""
+        fingerprint = self._intake_evidence_fingerprint(intake)
+        anchor = intake.get("person_anchor") or {}
+        contextual = bool(anchor.get("known_affiliations") or anchor.get("identity_anchors"))
+        for source in list(getattr(project, "sources", []) or []):
+            meta = dict(source.source_metadata or {})
+            previous = meta.get("person_intake_fingerprint")
+            if previous == fingerprint:
+                continue
+            if (str(source.url or "").startswith(("http://", "https://")) or source.source_type in {"upload", "manual"}) and source.content and (previous or contextual):
+                identity = self._person_source_identity_confidence(source.title or "", source.content, intake)
+                meta.update(identity_confidence=identity["confidence"], identity_reason=identity["reason"],
+                            identity_status="accepted" if identity["confidence"] in {"high", "medium"} else "quarantined",
+                            identity_policy_version=PERSON_IDENTITY_POLICY_VERSION)
+            elif (previous and previous != fingerprint) or (not previous and str(source.url or "").startswith("structured://")):
+                meta.update(identity_confidence="low", identity_status="quarantined",
+                            identity_reason="身份上下文已变更，旧记录需重新核对原件及人物归属")
+            meta["person_intake_fingerprint"] = fingerprint
+            source.source_metadata = meta
 
     def _intake_evidence_fingerprint(self, intake: dict[str, Any]) -> str:
         if str(intake.get("target_type") or "").lower() == "industry":
@@ -1536,6 +1647,8 @@ class ResearchWorkflow:
             "identity_policy": PERSON_IDENTITY_POLICY_VERSION
             if str(intake.get("target_type") or "").lower() == "person"
             else "",
+            **({"person_aliases": anchor.get("aliases", []), "person_anchor": anchor, "as_of_date": intake.get("as_of_date", "")}
+               if str(intake.get("target_type") or "").lower() == "person" else {}),
         }
         return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()[:16]
 
@@ -1943,6 +2056,14 @@ class ResearchWorkflow:
                     "required_source_types": strategy.required_source_types(module),
                 }
             )
+        if intake.get("target_type") == "person":
+            plan["person_template_version"] = PERSON_TEMPLATE_VERSION
+            plan["identity_anchor"] = intake.get("person_anchor") or {}
+            plan["person_evidence_requirements"] = person_retrieval_coverage([], intake)["chapters"]
+            plan["chapter_research_tasks"] = [
+                {"chapter": i, "title": title, "requirements": requirements,
+                 "scope": "actual_citations" if i == 14 else "verification_plan" if i == 15 else "evidence_bound"}
+                for i, (title, requirements) in enumerate(PersonReportAgent.outline, 1)]
         if intake.get('target_type') == 'industry':
             try:
                 from .industry_evidence import evidence_requirements, VERSION
@@ -1988,18 +2109,28 @@ class ResearchWorkflow:
                 raise WorkflowPaused("任务已暂停")
             query = query_item["query"]
             try:
-                results = web_search_provider.search(
-                    query,
-                    limit=max(1, max_results_per_query),
-                    include_domains=list(query_item.get("include_domains") or []),
-                    category=query_item.get("exa_category"),
-                    preferred_providers=list(query_item.get("preferred_providers") or []),
-                )
+                if "person_search_audit_index" in query_item:
+                    results = web_search_provider.search_single(
+                        query_item["preferred_providers"][0], query,
+                        limit=min(max_results_per_query, _env_int("PERSON_SEARCH_RESULTS_PER_QUERY", 6, 1, 12)),
+                        include_domains=list(query_item.get("include_domains") or []), category=query_item.get("exa_category"))
+                    for item in results:
+                        item["metadata"] = {**(item.get("metadata") or {}), "person_discovery_only": True}
+                else:
+                    results = web_search_provider.search(
+                        query, limit=max(1, max_results_per_query),
+                        include_domains=list(query_item.get("include_domains") or []),
+                        category=query_item.get("exa_category"),
+                        preferred_providers=list(query_item.get("preferred_providers") or []))
+                query_item["person_search_status"] = "returned" if results else "empty_or_unavailable"
                 return index, query_item, results, ""
             except WorkflowPaused:
                 raise
             except Exception as exc:
-                return index, query_item, [], str(exc)
+                query_item["person_search_status"] = "failed"
+                query_item["person_search_error_type"] = type(exc).__name__
+                query_item["person_search_error_reason"] = platform_failure_kind({"error": str(exc)})
+                return index, query_item, [], type(exc).__name__
 
         ordered: list[tuple[int, dict[str, Any], list[dict[str, Any]]]] = []
         with ThreadPoolExecutor(max_workers=concurrency) as executor:
@@ -2132,6 +2263,9 @@ class ResearchWorkflow:
             aliases.append(re.sub(r"\s+", "", latin).lower())
         if len(chinese) >= 2:
             aliases.append(chinese)
+        supplied_names = list((intake.get("person_anchor") or {}).get("aliases") or [raw_target])
+        for name in supplied_names:
+            aliases.extend(re.sub(r"\s+", "", form).lower() for form in matched_name_forms(name, f"{title} {content[:8000]}"))
         if not target or not any(alias and alias in blob for alias in aliases):
             return {
                 "confidence": "rejected",
@@ -2174,7 +2308,7 @@ class ResearchWorkflow:
                 if len(item.strip()) >= 3
             ]
         anchors = [re.sub(r"\s+", "", item).lower() for item in raw_identity_anchors if len(str(item).strip()) >= 2]
-        matched_identity = [anchor for anchor in anchors if anchor in blob]
+        matched_identity = [anchor for anchor in anchors if near_target(anchor)]
         if matched_identity:
             return {
                 "confidence": "medium",
@@ -2307,17 +2441,16 @@ class ResearchWorkflow:
         return get_research_strategy("person").affiliation_discovery_queries(target, affiliations)
 
     def _detect_source_type(self, host: str, title: str, url: str) -> str:
+        try:
+            from .industry_claims import public_source_type
+        except ImportError:
+            from industry_claims import public_source_type
+        detected = public_source_type(url)
+        if detected != 'web_search':
+            return detected
         text = f"{host} {title} {url}".lower()
         if any(key in text for key in ["qcc.com", "tianyancha.com", "aiqicha.baidu.com", "qixin.com", "企查查", "天眼查", "爱企查", "启信宝"]):
             return "business_database"
-        if any(key in text for key in ["court", "法院", "裁判文书"]):
-            return "court"
-        if any(key in text for key in ["cninfo.com.cn", "sse.com.cn", "szse.cn", "hkexnews.hk", "sec.gov"]):
-            return "filing"
-        if any(key in text for key in ["csrc.gov.cn", "pbc.gov.cn", "nfra.gov.cn", "samr.gov.cn", "creditchina.gov.cn"]):
-            return "regulatory"
-        if any(key in text for key in ["gov.cn", "政府", "监管", "处罚"]):
-            return "government"
         if any(key in text for key in ["36kr", "tmtpost", "news", "新闻", "媒体"]):
             return "news"
         return "web_search"
@@ -2442,6 +2575,13 @@ class ResearchWorkflow:
             return "A" if source_type in {"court", "regulatory", "filing"} else "B"
         if provider in {"qcc", "tyc", "xiniu"} or platform in {"企查查", "天眼查", "稀牛"}:
             return "B"
+        if url.startswith(('http://', 'https://')) and source_type in {'government', 'court', 'regulatory', 'filing'}:
+            try:
+                from .industry_claims import public_source_type
+            except ImportError:
+                from industry_claims import public_source_type
+            if public_source_type(url) == 'web_search':
+                return 'C'
         if source_type in {"government", "court", "regulatory", "filing"}:
             repost_signal = any(token in f"{title} {content}" for token in ["转载", "来源：", "转自"])
             return "B" if repost_signal else "A"
@@ -2685,11 +2825,25 @@ class ResearchWorkflow:
         payload=_plain_json(cleaned)
         if not isinstance(payload,dict) or not isinstance(payload.get('facts'),list):
             return cleaned  # Preserve the existing invalid-JSON/index failure path.
-        payload['facts']=attach_provenance(payload['facts'],self._active_industry_sources(project))
+        body_snapshots={}
+        payload['facts']=attach_provenance(payload['facts'],self._active_industry_sources(project),body_snapshots)
+        # Keep the exact body version alongside the immutable cleaned artifact;
+        # later source-row refreshes cannot move these offsets to another body.
+        payload['source_body_snapshots']=body_snapshots
         for fact in payload['facts']:
             if fact['provenance']['locator']['status']!='verified':
                 fact.update(eligible_for_report=False,eligible_for_risk_scoring=False,requires_human_review=True)
                 fact['provenance']['quarantine_reason']='unlocated_source_quote'
+        from industry_fact_contracts import attach_contract, VERSION as FACT_CONTRACT_VERSION
+        payload['facts'] = [attach_contract(fact, payload.get('industry_scope') or getattr(project, 'industry_scope', {}),
+            (body_snapshots.get((fact.get('provenance') or {}).get('locator', {}).get('snapshot_key')) or {}).get('content', ''))
+            for fact in payload['facts']]
+        payload['fact_contract_version'] = FACT_CONTRACT_VERSION
+        payload['fact_contract_summary'] = {
+            'report_admitted': sum(f['fact_contract']['report_admitted'] for f in payload['facts']),
+            'risk_admitted': sum(f['fact_contract']['risk_admitted'] for f in payload['facts']),
+            'held_for_review': sum(not f['fact_contract']['report_admitted'] for f in payload['facts']),
+            'semantic_status': 'not_evaluated'}
         payload['evidence_requirements']=plan.get('evidence_requirements',[])
         payload['provenance_summary']={'total_fact_count':len(payload['facts']),
             'located_fact_count':sum(f['provenance']['locator']['status']=='verified' for f in payload['facts']),
@@ -3360,8 +3514,11 @@ class ResearchWorkflow:
                 return False
             db.delete(exists)
             db.flush()
+        # Several tools can finish within the same second. Their raw responses
+        # must remain separate objects so later evidence can be reproduced.
+        source_stamp = f"{_now_key()}_{time.time_ns()}"
         object_key = research_store.put_text(
-            f"projects/{project.id}/structured/{provider}_{module}_{_now_key()}.md",
+            f"projects/{project.id}/structured/{provider}_{module}_{source_stamp}.md",
             content,
             "text/markdown; charset=utf-8",
         )
@@ -3369,8 +3526,10 @@ class ResearchWorkflow:
         raw_response = metadata.pop("company_qcc_raw_response", None)
         if raw_response is not None:
             metadata["raw_response_key"] = research_store.put_text(
-                f"projects/{project.id}/structured/{provider}_{module}_{_now_key()}_raw.json",
+                f"projects/{project.id}/structured/{provider}_{module}_{source_stamp}_raw.json",
                 json.dumps(raw_response, ensure_ascii=False), "application/json; charset=utf-8")
+        if (intake or {}).get("target_type") == "person":
+            metadata["person_intake_fingerprint"] = self._intake_evidence_fingerprint(intake)
         source_metadata = {
             "provider": provider,
             "module": module,
@@ -3382,7 +3541,7 @@ class ResearchWorkflow:
             **metadata,
         }
         affiliation_context = (intake or {}).get("person_affiliation_context")
-        if isinstance(affiliation_context, dict) and affiliation_context.get("person_name") and affiliation_context.get("affiliation_name"):
+        if not metadata.get("person_subject_verified") and isinstance(affiliation_context, dict) and affiliation_context.get("person_name") and affiliation_context.get("affiliation_name"):
             source_metadata["person_affiliation"] = dict(affiliation_context)
         visual_images = self._save_professional_visual_evidence(project, provider, title, content, source_metadata, emit=emit)
         if visual_images:
@@ -3422,6 +3581,12 @@ class ResearchWorkflow:
         if company:
             project.company_professional_platform_attempts = []
             project.company_judicial_query_attempts = []
+        if str(intake.get("target_type") or project.target_type).lower() == "person":
+            try:
+                from .person_platforms import collect as collect_person_platforms
+            except ImportError:
+                from person_platforms import collect as collect_person_platforms
+            return collect_person_platforms(self, db, project, target, intake, emit)
         collectors = [self._collect_qcc_sources, self._collect_tyc_sources, self._collect_xiniu_sources]
         for collector in collectors:
             try:
@@ -3443,8 +3608,11 @@ class ResearchWorkflow:
     def _company_platform_audit(self, project, intake, target, provider, credential):
         if not hasattr(self, "_company_platform_failure_cache"):
             self._company_platform_failure_cache = {}
+        kind = self._standardize_target_type(project, intake, target)
         return CompanyPlatformAudit(project, provider, credential, self._company_platform_failure_cache,
-                                    self._standardize_target_type(project, intake, target) == "company")
+                                    kind in {"company", "person"},
+                                    attribute="person_platform_attempts" if kind == "person" else "company_professional_platform_attempts",
+                                    subject=target)
 
     def _emit_platform_stop(self, audit, emit):
         _emit(emit, "structured_data", audit.provider + "_mcp_agent", "专业平台暂不可用，停止本轮调用",
@@ -3551,11 +3719,11 @@ class ResearchWorkflow:
                 "relationship_type": row.get("relationship_type") or "待由原始证据确认",
                 "relationship_evidence_source_ids": list(row.get("relationship_evidence_source_ids") or []),
                 "relationship_evidence_hosts": list(row.get("relationship_evidence_hosts") or []),
-                "relationship_confidence": "high",
+                "relationship_confidence": row.get("relationship_confidence") or "medium",
                 "recursion_depth": 1,
                 "selection_rank": selection_rank,
                 "selection_reason": (
-                    f"高置信直接关联：独立域名{int(row.get('host_count') or 0)}个、"
+                    f"关联线索（用户提供关系仍待核验）：独立域名{int(row.get('host_count') or 0)}个、"
                     f"来源{int(row.get('source_count') or 0)}条、最高可信度{int(row.get('max_score') or 0)}。"
                 ),
                 "filtering_note": "仅执行一跳受控穿透；平台返回的股东、子公司和投资企业仅作为线索，不继续递归采集。",
@@ -3898,13 +4066,6 @@ class ResearchWorkflow:
             return 0
 
         expanded_query_items = self._expand_search_queries(plan, intake)
-        discovered_company_recalls: set[str] = set()
-        if str(intake.get("target_type") or "").lower() == "company":
-            from report_agents.company_risk_register import recall_discovery_queries
-            from report_agents.company_assessment import assessment_discovery_queries
-            expanded_query_items = recall_discovery_queries(list(project.sources or []),
-                str(intake.get("target_name") or project.target_name or ""), discovered_company_recalls) + assessment_discovery_queries(
-                str(intake.get("target_name") or project.target_name or "")) + expanded_query_items
         if intake.get('target_type')=='industry' and plan.get('evidence_requirements') and not intake.get('search_queries'):
             active=self._active_industry_sources(project)
             counts=Counter(str((s.source_metadata or {}).get('module') or '') for s in active if (s.content or '').strip())
@@ -3915,6 +4076,13 @@ class ResearchWorkflow:
                     expanded_query_items=self._gap_queries(plan,intake,gaps)
                     _emit(emit,'web_search','coverage_agent','复用已有来源，仅补采指标证据缺口',
                           f'queries={len(expanded_query_items)}',status='running')
+        discovered_company_recalls: set[str] = set()
+        if str(intake.get("target_type") or "").lower() == "company":
+            from report_agents.company_risk_register import recall_discovery_queries
+            from report_agents.company_assessment import assessment_discovery_queries
+            expanded_query_items = recall_discovery_queries(list(project.sources or []),
+                str(intake.get("target_name") or project.target_name or ""), discovered_company_recalls) + assessment_discovery_queries(
+                str(intake.get("target_name") or project.target_name or "")) + expanded_query_items
         person_mode = str(intake.get("target_type") or "").lower() == "person"
         authority_queries = [item for item in expanded_query_items if item.get("search_tier") == "authority_first"]
         pending_open_web_queries = [item for item in expanded_query_items if item.get("search_tier") != "authority_first"] if authority_queries else []
@@ -3928,6 +4096,9 @@ class ResearchWorkflow:
                 max_rounds = max(2, max_rounds)
         browser_fetch_budget = _env_int("WEB_RENDER_FETCH_BUDGET_PER_RUN", 3, 0, 500)
         browser_fetch_used = 0
+        person_fetch_used = 0
+        person_fetch_per_chapter = Counter()
+        person_fetch_budget = _env_int("PERSON_WEB_FETCH_BUDGET", 44, 0, 200)
 
         added = 0
         discovered_affiliations: set[str] = set()
@@ -3965,6 +4136,12 @@ class ResearchWorkflow:
             providers=configured_providers,
             status="running",
         )
+        person_search = PersonSearchSession(intake, configured_providers) if person_mode else None
+        if person_search:
+            # The first round spans the full template, rather than consuming the
+            # budget with authority variants for only a few chapters.
+            query_items = expanded_query_items
+            pending_open_web_queries = []
         industry_query_history = []
         industry_seen_queries = set()
         for round_index in range(1, max_rounds + 1):
@@ -3984,6 +4161,10 @@ class ResearchWorkflow:
                     _emit(emit, "web_search", "coverage_agent", "行业检索预算已用完，保留证据缺口", f"query_budget={budget}", status="warning")
                     break
                 industry_query_history.append(query_items)
+            if person_search:
+                query_items = person_search.choose(query_items, round_index, list(project.sources or []))
+                if not query_items:
+                    break
             _emit(emit, "web_search", "online_search_agent", "开始在线检索", "", status="running")
             search_batches = self._search_query_items_parallel(
                 query_items,
@@ -3992,6 +4173,8 @@ class ResearchWorkflow:
                 emit,
                 pause_requested,
             )
+            if person_search:
+                person_search.record(search_batches)
             for query_item, results in search_batches:
                 if pause_requested and pause_requested():
                     raise WorkflowPaused("任务已暂停")
@@ -4084,6 +4267,7 @@ class ResearchWorkflow:
                                 **reused_meta,
                                 "query": query,
                                 "module": module,
+                                "person_chapters": list(query_item.get("person_chapters") or []),
                                 "round": round_index,
                                 "search_tier": search_tier,
                                 "authority_domains": include_domains,
@@ -4096,6 +4280,7 @@ class ResearchWorkflow:
                                 "identity_reason": identity["reason"],
                                 "identity_anchors": identity["matched_anchors"],
                                 "identity_policy_version": identity.get("identity_policy_version", PERSON_IDENTITY_POLICY_VERSION),
+                            **({"person_intake_fingerprint": self._intake_evidence_fingerprint(intake)} if person_mode else {}),
                                 "identity_status": "quarantined" if identity["confidence"] == "low" else "accepted",
                                 **({"industry_scope_fingerprint": getattr(project, "industry_scope_fingerprint", scope_fingerprint(intake, source_only=True))} if intake.get("target_type") == "industry" else {}),
                                 "reused_from_source_id": reused_source.id,
@@ -4174,6 +4359,14 @@ class ResearchWorkflow:
                                 or (summary_probe and cleaned_probe == summary_probe)
                             )
                         )
+                        if person_mode and should_refetch:
+                            chapter_key = next(iter(query_item.get("person_chapters") or [2]))
+                            round_limit = 2 if round_index == 1 else 1
+                            should_refetch = (person_fetch_used < person_fetch_budget
+                                              and person_fetch_per_chapter[(chapter_key, round_index)] < round_limit)
+                            if should_refetch:
+                                person_fetch_used += 1
+                                person_fetch_per_chapter[(chapter_key, round_index)] += 1
                         if should_refetch:
                             allow_browser = browser_fetch_used < browser_fetch_budget
                             _emit(
@@ -4211,6 +4404,8 @@ class ResearchWorkflow:
                             if fetched.get("fetch_attempt") == "browser":
                                 browser_fetch_used += 1
                             fetched_text = fetched.get("content") or ""
+                            if person_mode and fetched.get("status") == "done" and fetched_text:
+                                item_metadata["person_discovery_only"] = False
                             fetched_clean = self._clean_source_text(fetched_text)
                             item_metadata.update(
                                 {
@@ -4228,7 +4423,7 @@ class ResearchWorkflow:
                             for document_key in ('document_pages', 'document_extraction'):
                                 if fetched.get(document_key) is not None:
                                     item_metadata[document_key] = fetched[document_key]
-                            if len(fetched_clean) > len(cleaned_probe) or (project.target_type == 'company' and fetched.get('status') == 'done' and fetched_clean):
+                            if len(fetched_clean) > len(cleaned_probe) or (project.target_type in {'company', 'person'} and fetched.get('status') == 'done' and fetched_clean):
                                 content = fetched_text
                                 raw_content = fetched_text
                                 cleaned_probe = fetched_clean
@@ -4286,6 +4481,7 @@ class ResearchWorkflow:
                         metadata = {
                             "query": query,
                             "module": module,
+                                "person_chapters": list(query_item.get("person_chapters") or []),
                             "round": round_index,
                             "search_tier": search_tier,
                             "authority_domains": include_domains,
@@ -4305,6 +4501,7 @@ class ResearchWorkflow:
                             "identity_reason": identity["reason"],
                             "identity_anchors": identity["matched_anchors"],
                             "identity_policy_version": identity.get("identity_policy_version", PERSON_IDENTITY_POLICY_VERSION),
+                            **({"person_intake_fingerprint": self._intake_evidence_fingerprint(intake)} if person_mode else {}),
                             "identity_status": "quarantined" if identity["confidence"] == "low" else "accepted",
                             "quality": quality,
                             "platform": platform_name,
@@ -4452,6 +4649,12 @@ class ResearchWorkflow:
             db.commit()
             db.expire(project, ["sources"])
             coverage = self.evaluate_source_quality(project, plan)
+            if person_search:
+                retrieval_audit = person_search.audit(list(project.sources or []))
+                retrieval_audit.update(page_fetch_budget=person_fetch_budget, page_fetch_attempts=person_fetch_used)
+                project.person_retrieval_audit = retrieval_audit
+                self.save_artifact(db, project, "person_retrieval_audit", "人物逐章检索与预算记录",
+                                   json.dumps(retrieval_audit, ensure_ascii=False), {"retrieval_version": retrieval_audit["version"], "intake_fingerprint": self._intake_evidence_fingerprint(intake)})
             gaps = coverage.get("information_gaps", [])
             discovery_items: list[dict[str, str]] = []
             if str(intake.get("target_type") or "").lower() == "person" and round_index < max_rounds:
@@ -4504,6 +4707,8 @@ class ResearchWorkflow:
             if round_index == 1 and pending_open_web_queries:
                 next_query_items = pending_open_web_queries + next_query_items
                 pending_open_web_queries = []
+            if person_search and round_index < max_rounds:
+                next_query_items = expanded_query_items
             if not gaps and not next_query_items:
                 _emit(emit, "web_search", "coverage_agent", "来源覆盖率达标", "", status="done")
                 break
@@ -4520,6 +4725,11 @@ class ResearchWorkflow:
                 status="running",
             )
         db.commit()
+        if person_search:
+            project.person_retrieval_audit = person_search.audit(list(project.sources or []))
+            project.person_retrieval_audit.update(page_fetch_budget=person_fetch_budget, page_fetch_attempts=person_fetch_used)
+            self.save_artifact(db, project, "person_retrieval_audit", "人物逐章检索与预算记录",
+                               json.dumps(project.person_retrieval_audit, ensure_ascii=False), {"retrieval_version": project.person_retrieval_audit["version"], "intake_fingerprint": self._intake_evidence_fingerprint(intake)})
         _emit(emit, "web_search", "online_search_agent", "在线来源采集结束", "", status="done")
         return added
 
@@ -4602,6 +4812,34 @@ class ResearchWorkflow:
         # Rule-cleaned excerpts are the durable baseline, including when LLM
         # refinement is enabled.  The model may add interpretations/facts, but
         # it cannot erase deterministic or professional-platform evidence.
+        if person_mode:
+            try:
+                from .person_company_records import company_records
+            except ImportError:
+                from person_company_records import company_records
+            company_sources = {source.url: source for source in selected_sources
+                               if (source.source_metadata or {}).get("person_affiliation")}
+            fast["facts"] = [f for f in fast.get("facts", []) if f.get("source_url") not in company_sources]
+            rule_facts = [f for f in rule_facts if f.get("source_url") not in company_sources]
+            structured_rule_facts = [f for f in structured_rule_facts if f.get("source_url") not in company_sources]
+            for source in company_sources.values():
+                rule_facts.extend(company_records(source))
+            record_sources = {source.url: source for source in selected_sources
+                              if (source.source_metadata or {}).get("person_record_quotes")}
+            fast["facts"] = [f for f in fast.get("facts", []) if f.get("source_url") not in record_sources]
+            rule_facts = [f for f in rule_facts if f.get("source_url") not in record_sources]
+            structured_rule_facts = [f for f in structured_rule_facts if f.get("source_url") not in record_sources]
+            for url, source in record_sources.items():
+                meta = source.source_metadata or {}
+                for quote in meta["person_record_quotes"]:
+                    if quote not in (source.content or ""):
+                        continue
+                    rule_facts.append({"fact": quote, "evidence_quote": quote, "claim_type": "person_platform_record", "source_url": url,
+                        "source_title": source.title, "source_type": "business_database", "provider": meta.get("provider"),
+                        "module": meta.get("module"), "identity_match": "confirmed", "identity_confidence": "high",
+                        "eligible_for_report": True, "person_chapters": meta.get("person_chapters", []),
+                        "published_at": "", "event_date": "", "retrieved_at": meta.get("retrieved_at", ""),
+                        "attribution_boundary": "平台人员记录，不等于人工核验；成立日期不是任职日期，关系不证明个人承担企业责任"})
         all_facts: list[dict[str, Any]] = list(fast.get("facts", []))
         all_facts.extend(structured_rule_facts)
         if project.target_type == 'industry':
@@ -4625,8 +4863,8 @@ class ResearchWorkflow:
                 max_chars=_env_int("CLEANING_MAX_CHARS_PER_BATCH", 8000, 1000, 30000),
                 max_chars_per_source=max_chars_per_source,
                 max_batches=None,
-                target_type=str(project.target_type or ''),
                 industry=project.target_type == 'industry',
+                target_type=str(project.target_type or ''),
             )
             _emit(
                 emit,
@@ -4645,11 +4883,30 @@ class ResearchWorkflow:
             _emit(emit, "cleaning", "data_cleaning_agent", "没有可清洗来源，跳过", "", status="skipped")
 
         deduped = self._annotate_evidence_facts(project, self._dedupe_facts(all_facts))
+        person_rejections = []
         if person_mode:
+            source_dates = {str(src.url or ""): src for src in selected_sources}
+            for fact in deduped:
+                src = source_dates.get(str(fact.get("source_url") or ""))
+                if src is not None:
+                    meta = src.source_metadata or {}
+                    if meta.get("identity_confidence") in {"low", "rejected"}:
+                        fact["identity_confidence"] = meta["identity_confidence"]
+                        fact["eligible_for_report"] = False
+                    if meta.get("person_discovery_only"):
+                        fact["eligible_for_report"] = False
+                    fact.setdefault("person_affiliation", meta.get("person_affiliation"))
+                    fact.setdefault("person_chapters", list(meta.get("person_chapters") or []))
+                    fact.setdefault("retrieved_at", str(getattr(src, "created_at", "") or "未记录"))
+            deduped, person_rejections = normalize_person_facts({"facts": deduped}, str(project.target_name or ""), sources=selected_sources)
             self._validate_person_cleaned_facts(deduped)
         evidence_ledger = self._build_evidence_ledger(self._active_industry_sources(project), selected_sources, target_type=str(project.target_type or ''))
         result = {
             "facts": deduped,
+            **({"person_evidence_version": PERSON_TEMPLATE_VERSION, "person_rejected_facts": person_rejections,
+                "person_platform_attempts": getattr(project, "person_platform_attempts", []),
+                "person_retrieval_audit": {**getattr(project, "person_retrieval_audit", {}),
+                    "coverage": person_retrieval_coverage(selected_sources, getattr(project, "person_research_intake", {}) or {})}} if person_mode else {}),
             **({"industry_scope": getattr(project, "industry_scope", {})} if project.target_type == "industry" else {}),
             "identity_quarantine": [
                 {
@@ -4696,12 +4953,12 @@ class ResearchWorkflow:
                 continue
             meta = source.source_metadata or {}
             text = self._clean_source_text(source.content or source.summary or "")
-            candidates = re.split(r"(?<=[。！？!?；;])\s*|[\r\n]+", text)
+            candidates = re.split(r'(?<=[。！？!?；;])\s*|(?<=[.!?])(?<!\bDr\.)(?<!\bMr\.)(?<!\bMs\.)(?<!\bMrs\.)(?<!\bProf\.)(?<!\b[A-Z]\.)\s+(?=[A-Z“"\'])|[\r\n]+', text)
             kept = 0
             for sentence in candidates:
                 sentence = re.sub(r"\s+", " ", sentence).strip(" -•\t")
                 compact = re.sub(r"\s+", "", sentence).lower()
-                if not (24 <= len(sentence) <= 420) or (target and target not in compact):
+                if not (24 <= len(sentence) <= 420) or (target and not person_name_in_text(project.target_name, sentence)):
                     continue
                 if any(marker in compact for marker in noise):
                     continue
@@ -4723,7 +4980,7 @@ class ResearchWorkflow:
                     }
                 )
                 kept += 1
-                if kept >= 2:
+                if kept >= _env_int("PERSON_SENTENCE_FACTS_PER_SOURCE", 12, 2, 30):
                     break
         return facts
 
@@ -4923,18 +5180,13 @@ class ResearchWorkflow:
             cleaned.append(normalized)
         return cleaned
 
-    def _validate_person_cleaned_facts(self, facts: list[dict[str, Any]]) -> None:
-        min_facts = _env_int("PERSON_REPORT_MIN_FACTS", 24, 1, 500)
-        min_sources = _env_int("PERSON_REPORT_MIN_UNIQUE_SOURCES", 12, 1, 500)
-        min_modules = _env_int("PERSON_REPORT_MIN_MODULES", 5, 1, 30)
-        urls = {str(item.get("source_url") or "") for item in facts if item.get("source_url")}
-        modules = {str(item.get("module") or "") for item in facts if item.get("module")}
-        if len(facts) < min_facts or len(urls) < min_sources or len(modules) < min_modules:
-            raise RuntimeError(
-                "人物报告事实质量闸门未通过："
-                f"facts={len(facts)}/{min_facts}, sources={len(urls)}/{min_sources}, modules={len(modules)}/{min_modules}。"
-                "已停止生成，避免输出低质量报告。"
-            )
+    def _validate_person_cleaned_facts(self, facts: list[dict[str, Any]]) -> dict[str, Any]:
+        # Sparse public profiles are legitimate research outcomes. Preserve a
+        # useful, explicitly incomplete draft rather than demand 24 facts.
+        return {"fact_count": len(facts),
+                "source_count": len({f.get("source_url") for f in facts if f.get("source_url")}),
+                "status": "source_bound_draft" if facts else "insufficient_evidence",
+                "requires_human_review": True}
 
     def _deep_clean_sources(
         self,
@@ -5214,6 +5466,11 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
 
     def assess_risk(self, project: ResearchProject, cleaned_json: str, emit: TraceEmitter | None = None) -> str:
         target_type = str(project.target_type or "").lower()
+        if target_type == "person":
+            payload = _plain_json(cleaned_json) or {}
+            result = normalize_person_risk(payload)
+            _emit(emit, "risk", "risk_assessment_agent", "人物风险按证据登记，未知项不评分", "", status="done")
+            return json.dumps(result, ensure_ascii=False, indent=2)
         if target_type == "company":
             from report_agents.company_risk_register import build_risk_register
             cleaned = _plain_json(cleaned_json)
@@ -5283,6 +5540,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 parsed = normalize_industry_risk(parsed, retained, getattr(project, "industry_scope", {}))
                 parsed = self._repair_industry_risk(parsed, json.loads(risk_evidence), retained,
                                                     getattr(project, 'industry_scope', {}), emit=emit)
+                from industry_risk_input import attach_selection
+                parsed = attach_selection(parsed, json.loads(risk_evidence).get('input_selection', {}))
                 _emit(emit, "risk", "risk_assessment_agent", "模型行业风险评分完成", f"risk_level={parsed.get('risk_level')}", risk_level=parsed.get("risk_level"), status="done")
                 return json.dumps(parsed, ensure_ascii=False, indent=2)
             fallback = unknown_industry_risk(scope=getattr(project, "industry_scope", {}))
@@ -5293,6 +5552,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             fallback = attach_risk_support(fallback, retained, getattr(project, 'industry_scope', {}))
             fallback['validation_diagnostics'] = {'primary_status': 'empty_or_invalid_json',
                 'model_response_excerpt': answer[:3000], 'repair': {'attempted': False, 'attempts': 0}}
+            from industry_risk_input import attach_selection
+            fallback = attach_selection(fallback, json.loads(risk_evidence).get('input_selection', {}))
             _emit(emit, "risk", "risk_assessment_agent", "使用规则降级行业评分", f"risk_level={fallback.get('risk_level')}", risk_level=fallback.get("risk_level"), status="fallback")
             return json.dumps(fallback, ensure_ascii=False, indent=2)
         prompt = f"""
@@ -5404,11 +5665,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         rows = []
         facts = parsed.get("facts") or []
         if target_type == "industry":
-            try:
-                from .industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions, source_document_key
-            except ImportError:
-                from industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions, source_document_key
-            facts = balanced_risk_facts(facts)
+            from industry_risk_input import risk_input
+            return json.dumps(risk_input(facts, parsed.get('industry_scope') or {}), ensure_ascii=False)
         for fact in facts:
             if not isinstance(fact, dict):
                 continue
@@ -5426,45 +5684,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             if target_type == "company":
                 row["evidence_id"] = fact.get("evidence_id")
                 row["evidence_scope"] = fact.get("evidence_scope")
-            if target_type == "industry":
-                row['fact'] = risk_fact_text(fact)[:700]
-                row['source_document_key'] = source_document_key(fact.get('source_url', ''))
-                row["evidence_id"] = fact.get("evidence_id")
-                row["evidence_scope"] = fact.get("evidence_scope")
-                row["industry_name"] = fact.get("industry_name")
-                row["segment_name"] = fact.get("segment_name")
-                row["company_role"] = fact.get("company_role")
-                row["attribution_boundary"] = fact.get("attribution_boundary")
-                row["numeric_context"] = fact.get("numeric_context")
-                row["numeric_validation"] = fact.get("numeric_validation")
-                context = fact.get('numeric_context') or {}
-                row['allowed_numbers'] = ([str(context.get('value')) + str(context.get('unit'))]
-                    if (fact.get('numeric_validation') or {}).get('passed') is True else [])
             rows.append(row)
             if len(rows) >= 60:
                 break
-        if target_type == 'industry':
-            try:
-                from .industry_research import bounded_package
-            except ImportError:
-                from industry_research import bounded_package
-            # The full payload used to reach ~79k chars and get sliced mid-JSON.
-            # Cap complete cards before composing the risk prompt.
-            for row in rows:
-                row['source_title'] = str(row.get('source_title') or '')[:160]
-                row['attribution_boundary'] = str(row.get('attribution_boundary') or '')[:250]
-            payload = json.loads(bounded_package({'facts': rows,
-                'information_gaps': [str(x)[:200] for x in (parsed.get('information_gaps') or [])[:12]],
-                'gap_interpretation': '缺口是单批抽取线索，需结合全库事实核对；不能据此断言全行业无数据。'}, 25000))
-            original_by_id = {f.get('evidence_id'): f for f in facts}
-            while True:
-                payload['dimension_evidence_ids'] = {name: [r['evidence_id'] for r in payload['facts']
-                    if risk_fact_applicable(original_by_id[r['evidence_id']], name)]
-                    for name in active_risk_dimensions(parsed.get('industry_scope') or {})}
-                encoded = json.dumps(payload, ensure_ascii=False)
-                if len(encoded) <= 28000 or not payload['facts']:
-                    return encoded
-                payload['facts'].pop()
         return json.dumps(
             {"facts": rows, "information_gaps": (parsed.get("information_gaps") or [])[:15]},
             ensure_ascii=False,
@@ -5559,6 +5781,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         intake: dict[str, Any] | None = None,
     ) -> str:
         target_type = (intake or {}).get("target_type") or self._standardize_target_type(project, intake or {})
+        if target_type == "person":
+            project.person_research_intake = dict(intake or {})
         if target_type == "company":
             project.company_research_intake = dict(intake or {})
             if not hasattr(project, "company_professional_platform_attempts"):
@@ -5610,10 +5834,10 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 emit(event)
 
         def report_invoke(role: str, prompt: str, trace_emit: TraceEmitter | None = None) -> str:
-            if target_type == "company" and (role.endswith("摘要 Agent") or role.endswith("摘要修订 Agent")):
-                return self._invoke_company_summary(role, prompt, emit=trace_emit)
             if target_type == 'industry':
                 return self._invoke_industry_report(role, prompt, emit=trace_emit)
+            if target_type == "company" and (role.endswith("摘要 Agent") or role.endswith("摘要修订 Agent")):
+                return self._invoke_company_summary(role, prompt, emit=trace_emit)
             if target_type == "person" and role.endswith("总编 Agent"):
                 return self._invoke_person_report_editor(role, prompt, emit=trace_emit)
             if target_type == "person" and "章节 Agent" in role:
@@ -5622,10 +5846,25 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 return self._invoke_company_report_editor(role, prompt, emit=trace_emit)
             return self._invoke(role, prompt, emit=trace_emit)
 
+        writer_project = project
+        if target_type == "person":
+            # ORM sessions and lazy relationships belong to the workflow thread.
+            # Freeze all source fields before the background writer starts.
+            writer_project = SimpleNamespace(**{
+                key: getattr(project, key, "") for key in ("id", "title", "target_name", "target_type", "industry", "description")
+            })
+            writer_project.sources = [SimpleNamespace(**{
+                key: getattr(source, key, None) for key in
+                ("id", "url", "title", "content", "summary", "source_type", "source_metadata", "credibility_score", "created_at")
+            }) for source in list(project.sources or [])]
+            writer_project.person_research_intake = dict(getattr(project, "person_research_intake", {}) or {})
+            writer_project.person_platform_attempts = list(getattr(project, "person_platform_attempts", []) or [])
+            writer_project.person_retrieval_audit = dict(getattr(project, "person_retrieval_audit", {}) or {})
+
         def target() -> None:
             try:
                 final_text = agent.generate(
-                    project,
+                    writer_project,
                     cleaned_json,
                     risk_json,
                     invoke=report_invoke,
@@ -5678,6 +5917,10 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                     status=heartbeat_status,
                 )
         active_trace["enabled"] = False
+        if target_type == "person":
+            for key in ("person_evidence_contract", "person_delivery_diagnostic", "person_section_packages"):
+                if hasattr(writer_project, key):
+                    setattr(project, key, getattr(writer_project, key))
         if status == "error":
             _emit(emit, "report", "desktop_report_agent", "报告 Agent 执行失败", "", status="error")
             raise RuntimeError(final)
@@ -5738,9 +5981,42 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         report: str,
         emit: TraceEmitter | None = None,
         target_type: str = "",
+        industry_project=None,
+        industry_risk_json: str = '{}',
     ) -> str:
         if not report.strip():
             return report
+        if target_type == 'industry':
+            if industry_project is not None:
+                from industry_delivery import finalize_synthesis
+                result,tasks=finalize_synthesis(report,getattr(industry_project,'industry_evidence_payload',{}) or {},
+                    _plain_json(industry_risk_json) or {},getattr(industry_project,'industry_report_degradations',[]) or [],
+                    getattr(industry_project,'industry_scope',{}) or {})
+                industry_project.industry_verification_tasks=tasks
+                return result
+            try:
+                from .industry_claims import industry_gap_plan
+            except ImportError:
+                from industry_claims import industry_gap_plan
+            clean = re.sub(r'(?ms)^## 集中式待核验清单\s*$.*\Z', '', report).rstrip()
+            items = []
+            for line in clean.splitlines():
+                item = re.sub(r'^\s*[-*>\d.)、\s]+', '', line).strip()
+                if (line.lstrip().startswith(('#', '|')) or len(item) < 12 or len(item) > 240
+                        or re.fullmatch(r'.{0,8}待核验(?:事项|清单).{0,8}', item)
+                        or not re.search(r'待核验|缺少|缺乏|未披露|尚未|证据不足|无法确认', item)):
+                    continue
+                if item not in items:
+                    items.append(item)
+                if len(items) == 15:
+                    break
+            if not items:
+                return clean
+            rows = ['## 集中式待核验清单', '', '| 待核验事项 | 原因 | 核验动作 | 优先级 | 所需材料 |', '| --- | --- | --- | --- | --- |']
+            for item in items:
+                reason, action, priority, materials = industry_gap_plan(item)
+                rows.append('| ' + ' | '.join(str(v).replace('|', '/') for v in (item, reason, action, priority, materials)) + ' |')
+            return clean + '\n\n' + '\n'.join(rows) + '\n'
         if target_type == "company":
             from report_agents.company_delivery import company_followup_rows, company_followup_plan
             groups=company_followup_rows(report)
@@ -5879,6 +6155,17 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         card and every selected fact is visibly used in the delivered report.
         """
         target_type = str(project.target_type or "").lower()
+        if target_type == "person" and report.strip():
+            payload = _plain_json(cleaned_json) or {}
+            contract = build_person_packages(payload, str(project.target_name or ""), PersonReportAgent.outline,
+                                             getattr(project, "person_research_intake", {}), getattr(project, "sources", []) or [])
+            previous = getattr(project, "person_delivery_diagnostic", {}) or {}
+            result = append_person_index(report, contract["facts"])
+            project.person_evidence_contract = contract
+            diagnostic = audit_person_report(result, contract, previous.get("degradations", []))
+            diagnostic.update({k: previous[k] for k in ("section_diagnostics", "api_attempts", "platform_attempts", "generation_order") if k in previous})
+            project.person_delivery_diagnostic = diagnostic
+            return result
         if target_type == "industry" and report.strip():
             payload = _plain_json(cleaned_json)
             if not isinstance(payload, dict):
@@ -6330,6 +6617,12 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         target_type = str(project.target_type or "").lower()
         if target_type not in {"person", "company", "industry"}:
             return
+        if target_type == "person" and hasattr(project, "person_evidence_contract"):
+            previous = getattr(project, "person_delivery_diagnostic", {}) or {}
+            diagnostic = audit_person_report(report, project.person_evidence_contract, previous.get("degradations", []))
+            if diagnostic["errors"]:
+                raise RuntimeError("人物报告交付质量闸门未通过：" + "；".join(diagnostic["errors"]))
+            return
         if target_type == "industry":
             errors = industry_delivery_errors(report, getattr(project, "industry_delivery_diagnostic", {}),
                                                getattr(project, "industry_scope", {}))
@@ -6577,6 +6870,18 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             from .industry_research import delivery_review_reasons
         except ImportError:
             from industry_research import delivery_review_reasons
+        risk = _plain_json(risk_json)
+        risk = risk if isinstance(risk, dict) else {}
+        payload = getattr(project, 'industry_evidence_payload', {}) or {}
+        degradations = list(getattr(project, 'industry_report_degradations', []) or [])
+        if not degradations and ('模型摘要未通过校验' in report or '模型摘要未通过引用或目录校验' in report):
+            degradations.append({'chapter': 1, 'message': '摘要沿用模型校验失败后的事实摘录，综合判断需人工复核。'})
+        from industry_delivery import finalize_synthesis
+        # Rebuild from current artifacts on both first export and reexport.
+        report, tasks = finalize_synthesis(report,payload,risk,degradations,getattr(project,'industry_scope',{}) or {})
+        project.industry_verification_tasks = tasks
+        if payload.get('facts'):
+            report = self._append_report_evidence_index(project,report,json.dumps(payload,ensure_ascii=False),emit=emit)
         gate_warning = ''
         try:
             self._validate_delivery_report(project, report)
@@ -6584,10 +6889,6 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             if os.getenv('REPORT_SAVE_REVIEW_DRAFT_ON_GATE_FAIL', 'true').strip().lower() not in {'1', 'true', 'yes', 'on'}:
                 raise
             gate_warning = str(exc)
-        degradations = list(getattr(project, 'industry_report_degradations', []) or [])
-        # Preserve an explicit legacy fallback notice even if its old metadata was lost.
-        if not degradations and ('模型摘要未通过校验' in report or '模型摘要未通过引用或目录校验' in report):
-            degradations.append({'chapter': 1, 'message': '摘要沿用模型校验失败后的事实摘录，综合判断需人工复核。'})
         risk = _plain_json(risk_json)
         project.industry_risk_transparency = (risk or {}).get('risk_transparency', {}) if isinstance(risk, dict) else {}
         reasons = delivery_review_reasons(getattr(project, 'industry_scope', {}) or {},
@@ -6623,14 +6924,36 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             _emit(emit, 'report', 'desktop_report_agent', '行业报告保存为待复核稿', warning,
                   review_reason_count=len(reasons), status='fallback')
         return report, {'delivery_status': 'review_draft' if reasons else 'final_candidate',
+                        'verification_tasks': tasks,
+                        'synthesis_contract_version': 'industry-synthesis-v2-actionable-tasks',
                         'risk_transparency': project.industry_risk_transparency,
                         'delivery_review_reasons': reasons, 'quality_issues': issues,
                         'industry_evidence_diagnostic': getattr(project, 'industry_delivery_diagnostic', {}),
                         'generation_degradations': degradations,
+                        'statement_plans': getattr(project, 'industry_statement_plans', {}),
+                        'fact_contract_version': (getattr(project, 'industry_evidence_payload', {}) or {}).get('fact_contract_version'),
                         **({'quality_warning': warning} if warning else {})}
 
     def _build_report_quality_diagnostic(self, project: ResearchProject, report: str, warning: str) -> str:
         """Persist a reviewable diagnosis alongside a failed-but-exported Word draft."""
+        if str(project.target_type or '').lower() == 'person':
+            audit = getattr(project, 'person_delivery_diagnostic', {}) or {}
+            diagnostics = audit.get('section_diagnostics') or {}
+            rows = []
+            for chapter in audit.get('chapters', []):
+                index = chapter['chapter']
+                generation = diagnostics.get(index, diagnostics.get(str(index), {}))
+                issues = list(chapter.get('gaps') or [])
+                issues += ['模型分析或事实校验拦截：' + str(reason) for reason in generation.get('validation_rejections', [])]
+                if generation.get('status') == 'insufficient_evidence' and not issues:
+                    issues.append('缺少可引用且身份匹配的本章证据。')
+                for issue in issues:
+                    text = str(issue).replace('|', '/').replace('\n', ' ')
+                    rows.append(f'| 第{index}章 | {text} |')
+            table = '\n'.join(rows) or '| 全文 | 自动校验未列出具体缺口，仍须人工核对原文、身份和归属。 |'
+            return (f'# {_project_doc_title(project, "报告质量诊断")}\n\n状态：待复核稿，生成完成不代表正式交付验收通过。\n\n'
+                    f'质量门记录：{warning}\n\n| 章节 | 待核验或被拦截的事项 |\n| --- | --- |\n' + table +
+                    '\n\n复核动作：对照第14章实际引用索引核验原文；按第15章补证；公司资料不能替代个人能力、品行或责任证据。Word逐页视觉验收单独记录。\n')
         if str(project.target_type or '').lower() == 'industry':
             reasons = getattr(project, 'industry_delivery_review_reasons', []) or []
             def cell(value):
@@ -6700,6 +7023,15 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
     ) -> str:
         assets: list[str] = []
         target_type = str(project.target_type or "").lower()
+        if target_type == 'industry':
+            # A sector is not a legal entity: company officers are not sector
+            # relationships. No governance graph or company screenshots are
+            # eligible until an explicit industry edge contract is available.
+            report = re.sub(r'(?mi)^#{2,5}\s*核心关系网络图\s*\n?', '', report)
+            report = re.sub(r'(?ms)^```mermaid\s*.*?^```\s*', '', report)
+            report = re.sub(r'(?mi)^!\[[^\]]*(?:关系网图|关系网络图|关系图)[^\]]*\]\([^)]+\)\s*$', '', report)
+            report = re.sub(r'(?m)^> 注：本图根据已取得的结构化证据生成[^\n]*\n?', '', report)
+            return report
         if target_type == "company":
             # Company reports have two distinct questions: who owns the
             # company, and who can actually influence or control it.  Keeping
@@ -6810,6 +7142,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         graph_kind: str = "relationship",
         emit: TraceEmitter | None = None,
     ) -> str:
+        if str(project.target_type or '').lower() == 'industry':
+            return ''
         company_package = getattr(project, "company_governance_package", None) if str(project.target_type or "").lower() == "company" else None
         if company_package is not None:
             try:
@@ -7134,9 +7468,15 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         docs = []
         for index, fact in enumerate(facts):
             text = str(fact.get("fact") or "").strip()
+            if project.target_type=='industry':
+                if fact.get('claim_type')=='source_excerpt':
+                    text=str(((fact.get('provenance') or {}).get('locator') or {}).get('quote') or fact.get('evidence_quote') or text).strip()
+                else:
+                    from industry_research import risk_fact_text
+                    text=risk_fact_text(fact)
             if not text:
                 continue
-            evidence = str(fact.get("evidence_quote") or "").strip()
+            evidence = '' if project.target_type=='industry' else str(fact.get("evidence_quote") or "").strip()
             if evidence and evidence not in text:
                 text = f"{text}\n\n证据摘录：{evidence}"
             docs.append(
@@ -7270,10 +7610,14 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             .first()
         )
         version = (current.version + 1) if current else 1
-        suffix = "json" if artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "professional_platform_audit", "industry_claim_ledger"} else "md"
+        suffix = "json" if artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger", "industry_run", "person_claim_ledger", "professional_platform_audit"} else "md"
         artifact_metadata = dict(metadata or {})
+        if getattr(project, 'target_type', '') == 'industry' and getattr(project, 'industry_run_id', None):
+            artifact_metadata.update(run_id=project.industry_run_id, run_started_at=project.industry_run_started_at)
+        if project.target_type == "person" and artifact_type == "desktop_report":
+            artifact_metadata.update(requires_human_review=True, verification_status="source_statements_only", delivery_status="review_draft")
         index_job = None
-        object_key = research_store.put_text(
+        object_key = '' if artifact_type == 'industry_run' else research_store.put_text(
             f"projects/{project.id}/{artifact_type}/{artifact_type}_v{version}.{suffix}",
             content,
             "application/json; charset=utf-8" if suffix == "json" else "text/markdown; charset=utf-8",
@@ -7303,13 +7647,21 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 artifact_metadata["vector_indexed"] = False
                 artifact_metadata["vector_index_status"] = "error"
                 artifact_metadata["vector_index_error"] = str(exc)
+        if artifact_type == 'proposal' and project.target_type == 'industry':
+            from industry_delivery import VERIFICATION_TASK_VERSION
+            artifact_metadata.update(delivery_status='review_draft', proposal_confirmation_status='pending',
+                                     verification_task_version=VERIFICATION_TASK_VERSION,
+                                     verification_tasks=getattr(project,'industry_verification_tasks',[]) or [],
+                                     report_dependency=getattr(project,'industry_report_dependency',{}) or {},
+                                     quality_warning='建议书的范围、周期、人员、报价及验收标准需双方确认。')
         if artifact_type in {"desktop_report", "proposal"}:
             try:
                 docx_payload = markdown_to_docx_bytes(
                     content,
                     title=title,
-                    review_draft=bool(artifact_metadata.get("quality_warning")),
+                    review_draft=bool(artifact_metadata.get("quality_warning") or artifact_metadata.get("requires_human_review")),
                     outline=self._select_report_outline(project) if artifact_type == "desktop_report" else None,
+                    document_kind=('industry_proposal' if artifact_type == 'proposal' else 'industry_report') if project.target_type == 'industry' else 'report',
                 )
                 if project.target_type == 'industry':
                     try:
@@ -7726,19 +8078,19 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             if company_mode:
                 from report_agents.company_evidence import source_body
                 body, text_origin = source_body(source)
-                parts = [body]
+                source_parts = [body]
             else:
-                parts = [source.summary or "", source.content or "", meta.get("ocr_text") or ""]
-            if project.target_type=='industry':
+                source_parts = [source.summary or "", source.content or "", meta.get("ocr_text") or ""]
+            if project.target_type == 'industry':
                 try:
                     from .industry_evidence import stored_body
                 except ImportError:
                     from industry_evidence import stored_body
-                parts=[stored_body(source)]
-                if not parts[0].strip():
-                    source_errors+=1
+                source_parts = [stored_body(source)]
+                if not source_parts[0].strip():
+                    source_errors += 1
                     continue
-            for part in parts:
+            for part in source_parts:
                 part_text = str(part or "").strip()
                 if part_text:
                     raw_parts.append(part_text[:raw_text_limit])
@@ -7777,7 +8129,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             # particular, a low-confidence same-name check is meaningful for a
             # person only; it must not suppress company or industry evidence.
             if target_type == "person":
-                report_eligible = bool(affiliation_context) or identity_confidence not in {"low", "rejected"}
+                report_eligible = not meta.get("person_discovery_only") and (bool(affiliation_context) or identity_confidence not in {"low", "rejected"})
             elif target_type == "company":
                 report_eligible = entity_validation != "rejected" and text_origin != 'discovery_summary'
             else:
@@ -7860,9 +8212,15 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             "information_gaps": gaps,
         }
     def _source_context(self, sources: list[ResearchSource], max_chars_per_source: int = 5000, industry: bool = False, *, target_type: str = '') -> str:
+        industry = industry or target_type == 'industry'
         blocks = []
         for idx, source in enumerate(sources, 1):
             text = source.content or source.summary
+            if industry:
+                from industry_evidence import stored_body
+                text = stored_body(source)
+                if not text.strip():
+                    continue
             if target_type == 'company':
                 from report_agents.company_evidence import source_body
                 text, origin = source_body(source)
@@ -7898,7 +8256,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 f"身份锚点：{meta.get('identity_anchors', [])}\n"
                 f"人物关联企业上下文：{json.dumps(meta.get('person_affiliation', {}), ensure_ascii=False)}\n"
                 f"质量评分：{quality}\n"
-                f"鍥剧墖/鍥捐〃鍏冩暟鎹細{_clip(json.dumps(meta.get('images', []), ensure_ascii=False), 1200)}\n"
+                f"图片/图表元数据：{_clip(json.dumps(meta.get('images', []), ensure_ascii=False), 1200)}\n"
                 f"内容：{_clip(text, source_limit)}"
             )
         return "\n\n---\n\n".join(blocks)
@@ -7909,14 +8267,14 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         max_chars: int = 18000,
         max_chars_per_source: int = 5000,
         max_batches: int | None = None,
-        target_type: str = '',
         industry: bool = False,
+        target_type: str = '',
     ) -> list[str]:
         batches: list[str] = []
         current: list[str] = []
         current_len = 0
         for source in sources:
-            block = self._source_context([source], max_chars_per_source=max_chars_per_source, target_type=target_type, industry=industry)
+            block = self._source_context([source], max_chars_per_source=max_chars_per_source, industry=industry, target_type=target_type)
             if not block:
                 continue
             if current and current_len + len(block) > max_chars:
@@ -8050,14 +8408,14 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         return str(meta.get("extraction_status") or "").lower() in {"failed", "pending"} or text.startswith(("[解析失败", "[待解析"))
 
     def _fallback_clean(self, project: ResearchProject) -> dict[str, Any]:
-        if str(project.target_type or '').lower() == 'company':
-            return self._fast_clean_sources(project.sources, project=project)
         if project.target_type == "industry":
             sources = self._select_cleaning_sources(self._active_industry_sources(project), project=project)
             payload = self._fast_clean_sources(sources, project=project)
             payload["facts"] = self._annotate_evidence_facts(project, payload.get("facts", []))
             payload["industry_scope"] = getattr(project, "industry_scope", {})
             return payload
+        if str(project.target_type or '').lower() == 'company':
+            return self._fast_clean_sources(project.sources, project=project)
         facts = []
         seen = set()
         for source in self._active_industry_sources(project):
@@ -8182,8 +8540,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 from .report_agents.industry_proposal import build_industry_proposal
             except ImportError:
                 from report_agents.industry_proposal import build_industry_proposal
+            project.industry_current_risk = risk_json
             _emit(emit, "proposal", "proposal_agent", "行业建议书按研究范围和七章模板生成", "人员、周期和报价保留确认项", status="done")
-            return build_industry_proposal(project)
+            return build_industry_proposal(project, report=report, risk_json=risk_json)
         if (
             str(project.target_type or "").lower() == "company"
             and os.getenv("COMPANY_PROPOSAL_LLM_ENABLED", "false").strip().lower() not in {"1", "true", "yes", "on"}
@@ -8278,7 +8637,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 from .report_agents.industry_proposal import build_industry_proposal
             except ImportError:
                 from report_agents.industry_proposal import build_industry_proposal
-            return build_industry_proposal(project)
+            return build_industry_proposal(project, report=report, risk_json=getattr(project,'industry_current_risk',{}))
         if str(project.target_type or "").lower() == "company":
             return self._fallback_company_proposal(project)
         subject = project.target_name or project.industry or project.title

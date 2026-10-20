@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 from types import SimpleNamespace
 
 import requests
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,6 +53,29 @@ def test_bocha_result_is_normalized(monkeypatch):
     assert rows[0]["metadata"]["fetch_status"] == "done"
 
 
+@pytest.mark.parametrize("mode", ["bocha", "multi"])
+def test_bocha_domain_filters_reach_native_api_in_both_search_modes(monkeypatch, mode):
+    monkeypatch.setenv("BOCHA_API_KEY", "test-key")
+    monkeypatch.setenv("BOCHA_FETCH_ENABLED", "false")
+    monkeypatch.setenv("WEB_SEARCH_PROVIDER", mode)
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {"code": 200, "data": {"webPages": {"value": [
+        {"name": "Official result", "url": "https://example.com/a", "snippet": "Source text"}
+    ]}}}
+    provider = WebSearchProvider()
+    with patch("web_search.requests.post", return_value=response) as post:
+        rows = provider.search("target role", 3,
+            include_domains=["example.com", "official.example", "example.com"],
+            exclude_domains=["blocked.example"], preferred_providers=["bocha"])
+    assert len(rows) == 1
+    post.assert_called_once()
+    body = post.call_args.kwargs["json"]
+    assert body["query"] == "target role"
+    assert body["include"] == "example.com,official.example"
+    assert body["exclude"] == "blocked.example"
+
+
 def test_pdf_url_returning_html_is_not_sent_to_pdf_parser(monkeypatch):
     response = Mock()
     response.raise_for_status.return_value = None
@@ -68,6 +92,37 @@ def test_pdf_url_returning_html_is_not_sent_to_pdf_parser(monkeypatch):
     assert result["status"] == "invalid_pdf_response"
     assert result["error"] == "pdf_url_returned_html"
     parser.assert_not_called()
+
+
+@pytest.mark.parametrize("content_type,meta,encoding", [
+    ("text/html", "", "utf-8"),
+    ("text/html", '<meta charset="gb18030">', "gb18030"),
+    ("text/html; charset=gb18030", "", "gb18030"),
+])
+def test_original_html_decode_preserves_person_names(content_type, meta, encoding):
+    response = requests.Response()
+    response.status_code = 200
+    response.url = "https://example.com/bio"
+    response.headers["Content-Type"] = content_type
+    response.encoding = "ISO-8859-1"
+    response._content = f"<html><head>{meta}</head><body><article>林知远参与团队研发工作。</article></body></html>".encode(encoding)
+    with patch("web_search.requests.get", return_value=response):
+        result = WebSearchProvider()._fetch_url_once(response.url, 3, 1000, "test-agent", "desktop")
+    assert result["status"] == "done"
+    assert "林知远参与团队研发工作" in result["content"]
+
+
+def test_utf8_security_check_is_not_accepted_as_article_content():
+    response = requests.Response()
+    response.status_code = 200
+    response.url = "https://example.com/article"
+    response.headers["Content-Type"] = "text/html"
+    response.encoding = "ISO-8859-1"
+    response._content = "<html><body>正在进行安全检测，为保障访问安全，正在检测当前网络环境。</body></html>".encode("utf-8")
+    with patch("web_search.requests.get", return_value=response):
+        result = WebSearchProvider()._fetch_url_once(response.url, 3, 1000, "test-agent", "desktop")
+    assert result["status"] == "blocked_or_challenge"
+    assert result["content"] == ""
 
 
 def test_multi_search_quarantines_provider_after_403(monkeypatch):

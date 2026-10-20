@@ -69,13 +69,15 @@ def settings():
 
 
 def has_access(user: User) -> bool:
+    if getattr(user, 'is_active', True) is False:
+        return False
+    granted = getattr(user, 'knowledge_access', None)
     allowed = {name.strip() for name in os.getenv('COMPANY_KNOWLEDGE_USERS', '').split(',') if name.strip()}
-    return user.role == 'admin' or user.username in allowed
+    return user.role == 'admin' or (granted if granted is not None else user.username in allowed)
 
 
 def require_knowledge_user(user: User = Depends(get_current_user)) -> User:
-    # Registration is public in this project. Do not expose internal documents
-    # to every newly registered account merely because it can log in.
+    # Invitation registration does not automatically grant internal documents.
     if not has_access(user):
         raise HTTPException(403, '该账号尚未获得公司知识库访问权限，请联系管理员。')
     return user

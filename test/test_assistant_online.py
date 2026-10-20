@@ -221,9 +221,9 @@ def test_assistant_endpoint_streams_live_sources_without_project_db_access(monke
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     from database import Base
-    from models import User
+    from models import User, AssistantState, AssistantThread, AssistantMessage
     engine = create_engine('sqlite:///' + str(tmp_path / 'online.db'), connect_args={'check_same_thread': False})
-    Base.metadata.create_all(engine)
+    Base.metadata.create_all(engine, tables=[User.__table__, AssistantState.__table__, AssistantThread.__table__, AssistantMessage.__table__])
     factory = sessionmaker(engine, expire_on_commit=False)
     with factory() as db:
         db.add(User(id=99, username='new-user', password_hash='test', role='user')); db.commit()

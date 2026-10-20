@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, false, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 # 导入数据库基类（来自database.py，所有模型继承此类）
@@ -31,12 +31,74 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)  # 密码哈希（非明文存储）
     role: Mapped[str] = mapped_column(String(20), default="user", nullable=False)  # 用户角色（默认普通用户）
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)  # 创建时间（UTC时区）
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true(), nullable=False)
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
+    knowledge_access: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    display_name: Mapped[str] = mapped_column(String(100), default="", server_default="", nullable=False)
+    notes: Mapped[str] = mapped_column(Text, default="", server_default="", nullable=False)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # 关联ChatSession：一对多（一个用户对应多个会话），级联删除（删除用户时删除其所有会话）
     sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
 # "ChatSession",        # 我和 ChatSession 表有关系
 # back_populates="user",# 互相能找到对方
 # cascade="all, delete-orphan"  # 删除我，就自动删除我的所有会话
+
+class AccountInvitation(Base):
+    __tablename__ = "account_invitations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    role: Mapped[str] = mapped_column(String(20), default="user", server_default="user", nullable=False)
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime)
+    used_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), unique=True)
+
+
+class AccountAudit(Base):
+    __tablename__ = "account_audits"
+    __table_args__ = (
+        Index("ix_account_audits_created_id", "created_at", "id"),
+        Index("ix_account_audits_action_created", "action", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    actor_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    target_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    invitation_id: Mapped[int | None] = mapped_column(ForeignKey("account_invitations.id"))
+    action: Mapped[str] = mapped_column(String(50), nullable=False)
+    details: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class AccountManagementLock(Base):
+    __tablename__ = "account_management_lock"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
+
+class AdminActionConfirmation(Base):
+    __tablename__ = "admin_action_confirmations"
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    token_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    action: Mapped[str] = mapped_column(String(40), nullable=False)
+    target_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class AuthThrottle(Base):
+    __tablename__ = "auth_throttles"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    window_started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
 
 class ChatSession(Base):
     """聊天会话表：存储用户的单次聊天会话元信息"""

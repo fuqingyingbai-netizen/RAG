@@ -13,13 +13,13 @@ from sqlalchemy.orm import sessionmaker
 import assistant_memory as memory
 import research_api as api
 from database import Base
-from models import AssistantMessage as Message, AssistantThread as Thread, User
+from models import AssistantMessage as Message, AssistantState as State, AssistantThread as Thread, User
 
 
 @pytest.fixture
 def history(tmp_path, monkeypatch):
     engine = create_engine('sqlite:///' + str(tmp_path / 'assistant.db'), connect_args={'check_same_thread': False})
-    Base.metadata.create_all(engine)
+    Base.metadata.create_all(engine, tables=[User.__table__, State.__table__, Thread.__table__, Message.__table__])
     factory = sessionmaker(engine, expire_on_commit=False)
     with factory() as db:
         db.add_all([User(id=1, username='alice', password_hash='test', role='user'),

@@ -8,6 +8,8 @@
 用途：RAG 检索（混合检索 = 语义 + 关键词）
 """
 
+from __future__ import annotations
+
 import json       # 读写 JSON 文件（保存 BM25 数据）
 import math       # 数学计算：log、除法等
 import os         # 文件/路径操作
@@ -17,7 +19,10 @@ from collections import Counter  # 计数工具：统计词频
 from pathlib import Path         # 路径工具：更安全的文件路径
 
 from dotenv import load_dotenv   # 读取 .env 配置文件
-from langchain_huggingface import HuggingFaceEmbeddings  # 本地向量模型
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from langchain_huggingface import HuggingFaceEmbeddings
 
 # 加载环境变量（.env 文件里的模型名、设备等）
 load_dotenv()
@@ -34,6 +39,10 @@ def _create_dense_embedder() -> HuggingFaceEmbeddings:
       EMBEDDING_MODEL：模型名称，默认 BAAI/bge-m3
       EMBEDDING_DEVICE：运行设备，默认 cpu
     """
+    # Importing this dependency also imports the tensor/model runtime. Keep both
+    # the import and model construction out of login and account-only startup.
+    from langchain_huggingface import HuggingFaceEmbeddings
+
     model_name = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
     device = os.getenv("EMBEDDING_DEVICE", "cpu")
 
@@ -56,13 +65,15 @@ class EmbeddingService:
     def __init__(self, state_path: Path | str | None = None):
         """
         初始化：
-          1) 加载密集向量模型
+          1) 准备密集向量模型的按需初始化锁
           2) 设置 BM25 保存路径
           3) 初始化线程锁
           4) 加载历史 BM25 统计数据
         """
-        # 1. 创建密集向量模型
-        self._embedder = _create_dense_embedder()
+        # Sparse statistics do not require the dense model. Initialize that
+        # model once, on the first non-empty dense embedding request.
+        self._embedder = None
+        self._embedder_lock = threading.Lock()
 
         # 2. BM25 状态保存文件路径（词表、文档数、df等）
         self._state_path = Path(state_path or os.getenv("BM25_STATE_PATH", _DEFAULT_STATE_PATH))
@@ -91,6 +102,15 @@ class EmbeddingService:
 
         # 从文件加载历史数据
         self._load_state()
+
+    def _get_embedder(self) -> HuggingFaceEmbeddings:
+        if self._embedder is None:
+            with self._embedder_lock:
+                if self._embedder is None:
+                    # A failed initialization leaves None so a later request
+                    # can retry after the model/configuration is repaired.
+                    self._embedder = _create_dense_embedder()
+        return self._embedder
 
     def _recompute_avg_len(self) -> None:
         """重新计算平均文档长度：总词数 / 总文档数"""
@@ -228,7 +248,7 @@ class EmbeddingService:
         if not texts:
             return []
         try:
-            return self._embedder.embed_documents(texts)
+            return self._get_embedder().embed_documents(texts)
         except Exception as e:
             raise Exception(f"向量模型调用失败: {str(e)}") from e
 

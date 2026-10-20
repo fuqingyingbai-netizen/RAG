@@ -1,5 +1,41 @@
 # SuperMew 项目说明
 
+## 开发检查与按需加载
+
+自动回归测试保留在 `test/`，统一使用 `python -m pytest`；配置会自动补齐模块搜索路径，隔离真实数据库和文件目录，阻断外部网络及真实向量模型初始化。测试收集和执行不读取本机 `.env`，需要模型的自动用例应注入假模型。真实模型、搜索、OCR、专业数据库及 LangSmith 工具统一移到 `scripts/manual/`，按需手工运行；这类验收可能调用外部服务或消耗额度。
+
+```powershell
+# 默认自动回归，不执行手工验收工具
+.\.venv\Scripts\python.exe -m pytest -q
+# 前端回归
+node test/frontend_markdown.cjs
+node test/frontend_home.cjs
+node test/frontend_accounts.cjs
+node test/frontend_industry_params.cjs
+node --test test/company-knowledge-ui.test.cjs
+# 隔离浏览器验证 HTML 净化（复用本机测试资源缓存）
+.\.venv\Scripts\python.exe scripts/check-markdown-ui.py --assets-dir work/account-ui/vendor
+# 查看手工工具参数，不执行模型或评测
+.\.venv\Scripts\python.exe scripts/manual/check_embedding.py --help
+.\.venv\Scripts\python.exe scripts/manual/evaluate_langsmith.py --help
+```
+
+账号 PostgreSQL 集成用例仍使用独立临时 schema。显式设置 `ACCOUNT_TEST_POSTGRES=1` 并在运行 pytest 前加载数据库连接配置；远程服务验证还须显式传入 `--allow-network`。默认自动回归不会连接部署的 PostgreSQL、Redis 或 Milvus。
+
+向量模型和 `langchain_huggingface` 改为首次非空稠密向量请求时加载，同一进程的并发请求共享一次初始化；加载失败可在修复配置后重试。登录、个人首页、账号管理及 BM25 稀疏统计无需初始化稠密模型。模型、向量维度和已有统计格式保持兼容。
+
+AI 助手的 Markdown 输出统一经过 HTML 净化，保留标题、列表、表格、代码及安全链接；净化库或解析器不可用时显示转义文本。DOMPurify `3.4.17` 随项目本地部署，来源为[官方固定版本](https://github.com/cure53/DOMPurify/tree/3.4.17)，许可证位于 `frontend/vendor/DOMPurify-LICENSE.txt`。净化库文件 SHA-256 为 `cd37898f9782adf54820c413191b5691803f0f137c799d6edcfd38523b4c2c31`。
+
+手工工具按用途分组：`check_search.py`、`check_bocha.py`、`check_serper.py` 检查搜索；`check_ocr.py`、`check_tencent_ocr.py`、`check_vision.py` 检查 OCR/视觉；`check_qcc_mcp.py`、`check_tyc_mcp.py`、`check_xiniu_mcp.py` 检查专业数据库；`diagnose_cleaning.py`、`trace_cleaning.py` 检查清洗流程；`check_embedding.py`、`evaluate_langsmith.py` 检查真实模型和评测。移动后统一从项目根目录读取配置。
+
+## 邀请注册与账号管理
+
+登录后默认进入个人首页，查看本人的任务概况、最近报告与快捷入口；使用说明及隔离测试见 [个人首页说明](docs/PERSONAL_HOME.md)。
+
+个人首页的最近成果、任务展开后的成果下载区均提供“历史版本”。研究报告和建议书分别按“记录 001、记录 002……”展示，支持分页、查看保存时间与生成方式、预览和下载指定旧稿；内部版本号及原文件保持沿用。列表不返回正文和存储路径，预览沿用 HTML 净化并限制显示长度，原有复核提示保持显示。未记录细分生成方式的历史数据不补造来源。入口只读，继续沿用项目访问权限，不修改报告或复核状态。隔离验证可运行 `node test/frontend_report_versions.cjs`、`python -m pytest test/test_report_versions.py -q` 及 `python scripts/check-report-versions-ui.py`（浏览器脚本使用本地缓存资源）。
+
+账号通过管理员发放的限时邀请码注册，分普通账号与管理员两种类型，默认6小时有效，过期自动清理并保留日志；已有完整邀请链接仍兼容。管理员进入“账号管理”可筛选账号、编辑姓名和备注、启停用、重置密码、授权公司知识库、提升或降级角色，并查询操作日志。敏感操作须再次验证密码，至少保留一个启用的管理员，并有数据库登录限流。已有部署须执行增量迁移，使用与部署步骤见 [账号管理说明](docs/ACCOUNT_MANAGEMENT.md)。
+
 ## 公司知识库（百炼托管 RAG）
 
 「公司知识库」菜单已接入百炼云端文档列表、流式问答、引用片段和返回的原件链接。资料上传与更新目前在百炼控制台进行；接入配置、员工授权和当前功能范围见 [公司知识库接入说明](docs/COMPANY_KNOWLEDGE.md)。
@@ -31,7 +67,7 @@ MinIO 构建文件位于 `docker/minio`，源码归档首次缺失时启动脚�
 ### 本地管理员与公司流程验证
 
 ```powershell
-# 创建管理员：交互输入密码（至少 12 位），不会改动已有同名账号
+# 创建管理员：交互输入密码（至少8位，含字母和数字），不会改动已有同名账号
 .\.venv\Scripts\python.exe .\scripts\create-admin.py --username admin
 
 # 实际登录并运行公司研究，保存 trace 和两份 Word 下载结果
@@ -123,12 +159,11 @@ MILVUS_PORT=19530
 MILVUS_COLLECTION=embeddings_collection
 
 # ===== Database / Cache =====
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@127.0.0.1:5432/langchain_app
+DATABASE_URL=postgresql+psycopg2://<db_user>:<db_password>@<db_host>:5432/<db_name>
 REDIS_URL=redis://127.0.0.1:6379/0
 
 # ===== Auth =====
 JWT_SECRET_KEY=generate_a_random_secret_locally
-ADMIN_INVITE_CODE=supermew-admin-2026
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=1440
 PASSWORD_PBKDF2_ROUNDS=310000
@@ -363,7 +398,7 @@ uv run uvicorn backend.app:app --host 0.0.0.0 --port 8000 --reload
 - Rerank 相关：`RERANK_MODEL`、`RERANK_BINDING_HOST`、`RERANK_API_KEY`
 - Milvus：`MILVUS_HOST`、`MILVUS_PORT`、`MILVUS_COLLECTION`
 - 数据库缓存：`DATABASE_URL`、`REDIS_URL`
-- 鉴权相关：`JWT_SECRET_KEY`、`ADMIN_INVITE_CODE`、`JWT_ALGORITHM`、`JWT_EXPIRE_MINUTES`
+- 鉴权相关：`JWT_SECRET_KEY`、`JWT_ALGORITHM`、`JWT_EXPIRE_MINUTES`；普通账号使用管理员生成的限时邀请注册
 - 密码参数：`PASSWORD_PBKDF2_ROUNDS`
 - Auto-merging：`AUTO_MERGE_ENABLED`、`AUTO_MERGE_THRESHOLD`、`LEAF_RETRIEVE_LEVEL`
 - 工具：`AMAP_WEATHER_API`、`AMAP_API_KEY`
@@ -613,7 +648,7 @@ git commit -m "提交信息"    提交修改信息  的记录。修改节点的�
 
 ## 使用向导、来源记录与报告归档
 
-右下角小助手用于系统操作指引和一般文字聊天，在公司知识库页面也可使用。
+右下角小助手在登录后的所有页面均可使用，覆盖个人首页、提交任务、任务管理、复核与一手资料、溯源库、公司知识库及管理员账号管理。切换页面时保留当前对话，“当前页面帮助”按所在页面回答；推荐入口按登录角色显示，账号管理仅管理员可见。
 它接收当前页面和登录角色，不检索项目正文、报告或本地向量库；内部业务问答由公司知识库承担。
 小助手现支持按需查询天气和公开网页，回复附真实来源与查询时间。天气缺少城市会先询问，网页每次仅使用一家搜索服务，结果不自动入库；配置、处理流程和学习入口见 [小助手联网说明](docs/ASSISTANT_ONLINE.md)。
 小助手对话按账号保存到服务端，支持新对话、历史切换、清空记录，以及按上下文长度生成 AI 摘要。原始消息不会因摘要被删除；迁移和清除规则见 [小助手记忆说明](docs/ASSISTANT_MEMORY.md)。

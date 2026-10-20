@@ -168,7 +168,7 @@ def _unsubscribe_running_project(project_id: int, queue: asyncio.Queue) -> None:
 
 def _locked_run_intake(request: ResearchRunRequest, target_type: str = "") -> dict:
     effective_type = request.target_type or target_type
-    intake = request.model_dump(exclude_unset=effective_type == "industry")
+    intake = request.model_dump(exclude_unset=effective_type in {"industry", "person"})
     intake.update(
         {
             "max_results_per_query": FIXED_MAX_RESULTS_PER_QUERY,
@@ -178,9 +178,12 @@ def _locked_run_intake(request: ResearchRunRequest, target_type: str = "") -> di
             "max_search_rounds": FIXED_MAX_SEARCH_ROUNDS,
         }
     )
-    if effective_type == "industry":
-        intake["target_type"] = "industry"
-        intake["ai_search_enabled"] = request.ai_search_enabled
+    if effective_type in {"industry", "person"}:
+        intake["target_type"] = effective_type
+        if effective_type == "industry" or "ai_search_enabled" in request.model_fields_set:
+            intake["ai_search_enabled"] = request.ai_search_enabled
+        else:
+            intake.pop("ai_search_enabled", None)
         intake["max_search_rounds"] = min(3, max(1, request.max_search_rounds))
     return intake
 
@@ -695,10 +698,25 @@ def _save_workflow_trace(db: Session, project: ResearchProject, events: list[dic
     )
     artifact = max(artifacts, key=_workflow_trace_sort_key, default=None)
     existing_timestamp = str((artifact.artifact_metadata or {}).get("last_event_timestamp") or "") if artifact else ""
-    if artifact and existing_timestamp and latest_timestamp and latest_timestamp < existing_timestamp:
+    newer_industry_run = False
+    if project.target_type == 'industry':
+        run = next((e for e in events if e.get('run_id') and e.get('run_started_at')), {})
+        prior_start = (artifact.artifact_metadata or {}).get('run_started_at') if artifact else None
+        if prior_start and not run.get('run_started_at'):
+            return
+        if prior_start and run.get('run_started_at') and run['run_started_at'] < prior_start:
+            return
+        newer_industry_run = bool(prior_start and run.get('run_started_at') and run['run_started_at'] > prior_start)
+        industry_trace_metadata.update({k: run[k] for k in ('run_id', 'run_started_at') if k in run})
+    if artifact and existing_timestamp and latest_timestamp and latest_timestamp < existing_timestamp and not newer_industry_run:
         return
+    separate_run = project.target_type == 'industry' and industry_trace_metadata.get('run_id')
+    next_version = max((a.version or 0 for a in artifacts), default=0) + 1
+    if separate_run and artifact and (artifact.artifact_metadata or {}).get('run_id') != separate_run:
+        artifact = None
     object_key = research_store.put_text(
-        f"projects/{project.id}/workflow_trace/workflow_trace.json",
+        (f"projects/{project.id}/workflow_trace/{separate_run}.json" if separate_run
+         else f"projects/{project.id}/workflow_trace/workflow_trace.json"),
         content,
         "application/json; charset=utf-8",
     )
@@ -713,7 +731,7 @@ def _save_workflow_trace(db: Session, project: ResearchProject, events: list[dic
         }
         artifact.created_by = "workflow"
         for duplicate in artifacts:
-            if duplicate.id != artifact.id:
+            if duplicate.id != artifact.id and project.target_type != 'industry':
                 db.delete(duplicate)
     else:
         db.add(
@@ -721,7 +739,7 @@ def _save_workflow_trace(db: Session, project: ResearchProject, events: list[dic
                 project_id=project.id,
                 artifact_type="workflow_trace",
                 title="工作流详细记录",
-                version=1,
+                version=next_version if separate_run else 1,
                 content=content,
                 object_key=object_key,
                 artifact_metadata={
@@ -748,7 +766,7 @@ def _latest_workflow_trace(artifacts: list[ResearchArtifact]) -> list[dict]:
     return []
 
 
-def _workflow_trace_sort_key(artifact: ResearchArtifact) -> tuple[str, int, int]:
+def _workflow_trace_sort_key(artifact: ResearchArtifact) -> tuple[str, str, int, int]:
     metadata = artifact.artifact_metadata or {}
     latest_timestamp = str(metadata.get("last_event_timestamp") or "")
     if not latest_timestamp:
@@ -758,7 +776,8 @@ def _workflow_trace_sort_key(artifact: ResearchArtifact) -> tuple[str, int, int]
                 latest_timestamp = max((str(event.get("timestamp") or "") for event in events if isinstance(event, dict)), default="")
         except Exception:
             pass
-    return (latest_timestamp, int(metadata.get("event_count") or 0), int(artifact.id or 0))
+    return (str(metadata.get('run_started_at') or ''), latest_timestamp,
+            int(metadata.get("event_count") or 0), int(artifact.id or 0))
 
 
 def _compact_workflow_trace(events: list[dict], limit: int = 400) -> list[dict]:
@@ -809,6 +828,10 @@ def _workflow_failure_trace_event(exc: Exception) -> dict:
 
 def _save_project_intake(db: Session, project: ResearchProject, metadata: dict | None) -> None:
     intake = dict(metadata or {})
+    if project.target_type == "person":
+        intake = {**_project_intake(project), **intake}
+        if isinstance(metadata, dict):
+            metadata.update(intake)
     if project.target_type == "industry":
         saved = _project_intake(project)
         intake = {**saved, **intake}
@@ -829,7 +852,7 @@ def _save_project_intake(db: Session, project: ResearchProject, metadata: dict |
             "target_name": project.target_name,
             "target_type": project.target_type,
             "industry": project.industry,
-            "special_requirements": intake.get("special_requirements", project.description) if project.target_type == "industry" else project.description,
+            "special_requirements": intake.get("special_requirements", project.description) if project.target_type in {"industry", "person"} else project.description,
         }
     )
     content = json.dumps(intake, ensure_ascii=False, indent=2)
@@ -1195,33 +1218,24 @@ def _identity_skeleton(text: str, target_type: str) -> dict[str, str]:
         role = re.search(r"(?:职位|职务|现任)\s*[：:]\s*([^\n；;]{2,40})", sample)
         bilingual_name = re.search(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s+([\u4e00-\u9fff]{2,4})\b", sample)
         executive_role = re.search(r"\b((?:Founding\s+)?(?:CEO|CFO|COO|CTO|President|Managing Director|Partner))\b", sample, flags=re.I)
-        employer = re.search(r"(?im)^([^\n]{2,100}(?:BMW|ArcherMind|Technology|Technologies|Software|Capital|Group|Holdings)[^\n]*)$", sample)
+        employer = re.search(r"(?im)^([^\n]{2,100}(?:Technology|Technologies|Software|Capital|Group|Holdings|\bJV\b)[^\n]*)$", sample)
         if name:
             result["target_name"] = name.group(1).strip()
         elif bilingual_name:
             result["target_name"] = f"{bilingual_name.group(1)} {bilingual_name.group(2)}"
-        company_context = result.get("company_name", "") or (employer.group(1).strip() if employer else "")
+        company_context = result.pop("company_name", "") or (employer.group(1).strip() if employer else "")
         role_context = role.group(1).strip() if role else executive_role.group(1).strip() if executive_role else ""
         context = " / ".join(x for x in [company_context, role_context] if x)
         if context:
             result["affiliation"] = context
-        anchors = []
-        for label, pattern in [
-            ("University of Oxford", r"University of Oxford"),
-            ("CFA", r"CFA(?: Institute| Charter Holder)?"),
-            ("University of Hong Kong", r"University of Hong Kong"),
-            ("Chinese University of Hong Kong", r"Chinese University of Hong Kong"),
-            ("PMP", r"Project Management Professional|\bPMP\b"),
-        ]:
-            if re.search(pattern, sample, flags=re.I):
-                anchors.append(label)
+        anchors = re.findall(r"(?:毕业院校|学校|教育|学历|资格|School|University|Education)\s*[:：]\s*([^\n；;]{2,120})", sample, flags=re.I)
+        anchors += [line.strip() for line in sample.splitlines()
+                    if len(line.strip()) <= 160 and re.search(r"\bUniversity\b|\bCollege\b|大学|学院", line, re.I)]
         if anchors:
-            for value in [company_context, role_context]:
-                if value and value not in anchors:
-                    anchors.append(value)
-            result["identity_anchors"] = " / ".join(anchors)
+            anchors += [value for value in [company_context, role_context] if value]
+            result["identity_anchors"] = " / ".join(dict.fromkeys(anchors[:12]))
         if not result.get("industry"):
-            if re.search(r"digital car software|automotive software|BMW|汽车软件", sample, flags=re.I):
+            if re.search(r"digital car software|automotive software|汽车软件", sample, flags=re.I):
                 result["industry"] = "汽车软件与数字化研发"
             elif re.search(r"high-tech industry|高科技", sample, flags=re.I):
                 result["industry"] = "高科技"
@@ -1229,11 +1243,31 @@ def _identity_skeleton(text: str, target_type: str) -> dict[str, str]:
 
 
 def _merge_upload_identity_into_intake(db: Session, project: ResearchProject, text: str) -> dict[str, str]:
+    if project.target_type == "person" and project.target_name:
+        # Restrict extraction to the named subject's neighborhood. Attachments
+        # can discuss many people and are data, never workflow instructions.
+        try:
+            from .person_evidence import matched_name_forms
+        except ImportError:
+            from person_evidence import matched_name_forms
+        forms = matched_name_forms(project.target_name, text or "")
+        positions = [m.start() for name in forms for m in re.finditer(re.escape(name), text or "", re.I)]
+        if not positions:
+            return {}
+        text = "\n".join((text or "")[max(0, pos-150):pos+1200] for pos in positions[:6])
     skeleton = _identity_skeleton(text, project.target_type)
     if not skeleton:
         return {}
     current = _project_intake(project)
     changed: dict[str, str] = {}
+    if project.target_type == "person":
+        skeleton.pop("target_name", None) if project.target_name else None
+        clues = list(current.get("uploaded_identity_clues") or [])
+        clue = {"subject": project.target_name or skeleton.get("target_name", ""),
+                "fields": skeleton, "provenance": "uploaded_material_unverified", "excerpt": text[:1800]}
+        if skeleton and clue not in clues:
+            current["uploaded_identity_clues"] = (clues + [clue])[-12:]
+            changed["uploaded_identity_clues"] = current["uploaded_identity_clues"]
     for key, value in skeleton.items():
         if value and not str(current.get(key) or "").strip():
             current[key] = value
@@ -1389,15 +1423,15 @@ async def get_project_progress(
 ):
     """Return only the state needed by the live task-progress display."""
     project = _get_project(db, project_id, current_user)
-    trace_artifacts = (
+    trace_query = (
         db.query(ResearchArtifact)
         .filter(
             ResearchArtifact.project_id == project.id,
             ResearchArtifact.artifact_type == "workflow_trace",
         )
         .order_by(ResearchArtifact.created_at.desc())
-        .all()
     )
+    trace_artifacts = trace_query.limit(1).all() if project.target_type == 'industry' else trace_query.all()
     return {
         "project": _project_response(project).model_dump(),
         "trace": _latest_workflow_trace(trace_artifacts),
@@ -1900,7 +1934,7 @@ async def run_second_stage_stream(
                 if not is_admin and project.created_by_id != user_id:
                     emit({"type": "error", "content": "无权访问该研究项目"})
                     return
-                intake = request.model_dump(exclude_unset=project.target_type == "industry")
+                intake = request.model_dump(exclude_unset=project.target_type in {"industry", "person"})
                 intake.update(
                     {
                         "ai_search_enabled": False,
@@ -2098,12 +2132,12 @@ async def research_assistant_stream(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from system_guide import PAGES, model_answer, guide_answer, navigation
+    from system_guide import page_for_role, model_answer, guide_answer, navigation
     from assistant_memory import start_turn, context_plan, prepare_context, finish_turn, interrupt_turn
     question = request.message.strip()
     if not question:
         raise HTTPException(400, '问题不能为空')
-    page = request.current_page if request.current_page in PAGES else 'submit'
+    page = page_for_role(request.current_page, current_user.role)
     request_id = request.request_id or str(uuid4())
     thread_id, lease = start_turn(db, current_user.id, request.session_id, question, request_id)
     plan = context_plan(db, current_user.id, thread_id)
@@ -2124,7 +2158,7 @@ async def research_assistant_stream(
             context = prepare_context(research_workflow, plan, emit, cancelled)
             prompt_request = request.model_copy(update={'history_summary': context['summary'],
                 'recent_messages': [{'role': row['role'], 'content': row['content']} for row in context['recent']]})
-            answer = guide_answer(question, page)
+            answer = guide_answer(question, page, role)
             if not answer and not cancelled.is_set():
                 answer = model_answer(research_workflow, prompt_request, role, emit, cancelled)
             return answer, context
@@ -2164,7 +2198,7 @@ async def research_assistant_stream(
             yield 'data: ' + json.dumps({'type': 'content', 'content': answer}, ensure_ascii=False) + '\n\n'
             yield 'data: ' + json.dumps({'type': 'memory', 'saved': True, 'summarized': bool(memory['through']),
                 'status': memory['status'], **saved}, ensure_ascii=False) + '\n\n'
-            yield 'data: ' + json.dumps({'type': 'navigation', 'items': navigation()}, ensure_ascii=False) + '\n\n'
+            yield 'data: ' + json.dumps({'type': 'navigation', 'items': navigation(role)}, ensure_ascii=False) + '\n\n'
             yield 'data: [DONE]\n\n'
         except asyncio.TimeoutError:
             yield 'data: ' + json.dumps({'type': 'error', 'content': '本次回答超时，已保留你的消息，请稍后重试。'}, ensure_ascii=False) + '\n\n'
@@ -2308,7 +2342,7 @@ async def download_artifact(
         except Exception:
             content = artifact.content
 
-    ext = "json" if artifact.artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger"} else "md"
+    ext = "json" if artifact.artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger", "industry_run"} else "md"
     filename = f"{_safe_download_name(artifact.title, artifact.artifact_type)}_v{artifact.version}.{ext}"
     media_type = "application/json; charset=utf-8" if ext == "json" else "text/markdown; charset=utf-8"
     return Response(
@@ -2332,3 +2366,7 @@ def retry_report_knowledge(artifact_id: int, db: Session = Depends(get_db),
     from report_knowledge import sync_report_safely
     sync_report_safely(db, project, artifact)
     return {'metadata': artifact.artifact_metadata}
+
+
+from report_versions import create_report_versions_router
+router.include_router(create_report_versions_router(_get_project))

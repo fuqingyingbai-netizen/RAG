@@ -4,17 +4,18 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
 
-function context() {
+function context(options = {}) {
   let definition;
-  const storage = new Map();
+  const storage = new Map(options.storage || []);
   const app = { component() { return this; }, use() { return this; }, mount() {} };
   const localStorage = { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../frontend/script.js'), 'utf8'), {
-    Vue: { createApp(value) { definition = value; return app; } }, ElementPlus: { ElMessageBox: { confirm: async () => true } }, CompanyKnowledge: {}, localStorage, URL,
-    TextDecoder, AbortController, setTimeout, clearTimeout,
+    Vue: { createApp(value) { definition = value; return app; } }, ElementPlus: { ElMessageBox: { confirm: options.confirm || (async () => true) } }, CompanyKnowledge: {}, AccountManagement: {}, PersonalHome: {}, ReportVersions: {}, localStorage, URL,
+    TextDecoder, AbortController, setTimeout, clearTimeout, window: options.window,
   });
   const state = definition.data();
   for (const [name, method] of Object.entries(definition.methods)) state[name] = method.bind(state);
+  for (const [name, getter] of Object.entries(definition.computed)) Object.defineProperty(state, name, {get: () => getter.call(state)});
   return { state, storage };
 }
 
@@ -131,9 +132,108 @@ test('late streaming output cannot enter a new conversation or account', async (
   assert.ok(!JSON.stringify(state.assistantMessages).includes('旧问题'));
 });
 
+test('a clear confirmation opened by one account cannot clear a later signed-in account', async () => {
+  let confirm;
+  const { state } = context({ confirm: () => new Promise(resolve => { confirm = resolve; }) });
+  state.currentUser = { username: 'alice' }; state.applyAssistantState(cloudState('alice'));
+  state.assistantJson = async () => assert.fail('must not clear after the account changes');
+  const clearing = state.changeAssistantSession('clear');
+  state.handleLogout(); state.currentUser = { username: 'bob' }; state.applyAssistantState(cloudState('bob'));
+  confirm(); await clearing;
+  assert.equal(state.assistantSessionId, 'bob');
+});
+
 test('loading older messages retains the newest ones and stops at the last page', async () => {
   const { state } = context(); state.applyAssistantState({ ...cloudState('session-1', [{ id: 81, text: '最新消息' }]), has_more: true });
   state.assistantJson = async url => { assert.ok(url.endsWith('before_id=81')); return { messages: [{ id: 1, text: '最早消息' }], has_more: false }; };
   await state.loadOlderAssistant();
   assert.deepEqual(Array.from(state.assistantMessages, row => row.id), [1, 81]); assert.equal(state.assistantHasMore, false);
+});
+
+test('a response arriving after an account change cannot populate the new account guide', async () => {
+  const { state, storage } = context();
+  state.token = 'alice-token'; state.currentUser = { username: 'alice' }; state.assistantInput = 'private question';
+  state.applyAssistantState(cloudState('alice'));
+  let release;
+  const pendingRead = new Promise(resolve => { release = resolve; });
+  let cancelled = false;
+  state.authFetch = async () => ({ ok: true, body: { getReader: () => ({
+    read: () => pendingRead, cancel: async () => { cancelled = true; },
+  }) } });
+  const sending = state.sendAssistantMessage();
+  await new Promise(resolve => setImmediate(resolve));
+  state.handleLogout();
+  state.token = 'bob-token'; state.currentUser = { username: 'bob' }; state.assistantJson = async () => cloudState('bob'); await state.loadAssistantState();
+  const before = JSON.stringify(state.assistantMessages);
+  release({ done: false, value: new TextEncoder().encode('data: ' + JSON.stringify({ type: 'navigation', items: [{ view: 'sources', label: 'Private navigation' }] }) + '\n\n') });
+  await sending;
+  assert.equal(cancelled, true);
+  assert.equal(JSON.stringify(state.assistantMessages), before);
+  assert.equal(state.assistantNavigation.length, 0);
+  assert.equal(storage.has('systemGuide:v1:bob'), false);
+});
+
+test('global assistant navigation includes home and filters admin pages by the signed-in role', async () => {
+  for (const role of ['user', 'admin']) {
+    const {state} = context();
+    state.currentUser = {username: 'guide-only', role}; state.activeView = role === 'admin' ? 'accounts' : 'home';
+    state.applyAssistantState(cloudState('guide-only'));
+    state.assistantInput = '这个页面怎么用？';
+    const views = ['home', 'submit', 'tasks', 'review', 'sources', 'company-knowledge', 'accounts', 'untrusted-page'];
+    const encoded = new TextEncoder().encode('data: ' + JSON.stringify({type: 'navigation', items: views.map(view => ({view, label: view}))}) + '\n\ndata: [DONE]\n\n');
+    let read = false;
+    state.authFetch = async (_, options) => {
+      assert.equal(JSON.parse(options.body).current_page, state.activeView);
+      return {ok: true, body: {getReader: () => ({read: async () => read ? {done: true} : (read = true, {done: false, value: encoded})})}};
+    };
+    await state.sendAssistantMessage();
+    assert.equal(state.assistantNavigation.some(item => item.view === 'home'), true);
+    assert.equal(state.assistantNavigation.some(item => item.view === 'accounts'), role === 'admin');
+    assert.equal(state.assistantNavigation.some(item => item.view === 'untrusted-page'), false);
+  }
+});
+
+test('bad saved positions recover and the panel fits desktop, mobile and keyboard viewports', () => {
+  const broken = context({storage: [['assistantPosition', '{invalid json']]}).state;
+  assert.equal(broken.assistantPosition.right, 22);
+  const browser = {innerWidth: 1024, innerHeight: 768};
+  const {state} = context({window: browser, storage: [['assistantPosition', '{"right":99999,"bottom":99999}']]});
+  let style = state.assistantPanelStyle;
+  assert.ok(parseFloat(style.right) + parseFloat(style.width) <= 1008);
+  assert.ok(parseFloat(style.bottom) + parseFloat(style.height) <= 752);
+  browser.innerWidth = 390; browser.innerHeight = 844; state.updateAssistantViewport();
+  style = state.assistantPanelStyle;
+  assert.equal(style.width, '366px'); assert.equal(style.top, '12px'); assert.equal(style.height, '820px');
+  browser.visualViewport = {height: 320, offsetTop: 10}; state.updateAssistantViewport();
+  assert.equal(state.assistantPanelStyle.height, '296px'); assert.equal(state.assistantPanelStyle.top, '22px');
+});
+
+test('dragging uses panel dimensions and never moves the whole window off screen', () => {
+  const browser = {innerWidth: 1024, innerHeight: 768, addEventListener() {}, removeEventListener() {}};
+  const {state, storage} = context({window: browser});
+  state.startAssistantDrag({button: 0, clientX: 600, clientY: 300, preventDefault() {}}, 'panel');
+  state.onAssistantDrag({clientX: -10000, clientY: -10000}); state.stopAssistantDrag();
+  assert.equal(state.assistantPosition.right, 548); assert.equal(state.assistantPosition.bottom, 112);
+  assert.equal(JSON.parse(storage.get('assistantPosition')).right, 548);
+  state.assistantOpen = true; state.closeAssistant(); state.toggleAssistant();
+  assert.equal(state.assistantOpen, true);
+});
+
+test('Enter respects Chinese composition and Shift newline', () => {
+  const {state} = context(); let sends = 0, prevented = 0;
+  state.sendAssistantMessage = () => sends++;
+  const key = options => ({key: 'Enter', preventDefault() {prevented++;}, ...options});
+  state.onAssistantInputKeydown(key({isComposing: true}));
+  state.onAssistantInputKeydown(key({keyCode: 229}));
+  state.onAssistantInputKeydown(key({shiftKey: true}));
+  assert.equal(sends, 0); assert.equal(prevented, 0);
+  state.onAssistantInputKeydown(key({})); assert.equal(sends, 1); assert.equal(prevented, 1);
+});
+
+test('reading older messages is not interrupted by automatic scrolling', () => {
+  const {state} = context(); const feed = {scrollTop: 80, scrollHeight: 1000, clientHeight: 200};
+  state.$refs = {assistantMessages: feed}; state.$nextTick = done => done();
+  state.onAssistantScroll(); assert.equal(state.assistantFollowLatest, false);
+  feed.scrollHeight = 1200; state.scrollAssistant(); assert.equal(feed.scrollTop, 80);
+  state.scrollAssistant(true); assert.equal(feed.scrollTop, 1200); assert.equal(state.assistantFollowLatest, true);
 });

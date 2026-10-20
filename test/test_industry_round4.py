@@ -74,7 +74,10 @@ def test_unsupported_numeric_unit_fails_closed():
 def test_original_model_prose_is_diagnostic_only_and_never_writer_evidence():
     card=numeric_card()
     sent=json.loads(bounded_package({'facts':[card]}))['facts'][0]
-    assert sent['fact']==QUOTE and 'original_model_fact' not in sent
+    # Writers get only the authorized metric; the multi-metric source quote is
+    # retained separately for audit and must not license its unrelated growth.
+    assert '101.34EB' in sent['fact'] and '42.86%' not in sent['fact']
+    assert 'original_model_fact' not in sent and card['evidence_quote']==QUOTE
 
 
 def test_industry_annual_report_is_not_a_company_filing():
@@ -90,11 +93,15 @@ def test_nonmetric_growth_in_risk_reason_cannot_receive_score():
     assert row['score'] is None and row['unknown_cause']=='unverified_reason_numbers'
 
 
-def test_index_uses_native_quote_even_for_legacy_model_card():
+def test_reader_index_uses_authorized_metric_even_for_legacy_model_card():
     card = numeric_card(); card['fact'] = WRONG
     report = f'## 1. 技术路线对比\n推理量101.34 EB [{card["evidence_id"]}]'
     result, _ = append_evidence_index(report, {'facts':[card]}, [('技术路线对比', [])], {1:{'facts':[card]}})
-    assert WRONG not in result and QUOTE in result
+    # The original multi-metric quote stays in the audit card; the reader
+    # index must not lend total-volume growth to the inference-volume card.
+    assert WRONG not in result and '101.34EB' in result
+    assert '42.86' not in result and '199.48' not in result
+    assert card['evidence_quote']==QUOTE
 
 
 def test_lowercase_eb_also_requires_metric_validation_in_chapter():

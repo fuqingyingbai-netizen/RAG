@@ -114,8 +114,28 @@ class WebSearchProvider:
         if provider == "brave":
             return self._search_brave(self._query_with_sites(query, include_domains), limit)
         if provider == "bocha":
-            return self._search_bocha(self._query_with_sites(query, include_domains), limit)
+            return self._search_bocha(query, limit, include_domains, exclude_domains)
         return self.multi_engine_search(query, limit, include_domains, exclude_domains, category, preferred_providers)
+
+    def search_single(self, provider: str, query: str, limit: int = 6,
+                      include_domains=None, category=None) -> list[dict[str, Any]]:
+        """An auditable single paid request with lightweight person recall.
+
+        Errors propagate to the run audit. Original pages are fetched later,
+        after identity filtering and URL deduplication, under a separate budget.
+        """
+        if not os.getenv(f"{provider.upper()}_API_KEY"):
+            raise RuntimeError("search_provider_not_configured")
+        if provider == "bocha":
+            return self._search_bocha(query, limit, include_domains, lightweight=True)
+        if provider == "tavily":
+            return self._search_tavily(query, limit, include_domains, lightweight=True)
+        if provider == "exa":
+            return self._search_exa(query, limit, include_domains, category=category, lightweight=True)
+        engine = dict(self.engines).get(provider)
+        if engine is None:
+            raise ValueError("unknown_search_provider")
+        return engine(self._query_with_sites(query, include_domains), limit)
 
     def multi_engine_search(
         self,
@@ -143,6 +163,8 @@ class WebSearchProvider:
                         future = executor.submit(engine_func, query, limit, include_domains, exclude_domains)
                     elif name == "exa":
                         future = executor.submit(engine_func, query, limit, include_domains, exclude_domains, category)
+                    elif name == "bocha":
+                        future = executor.submit(engine_func, query, limit, include_domains, exclude_domains)
                     else:
                         future = executor.submit(engine_func, self._query_with_sites(query, include_domains), limit)
                     futures[future] = name
@@ -180,6 +202,7 @@ class WebSearchProvider:
         limit: int,
         include_domains: list[str] | None = None,
         exclude_domains: list[str] | None = None,
+        *, lightweight: bool = False,
     ) -> list[dict[str, Any]]:
         api_key = os.getenv("TAVILY_API_KEY", "")
         if not api_key:
@@ -190,11 +213,11 @@ class WebSearchProvider:
                 "api_key": api_key,
                 "query": query,
                 "max_results": limit,
-                "search_depth": "advanced",
+                "search_depth": "basic" if lightweight else "advanced",
                 "include_answer": False,
-                "include_raw_content": True,
-                "include_images": True,
-                "include_image_descriptions": True,
+                "include_raw_content": not lightweight,
+                "include_images": not lightweight,
+                "include_image_descriptions": not lightweight,
                 "include_domains": list(include_domains or [])[:300],
                 "exclude_domains": list(exclude_domains or [])[:150],
             },
@@ -269,6 +292,7 @@ class WebSearchProvider:
         include_domains: list[str] | None = None,
         exclude_domains: list[str] | None = None,
         category: str | None = None,
+        *, lightweight: bool = False,
     ) -> list[dict[str, Any]]:
         api_key = os.getenv("EXA_API_KEY", "")
         if not api_key:
@@ -281,7 +305,7 @@ class WebSearchProvider:
                 "query": query,
                 "numResults": max(1, min(limit, 100)),
                 "type": os.getenv("EXA_SEARCH_TYPE", "fast").strip() or "fast",
-                "contents": {"text": True, "summary": True},
+                **({} if lightweight else {"contents": {"text": True, "summary": True}}),
                 **({"includeDomains": list(include_domains or [])} if include_domains else {}),
                 **({"excludeDomains": list(exclude_domains or [])} if exclude_domains and category not in {"company", "people"} else {}),
                 **({"category": category} if category else {}),
@@ -351,21 +375,33 @@ class WebSearchProvider:
         site_filter = " OR ".join(f"site:{domain}" for domain in clean)
         return f"{query} ({site_filter})"
 
-    def _search_bocha(self, query: str, limit: int) -> list[dict[str, Any]]:
+    def _search_bocha(
+        self, query: str, limit: int,
+        include_domains: list[str] | None = None,
+        exclude_domains: list[str] | None = None,
+        *, lightweight: bool = False,
+    ) -> list[dict[str, Any]]:
         api_key = os.getenv("BOCHA_API_KEY", "").strip()
         if not api_key:
             return []
+        # Bocha's native domain filters are required: site: operators in the
+        # query did not constrain results in the live source-coverage audit.
+        body = {"query": query, "count": max(1, min(limit, 50)), "freshness": "noLimit", "summary": True}
+        for field, domains in (("include", include_domains), ("exclude", exclude_domains)):
+            clean = list(dict.fromkeys(str(domain).strip() for domain in (domains or []) if str(domain).strip()))
+            if clean:
+                body[field] = ",".join(clean)
         response = requests.post(
             os.getenv("BOCHA_SEARCH_URL", "https://api.bocha.cn/v1/web-search"),
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"query": query, "count": max(1, min(limit, 50)), "freshness": "noLimit", "summary": True},
+            json=body,
             timeout=30,
         )
         response.raise_for_status()
         raw = response.json()
         payload = raw.get("data", raw)
         rows = (payload.get("webPages") or {}).get("value") or []
-        fetch_enabled = os.getenv("BOCHA_FETCH_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+        fetch_enabled = not lightweight and os.getenv("BOCHA_FETCH_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
         max_fetch = self._env_int("BOCHA_FETCH_LIMIT", min(limit, 5), 0, max(0, limit))
         results: list[dict[str, Any]] = []
         for index, item in enumerate(rows[:limit]):
@@ -507,8 +543,7 @@ class WebSearchProvider:
                 }
             if "text/html" not in content_type and "text/plain" not in content_type and "application/xhtml" not in content_type:
                 return {"status": "unsupported_content_type", "content": "", "error": content_type, "fetch_attempt": attempt_name}
-            resp.encoding = resp.encoding or resp.apparent_encoding
-            body = resp.text or ""
+            body = self._decode_web_text(resp)
             if "text/html" in content_type or "<html" in body[:500].lower():
                 text = self._extract_html_text(body)
             else:
@@ -530,6 +565,15 @@ class WebSearchProvider:
             }
         except Exception as exc:
             return {"status": "failed", "content": "", "error": str(exc), "fetch_attempt": attempt_name}
+
+    @staticmethod
+    def _decode_web_text(response: requests.Response) -> str:
+        """Use the shared lossless decoder for every research route."""
+        try:
+            from .text_integrity import decode_http_text
+        except ImportError:
+            from text_integrity import decode_http_text
+        return decode_http_text(response)
 
     def _extract_html_text(self, body: str) -> str:
         soup_text = self._extract_html_text_with_bs4(body)
@@ -598,8 +642,7 @@ class WebSearchProvider:
                 allow_redirects=True,
             )
             resp.raise_for_status()
-            resp.encoding = resp.encoding or resp.apparent_encoding
-            text = self._normalize_text(resp.text or "")
+            text = self._normalize_text(self._decode_web_text(resp))
             return {
                 "status": "reader_done" if text else "reader_empty",
                 "content": text[:max_chars],
@@ -712,6 +755,8 @@ class WebSearchProvider:
             "请稍候",
             "云防护",
             "安全验证",
+            "正在进行安全检测",
+            "正在检测当前网络环境",
             "访问验证",
             "验证码",
             "人机验证",
