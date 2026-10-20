@@ -35,6 +35,7 @@ from research_schemas import (
     ResearchUploadResponse,
 )
 from research_store import research_store
+from source_retention import external_url
 from research_workflow import (
     FIXED_AI_SEARCH_ENABLED,
     FIXED_GENERATE_PROPOSAL,
@@ -446,6 +447,15 @@ def _source_response(source: ResearchSource) -> ResearchSourceResponse:
 
 
 def _artifact_response(artifact: ResearchArtifact, include_content: bool = True) -> ResearchArtifactResponse:
+    metadata = dict(artifact.artifact_metadata or {})
+    if metadata.get('knowledge_document_id'):
+        from sqlalchemy.orm import object_session
+        from company_catalog import CompanyDocument
+        session = object_session(artifact)
+        if session is not None:
+            doc = session.get(CompanyDocument, metadata['knowledge_document_id'])
+            if doc:
+                metadata.update(knowledge_sync_status=doc.state, knowledge_review=doc.review)
     return ResearchArtifactResponse(
         id=artifact.id,
         project_id=artifact.project_id,
@@ -457,7 +467,7 @@ def _artifact_response(artifact: ResearchArtifact, include_content: bool = True)
         # previous default behaviour.
         content=artifact.content if include_content else "",
         object_key=artifact.object_key,
-        metadata=artifact.artifact_metadata or {},
+        metadata=metadata,
         created_by=artifact.created_by,
         created_at=artifact.created_at.isoformat(),
     )
@@ -892,6 +902,8 @@ def _index_source_for_rag(project: ResearchProject, source: ResearchSource) -> d
     chunks = _source_text_chunks(text)
     if not chunks:
         return {"vector_indexed": False, "vector_index_status": "empty"}
+    if os.getenv('RESEARCH_LEGACY_RAG_ENABLED', 'false').lower() not in ('true', '1'):
+        return {'vector_indexed': False, 'vector_index_status': 'disabled'}
     try:
         from milvus_writer import MilvusWriter
 
@@ -1033,7 +1045,7 @@ def _project_intake(project: ResearchProject) -> dict:
 
 def _repository_source_item(source: ResearchSource, project_title: str) -> dict:
     metadata = source.source_metadata or {}
-    text = _read_store_text(source.object_key, source.content or source.summary)
+    text = source.summary or ""
     normalized_text = re.sub(r"\s+", " ", text or "").strip()
     summary_text = re.sub(r"\s+", " ", source.summary or "").strip()
     content_kind = metadata.get("content_kind", "")
@@ -1051,7 +1063,11 @@ def _repository_source_item(source: ResearchSource, project_title: str) -> dict:
         "url": source.url,
         "has_download": bool(metadata.get("original_object_key") or source.object_key),
         "download_url": f"/research/sources/{source.id}/download",
-        "snippet": (source.summary or normalized_text or "")[:500],
+        "snippet": str(metadata.get("evidence_excerpt") or source.summary or "")[:500],
+        "original_url": external_url(source.url),
+        "platform": metadata.get("platform") or metadata.get("provider") or source.source_type,
+        "query": metadata.get("query") or "",
+        "retention_policy": metadata.get("retention_policy", "legacy"),
         "content_chars": len(normalized_text),
         "extraction_status": metadata.get("extraction_status", ""),
         "content_kind": content_kind,
@@ -2050,47 +2066,7 @@ async def reindex_cleaned_facts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    project_query = db.query(ResearchProject)
-    if project_id:
-        project_query = project_query.filter(ResearchProject.id == project_id)
-    if current_user.role != "admin":
-        project_query = project_query.filter(ResearchProject.created_by_id == current_user.id)
-    projects = project_query.all()
-    if not projects:
-        return {"projects": 0, "artifacts": 0, "indexed": 0, "errors": []}
-
-    indexed = 0
-    artifact_count = 0
-    errors = []
-    for project in projects:
-        artifacts = (
-            db.query(ResearchArtifact)
-            .filter(ResearchArtifact.project_id == project.id, ResearchArtifact.artifact_type == "cleaned_facts")
-            .order_by(ResearchArtifact.version.asc())
-            .all()
-        )
-        for artifact in artifacts:
-            artifact_count += 1
-            metadata = dict(artifact.artifact_metadata or {})
-            markdown_key = metadata.get("markdown_object_key") or artifact.object_key
-            try:
-                count = research_workflow._index_cleaned_facts(project, artifact.content, artifact.version, markdown_key)
-                metadata["vector_indexed"] = True
-                metadata["vector_index_status"] = "completed"
-                metadata["vector_indexed_count"] = count
-                metadata.pop("vector_index_error", None)
-                artifact.artifact_metadata = metadata
-                indexed += count
-            except Exception as exc:
-                metadata["vector_indexed"] = False
-                metadata["vector_index_status"] = "failed"
-                metadata["vector_index_error"] = str(exc)
-                artifact.artifact_metadata = metadata
-                errors.append({"project_id": project.id, "artifact_id": artifact.id, "error": str(exc)})
-    db.commit()
-    return {"projects": len(projects), "artifacts": artifact_count, "indexed": indexed, "errors": errors}
-
-
+    raise HTTPException(410, '溯源库已改为来源记录；请在公司知识库管理报告索引。')
 
 @router.post("/assistant/stream")
 async def research_assistant_stream(
@@ -2098,135 +2074,55 @@ async def research_assistant_stream(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from system_guide import PAGES, model_answer, guide_answer, navigation
     question = request.message.strip()
     if not question:
-        raise HTTPException(status_code=400, detail="问题不能为空")
-    if _is_assistant_greeting(question):
-        content = "你好，我在。你可以问我：你做过哪些项目、某个项目用了哪些来源、某份报告里的证据和结论是否闭环。"
-
-        async def greeting_event_generator():
-            yield f"data: {json.dumps({'type': 'content', 'content': content}, ensure_ascii=False)}\n\n"
-            yield "data: [DONE]\n\n"
-
-        return StreamingResponse(
-            greeting_event_generator(),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        )
-    if _is_project_list_question(question):
-        content = _format_user_project_list(db, current_user)
-
-        async def project_list_event_generator():
-            yield f"data: {json.dumps({'type': 'content', 'content': content}, ensure_ascii=False)}\n\n"
-            yield "data: [DONE]\n\n"
-
-        return StreamingResponse(
-            project_list_event_generator(),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        )
-    if _is_report_trace_demo_question(question):
-        summary = _mock_mayun_trace_summary(question)
-        content = _format_mock_trace_summary(summary)
-
-        async def demo_event_generator():
-            yield f"data: {json.dumps({'type': 'content', 'content': content}, ensure_ascii=False)}\n\n"
-            yield f"data: {json.dumps({'type': 'sources', 'sources': summary.get('sources', [])}, ensure_ascii=False)}\n\n"
-            yield "data: [DONE]\n\n"
-
-        return StreamingResponse(
-            demo_event_generator(),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        )
-    history_summary = _clip_text(request.history_summary or "", 8000)
-    recent_messages = request.recent_messages[-20:] if request.recent_messages else []
-    recent_context = "\n".join(
-        f"{(item.get('role') or '').strip()}: {_clip_text(item.get('content') or '', 500)}"
-        for item in recent_messages
-        if isinstance(item, dict) and (item.get("content") or "").strip()
-    )
-    limit = max(1, min(20, int(request.limit or 8)))
+        raise HTTPException(400, '问题不能为空')
+    page = request.current_page if request.current_page in PAGES else 'submit'
 
     async def event_generator():
-        yield f"data: {json.dumps({'type': 'status', 'content': '正在检索项目资料并生成回答...'}, ensure_ascii=False)}\n\n"
-        project_ids = _assistant_project_ids(db, current_user, request.project_id)
-        general_overview = _general_research_overview(question)
-        vector_rows = _vector_context(project_ids, question, max(3, limit // 2)) if project_ids else []
-        store_rows = _project_store_context(db, project_ids, question, limit) if project_ids else []
-        # Hybrid retrieval can still return unrelated records for a new topic.  For
-        # the built-in research overviews, only prefer project evidence when the
-        # store has an actual keyword hit; otherwise don't disguise old reports as
-        # support for the new subject.
-        use_general_overview = bool(general_overview) and not any(
-            item.get("score", 0) > 0 for item in store_rows
-        )
-        seen = set()
-        contexts = []
-        for item in vector_rows + store_rows:
-            key = (item.get("kind"), item.get("project_id"), item.get("title"), item.get("source"), item.get("text", "")[:120])
-            if key in seen:
-                continue
-            seen.add(key)
-            contexts.append(item)
-            if len(contexts) >= limit:
-                break
-        context_text = _format_assistant_context(contexts)
-        if use_general_overview or not context_text.strip():
-            if use_general_overview:
-                yield f"data: {json.dumps({'type': 'content', 'content': general_overview}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'sources', 'sources': [{'kind': 'general_research_overview', 'title': '内置通用研究概览', 'source': '非项目资料库'}]}, ensure_ascii=False)}\n\n"
-                yield "data: [DONE]\n\n"
-                return
-            content = "当前可访问项目的 MinIO/对象存储资料中没有找到足够上下文，无法基于资料回答。"
-            yield f"data: {json.dumps({'type': 'content', 'content': content}, ensure_ascii=False)}\n\n"
-            yield "data: [DONE]\n\n"
-            return
+        yield 'data: ' + json.dumps({'type': 'status', 'content': '正在准备回答…'}, ensure_ascii=False) + '\n\n'
+        answer = guide_answer(question, page)
+        if not answer:
+            events = asyncio.Queue()
+            loop = asyncio.get_running_loop()
+            cancelled = threading.Event()
+            def emit(event):
+                if not cancelled.is_set() and not loop.is_closed():
+                    loop.call_soon_threadsafe(events.put_nowait, event)
+            task = asyncio.create_task(asyncio.to_thread(
+                model_answer, research_workflow, request, current_user.role, emit, cancelled))
+            try:
+                deadline = time.monotonic() + 95
+                next_heartbeat = time.monotonic() + 3
+                while not task.done():
+                    try:
+                        event = await asyncio.wait_for(events.get(), timeout=1)
+                        yield 'data: ' + json.dumps(event, ensure_ascii=False) + '\n\n'
+                    except asyncio.TimeoutError:
+                        pass
+                    if time.monotonic() >= deadline:
+                        raise asyncio.TimeoutError()
+                    if time.monotonic() >= next_heartbeat:
+                        yield ': heartbeat\n\n'
+                        next_heartbeat = time.monotonic() + 3
+                while not events.empty():
+                    yield 'data: ' + json.dumps(events.get_nowait(), ensure_ascii=False) + '\n\n'
+                answer = await task
+                if not answer.strip():
+                    answer = '聊天模型暂时不可用，请稍后重试。系统操作指引仍可使用，例如“新人怎么开始”“如何下载报告”。'
+            except Exception:
+                answer = '聊天服务暂时不可用，请稍后重试。你仍可以询问系统操作方法。'
+            finally:
+                cancelled.set()
+                if not task.done():
+                    task.cancel()
+        yield 'data: ' + json.dumps({'type': 'content', 'content': answer}, ensure_ascii=False) + '\n\n'
+        yield 'data: ' + json.dumps({'type': 'navigation', 'items': navigation()}, ensure_ascii=False) + '\n\n'
+        yield 'data: [DONE]\n\n'
 
-        prompt = f"""
-你是研究项目溯源库 AI 助手。必须严格根据下方项目资料回答问题。
-规则：
-1. 只能使用给定资料，不得使用外部常识补充事实。
-2. 如果资料不足，明确说“资料中未找到”。
-3. 回答中尽量标注引用编号，例如 [1]、[2]。
-4. 区分已证实事实、待核验信息和推断。
-
-用户问题：{question}
-
-历史压缩摘要：
-{history_summary or "无"}
-
-最近对话：
-{recent_context or "无"}
-
-项目资料：
-{context_text}
-"""
-        try:
-            answer = await asyncio.wait_for(
-                asyncio.to_thread(research_workflow._invoke, "研究溯源库 AI 助手", prompt),
-                timeout=max(10, min(180, int(os.getenv("ASSISTANT_LLM_TIMEOUT_SECONDS", "90")))),
-            )
-        except asyncio.TimeoutError:
-            answer = ""
-            yield f"data: {json.dumps({'type': 'error', 'content': '模型响应超时，先返回已命中的项目资料摘要。'}, ensure_ascii=False)}\n\n"
-        except Exception as exc:
-            answer = ""
-            yield f"data: {json.dumps({'type': 'error', 'content': f'助手生成失败：{str(exc)[:300]}'}, ensure_ascii=False)}\n\n"
-        if not answer.strip():
-            answer = "模型暂不可用。以下是命中的项目资料摘要：\n\n" + "\n\n".join(
-                f"[{idx}] {item.get('title')} - {item.get('source')}\n{_clip_text(item.get('text', ''), 600)}"
-                for idx, item in enumerate(contexts, 1)
-            )
-        yield f"data: {json.dumps({'type': 'content', 'content': answer}, ensure_ascii=False)}\n\n"
-        yield f"data: {json.dumps({'type': 'sources', 'sources': [{k: v for k, v in item.items() if k != 'text'} for item in contexts]}, ensure_ascii=False)}\n\n"
-        yield "data: [DONE]\n\n"
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    return StreamingResponse(event_generator(), media_type='text/event-stream',
+        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 
 @router.get("/repository")
@@ -2254,7 +2150,11 @@ async def list_research_repository(
     if keyword:
         like = f"%{keyword}%"
         source_query = source_query.filter(
-            (ResearchSource.title.ilike(like)) | (ResearchSource.summary.ilike(like)) | (ResearchSource.content.ilike(like))
+            (ResearchSource.title.ilike(like)) | (ResearchSource.url.ilike(like)) | (ResearchSource.summary.ilike(like))
+            | ResearchSource.project_id.in_([key for key, title in project_titles.items() if keyword.lower() in title.lower()])
+            | ResearchSource.source_metadata["provider"].as_string().ilike(like)
+            | ResearchSource.source_metadata["platform"].as_string().ilike(like)
+            | ResearchSource.source_metadata["query"].as_string().ilike(like)
         )
         artifact_query = artifact_query.filter(
             (ResearchArtifact.title.ilike(like)) | (ResearchArtifact.content.ilike(like))
@@ -2275,67 +2175,7 @@ async def search_research_knowledge(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    keyword = q.strip()
-    project_query = db.query(ResearchProject.id)
-    if current_user.role != "admin":
-        project_query = project_query.filter(ResearchProject.created_by_id == current_user.id)
-    project_ids = [row[0] for row in project_query.all()]
-    if not project_ids:
-        return {"results": []}
-
-    like = f"%{keyword}%"
-    source_rows = (
-        db.query(ResearchSource)
-        .filter(
-            ResearchSource.project_id.in_(project_ids),
-            (ResearchSource.title.ilike(like)) | (ResearchSource.summary.ilike(like)) | (ResearchSource.content.ilike(like)),
-        )
-        .order_by(ResearchSource.created_at.desc())
-        .limit(limit)
-        .all()
-    )
-    remaining = max(0, limit - len(source_rows))
-    artifact_rows = []
-    if remaining:
-        artifact_rows = (
-            db.query(ResearchArtifact)
-            .filter(
-                ResearchArtifact.project_id.in_(project_ids),
-                (ResearchArtifact.title.ilike(like)) | (ResearchArtifact.content.ilike(like)),
-            )
-            .order_by(ResearchArtifact.created_at.desc())
-            .limit(remaining)
-            .all()
-        )
-
-    results = [
-        {
-            "kind": "source",
-            "id": item.id,
-            "project_id": item.project_id,
-            "title": item.title,
-            "source_type": item.source_type,
-            "url": item.url,
-            "snippet": (item.summary or item.content or "")[:500],
-            "created_at": item.created_at.isoformat(),
-        }
-        for item in source_rows
-    ]
-    results.extend(
-        {
-            "kind": "artifact",
-            "id": item.id,
-            "project_id": item.project_id,
-            "artifact_type": item.artifact_type,
-            "title": item.title,
-            "version": item.version,
-            "snippet": (item.content or "")[:500],
-            "download_url": f"/research/artifacts/{item.id}/download",
-            "created_at": item.created_at.isoformat(),
-        }
-        for item in artifact_rows
-    )
-    return {"results": results}
+    return await list_research_repository(q=q, limit=limit, db=db, current_user=current_user)
 
 
 @router.post("/projects/{project_id}/revise", response_model=ResearchArtifactResponse)
@@ -2425,3 +2265,15 @@ async def download_artifact(
 
 
 
+
+
+@router.post('/artifacts/{artifact_id}/knowledge/retry')
+def retry_report_knowledge(artifact_id: int, db: Session = Depends(get_db),
+                          current_user: User = Depends(get_current_user)):
+    artifact = db.get(ResearchArtifact, artifact_id)
+    if not artifact or artifact.artifact_type != 'desktop_report':
+        raise HTTPException(404, '报告不存在')
+    project = _get_project(db, artifact.project_id, current_user)
+    from report_knowledge import sync_report_safely
+    sync_report_safely(db, project, artifact)
+    return {'metadata': artifact.artifact_metadata}

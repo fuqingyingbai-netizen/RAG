@@ -1,4 +1,4 @@
-﻿import json
+import json
 import base64
 import html
 import math
@@ -853,6 +853,7 @@ class ResearchWorkflow:
             project.status = "completed"
             project.updated_at = datetime.utcnow()
             db.commit()
+            self._finalize_source_records(db, project, emit)
             _emit(emit, "done", "workflow", "已复用既有产物并完成", "", status="done")
             return artifacts, 0
 
@@ -1397,8 +1398,19 @@ class ResearchWorkflow:
         project.status = "completed"
         project.updated_at = datetime.utcnow()
         db.commit()
+        self._finalize_source_records(db, project, emit)
         _emit(emit, "done", "workflow", "工作流完成", "", status="done")
         return artifacts, sources_added
+
+    def _finalize_source_records(self, db, project, emit=None):
+        try:
+            from source_retention import finalize_web_sources
+            count = finalize_web_sources(db, project, research_store)
+            _emit(emit, 'retention', 'source_records', '来源记录已保留，临时网页正文已清理',
+                  f'count={count}', status='done')
+        except Exception:
+            db.rollback()
+            _emit(emit, 'retention', 'source_records', '临时正文清理未完成，来源记录仍可用', '', status='warning')
 
     def _latest_artifact(self, project: ResearchProject, artifact_type: str) -> ResearchArtifact | None:
         session = object_session(project)
@@ -1616,7 +1628,7 @@ class ResearchWorkflow:
     def _project_sources_match_intake(self, project: ResearchProject, intake: dict[str, Any]) -> bool:
         target_type = str(intake.get("target_type") or project.target_type or "").lower()
         sources = list(getattr(project, "sources", []) or [])
-        if not sources:
+        if not sources or any((s.source_metadata or {}).get("retention_policy") == "record_only" for s in sources):
             return False
         if target_type == "industry":
             fingerprint = scope_fingerprint(intake, source_only=True)
@@ -3443,7 +3455,10 @@ class ResearchWorkflow:
             .first()
         )
         if exists:
-            return False
+            if (exists.source_metadata or {}).get('retention_policy') != 'record_only':
+                return False
+            db.delete(exists)
+            db.flush()
         object_key = research_store.put_text(
             f"projects/{project.id}/structured/{provider}_{module}_{_now_key()}.md",
             content,
@@ -3458,6 +3473,7 @@ class ResearchWorkflow:
         source_metadata = {
             "provider": provider,
             "module": module,
+            "retention_policy": "transient_platform_body",
             "content_kind": "structured_data",
             "entity_validation": "related_entity_context" if related_entity_context else "verified",
             "entity_validation_reason": entity_reason,
@@ -4016,7 +4032,7 @@ class ResearchWorkflow:
         discovered_affiliations: set[str] = set()
         discovered_company_diligence: set[str] = set()
         active_sources = self._active_industry_sources(project)
-        seen_urls = {s.url for s in active_sources if s.url}
+        seen_urls = {s.url for s in active_sources if s.url and (s.source_metadata or {}).get("retention_policy") != "record_only"}
         host_counts: defaultdict[str, int] = defaultdict(int)
         authority_host_counts: defaultdict[str, int] = defaultdict(int)
         tech_content_saved = 0
@@ -4477,6 +4493,7 @@ class ResearchWorkflow:
                         except ImportError:
                             from json_utils import strip_nul
                         title, summary, stored_text, metadata = strip_nul([str(title or ''), str(summary or ''), stored_text, metadata])
+                        metadata["retention_policy"] = "transient_web_body"
                         object_key = research_store.put_text(
                             f"projects/{project.id}/raw_web/{_now_key()}_{added}.txt",
                             stored_text,
@@ -7404,7 +7421,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                     raise ValueError("清洗事实 JSON 无效，未执行事实索引；请检查清洗产物后重试。")
                 sync = os.getenv("VECTOR_INDEX_SYNC", "false").strip().lower() in {"1", "true", "yes", "on"}
                 asynchronous = os.getenv("VECTOR_INDEX_ASYNC", "true").strip().lower() in {"1", "true", "yes", "on"}
-                if sync or asynchronous:
+                if (sync or asynchronous) and os.getenv("RESEARCH_LEGACY_RAG_ENABLED", "false").lower() in ("true", "1"):
                     index_job = (content, version, markdown_key, sync)
                     artifact_metadata.update(vector_indexed=False, vector_indexed_count=0, vector_index_status="queued")
                 else:
@@ -7472,6 +7489,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         project.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(artifact)
+        if artifact_type == "desktop_report":
+            from report_knowledge import sync_report_safely
+            sync_report_safely(db, project, artifact)
         if index_job:
             self.start_artifact_index(db, project, artifact, wait_seconds=_env_int("VECTOR_INDEX_SYNC_TIMEOUT_SECONDS", 30, 1, 3600) if index_job[3] else 0)
             db.refresh(artifact)

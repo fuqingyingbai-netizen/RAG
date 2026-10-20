@@ -3,6 +3,10 @@
 测试阿里百炼视觉模型 API 连接
 """
 import os
+import pytest
+
+# Real-provider diagnostic scripts are opt-in; offline regressions must not consume account quota.
+pytestmark = pytest.mark.skipif(os.getenv("RUN_LIVE_PROVIDER_TESTS") != "1", reason="Set RUN_LIVE_PROVIDER_TESTS=1 for live provider diagnostics")
 import requests
 import base64
 from dotenv import load_dotenv

@@ -220,6 +220,7 @@ class KnowledgeQuestion(BaseModel):
     message: str = Field(min_length=1, max_length=1500)
     history: list[HistoryMessage] = Field(default_factory=list, max_length=20)
     document_ids: list[str] = Field(default_factory=list, max_length=20)
+    scope: Literal['accessible', 'my-projects'] = 'accessible'
 
 
 async def cloud_answer(cfg, question):
@@ -301,7 +302,8 @@ def knowledge_status(user: User = Depends(get_current_user)):
     except KnowledgeError:
         configured = False
     return {'configured': configured, 'access_allowed': has_access(user),
-            'name': '公司知识库', 'provider': '阿里云百炼', 'is_admin': user.role == 'admin', 'username': user.username}
+            'name': '公司知识库', 'provider': '阿里云百炼', 'is_admin': user.role == 'admin',
+            'username': user.username, 'account_id': getattr(user, 'id', None)}
 
 
 async def documents(page_number: int = Query(1, ge=1), page_size: int = Query(100, ge=1, le=100),
@@ -320,10 +322,16 @@ async def chat(question: KnowledgeQuestion, user: User = Depends(require_knowled
         raise HTTPException(422, '问题不能为空。')
     if sum(len(m.content) for m in question.history) > 60000:
         raise HTTPException(422, '对话内容过长，请开始新对话。')
+    if not question.document_ids and re.search(
+            r'(我的项目|我(?:曾经)?(?:做过|参与过|负责过|上传过|上传的).{0,12}(?:项目|资料|文件)|我.{0,6}(?:做了|做过|参与|负责|上传).{0,10}(?:哪些|什么).{0,6}(?:项目|资料|文件))',
+            question.message):
+        question = question.model_copy(update={'scope': 'my-projects'})
     try:
         cfg = settings()
-        from company_workspace import prepare_scope
-        cfg['allowed_documents'] = await prepare_scope(cfg, user, question.document_ids)
+        from company_workspace import prepare_scope, my_projects
+        cfg['allowed_documents'] = await prepare_scope(cfg, user, question.document_ids, question.scope)
+        if question.scope == 'my-projects':
+            cfg['project_portfolio'] = my_projects(user)
     except KnowledgeError as exc:
         raise HTTPException(exc.status_code, str(exc)) from None
 

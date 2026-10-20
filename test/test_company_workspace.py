@@ -14,7 +14,7 @@ from sqlalchemy.orm import sessionmaker
 import company_knowledge as kb
 import company_workspace as ws
 import company_ingestion as ingestion
-from company_catalog import CompanyDocument, document_store
+from company_catalog import CompanyAccessRequest, CompanyDocument, document_store
 from models import User
 
 real_sync_catalog = ws.sync_catalog
@@ -31,6 +31,7 @@ def setup(monkeypatch, tmp_path):
     engine = create_engine('sqlite:///' + str(tmp_path / 'catalog.db'), connect_args={'check_same_thread': False})
     CompanyDocument.__table__.create(engine)
     User.__table__.create(engine)
+    CompanyAccessRequest.__table__.create(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(ws, 'SessionLocal', factory)
     monkeypatch.setattr(ingestion, 'SessionLocal', factory)
@@ -41,7 +42,7 @@ def setup(monkeypatch, tmp_path):
     monkeypatch.setattr(ws, 'schedule_document', scheduled.append)
     app = FastAPI()
     app.include_router(kb.router)
-    user = SimpleNamespace(role='user', username='alice')
+    user = SimpleNamespace(id=1, role='user', username='alice')
     app.dependency_overrides[kb.get_current_user] = lambda: user
     yield SimpleNamespace(client=TestClient(app), user=user, db=factory, scheduled=scheduled)
     engine.dispose()
@@ -74,13 +75,14 @@ def test_upload_original_versions_duplicate_and_scope_acl(setup):
     second = upload(setup, payload=b'New version', project='P1').json()
     assert second['version'] == 2
     ready(setup, row['id'])
-    setup.user.username = 'charlie'
+    setup.user.id, setup.user.username = 3, 'charlie'
     listing = setup.client.get('/company-knowledge/documents').json()
-    assert row['id'] not in [doc['id'] for doc in listing['documents']]
+    locked = next(doc for doc in listing['documents'] if doc['id'] == row['id'])
+    assert not locked['can_read'] and locked['can_request'] and locked['cloud_id'] is None
     assert setup.client.get(f'/company-knowledge/documents/{row["id"]}/original').status_code == 404
     assert setup.client.get(f'/company-knowledge/documents/{row["id"]}/preview').status_code == 404
     assert setup.client.post('/company-knowledge/chat/stream', json={'message': 'test', 'document_ids': [row['id']]}).status_code == 403
-    setup.user.username = 'bob'
+    setup.user.id, setup.user.username = 2, 'bob'
     assert setup.client.get(f'/company-knowledge/documents/{row["id"]}/original').status_code == 200
     assert setup.client.patch('/company-knowledge/documents/' + row['id'], json={}).status_code == 403
 
@@ -94,7 +96,7 @@ def test_invalid_uploads_never_start_cloud_tasks(setup, name, payload, status):
 
 
 def test_upload_acl_cannot_be_bypassed_by_unapproved_user(setup):
-    setup.user.username = 'new-user'
+    setup.user.id, setup.user.username = 4, 'new-user'
     assert upload(setup).status_code == 403
     assert setup.client.get('/company-knowledge/documents').status_code == 403
 
@@ -201,7 +203,7 @@ def test_revocation_changes_next_query_and_original_access(setup):
     doc_id = upload(setup).json()['id']
     ready(setup, doc_id)
     assert setup.client.patch(f'/company-knowledge/documents/{doc_id}', json={'visibility': 'restricted'}).status_code == 200
-    setup.user.username = 'bob'
+    setup.user.id, setup.user.username = 2, 'bob'
     response = setup.client.post('/company-knowledge/chat/stream', json={'message': 'test'})
     assert '当前资料中未找到依据' in response.text
     assert setup.client.get(f'/company-knowledge/documents/{doc_id}/original').status_code == 404
@@ -213,6 +215,90 @@ def test_partial_metadata_patch_does_not_publish_restricted_file(setup):
     assert response.status_code == 200
     assert response.json()['visibility'] == 'restricted' and response.json()['readers'] == ['bob']
     assert response.json()['project'] == 'Private project'
+
+
+def test_confidential_document_request_admin_approval_grants_read_download_and_qa_scope(setup):
+    uploaded = upload(setup, project='Orion', confidentiality='secret', visibility='members').json()
+    doc_id = uploaded['id']
+    ready(setup, doc_id)
+    assert uploaded['confidentiality'] == 'secret' and uploaded['visibility'] == 'restricted'
+
+    setup.user.id, setup.user.username = 2, 'bob'
+    locked = next(doc for doc in setup.client.get('/company-knowledge/documents').json()['documents'] if doc['id'] == doc_id)
+    assert not locked['can_read'] and locked['status'] == 'LOCKED' and not locked['has_original']
+    assert setup.client.get(f'/company-knowledge/documents/{doc_id}/original').status_code == 404
+    request = setup.client.post(f'/company-knowledge/documents/{doc_id}/access-requests',
+                                json={'reason': '新员工学习 Orion 项目'}).json()
+    assert request['status'] == 'pending' and request['requester_id'] == 2
+    locked = next(doc for doc in setup.client.get('/company-knowledge/documents').json()['documents'] if doc['id'] == doc_id)
+    assert locked['request_status'] == 'pending' and not locked['can_request']
+
+    setup.user.id, setup.user.username, setup.user.role = 99, 'admin', 'admin'
+    pending = setup.client.get('/company-knowledge/access-requests').json()['requests']
+    assert pending[0]['reason'] == '新员工学习 Orion 项目'
+    approved = setup.client.post(f'/company-knowledge/access-requests/{request["id"]}/decision',
+                                 json={'decision': 'approved', 'note': '限项目学习使用'})
+    assert approved.status_code == 200 and approved.json()['status'] == 'approved'
+
+    setup.user.id, setup.user.username, setup.user.role = 2, 'bob', 'user'
+    granted = next(doc for doc in setup.client.get('/company-knowledge/documents').json()['documents'] if doc['id'] == doc_id)
+    assert granted['can_read'] and granted['cloud_id'] == 'cloud-a'
+    assert setup.client.get(f'/company-knowledge/documents/{doc_id}/original').status_code == 200
+    allowed = asyncio.run(ws.prepare_scope(kb.settings(), setup.user, [doc_id]))
+    assert list(allowed) == ['cloud-a']
+
+
+def test_rejected_request_does_not_grant_access(setup):
+    doc_id = upload(setup, confidentiality='confidential').json()['id']
+    setup.user.id, setup.user.username = 3, 'charlie'
+    request = setup.client.post(f'/company-knowledge/documents/{doc_id}/access-requests', json={}).json()
+    setup.user.id, setup.user.username, setup.user.role = 99, 'admin', 'admin'
+    assert setup.client.post(f'/company-knowledge/access-requests/{request["id"]}/decision',
+        json={'decision': 'rejected', 'note': '暂不属于当前项目组'}).status_code == 200
+    setup.user.id, setup.user.username, setup.user.role = 3, 'charlie', 'user'
+    row = next(doc for doc in setup.client.get('/company-knowledge/documents').json()['documents'] if doc['id'] == doc_id)
+    assert not row['can_read'] and row['request_status'] == 'rejected' and row['can_request']
+
+
+def test_my_projects_are_grouped_by_stable_account_id_and_scope_excludes_other_owners(setup):
+    first = upload(setup, project='Project A', industry='汽车').json()['id']
+    second = upload(setup, name='second.txt', project='Project A', industry='汽车').json()['id']
+    ready(setup, first, 'cloud-a')
+    ready(setup, second, 'cloud-b')
+    with setup.db() as db:
+        db.add(CompanyDocument(id='other', index_id='test-index', cloud_id='cloud-other', title='Other.txt',
+            format='TXT', owner='bob', owner_user_id=2, project='Project B', confidentiality='internal',
+            visibility='members', state='ready'))
+        db.commit()
+    result = setup.client.get('/company-knowledge/my-projects').json()
+    assert result['account_id'] == 1 and result['project_count'] == 1 and result['document_count'] == 2
+    assert result['projects'][0]['name'] == 'Project A' and result['projects'][0]['ready_count'] == 2
+    allowed = asyncio.run(ws.prepare_scope(kb.settings(), setup.user, [], 'my-projects'))
+    assert set(allowed) == {'cloud-a', 'cloud-b'}
+
+
+def test_project_summary_uses_account_catalogue_counts_without_claiming_personal_contributions(setup):
+    upload(setup, project='Project A', industry='汽车')
+    with setup.db() as db:
+        db.add(CompanyDocument(id='other', index_id='test-index', title='Other.txt', format='TXT',
+            owner='bob', owner_user_id=2, project='SECRET-OTHER', state='ready'))
+        db.commit()
+    response = setup.client.post('/company-knowledge/chat/stream', json={
+        'message': '总结我做了哪些项目'})
+    assert response.status_code == 200
+    assert 'Project A' in response.text and 'SECRET-OTHER' not in response.text
+    assert '1 个项目' in response.text and '不能单独证明' in response.text
+    assert '"type": "done"' in response.text
+
+
+def test_ordinary_employee_cannot_approve_requests_or_manage_secret_documents(setup):
+    doc_id = upload(setup, confidentiality='secret').json()['id']
+    setup.user.id, setup.user.username = 2, 'bob'
+    request = setup.client.post(f'/company-knowledge/documents/{doc_id}/access-requests', json={'reason': '培训'}).json()
+    assert setup.client.get('/company-knowledge/access-requests').status_code == 403
+    assert setup.client.post(f'/company-knowledge/access-requests/{request["id"]}/decision',
+        json={'decision': 'approved'}).status_code == 403
+    assert setup.client.patch(f'/company-knowledge/documents/{doc_id}', json={'confidentiality': 'internal'}).status_code == 404
 
 
 def test_delete_removes_only_selected_cloud_index_and_hides_original(setup, monkeypatch):
@@ -254,7 +340,7 @@ def test_pdf_original_pages_render_with_bounds_and_access_control(setup):
     assert response.status_code == 200 and response.content.startswith(b'\x89PNG')
     assert response.headers['x-document-pages'] == '2'
     assert setup.client.get(f'/company-knowledge/documents/{doc_id}/page?page=3').status_code == 422
-    setup.user.username = 'bob'
+    setup.user.id, setup.user.username = 2, 'bob'
     assert setup.client.get(f'/company-knowledge/documents/{doc_id}/page').status_code == 404
 
 

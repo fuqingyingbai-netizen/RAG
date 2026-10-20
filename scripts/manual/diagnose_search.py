@@ -3,6 +3,10 @@
 
 
 import os
+import pytest
+
+# Real-provider diagnostic scripts are opt-in; offline regressions must not consume account quota.
+pytestmark = pytest.mark.skipif(os.getenv("RUN_LIVE_PROVIDER_TESTS") != "1", reason="Set RUN_LIVE_PROVIDER_TESTS=1 for live provider diagnostics")
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
