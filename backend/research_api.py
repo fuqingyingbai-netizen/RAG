@@ -2068,23 +2068,37 @@ async def research_assistant_stream(
         yield 'data: ' + json.dumps({'type': 'status', 'content': '正在准备回答…'}, ensure_ascii=False) + '\n\n'
         answer = guide_answer(question, page)
         if not answer:
+            events = asyncio.Queue()
+            loop = asyncio.get_running_loop()
+            cancelled = threading.Event()
+            def emit(event):
+                if not cancelled.is_set() and not loop.is_closed():
+                    loop.call_soon_threadsafe(events.put_nowait, event)
             task = asyncio.create_task(asyncio.to_thread(
-                model_answer, research_workflow, request, current_user.role))
+                model_answer, research_workflow, request, current_user.role, emit, cancelled))
             try:
                 deadline = time.monotonic() + 95
+                next_heartbeat = time.monotonic() + 3
                 while not task.done():
-                    done, _ = await asyncio.wait({task}, timeout=3)
-                    if done:
-                        break
+                    try:
+                        event = await asyncio.wait_for(events.get(), timeout=1)
+                        yield 'data: ' + json.dumps(event, ensure_ascii=False) + '\n\n'
+                    except asyncio.TimeoutError:
+                        pass
                     if time.monotonic() >= deadline:
                         raise asyncio.TimeoutError()
-                    yield ': heartbeat\n\n'
+                    if time.monotonic() >= next_heartbeat:
+                        yield ': heartbeat\n\n'
+                        next_heartbeat = time.monotonic() + 3
+                while not events.empty():
+                    yield 'data: ' + json.dumps(events.get_nowait(), ensure_ascii=False) + '\n\n'
                 answer = await task
                 if not answer.strip():
                     answer = '聊天模型暂时不可用，请稍后重试。系统操作指引仍可使用，例如“新人怎么开始”“如何下载报告”。'
             except Exception:
                 answer = '聊天服务暂时不可用，请稍后重试。你仍可以询问系统操作方法。'
             finally:
+                cancelled.set()
                 if not task.done():
                     task.cancel()
         yield 'data: ' + json.dumps({'type': 'content', 'content': answer}, ensure_ascii=False) + '\n\n'
