@@ -1,6 +1,6 @@
 {
   "date": "2026-10-20",
-  "recorded_at": "2026-10-20T20:40:58.800421+00:00",
+  "recorded_at": "2026-10-20T20:49:20.041490+00:00",
   "branch": "codex/company",
   "scope": "Actual company/search repair validation only; no person implementation, deployment, authentication settings or historical report body modified",
   "artifact_root": "E:\\projects\\output\\公司链路真实闭环_20261020_205129",
@@ -29,18 +29,18 @@
       ]
     },
     "阿里巴巴": {
-      "run": "alibaba-final-v65",
+      "run": "alibaba-final-v66",
       "completed": true,
       "accepted": false,
       "status": "limited_evidence_review_completed_not_full_acceptance",
-      "elapsed_seconds": 653.45,
+      "elapsed_seconds": 552.74,
       "scope": "frozen_real_inputs_production_risk_report_export_replay",
       "source_count": 3071,
-      "report_pipeline_version": "company-report-evidence-v65-bounded-history-and-personnel-referents",
-      "report_sha256_utf8": "c8c714962a3632687c287bb41146bbb9a223f1f60555884020aa6ae996a47c28",
-      "full_report": "alibaba-final-v65/report.html",
-      "all14_chapter_comparison": "alibaba-final-v65/comparison.html",
-      "acceptance_record": "alibaba-final-v65/acceptance.json",
+      "report_pipeline_version": "company-report-evidence-v66-historical-role-event-boundaries",
+      "report_sha256_utf8": "6875f5a0e1b4c0b962e32899ea24ab43563a5a8338f69728cee246feebc9bf36",
+      "full_report": "alibaba-final-v66/report.html",
+      "all14_chapter_comparison": "alibaba-final-v66/comparison.html",
+      "acceptance_record": "alibaba-final-v66/acceptance.json",
       "known_history_time_binding_issue_count": 1,
       "limits": [
         "治理实际执行、行业独立评价/对标、母公司司法明细及互联网/云业务专项风险未达完整验收；既有解析器与行业模板的接纳覆盖也不足，不能统一称作公开资料不存在。",
