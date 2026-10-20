@@ -11,6 +11,7 @@ function context() {
   const localStorage = { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../frontend/script.js'), 'utf8'), {
     Vue: { createApp(value) { definition = value; return app; } }, ElementPlus: {}, CompanyKnowledge: {}, localStorage, URL,
+    TextDecoder, AbortController, setTimeout, clearTimeout,
   });
   const state = definition.data();
   for (const [name, method] of Object.entries(definition.methods)) state[name] = method.bind(state);
@@ -40,4 +41,30 @@ test('source navigation accepts only public HTTP URLs without embedded credentia
     assert.equal(state.isExternalUrl(url), false);
   }
   assert.equal(state.isExternalUrl('https://issuer.test/report.pdf'), true);
+});
+
+test('online SSE sources remain with the answer and unsafe source links are rejected', async () => {
+  const { state } = context();
+  state.currentUser = { username: 'alice' }; state.activeView = 'tasks'; state.assistantInput = '上海天气';
+  const events = [
+    { type: 'status', content: '正在查询天气…' },
+    { type: 'sources', sources: [
+      { number: 1, title: '上海天气', url: 'https://wttr.in/Shanghai', retrieved_at: '2026-10-20T10:00:00+08:00' },
+      { title: '危险来源', url: 'javascript:alert(1)' },
+    ] },
+    { type: 'content', content: '服务返回上海21℃。' },
+  ];
+  const encoded = new TextEncoder().encode(events.map(event => 'data: ' + JSON.stringify(event) + '\n\n').join('') + 'data: [DONE]\n\n');
+  let read = false;
+  state.authFetch = async (url, options) => {
+    assert.equal(url, '/research/assistant/stream');
+    assert.equal(JSON.parse(options.body).current_page, 'tasks');
+    return { ok: true, body: { getReader: () => ({ read: async () => read ? { done: true } : (read = true, { done: false, value: encoded }) }) } };
+  };
+  await state.sendAssistantMessage();
+  const answer = state.assistantMessages.at(-1);
+  assert.equal(answer.text, '服务返回上海21℃。');
+  assert.equal(answer.sources.length, 1);
+  assert.equal(answer.sources[0].url, 'https://wttr.in/Shanghai');
+  assert.equal(state.assistantLoading, false);
 });

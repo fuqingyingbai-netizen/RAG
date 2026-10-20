@@ -14,7 +14,7 @@ createApp({
       knowledgeQuery: '', knowledgeResults: [],
       assistantOpen: false, assistantInput: '', assistantLoading: false,
       assistantPosition: JSON.parse(localStorage.getItem('assistantPosition') || '{"right":22,"bottom":22}'), assistantDrag: null, assistantWasDragged: false, assistantSuppressClick: false, assistantContextSummary: '',
-      assistantMessages: [{ text: '你好，我是系统使用向导。可以教你提交任务、下载报告、复核资料和使用知识库，也可以陪你日常聊天。', isUser: false }],
+      assistantMessages: [{ text: '你好，我是系统使用向导。可以教你提交任务、下载报告、复核资料和使用知识库，也可以查天气、联网查公开信息和日常聊天。', isUser: false }],
       assistantNavigation: [],
       sessionId: 'system_guide_' + Date.now(),
       modulesByTarget: { company: [
@@ -667,6 +667,7 @@ createApp({
         return;
       }
       this.assistantOpen = !this.assistantOpen;
+      if (this.assistantOpen) this.scrollAssistant();
     },
     startAssistantDrag(event) {
       if (event.button !== 0) return;
@@ -702,7 +703,7 @@ createApp({
     },
     assistantStorageKey() { return `systemGuide:v1:${this.currentUser?.username || 'anonymous'}`; },
     loadAssistantState() {
-      this.assistantMessages = [{ text: '你好，我是系统使用向导。可以解答系统操作，也可以日常聊天。', isUser: false }];
+      this.assistantMessages = [{ text: '你好，我是系统使用向导。可以解答系统操作、查天气和公开信息，也可以日常聊天。', isUser: false }];
       this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantNavigation = [];
       try {
         const raw = localStorage.getItem(this.assistantStorageKey());
@@ -749,11 +750,14 @@ createApp({
     knowledgeStatus(artifact) {
       return ({ queued: '等待索引', uploading: '上传中', parsing: '解析中', indexing: '索引中', ready: '可问答', failed: '入库失败', deleted: '已从知识库移除' })[artifact.metadata?.knowledge_sync_status] || '尚未归档';
     },
+    scrollAssistant() {
+      this.$nextTick?.(() => { const feed = this.$refs?.assistantMessages; if (feed) feed.scrollTop = feed.scrollHeight; });
+    },
     async sendAssistantMessage() {
       const text = this.assistantInput.trim(); if (!text || this.assistantLoading) return;
       this.assistantMessages.push({ text, isUser: true }); this.assistantInput = ''; this.assistantLoading = true; this.saveAssistantState();
       this.compactAssistantHistory();
-      const bot = { text: '', isUser: false }; this.assistantMessages.push(bot);
+      const bot = { text: '', isUser: false }; this.assistantMessages.push(bot); this.scrollAssistant();
       let timeout = null;
       try {
         const recentMessages = this.assistantMessages.slice(-20).map(msg => ({ role: msg.isUser ? 'user' : 'assistant', content: msg.text || '' }));
@@ -769,10 +773,12 @@ createApp({
             const eventStr = buffer.slice(0, idx); buffer = buffer.slice(idx + 2); if (!eventStr.startsWith('data: ')) continue;
             const raw = eventStr.slice(6); if (raw === '[DONE]') continue;
             const event = JSON.parse(raw);
-            if (event.type === 'status' && !bot.text) { bot.text = event.content || '正在处理...'; bot._status = true; }
+            if (event.type === 'status' && (!bot.text || bot._status)) { bot.text = event.content || '正在处理...'; bot._status = true; }
+            if (event.type === 'sources') bot.sources = (Array.isArray(event.sources) ? event.sources : []).filter(source => this.isExternalUrl(source.url)).slice(0, 10);
             if (event.type === 'navigation') this.assistantNavigation = (event.items || []).filter(item => ['submit','tasks','review','sources','company-knowledge'].includes(item.view));
             if (event.type === 'content') { if (bot._status) { bot.text = ''; bot._status = false; } bot.text += event.content; }
             if (event.type === 'error') { if (bot._status) { bot.text = ''; bot._status = false; } bot.text += `\n[Error: ${event.content}]`; }
+            this.scrollAssistant();
           }
         }
       } catch (e) { bot.text = e.name === 'AbortError' ? '助手请求超时，请稍后重试。' : e.message; } finally { if (timeout) clearTimeout(timeout); this.assistantLoading = false; this.saveAssistantState(); }
