@@ -718,7 +718,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v37-column-notes",
+            "company": "company-report-evidence-v38-original-recovery-consistency",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -6420,12 +6420,26 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             if evidence_id:
                 facts_by_id.setdefault(evidence_id, item)
 
-        for evidence_id, records in risk_register_by_id.items():
-            # Original-document recovery can supply an event the cleaner
-            # omitted altogether. Its source-bound locator must still resolve.
-            facts_by_id.setdefault(evidence_id, records[0])
-        for evidence_id, records in assessment_by_id.items():
-            facts_by_id.setdefault(evidence_id, records[0])
+        # Chapter parsers can recover original-document fields the cleaner
+        # omitted. Register their locators BEFORE assigning body chapters.
+        # Preserve each merged citation's own archive URL, never redirect an
+        # alternative E-ID to the first merged record's source.
+        archive_by_id = {}
+        for source in list(getattr(project, "sources", []) or []):
+            get_source = source.get if isinstance(source, dict) else lambda key, default="": getattr(source, key, default)
+            url, title = str(get_source("url") or ""), str(get_source("title") or "")
+            if url:
+                archive_by_id[self._stable_evidence_id(url, title).upper()] = {"source_url": url, "source_title": title}
+        for mapping in (summary_by_id, governance_by_id, history_by_id, operations_by_id,
+                        reputation_by_id, business_by_id, management_by_id, people_by_id,
+                        judicial_by_id, diligence_by_id, risk_register_by_id, assessment_by_id):
+            for evidence_id, records in mapping.items():
+                if evidence_id in facts_by_id:
+                    continue
+                original = archive_by_id.get(evidence_id)
+                record = next((r for r in records if str(r.get("evidence_id") or "").upper() == evidence_id), None)
+                if original or record:
+                    facts_by_id[evidence_id] = {**(record or {}), **(original or {})}
 
         chapters_by_id: dict[str, set[int]] = {}
         cited_ids: set[str] = set()
@@ -6488,11 +6502,16 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 # A page-level industry/related classification may have hidden
                 # a literal issuer declaration recovered for chapter 2. Keep
                 # the source ID, and show the actual field-level claim used.
-                admitted = (summary_by_id.get(evidence_id, []) + governance_by_id.get(evidence_id, []) + history_by_id.get(evidence_id, [])
-                            + operations_by_id.get(evidence_id, []) + reputation_by_id.get(evidence_id, []) + business_by_id.get(evidence_id, []) + management_by_id.get(evidence_id, []) + people_by_id.get(evidence_id, []) + judicial_by_id.get(evidence_id, []) + diligence_by_id.get(evidence_id, []) + risk_register_by_id.get(evidence_id, []) + assessment_by_id.get(evidence_id, []))
-                labels = [label for label, mapping in [("第一章", summary_by_id), ("第二章", governance_by_id), ("第三章", history_by_id),
-                                                       ("第四章", operations_by_id), ("第五章", reputation_by_id), ("第六章", business_by_id), ("第七章", management_by_id), ("第八章", people_by_id), ("第九章", judicial_by_id), ("第十章", diligence_by_id), ("第十一章", risk_register_by_id), ("第十二章", assessment_by_id)] if evidence_id in mapping]
-                label = labels[0] + "原文核对："
+                mappings = [("第一章", summary_by_id), ("第二章", governance_by_id), ("第三章", history_by_id),
+                            ("第四章", operations_by_id), ("第五章", reputation_by_id), ("第六章", business_by_id),
+                            ("第七章", management_by_id), ("第八章", people_by_id), ("第九章", judicial_by_id),
+                            ("第十章", diligence_by_id), ("第十一章", risk_register_by_id), ("第十二章", assessment_by_id)]
+                active = [(label, mapping) for number, (label, mapping) in enumerate(mappings, 1)
+                          if number in chapters and evidence_id in mapping]
+                # A card merely delivered to a writer is not a body citation.
+                # The displayed claim must come from an actually citing chapter.
+                admitted = [record for _, mapping in (active or mappings) for record in mapping.get(evidence_id, [])]
+                label = (active[0][0] if active else "来源记录") + "原文核对："
                 # Deduplicated claims can cite several originals. Their
                 # E-IDs must keep their own URL/title, not all be redirected
                 # to the first merged record's document and physical pages.

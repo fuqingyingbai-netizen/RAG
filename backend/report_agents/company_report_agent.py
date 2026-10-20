@@ -687,7 +687,11 @@ class CompanyReportAgent:
             cleaned = {}
         if not isinstance(cleaned, dict):
             cleaned = {}
-        package = build_company_summary_package(cleaned, str(project.target_name or ""), list(getattr(project, "sources", []) or []))
+        package = build_company_summary_package(
+            cleaned, str(project.target_name or ""), list(getattr(project, "sources", []) or []),
+            chapter_packages={key: getattr(project, 'company_' + key + '_package', {})
+                              for key in ('assessment', 'reputation')},
+        )
         project.company_summary_package = package
         diagnostic = {
             "version": "company-summary-v1",

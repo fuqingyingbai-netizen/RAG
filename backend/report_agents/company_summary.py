@@ -24,6 +24,7 @@ SUMMARY_TOPICS = {
     "governance": ("股东", "持股", "董事长", "总裁", "独立董事", "员工持股"),
     "risk": ("裁判文书", "行政处罚", "诉讼", "被执行", "风险扫描", "未决案件"),
     "competition": ("市场份额", "市占率", "竞争格局", "竞争对手", "占有率"),
+    "funding": ("募集净额", "所得款项净额", "完成配售"),
 }
 NO_HIT = re.compile(r"未(?:发现|查询到|检索到|找到).{0,18}(?:记录|信息)|无历史遗留违规|未命中|暂无数据")
 PROCESS_NOISE = ("用户查询", "若你需要", "如需更", "请告知", "待核验", "无法确认", "未提供", "未披露")
@@ -124,9 +125,44 @@ def _disclosure_financial_claims(content: str, period: str) -> list[str]:
     return results
 
 
+def _chapter_summary_cards(packages: dict[str, Any]) -> list[dict[str, Any]]:
+    """Use admitted fields, not chapter prose, to synchronize the summary."""
+    result = []
+    assessment = packages.get('assessment') or {}
+    financial = [r for r in assessment.get('financial_observations', [])
+                 if r.get('cutoff') and r.get('unit') and not r.get('printed_yoy_conflict')]
+    latest = max((r['cutoff'] for r in financial), default='')
+    for r in financial:
+        if r['cutoff'] != latest:
+            continue
+        change = '，同比' + r['yoy'] if r.get('yoy') else ''
+        result.append({**r, 'summary_topic': 'financial',
+                       'fact': f"本集团{r['period']}：{r['metric']}为{r['value']}{r['unit']}{change}。"})
+    for dimension in assessment.get('dimensions', []):
+        if dimension.get('id') == 'funding':
+            for r in dimension.get('records', []):
+                if r.get('original_quote_verified'):
+                    result.append({**r, 'summary_topic': 'funding'})
+    for signal in assessment.get('risk_signals', []):
+        r = signal.get('fact_record') or {}
+        if r.get('kind') == 'recall' and r.get('recall_number') and r.get('defect_quote'):
+            result.append({**r, 'summary_topic': 'risk',
+                           'fact': f"{r.get('publication_date') or r.get('effective_date')}，主管部门公告{r['entity']}召回事项，编号{r['recall_number']}：{r['defect_quote']}"})
+            break
+    benchmarks = [r for r in (packages.get('reputation') or {}).get('facts', []) if r.get('kind') == 'benchmark']
+    target = next((r for r in benchmarks if r.get('target_row')), None)
+    if target:
+        peers = [r for r in benchmarks if not r.get('target_row') and all(
+            r.get(k) == target.get(k) for k in ('metric', 'period', 'unit', 'basis', 'source_url'))]
+        for r in [target] + peers[:1]:
+            result.append({**r, 'summary_topic': 'competition', 'evidence_scope': 'industry_context',
+                           'fact': f"{r['period']}，{r['entity']}的{r['metric']}为{r['value']}；统计口径：{r['basis']}。"})
+    return result
+
+
 def build_company_summary_package(
     cleaned: dict[str, Any], target: str, sources: list[Any] | None = None,
-    *, limit: int = 12500, max_facts: int = 18,
+    *, limit: int = 12500, max_facts: int = 18, chapter_packages: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Recover concise original claims; never slice a serialized fact package."""
     source_by_url = {str(_get(s, "url")): s for s in sources or []}
@@ -136,7 +172,7 @@ def build_company_summary_package(
     seen: set[tuple[str, str]] = set()
     raw_processed: set[str] = set()
 
-    def add(fact: dict[str, Any], text: str, topic: str, *, raw: bool = False, period: str = "") -> None:
+    def add(fact: dict[str, Any], text: str, topic: str, *, raw: bool = False, period: str = "", verified: bool = False) -> None:
         text = re.sub(r"\s+", " ", text).strip()
         if topic not in SUMMARY_TOPICS or not 10 <= len(text) <= 650 or NATIONAL_DATA.search(text) or any(x in text for x in PROCESS_NOISE) or re.search(r"(?:的企业名称|：企业名称)为", text):
             counts["unsuitable_claim"] += 1
@@ -157,13 +193,17 @@ def build_company_summary_package(
             "evidence_id": fact["evidence_id"], "fact": text,
             "evidence_quote": text, "source_title": str(fact.get("source_title") or "")[:150],
             "source_url": str(fact.get("source_url") or ""),
-            "evidence_scope": "target_direct", "summary_topic": topic,
+            "evidence_scope": fact.get('evidence_scope') or "target_direct", "summary_topic": topic,
             "period": period or str(fact.get("date") or "")[:30],
             "source_grade": str(fact.get("source_grade") or ""),
-            "source_kind": "disclosure" if is_disclosure else "other",
+            "source_kind": "checked_chapter_field" if verified else "disclosure" if is_disclosure else "other",
             "claim_type": "original_source_claim" if raw else str(fact.get("claim_type") or "fact"),
             "temporal_basis": 'undated_platform_snapshot' if structured_governance else 'source_period',
         })
+
+    for fact in _chapter_summary_cards(chapter_packages or {}):
+        if EVIDENCE_ID.fullmatch(str(fact.get('evidence_id') or '')):
+            add(fact, fact['fact'], fact['summary_topic'], period=str(fact.get('period') or ''), verified=True)
 
     for fact in cleaned.get("facts") or []:
         if not isinstance(fact, dict) or not EVIDENCE_ID.fullmatch(str(fact.get("evidence_id") or "")):
@@ -255,7 +295,7 @@ def build_company_summary_package(
     def rank(card: dict[str, Any]) -> tuple[int, int, int]:
         year = re.search(r"20\d{2}", card["period"])
         structured = card["source_url"].startswith("structured://")
-        primary = 3 if structured else 2 if card["source_kind"] == "disclosure" else int(card["source_grade"].startswith("A"))
+        primary = 4 if card['source_kind'] == 'checked_chapter_field' else 3 if structured else 2 if card["source_kind"] == "disclosure" else int(card["source_grade"].startswith("A"))
         concrete = int(bool(re.search(r"(?:营业收入|净利润|现金流量净额).{0,8}为[\d,]+", card["fact"]))) if card["summary_topic"] == "financial" else int(bool(re.search(r"\d+(?:\.\d+)?%", card["fact"])))
         return primary, int(year[0]) if year else 0, concrete
 
@@ -270,7 +310,7 @@ def build_company_summary_package(
     last_source: dict[str, str] = {}
     # Round robin prevents many registration rows from crowding out financials.
     topics = list(SUMMARY_TOPICS)
-    quotas = {"identity": 1, "business": 1, "financial": 3, "governance": 3, "risk": 1, "competition": 2}
+    quotas = {"identity": 1, "business": 1, "financial": 3, "governance": 3, "risk": 1, "competition": 2, "funding": 1}
     topic_counts: Counter[str] = Counter()
     package: dict[str, Any] = {"facts": [], "query_observations": list({x["source_title"]: x for x in observations}.values())[:3],
                                "evidence_boundary": "仅摘要所需的目标主体原文事实；其他主体或全库未覆盖状态不得由本章推定。"}
@@ -509,14 +549,18 @@ def fallback_company_summary(project: Any, package: dict[str, Any]) -> str:
         claims = [re.sub(r"^本集团[^：]{0,40}：", "", literal(f)).rstrip("。") for f in financial]
         lines.append("- " + (f"{period}，" if period else "") + "；".join(claims) + "。" + refs(financial))
     shareholders = [f for f in groups["governance"] if "股东记录" in f["fact"]][:1]
-    if shareholders:
+    if groups['funding']:
+        lines.append('- ' + literal(groups['funding'][0]) + refs(groups['funding'][:1]))
+    elif shareholders:
         lines.append("- " + literal(shareholders[0]) + refs(shareholders))
     if not any(line.startswith("- ") for line in lines):
         lines.append("本章尚未形成可直接摘录的事实，待核验。")
     lines += ["", "### 需关注信号"]
     if groups["risk"]:
         f = groups["risk"][0]
-        lines.append("- " + literal(f) + "本次仅确认平台返回记录，案件性质、审理状态及实际影响需调取明细核验。" + refs([f]))
+        followup = ("应追踪整改覆盖、后续状态和实际影响；公告不证明已发生事故或损失。"
+                    if f['source_kind'] == 'checked_chapter_field' else "本次仅确认平台返回记录，案件性质、审理状态及实际影响需调取明细核验。")
+        lines.append("- " + literal(f) + followup + refs([f]))
     else:
         lines.append("本章尚未形成可直接引用的风险事件明细，相关判断待核验；平台未命中不构成安全结论。")
     lines += ["", "### 公司所属赛道竞争格局"]
@@ -524,8 +568,8 @@ def fallback_company_summary(project: Any, package: dict[str, Any]) -> str:
     if competitors:
         for f in competitors:
             period = f.get("period", "")
-            lines.append((f"{period}，" if period else "") + literal(f) + refs([f]))
-        lines.append("统计范围与数据期按各来源分别保留，未形成可比排名结论。")
+            lines.append((f"{period}，" if period and not f['fact'].startswith(period) else "") + literal(f) + refs([f]))
+        lines.append("统计范围与数据期按各来源分别保留，相关份额不能外推其他市场或整车排名。" + refs(competitors))
     else:
         lines.append("本章未形成统一口径的同业比较结论，待核验。")
     lines += ["", "### 总体评估"]
@@ -534,7 +578,7 @@ def fallback_company_summary(project: Any, package: dict[str, Any]) -> str:
     else:
         lines.append("本章证据覆盖有限，经营判断待核验。")
     if groups["risk"]:
-        lines.append("司法事项的实质影响需结合案件明细核验，不能根据记录数量给出风险等级。" + refs(groups["risk"][:1]))
+        lines.append("具体风险事项的实际影响及后续处理仍需核验，不能根据记录数量给出风险等级。" + refs(groups["risk"][:1]))
     if not package["facts"]:
         lines.append("综合判断需人工复核。")
     return "\n".join(lines)

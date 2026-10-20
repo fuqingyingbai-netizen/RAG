@@ -65,6 +65,9 @@ def company_followup_rows(report,per_chapter=2):
             text=cells[0]+'：'+cells[2]
         else:text=line.strip(' >-*\t')
         text=re.sub(r'^(?:待核验(?:重点|事项)?|跟进)\s*[:：]\s*','',text)
+        # Definitions already bound to chapter 8 metrics are not new actions.
+        # Keep the representative appendix slots for actual unresolved work.
+        if re.match(r'原页(?:范围/说明|公式|定义)[:：]',text):continue
         if not re.search(action_pattern,text) or not 8<=len(text)<=1200:continue
         if re.match(r'已取得的原件支持|本章尚未取得可据以评估|本章尚未形成可核对的具体历史遗留事件',text):continue
         key=re.sub(r'\s+','',text).strip('。；;')

@@ -18,7 +18,7 @@ except ImportError:
 
 TITLE='行业口碑、产品认可度与同业竞争地位研判'
 HEADINGS=('员工评价','竞品评价','合作方评价','行业地位','技术实力','综合软实力','同业对标')
-VERSION='company-reputation-v3-vector-score-charts'
+VERSION='company-reputation-v4-primary-source-recovery'
 METRICS={
  '员工满意度分数':('员工评价','分数'), '员工敬业度分数':('员工评价','分数'),
  '客户满意度':('综合软实力','%'), '接获的客户投诉数目':('综合软实力','宗'),
@@ -202,14 +202,23 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000):
         url=str(get(source,'url'));raw,origin=source_body(source);meta=get(source,'source_metadata',{}) or {}
         if origin=='discovery_summary':counts['discovery_only']+=1;continue
         if meta.get('entity_validation') in {'rejected','ambiguous'}:continue
+        issuer=management_issuer(source,target,hosts)
         cards=[c for c in cards_by_url[url] if c.get('eligible_for_report') is not False
                and c.get('entity_match') not in {'mismatch','ambiguous','out_of_scope'} and c.get('source_entity_validation')!='rejected']
+        # An omitted cleaner card is not an absent original. Recover only an
+        # archive locator from an authenticated issuer or verified statistics
+        # publisher; all claims below still come from original fields/pages.
+        # Explicitly excluded cards never get resurrected by this fallback.
+        if not cards and not cards_by_url[url] and (issuer or (meta.get('publisher_role')=='statistics_origin' and meta.get('publisher_verified') is True)):
+            from .company_risk_register import source_anchor
+            anchor=source_anchor(source,{})
+            if anchor:
+                cards=[anchor];counts['original_locator_recovered']+=1
         if not cards:continue
         card=cards[0];title=str(get(source,'title'));host=(urlparse(url).hostname or '').lower().removeprefix('www.')
         extraction=meta.get('document_extraction') or {}
         counts['omitted_pdf_pages']+=int(extraction.get('omitted_pages') or 0)
         counts['low_text_pdf_pages']+=len(extraction.get('needs_ocr_pages') or [])
-        issuer=management_issuer(source,target,hosts)
         if issuer:
             report_year=re.search(r'20\d{2}',raw[:1500])
             for page in document_pages(source):
@@ -229,16 +238,16 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000):
                     aspect=row.pop('aspect');claim=row.pop('fact')
                     note='公司披露的调查分数；不是独立访谈，分数与NPS目标不相互替代。' if aspect=='员工评价' else '公司披露指标；不能据此认定市场整体认可或无投诉。'
                     if row['metric'] in {'客户满意度','用户满意度'}:
-                        foot=re.search(re.escape(row['metric'])+r'指[^。\n]{1,100}',page['text'])
-                        row['definition']=foot[0] if foot else '本页未明确满意度定义'
+                        foot=re.search(re.escape(row['metric'])+r'指[^。\n]{1,100}',view.text)
+                        row['definition']=view.quote(foot.start(),foot.end()) if foot else '本页未明确满意度定义'
                         note+=' '+row['definition']
                     if row['metric'].startswith('客户投诉') or row['metric']=='接获的客户投诉数目':
-                        foot=re.search(r'包含售后阶段[^\n]{1,150}',page['text'])
-                        row['definition']=foot[0] if foot else '本页统计范围说明待核验'
-                    scope=re.search(r'客户(?:服务|权益)[^。\n]{0,35}相关数据的统计口径[^。\n]{1,160}',page['text'])
+                        foot=re.search(r'包含售后阶段[^\n]{1,150}',view.text)
+                        row['definition']=view.quote(foot.start(),foot.end()) if foot else '本页统计范围说明待核验'
+                    scope=re.search(r'客户(?:服务|权益)[^。\n]{0,35}相关数据的统计口径[^。\n]{1,160}',view.text)
                     if scope:
-                        row['population_scope']=scope[0]
-                        row['definition']=(row.get('definition','')+'；'+scope[0]).strip('；')
+                        row['population_scope']=view.quote(scope.start(),scope.end())
+                        row['definition']=(row.get('definition','')+'；'+row['population_scope']).strip('；')
                     add(card,'survey',aspect,claim,mode='公司披露／非独立访谈',note=note,rank=3,**row)
         # Retain original company/brand attribution in research commentary.
         # Analysts' views are not competitors' or customers' statements.

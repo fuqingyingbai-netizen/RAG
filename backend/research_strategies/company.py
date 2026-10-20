@@ -59,6 +59,7 @@ class CompanyResearchStrategy(BaseResearchStrategy):
         {"module": "主营业务真实经营情况核验", "query": '"{target}" 年度报告 半年度报告 分产品收入 产销 研发进展', "domains": ["cninfo.com.cn", "sse.com.cn", "szse.cn", "hkexnews.hk"], "min_sources": 2},
         {"module": "核心管理团队（深度/基础）风险研判", "query": '"{target}" 董事 高级管理人员 任职 变动 换届 表决结果', "domains": ["cninfo.com.cn", "sse.com.cn", "szse.cn", "hkexnews.hk"], "min_sources": 2},
         {"module": "企业文化及人员流失情况", "query": '"{target}" 可持续发展报告 员工流失率 培训指标 脚注 统计范围', "domains": ["cninfo.com.cn", "sse.com.cn", "szse.cn", "hkexnews.hk"], "min_sources": 2},
+        {"module": "行业口碑、产品认可度与同业竞争地位研判", "query": '"{target}" 可持续发展报告 员工满意度 客户满意度 投诉 调查结果', "domains": ["cninfo.com.cn", "sse.com.cn", "szse.cn", "hkexnews.hk"], "min_sources": 2},
         {"module": "金融监管", "query": '"{target}" 监管 处罚', "domains": ["csrc.gov.cn", "pbc.gov.cn", "nfra.gov.cn"], "min_sources": 2},
         {"module": "技术实力", "query": '"{target}" 专利 商标', "domains": ["cnipa.gov.cn"], "min_sources": 1},
     ]

@@ -11,7 +11,7 @@ from collections import Counter, defaultdict
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
-from .company_business import build_business_package
+from .company_business import build_business_package, _clean
 from .company_diligence import exchange, folded, host_of, issuer_heading, period_of, LEGAL
 from .company_evidence import document_pages, source_body
 from .company_governance import build_governance_package, _table, refs, get, cited_evidence_ids, combined_refs
@@ -22,7 +22,7 @@ from .company_risk_register import (
     source_anchor, usable,
 )
 
-VERSION = 'company-assessment-v1'
+VERSION = 'company-assessment-v2-paged-funding-proof'
 TITLE = '综合评价'
 NUMBER = r'[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?'
 RUBRIC = [
@@ -240,14 +240,29 @@ def control_score(records):
                      + '；不等同经营效率、团队胜任或全集团全部合规均已验证。', current + (previous if state == 'effective' and two else []))
 
 
+def _funding_quote_pages(original, quote, target):
+    """Verify one quote on original pages; strip only known PDF furniture.
+
+    Never bridge missing physical pages or combine different funding events.
+    Matching views leave the stored source and the attributed quote intact.
+    """
+    wanted=folded(quote)
+    pages=sorted(document_pages(original),key=lambda p:p['page'])
+    for width in (1,2,3):
+        for start in range(len(pages)-width+1):
+            group=pages[start:start+width]
+            if any(b['page']!=a['page']+1 for a,b in zip(group,group[1:])):continue
+            body='\n'.join(_clean(p['text'],target) for p in group)
+            if wanted and wanted in folded(body):return True,[p['page'] for p in group]
+    # Unpaginated originals can still prove a literal, unmodified quotation.
+    return bool(not pages and wanted and wanted in folded(source_body(original)[0])),[]
+
+
 def funding_score(history, target, as_of, originals=None):
     originals = originals or {}
     completed = []
     for r in history.get('facts', []):
         quote = str(r.get('fact') or '')
-        original = originals.get(r.get('source_url'))
-        if not original or folded(quote) not in folded(source_body(original)[0]):
-            continue
         if r.get('kind') != 'event' or not re.search(r'完成.*(?:配售|发行)|配售完成|资金到账', quote):
             continue
         if re.search(r'拟|尚未|尚待|将于|决议通过', quote):
@@ -262,9 +277,17 @@ def funding_score(history, target, as_of, originals=None):
         amount = re.search(r'(?:净额|net proceeds|到账)[^。；]{0,35}?(?:RMB|HKD|USD|人民币|港元|美元|\d[\d,.]*\s*(?:元|万元|千元|百万元|百万港元|亿元))', quote, re.I)
         if not amount or not re.search(r'\d', quote[amount.start():amount.start() + 80]):
             continue
+        original = originals.get(r.get('source_url'))
+        if not original:
+            continue
+        verified,pages=_funding_quote_pages(original,quote,target)
+        if not verified:
+            continue
         # Actual completion and its amount must occur in this same original
         # observation. A matching source EID cannot join different financings.
-        completed.append({**r, 'funding_date': dt, 'amount_records': []})
+        completed.append({**r, 'funding_date': dt, 'amount_records': [],
+                          'pages':pages or r.get('pages',[]),
+                          'original_quote_verified':True})
     cycles = {}
     for r in completed:
         cycles.setdefault(r['funding_date'], r)
@@ -597,6 +620,10 @@ def render_assessment(p):
     funding = next(d for d in p['dimensions'] if d['id'] == 'funding')
     if funding['score'] is not None:
         lines += ['- 已完成的融资体现近期资本执行结果；其募集净额、时间和主体见对应原件，不将该结果外推为所有子公司资金可自由调用。' + refs(funding['records'][0])]
+        lines += ['', '融资完成事实与实际净额按同一原文事件列示，不与拟议额度或其他发行拼接。', '']
+        lines += _table(['完成日期', '原文融资事实及净额（原币种）', '来源定位'], [
+            [r['funding_date'], r['fact'], refs(r)+('（物理页'+ '、'.join(map(str,r['pages']))+'）' if r.get('pages') else '')]
+            for r in funding['records']])
     periods = {kind: max((r['cutoff'] for r in p['financial_observations'] if r['period_kind'] == kind), default='') for kind in ('annual', 'interim')}
     financial = _sample([r for r in p['financial_observations'] if r['cutoff'] == periods[r['period_kind']]], 6,
                         key=lambda r: (r['cutoff'], r['metric'], r['unit']))

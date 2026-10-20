@@ -20,7 +20,7 @@ from .report_prompts import _company_fact_has_trusted_target_anchor
 
 TITLE = '历史沿革与成长质量'
 HEADINGS = ('关键沿革与业务发展时间线', '成长质量核对', '历史遗留事项', '核验重点')
-VERSION = 'company-history-v1'
+VERSION = 'company-history-v2-local-subject'
 DATE = re.compile(r'(20\d{2}|19\d{2})年(?:(\d{1,2})月)?(?:(\d{1,2})日)?')
 METRICS = ('营业收入','归属于上市公司股东的净利润','经营活动产生的现金流量净额')
 EVENT_WORDS = re.compile(r'整体改制|改制设立|更名|收购|并购|增资|减资|回购|注销|增发|发行|配售|转增|送红股|上市(?!公司|规则|管理)|投产|量产|停产|停止生产|成立|设立|签署|发布|推出|上线')
@@ -28,6 +28,9 @@ RULE = re.compile(r'应当|不得|可以|有权|如发生|若发生|候选|假�
 NON_EVENT = re.compile(r'上市规则|上市管理|公司法|制订本章程|制定本章程|本所接受|特聘法律顾问|注册简称|本次注册|法律意见|榜单|排行榜|排名第|位列|荣获|论文|发表|研究论文|发布于|披露于|财务报表主要项目|合同负债|预收购房款')
 PENDING = re.compile(r'拟|计划|预计|将于|尚未|尚待|待完成|不超过|意向|签署|签订|达成协议')
 AMOUNT = r'[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)\.\d{2}'
+# “公司” inside another legal name (e.g. 有限责任公司成立) is not an
+# issuer pronoun. Document ownership alone cannot resolve a paragraph owner.
+ISSUER_PRONOUN = r'本公司(?!子公司)|本集团(?!子公司)|(?<![\u4e00-\u9fffA-Za-z])公司'
 
 
 def accounting_background(text):
@@ -330,7 +333,7 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
             sentence=re.sub(r'\s+',' ',sentence).strip()
             sentence=re.sub(r'(?<=[\u4e00-\u9fff\d])\s+(?=[\u4e00-\u9fff\d])','',sentence)
             action_start=re.search(r'20\d{2}年(?:度)?(?:\d{1,2}月(?:\d{1,2}日)?)?[，,]?(?:本集团|本公司|公司)(?:合计回购|已完成|完成|以|发行|签署)',sentence)
-            if action_start and re.search(r'财务报表|本年增加|本年减少',sentence[:action_start.start()]):
+            if action_start and re.search(r'财务报表|资产负债表|主要会计数据|本年增加|本年减少',sentence[:action_start.start()]):
                 # Financial-note page furniture and preceding balance tables
                 # are retained in source storage, never as the action's date.
                 sentence=sentence[action_start.start():]
@@ -352,10 +355,11 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
                 counts['layout_noise']+=1;continue
             if '|' in sentence or 'http' in sentence or re.search(r'第[一二三四五六七八九十]+节',sentence):
                 continue
-            anchor=re.search(r'本公司(?!子公司)|本集团(?!子公司)|(?<![子孙该])公司(?:于|在|首次|成立|增发|向|[，,])',sentence)
+            anchor=re.search(ISSUER_PRONOUN+r'(?:于|在|首次|成立|增发|向|[，,])',sentence)
             if compact(target) not in compact(sentence) and not (authority and anchor):
+                counts['no_local_issuer_subject']+=1
                 continue
-            action=re.search(r'(?:'+re.escape(target)+r'|本集团|本公司|(?<![子孙该])公司).{0,180}(?:整体改制|变更设立|收购|并购|增资|减资|回购|注销|增发|发行(?!在外)|发售|配售|转增|送红股|上市(?!公司|规则|管理)|投产|量产|停止生产|成立|设立|签署|发布|推出|上线)',sentence)
+            action=re.search(r'(?:'+re.escape(target)+r'|'+ISSUER_PRONOUN+r').{0,180}(?:整体改制|变更设立|收购|并购|增资|减资|回购|注销|增发|发行(?!在外)|发售|配售|转增|送红股|上市(?!公司|规则|管理)|投产|量产|停止生产|成立|设立|签署|发布|推出|上线)',sentence)
             if not action:
                 continue
             if re.search(r'子公司|附属公司|参股公司|联营公司',sentence):

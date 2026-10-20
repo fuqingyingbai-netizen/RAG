@@ -12,7 +12,7 @@ from .company_history import _issuer_hosts
 
 TITLE='主营业务真实经营情况核验'
 HEADINGS=('分部门业务运营数据核验表','核心业务板块运营进展核验表','关键经营事实与核验判断','视觉与原页核对')
-VERSION='company-business-v1'
+VERSION='company-business-v2-cross-page-projects'
 NUMBER=r'[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?'
 PERCENT=r'[-+]?\d+(?:\.\d+)?%'
 DIMENSIONS={'分行业','分产品','分地区','分销售模式'}
@@ -171,8 +171,24 @@ def project_rows(pages,period):
                     continue
                 if len(nonempty)!=5:continue
                 name,purpose,progress,goal,impact=nonempty
+                # PDF tables can add empty grid slivers on one page and use
+                # five real columns on the next. At the page boundary require
+                # an unfinished preceding sentence AND a fragment name; a
+                # complete new project must never be attached by proximity.
+                if (rows and row_index==0 and page['page']==last_page+1
+                        and rows[-1]['pages'][-1]==last_page
+                        and len(compact(name))<=6
+                        and not re.search(r'[。！？；;]$',rows[-1]['progress'])
+                        and re.search(r'(?:[年月日至，,、]|开始|进行|完成了|搭|首款|的)$',compact(rows[-1]['progress']))):
+                    previous=rows[-1]
+                    previous['entity']=_cell(previous['entity']+name)
+                    for field,value in [('purpose',purpose),('progress',progress),('goal',goal),('impact',impact)]:
+                        previous[field]=_prose(previous.get(field,'')+value)
+                    previous['evidence_quote']=previous['progress']
+                    previous['pages'].append(page['page'])
+                    continue
                 if name in {'目名称','主要研发项目名称'} or len(name)>100 or len(progress)<8:continue
-                rows.append({'kind':'project','entity':_cell(name),'progress':progress,'goal':goal,
+                rows.append({'kind':'project','entity':_cell(name),'purpose':purpose,'progress':progress,'goal':goal,'impact':impact,
                              'period':period,'page':page['page'],'pages':[page['page']],
                              'evidence_quote':progress,'mode':'公司项目进展披露／非独立性能测试'})
         last_page=page['page']
@@ -330,8 +346,9 @@ def build_business_package(cleaned,target,sources=None,*,limit=50000):
     # first-N rows can omit whole business lines at the end of a filing.
     names=set();covered_pages=set();covered_stages=set();ordered=[]
     for r in projects:
-        if (r['period'],r['page']) not in covered_pages:
-            ordered.append(r);covered_pages.add((r['period'],r['page']))
+        original_pages={(r['period'],page) for page in r.get('pages') or [r['page']]}
+        if original_pages-covered_pages:
+            ordered.append(r);covered_pages.update(original_pages)
     for r in projects:
         if r['status'] not in covered_stages:ordered.append(r);covered_stages.add(r['status'])
     for r in ordered+projects:

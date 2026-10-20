@@ -14,7 +14,7 @@ from .company_text import issuer_anchor
 
 TITLE='核心管理团队风险研判'
 HEADINGS=('管理层履历与岗位配置','任职变动与时间线','产业资源及明确关联关系','管理能力与团队掌控力评估','派系斗争、人事动荡与商业腐败信号','本章待核验事项')
-VERSION='company-management-v2-role-specific-and-compact'
+VERSION='company-management-v3-roster-table-boundaries'
 DATE=r'(?:20\d{2}年\d{1,2}月\d{1,2}日|20\d{2}[/.-]\d{1,2}[/.-]\d{1,2})'
 PERSON=r'[\u4e00-\u9fff·]{2,8}'
 ROLE=r'(?:董事长|副董事长|非独立董事|独立非执行董事|独立董事|执行董事|非执行董事|职工董事|董事|总裁|总经理|副总裁|财务总监|董事会秘书|公司秘书|内部审计负责人|证券事务代表|首席(?:财务|技术|运营|人才|执行|信息|风险|合规|科学)官|CEO|CFO|CTO|COO)'
@@ -60,14 +60,16 @@ def roster_rows(pages,period):
         for table in page.get('tables') or []:
             head=''.join(_cell(c) for row in table[:4] for c in row if c)
             if all(x in head for x in ('姓名','职务','任职状态','任期起始')):active=True;person='';status=''
+            elif re.search(r'会议届次|会议名称|召开日期|披露日期|会议决议|董事出席会议|出席董事会',head):
+                active=False;person='';status=''
             if not active:continue
             for raw_row in table:
                 cells=[_cell(c) for c in raw_row if c and _cell(c)]
                 if len(cells)>=7 and cells[1] in {'男','女'} and cells[2].isdigit():
                     name,_,_,role,state,start,end=cells[:7]
-                    if not iso(start):continue
+                    if not iso(start) or not position_role(role):continue
                     person=name;status=state
-                elif person and len(cells)>=3 and re.search(ROLE,cells[0]):
+                elif person and len(cells)>=3 and position_role(cells[0]):
                     role=cells[0]
                     if cells[1] in {'现任','离任','任期满离任'}:state,start,end=cells[1:4] if len(cells)>=4 else ('','','')
                     else:state= status;start,end=cells[1:3]
@@ -80,6 +82,12 @@ def roster_rows(pages,period):
                              'evidence_quote':' | '.join(cells),'mode':'法定报告任职表，现任仅指文件基准期'})
         last_page=page['page']
     return rows
+
+
+def position_role(value):
+    """A position may contain 董事; a 董事会会议 is still an event."""
+    return bool(value and len(value)<=80 and re.search(ROLE+r'|监事|执行总裁|副总经理',value)
+                and not re.search(r'会议|议案|决议|公告|召开|披露日期',value))
 
 
 def change_rows(pages,period):
@@ -290,6 +298,7 @@ def latest_roles(records):
             leaving=bool(re.search(r'离任|辞任|辞职|解聘|免职',r['action']))
             candidates.append({**r,'status':'离任' if leaving else '变动表任职披露','end':r['start'] if leaving else '源表未载终止日'})
     for r in sorted(candidates,key=lambda r:(r['as_of'],r['kind']=='appointment'),reverse=True):
+        if not position_role(r['role']):continue
         for role in re.split(r'、|兼|及',r['role']):
             # A chair appointment does not itself reclassify independent vs
             # non-independent directorship, and a company secretary is not
@@ -422,6 +431,7 @@ def management_errors(text,p):
     errors=[]
     if text.strip()!=render_management(p).strip():errors.append('第七章出现未受任职与履历证据支持的改写')
     if not any(r['kind'] in {'role','appointment','change'} for r in p['facts']):errors.append('第七章尚无可核对的管理团队记录')
+    if any(r['kind'] in {'role','appointment','change'} and not position_role(r['role']) for r in p['facts']):errors.append('第七章任职字段含会议或其他非职务内容')
     allowed={e for r in p['facts'] for e in r['evidence_ids']}
     if set(cited_evidence_ids(text))-allowed:errors.append('第七章存在未知证据编号')
     return errors

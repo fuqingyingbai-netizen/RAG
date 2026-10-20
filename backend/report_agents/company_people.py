@@ -14,7 +14,7 @@ from .company_text import OriginalTextView,match_text,match_compact,issuer_ancho
 
 TITLE='企业文化及人员流失情况'
 HEADINGS=('内部文化价值观与文化践行引导','团队激励与人才结构现状','人才储备、培养与梯队建设','销售/研发/技术等核心岗位人员流失情况','核验判断与具体缺口')
-VERSION='company-people-v2-script-and-single-year-tables'
+VERSION='company-people-v3-primary-source-recovery'
 METRICS={
  '员工总人数':('workforce','人'),'员工总数':('workforce','人'),
  '生产人员人数':('workforce','人'),'销售人员人数':('workforce','人'),'技术人员人数':('workforce','人'),
@@ -215,6 +215,13 @@ def build_people_package(cleaned,target,sources=None,*,limit=60000):
         named_pdf=extracted_pdf and statement and anchor.get('standalone') and management_issuer(s,target,hosts|{host})
         if not (management_issuer(s,target,hosts) or scoped_report or named_pdf):continue
         usable=[c for c in cards[url] if c.get('eligible_for_report') is not False and c.get('entity_match') not in {'mismatch','ambiguous','out_of_scope'} and c.get('source_entity_validation')!='rejected']
+        # Recover a locator only after authenticating the original issuer.
+        # Explicit cleaner exclusions remain exclusions, as in chapter 5.
+        if not usable and not cards[url]:
+            from .company_risk_register import source_anchor
+            recovered=source_anchor(s,{})
+            if recovered:
+                usable=[recovered];counts['original_locator_recovered']+=1
         if not usable:continue
         c=usable[0];pages=document_pages(s)
         year=re.search(r'(20\d{2})\s*年',raw[:6000]);period=year[1]+'年' if year else '报告年度未绑定'
