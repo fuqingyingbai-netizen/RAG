@@ -20,16 +20,6 @@
       "http_status": 401,
       "credential_requirement": "OAuth or MCP API key; raw OpenAPI token rejected",
       "date": "2026-10-20"
-    },
-    {
-      "provider": "qcc",
-      "tool": "get_executive_judicial_docs",
-      "status": "failed",
-      "reason": "quota_exceeded",
-      "error_code": 300008,
-      "error_type": "credit_balance_insufficient",
-      "date": "2026-10-20",
-      "note": "第二个样本的后续司法文书查询返回积分不足；已取得的人员与历史记录不受此结论替代。"
     }
   ],
   "word_visual_qa": "not_completed_no_libreoffice_at_handoff_path",
@@ -96,6 +86,21 @@
       "company_name_present": true,
       "local_company_worktree_config_updated": true,
       "all_tools_verified": false
+    },
+    {
+      "provider": "qcc",
+      "previous_reason": "old_token_credit_balance_insufficient",
+      "resolution": "user_supplied_replacement_token_business_call_passed",
+      "verified_at": "2026-10-20T13:03:11",
+      "tool": "get_executive_judicial_docs",
+      "returned_person_match": true,
+      "returned_company_match": true,
+      "returned_record_counts": {
+        "董监高-裁判文书信息": 1
+      },
+      "scope": "one_business_call_user_supplied_replacement_token",
+      "all_tools_verified": false,
+      "local_company_worktree_config_updated": true
     }
   ],
   "three_engine_experiment_20261020": {
@@ -215,8 +220,33 @@
     "deployment": "not_performed",
     "remaining_acceptance": [
       "full real-person chapter content manual review",
-      "Word page-by-page visual review",
-      "QCC judicial document query blocked by credits"
-    ]
+      "Word page-by-page visual review"
+    ],
+    "primary_professional_providers": "QCC judicial documents and Xiniu company/team tools passed with replacement credentials; all-tools acceptance not claimed"
+  },
+  "qcc_replacement_token_validation": {
+    "provider": "qcc",
+    "retrieved_at": "2026-10-20T13:03:11",
+    "scope": "one_business_call_user_supplied_replacement_token",
+    "tool": "get_executive_judicial_docs",
+    "arguments": {
+      "searchKey": "珠海格力电器股份有限公司",
+      "personName": "董明珠"
+    },
+    "initialize_ok": true,
+    "status": "returned",
+    "reason": "",
+    "response_chars": 528,
+    "returned_fields": [
+      "人员名称",
+      "企业名称",
+      "摘要",
+      "董监高-裁判文书信息"
+    ],
+    "returned_list_counts": {
+      "董监高-裁判文书信息": 1
+    },
+    "returned_person_match": true,
+    "returned_company_match": true
   }
 }
