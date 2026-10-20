@@ -129,7 +129,14 @@ class ResearchRevisionRequest(BaseModel):
     instructions: str
     base_artifact_id: Optional[int] = None
 
+class ResearchAssistantImport(BaseModel):
+    messages: list[dict[str, Any]] = Field(default_factory=list, max_length=80)
+    summary: str = Field(default='', max_length=8000)
+
+
 class ResearchAssistantRequest(BaseModel):
+    session_id: Optional[str] = Field(default=None, pattern=r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+    request_id: Optional[str] = Field(default=None, pattern=r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
     current_page: str = Field(default="submit", max_length=40)
     message: str = Field(min_length=1, max_length=6000)
     project_id: Optional[int] = None

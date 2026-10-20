@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 # 导入数据库基类（来自database.py，所有模型继承此类）
@@ -70,6 +70,40 @@ class ChatMessage(Base):
 
     # 反向关联ChatSession：多对一（多条消息属于一个会话）
     session = relationship("ChatSession", back_populates="messages")
+
+
+class AssistantState(Base):
+    """Account-owned pointer and migration tombstone; separate from RAG chats."""
+    __tablename__ = "assistant_states"
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    active_thread_id: Mapped[str] = mapped_column(String(36), default="", nullable=False)
+    legacy_imported: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class AssistantThread(Base):
+    __tablename__ = "assistant_threads"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(100), default="新对话", nullable=False)
+    summary: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    summary_through: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    busy_token: Mapped[str] = mapped_column(String(36), default="", nullable=False)
+    busy_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class AssistantMessage(Base):
+    __tablename__ = "assistant_messages"
+    __table_args__ = (UniqueConstraint("thread_id", "request_id", "role", name="uq_assistant_turn_role"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    thread_id: Mapped[str] = mapped_column(ForeignKey("assistant_threads.id", ondelete="CASCADE"), index=True, nullable=False)
+    request_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    sources: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="completed", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class ParentChunk(Base):

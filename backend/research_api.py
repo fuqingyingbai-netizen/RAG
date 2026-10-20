@@ -7,6 +7,7 @@ import re
 import shutil
 import threading
 import time
+from uuid import uuid4
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
@@ -24,6 +25,7 @@ from models import ResearchArtifact, ResearchProject, ResearchSource, User
 from research_schemas import (
     ResearchArtifactResponse,
     ResearchAssistantRequest,
+    ResearchAssistantImport,
     ResearchProjectCreate,
     ResearchProjectListResponse,
     ResearchProjectResponse,
@@ -2052,6 +2054,44 @@ async def reindex_cleaned_facts(
 ):
     raise HTTPException(410, '溯源库已改为来源记录；请在公司知识库管理报告索引。')
 
+@router.get('/assistant/state')
+def assistant_state(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from assistant_memory import snapshot
+    return snapshot(db, current_user.id)
+
+
+@router.post('/assistant/import')
+def assistant_import(request: ResearchAssistantImport, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from assistant_memory import import_legacy
+    return import_legacy(db, current_user.id, request.messages, request.summary)
+
+
+@router.post('/assistant/sessions')
+def assistant_new_session(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from assistant_memory import new_thread, snapshot
+    thread = new_thread(db, current_user.id, legacy_done=True)
+    return snapshot(db, current_user.id, thread.id)
+
+
+@router.get('/assistant/sessions/{session_id}/messages')
+def assistant_history(session_id: str, before_id: int | None = Query(None, gt=0),
+                      db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from assistant_memory import snapshot
+    return snapshot(db, current_user.id, session_id, before_id)
+
+
+@router.post('/assistant/sessions/{session_id}/activate')
+def assistant_activate(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from assistant_memory import activate
+    return activate(db, current_user.id, session_id)
+
+
+@router.delete('/assistant/history')
+def assistant_clear(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from assistant_memory import clear_history
+    return clear_history(db, current_user.id)
+
+
 @router.post("/assistant/stream")
 async def research_assistant_stream(
     request: ResearchAssistantRequest,
@@ -2059,51 +2099,82 @@ async def research_assistant_stream(
     current_user: User = Depends(get_current_user),
 ):
     from system_guide import PAGES, model_answer, guide_answer, navigation
+    from assistant_memory import start_turn, context_plan, prepare_context, finish_turn, interrupt_turn
     question = request.message.strip()
     if not question:
         raise HTTPException(400, '问题不能为空')
     page = request.current_page if request.current_page in PAGES else 'submit'
+    request_id = request.request_id or str(uuid4())
+    thread_id, lease = start_turn(db, current_user.id, request.session_id, question, request_id)
+    plan = context_plan(db, current_user.id, thread_id)
+    user_id, role = current_user.id, current_user.role
 
     async def event_generator():
-        yield 'data: ' + json.dumps({'type': 'status', 'content': '正在准备回答…'}, ensure_ascii=False) + '\n\n'
-        answer = guide_answer(question, page)
-        if not answer:
-            events = asyncio.Queue()
-            loop = asyncio.get_running_loop()
-            cancelled = threading.Event()
-            def emit(event):
-                if not cancelled.is_set() and not loop.is_closed():
+        events, cancelled = asyncio.Queue(), threading.Event()
+        loop = asyncio.get_running_loop()
+        sources, saved, task = [], False, None
+        memory = {'summary': plan['summary'], 'through': plan['through'], 'status': 'ready'}
+        def emit(event):
+            if not cancelled.is_set() and not loop.is_closed():
+                try:
                     loop.call_soon_threadsafe(events.put_nowait, event)
-            task = asyncio.create_task(asyncio.to_thread(
-                model_answer, research_workflow, request, current_user.role, emit, cancelled))
+                except RuntimeError:
+                    pass  # Event loop closed during a client disconnect.
+        def generate():
+            context = prepare_context(research_workflow, plan, emit, cancelled)
+            prompt_request = request.model_copy(update={'history_summary': context['summary'],
+                'recent_messages': [{'role': row['role'], 'content': row['content']} for row in context['recent']]})
+            answer = guide_answer(question, page)
+            if not answer and not cancelled.is_set():
+                answer = model_answer(research_workflow, prompt_request, role, emit, cancelled)
+            return answer, context
+        try:
+            yield 'data: ' + json.dumps({'type': 'session', 'session_id': thread_id}, ensure_ascii=False) + '\n\n'
+            yield 'data: ' + json.dumps({'type': 'status', 'content': '正在准备回答…'}, ensure_ascii=False) + '\n\n'
+            task = asyncio.create_task(asyncio.to_thread(generate))
+            deadline, heartbeat = time.monotonic() + 120, time.monotonic() + 3
+            while not task.done():
+                try:
+                    event = await asyncio.wait_for(events.get(), timeout=1)
+                    if event.get('type') == 'sources':
+                        sources = event.get('sources', [])
+                    yield 'data: ' + json.dumps(event, ensure_ascii=False) + '\n\n'
+                except asyncio.TimeoutError:
+                    pass
+                if time.monotonic() >= deadline:
+                    raise asyncio.TimeoutError()
+                if time.monotonic() >= heartbeat:
+                    yield ': heartbeat\n\n'
+                    heartbeat = time.monotonic() + 3
+            while not events.empty():
+                event = events.get_nowait()
+                if event.get('type') == 'sources':
+                    sources = event.get('sources', [])
+                yield 'data: ' + json.dumps(event, ensure_ascii=False) + '\n\n'
             try:
-                deadline = time.monotonic() + 95
-                next_heartbeat = time.monotonic() + 3
-                while not task.done():
-                    try:
-                        event = await asyncio.wait_for(events.get(), timeout=1)
-                        yield 'data: ' + json.dumps(event, ensure_ascii=False) + '\n\n'
-                    except asyncio.TimeoutError:
-                        pass
-                    if time.monotonic() >= deadline:
-                        raise asyncio.TimeoutError()
-                    if time.monotonic() >= next_heartbeat:
-                        yield ': heartbeat\n\n'
-                        next_heartbeat = time.monotonic() + 3
-                while not events.empty():
-                    yield 'data: ' + json.dumps(events.get_nowait(), ensure_ascii=False) + '\n\n'
-                answer = await task
-                if not answer.strip():
-                    answer = '聊天模型暂时不可用，请稍后重试。系统操作指引仍可使用，例如“新人怎么开始”“如何下载报告”。'
+                answer, memory = await task
             except Exception:
                 answer = '聊天服务暂时不可用，请稍后重试。你仍可以询问系统操作方法。'
-            finally:
-                cancelled.set()
-                if not task.done():
-                    task.cancel()
-        yield 'data: ' + json.dumps({'type': 'content', 'content': answer}, ensure_ascii=False) + '\n\n'
-        yield 'data: ' + json.dumps({'type': 'navigation', 'items': navigation()}, ensure_ascii=False) + '\n\n'
-        yield 'data: [DONE]\n\n'
+            if not (answer or '').strip():
+                answer = '聊天模型暂时不可用，请稍后重试。系统操作指引仍可使用。'
+            saved = finish_turn(db, user_id, thread_id, lease, request_id, answer, sources, memory)
+            if not saved:
+                yield 'data: ' + json.dumps({'type': 'error', 'content': '对话已变更或清空，请重新加载。'}, ensure_ascii=False) + '\n\n'
+                return
+            yield 'data: ' + json.dumps({'type': 'content', 'content': answer}, ensure_ascii=False) + '\n\n'
+            yield 'data: ' + json.dumps({'type': 'memory', 'saved': True, 'summarized': bool(memory['through']),
+                'status': memory['status'], **saved}, ensure_ascii=False) + '\n\n'
+            yield 'data: ' + json.dumps({'type': 'navigation', 'items': navigation()}, ensure_ascii=False) + '\n\n'
+            yield 'data: [DONE]\n\n'
+        except asyncio.TimeoutError:
+            yield 'data: ' + json.dumps({'type': 'error', 'content': '本次回答超时，已保留你的消息，请稍后重试。'}, ensure_ascii=False) + '\n\n'
+        finally:
+            cancelled.set()
+            if task and not task.done():
+                task.cancel()
+            if not saved:
+                db.rollback()
+                interrupt_turn(db, user_id, thread_id, lease, request_id)
 
     return StreamingResponse(event_generator(), media_type='text/event-stream',
         headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})

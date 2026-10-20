@@ -10,7 +10,7 @@ function context() {
   const app = { component() { return this; }, use() { return this; }, mount() {} };
   const localStorage = { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../frontend/script.js'), 'utf8'), {
-    Vue: { createApp(value) { definition = value; return app; } }, ElementPlus: {}, CompanyKnowledge: {}, localStorage, URL,
+    Vue: { createApp(value) { definition = value; return app; } }, ElementPlus: { ElMessageBox: { confirm: async () => true } }, CompanyKnowledge: {}, localStorage, URL,
     TextDecoder, AbortController, setTimeout, clearTimeout,
   });
   const state = definition.data();
@@ -18,20 +18,23 @@ function context() {
   return { state, storage };
 }
 
-test('a newly signed-in account cannot inherit the previous account conversation', () => {
-  const { state, storage } = context();
+function cloudState(session = 'session-1', messages = []) {
+  return { session_id: session, sessions: [{ id: session, title: '新对话' }], messages, summary: '', has_more: false, legacy_imported: true };
+}
+
+test('a newly signed-in account cannot inherit the previous account conversation', async () => {
+  const { state } = context();
   state.currentUser = { username: 'alice' };
-  state.assistantMessages = [{ text: 'Alice private message', isUser: true }];
-  state.assistantContextSummary = 'Alice private summary';
-  state.saveAssistantState();
-  assert.ok(storage.has('systemGuide:v1:alice'));
+  state.applyAssistantState(cloudState('alice', [{ text: 'Alice private message', isUser: true }]));
   state.handleLogout();
   state.currentUser = { username: 'bob' };
-  state.loadAssistantState();
+  state.assistantJson = async () => cloudState('bob');
+  await state.loadAssistantState();
   assert.equal(state.assistantContextSummary, '');
   assert.ok(!JSON.stringify(state.assistantMessages).includes('Alice'));
   state.currentUser = { username: 'alice' };
-  state.loadAssistantState();
+  state.assistantJson = async () => cloudState('alice', [{ text: 'Alice private message', isUser: true }]);
+  await state.loadAssistantState();
   assert.equal(state.assistantMessages[0].text, 'Alice private message');
 });
 
@@ -46,6 +49,7 @@ test('source navigation accepts only public HTTP URLs without embedded credentia
 test('online SSE sources remain with the answer and unsafe source links are rejected', async () => {
   const { state } = context();
   state.currentUser = { username: 'alice' }; state.activeView = 'tasks'; state.assistantInput = '上海天气';
+  state.assistantReady = true; state.assistantSessionId = 'session-1';
   const events = [
     { type: 'status', content: '正在查询天气…' },
     { type: 'sources', sources: [
@@ -53,12 +57,16 @@ test('online SSE sources remain with the answer and unsafe source links are reje
       { title: '危险来源', url: 'javascript:alert(1)' },
     ] },
     { type: 'content', content: '服务返回上海21℃。' },
+    { type: 'memory', saved: true, status: 'ready', summarized: false },
   ];
   const encoded = new TextEncoder().encode(events.map(event => 'data: ' + JSON.stringify(event) + '\n\n').join('') + 'data: [DONE]\n\n');
   let read = false;
   state.authFetch = async (url, options) => {
     assert.equal(url, '/research/assistant/stream');
     assert.equal(JSON.parse(options.body).current_page, 'tasks');
+    assert.equal(JSON.parse(options.body).session_id, 'session-1');
+    assert.equal(JSON.parse(options.body).history_summary, undefined);
+    assert.equal(JSON.parse(options.body).recent_messages, undefined);
     return { ok: true, body: { getReader: () => ({ read: async () => read ? { done: true } : (read = true, { done: false, value: encoded }) }) } };
   };
   await state.sendAssistantMessage();
@@ -67,4 +75,65 @@ test('online SSE sources remain with the answer and unsafe source links are reje
   assert.equal(answer.sources.length, 1);
   assert.equal(answer.sources[0].url, 'https://wttr.in/Shanghai');
   assert.equal(state.assistantLoading, false);
+  assert.equal(state.assistantMemoryStatus, '已保存到账号');
+});
+
+test('legacy cache is removed only after successful migration and failure disables sending', async () => {
+  const { state, storage } = context(); state.currentUser = { username: 'alice' };
+  storage.set('systemGuide:v1:alice', JSON.stringify({ messages: [{ text: '旧消息', isUser: true }], summary: '旧摘要' }));
+  state.assistantJson = async url => { if (url.endsWith('/state')) return { ...cloudState(), legacy_imported: false }; throw new Error('网络中断'); };
+  await state.loadAssistantState();
+  assert.equal(state.assistantReady, false); assert.ok(storage.has('systemGuide:v1:alice'));
+  state.assistantJson = async (url, options) => {
+    if (url.endsWith('/state')) return { ...cloudState(), legacy_imported: false };
+    assert.equal(JSON.parse(options.body).messages[0].text, '旧消息');
+    return cloudState('migrated', [{ text: '旧消息', isUser: true }]);
+  };
+  await state.loadAssistantState();
+  assert.equal(state.assistantReady, true); assert.equal(state.assistantMessages[0].text, '旧消息');
+  assert.equal(storage.has('systemGuide:v1:alice'), false);
+});
+
+test('late history responses cannot apply to the next signed-in account', async () => {
+  const { state } = context(); state.currentUser = { username: 'alice' };
+  let finish;
+  state.assistantJson = () => new Promise(resolve => { finish = resolve; });
+  const loading = state.loadAssistantState();
+  state.handleLogout(); state.currentUser = { username: 'bob' };
+  state.applyAssistantState(cloudState('bob'));
+  finish(cloudState('alice', [{ text: 'Alice private', isUser: true }]));
+  await loading;
+  assert.equal(state.assistantSessionId, 'bob');
+  assert.ok(!JSON.stringify(state.assistantMessages).includes('Alice'));
+});
+
+test('new conversation and clear cancel pending generation and reset displayed context', async () => {
+  const { state } = context(); state.currentUser = { username: 'alice' };
+  state.applyAssistantState({ ...cloudState('old'), summary: '旧摘要' });
+  let aborted = 0; state.assistantController = { abort: () => aborted++ };
+  state.assistantJson = async (url, options) => { assert.equal(options.method, 'POST'); return cloudState('new'); };
+  await state.changeAssistantSession('new');
+  assert.equal(aborted, 1); assert.equal(state.assistantContextSummary, ''); assert.equal(state.assistantSessionId, 'new');
+  state.assistantJson = async (url, options) => { assert.equal(url, '/research/assistant/history'); assert.equal(options.method, 'DELETE'); return cloudState('cleared'); };
+  await state.changeAssistantSession('clear');
+  assert.equal(state.assistantSessionId, 'cleared');
+});
+
+test('late streaming output cannot enter a new conversation or account', async () => {
+  const { state } = context(); state.currentUser = { username: 'alice' }; state.assistantInput = '旧问题';
+  state.applyAssistantState(cloudState('old')); let finish;
+  state.authFetch = () => new Promise(resolve => { finish = resolve; });
+  const sending = state.sendAssistantMessage();
+  state.handleLogout(); state.currentUser = { username: 'bob' }; state.applyAssistantState(cloudState('bob'));
+  finish({ ok: true, body: { getReader: () => { throw new Error('must not consume old account stream'); } } });
+  await sending;
+  assert.equal(state.assistantSessionId, 'bob');
+  assert.ok(!JSON.stringify(state.assistantMessages).includes('旧问题'));
+});
+
+test('loading older messages retains the newest ones and stops at the last page', async () => {
+  const { state } = context(); state.applyAssistantState({ ...cloudState('session-1', [{ id: 81, text: '最新消息' }]), has_more: true });
+  state.assistantJson = async url => { assert.ok(url.endsWith('before_id=81')); return { messages: [{ id: 1, text: '最早消息' }], has_more: false }; };
+  await state.loadOlderAssistant();
+  assert.deepEqual(Array.from(state.assistantMessages, row => row.id), [1, 81]); assert.equal(state.assistantHasMore, false);
 });

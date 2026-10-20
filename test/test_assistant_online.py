@@ -217,7 +217,19 @@ def test_cancellation_stops_followup_tools(monkeypatch):
     assert not model.invocations
 
 
-def test_assistant_endpoint_streams_live_sources_without_project_db_access(monkeypatch):
+def test_assistant_endpoint_streams_live_sources_without_project_db_access(monkeypatch, tmp_path):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from database import Base
+    from models import User
+    engine = create_engine('sqlite:///' + str(tmp_path / 'online.db'), connect_args={'check_same_thread': False})
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    with factory() as db:
+        db.add(User(id=99, username='new-user', password_hash='test', role='user')); db.commit()
+    def get_history_db():
+        with factory() as db:
+            yield db
     import system_guide as guide
     model = FakeModel([assistant_reply(calls=[tool_call('search_web', {'query': '公开消息'})]), assistant_reply('已找到公开消息[1]。')])
     monkeypatch.setattr(api.research_workflow, '_get_model', lambda: model)
@@ -226,10 +238,14 @@ def test_assistant_endpoint_streams_live_sources_without_project_db_access(monke
         monkeypatch.setattr(api, name, lambda *a: pytest.fail('no project retrieval'))
     app = FastAPI(); app.include_router(api.router)
     app.dependency_overrides[api.get_current_user] = lambda: SimpleNamespace(id=99, username='new-user', role='user')
-    app.dependency_overrides[api.get_db] = lambda: SimpleNamespace()
+    app.dependency_overrides[api.get_db] = get_history_db
     with TestClient(app) as client:
         response = client.post('/research/assistant/stream', json={'message': '帮我联网查公开消息'})
     assert response.status_code == 200 and '正在搜索公开网页' in response.text
     events = [json.loads(line[6:]) for line in response.text.splitlines() if line.startswith('data: ') and line[6:] != '[DONE]']
     assert any(event['type'] == 'sources' and event['sources'][0]['url'] == 'https://issuer.test/news' for event in events)
     assert response.text.endswith('data: [DONE]\n\n')
+    with TestClient(app) as client:
+        history = client.get('/research/assistant/state').json()
+    assert history['messages'][-1]['sources'][0]['url'] == 'https://issuer.test/news'
+    engine.dispose()

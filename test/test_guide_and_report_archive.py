@@ -142,10 +142,11 @@ def test_external_urls_reject_internal_locators_credentials_and_scripts():
     assert external_url('https://example.com/report.pdf')
 
 
-def test_assistant_guides_and_chats_without_any_project_or_vector_retrieval(monkeypatch):
+def test_assistant_guides_and_chats_without_any_project_or_vector_retrieval(monkeypatch, archive_db):
+    db, project, owner = archive_db
     app = FastAPI(); app.include_router(api.router)
-    app.dependency_overrides[api.get_current_user] = lambda: SimpleNamespace(id=9, username='new', role='user')
-    app.dependency_overrides[api.get_db] = lambda: SimpleNamespace()
+    app.dependency_overrides[api.get_current_user] = lambda: owner
+    app.dependency_overrides[api.get_db] = lambda: db
     for name in ('_assistant_project_ids', '_vector_context', '_project_store_context'):
         monkeypatch.setattr(api, name, lambda *a: pytest.fail('guide must not retrieve project data'))
     captured = []

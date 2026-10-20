@@ -16,7 +16,8 @@ createApp({
       assistantPosition: JSON.parse(localStorage.getItem('assistantPosition') || '{"right":22,"bottom":22}'), assistantDrag: null, assistantWasDragged: false, assistantSuppressClick: false, assistantContextSummary: '',
       assistantMessages: [{ text: '你好，我是系统使用向导。可以教你提交任务、下载报告、复核资料和使用知识库，也可以查天气、联网查公开信息和日常聊天。', isUser: false }],
       assistantNavigation: [],
-      sessionId: 'system_guide_' + Date.now(),
+      assistantSessionId: '', assistantSessions: [], assistantHasMore: false, assistantReady: false,
+      assistantSyncing: false, assistantMemoryStatus: '', assistantController: null, assistantEpoch: 0,
       modulesByTarget: { company: [
         { label: '公司背景', value: '公司背景' }, { label: '负面新闻', value: '负面新闻' },
         { label: '诉讼 / 制裁', value: '诉讼/制裁' }, { label: '股东高管', value: '股东高管' },
@@ -74,7 +75,7 @@ createApp({
     async mounted() {
       this.nowTimer = setInterval(() => { this.nowTick = Date.now(); }, 1000);
       this.taskRefreshTimer = setInterval(() => this.refreshVisibleTaskProgress(), 5000);
-      if (this.token) { try { await this.fetchMe(); this.loadAssistantState(); await this.loadProjects(); } catch (_) { this.handleLogout(); } }
+      if (this.token) { try { await this.fetchMe(); await this.loadAssistantState(); await this.loadProjects(); } catch (_) { this.handleLogout(); } }
     },
   beforeUnmount() { if (this.nowTimer) clearInterval(this.nowTimer); if (this.taskRefreshTimer) clearInterval(this.taskRefreshTimer); },
   methods: {
@@ -113,10 +114,10 @@ createApp({
         const data = await r.json().catch(() => ({})); if (!r.ok) throw new Error(data.detail || '认证失败');
         if (data.role !== this.authRole) throw new Error(`该账号是${data.role === 'admin' ? '管理员' : '普通用户'}，请从对应入口登录`);
         this.token = data.access_token; this.currentUser = { username: data.username, role: data.role };
-        localStorage.setItem('accessToken', this.token); this.loadAssistantState(); await this.loadProjects();
+        localStorage.setItem('accessToken', this.token); await this.loadAssistantState(); await this.loadProjects();
       } catch (e) { ElementPlus.ElMessage.error(e.message); } finally { this.authLoading = false; }
     },
-    handleLogout() { this.assistantOpen = false; this.assistantMessages = []; this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantLoading = false; this.token = ''; this.currentUser = null; this.authStep = 'role'; this.authMode = 'login'; this.authForm.admin_code = ''; this.projects = []; this.knowledgeResults = []; localStorage.removeItem('accessToken'); },
+    handleLogout() { this.assistantEpoch++; this.assistantController?.abort(); this.assistantController = null; this.assistantSessionId = ''; this.assistantSessions = []; this.assistantReady = false; this.assistantSyncing = false; this.assistantMemoryStatus = ''; this.assistantHasMore = false; this.assistantNavigation = []; this.assistantOpen = false; this.assistantMessages = []; this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantLoading = false; this.token = ''; this.currentUser = null; this.authStep = 'role'; this.authMode = 'login'; this.authForm.admin_code = ''; this.projects = []; this.knowledgeResults = []; localStorage.removeItem('accessToken'); },
     switchView(view) { this.activeView = view; localStorage.setItem('activeView', view); if (view === 'tasks' || view === 'review') { this.loadProjects(); this.refreshVisibleTaskProgress(); } if (view === 'sources') this.loadRepository(); },
     splitLines(text) { return (text || '').split('\n').map(x => x.trim()).filter(Boolean); },
     industryRunFields(targetType, intake = null) {
@@ -657,7 +658,7 @@ createApp({
         return;
       }
       this.assistantOpen = !this.assistantOpen;
-      if (this.assistantOpen) this.scrollAssistant();
+      if (this.assistantOpen) { if (!this.assistantReady) this.loadAssistantState(); this.scrollAssistant(); }
     },
     startAssistantDrag(event) {
       if (event.button !== 0) return;
@@ -692,38 +693,69 @@ createApp({
       localStorage.setItem('assistantPosition', JSON.stringify(this.assistantPosition));
     },
     assistantStorageKey() { return `systemGuide:v1:${this.currentUser?.username || 'anonymous'}`; },
-    loadAssistantState() {
+    applyAssistantState(data) {
+      this.assistantSessionId = data.session_id;
+      this.assistantSessions = data.sessions || [];
+      this.assistantMessages = data.messages?.length ? data.messages : [{ text: '你好，我是系统使用向导。可以解答系统操作、查天气和公开信息，也可以日常聊天。', isUser: false }];
+      this.assistantContextSummary = data.summary || '';
+      this.assistantHasMore = !!data.has_more; this.assistantReady = true;
+      this.assistantMemoryStatus = data.busy ? '此对话正在生成，可稍后重新加载' : (data.summarized_through ? '已保存到账号 · 较早对话已整理为摘要' : '已保存到账号');
+    },
+    async assistantJson(url, options = {}) {
+      const response = await this.authFetch(url, options);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || '对话同步失败，请重试');
+      return data;
+    },
+    async loadAssistantState() {
+      if (this.assistantSyncing || !this.currentUser) return;
+      const epoch = ++this.assistantEpoch, key = this.assistantStorageKey();
+      this.assistantController?.abort(); this.assistantLoading = false; this.assistantSyncing = true; this.assistantReady = false;
       this.assistantMessages = [{ text: '你好，我是系统使用向导。可以解答系统操作、查天气和公开信息，也可以日常聊天。', isUser: false }];
       this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantNavigation = [];
       try {
-        const raw = localStorage.getItem(this.assistantStorageKey());
-        if (!raw) return;
-        const data = JSON.parse(raw);
-        if (Array.isArray(data.messages) && data.messages.length) this.assistantMessages = data.messages.slice(-80);
-        this.assistantContextSummary = data.summary || '';
-        this.sessionId = data.sessionId || this.sessionId;
-      } catch (_) {}
+        let data = await this.assistantJson('/research/assistant/state');
+        if (epoch !== this.assistantEpoch) return;
+        const raw = localStorage.getItem(key);
+        if (raw && !data.legacy_imported) {
+          let legacy; try { legacy = JSON.parse(raw); } catch (_) { legacy = {}; }
+          data = await this.assistantJson('/research/assistant/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: (Array.isArray(legacy.messages) ? legacy.messages : []).slice(-80), summary: String(legacy.summary || '').slice(-8000) }) });
+          if (epoch !== this.assistantEpoch) return;
+        }
+        localStorage.removeItem(key); // Remove old plaintext cache only after a successful cloud load/import.
+        this.applyAssistantState(data); this.scrollAssistant();
+      } catch (error) { if (epoch === this.assistantEpoch) this.assistantMemoryStatus = error.message; }
+      finally { if (epoch === this.assistantEpoch) this.assistantSyncing = false; }
     },
-    saveAssistantState() {
-      if (!this.currentUser?.username) return;
-      localStorage.setItem(this.assistantStorageKey(), JSON.stringify({
-        messages: this.assistantMessages.slice(-80),
-        summary: this.assistantContextSummary,
-        sessionId: this.sessionId
-      }));
+    async changeAssistantSession(action, sessionId = '') {
+      if (this.assistantSyncing) return;
+      const startingEpoch = this.assistantEpoch;
+      if (action === 'clear') {
+        try { await ElementPlus.ElMessageBox.confirm('将删除当前账号全部小助手对话和记忆，无法撤销。公司知识库资料不受影响。', '清空小助手记录', { confirmButtonText: '删除全部记录', cancelButtonText: '取消', type: 'warning' }); } catch (_) { return; }
+      }
+      if (startingEpoch !== this.assistantEpoch || !this.currentUser) return;
+      const epoch = ++this.assistantEpoch;
+      this.assistantController?.abort(); this.assistantController = null; this.assistantLoading = false; this.assistantSyncing = true;
+      try {
+        const url = action === 'clear' ? '/research/assistant/history' : action === 'new' ? '/research/assistant/sessions' : `/research/assistant/sessions/${encodeURIComponent(sessionId)}/activate`;
+        const data = await this.assistantJson(url, { method: action === 'clear' ? 'DELETE' : 'POST' });
+        if (epoch !== this.assistantEpoch) return;
+        localStorage.removeItem(this.assistantStorageKey()); this.assistantInput = ''; this.assistantNavigation = [];
+        this.applyAssistantState(data); this.scrollAssistant();
+      } catch (error) { if (epoch === this.assistantEpoch) { this.assistantMemoryStatus = error.message; this.assistantReady = false; } }
+      finally { if (epoch === this.assistantEpoch) this.assistantSyncing = false; }
     },
-    compactAssistantHistory() {
-      const userTurns = this.assistantMessages.filter(msg => msg.isUser).length;
-      if (userTurns <= 50 || this.assistantMessages.length <= 40) return;
-      const keep = this.assistantMessages.slice(-20);
-      const older = this.assistantMessages.slice(1, -20);
-      const compacted = older.map(msg => `${msg.isUser ? '用户' : '助手'}：${(msg.text || '').replace(/\s+/g, ' ').slice(0, 180)}`).join('\n');
-      this.assistantContextSummary = [this.assistantContextSummary, compacted].filter(Boolean).join('\n').slice(-8000);
-      this.assistantMessages = [
-        { text: '已压缩 50 轮以上的历史对话，后续回答会继续参考压缩摘要。', isUser: false },
-        ...keep
-      ];
-      this.saveAssistantState();
+    async loadOlderAssistant() {
+      if (!this.assistantHasMore || this.assistantSyncing || this.assistantLoading) return;
+      const first = this.assistantMessages.find(msg => msg.id), epoch = this.assistantEpoch;
+      if (!first) return;
+      this.assistantSyncing = true;
+      try {
+        const data = await this.assistantJson(`/research/assistant/sessions/${this.assistantSessionId}/messages?before_id=${first.id}`);
+        if (epoch !== this.assistantEpoch) return;
+        this.assistantMessages = [...data.messages, ...this.assistantMessages]; this.assistantHasMore = !!data.has_more;
+      } catch (error) { if (epoch === this.assistantEpoch) this.assistantMemoryStatus = error.message; }
+      finally { if (epoch === this.assistantEpoch) this.assistantSyncing = false; }
     },
     askGuide(question) { this.assistantInput = question; return this.sendAssistantMessage(); },
     async retryKnowledge(artifact) {
@@ -744,20 +776,24 @@ createApp({
       this.$nextTick?.(() => { const feed = this.$refs?.assistantMessages; if (feed) feed.scrollTop = feed.scrollHeight; });
     },
     async sendAssistantMessage() {
-      const text = this.assistantInput.trim(); if (!text || this.assistantLoading) return;
-      this.assistantMessages.push({ text, isUser: true }); this.assistantInput = ''; this.assistantLoading = true; this.saveAssistantState();
-      this.compactAssistantHistory();
-      const bot = { text: '', isUser: false }; this.assistantMessages.push(bot); this.scrollAssistant();
-      let timeout = null;
+      const text = this.assistantInput.trim(); if (!text || this.assistantLoading || this.assistantSyncing) return;
+      if (!this.assistantReady) { this.assistantMemoryStatus = '请先重新加载对话，确保账号历史已同步'; return; }
+      const epoch = this.assistantEpoch, sessionId = this.assistantSessionId;
+      this.assistantMessages.push({ text, isUser: true }); this.assistantInput = ''; this.assistantLoading = true; this.assistantMemoryStatus = '正在保存并生成回答…';
+      const userMessage = this.assistantMessages[this.assistantMessages.length - 1];
+      this.assistantMessages.push({ text: '', isUser: false });
+      const bot = this.assistantMessages[this.assistantMessages.length - 1]; this.scrollAssistant();
+      let timeout = null, saved = false;
       try {
-        const recentMessages = this.assistantMessages.slice(-20).map(msg => ({ role: msg.isUser ? 'user' : 'assistant', content: msg.text || '' }));
-        const controller = new AbortController();
-        timeout = setTimeout(() => controller.abort(), 120000);
-        const r = await this.authFetch('/research/assistant/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ message: text, current_page: this.activeView, history_summary: this.assistantContextSummary, recent_messages: recentMessages }) });
-        if (!r.ok) throw new Error('助手请求失败');
+        const controller = new AbortController(); this.assistantController = controller;
+        timeout = setTimeout(() => controller.abort(), 135000);
+        const r = await this.authFetch('/research/assistant/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ message: text, current_page: this.activeView, session_id: sessionId, request_id: globalThis.crypto?.randomUUID?.() }) });
+        if (epoch !== this.assistantEpoch) return;
+        if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || '助手请求失败'); }
         const reader = r.body.getReader(), decoder = new TextDecoder(); let buffer = '';
         while (true) {
           const { done, value } = await reader.read(); if (done) break;
+          if (epoch !== this.assistantEpoch) { await reader.cancel?.(); return; }
           buffer += decoder.decode(value, { stream: true }); let idx;
           while ((idx = buffer.indexOf('\n\n')) !== -1) {
             const eventStr = buffer.slice(0, idx); buffer = buffer.slice(idx + 2); if (!eventStr.startsWith('data: ')) continue;
@@ -765,13 +801,16 @@ createApp({
             const event = JSON.parse(raw);
             if (event.type === 'status' && (!bot.text || bot._status)) { bot.text = event.content || '正在处理...'; bot._status = true; }
             if (event.type === 'sources') bot.sources = (Array.isArray(event.sources) ? event.sources : []).filter(source => this.isExternalUrl(source.url)).slice(0, 10);
+            if (event.type === 'memory') { saved = !!event.saved; userMessage.id = event.user_message_id; bot.id = event.assistant_message_id; const session = this.assistantSessions.find(item => item.id === sessionId); if (session && event.session_title) session.title = event.session_title; this.assistantMemoryStatus = event.status === 'deferred' ? '已保存 · 摘要暂未完成，当前仅参考部分历史，后续重试' : (event.summarized ? '已保存到账号 · 较早对话已整理为摘要' : '已保存到账号'); }
             if (event.type === 'navigation') this.assistantNavigation = (event.items || []).filter(item => ['submit','tasks','review','sources','company-knowledge'].includes(item.view));
             if (event.type === 'content') { if (bot._status) { bot.text = ''; bot._status = false; } bot.text += event.content; }
             if (event.type === 'error') { if (bot._status) { bot.text = ''; bot._status = false; } bot.text += `\n[Error: ${event.content}]`; }
             this.scrollAssistant();
           }
         }
-      } catch (e) { bot.text = e.name === 'AbortError' ? '助手请求超时，请稍后重试。' : e.message; } finally { if (timeout) clearTimeout(timeout); this.assistantLoading = false; this.saveAssistantState(); }
+        if (epoch === this.assistantEpoch && !saved) this.assistantMemoryStatus = '回答未确认保存，请重新加载核对';
+      } catch (e) { if (epoch === this.assistantEpoch) { bot.text = e.name === 'AbortError' ? '请求已中断，请重新加载查看保存状态。' : e.message; this.assistantMemoryStatus = '请重新加载核对服务器记录'; } }
+      finally { if (timeout) clearTimeout(timeout); if (epoch === this.assistantEpoch) { this.assistantLoading = false; this.assistantController = null; } }
     },
     progressFor(projectOrStatus) {
       const project = typeof projectOrStatus === 'object' ? projectOrStatus : { status: projectOrStatus };
