@@ -22,7 +22,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('baseline', type=Path)
     parser.add_argument('--live-model', action='store_true', help='Use paid real chapter model calls; otherwise record a model-free evidence replay')
+    parser.add_argument('--model-responses', type=Path, help='Reuse retained real model responses for a validation-only replay, no model charges')
     args = parser.parse_args()
+    if args.live_model and args.model_responses:
+        parser.error('--live-model and --model-responses are mutually exclusive')
     baseline = args.baseline.resolve()
     from dotenv import load_dotenv
     load_dotenv(ROOT / '.env')
@@ -52,7 +55,16 @@ def main():
     previous = json.loads((baseline / 'summary.json').read_text(encoding='utf-8'))
     retrieval = json.loads((baseline / 'person_retrieval_audit.json').read_text(encoding='utf-8'))
     workflow = research_workflow.ResearchWorkflow()
-    if not args.live_model:
+    replayed_roles = []
+    if args.model_responses:
+        cached = {r['role']: r['response'] for r in [json.loads(line) for line in args.model_responses.read_text(encoding='utf-8').splitlines() if line.strip()]}
+        def replay_invoke(role, *a, **kw):
+            if role not in cached:
+                raise RuntimeError('No retained model response for this chapter')
+            replayed_roles.append(role)
+            return cached[role]
+        workflow._invoke_person_report_section = replay_invoke
+    elif not args.live_model:
         workflow._invoke_person_report_section = lambda *a, **kw: '{"claims":[]}'
 
     def collect(db, project, *args, **kwargs):
@@ -77,6 +89,16 @@ def main():
             text = text.replace(secret, '[REDACTED]')
         return json.loads(text)
 
+    if args.live_model:
+        original_invoke = workflow._invoke_person_report_section
+
+        def recorded_invoke(role, prompt, emit=None):
+            response = original_invoke(role, prompt, emit)
+            with (run / 'chapter-model-responses.jsonl').open('a', encoding='utf-8') as f:
+                f.write(json.dumps(safe({'role': role, 'response': response}), ensure_ascii=False) + '\n')
+            return response
+        workflow._invoke_person_report_section = recorded_invoke
+
     def emit(event):
         event = safe(event)
         with (run / 'trace.jsonl').open('a', encoding='utf-8') as f:
@@ -91,6 +113,10 @@ def main():
                'new_search_calls': 0, 'new_professional_calls': 0, 'proposal': 'excluded_already_exercised_in_baseline',
                'corpus_sha256': hashlib.sha256((baseline / 'source-snapshots.json').read_bytes()).hexdigest(),
                'intake_sha256': hashlib.sha256((baseline / 'intake.json').read_bytes()).hexdigest()}
+    if args.model_responses:
+        summary.update(scope='same_corpus_validation_replay_retained_real_model_responses', actual_model_requests=0,
+                       model_response_sha256=hashlib.sha256(args.model_responses.read_bytes()).hexdigest(),
+                       model_call_count_note='Section model_calls count local writer invocations, not new API requests')
     print(json.dumps({'started': str(run)}, ensure_ascii=False), flush=True)
     with Session(engine) as db:
         user = User(username='same-corpus-person-qa', password_hash='not-a-product-login')
@@ -121,6 +147,8 @@ def main():
             with zipfile.ZipFile(docx) as archive:
                 summary['docx_integrity_ok'] = archive.testzip() is None
         summary['elapsed_seconds'] = round(time.monotonic()-started, 1)
+        if args.model_responses:
+            summary['retained_model_responses_used'] = len(replayed_roles)
         (run / 'summary.json').write_text(json.dumps(safe(summary), ensure_ascii=False, indent=2), encoding='utf-8')
         print(json.dumps({'status': project.status, 'chapters': len(sections), 'run': str(run)}, ensure_ascii=False), flush=True)
 

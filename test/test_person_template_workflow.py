@@ -48,7 +48,9 @@ def test_person_generation_is_not_bound_to_one_name(name):
 @pytest.mark.parametrize("chapter", range(1, 16))
 def test_every_template_chapter_has_diagnostic_and_appropriate_source_scope(chapter):
     p = person()
-    facts = [fact(fact=f"林知远参与{requirements[0]}相关工作，原件仅披露职责，不提供能力评级。",
+    examples = {4: '林知远于2021年负责产品战略及研发创新项目，原件仅披露职责和项目结果。',
+                12: '合成记录：林知远于2021年涉及一起合同诉讼，案号为合成测试001号，尚需核对当事人。'}
+    facts = [fact(fact=examples.get(i, f"林知远参与{requirements[0]}相关工作，原件仅披露职责，不提供能力评级。"),
                   source_url=f"https://fixture{i}.invalid/record", module=title)
              for i, (title, requirements) in enumerate(PERSON_REPORT_OUTLINE[:13], 1)]
     report = generate_person_report(p, json.dumps({"facts": facts}), "{}", PERSON_REPORT_OUTLINE, echo, noop)

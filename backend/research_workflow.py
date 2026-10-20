@@ -701,7 +701,7 @@ class ResearchWorkflow:
             self._refresh_person_source_identities(project, normalized_intake)
             db.commit()
         cleaning_pipeline_version = (
-            "person-evidence-v14-commission-questions"
+            "person-evidence-v15-typed-source-records"
             if standardized_type == "person"
             else "company-evidence-v11-vector-survey-charts"
             if standardized_type == "company"
@@ -710,7 +710,7 @@ class ResearchWorkflow:
             else "default-v4-auditable"
         )
         report_pipeline_version = {
-            "person": "person-report-v7-commission-analysis-selection",
+            "person": "person-report-v8-typed-analysis-validation",
             # v8 additionally indexes structured business records (QCC/Xiniu)
             # and uses evidence-density-aware company chapter writing. Do not
             # reuse a report produced before those delivery rules.

@@ -30,13 +30,30 @@ NOTES = {
 
 def main():
     before, after = [Path(p).resolve() for p in sys.argv[1:3]]
-    commissioned = '--commission' in sys.argv[3:]
+    typed = '--typed' in sys.argv[3:]
+    commissioned = '--commission' in sys.argv[3:] or typed
     notes = dict(NOTES)
     if commissioned:
         for i in (1, 2, 3, 4, 5, 6, 8, 9, 11, 13):
             notes[i] = '程序保留事实原文；模型选择证据编号并为分析提供原文支持。' + notes[i]
         notes[10] = '按委托问题动态选材；排除公司名称关键词和其他团队成员；逐项列已有记录与尚未回答的问题。'
         notes[15] = '补查计划包含每个委托问题的缺口；多个年份和单个平台快照均不能自动证明历史变化。'
+    if typed:
+        notes.update({1: '摘要只汇总正文，正文仍待核验时不能自动获得通过状态。',
+                      2: '保留原始任职日期字段；公司成立日、出生日期和采集日不能补成任职日。',
+                      3: '剔除年报法定责任声明；公开表达不等于人格、抗压能力或诚信结论。',
+                      4: '公司经营资料保留公司归属；不从企业规模或产品参数推导个人能力。',
+                      5: '保留管理相关来源，不从员工规模、任职年限直接推出管理能力。',
+                      6: '团队其他成员单独标明，不能归给目标人物，也不送入目标人物分析。',
+                      7: '直接证据和授权访谈不足，维持待补证，不生成信用等级。',
+                      8: '剔除“感谢同行伙伴”等误选；缺少同口径可比人物时明确无材料。',
+                      9: '公司其他股东不当作人物持股；比例和股数、不同主体/单位/时期不能判为冲突。',
+                      10: '委托问题驱动选材，列主体、指标、单位、时期与来源；每题保留未解决事项。',
+                      11: '任职资料不自动证明实际决策权、投资人沟通机制或退出权利。',
+                      12: '“执行董事”不能当作司法执行或风险信号；无直接资料不等于无风险。',
+                      13: '综合评估继承正文待核验状态，不自动评级。',
+                      14: '引用从正文实际编号生成，源材料始终由程序填入，不让模型重抄。',
+                      15: '保留补证、分析拦截、时期和归属问题；程序规则不代表完整语义核验。'})
     summaries = [json.loads((p / 'summary.json').read_text(encoding='utf-8')) for p in (before, after)]
     reports = [split_sections((p / 'desktop_report.md').read_text(encoding='utf-8')) for p in (before, after)]
     audits = [{r['chapter']: r for r in s['chapter_audit']['chapters']} for s in summaries]
@@ -62,6 +79,7 @@ def main():
                 'after_validation_rejections': rejection,
                 'before_analysis_count': reports[0].get(i, '').count('- 研究判断（待人工复核）'),
                 'after_analysis_count': reports[1].get(i, '').count('- 研究判断（待人工复核）'),
+                'review_status': a.get('review_status', ''), 'source_scope_counts': a.get('source_scope_counts', {}),
                 'status': status, 'change': notes[i], 'current_gaps': a.get('gaps', [])}
         rows.append(item)
         esc = html.escape
@@ -80,7 +98,7 @@ def main():
     (after / 'chapter-comparison.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
     # Public-source draft only; raw archives, logs, credentials and local DBs
     # are deliberately not copied into deliverables.
-    output = ROOT / ('deliverables/person-commission-optimization-20261020.html' if commissioned else 'deliverables/person-full-run-20261020.html')
+    output = ROOT / ('deliverables/person-evidence-validation-20261020.html' if typed else 'deliverables/person-commission-optimization-20261020.html' if commissioned else 'deliverables/person-full-run-20261020.html')
     table = ''.join(f'<tr><td><a href="#c{r["chapter"]}">{r["chapter"]}. {html.escape(r["title"])}</a></td><td>{r["before_eids"]} → {r["after_eids"]}</td><td>{html.escape(r["change"])}</td><td>{html.escape(r["status"])}</td></tr>' for r in rows)
     page = '''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>人物链路15章实际运行对照</title>
 <style>body{font:16px/1.7 system-ui,sans-serif;color:#1c2a3a;background:#f3f6fa;max-width:1200px;margin:30px auto;padding:0 22px}h1{font-size:30px}section,.intro{background:white;padding:24px;margin:22px 0;border-radius:12px}table{border-collapse:collapse;width:100%;background:white}td,th{padding:12px;border:1px solid #dbe3ee;text-align:left;vertical-align:top}a{color:#165bb5}.state{color:#9d4312}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.7 system-ui}details{background:#f6f8fb;padding:12px;margin:10px 0}summary{cursor:pointer;font-weight:600}.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:800px){.pair{display:block}table{font-size:13px}}</style>
@@ -97,6 +115,16 @@ def main():
         page = page.replace('文字变短是去除整段公司资料重复，不单独证明质量更高。', '文字长度用于检查冗余，分析条数和引用条数都不能单独证明质量提高。')
         page = page.replace('运行限制：博查本轮限流后熔断，由其他引擎继续；部分关联公司采集失败/身份不符被排除。建议书模型超时后使用模板兜底。',
                             '运行限制：原始采集曾遇博查限流及部分平台失败，本轮未重跑采集；另做的两个新搜索探针均有返回。最新写作复跑第9章模型超时，部分其他章节分析仍被拦截。建议书本轮未重跑。')
+    if typed:
+        page = page.replace('人物链路15章实际运行对照', '人物报告资料、写作与校验对照')
+        page = page.replace('人物链路：15章实际运行对照', '人物报告：资料整理、写作与内容校验')
+        start = page.index('<div class="intro">')
+        end = page.index('</div>', start) + len('</div>')
+        page = page[:start] + '''<div class="intro"><strong>完成15章生成，尚未通过正式内容交付验收。</strong>
+<p>修正前为上一轮同材料真实写作；修正后为本轮新写作输出经最新规则复验的结果。均使用相同35来源和相同委托输入，SHA256一致。新写作实际调用10次模型，69.2秒完成，全部返回；随后复用保存的模型输出补验新增规则，复验没有新增模型/检索/专业平台请求。</p>
+<p>本轮修复主体与字段整理、章节选材、原文由程序填入、写作输入过滤、不同指标/单位/主体/时期的比较限制及内部控制文字拦截。已剔除年报法定责任声明、“感谢同行伙伴”和“执行董事”造成的误选。证据编号、分析条数与生成速度都不是准确率。</p>
+<p>新Tavily密钥一次搜索返回3条，用时1.8秒；搜索摘要没有加入本报告，密钥仅在本地忽略配置。来源中的任职与持股时期、个人责任、观点归属仍须人工核验。第7、8、12章缺直接材料；第2、3、4、5、6、9、10章仍有分析被拦截；第11章有证据缺口；第1、13章继承正文未完成状态。</p>
+<p>Word包结构通过，环境缺少LibreOffice，未逐页视觉验收。没有重跑建议书、前端完整操作、共享知识入库或部署。规则不能代替完整的语义和事实核验。本页可展开每章查看实际前后正文。</p></div>''' + page[end:]
     page += table + '</tbody></table>' + ''.join(cards) + '</html>'
     output.write_text(page, encoding='utf-8')
     print(json.dumps({'page': str(output), 'comparison': str(after / 'chapter-comparison.json'), 'chapters': rows,
