@@ -7,22 +7,28 @@ import hashlib
 import json
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urlparse
+try:
+    from .person_text import folded
+except ImportError:
+    from person_text import folded
 
 
 def compact(text):
-    return re.sub(r'\s+', '', str(text or '')).lower()
+    return folded(str(text or ''))
 
 
 def exact_span(quote, text):
     """Restore literal whitespace from a source, never let a model rewrite it."""
     if not isinstance(quote, str) or len(compact(quote)) < 12:
         return ''
+    if quote in text:
+        return quote
     chars, offsets = [], []
     for i, char in enumerate(text):
         if not char.isspace():
-            for c in char.lower():
+            for c in compact(char):
                 chars.append(c)
                 offsets.append(i)
     start = ''.join(chars).find(compact(quote))
@@ -176,6 +182,7 @@ def validate_discovery(answer, sources, intake):
             rejected.append('unknown_feedback_kind'); continue
         feedback.append({'quote': quote, 'source_url': source.url, 'kind': kind,
                          'statement_quote': statement_quote,
+                         'evaluator_context_quote': next((p.strip() for p in re.split(r'\n\s*\n', source.content) if kind == 'attributed_opinion' and actor and compact(actor) in compact(p) and relation and compact(relation) in compact(p) and len(p.strip()) <= 700), ''),
                          'evaluator': actor, 'relationship': relation, 'target_name': target,
                          'period': str(row.get('period') or '') if compact(row.get('period')) in compact(quote) else '',
                          'source_published_at': (re.search(r'(?:发布时间|发布日期)\s*[:：]?\s*((?:19|20)\d{2}[-年]\d{1,2}[-月]\d{1,2})', source.content).group(1)
@@ -233,7 +240,8 @@ def annotated_facts(sources, intake):
         for record in meta.get('person_feedback_records', []):
             _, valid, _ = validate_discovery(json.dumps({'feedback': [record]}), sources, intake)
             for row in valid:
-                rows.append({'fact': row['quote'], 'source_url': source.url, 'source_title': source.title,
+                statement = row['statement_quote'] if row['kind'] == 'attributed_opinion' else row['quote']
+                rows.append({'fact': statement, 'evidence_quote': statement, 'source_url': source.url, 'source_title': source.title,
                              'identity_confidence': 'high', 'identity_match': 'confirmed',
                              'claim_type': 'person_feedback_record', 'feedback_record': row, 'person_chapters': [7],
                              'published_at': row['source_published_at'],
@@ -244,16 +252,30 @@ def annotated_facts(sources, intake):
             if not valid or nomination.get('target_name') != target:
                 continue
             peer = valid[0]
-            quote = exact_span(record.get('quote'), source.content)
-            if not quote or not all(compact(v) in compact(quote) for v in (peer['name'], peer['company'])):
-                continue
-            rows.append({'fact': quote, 'source_url': source.url, 'source_title': source.title,
+            retained_quote = exact_span(record.get('quote'), source.content)
+            # Recompute own-subject excerpts too: older metadata may contain a
+            # sentence about a different director who merely mentions the peer.
+            issuer_context = document_issuer_context(source, peer)
+            quotes = list(dict.fromkeys(peer_excerpts(retained_quote or '', peer, issuer_context)))
+            for recovered in peer_excerpts(source.content, peer, issuer_context):
+                if any(not compact(recovered).replace(compact(q), '') for q in quotes):
+                    continue
+                if recovered not in quotes:
+                    quotes.append(recovered)
+            for quote in quotes:
+                locations = [p for p in meta.get('document_pages', []) if compact(quote) in compact(p.get('text', '')) or compact(quote) in compact(p.get('ocr_text', ''))]
+                native = any(not p.get('native_text_issue') and compact(quote) in compact(p.get('text', '')) for p in locations)
+                rows.append({'fact': quote, 'source_url': source.url, 'source_title': source.title,
                          'identity_confidence': 'high', 'identity_match': 'confirmed', 'claim_type': 'person_peer_record',
                          'comparison_subject': peer['name'], 'comparison_context': peer, 'person_chapters': [8],
                          'comparison_record_kind': 'profile', 'individual_peer_page': bool(meta.get('person_peer_context')),
+                         'biography_excerpt': len(quote) >= 100 and compact(quote).startswith(compact(peer['name'])) and bool(re.search(r'出生|学历|学位|毕业|born|degree|graduat', quote, re.I)),
                          'source_type': source.source_type,
-                         'primary_disclosure': source.source_type in {'official', 'filing', 'government', 'regulatory'},
-                         'provider': meta.get('provider'), 'retrieved_at': meta.get('retrieved_at', '')})
+                         'primary_disclosure': primary_document(source),
+                         'source_physical_pages': sorted({p['page'] for p in locations}),
+                         'source_text_origin': 'local_ocr_pending_visual_review' if locations and not native and any(p.get('ocr_text') for p in locations) else 'retained_original_text',
+                         'source_text_issue': 'possible_revision_overlap' if re.search(r'继续曾担任|繼續曾擔任|已成现为|已成現為|曾担任加入|曾擔任加入', quote) else '',
+                             'provider': meta.get('provider'), 'retrieved_at': meta.get('retrieved_at', '')})
             nomination_source = by_url[peer['source_url']]
             rows.append({'fact': peer['basis_quote'], 'source_url': peer['source_url'], 'source_title': nomination_source.title,
                          'identity_confidence': 'high', 'identity_match': 'confirmed', 'claim_type': 'person_peer_record',
@@ -262,10 +284,69 @@ def annotated_facts(sources, intake):
     return rows
 
 
-def peer_excerpts(text, peer):
-    paragraphs = re.split(r'\n\s*\n|(?<=[。！？])', text)
-    return [p.strip() for p in paragraphs if 20 <= len(p.strip()) <= 1400
-            and all(compact(v) in compact(p) for v in (peer['name'], peer['company']))][:3]
+def primary_document(source):
+    host = urlparse(source.url).hostname or ''
+    official = ('hkexnews.hk', 'cninfo.com.cn', 'sse.com.cn', 'szse.cn', 'sec.gov')
+    return bool(host.endswith('.gov.cn') or any(host == d or host.endswith('.' + d) for d in official))
+
+
+def peer_material_fields(facts):
+    """Available literal fields, distinct from an aligned comparison period."""
+    industries, dates = [], []
+    for fact in facts:
+        if fact.get('comparison_record_kind') != 'profile':
+            continue
+        for match in re.finditer(r'新能源|电动汽车|電動汽車|汽车制造|汽車製造|汽车服务|汽車服務|汽车|汽車|半导体|半導體|软件|軟件|生物医药|生物醫藥', fact['fact']):
+            if match[0] not in industries:
+                industries.append(match[0])
+        record = fact.get('observation') or {}
+        for event in record.get('source_events', []):
+            if event['kind'] == 'appointment' and event['date_literal'] not in dates:
+                dates.append(event['date_literal'])
+        for field in record.get('role_date_fields', []):
+            if field['source_value'] not in dates:
+                dates.append(field['source_value'])
+    return {'industry_literals': industries, 'role_date_literals': dates}
+
+
+def document_issuer_context(source, peer):
+    if not primary_document(source):
+        return False
+    company = re.escape(compact(peer['company']))
+    footer = company + r'(?:集团|控股|股份有限公司|有限公司|inc\.?|limited)?'
+    for page in (source.source_metadata or {}).get('document_pages', []):
+        body = page.get('ocr_text') or page.get('text') or ''
+        if any(re.fullmatch(footer, compact(line), re.I) for line in body.splitlines()[-5:]):
+            return True
+    return False
+
+
+def peer_excerpts(text, peer, document_company_context=False):
+    # Keep a complete named biography. Sentence splitting used to lose the
+    # company later in the same bio, then select another director's sentence
+    # mentioning the candidate only as a shareholder.
+    paragraphs = re.split(r'\n\s*\n', text)
+    selected = []
+    name = compact(peer['name'])
+    for paragraph in paragraphs:
+        literal = paragraph.strip()
+        clean = compact(literal)
+        company_link = compact(peer['company']) in clean or (document_company_context and clean.startswith(name) and bool(re.search(r'我们|本公司|本集团|ourcompany|thecompany', clean)))
+        if not 20 <= len(literal) <= 1800 or name not in clean or not company_link:
+            continue
+        if re.search(r'序号.{0,8}公司名称|公司名称.{0,15}关联关系', clean):
+            continue
+        if re.match(r'彼|其|他|她', clean) and not clean.startswith(name):
+            continue
+        position = clean.find(name)
+        # A candidate buried as the owner/relative of another subject is not
+        # that candidate's own role. A source nomination remains separate.
+        if position > 100 or re.search(r'由.{0,45}$|股东.{0,15}$|拥有人.{0,15}$', clean[:position]):
+            continue
+        if not re.search(re.escape(name) + r'.{0,90}(?:任|董事|创办|创始|负责|主席|chief|founder|director|officer|president)', clean, re.I):
+            continue
+        selected.append(literal)
+    return selected[:3]
 
 
 def view_status(chapter, view, facts):
@@ -283,6 +364,10 @@ def view_status(chapter, view, facts):
     if chapter == 7:
         terms = ('员工', '同事') if '员工' in view else ('客户', '合作', '供应商') if '合作伙伴' in view else ('同行', '同业', '对手')
         selected = [f for f in facts if any(t in (f.get('feedback_record') or {}).get('relationship', '') for t in terms)]
+        if '合作伙伴' in view and not selected:
+            investor_context = [f for f in facts if re.search(r'投资|股东|持股|invest|sharehold', (f.get('feedback_record') or {}).get('evaluator_context_quote', ''), re.I)]
+            if investor_context:
+                return False, investor_context[:2], '已取得具名评价及原文投资背景线索；尚缺关系明确的客户/合作方评价，投资背景不替代客户或员工评价，实际利益关系及代表性仍须核对。'
         if '契约' in view:
             selected = [f for f in facts if feedback_event(f['fact'], f.get('subject', '')) or (f.get('feedback_record') or {}).get('kind')=='contract_event']
             return bool(selected), selected[:2], '已取得具体契约或承诺披露，实际履行、适用时期及结果仍未交叉核实。' if selected else '缺少可归属于本人的具体契约或履约记录。'
@@ -296,7 +381,9 @@ def extract_personal_feedback(workflow, sources, intake, emit=None):
     target_pattern = '(?:' + '|'.join(re.escape(str(n)) for n in [target, *((intake.get('person_anchor') or {}).get('aliases') or [])] if n) + ')'
     packets = []
     opinion_pattern = r'(?:被|评价|形容|回忆|认为|称)[^。\n]{0,150}' + target_pattern
-    sources = sorted(sources, key=lambda s: 0 if re.search(opinion_pattern, s.content or '') else 1)
+    sources = sorted(sources, key=lambda s: (0 if (s.source_metadata or {}).get('person_feedback_only') else 1,
+                                            0 if re.search(opinion_pattern, s.content or '') else 1,
+                                            -int(getattr(s, 'id', 0) or 0)))
     for source in sources:
         if not original_source(source) or (source.source_metadata or {}).get('identity_confidence') not in {'high', 'medium'}:
             continue
@@ -353,34 +440,56 @@ def collect(workflow, db, project, intake, emit=None):
     target = str(intake.get('target_name') or project.target_name)
     anchors = (intake.get('person_anchor') or {}).get('known_affiliations') or []
     org = str(anchors[0]) if anchors else ''
+    chosen_chapters = set(intake.get('person_followup_chapters') or [7, 8])
+    org_core = re.sub(r'(?:股份有限公司|有限责任公司|有限公司)$', '', org)
+    if len(org_core) < 3:
+        org_core = org
     queries = [(7, f'"{target}" "{org}" 合作伙伴 客户 评价 采访'),
                (8, f'"{target}" 同行 竞争对手 创始人 董事长'),
                (7, f'"{target}" 签署 承诺 履约 支付 合同'),
                (8, f'"{target}" 与 创始人 相比 同业'),
                (7, f'"{target}" 前同事 员工 回忆 采访')]
+    if chosen_chapters == {7}:
+        queries = [(7, f'"{target}" "{org_core}" 投资人 合作伙伴 评价 采访'),
+                   (7, f'"{target}" "{org_core}" 前同事 员工 回忆'),
+                   (7, f'"{target}" 承诺 争议 回应 处理结果')]
+    queries = [(n,q) for n,q in queries if n in chosen_chapters]
     attempts, added, fetched, model_calls = [], 0, 0, 0
     unavailable = dict(audit.get('unavailable_providers', {}))
-    fetch_cap = fetch_remaining - min(4, fetch_remaining // 2)
+    fetch_cap = fetch_remaining if chosen_chapters == {7} else fetch_remaining - min(4, fetch_remaining // 2)
     fetch_cache = {}
 
-    def search(chapter, query, peer=None):
+    def event(label, status='running', **fields):
+        if emit:
+            emit({'stage': 'web_search', 'agent': 'person_chapter_research', 'label': label,
+                  'status': status, **fields})
+
+    def time_available():
+        deadline = os.getenv('RESEARCH_USER_DEADLINE_UTC')
+        return not deadline or (datetime.fromisoformat(deadline.replace('Z', '+00:00')) - datetime.now(timezone.utc)).total_seconds() >= 50
+
+    def search(chapter, query, peer=None, include_domains=None, engine_override=None):
         nonlocal added, fetched
-        if len(attempts) >= limit:
+        if len(attempts) >= limit or not time_available():
             return
-        engine = next((p for p in providers if p not in unavailable), None)
+        engine = engine_override if engine_override in providers and engine_override not in unavailable else next((p for p in providers if p not in unavailable), None)
         if not engine:
             return
         row = {'query': query, 'provider': engine, 'chapters': [chapter], 'status': 'planned',
-               'reason': 'peer_identity_fetch' if peer else 'attributed_event_or_peer_discovery', 'result_count': 0}
+               'reason': 'validated_feedback_gap_fallback' if engine_override else 'peer_identity_fetch' if peer else 'attributed_event_or_peer_discovery', 'result_count': 0}
         attempts.append(row)
+        event('人物章节定向补查开始', chapter=chapter, provider=engine, query=query)
         try:
-            results = web_search_provider.search_single(engine, query, limit=4)
+            results = web_search_provider.search_single(engine, query, limit=4, **({'include_domains': include_domains} if include_domains else {}))
+            if include_domains:
+                row['include_domains'] = include_domains
             row.update(status='returned', result_count=len(results))
         except Exception as exc:
             reason = failure_kind({'error': str(exc)})
             row.update(status='failed', error_reason=reason, exception_type=type(exc).__name__)
             if reason in {'quota_exceeded', 'unauthorized', 'access_denied', 'rate_limited'}:
                 unavailable[engine] = reason
+            event('人物章节补查请求失败', 'warning', chapter=chapter, provider=engine, reason=reason)
             return
         if peer:
             def priority(item):
@@ -401,7 +510,7 @@ def collect(workflow, db, project, intake, emit=None):
                 if peer:
                     attach_peer(existing, peer)
                 continue
-            if url not in fetch_cache and (fetched >= fetch_cap or sum(s.get('fetch_attempted', False) for s in row.get('sources', [])) >= 2):
+            if url not in fetch_cache and (not time_available() or fetched >= fetch_cap or sum(s.get('fetch_attempted', False) for s in row.get('sources', [])) >= 2):
                 continue
             host = urlparse(url).netloc.lower().removeprefix('www.')
             title = str(item.get('title') or url)
@@ -412,16 +521,20 @@ def collect(workflow, db, project, intake, emit=None):
             reused_fetch = url in fetch_cache
             if not reused_fetch:
                 fetched += 1
-                fetch_cache[url] = workflow._fetch_web_url_with_timeout(url, allow_browser=False, emit=emit)
+                event('人物章节原文抓取', chapter=chapter, url=url)
+                options = {'document_profile': 'person'} if urlparse(url).path.lower().endswith('.pdf') else {}
+                fetch_cache[url] = workflow._fetch_web_url_with_timeout(url, allow_browser=False, emit=emit, **options)
             fetched_data = fetch_cache[url]
             text = str(fetched_data.get('content') or '')
             row.setdefault('sources', []).append({'url': url, 'fetch_attempted': not reused_fetch, 'fetch_status': fetched_data.get('status')})
+            event('人物章节原文抓取结果', 'done', chapter=chapter, url=url, fetch_status=fetched_data.get('status'), text_chars=len(text))
             if fetched_data.get('status') != 'done' or len(text) < 120:
                 continue
             identity = contextual_identity(workflow, title, text, intake)
             if peer:
                 valid = all(compact(v) in compact(text) for v in (peer['name'], peer['company']))
                 if not valid:
+                    row['sources'][-1].update(identity_status='quarantined', reason='peer_name_or_company_missing')
                     continue
                 identity = {'confidence': 'low', 'reason': '同行人物专用来源，禁止归入目标人物事实'}
             elif identity['confidence'] not in {'high', 'medium'}:
@@ -433,6 +546,11 @@ def collect(workflow, db, project, intake, emit=None):
                         'person_intake_fingerprint': workflow._intake_evidence_fingerprint(intake),
                         'fetch_status': 'done', 'content_kind': 'full_text', 'retrieved_at': datetime.now().isoformat(),
                         'person_peer_context': peer or {}}
+            if chapter == 7:
+                metadata['person_feedback_only'] = True
+            for document_key in ('document_pages', 'document_extraction'):
+                if fetched_data.get(document_key) is not None:
+                    metadata[document_key] = fetched_data[document_key]
             key = research_store.put_text(f'projects/{project.id}/person-followup/{hashlib.sha256(url.encode()).hexdigest()}.txt', text, 'text/plain; charset=utf-8')
             if existing:
                 existing.content, existing.source_metadata, existing.object_key = text, metadata, key
@@ -446,25 +564,70 @@ def collect(workflow, db, project, intake, emit=None):
             db.expire(project, ['sources'])
             if peer:
                 attach_peer(source, peer)
+        event('人物章节定向补查完成', 'done', chapter=chapter, provider=engine, result_count=len(results), new_sources=added)
 
     def attach_peer(source, peer):
-        records = [{'quote': quote, 'nomination': peer} for quote in peer_excerpts(source.content or '', peer)]
+        issuer_context = document_issuer_context(source, peer)
+        quotes = peer_excerpts(source.content or '', peer, issuer_context)
+        if source.url == peer.get('source_url'):
+            nomination_quote = exact_span(peer.get('quote'), source.content or '')
+            if nomination_quote and peer_excerpts(nomination_quote, peer):
+                quotes = list(dict.fromkeys([nomination_quote, *quotes]))
+        records = [{'quote': quote, 'nomination': peer} for quote in quotes]
         if records:
             previous = (source.source_metadata or {}).get('person_peer_records', [])
             merged = {(r['nomination']['name'], r['quote']): r for r in [*previous, *records]}
             source.source_metadata = {**(source.source_metadata or {}), 'person_peer_records': list(merged.values())[-12:]}
             db.commit()
 
+    pre_extracted_feedback, retained_rejections = [], []
+    skipped_retained = []
+    if chosen_chapters == {7}:
+        pre_extracted_feedback, retained_rejections, extra_calls = extract_personal_feedback(workflow, list(project.sources), intake, emit)
+        model_calls += extra_calls
+        investment = any(r.get('kind') == 'attributed_opinion' and re.search(r'投资|股东|sharehold|invest', r.get('evaluator_context_quote', '') + r.get('relationship', ''), re.I) for r in pre_extracted_feedback)
+        employee = any(r.get('kind') == 'attributed_opinion' and re.search(r'员工|同事|employee|colleague', r.get('relationship', ''), re.I) for r in pre_extracted_feedback)
+        keep = []
+        for index, item in enumerate(queries):
+            if index == 0 and investment or index == 1 and employee:
+                skipped_retained.append({'query': item[1], 'reason': 'retained_attributed_material_available_not_independent_verification'})
+            else:
+                keep.append(item)
+        queries = keep
     if intake.get('person_chapter_followup_mode') != 'retained_only':
         for chapter, query in queries:
             search(chapter, query)
-    try:
-        model_calls += 1
-        answer = workflow._invoke_person_report_section('人物7/8章来源摘录 Agent', discovery_prompt(list(project.sources), intake), emit)
-        peers, feedback, rejected = validate_discovery(answer, list(project.sources), intake)
-    except Exception as exc:
-        peers, feedback, rejected = [], [], ['discovery_api_failed:' + type(exc).__name__]
-    if not feedback:
+    retained = (audit.get('chapter_7_8_followup') or {}).get('peer_candidates') or []
+    retained_feedback = (audit.get('chapter_7_8_followup') or {}).get('feedback_records') or []
+    peers, feedback, rejected = validate_discovery(json.dumps({'peers': retained, 'feedback': retained_feedback}, ensure_ascii=False), list(project.sources), intake)
+    rejected.extend(retained_rejections)
+    if chosen_chapters == {7}:
+        if attempts:
+            feedback, reasons, extra_calls = extract_personal_feedback(workflow, list(project.sources), intake, emit)
+            rejected.extend(reasons)
+            model_calls += extra_calls
+        else:
+            feedback = []
+        feedback = list({(r['source_url'], r['statement_quote']): r for r in [*pre_extracted_feedback, *feedback]}.values())
+        relationship_material = any(r.get('kind') == 'attributed_opinion' and re.search(r'员工|同事|客户|合作|投资|股东|伙伴', r.get('relationship', '')) for r in feedback)
+        if queries and re.search(r'员工|同事', queries[0][1]):
+            relationship_material = any(r.get('kind') == 'attributed_opinion' and re.search(r'员工|同事', r.get('relationship', '')) for r in feedback)
+        primary = next((r['provider'] for r in attempts), None)
+        fallback = next((p for p in providers if p != primary and p not in unavailable), None)
+        if queries and not relationship_material and fallback and len(attempts) < limit and fetched < fetch_remaining:
+            search(7, queries[0][1], engine_override=fallback)
+            extra, reasons, extra_calls = extract_personal_feedback(workflow, list(project.sources), intake, emit)
+            feedback = list({(r['source_url'], r['quote']): r for r in [*feedback, *extra]}.values())
+            rejected.extend(reasons)
+            model_calls += extra_calls
+    elif intake.get('person_chapter_followup_mode') != 'retained_only' or not peers:
+        try:
+            model_calls += 1
+            answer = workflow._invoke_person_report_section('人物7/8章来源摘录 Agent', discovery_prompt(list(project.sources), intake), emit)
+            peers, feedback, rejected = validate_discovery(answer, list(project.sources), intake)
+        except Exception as exc:
+            peers, feedback, rejected = [], [], ['discovery_api_failed:' + type(exc).__name__]
+    if not feedback and chosen_chapters != {7} and intake.get('person_chapter_followup_mode') != 'retained_only':
         feedback, reasons, extra_calls = extract_personal_feedback(workflow, list(project.sources), intake, emit)
         rejected.extend(reasons)
         model_calls += extra_calls
@@ -474,18 +637,22 @@ def collect(workflow, db, project, intake, emit=None):
                                   [*(source.source_metadata or {}).get('person_feedback_records', []), record]}
     db.commit()
     fetch_cap = fetch_remaining
-    for index, peer in enumerate(peers):
+    for index, peer in enumerate(peers if 8 in chosen_chapters else []):
         fetch_cap = min(fetch_remaining, fetched + max(1, (fetch_remaining-fetched) // (len(peers)-index)))
         source = next(s for s in project.sources if s.url == peer['source_url'])
         attach_peer(source, peer)
-        search(8, f'"{peer["name"]}" "{peer["company"]}" 官方 简介 {peer["role"]}', peer)
+        search(8, f'"{peer["name"]}" "{peer["company"]}" 官方 董事履历 投资者关系 {peer["role"]}', peer)
         if fetched < fetch_cap:
-            search(8, f'"{peer["name"]}" "{peer["company"]}" 年报 任职 职责', peer)
+            filing_domains = ['hkexnews.hk', 'cninfo.com.cn', 'sse.com.cn', 'szse.cn'] if re.search(r'[\u4e00-\u9fff]', peer['name']) else None
+            search(8, f'"{peer["name"]}" "{peer["company"]}" 年报 任职 职责', peer, filing_domains)
     followup = {'version': 'person-chapters-7-8-v1', 'attempts': attempts, 'fetch_attempts': fetched,
+                'retained_query_skips': skipped_retained,
                 'source_extraction_model_calls': model_calls, 'peer_candidates': peers,
                 'feedback_records': feedback, 'rejections': rejected, 'new_sources': added,
                 'status': 'source_candidates_require_review'}
-    audit = {**audit, 'chapter_7_8_followup': followup, 'calls_planned': audit.get('calls_planned', 0) + len(attempts),
+    history = list(audit.get('followup_iterations') or ([audit['chapter_7_8_followup']] if audit.get('chapter_7_8_followup') else []))
+    audit = {**audit, 'chapter_7_8_followup': followup, 'followup_iterations': [*history, followup][-20:],
+             'calls_planned': audit.get('calls_planned', 0) + len(attempts),
              'page_fetch_attempts': audit.get('page_fetch_attempts', 0) + fetched, 'unavailable_providers': unavailable}
     audit['budget_exhausted'] = audit['calls_planned'] >= integer('PERSON_SEARCH_CALL_BUDGET', 48, 0, 200)
     project.person_retrieval_audit = audit

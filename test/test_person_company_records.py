@@ -22,7 +22,7 @@ def test_company_table_rows_are_short_scoped_quotes_without_whole_profile_paddin
     assert not package['chapters'][3]['facts']
     assert not package['chapters'][7]['facts']
     assert package['chapters'][4]['facts']
-    assert package['chapters'][6]['facts']
+    assert not package['chapters'][6]['facts']  # Target's legal-representative row is not a colleague bio.
     assert package['chapters'][9]['facts']
     assert all(not f['analysis_allowed'] for f in package['chapters'][9]['facts'])
 

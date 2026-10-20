@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="760" viewBox="0 0 1120 760">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="44" y="48" font-family="Microsoft YaHei, Arial" font-size="25" font-weight="700" fill="#1f2937">核心关系网络图</text>
+<text x="44" y="78" font-family="Microsoft YaHei, Arial" font-size="14" fill="#64748b">分析示意图：基于已取得的结构化记录与可追溯事实生成；待核验关系不代表已确认事实。</text>
+<text x="44" y="102" font-family="Microsoft YaHei, Arial" font-size="13" fill="#64748b">仅采用第9章入选原文及明确标示的输入定位；全部关系仍待核验，证据编号见正文。</text>
+<line x1="560" y1="400" x2="380" y2="341" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="7 5"/>
+<text x="415" y="370" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">来源所列董事（待核验）</text>
+<line x1="560" y1="400" x2="380" y2="459" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="7 5"/>
+<text x="415" y="429" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">来源所列总经理（待核验）</text>
+<line x1="560" y1="400" x2="740" y2="341" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="7 5"/>
+<text x="705" y="370" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">来源所列理事（待核验）</text>
+<line x1="560" y1="400" x2="740" y2="459" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="7 5"/>
+<text x="705" y="429" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">来源所列关联（待核验）</text>
+<rect x="415" y="354" rx="10" ry="10" width="290" height="92" fill="#2563eb" stroke="#1d4ed8"/>
+<text x="560" y="390" font-family="Microsoft YaHei, Arial" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle">王传福</text>
+<text x="560" y="434" font-family="Microsoft YaHei, Arial" font-size="13" fill="#dbeafe" text-anchor="middle">目标人物</text>
+<rect x="60" y="301" rx="8" ry="8" width="320" height="80" fill="#fff7ed" stroke="#fb923c" stroke-width="1.4"/>
+<text x="220" y="328" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">深圳比亚迪戴姆勒新技术有限公司</text>
+<text x="220" y="357" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">企业/机构|来源所列董事（待核验）</text>
+<text x="220" y="375" font-family="Microsoft YaHei, Arial" font-size="10" fill="#64748b" text-anchor="middle">E-P6F067DA25913ED</text>
+<rect x="60" y="419" rx="8" ry="8" width="320" height="80" fill="#fff7ed" stroke="#fb923c" stroke-width="1.4"/>
+<text x="220" y="446" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">深圳市比格电池有限公司</text>
+<text x="220" y="475" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">企业/机构|来源所列总经理（待核验）</text>
+<text x="220" y="493" font-family="Microsoft YaHei, Arial" font-size="10" fill="#64748b" text-anchor="middle">E-P70F6B72FAF8DAF</text>
+<rect x="740" y="301" rx="8" ry="8" width="320" height="80" fill="#fff7ed" stroke="#fb923c" stroke-width="1.4"/>
+<text x="900" y="328" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">比亚迪慈善基金会</text>
+<text x="900" y="357" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">企业/机构|来源所列理事（待核验）</text>
+<text x="900" y="375" font-family="Microsoft YaHei, Arial" font-size="10" fill="#64748b" text-anchor="middle">E-P6F067DA25913ED</text>
+<rect x="740" y="419" rx="8" ry="8" width="320" height="80" fill="#fff7ed" stroke="#fb923c" stroke-width="1.4"/>
+<text x="900" y="446" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">比亚迪股份有限公司</text>
+<text x="900" y="475" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">企业/机构|来源所列关联（待核验）</text>
+<text x="900" y="493" font-family="Microsoft YaHei, Arial" font-size="10" fill="#64748b" text-anchor="middle">E-P24B8C6EB3F5F6F</text>
+</svg>

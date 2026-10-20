@@ -106,6 +106,77 @@ def test_lifecycle_dedup_keeps_actual_result_not_last_skip():
     assert coverage_rows(rows)[0]['status'] == 'records_found'
 
 
+def test_repeated_local_source_does_not_erase_a_valid_returned_record(monkeypatch):
+    workflow, project, _ = setup(monkeypatch)
+    workflow._save_structured_source.return_value = False
+    collect(workflow, None, project, '恒川软件有限公司', {'target_name': '林知远'})
+    outcomes = [r for r in coverage_rows(project.person_platform_attempts) if r['tool'] in IDENTITY]
+    assert len(outcomes) == 2
+    assert all(r['status'] == 'records_found' for r in outcomes)
+
+
+def test_primary_filing_can_locate_xiniu_company_context_without_clearing_qcc(monkeypatch):
+    workflow, project, _ = setup(monkeypatch)
+    monkeypatch.delenv('QCC_API_KEY')
+    monkeypatch.setenv('XINIU_API_KEY','synthetic-xiniu-key')
+    project.sources = [SimpleNamespace(id=1, url='https://www.hkexnews.hk/fixture-not-real.pdf', title='合成原始披露',
+        content='林知远担任恒川软件有限公司董事，具体任期及权限以原件为准。'*6,
+        source_metadata={'identity_confidence':'high'})]
+    calls = []
+    def query(url, headers, tool, arguments, **kwargs):
+        calls.append(tool)
+        return {'result':{'content':[{'type':'text','text':'恒川软件有限公司的公司融资资料，不能归给个人。'}]}},None
+    workflow._mcp_call_tool = query
+    value = {'target_name':'林知远','focus_modules':['经营融资'],
+             'person_anchor':{'known_affiliations':['恒川软件有限公司']}}
+    collect(workflow,None,project,'恒川软件有限公司',value)
+    assert calls == ['get_company_info']
+    metadata = workflow._save_structured_source.call_args.args[6]
+    assert metadata['affiliation_basis'] == 'public_primary_disclosure'
+    assert not getattr(project,'person_platform_identities',{})
+    assert all(r['status']=='not_queried' for r in coverage_rows(project.person_platform_attempts) if r['provider']=='qcc')
+
+
+def test_xiniu_unknown_company_is_not_retried_and_empty_events_stay_empty(monkeypatch):
+    workflow,project,_=setup(monkeypatch)
+    monkeypatch.delenv('QCC_API_KEY');monkeypatch.setenv('XINIU_API_KEY','synthetic-xiniu-key')
+    project.sources=[SimpleNamespace(id=1,url='https://www.hkexnews.hk/fixture-not-real.pdf',title='合成披露',
+        content='林知远担任恒川软件有限公司董事，职责及任期以披露时期为准。'*6,source_metadata={'identity_confidence':'high'})]
+    calls=[]
+    def query(url,headers,tool,arguments,**kwargs):
+        calls.append(tool)
+        payload=({'error':{'message':'未找到公司“恒川软件有限公司”的有效记录。请确认传入的是完整工商名称。'}} if tool=='get_company_info' else
+                 {'result':{'content':[{'text':'{"总数":0,"数据":[]}'}]}})
+        return payload,None
+    workflow._mcp_call_tool=query
+    collect(workflow,None,project,'恒川软件有限公司',{'target_name':'林知远','focus_modules':['融资','团队','近期动态'],
+        'person_anchor':{'known_affiliations':['恒川软件有限公司']}})
+    assert calls == ['get_company_info','get_project_events']
+    rows=[r for r in coverage_rows(project.person_platform_attempts) if r['provider']=='xiniu']
+    assert [r['status'] for r in rows] == ['failed','not_queried','empty_result']
+    assert rows[0]['reason'] == rows[1]['reason'] == 'provider_entity_not_found'
+    workflow._save_structured_source.assert_not_called()
+
+
+def test_saved_responses_reclassify_old_generic_outcomes_without_new_calls(monkeypatch):
+    from person_platforms import reassess_retained_outcomes
+    import research_store
+    responses={'missing':json.dumps({'error':{'message':'未找到公司有效记录。'}}),
+               'empty':json.dumps({'result':{'content':[{'text':'{"总数":0,"数据":[]}'}]}})}
+    monkeypatch.setattr(research_store.research_store,'get_text',lambda key:responses[key])
+    p=SimpleNamespace(person_platform_attempts=[
+        {'provider':'xiniu','subject':'甲机构','tool':'get_company_info:融资','status':'failed','reason':'request_failed','retrieved_at':'2026-01-02T03:04:05'},
+        {'provider':'xiniu','subject':'甲机构','tool':'get_project_events','status':'returned','reason':''}],
+        person_retrieval_audit={'professional_response_objects':[
+            {'provider':'xiniu','subject':'甲机构','tool':'get_company_info:融资','object_key':'missing'},
+            {'provider':'xiniu','subject':'甲机构','tool':'get_project_events','object_key':'empty'}]})
+    assert reassess_retained_outcomes(p)==2
+    assert p.person_platform_attempts[0]['reason']=='provider_entity_not_found'
+    assert p.person_platform_attempts[0]['original_reason']=='request_failed'
+    assert p.person_platform_attempts[0]['retrieved_at']=='2026-01-02T03:04:05'
+    assert p.person_platform_attempts[1]['status']=='empty_result'
+
+
 def test_explicit_provider_empty_is_scoped_and_distinct_from_summary_only():
     data = envelope('恒川软件有限公司', summary_only=True)
     doc = {'企业名称': '恒川软件有限公司', '人员名称': '林知远',

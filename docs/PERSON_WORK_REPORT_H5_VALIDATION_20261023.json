@@ -1,23 +1,22 @@
 {
-  "date": "2026-10-20",
+  "date": "2026-10-21",
   "briefing_date": "2026-10-23",
   "chapter_count": 15,
+  "actual_body_panels": 30,
   "workflow_steps_visible": 6,
   "speech_or_presentation_controls": false,
-  "citation_counts_match_saved_actual_runs": true,
-  "javascript_syntax": "passed",
+  "javascript_syntax": "passed node --check",
   "offline_external_assets": 0,
   "browser_checks": [
-    "chapter_filter_shows_7_8_10_11_12",
-    "hidden_chapter_navigation_restores_all_15",
-    "responsive_narrow_view_no_horizontal_overflow",
-    "desktop_layout_reviewed",
-    "30_actual_chapter_text_panels_loaded",
-    "full_chapter_expansion_removes_both_height_limits",
+    "all_15_chapters_and_30_full_text_panels",
+    "chapter8_expansion_aria_state",
+    "key_filter_7_8_10_11_12_and_restore_all",
     "difference_highlight_toggle",
-    "both_original_graphs_loaded_natural_width_1120"
+    "desktop_no_horizontal_overflow_at_1280",
+    "mobile_single_column_no_horizontal_overflow_at_390",
+    "both_original_graph_images_loaded",
+    "current_chapter15_no_stale_zero_authoritative_source_claim"
   ],
-  "actual_document_narrow_width_px": 375,
   "credential_scan": "passed",
   "research_api_calls_during_page_build": 0,
   "site_deployment": {
@@ -25,45 +24,84 @@
     "status": "succeeded",
     "audience": "owner_private",
     "url": "https://person-report-progress-wangli-20261023.smokybat12.chatgpt.site",
-    "source_commit": "2ebe30cab3857908563b3d01b2927118255c11b6",
-    "deployment_id": "appgdep_6ad73906ff688191afd8d2b7d7eb4bab",
-    "version_id": "appgprj_6ad7316fb71081918703a11bfd44ed8b~appgver_949d585262808191b9a350ad241896b1"
+    "source_commit": "b0212ac990c5bda78379379477c4d116c303cf1f",
+    "deployment_id": "appgdep_6ad79f07948c8191b6b8534eb7f1129f",
+    "version_id": "appgprj_6ad7316fb71081918703a11bfd44ed8b~appgver_47fb42b91ec88191a86ccea060d70e96"
   },
   "tencent_cloud_reference_page_modified": false,
-  "html_sha256": "17a61849c883250133e54b8e0a9a979a81b415c7dd5d4c62f4ab35574dc93bbe",
-  "offline_zip_sha256": "79435c1517dec826e6bab75a48de72b55b93041ac82323f9b1936c2efb4410e6",
-  "revision": "actual_saved_chapter_text_comparison",
-  "actual_body_panels": 30,
-  "original_graphs": 2,
-  "per_chapter_full_text_expansion": 15,
-  "complete_report_reading_pages": 2,
-  "complete_report_markdown_snapshots": 2,
-  "text_hash_basis": "UTF-8 decoded report text with universal newline normalization",
+  "html_sha256": "e412fd72b72a4fe224679cf9ce17005b07ac9077a6f9ba5b84b5fe28571620ea",
+  "offline_zip_sha256": "2f36a9e50c8fd1633de917c8a7b14f86412e32a9189ba5ab145c9daf82bf0225",
+  "revision": "20261021_iterative_real_chapter_evidence",
   "actual_report_sha256": [
-    "20d1a553c23feaa0a2c7b03086a3dd317490872f15027a26c9f61a74598acbb1",
-    "f1a1c2aa9d6a5221317ec16a6a093e9d5ae4dac32317456336682b86e6a79917"
+    "f1a1c2aa9d6a5221317ec16a6a093e9d5ae4dac32317456336682b86e6a79917",
+    "cbcf1573a713c17026845f823244640e19877c6b7135622daa19eb7708b56d3f"
   ],
   "original_graph_hashes": [
-    {
-      "source_reference": "projects/1/visual_evidence/relationship_graph_20261020051103.svg",
-      "sha256": "105d609f11c235d5099bb9b15d6d0fa8b2acf7b1a362f7cd68e24f3d3c03460f",
-      "bundled_file": "graphs/7a099673330e0a8c.svg"
-    },
     {
       "source_reference": "projects/1/visual_evidence/relationship_graph_20261020084838.svg",
       "sha256": "443ec76ad74f3fd7ae5fb12757a664161d59383802273d0ba98cbb1be22f6fd8",
       "bundled_file": "graphs/453750833c27cd21.svg"
+    },
+    {
+      "source_reference": "projects/1/visual_evidence/relationship_graph_20261020165619.svg",
+      "sha256": "caed426e38b85b194cb16ef537f4c27380e1da74e6592e5bbe53b6de72949164",
+      "bundled_file": "graphs/a8b66886fd79b266.svg"
     }
   ],
   "original_run_paths": {
-    "before_run": "work\\person-optimization\\full-live-20261020T130852",
-    "after_run": "work\\person-optimization\\same-corpus-20261020T164818",
-    "before_sources": 35,
-    "after_sources": 76,
-    "same_subject": true,
-    "same_source_corpus": false,
-    "not_original_main_branch_baseline": true,
-    "middle_zero_for_chapters_7_8": "work\\person-optimization\\same-corpus-20261020T155330"
+    "before_run": "work/person-optimization/same-corpus-20261020T164818",
+    "after_run": "work/person-optimization/same-corpus-20261021T005547-ef6911",
+    "before_sources": 76,
+    "after_sources": 95
   },
-  "online_browser_reload": "not_confirmed_timeout_native_deployment_success_is_verified"
+  "word_visual_qa": {
+    "public_label": "两份Word已完成全页布局检查，事实真实性仍需人工独立核验",
+    "review_method": "Every physical page reviewed in contact sheets, selected dense/source-index/graph pages enlarged; final cover title separately rechecked. Not independent source fact verification.",
+    "main_pages": 65,
+    "secondary_pages": 44,
+    "main_review_directory": "work/person-optimization/word-qa-main-final",
+    "secondary_review_directory": "work/person-optimization/word-qa-namesake-final",
+    "final_cover_check_pending": false,
+    "receipts": [
+      {
+        "page_count": 65,
+        "visual_review_status": "passed_layout_review",
+        "method": "All pages reviewed in contact sheets in prior rendering; unchanged pages matched by image SHA256; all changed pages visually rechecked; cover and graph/index enlarged. Not independent verification of every source statement.",
+        "final_docx_sha256": "caa0865c5603b2a74f081ff3dd35037aa562c03bb5eda45f67f67a19ea83ee31",
+        "final_pdf_sha256": "ee57da55863327f772c0d413867258cca3d5113df858a0836c293dfccd08a322",
+        "changed_pages": [
+          59,
+          60,
+          61,
+          62,
+          63,
+          64,
+          65
+        ],
+        "unchanged_pages_confirmed_by_image_sha256": 58
+      },
+      {
+        "page_count": 44,
+        "visual_review_status": "passed_layout_review",
+        "method": "All pages reviewed in contact sheets in prior rendering; unchanged pages matched by image SHA256; all changed pages visually rechecked; cover and graph/index enlarged. Not independent verification of every source statement.",
+        "final_docx_sha256": "963421ba1866e4e0744032cfc73112933be664dc166c5dc562d6ba348695d166",
+        "final_pdf_sha256": "9dc1595bf5f0a83f36689b016d49d0b8c1be93824b0f08d204b55db89538f6a6",
+        "changed_pages": [
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44
+        ],
+        "unchanged_pages_confirmed_by_image_sha256": 33
+      }
+    ]
+  },
+  "formal_due_diligence_accepted": false
 }

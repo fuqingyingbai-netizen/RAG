@@ -464,7 +464,7 @@ class WebSearchProvider:
                 best = result
             if len(result.get("content") or "") >= min_chars:
                 return result
-            if document_profile == 'company' and result.get('document_extraction') is not None and result.get('document_pages') is not None:
+            if document_profile in {'company', 'person'} and result.get('document_extraction') is not None and result.get('document_pages') is not None:
                 # A valid PDF with sparse/failed OCR is already an acquired
                 # original. Retain its page-level gaps; do not OCR it again
                 # with a mobile user-agent or replace the record with a reader
@@ -522,6 +522,12 @@ class WebSearchProvider:
                 }
             is_pdf = has_pdf_signature
             if is_pdf:
+                if document_profile == 'person':
+                    from person_pdf import extract_person_pdf
+                    document = extract_person_pdf(resp.content)
+                    return {**document, 'status': 'done' if document['content'] else 'empty_pdf',
+                            'error': '', 'content_type': content_type or 'application/pdf',
+                            'fetch_attempt': attempt_name, 'images': []}
                 if document_profile == 'company':
                     from company_pdf import extract_company_pdf
                     document = extract_company_pdf(resp.content)

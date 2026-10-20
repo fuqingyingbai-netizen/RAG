@@ -114,7 +114,9 @@ def test_three_engines_are_sequential_bounded_and_all_chapters_are_assessed(monk
 def test_duplicate_queries_cannot_spend_twice_on_same_engine():
     session = SearchSession(intake(), ['bocha'])
     rows = [{'query': '林知远 恒川软件 任职', 'person_chapters': [2]}] * 4
-    assert len(session.choose(rows, 1, [])) == 1
+    first = session.choose(rows, 1, [])
+    assert sum(r['query'] == rows[0]['query'] for r in first) == 1
+    assert sum(r.get('retrieval_reason') == 'primary_identity_source_reserve' for r in first) <= 1
     assert not session.choose(rows, 1, [])
 
 
@@ -126,6 +128,21 @@ def test_failed_account_is_not_queried_in_later_rounds():
     later = session.choose([], 2, [])
     assert later and all(r['preferred_providers'] != ['bocha'] for r in later)
     assert session.audit([])['unavailable_providers']['bocha'] == 'quota_exceeded'
+
+
+def test_primary_identity_has_a_slot_before_broad_chapter_queries():
+    value = intake()
+    rows = PersonResearchStrategy().expand_search_queries({'modules':[]},value)
+    session = SearchSession(value,['bocha','tavily','exa'])
+    first = session.choose(rows,1,[])
+    assert first[0]['retrieval_reason'] == 'primary_identity_source_reserve'
+    assert value['target_name'] in first[0]['query']
+    assert value['person_anchor']['known_affiliations'][0] in first[0]['query']
+    listed = source('恒川软件是上市公司，披露股票代码，本段仅为媒体介绍。'*6)
+    listed.source_type = 'news'
+    later = session.choose(rows,2,[listed])
+    assert later[0].get('include_domains')
+    assert later[0]['retrieval_reason'] == 'independent_engine_probe'
 
 
 def test_snippets_namesakes_and_reprints_do_not_close_gaps():
@@ -375,3 +392,12 @@ def test_actual_web_pipeline_retains_context_budget_and_all_15_diagnostics(monke
         report = next(a for a in artifacts if a.artifact_type == 'desktop_report')
         assert '人物检索已达到本轮请求预算' in report.content
         assert report.artifact_metadata['requires_human_review']
+        monkeypatch.setenv('WORKFLOW_RESUME_ENABLED','true')
+        # A writing-code upgrade must not invalidate an otherwise matching
+        # retained search stage or spend the search allowance a second time.
+        report.artifact_metadata = {**report.artifact_metadata,'report_pipeline_version':'older-writer-fixture'}
+        db.commit()
+        queries.clear()
+        rerun,_ = w.run_project(db,p,[],[],intake={**intake(),'company_name':'林知远'})
+        assert not queries
+        assert any(a.artifact_type=='desktop_report' for a in rerun)

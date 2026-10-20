@@ -25,11 +25,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--live', action='store_true', help='Authorize a new paid bounded run')
     parser.add_argument('--intake', type=Path, help='JSON intake for any person; otherwise use the retained QA example')
+    parser.add_argument('--deadline-utc', help='Stop new chapter model requests before the user deadline')
+    parser.add_argument('--search-budget', type=int, default=48)
+    parser.add_argument('--fetch-budget', type=int, default=44)
     args = parser.parse_args()
     if not args.live:
         parser.error('Use --live for real provider requests; this script has no automatic paid replay.')
     from dotenv import load_dotenv
     load_dotenv(ROOT / '.env')
+    if not 1 <= args.search_budget <= 48 or not 1 <= args.fetch_budget <= 44:
+        parser.error('Search/fetch allowances exceed the bounded QA defaults')
+    if args.deadline_utc:
+        os.environ['RESEARCH_USER_DEADLINE_UTC'] = args.deadline_utc
     started = time.monotonic()
     run = ROOT / 'work/person-optimization' / ('full-live-' + datetime.now().strftime('%Y%m%dT%H%M%S'))
     run.mkdir(parents=True)
@@ -37,8 +44,8 @@ def main():
         'DATABASE_URL': 'sqlite:///' + (run / 'run.sqlite').as_posix(),
         'RESEARCH_OBJECT_STORE': 'local', 'RESEARCH_LOCAL_STORE': str(run / 'objects'),
         'RESEARCH_LEGACY_RAG_ENABLED': 'false', 'CLEANING_MODE': 'fast', 'CLEANING_LLM_ENABLED': 'false',
-        'WORKFLOW_RESUME_ENABLED': 'false', 'PERSON_SEARCH_CALL_BUDGET': '48',
-        'PERSON_SEARCH_RESULTS_PER_QUERY': '6', 'PERSON_WEB_FETCH_BUDGET': '44',
+        'WORKFLOW_RESUME_ENABLED': 'false', 'PERSON_SEARCH_CALL_BUDGET': str(args.search_budget),
+        'PERSON_SEARCH_RESULTS_PER_QUERY': '6', 'PERSON_WEB_FETCH_BUDGET': str(args.fetch_budget),
         'PERSON_PLATFORM_CALL_BUDGET': '18', 'WEB_FETCH_TOTAL_TIMEOUT_SECONDS': '20',
         'PERSON_REPORT_SECTION_TIMEOUT_SECONDS': '90', 'PERSON_REPORT_SECTION_MAX_RETRIES': '0',
         'LLM_TIMEOUT_SECONDS': '90', 'LLM_MAX_RETRIES': '0',
@@ -71,6 +78,10 @@ def main():
             print(json.dumps({k: event.get(k) for k in ('stage', 'label', 'status', 'section') if event.get(k)}, ensure_ascii=False), flush=True)
 
     workflow = ResearchWorkflow()
+    from person_iteration import ChapterInvoker, copy_retained_tree
+    invoker = ChapterInvoker(workflow._invoke_person_report_section, run, safe,
+                             rewrite=range(1,14), deadline=args.deadline_utc)
+    workflow._invoke_person_report_section = invoker
     original_finalize = workflow._finalize_source_records
 
     def finalize(db, project, trace=None):
@@ -78,8 +89,9 @@ def main():
         for source in project.sources:
             snapshots.append({key: getattr(source, key) for key in ('id', 'source_type', 'title', 'url', 'content', 'summary', 'source_metadata', 'credibility_score')})
         (run / 'source-snapshots.json').write_text(json.dumps(safe(snapshots), ensure_ascii=False, indent=2), encoding='utf-8')
+        (run / 'person_retrieval_audit.json').write_text(json.dumps(safe(getattr(project, 'person_retrieval_audit', {}) or {}), ensure_ascii=False, indent=2), encoding='utf-8')
         if (run / 'objects').exists():
-            shutil.copytree(run / 'objects', run / 'objects-before-cleanup', dirs_exist_ok=True)
+            copy_retained_tree(run / 'objects', run / 'objects-before-cleanup')
         original_finalize(db, project, trace)
     workflow._finalize_source_records = finalize
     engine = create_engine(os.environ['DATABASE_URL'])
@@ -109,7 +121,7 @@ def main():
             if not target or intake.get('target_type', 'person') != 'person':
                 raise ValueError('Expected person intake with target name')
             project.target_name = target
-            project.title = target + '人物背景调查全链路验收'
+            project.title = target
             db.commit()
         (run / 'intake.json').write_text(json.dumps(intake, ensure_ascii=False, indent=2), encoding='utf-8')
         try:
@@ -141,6 +153,8 @@ def main():
             summary.update(status='failed', exception_type=type(exc).__name__, error=str(exc)[:1600])
             emit({'stage': 'full_live_qa', 'label': '全链路验收失败', 'status': 'error', 'detail': str(exc)[:1600]})
         summary['elapsed_seconds'] = round(time.monotonic()-started, 1)
+        summary['model_invocations'] = sum(e['status'] in {'returned','failed'} for e in invoker.events)
+        summary['deadline_utc'] = args.deadline_utc
         (run / 'summary.json').write_text(json.dumps(safe(summary), ensure_ascii=False, indent=2, default=str), encoding='utf-8')
         print(json.dumps({'status': summary['status'], 'chapter_count': summary.get('chapter_count'),
                           'summary': str(run / 'summary.json'), 'elapsed_seconds': summary['elapsed_seconds']}, ensure_ascii=False), flush=True)

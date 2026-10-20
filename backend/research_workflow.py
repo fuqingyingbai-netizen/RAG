@@ -27,7 +27,7 @@ from langchain.chat_models import init_chat_model
 from sqlalchemy.orm import Session, object_session
 
 try:
-    from .person_retrieval import SearchSession as PersonSearchSession, coverage as person_retrieval_coverage
+    from .person_retrieval import SearchSession as PersonSearchSession, coverage as person_retrieval_coverage, VERSION as PERSON_RETRIEVAL_VERSION
     from .person_identity import build_anchor as build_identity_anchor, affiliations as identity_affiliations
     from .person_evidence import VERSION as PERSON_TEMPLATE_VERSION, build_packages as build_person_packages, normalize_facts as normalize_person_facts, append_index as append_person_index, report_audit as audit_person_report, normalize_person_risk, name_in_text as person_name_in_text, matched_name_forms
     from .company_platform import CompanyPlatformAudit, restore_platform_audit, failure_kind as platform_failure_kind
@@ -41,7 +41,7 @@ try:
     from .research_strategies import get_research_strategy
     from .web_search import web_search_provider
 except ImportError:
-    from person_retrieval import SearchSession as PersonSearchSession, coverage as person_retrieval_coverage
+    from person_retrieval import SearchSession as PersonSearchSession, coverage as person_retrieval_coverage, VERSION as PERSON_RETRIEVAL_VERSION
     from person_identity import build_anchor as build_identity_anchor, affiliations as identity_affiliations
     from person_evidence import VERSION as PERSON_TEMPLATE_VERSION, build_packages as build_person_packages, normalize_facts as normalize_person_facts, append_index as append_person_index, report_audit as audit_person_report, normalize_person_risk, name_in_text as person_name_in_text, matched_name_forms
     from company_platform import CompanyPlatformAudit, restore_platform_audit, failure_kind as platform_failure_kind
@@ -501,6 +501,8 @@ class ResearchWorkflow:
             ])
             content = str(result.content or "")
             duration_ms = int((time.monotonic() - started_at) * 1000)
+            usage = getattr(result, 'usage_metadata', None) or {}
+            token_usage = {k: usage[k] for k in ('input_tokens', 'output_tokens', 'total_tokens') if isinstance(usage.get(k), int)}
             output_url_count = len(set(re.findall(r"https?://[^\s)\]|>]+", content)))
             _emit(
                 emit,
@@ -512,6 +514,7 @@ class ResearchWorkflow:
                 output_chars=len(content),
                 output_url_count=output_url_count,
                 duration_ms=duration_ms,
+                **token_usage,
                 status="done",
             )
             return content
@@ -703,7 +706,7 @@ class ResearchWorkflow:
             self._refresh_person_source_identities(project, normalized_intake)
             db.commit()
         cleaning_pipeline_version = (
-            "person-evidence-v17-feedback-peer-research"
+            "person-evidence-v20-article-actor-and-event-dates"
             if standardized_type == "person"
             else "company-evidence-v11-vector-survey-charts"
             if standardized_type == "company"
@@ -712,7 +715,7 @@ class ResearchWorkflow:
             else "default-v4-auditable"
         )
         report_pipeline_version = {
-            "person": "person-report-v10-feedback-peer-ledger",
+            "person": "person-report-v15-actor-and-period-boundaries",
             # v8 additionally indexes structured business records (QCC/Xiniu)
             # and uses evidence-density-aware company chapter writing. Do not
             # reuse a report produced before those delivery rules.
@@ -857,7 +860,7 @@ class ResearchWorkflow:
         if standardized_type == "person":
             prior_retrieval = self._latest_artifact(project, "person_retrieval_audit")
             skip_web_search = bool(resume_enabled and not force_refresh and sources_match_intake
-                                   and prior_retrieval and (prior_retrieval.artifact_metadata or {}).get("retrieval_version") == "person-retrieval-v2-budget-context"
+                                   and prior_retrieval and (prior_retrieval.artifact_metadata or {}).get("retrieval_version") == PERSON_RETRIEVAL_VERSION
                                    and (prior_retrieval.artifact_metadata or {}).get("intake_fingerprint") == intake_fingerprint)
         if standardized_type == 'industry' and plan.get('evidence_requirements'):
             evidence_gaps = self._industry_retrieval_gaps(project,plan)
@@ -1546,7 +1549,7 @@ class ResearchWorkflow:
         for source in list(getattr(project, "sources", []) or []):
             meta = dict(source.source_metadata or {})
             previous = meta.get("person_intake_fingerprint")
-            if previous == fingerprint:
+            if previous == fingerprint and meta.get('identity_policy_version') == PERSON_IDENTITY_POLICY_VERSION:
                 continue
             if (str(source.url or "").startswith(("http://", "https://")) or source.source_type in {"upload", "manual"}) and source.content and (previous or contextual):
                 identity = self._person_source_identity_confidence(source.title or "", source.content, intake)
@@ -1601,6 +1604,14 @@ class ResearchWorkflow:
                          and (s.source_metadata or {}).get("stage") not in {"initial_upload", "human_review", "second_stage"}]
             return any(source_in_current_run(s, fingerprint) for s in automated)
         if target_type != "person":
+            return True
+        fingerprint = self._intake_evidence_fingerprint(intake)
+        retained = [s for s in sources if (s.content or '').strip()
+                    and (s.source_metadata or {}).get('identity_status') != 'quarantined'
+                    and (s.source_metadata or {}).get('identity_confidence') in {'high','medium'}]
+        if retained and all((s.source_metadata or {}).get('person_intake_fingerprint') == fingerprint for s in retained):
+            # A small set of retained originals is reusable. Source count is
+            # not identity proof, and must not force another paid search stage.
             return True
         target = re.sub(r"\s+", "", str(intake.get("target_name") or project.target_name or "")).lower()
         anchor = intake.get("person_anchor") if isinstance(intake.get("person_anchor"), dict) else {}
@@ -2185,8 +2196,15 @@ class ResearchWorkflow:
         if str(intake.get("target_type") or "").lower() != "person":
             return {"confidence": "high", "reason": "非人物项目", "matched_anchors": [], "identity_policy_version": ""}
         raw_target = str(intake.get("target_name") or "").strip()
-        target = re.sub(r"\s+", "", raw_target).lower()
-        blob = re.sub(r"\s+", "", f"{title} {content[:8000]}").lower()
+        from person_identity import discovery_index
+        if discovery_index(title, content):
+            return {"confidence": "low", "reason": "相关新闻索引仅用于发现，不能将整页条目归为同一人物",
+                    "matched_anchors": [], "identity_policy_version": PERSON_IDENTITY_POLICY_VERSION}
+        from person_text import folded
+        target = folded(raw_target)
+        # Match in retained originals before taking any writing excerpt. A
+        # biography after the introduction is still identity evidence.
+        blob = folded(f"{title} {content}")
         aliases = [target]
         latin = re.sub(r"[^A-Za-z ]", "", raw_target).strip()
         chinese = "".join(re.findall(r"[\u4e00-\u9fff]", raw_target))
@@ -2196,7 +2214,7 @@ class ResearchWorkflow:
             aliases.append(chinese)
         supplied_names = list((intake.get("person_anchor") or {}).get("aliases") or [raw_target])
         for name in supplied_names:
-            aliases.extend(re.sub(r"\s+", "", form).lower() for form in matched_name_forms(name, f"{title} {content[:8000]}"))
+            aliases.extend(folded(form) for form in matched_name_forms(name, f"{title} {content}"))
         if not target or not any(alias and alias in blob for alias in aliases):
             return {
                 "confidence": "rejected",
@@ -2208,7 +2226,7 @@ class ResearchWorkflow:
         anchor_affiliations = list(anchor.get("known_affiliations") or [])
         affiliation = str(intake.get("associated_company") or intake.get("affiliation") or "")
         company_anchors = [
-            re.sub(r"\s+", "", item).lower()
+            folded(item)
             for item in (anchor_affiliations or self._person_affiliation_anchors(affiliation))
         ]
         def near_target(anchor_text: str, window: int = 280) -> bool:
@@ -2238,7 +2256,7 @@ class ResearchWorkflow:
                 for item in re.split(r"\s*[/／|｜,，;；]\s*", str(intake.get("identity_anchors") or ""))
                 if len(item.strip()) >= 3
             ]
-        anchors = [re.sub(r"\s+", "", item).lower() for item in raw_identity_anchors if len(str(item).strip()) >= 2]
+        anchors = [folded(item) for item in raw_identity_anchors if len(str(item).strip()) >= 2]
         matched_identity = [anchor for anchor in anchors if near_target(anchor)]
         if matched_identity:
             return {
@@ -2302,6 +2320,9 @@ class ResearchWorkflow:
                 continue
             host = urlparse(source.url or "").netloc.lower().replace("www.", "") or f"source:{source.id}"
             for match in relation_pattern.finditer(text[:12000]):
+                from person_identity import relation_actor_is_target
+                if not relation_actor_is_target(text, match.start(), str(intake.get('target_name') or '')):
+                    continue
                 # group 1 is the relationship verb (for example "联合创办"); the
                 # actual organization is group 2.  Using group 1 caused every QCC/TYC/
                 # Xiniu lookup to query the verb instead of the company name.
@@ -2311,6 +2332,7 @@ class ResearchWorkflow:
                 if (
                     len(compact_candidate) < 3
                     or not self._is_usable_company_anchor(candidate)
+                    or re.fullmatch(r'(?:管理|本|该|其|公司|企业|集团|投资|控股|商业|金融|产业|业务|资本|基金)(?:集团|公司|企业|控股|资本|基金)?', candidate)
                     or compact_candidate.lower() in supplied
                     or compact_candidate == target
                     or target and target in compact_candidate
@@ -4319,7 +4341,7 @@ class ResearchWorkflow:
                                 browser_fetch_allowed=allow_browser,
                                 status="running",
                             )
-                            fetch_options = {'document_profile': 'company'} if project.target_type == 'company' else {}
+                            fetch_options = {'document_profile': project.target_type} if project.target_type in {'company', 'person'} else {}
                             fetched = self._fetch_web_url_with_timeout(url, allow_browser=allow_browser, emit=emit, **fetch_options)
                             _emit(
                                 emit,
@@ -4673,6 +4695,9 @@ class ResearchWorkflow:
 
     def _fetch_web_url_with_timeout(self, url: str, allow_browser: bool, emit: TraceEmitter | None = None, *, document_profile: str = '') -> dict[str, Any]:
         timeout_seconds = _env_int("WEB_FETCH_TOTAL_TIMEOUT_SECONDS", 45, 5, 180)
+        if document_profile == 'person':
+            timeout_seconds = _env_int('PERSON_PDF_FETCH_TOTAL_TIMEOUT_SECONDS',
+                max(timeout_seconds, 60 + _env_int('PERSON_PDF_OCR_MAX_SECONDS', 45, 5, 90)), 30, 300)
         if document_profile == 'company':
             # Company PDFs may include hundreds of native pages plus bounded
             # OCR and its queue wait; the old 45s wrapper discarded good results.
@@ -4681,6 +4706,12 @@ class ResearchWorkflow:
             default=max(timeout_seconds, 60+2*ocr_seconds)
             timeout_seconds=_env_int('COMPANY_PDF_FETCH_TOTAL_TIMEOUT_SECONDS',default,30,1500)
         result_queue: queue.Queue[tuple[str, Any]] = queue.Queue(maxsize=1)
+        user_deadline = os.getenv('RESEARCH_USER_DEADLINE_UTC')
+        if user_deadline:
+            remaining = datetime.fromisoformat(user_deadline.replace('Z', '+00:00')).timestamp() - time.time()
+            if remaining < 3:
+                return {'status': 'user_time_budget_exhausted', 'content': '', 'error': 'user deadline reached'}
+            timeout_seconds = min(timeout_seconds, max(1, int(remaining)-2))
 
         def worker() -> None:
             try:
@@ -4887,16 +4918,20 @@ class ResearchWorkflow:
         facts: list[dict[str, Any]] = []
         noise = ("javascript", "var arg", "base64", "登录", "注册", "下载app", "网站首页", "推荐 快报", "免责声明")
         for source in sources:
-            if (source.source_metadata or {}).get("identity_confidence") == "low":
+            if ((source.source_metadata or {}).get("identity_confidence") in {"low", "rejected"}
+                    or (source.source_metadata or {}).get('person_discovery_only')
+                    or (source.source_metadata or {}).get('identity_status') == 'quarantined'):
                 continue
             meta = source.source_metadata or {}
             text = self._clean_source_text(source.content or source.summary or "")
             candidates = re.split(r'(?<=[。！？!?；;])\s*|(?<=[.!?])(?<!\bDr\.)(?<!\bMr\.)(?<!\bMs\.)(?<!\bMrs\.)(?<!\bProf\.)(?<!\b[A-Z]\.)\s+(?=[A-Z“"\'])|[\r\n]+', text)
+            from person_chapter_selection import prioritize_sentences
+            candidates = prioritize_sentences(candidates, lambda sentence: not target or person_name_in_text(project.target_name, sentence))
             kept = 0
             for sentence in candidates:
                 sentence = re.sub(r"\s+", " ", sentence).strip(" -•\t")
                 compact = re.sub(r"\s+", "", sentence).lower()
-                if not (24 <= len(sentence) <= 420) or (target and not person_name_in_text(project.target_name, sentence)):
+                if not (24 <= len(sentence) <= 1200) or (target and not person_name_in_text(project.target_name, sentence)):
                     continue
                 if any(marker in compact for marker in noise):
                     continue
@@ -4907,7 +4942,7 @@ class ResearchWorkflow:
                         "claim_type": "source_statement",
                         "source_title": source.title,
                         "source_url": source.url,
-                        "evidence_quote": sentence[:420],
+                        "evidence_quote": sentence,
                         "confidence": min(0.9, max(0.35, float(source.credibility_score or 50) / 100)),
                         "module": meta.get("module", ""),
                         "platform": meta.get("platform", ""),
@@ -4918,7 +4953,7 @@ class ResearchWorkflow:
                     }
                 )
                 kept += 1
-                if kept >= _env_int("PERSON_SENTENCE_FACTS_PER_SOURCE", 12, 2, 30):
+                if kept >= _env_int("PERSON_SENTENCE_FACTS_PER_SOURCE", 48, 2, 120):
                     break
         return facts
 
@@ -6103,8 +6138,12 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         target_type = str(project.target_type or "").lower()
         if target_type == "person" and report.strip():
             payload = _plain_json(cleaned_json) or {}
-            contract = build_person_packages(payload, str(project.target_name or ""), PersonReportAgent.outline,
-                                             getattr(project, "person_research_intake", {}), getattr(project, "sources", []) or [])
+            contract = getattr(project, 'person_evidence_contract', None)
+            if (not isinstance(contract, dict) or contract.get('version') != PERSON_TEMPLATE_VERSION
+                    or contract.get('cleaned_payload_sha256') != hashlib.sha256((cleaned_json or '').encode()).hexdigest()):
+                contract = build_person_packages(payload, str(project.target_name or ""), PersonReportAgent.outline,
+                    getattr(project, "person_research_intake", {}), getattr(project, "sources", []) or [],
+                    getattr(project, 'person_platform_attempts', []) or [])
             previous = getattr(project, "person_delivery_diagnostic", {}) or {}
             result = append_person_index(report, contract["facts"])
             project.person_evidence_contract = contract
@@ -7086,8 +7125,12 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         graph_kind: str = "relationship",
         emit: TraceEmitter | None = None,
     ) -> str:
+        person_target = str(project.target_type or '').lower() == 'person'
         company_package = getattr(project, "company_governance_package", None) if str(project.target_type or "").lower() == "company" else None
-        if company_package is not None:
+        if person_target:
+            from person_graphs import graph_nodes as person_graph_nodes
+            nodes = person_graph_nodes(project,cleaned_json)
+        elif company_package is not None:
             try:
                 from .report_agents.company_governance import governance_graph_nodes
             except ImportError:
@@ -7095,7 +7138,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             nodes = governance_graph_nodes(company_package, graph_kind)
         else:
             nodes = self._professional_graph_nodes(project, graph_kind)
-        if len(nodes) < 3 and company_package is None:
+        if len(nodes) < 3 and company_package is None and not person_target:
             seen = {name for name, _relation, _note in nodes}
             for node in self._cleaned_fact_graph_nodes(project, cleaned_json):
                 if node[0] not in seen:
@@ -7109,17 +7152,19 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             return html.escape(str(value or ""), quote=True)
 
         def short_text(value: str, limit: int = 24) -> str:
-            value = re.sub(r"\s+", " " if company_package is not None and re.search(r"[A-Za-z]", str(value or "")) else "", str(value or "")).strip()
+            value = re.sub(r"\s+", " " if (company_package is not None or person_target) and re.search(r"[A-Za-z]", str(value or "")) else "", str(value or "")).strip()
             return value if len(value) <= limit else value[: max(0, limit - 3)] + "..."
 
         def wrap_lines(value: str, limit: int = 15, max_lines: int = 2) -> list[str]:
             value = short_text(value, limit * max_lines)
-            if company_package is not None and re.search(r"[A-Za-z]", value):
+            if (company_package is not None or person_target) and re.search(r"[A-Za-z]", value):
                 from textwrap import wrap
                 return wrap(value, width=limit, break_long_words=False, break_on_hyphens=False)[:max_lines] or [""]
             return [value[index:index + limit] for index in range(0, len(value), limit)][:max_lines] or [""]
 
         def node_kind(name: str) -> str:
+            if person_target:
+                return 'organization'
             organization_suffixes = (
                 "公司", "集团", "基金", "资本", "控股", "大学", "学院",
                 "协会", "商会", "实验室", "研究院", "中心", "机构",
@@ -7151,6 +7196,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         ]
         if company_package is not None:
             svg.append('<text x="44" y="102" font-family="Microsoft YaHei, Arial" font-size="13" fill="#64748b">图示最多10个已核对节点；完整记录及各自数据时点见第二章表格。边线关系以节点标签为准。</text>')
+        if person_target:
+            svg.append('<text x="44" y="102" font-family="Microsoft YaHei, Arial" font-size="13" fill="#64748b">仅采用第9章入选原文及明确标示的输入定位；全部关系仍待核验，证据编号见正文。</text>')
         for x, y, side, name, relation, note in positions:
             edge_x = x + 160 if side == "left" else x - 160
             dash = ' stroke-dasharray="7 5"' if "待核验" in relation or "不足" in name else ""
@@ -7178,8 +7225,10 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             for offset, line in enumerate(name_lines):
                 svg.append(f'<text x="{x}" y="{base_y + offset * 20}" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">{esc(line)}</text>')
             type_label = "企业/机构" if kind == "organization" else "自然人"
-            sub = f"{type_label} | {relation}" if not note else f"{type_label} | {relation} | {note}"
-            svg.append(f'<text x="{x}" y="{y + 25}" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">{esc(short_text(sub, 28))}</text>')
+            sub = f"{type_label} | {relation}" if not note or person_target else f"{type_label} | {relation} | {note}"
+            svg.append(f'<text x="{x}" y="{y + (16 if person_target else 25)}" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">{esc(short_text(sub, 28))}</text>')
+            if person_target:
+                svg.append(f'<text x="{x}" y="{y + 34}" font-family="Microsoft YaHei, Arial" font-size="10" fill="#64748b" text-anchor="middle">{esc(note)}</text>')
         svg.append("</svg>")
         key = f"projects/{project.id}/visual_evidence/{graph_kind}_graph_{_now_key()}.svg"
         try:
@@ -7307,6 +7356,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
 
     def _cleaned_fact_graph_nodes(self, project: ResearchProject, cleaned_json: str) -> list[tuple[str, str, str]]:
         """Build a conservative person-affiliation graph when paid DB rows are absent."""
+        if str(project.target_type or '').lower() == 'person':
+            from person_graphs import graph_nodes as person_graph_nodes
+            return person_graph_nodes(project,cleaned_json)
         try:
             payload = json.loads(cleaned_json)
         except Exception:
@@ -7550,6 +7602,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         artifact_metadata = dict(metadata or {})
         if project.target_type == "person" and artifact_type == "desktop_report":
             artifact_metadata.update(requires_human_review=True, verification_status="source_statements_only", delivery_status="review_draft")
+            artifact_metadata['person_relationship_graph_audit'] = getattr(project,'person_relationship_graph_audit',{})
         index_job = None
         object_key = research_store.put_text(
             f"projects/{project.id}/{artifact_type}/{artifact_type}_v{version}.{suffix}",

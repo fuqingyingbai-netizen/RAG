@@ -1,4 +1,5 @@
 """Build the Friday briefing from tracked audits; no research/model requests."""
+import argparse
 import hashlib
 import html
 import json
@@ -105,87 +106,69 @@ CHAPTERS = [
 
 
 def main():
-    original = json.loads((ROOT/'docs/PERSON_FULL_RUN_VALIDATION_20261020.json').read_text(encoding='utf-8'))
-    current = json.loads((ROOT/'docs/PERSON_REPUTATION_PEERS_VALIDATION_20261020.json').read_text(encoding='utf-8'))
-    old = {c['chapter']: c for c in original['chapters']}
-    new = {c['chapter']: c for c in current['chapters']}
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--validation', type=Path, default=ROOT/'docs/PERSON_ITERATION_VALIDATION_20261021.json')
+    args = parser.parse_args()
+    audit = json.loads(args.validation.read_text(encoding='utf-8'))
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    run_pair = [ROOT/Path(path.replace('\\', '/')) for path in (original['baseline_run'], current['after'])]
-    report_names = ['report-before.md', 'report-after.md']
-    raw_reports = []
-    for run, name in zip(run_pair, report_names):
-        saved = run/'desktop_report.md'
-        raw = (saved if saved.is_file() else OUTPUT/name).read_text(encoding='utf-8')
-        raw_reports.append(raw)
+    run_pair = [ROOT/Path(audit[k].replace('\\', '/')) for k in ('before_run', 'after_run')]
+    names = ['report-before.md', 'report-after.md']
+    reports = []
+    for run, name in zip(run_pair, names):
+        source = run/'desktop_report.md'
+        raw = (source if source.is_file() else OUTPUT/name).read_text(encoding='utf-8')
+        reports.append(raw)
         (OUTPUT/name).write_text(raw, encoding='utf-8')
-    report_pair = [chapter_texts(raw) for raw in raw_reports]
-    graph_records = []
+    texts = [chapter_texts(raw) for raw in reports]
+    summaries = {row['chapter']: row for row in audit['chapters']}
+    graph_records, sections, nav, rows = [], [], [], []
     esc = html.escape
-    sections, nav, rows = [], [], []
-    for item in CHAPTERS:
-        n = item['n']
-        first, latest = old[n]['before_eids'], new[n]['after_cited_ids']
+    for original in CHAPTERS:
+        item = {**original, **summaries[original['n']].get('editorial', {})}
+        n = item['n']; row = summaries[n]
+        first, latest = row['before_cited_ids'], row['after_cited_ids']
+        actual, text_audit = chapter_comparison(n, [t[n] for t in texts], run_pair, OUTPUT, graph_records)
         count = f'{first} → {latest}'
-        if n in (7, 8):
-            count = f'{first} → 0 → {latest}'
+        effect = row['result_note']
         nav.append(f'<a href="#chapter-{n}" data-jump="chapter-{n}"><span>{n:02}</span>{esc(item["short"])}</a>')
-        stage_note = '误选清理后，再补证' if n in (7, 8) else '首轮 → 当前 · 引用编号'
-        actual, text_audit = chapter_comparison(n, [report[n] for report in report_pair], run_pair, OUTPUT, graph_records)
         sections.append(f'''<article id="chapter-{n}" class="slide chapter" data-number="{n}" data-title="{esc(item['short'])}" data-group="{esc(item['group'])}">
           <div class="chapter-heading"><span class="chapter-no">{n:02}</span><div><p class="eyebrow">第{n}章 · {esc(item['short'])}</p><h2>{esc(item['headline'])}</h2></div><span class="category">{esc(item['group'])}</span></div>
           {actual}
           <div class="comparison"><section class="before"><span class="label">变化说明 · 原问题</span><p>{esc(item['before'])}</p></section><section class="after"><span class="label">变化说明 · 当前做法</span><p>{esc(item['after'])}</p></section></div>
           <div class="mechanism"><span class="label">具体怎么改</span><p>{esc(item['method'])}</p></div>
-          <div class="result"><div class="count"><b>{count}</b><span>{stage_note}</span></div><p>{esc(item['effect'])}</p></div>
+          <div class="result"><div class="count"><b>{count}</b><span>本轮前 → 本轮后 · 引用编号</span></div><p>{esc(effect)}</p></div>
           <div class="pending"><span>仍需完善</span><p>{esc(item['gap'])}</p></div>
         </article>''')
-        rows.append({**item, 'first_run_cited_ids': first, 'after_cited_ids': latest,
-                     'actual_text_comparison': text_audit,
-                     'after_review_status': new[n]['after_review_status'],
-                     'current_remaining_gaps': new[n]['remaining_gaps']})
+        rows.append({**item, **row, 'actual_text_comparison': text_audit})
     template = (ROOT/'scripts/templates/person-work-report.html').read_text(encoding='utf-8')
     page = template.replace('<!-- CHAPTER_NAV -->', ''.join(nav)).replace('<!-- CHAPTERS -->', '\n'.join(sections))
-    evidence = {
-        'purpose': 'Friday_work_briefing_not_person_investigation_delivery',
-        'briefing_date': '2026-10-23', 'evidence_as_of': '2026-10-20',
-        'reference': 'https://test-d9gn6tepedabd30fb-1451499210.tcloudbaseapp.com/work-report/company/index.html',
-        'comparison': {'before_run': original['baseline_run'], 'after_run': current['after'],
-                       'before_sources': 35, 'after_sources': current['retained_source_count'],
-                       'same_subject': True, 'same_source_corpus': False,
-                       'not_original_main_branch_baseline': True,
-                       'middle_zero_for_chapters_7_8': current['before']},
-        'person_test_passed': current['cross_person_regression']['person_suite_passed'],
-        'cross_person_tests': current['cross_person_regression'],
-        'formal_report_accepted': False, 'word_visual_qa': current['word_visual_qa'],
-        'website_build_new_research_or_model_requests': 0, 'chapters': rows,
-        'actual_report_sha256': [digest(raw) for raw in raw_reports],
-        'text_hash_basis': 'UTF-8 decoded report text with universal newline normalization',
-        'actual_report_markdown_downloads': report_names,
-        'difference_highlighting': 'whole_rows_and_paragraphs_after_whitespace_and_evidence_id_normalization_not_factual_verification',
-    }
-    for raw, run, filename, label in zip(raw_reports, run_pair, ['report-before.html', 'report-after.html'], ['优化前 · 早期真实稿', '优化后 · 当前待复核稿']):
+    replacements = {'{{TESTS_PASSED}}': str(audit['tests']['passed']),
+                    '{{BEFORE_SOURCES}}': str(audit['before_sources']),
+                    '{{AFTER_SOURCES}}': str(audit['after_sources']),
+                    '{{WORD_QA}}': audit['word_visual_qa']['public_label'],
+                    '{{SECONDARY_STATUS}}': audit['secondary']['public_label']}
+    for key,value in replacements.items(): page=page.replace(key, value)
+    for raw, run, filename, label in zip(reports, run_pair, ['report-before.html', 'report-after.html'], ['优化前 · 本轮起点真实稿', '优化后 · 当前研究复核稿']):
         (OUTPUT/filename).write_text(standalone_report(raw, run, OUTPUT, graph_records, label), encoding='utf-8')
-    evidence['original_graphs'] = list({r['bundled_file']: r for r in graph_records}.values())
+    evidence = {**audit, 'purpose':'Friday_work_briefing_not_formal_due_diligence', 'actual_report_sha256':[digest(raw) for raw in reports],
+                'same_source_corpus':False, 'not_original_main_branch_baseline':True,
+                'website_build_new_research_or_model_requests':0, 'chapters':rows,
+                'original_graphs':list({r['bundled_file']:r for r in graph_records}.values())}
     (OUTPUT/'index.html').write_text(page, encoding='utf-8')
-    (OUTPUT/'evidence.json').write_text(json.dumps(evidence, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
-    readme = '''# 人物报告优化工作汇报 · 2026-10-23
+    (OUTPUT/'evidence.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    (OUTPUT.parent/'README.md').write_text(f'''# 人物报告逐章优化对比 · 2026-10-23
 
-`dist/index.html`是独立H5，双击可离线使用，不依赖外部字体、脚本、图片或API。15章均默认左右并排展示两版完整实际正文，可分别滚动或展开整章。六步工作流、章节导航、重点筛选和打印继续保留，没有演示或讲稿。
+15章完整实际正文并排，支持展开、筛选、差异标色与打印。原始来源与关系图保留；文字差异不代表事实新增或准确率。
 
-`dist/report-before.html`和`dist/report-after.html`提供完整实际稿的阅读页，对应Markdown也可下载。原稿中的问题、争议性陈述及待核验标记均保留，不代表已经证实。原运行关系图内嵌展示，未重新绘制。此包含人物调查底稿，应保持私人访问或按既定权限传递。
+本轮对比：{audit['before_sources']}来源 → {audit['after_sources']}来源，同一人物、材料变化，不是原始main分支基线，也不是准确率或费用对照实验。另一位真实同名人物样本单列验证边界。
 
-`dist/evidence.json`保存逐章描述、引用计数、原文SHA256、字符数及原图哈希。浅色高亮只表示另一版没有相同整行或段落，匹配时忽略空白和引用编号，不表示事实新增/删除或准确性。
+工程测试：{audit['tests']['passed']}通过；{audit['word_visual_qa']['public_label']}。仍为公开资料研究复核稿，缺少授权访谈、现行协议及人工独立真实性核查。
 
-真实对照采用同一人物的首轮完整运行（35来源）与当前补证复验（76来源），材料不同，不作为准确率、稳定提速或账单节省实验；不是原始main分支对照。第7/8章中间0引用指剔除不适用材料后的上一轮稿，不代表首次完全没有引用。
+公开或分享底稿须沿用既定权限；当前Sites私人托管权限不扩大。dist/index.html及配套文件可以离线使用。
 
-四行业用例是模拟来源的工作流回归，不是四位真实人物的完整线上验收。165项人物测试通过不等于报告内容已经验收。Word逐页视觉检查仍未完成。
-
-重新生成：在仓库根目录运行`python scripts/build_person_work_report.py`。不调用研究、模型或专业平台API。
-
-腾讯云静态托管：上传`dist`内全部文件及graphs目录到已授权的人物汇报目录，并保持适当访问权限。该包不修改已有公司汇报。仓库另保留Sites托管配置；线上地址以实际发布返回为准。
-'''
-    (OUTPUT.parent/'README.md').write_text(readme, encoding='utf-8')
-    print(json.dumps({'output': str(OUTPUT), 'chapters': len(rows), 'sha256': hashlib.sha256(page.encode()).hexdigest()}, ensure_ascii=False))
+重建：python scripts/build_person_work_report.py；只读取归档与验证记录，不调用模型或研究API。
+''',encoding='utf-8')
+    print(json.dumps({'output':str(OUTPUT),'chapters':len(rows),'sha256':hashlib.sha256(page.encode()).hexdigest()},ensure_ascii=False))
 
 
 if __name__ == '__main__':

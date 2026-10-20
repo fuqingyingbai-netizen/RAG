@@ -1,0 +1,472 @@
+{
+  "as_of": "2026-10-21",
+  "deadline_utc": "2026-10-20T21:00:54Z",
+  "started_utc": "2026-10-20T13:00:54Z",
+  "before_run": "work/person-optimization/same-corpus-20261020T164818",
+  "after_run": "work/person-optimization/same-corpus-20261021T005547-ef6911",
+  "before_sources": 76,
+  "after_sources": 95,
+  "same_source_corpus": false,
+  "not_original_main_branch_baseline": true,
+  "formal_due_diligence_accepted": false,
+  "acceptance_scope": "Public-source research review draft with explicit gaps, no autonomous personality/credit ranking, no independent truth verification or authorized interviews",
+  "program_gate": {
+    "before_errors": [
+      "部分分析待复核、被拦截或调用未完成，已保留来源底稿及复核标记"
+    ],
+    "after_errors": [],
+    "after_degradations": []
+  },
+  "final_iteration": {
+    "new_search_calls": 0,
+    "new_professional_calls": 0,
+    "model_invocations": 0,
+    "exact_input_model_responses_reused": 24,
+    "model_token_usage": {
+      "available": false,
+      "input_tokens": null,
+      "output_tokens": null,
+      "metered_requests": 0
+    }
+  },
+  "tests": {
+    "tests": 1365,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 14,
+    "passed": 1351,
+    "source": "clean Git index export; excludes other chats uncommitted company/search changes",
+    "junit_sha256": "b9c7473ee5b3bab909b57c1f712c357b928c38b924c553c7d8dbc85fa2cf0896"
+  },
+  "word_visual_qa": {
+    "public_label": "两份Word已完成全页布局检查，事实真实性仍需人工独立核验",
+    "review_method": "Every physical page reviewed in contact sheets, selected dense/source-index/graph pages enlarged; final cover title separately rechecked. Not independent source fact verification.",
+    "main_pages": 65,
+    "secondary_pages": 44,
+    "main_review_directory": "work/person-optimization/word-qa-main-final",
+    "secondary_review_directory": "work/person-optimization/word-qa-namesake-final",
+    "final_cover_check_pending": false,
+    "receipts": [
+      {
+        "page_count": 65,
+        "visual_review_status": "passed_layout_review",
+        "method": "All pages reviewed in contact sheets in prior rendering; unchanged pages matched by image SHA256; all changed pages visually rechecked; cover and graph/index enlarged. Not independent verification of every source statement.",
+        "final_docx_sha256": "caa0865c5603b2a74f081ff3dd35037aa562c03bb5eda45f67f67a19ea83ee31",
+        "final_pdf_sha256": "ee57da55863327f772c0d413867258cca3d5113df858a0836c293dfccd08a322",
+        "changed_pages": [
+          59,
+          60,
+          61,
+          62,
+          63,
+          64,
+          65
+        ],
+        "unchanged_pages_confirmed_by_image_sha256": 58
+      },
+      {
+        "page_count": 44,
+        "visual_review_status": "passed_layout_review",
+        "method": "All pages reviewed in contact sheets in prior rendering; unchanged pages matched by image SHA256; all changed pages visually rechecked; cover and graph/index enlarged. Not independent verification of every source statement.",
+        "final_docx_sha256": "963421ba1866e4e0744032cfc73112933be664dc166c5dc562d6ba348695d166",
+        "final_pdf_sha256": "9dc1595bf5f0a83f36689b016d49d0b8c1be93824b0f08d204b55db89538f6a6",
+        "changed_pages": [
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44
+        ],
+        "unchanged_pages_confirmed_by_image_sha256": 33
+      }
+    ]
+  },
+  "secondary": {
+    "run": "work/person-optimization/same-corpus-20261021T005547-20608c",
+    "target_context": "张勇 + 海底捞 / 创始人；排除阿里巴巴同名人物",
+    "source_count": 53,
+    "chapter_count": 15,
+    "program_errors": [],
+    "public_label": "张勇＋海底捞，53来源、15章真实运行；第7/8章证据仍不足，未借用阿里同名人物材料",
+    "latest_model_invocations": 0,
+    "exact_input_reuse": 28,
+    "platform_limits": [
+      "企查查对该定位返回地域限制，司法覆盖不能视为完成",
+      "犀牛未找到该完整企业名的有效实体；项目事件返回明确空列表，不作为人物无风险证明"
+    ]
+  },
+  "chapters": [
+    {
+      "chapter": 1,
+      "title": "摘要",
+      "before_cited_ids": 10,
+      "after_cited_ids": 16,
+      "candidate_facts": 10,
+      "review_status": "upstream_review_required",
+      "remaining_gaps": [],
+      "excluded_analysis_count": 0,
+      "accepted_analysis_count": 6,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 10 → 16。引用增加来自正文实际采用的分析，不新增独立模型判断。",
+      "editorial": {
+        "before": "摘要已有来源回查，但正文复核问题仍会上传。",
+        "after": "摘要直接继承正文实际保留的分析及编号，不再单独生成新判断。",
+        "method": "正文修订后同步更新摘要，防止结论与正文脱节。"
+      }
+    },
+    {
+      "chapter": 2,
+      "title": "创始人底色画像",
+      "before_cited_ids": 12,
+      "after_cited_ids": 12,
+      "candidate_facts": 12,
+      "review_status": "evidence_gaps_remain",
+      "remaining_gaps": [
+        "研究维度“教育与早年经历”已有材料但未完成核验：已取得学历、学校或毕业相关原词；教育时间线与原始出处仍须核对，不再记为完全缺少材料。",
+        "研究维度“职业时间线与职责”已有材料但未完成核验：已取得对应问题的原文线索；主体、时期、适用条件与结论仍待逐项核实。",
+        "研究维度“履历断点与矛盾”已有材料但未完成核验：已有履历记录；连续性、任期衔接和疑似冲突须逐时点核实，不能因未出现“断点”二字误报无材料。",
+        "本章部分判断尚无充分原文支持，已不采用；所涉问题保留为研究限制，不能用原文以外的推测补齐。"
+      ],
+      "excluded_analysis_count": 2,
+      "accepted_analysis_count": 1,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 12 → 12。有2条判断在有限修订后仍缺乏支持，未进入正文；原拦截理由保留审计。",
+      "editorial": {
+        "before": "已经分开公司与个人材料，教育、履历及日期选材仍会受重复片段影响。",
+        "after": "按教育、职业、断点等问题预留选材位置，保留原始任期和中文事件日期。",
+        "method": "从多人员名单裁出目标人物原行；文档报告期、出生日期与个人任期分开。"
+      }
+    },
+    {
+      "chapter": 3,
+      "title": "人格特质风险",
+      "before_cited_ids": 3,
+      "after_cited_ids": 1,
+      "candidate_facts": 1,
+      "review_status": "evidence_gaps_remain",
+      "remaining_gaps": [
+        "研究维度“责任心与事业心”：当前入选材料尚不能回答该问题，需核查留存原文或有针对性补证。",
+        "研究维度“诚信与利益取舍”：当前入选材料尚不能回答该问题，需核查留存原文或有针对性补证。",
+        "研究维度“表达与风险偏好”已有材料但未完成核验：已取得本人行为或公开表达线索；尚不足以据此判定人格、诚信或风险偏好。",
+        "研究维度“压力下行为与评价者立场”已有材料但未完成核验：已取得本人行为或公开表达线索；尚不足以据此判定人格、诚信或风险偏好。"
+      ],
+      "excluded_analysis_count": 0,
+      "accepted_analysis_count": 1,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 3 → 1。",
+      "editorial": {
+        "before": "仍有公开发言、公司责任声明和人格判断之间的跨度。",
+        "after": "只保留本人表达线索，去掉以发言推导风险意愿、诚信或审慎心态的判断。",
+        "method": "排除有限责任公司和通用真实性声明；来源不足时明确不作人格鉴定。"
+      }
+    },
+    {
+      "chapter": 4,
+      "title": "经营胜任力、持续创新与迭代能力验证",
+      "before_cited_ids": 12,
+      "after_cited_ids": 12,
+      "candidate_facts": 12,
+      "review_status": "evidence_gaps_remain",
+      "remaining_gaps": [
+        "研究维度“战略设计与行业判断”已有材料但未完成核验：已取得职责、事件或结果线索；个人贡献、对应时期及因果关系仍待核实。",
+        "研究维度“执行与项目结果”已有材料但未完成核验：已取得职责、事件或结果线索；个人贡献、对应时期及因果关系仍待核实。",
+        "研究维度“资本资源与个人职责”已有材料但未完成核验：已取得职责、事件或结果线索；个人贡献、对应时期及因果关系仍待核实。",
+        "研究维度“创新迭代与阶段匹配”已有材料但未完成核验：已取得职责、事件或结果线索；个人贡献、对应时期及因果关系仍待核实。"
+      ],
+      "excluded_analysis_count": 0,
+      "accepted_analysis_count": 3,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 12 → 12。",
+      "editorial": {
+        "before": "已有职责和技术材料，但具体事件可能被早期重复材料挤出。",
+        "after": "按战略、执行、资本与创新问题选材，技术投入与后续效果分别判断。",
+        "method": "个人角色、事件日期、数值和单位绑定原句，未披露因果就保留限制。"
+      }
+    },
+    {
+      "chapter": 5,
+      "title": "识人用人、统筹管理及核心经营管控能力",
+      "before_cited_ids": 12,
+      "after_cited_ids": 11,
+      "candidate_facts": 11,
+      "review_status": "evidence_gaps_remain",
+      "remaining_gaps": [
+        "研究维度“权责与授权”已有材料但未完成核验：已取得对应问题的原文线索；主体、时期、适用条件与结论仍待逐项核实。",
+        "研究维度“用人与关键岗位”已有材料但未完成核验：已取得对应问题的原文线索；主体、时期、适用条件与结论仍待逐项核实。",
+        "研究维度“文化与冲突处理”已有材料但未完成核验：已取得对应问题的原文线索；主体、时期、适用条件与结论仍待逐项核实。",
+        "研究维度“经营管控与稳定性”已有材料但未完成核验：已取得对应问题的原文线索；主体、时期、适用条件与结论仍待逐项核实。"
+      ],
+      "excluded_analysis_count": 0,
+      "accepted_analysis_count": 3,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 12 → 11。",
+      "editorial": {
+        "before": "任职、授权与资格材料仍有混选，拟议授权容易写成已生效。",
+        "after": "保留实际授权条件、岗位及管理线索，排除股份锁定与任职资格套话。",
+        "method": "提请、取得批准和实际执行分开；资料未见批准不能写成现实仍待决。"
+      }
+    },
+    {
+      "chapter": 6,
+      "title": "核心管理团队背景调研",
+      "before_cited_ids": 12,
+      "after_cited_ids": 12,
+      "candidate_facts": 12,
+      "review_status": "evidence_gaps_remain",
+      "remaining_gaps": [
+        "研究维度“成员履历与职责”已有材料但未完成核验：已取得团队其他成员或团队结构资料；实际职务、任期及关系仍需核对，不归因目标本人。",
+        "研究维度“产业资源与合作基础”已有材料但未完成核验：已取得团队其他成员或团队结构资料；实际职务、任期及关系仍需核对，不归因目标本人。",
+        "研究维度“关键人员变动”：当前入选材料尚不能回答该问题，需核查留存原文或有针对性补证。",
+        "研究维度“团队治理与关系边界”已有材料但未完成核验：已取得团队其他成员或团队结构资料；实际职务、任期及关系仍需核对，不归因目标本人。"
+      ],
+      "excluded_analysis_count": 0,
+      "accepted_analysis_count": 0,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 12 → 12。本章保留来源和核验问题，未强行生成额外分析。",
+      "editorial": {
+        "before": "已有团队条目，但目标姓名检索容易遗漏同一原件中的其他成员简历。",
+        "after": "从已保留的管理层原件恢复具名成员资料，按成员平衡入选。",
+        "method": "其他成员的姓名、履历、任期和机构独立记录，不能归到目标本人。"
+      }
+    },
+    {
+      "chapter": 7,
+      "title": "商业操守与个人信用风险核查",
+      "before_cited_ids": 6,
+      "after_cited_ids": 7,
+      "candidate_facts": 7,
+      "review_status": "evidence_gaps_remain",
+      "remaining_gaps": [
+        "未接入授权访谈材料时，多方访谈与口碑交叉验证仍待人工完成。",
+        "具名观点仍须核对评价者利益关系、目标回应和原始处理结果；历史报道及单方指控不得作为当前信用或违法结论。",
+        "研究维度“员工与前同事评价”：缺少关系明确的具名评价；其他人群、公司宣传或匿名说法不能代替。",
+        "研究维度“合作伙伴与客户评价”：已取得具名评价及原文投资背景线索；尚缺关系明确的客户/合作方评价，投资背景不替代客户或员工评价，实际利益关系及代表性仍须核对。",
+        "研究维度“同行评价与利益立场”：缺少关系明确的具名评价；其他人群、公司宣传或匿名说法不能代替。"
+      ],
+      "excluded_analysis_count": 0,
+      "accepted_analysis_count": 3,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 6 → 7。",
+      "editorial": {
+        "before": "已有承诺和历史争议，但具名评价、实际履行和评价者利益关系仍不足。",
+        "after": "补入已有原文中的具名投资者评价；重复承诺披露不计为多个独立事件。",
+        "method": "投资者观点不替代员工或客户评价；承诺不代表履行，全部承担不等于连带责任。"
+      }
+    },
+    {
+      "chapter": 8,
+      "title": "同业对标下综合能力与品行隐患评估",
+      "before_cited_ids": 11,
+      "after_cited_ids": 12,
+      "candidate_facts": 12,
+      "review_status": "evidence_gaps_remain",
+      "remaining_gaps": [
+        "可比候选李书福尚缺可比发展阶段、对齐后的比较时期；候选具名不代表比较口径已经对齐。",
+        "可比候选李斌尚缺可比发展阶段、对齐后的比较时期；候选具名不代表比较口径已经对齐。",
+        "可比候选李斌已定位原始披露及物理页；OCR转录的姓名、任期及数值仍须逐页核对。",
+        "目标人物与可比人物的个人职责、指标定义和单位尚需逐项对齐；不以公司营收或股价代替个人能力。",
+        "研究维度“同期间能力与成果”：尚未完成目标与候选人物的同时期、同指标和同单位对齐，不作能力或成果排名。",
+        "研究维度“行为风格与信用证据”：当前候选资料以身份、履历和职责为主，尚不足以比较行为风格或个人信用。"
+      ],
+      "excluded_analysis_count": 0,
+      "accepted_analysis_count": 0,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 11 → 12。本章保留来源和核验问题，未强行生成额外分析。",
+      "editorial": {
+        "before": "已有可比候选，但一手资料、长PDF正文和比较口径仍不完整。",
+        "after": "补充候选的一手披露；按目录和物理页定位长PDF，疑似坏字页局部OCR。",
+        "method": "两位候选均有资料位置；提名背景与本人履历分开，OCR及修订叠字保留核对边界。"
+      }
+    },
+    {
+      "chapter": 9,
+      "title": "关联利益冲突及司法负面核查",
+      "before_cited_ids": 9,
+      "after_cited_ids": 12,
+      "candidate_facts": 12,
+      "review_status": "evidence_gaps_remain",
+      "remaining_gaps": [
+        "研究维度“任职持股及控制关系”已有材料但未完成核验：已取得对应问题的原文线索；主体、时期、适用条件与结论仍待逐项核实。",
+        "研究维度“关联交易与利益一致性”已有材料但未完成核验：已取得对应问题的原文线索；主体、时期、适用条件与结论仍待逐项核实。",
+        "研究维度“司法事项及当事人身份”：当前入选材料尚不能回答该问题，需核查留存原文或有针对性补证。",
+        "研究维度“关系时间与透明度缺口”已有材料但未完成核验：已取得对应问题的原文线索；主体、时期、适用条件与结论仍待逐项核实。"
+      ],
+      "excluded_analysis_count": 0,
+      "accepted_analysis_count": 3,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 9 → 12。",
+      "editorial": {
+        "before": "已有任职和查询结果，但主体关系、公司诉讼与个人责任仍需约束。",
+        "after": "专业查询先核目标及主公司；关系图使用本章实际选中的原文，不再整页猜机构。",
+        "method": "平台原始响应私有留存；当事人和关联企业分开，待核验关系使用虚线及完整证据号。"
+      }
+    },
+    {
+      "chapter": 10,
+      "title": "专项调研",
+      "before_cited_ids": 12,
+      "after_cited_ids": 14,
+      "candidate_facts": 12,
+      "review_status": "evidence_gaps_remain",
+      "remaining_gaps": [
+        "委托问题“持股及权益”：缺少事件时期；平台采集日及企业成立日不能替代",
+        "委托问题“持股及权益”：历史变化缺少至少两个可核对时点，单次平台快照不能证明变化",
+        "委托问题“任职及职责”：缺少事件时期；平台采集日及企业成立日不能替代",
+        "委托问题“任职及职责”：历史变化缺少至少两个可核对时点，单次平台快照不能证明变化",
+        "委托问题“关联关系”：缺少事件时期；平台采集日及企业成立日不能替代",
+        "委托问题“关联关系”：历史变化缺少至少两个可核对时点，单次平台快照不能证明变化",
+        "委托问题“教育与资格”：缺少事件时期；平台采集日及企业成立日不能替代",
+        "委托问题“司法及契约事项”：缺少事件时期；平台采集日及企业成立日不能替代",
+        "委托问题“经营与融资”：缺少事件时期；平台采集日及企业成立日不能替代",
+        "委托问题“管理与团队”：缺少事件时期；平台采集日及企业成立日不能替代",
+        "委托问题“同业比较”：候选本人资料定位见第8章；赛道、阶段、职责、时期和指标口径尚未对齐，不形成排名。"
+      ],
+      "excluded_analysis_count": 0,
+      "accepted_analysis_count": 3,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 12 → 14。",
+      "editorial": {
+        "before": "专项已有材料，但问题匹配会把同业竞争误作同业对标。",
+        "after": "委托问题逐项匹配，区分角色变化与职场叙事；对标问题回查第8章候选资料。",
+        "method": "教育、持股、任期等按原始问题对应；出生年与公司成立年不能补任职时间。"
+      }
+    },
+    {
+      "chapter": 11,
+      "title": "投后治理及退出风险研判",
+      "before_cited_ids": 12,
+      "after_cited_ids": 12,
+      "candidate_facts": 12,
+      "review_status": "evidence_gaps_remain",
+      "remaining_gaps": [
+        "研究维度“人物实际决策角色”已有材料但未完成核验：已取得对应问题的原文线索；主体、时期、适用条件与结论仍待逐项核实。",
+        "研究维度“投资方沟通与重大事项”已有材料但未完成核验：已取得对应问题的原文线索；主体、时期、适用条件与结论仍待逐项核实。",
+        "研究维度“关键岗位与制度承接”已有材料但未完成核验：已取得对应问题的原文线索；主体、时期、适用条件与结论仍待逐项核实。",
+        "研究维度“退出路径及适用条件”已有材料但未完成核验：已取得锁定、转让或退出相关原词；须核对历史时期、现行协议及触发条件，不推定当前退出权。",
+        "本章部分判断尚无充分原文支持，已不采用；所涉问题保留为研究限制，不能用原文以外的推测补齐。"
+      ],
+      "excluded_analysis_count": 1,
+      "accepted_analysis_count": 2,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 12 → 12。有1条判断在有限修订后仍缺乏支持，未进入正文；原拦截理由保留审计。",
+      "editorial": {
+        "before": "已有治理及锁定条款，但角色任期、条款条件和历史适用范围仍会被扩大。",
+        "after": "总裁任期不套给董事长；未知协议不补成现行退出权。",
+        "method": "不加原文没有的法定、惯例或独立法人结论；不把不同时期持股写成同时持有。"
+      }
+    },
+    {
+      "chapter": 12,
+      "title": "风险核查",
+      "before_cited_ids": 3,
+      "after_cited_ids": 3,
+      "candidate_facts": 3,
+      "review_status": "evidence_gaps_remain",
+      "remaining_gaps": [
+        "研究维度“已发现的直接信号”：当前入选材料尚不能回答该问题，需核查留存原文或有针对性补证。",
+        "研究维度“关联主体间接信号”已有材料但未完成核验：已取得公司披露的潜在治理或控制风险因素；不代表风险已经发生，也不认定个人违法或失信。"
+      ],
+      "excluded_analysis_count": 0,
+      "accepted_analysis_count": 0,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 3 → 3。本章保留来源和核验问题，未强行生成额外分析。",
+      "editorial": {
+        "before": "已经区分公司与个人风险，潜在控制风险与已发生事项仍需细分。",
+        "after": "公司披露的潜在风险标为间接信息，不认定风险已发生或个人违法。",
+        "method": "查到记录、明确空结果、调用失败及未查分别记录；未知指标不自动评分。"
+      }
+    },
+    {
+      "chapter": 13,
+      "title": "综合评估",
+      "before_cited_ids": 10,
+      "after_cited_ids": 16,
+      "candidate_facts": 10,
+      "review_status": "upstream_review_required",
+      "remaining_gaps": [],
+      "excluded_analysis_count": 0,
+      "accepted_analysis_count": 6,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 10 → 16。引用增加来自正文实际采用的分析，不新增独立模型判断。",
+      "editorial": {
+        "before": "综合评估仍受上游待复核分析影响。",
+        "after": "从正文实际保留的分析汇总，删除的分析不会重新进入综合结论。",
+        "method": "修订一次仍无支持的分析不采用，保留原文、研究限制和拦截审计；未完调用继续阻止通过。"
+      }
+    },
+    {
+      "chapter": 14,
+      "title": "信息来源",
+      "before_cited_ids": 65,
+      "after_cited_ids": 82,
+      "candidate_facts": 0,
+      "review_status": "source_index",
+      "remaining_gaps": [],
+      "excluded_analysis_count": 0,
+      "accepted_analysis_count": 0,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 65 → 82。",
+      "editorial": {
+        "before": "已经有证据索引，但长原文重复和窄表格造成大量分页。",
+        "after": "正文用全宽来源卡，索引只保留回查定位、物理页、平台、日期和章节。",
+        "method": "原文不交模型重抄；Word索引采集时间显示到日，章节号保留分隔空格。"
+      }
+    },
+    {
+      "chapter": 15,
+      "title": "后续研究点",
+      "before_cited_ids": 0,
+      "after_cited_ids": 0,
+      "candidate_facts": 0,
+      "review_status": "verification_plan",
+      "remaining_gaps": [],
+      "excluded_analysis_count": 0,
+      "accepted_analysis_count": 0,
+      "unresolved_validation_rejections": [],
+      "result_note": "本轮实际引用编号 0 → 0。历史采集计数不再作为补证后的当前缺口，原始计数保留审计。",
+      "editorial": {
+        "before": "已有逐章后续研究点，查询失败原因和重复查询仍需要细化。",
+        "after": "按章节列需要的原件与核验动作，同一主体相同返回分组但保留所有查询项。",
+        "method": "地域限制、无此实体和明确空列表分别记录；实体未找到不再无意义重试。",
+        "gap": "补关键原件并人工独立核实人物及结论；新增材料后复查Word版面。"
+      }
+    }
+  ],
+  "relationship_graph_audit": {
+    "basis": "chapter9_selected_source_statements",
+    "nodes": [
+      {
+        "name": "深圳比亚迪戴姆勒新技术有限公司",
+        "relation": "来源所列董事（待核验）",
+        "evidence_id": "E-P6F067DA25913ED",
+        "note": "E-P6F067DA25913ED"
+      },
+      {
+        "name": "比亚迪慈善基金会",
+        "relation": "来源所列理事（待核验）",
+        "evidence_id": "E-P6F067DA25913ED",
+        "note": "E-P6F067DA25913ED"
+      },
+      {
+        "name": "深圳市比格电池有限公司",
+        "relation": "来源所列总经理（待核验）",
+        "evidence_id": "E-P70F6B72FAF8DAF",
+        "note": "E-P70F6B72FAF8DAF"
+      },
+      {
+        "name": "比亚迪股份有限公司",
+        "relation": "来源所列关联（待核验）",
+        "evidence_id": "E-P24B8C6EB3F5F6F",
+        "note": "E-P24B8C6EB3F5F6F"
+      }
+    ],
+    "verification": "source_statements_or_explicit_input_clues_not_independently_verified"
+  },
+  "upstream_collection_diagnostics": []
+}

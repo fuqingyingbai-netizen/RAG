@@ -5,6 +5,11 @@ subjects, units and event periods stay unknown rather than borrowing fetch dates
 """
 import json
 import re
+import unicodedata
+try:
+    from .person_text import folded
+except ImportError:
+    from person_text import folded
 
 
 UNKNOWN = {'', '未披露', '未记录', '待查', 'unknown', 'None'}
@@ -26,27 +31,56 @@ def payload(text):
     return {}
 
 
+def source_events(text):
+    """Keep explicitly labelled event dates, with their literal source span."""
+    characters, offsets = [], []
+    for index, char in enumerate(text):
+        value = folded(char)
+        characters.extend(value)
+        offsets.extend([index] * len(value))
+    clean = ''.join(characters)
+    year = r'(?:(?:19|20)\d{2}|[一二][零〇一二三四五六七八九]{3})年'
+    date = year + r'(?:(?:\d{1,2}|[一二三四五六七八九十]{1,3})月(?:(?:\d{1,2}|[一二三四五六七八九十]{1,3})日)?)?'
+    specs = [('education', r'(?P<date>' + date + r')\s*(?:本科|研究生|硕士|博士|大学|技校|高中|初中|小学)?(?:毕业|入学|就读|获.{0,35}学位)'),
+             ('appointment', r'(?P<date>' + date + r'(?:至' + date + r')?)\s*(?:起)?(?:被聘任|获委任|出任|加入|担任|任我们|任本公司)'),
+             ('founding', r'(?P<date>' + date + r')(?:(?!' + year + r'|出生|毕业)[^。；;]){0,20}?(?:共同创办|联合创办|创办|创立)'),
+             ('contract', r'(?P<date>' + date + r')(?:(?!' + year + r'|成立|出生)[^。；;]){0,30}?(?:签署|签订|转让|赠与|出具承诺)')]
+    rows = []
+    for kind, pattern in specs:
+        for match in re.finditer(pattern, clean):
+            start, end = match.span('date')
+            literal = text[offsets[start]:offsets[end-1]+1]
+            quote = text[offsets[match.start()]:offsets[match.end()-1]+1]
+            if (kind, literal) not in {(r['kind'], r['date_literal']) for r in rows}:
+                rows.append({'kind': kind, 'date_literal': literal, 'source_quote': quote})
+    return rows
+
+
 def observation(fact, target, aliases=()):
     text = str(fact.get('fact') or '')
     data = payload(text)
     context = fact.get('person_affiliation')
     context = context if isinstance(context, dict) else {}
-    issuer = str(data.get('企业名称') or data.get('公司名称') or context.get('canonical_company_name') or context.get('affiliation_name') or '')
-    named = re.search(r'(?:姓名|人员名称)["\s]*[:：]["\s]*([^；;，,"|]+)', text)
-    named_person = str(data.get('人员名称') or data.get('姓名') or (named[1].strip() if named else ''))
+    issuer = str(data.get('企业名称') or data.get('公司名称') or context.get('canonical_company_name') or context.get('affiliation_name') or fact.get('team_affiliation_name') or '')
+    named = re.search(r'(?:姓名|人员名称)["\s]*[:：]["\s]*(.+?)(?=\s+(?:出生日期|出生年月|国籍|籍贯|职位|职务|任职|所在地)|[；;，,\n"|]|$)', text)
+    team_name = str(fact.get('team_member_name') or '') if fact.get('claim_type') == 'person_team_member_record' else ''
+    named_person = str(data.get('人员名称') or data.get('姓名') or (team_name if team_name and compact(team_name) in compact(text) else '') or (named[1].strip() if named else ''))
+    table_person = re.match(r'^([\u4e00-\u9fff]{2,4})\s+(?:副董事长|董事长|董事|执行董事|总裁|总经理|财务总监)', text)
+    if not named_person and table_person:
+        named_person = table_person[1]
     forms = [target, *aliases]
     def same_person(value):
         plain = re.split(r'[（(]', value, maxsplit=1)[0].strip()
-        if any(compact(plain) == compact(n) for n in forms):
+        if any(folded(plain) == folded(n) for n in forms):
             return True
         parts = str(target).split()
         return bool(len(parts) == 2 and all(re.fullmatch(r"[A-Za-z'-]+", p) for p in parts)
                     and re.fullmatch(re.escape(parts[0]) + r'\s+(?:[A-Z]\.\s*|[A-Z]\s+){0,2}' + re.escape(parts[1]), plain, re.I))
     other = bool(named_person and not same_person(named_person))
     honorific = re.match(r'^([\u4e00-\u9fff]{1,3})(?:先生|女士)', text)
-    if honorific and not compact(target).startswith(compact(honorific[1])):
+    if honorific and not folded(target).startswith(folded(honorific[1])):
         other = True
-        named_person = honorific[1] + '先生/女士'
+        named_person = named_person or honorific[0]
     # A shared surname is not identity. Listed-company bios often describe a
     # sibling as "王先生...为...王某某先生的兄长" in the same excerpt.
     for form in forms:
@@ -54,7 +88,11 @@ def observation(fact, target, aliases=()):
                              + re.escape(compact(form)) + r'(?:先生|女士)?的(兄长|弟弟|姐姐|妹妹|配偶|父亲|母亲|儿子|女儿)', compact(text))
         if relative and compact(relative[1]).removesuffix('先生').removesuffix('女士') != compact(form):
             other = True
-            named_person = f'{target}的{relative[2]}（原文：{relative[1]}）'
+            named_person = named_person or f'{target}的{relative[2]}（原文：{relative[1]}）'
+            break
+        contextual_actor = re.search(r'在' + re.escape(compact(form)) + r'[^。；;]{0,30}?(?:之后|以后|后)[，,]?[“\"]([^”\"]{2,12})[”\"](?:加入|任|已|开始|推动)', compact(text))
+        if contextual_actor:
+            other, named_person = True, contextual_actor[1]
             break
     scope = 'other_person' if other else 'affiliated_company' if fact.get('subject_scope') == 'affiliated_company' or context else 'person'
     # Only source event fields and explicitly labelled source snapshots count
@@ -77,6 +115,20 @@ def observation(fact, target, aliases=()):
     for key in ('任职起止时间', '任职日期', '任职终止日', '离任日期', '生效日期'):
         if data.get(key) and re.search(r'(?:19|20)\d{2}', str(data[key])):
             dates.append({'field': key, 'source_value': str(data[key])})
+    # A table may embed a literal tenure range instead of a JSON date field.
+    # Full-width years are retained verbatim; birth/graduation dates cannot
+    # supply this range and a document publication date is never substituted.
+    if re.search(r'任期起止|任职起止|任期日期', text):
+        date = r'[０-９0-9]{4}\s*年\s*[０-９0-9]{1,2}\s*月\s*[０-９0-9]{1,2}\s*日'
+        tenure = re.search(date + r'\s*(?:至|到|—|－|-)\s*' + date, text)
+        if tenure:
+            dates.append({'field': '任期起止原文', 'source_value': tenure[0]})
+    ownership_subject = ''
+    for form in forms:
+        group = re.search(re.escape(form) + r'(?:(?:与|和|及|、)[\u4e00-\u9fff]{2,4})?(?:夫妇|夫妻|及其配偶)',text)
+        if group and re.search(r'持股|持有|股权|股份',text[group.end():group.end()+65]):
+            ownership_subject = group[0]
+            break
     metrics = []
     for match in re.finditer(r'(\d+(?:\.\d+)?)\s*(%|％|(?:万|亿)?股|(?:万|亿)?元)', text):
         context_before = text[max(0, match.start()-35):match.start()]
@@ -86,7 +138,7 @@ def observation(fact, target, aliases=()):
                   'revenue' if unit.endswith('元') and re.search(r'营收|营业收入|revenue', context_before, re.I) else '')
         if metric:
             metrics.append({'metric': metric, 'value': match[1], 'unit': unit,
-                            'source_literal': match[0], 'period': period, 'subject': named_person or (target if scope == 'person' else issuer), 'issuer': issuer})
+                            'source_literal': match[0], 'period': period, 'subject': ownership_subject or named_person or (target if scope == 'person' else issuer), 'issuer': issuer})
     relations = []
     if any(data.get(k) for k in ('角色', '曾担任角色', '职位', '职务', '任职起止时间')) or re.search(r'任职|担任|appointed|joined', text, re.I):
         relations.append('appointment')
@@ -107,8 +159,8 @@ def observation(fact, target, aliases=()):
     if not period:
         gaps.append('事件或数据基准时期未明确，禁止用采集日期补齐')
     return {'subject': target if scope == 'person' else named_person or issuer, 'source_named_person': named_person, 'subject_scope': scope,
-            'issuer': issuer, 'relations': relations, 'period': period, 'period_basis': period_basis,
-            'role_date_fields': dates, 'metrics': metrics, 'direct_person_link': bool(direct_link),
+            'issuer': issuer, 'relations': relations, 'period': period, 'period_basis': period_basis, 'ownership_subject': ownership_subject,
+            'role_date_fields': dates, 'source_events': source_events(text), 'metrics': metrics, 'direct_person_link': bool(direct_link),
             'source_url': fact.get('source_url', ''), 'evidence_id': fact.get('evidence_id', ''),
             'gaps': gaps, 'verification': 'source_statement_requires_review'}
 
@@ -119,8 +171,11 @@ def comparison_errors(analysis, supports):
     assertions = []
     for sentence in re.split(r'[。！？；;\n]', analysis):
         for match in re.finditer(comparative, sentence):
+            limitation_prefix = sentence[max(0, match.start()-48):match.start()]
+            if re.search(r'(?:未说明|未披露|未提供|未载明|尚不清楚)[^，,。；;]{0,40}$', limitation_prefix):
+                continue
             prefix = sentence[max(0, match.start()-20):match.start()]
-            if re.search(r'(?:不能|不可|不宜|无法|尚未|不足以|不代表|不等于|不能据此|尚不能).{0,18}$', prefix):
+            if re.search(r'(?:不能|不可|不宜|无法|尚未|不足以|不代表|不等于|不构成|不能据此|尚不能).{0,18}$', prefix):
                 continue
             assertions.append(match[0])
     if not assertions:
@@ -133,6 +188,8 @@ def comparison_errors(analysis, supports):
     if any(not r['metrics'] for r in records):
         return ['comparison_basis_insufficient']
     if len({r['subject'] for r in records}) != 1 or len({r['issuer'] for r in records}) != 1:
+        return ['comparison_subject_or_entity_mismatch']
+    if len({m['subject'] for m in metrics}) > 1:
         return ['comparison_subject_or_entity_mismatch']
     if metrics and any(not r['issuer'] for r in records):
         return ['comparison_subject_or_entity_mismatch']
@@ -153,7 +210,7 @@ def process_text(text):
 
 
 def chapter_relevant(fact, chapter):
-    text = compact(fact.get('fact', ''))
+    text = folded(fact.get('fact', ''))
     if chapter == 7:
         if fact.get('feedback_record'):
             return True
@@ -175,9 +232,15 @@ def chapter_relevant(fact, chapter):
 
 
 def current_status_errors(analysis, supports):
+    absence = re.search(r'未(?:显示|提供|见到|载明|说明)[^。]{0,85}(?:因此|故|所以|可见)[^。]{0,25}(?:尚处|仍处|尚未|仍未|未生效|待决)',analysis)
+    if absence and not re.search(r'不能|不代表|并不|不等于',absence[0]):
+        return ['absence_of_evidence_as_status']
     for match in re.finditer(r'现任|当前(?:持股|任职|担任|控制|为|是|董事|总裁|负责人)|任职.{0,12}至今', analysis):
         prefix = analysis[max(0, match.start()-16):match.start()]
-        if re.search(r'是否|不能|不宜|无法|尚未|需核验|不代表', prefix):
+        if re.search(r'是否|不能|不宜|无法|尚未|未说明|未注明|未披露|未载明|未能|不构成|不反映|需核验|不代表', prefix):
+            continue
+        attributed = re.search(r'(?:来源|文件|招股意向书|招股说明书|公告|报告|材料).{0,12}(?:称|载明|披露|记载).{0,10}$', prefix)
+        if attributed and re.search(r'(?:未|缺少|不能|不代表|不构成).{0,22}(?:当前|时点|时期|任期|持续)', analysis):
             continue
         if any(not (f.get('observation') or {}).get('period') for f in supports):
             return ['current_status_without_effective_period']
@@ -185,18 +248,80 @@ def current_status_errors(analysis, supports):
 
 
 def personal_inference_errors(analysis):
-    pattern = r'(?:体现|说明|证明|反映|表明|意味着|可见|可判定|足以|因此|所以).{0,18}(?:个人信用|诚信|品行|人格|能力|抗压|责任心|事业心|技术自信|违法|无风险|低风险)'
+    pattern = r'(?:体现|说明|证明|反映|表明|意味着|可见|可判定|足以|因此|所以)[^。！？；;，,]{0,35}(?:个人信用|诚信|品行|人格|能力|抗压|责任心|事业心|风险偏好|风险承担意愿|承担风险的意愿|目标导向|技术自信|审慎考量|谨慎态度|违法|无风险|低风险)'
     for match in re.finditer(pattern, analysis):
         prefix = analysis[max(0, match.start()-14):match.start()]
-        if re.search(r'不能|无法|不足以|不代表|尚未|不宜', prefix):
+        if re.search(r'不能|无法|不足以|不代表|尚未|不宜', prefix) or (match[0].startswith('足以') and prefix.endswith('不')):
             continue
         return ['personal_conclusion_not_verified']
     return []
 
 
 def definition_errors(analysis, supports):
+    from person_text import numeric_literals
     allowed = ' '.join(f['fact'] for f in supports)
     errors = []
+    for term in ('法定锁定期','法定责任','法定要求','法定义务','监管要求','法律实体独立','独立法人'):
+        if term in analysis and term not in allowed:
+            position=analysis.index(term)
+            if not re.search(r'不能|不代表|未说明|不足以|未载明',analysis[max(0,position-18):position]):
+                errors.append('legal_obligation_definition_not_supported')
+    executive_tenure = re.search(r'(总裁|总经理)[，,\s]*任期[一二三四五六七八九十\d]+年',allowed)
+    if (executive_tenure and re.search(r'董事长[^。；;]{0,18}(?:总裁|总经理)[^。；;]{0,8}任期',analysis)
+            and not re.search(r'(?:其中|该)?(?:总裁|总经理)(?:职务)?(?:的)?任期',analysis)):
+        errors.append('mixed_role_tenure_not_supported')
+    for match in re.finditer(r'属(?:于)?常规|为常规|符合惯例|属(?:于)?正常交易',analysis):
+        if match[0] not in allowed and not re.search(r'不能|未说明|不代表|不足以',analysis[max(0,match.start()-14):match.start()]):
+            errors.append('industry_norm_not_supported')
+    records = [f.get('observation') or observation(f,f.get('subject','')) for f in supports]
+    simultaneous = re.search(r'同时持有|同一时点持有|同期持有', analysis)
+    if (len(records) > 1 and simultaneous
+            and not re.search(r'是否|未说明|未披露|不能|不足以', analysis[max(0,simultaneous.start()-20):simultaneous.start()])
+            and (any(not r.get('period') for r in records)
+                 or len({r.get('period') for r in records}) != 1)):
+        errors.append('simultaneous_ownership_period_not_supported')
+    if (len(records) > 1 and re.search(r'主体[^。；;]{0,10}(?:不同|有别)|不同主体', analysis)
+            and len({r.get('subject') for r in records}) == 1):
+        errors.append('comparison_subject_or_entity_mismatch')
+    if records and all(r.get('ownership_subject') for r in records):
+        people = {r.get('subject','') for r in records}
+        if (any(name and re.search(re.escape(name)+r'(?:个人|单独)?(?:持股|持有|拥有)',analysis) for name in people)
+                and not re.search(r'夫妇|夫妻|配偶|共同持有|共同持股|合计持',analysis)):
+            errors.append('joint_holding_as_individual')
+    if re.search(r'共识事实|事实已确认|已交叉验证|已交叉印证', analysis):
+        errors.append('independent_verification_not_performed')
+    for match in re.finditer(r'不可采信|不可信|属虚假|内容失实', analysis):
+        if match[0] not in allowed and not re.search(r'不能|不代表|不足以|无法|尚不能', analysis[max(0,match.start()-14):match.start()]):
+            errors.append('source_truth_verdict_not_supported')
+    clean = numeric_literals(allowed)
+    canonical_analysis = numeric_literals(analysis)
+    for unit in ('亿股', '万股', '亿元', '万元'):
+        if unit in analysis and unit not in clean:
+            errors.append('quantity_unit_not_supported')
+            break
+    # Numeric equality alone cannot license a changed scale or unit: 15.41%
+    # must never become 15.41亿股. Require the literal quantity/unit pairing.
+    for value in re.findall(r'\d+(?:\.\d+)?\s*(?:亿股|万股|股|亿元|万元|元|%|个月)', canonical_analysis):
+        if compact(value) not in compact(clean):
+            errors.append('quantity_unit_not_supported')
+            break
+    for match in re.finditer(r'连带责任', analysis):
+        if '连带责任' not in allowed and not re.search(r'不能|不代表|不足以|未说明|未载明|不构成|并非|未记载', analysis[max(0, match.start()-14):match.start()]):
+            errors.append('legal_obligation_definition_not_supported')
+    if re.search(r'多次(?:承诺|签署|出具|被执行|强调|表示|表态)|多起诉讼', analysis) and not re.search(r'多次|先后|多起', allowed):
+        event_dates = {r['date_literal'] for f in supports for r in (f.get('observation') or {}).get('source_events', []) if r['kind'] == 'contract'}
+        if len(event_dates) < 2:
+            errors.append('repeated_disclosure_not_repeated_event')
+    if re.search(r'(?:显示|表明|体现|说明|反映)[^。；，,]{0,20}(?:控制意图|持股信心)', analysis) and not re.search(r'控制意图|持股信心', allowed):
+        errors.append('personal_intention_not_supported')
+    if re.search(r'同意.{0,35}转让', allowed) and not re.search(r'已完成.{0,15}转让|已办理.{0,15}变更|完成.{0,15}交割', allowed):
+        for clause in re.split(r'[。；，,]', analysis):
+            if re.search(r'于.{0,30}向.{0,20}转让|已经?转让|完成.{0,30}转让|转让了', clause) and not re.search(r'同意|拟|计划|是否|未说明|未披露|未载明', clause):
+                errors.append('conditional_transfer_as_completed')
+                break
+    conditional = re.search(r'提请.{0,35}授权|在取得.{0,35}批准|拟.{0,20}授权', compact(allowed))
+    if conditional and re.search(r'被.{0,8}授权|获明确授权|已.{0,8}授权|完成授权', analysis) and not re.search(r'待.{0,12}批准|取得.{0,12}批准.{0,8}后|提请|有条件|拟|尚未|不代表.*生效', analysis):
+        errors.append('conditional_authorization_as_completed')
     if re.search(r'年薪|年度薪酬|年度报酬', analysis) and not re.search(r'年薪|年度薪酬|年度报酬', allowed):
         errors.append('metric_period_or_definition_not_supported')
     for match in re.finditer(r'任职.{0,16}成立(?:日|日期|时间)|成立(?:日|日期|时间).{0,16}任职', analysis):
@@ -204,4 +329,4 @@ def definition_errors(analysis, supports):
         segment = analysis[match.start():match.end()+8]
         if not re.search(r'不能|不等于|不代表|不是|无法|不应', prefix + segment):
             errors.append('company_founding_date_used_as_role_date')
-    return errors
+    return list(dict.fromkeys(errors))

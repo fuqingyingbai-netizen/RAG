@@ -28,6 +28,18 @@ def noop(*args, **kwargs):
     pass
 
 
+def test_collector_snapshot_counts_remain_auditable_without_false_current_gaps():
+    p = person()
+    historical = '教育与履历：有效来源不足，当前 0 条，目标 3 条'
+    real_limit = '委托范围未包括授权访谈，访谈结果尚未取得。'
+    report = generate_person_report(p, json.dumps({'facts': [fact()], 'information_gaps': [historical, real_limit]}),
+                                    '{}', PERSON_REPORT_OUTLINE, echo, noop)
+    assert historical not in split_sections(report)[15]
+    assert real_limit in split_sections(report)[15]
+    assert '计数早于本轮身份复核及章节选材' in report
+    assert p.person_delivery_diagnostic['upstream_collection_diagnostics'] == [historical]
+
+
 def echo(role, prompt, trace):
     pack = json.loads(prompt[prompt.index('{"chapter":'):])
     return json.dumps({"claims": [{"statement": f["fact"], "evidence_ids": [f["evidence_id"]], "analysis": ""}
@@ -48,7 +60,10 @@ def test_person_generation_is_not_bound_to_one_name(name):
 @pytest.mark.parametrize("chapter", range(1, 16))
 def test_every_template_chapter_has_diagnostic_and_appropriate_source_scope(chapter):
     p = person()
-    examples = {4: '林知远于2021年负责产品战略及研发创新项目，原件仅披露职责和项目结果。',
+    examples = {2: '林知远于2010年毕业于远山大学，2021年在恒川软件任职，任期仍需原件核对。',
+                4: '林知远于2021年负责产品战略及研发创新项目，原件仅披露职责和项目结果。',
+                5: '董事会于2021年授权林知远负责研发团队管理，并审议关键岗位聘任事项，执行结果另核。',
+                6: '团队成员姓名：陈雨安；职务：研发负责人；与林知远同属恒川软件核心团队，任期未披露。',
                 7: '林知远于2021年签署客户服务协议并承诺按约交付，来源未证明实际履行情况。',
                 12: '合成记录：林知远于2021年涉及一起合同诉讼，案号为合成测试001号，尚需核对当事人。'}
     facts = [fact(fact=examples.get(i, f"林知远参与{requirements[0]}相关工作，原件仅披露职责，不提供能力评级。"),
@@ -73,7 +88,7 @@ def test_sources_in_index_are_actual_body_citations_and_can_repeat_across_chapte
     report = append_index(f"## 1. 摘要\n\n[{eid}]\n\n## 2. 履历\n\n[{eid}]\n\n## 15. 后续研究点\n待核验", cards)
     assert "https://fixture.invalid/profile" in report
     assert "https://unused.invalid" not in report
-    assert "1,2" in report
+    assert "1, 2" in report
     assert append_index(report, cards) == report
     titled = "# 人物研究底稿\n\n" + report
     assert append_index(titled, cards).startswith("# 人物研究底稿")
@@ -140,7 +155,8 @@ def test_quota_failure_stops_further_provider_calls_and_preserves_all_chapters()
     report = generate_person_report(p, json.dumps({"facts": [fact()]}), "{}", PERSON_REPORT_OUTLINE, fail, noop)
     assert len(calls) == 1
     assert len(split_sections(report)) == 15
-    assert "quota_exceeded" in report
+    assert "模型服务返回额度不足" in report
+    assert "quota_exceeded" in json.dumps(p.person_delivery_diagnostic)
     assert p.person_delivery_diagnostic["errors"]
     workflow = ResearchWorkflow.__new__(ResearchWorkflow)
     with pytest.raises(RuntimeError, match="质量闸门"):

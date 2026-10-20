@@ -10,11 +10,11 @@ TOPICS = (
     ('ownership', '持股及权益', ('持股', '股权', '股东', '持有股份', '股份变动', '增持', '减持', 'shareholding', 'shareholder', 'ownership'), '持股 变动 公告', (9,)),
     ('career', '任职及职责', ('任职', '履历', '职务', '职位', '董事', '总经理', '角色', '高管', 'career', 'appointed', 'position', 'director'), '任职 历史 职务 公告', (2, 6, 9)),
     ('education', '教育与资格', ('教育', '学历', '毕业', '学校', '学位', '大学', 'education', 'degree', 'university'), '教育 毕业 官方 简介', (2,)),
-    ('relations', '关联关系', ('关联', '代持', '实控', '控制权', 'related party', 'control'), '关联 关系 交易 披露', (9,)),
-    ('legal', '司法及契约事项', ('司法', '诉讼', '裁判', '案号', '被执行', '执行案号', '执行法院', '强制执行', '处罚', '冻结', '欠薪', '债务', '违约', 'litigation', 'lawsuit', 'penalty', 'debt'), '案件 当事人 案号 裁判 原文', (7, 9, 12)),
+    ('relations', '关联关系', ('关联', '代持', '实控', '实际控制', '控制权', '表决权', 'related party', 'control'), '关联 关系 交易 披露', (9,)),
+    ('legal', '司法及契约事项', ('司法', '诉讼', '裁判', '案号', '被执行', '执行案号', '执行法院', '强制执行', '处罚', '冻结', '欠薪', '债务', '违约', '契约', '履约', '承诺', '偿还', 'litigation', 'lawsuit', 'penalty', 'debt', 'contract'), '案件 当事人 案号 裁判 履约 承诺 原文', (7, 9, 12)),
     ('ipr', '知识产权', ('知识产权', '专利', '商标', '著作权', 'patent', 'intellectual property'), '知识产权 申请人 原始记录', (9,)),
     ('operations', '经营与融资', ('经营', '融资', '业绩', '营收', '战略', '创新', 'financing', 'revenue', 'strategy'), '经营 职责 结果 公告', (4,)),
-    ('management', '管理与团队', ('管理', '用人', '授权', '组织', '接班', '团队', 'management', 'team', 'delegation'), '管理 授权 团队 采访', (5, 6)),
+    ('management', '管理与团队', ('管理', '用人', '授权', '组织', '接班', '团队', '治理', '退出', '回购', 'management', 'team', 'delegation', 'governance', 'exit'), '管理 授权 团队 治理 退出 原文', (5, 6, 11)),
     ('comparison', '同业比较', ('同业', '对标', '比较', '可比', 'peer', 'benchmark', 'comparison'), '同业 可比人物 职责 时期', (8,)),
 )
 
@@ -85,6 +85,14 @@ def matches(value, requirement):
     for key in ('affiliation_name', 'canonical_company_name'):
         if context.get(key):
             text = text.replace(str(context[key]), '')
+    if requirement['topic'] == 'career' and not re.search(r'任职|履历|职务|职位|董事|总经理|高管|聘任|出任|担任|主管|负责|career|appointed|position|director',text,re.I):
+        return False
+    if requirement['topic'] == 'comparison':
+        if row.get('comparison_subject'):
+            return True
+        return bool(re.search(r'对标|可比人物|同行.{0,8}(?:评价|对比|比较)|(?:与|和).{2,30}(?:相比|比较|对比)|同业.{0,10}(?:人物|创始人|董事长)',text))
+    if requirement['topic'] == 'operations' and re.search(r'生产经营和行政管理.{0,8}独立|丰富.{0,10}管理经验',text):
+        return bool(re.search(r'融资|筹资|增资|营收|营业收入|交付|投产|研发|创新项目|业务策略',text))
     if requirement['topic'] == 'relations' and row.get('claim_type') == 'person_platform_record':
         return bool(re.search(r'角色|任职|股东|董事|ownership|position', text, re.I))
     return any(compact(term) in compact(text) for term in requirement['terms'])
@@ -100,7 +108,20 @@ def event_years(text):
 def assess(facts, requirement):
     candidates = [f for f in facts if matches(f, requirement)]
     direct = [f for f in candidates if f.get('subject_scope') == 'person']
-    years = set().union(*(event_years(f.get('fact', '') + ' ' + str(f.get('event_date', ''))) for f in direct)) if direct else set()
+    try:
+        from .person_records import observation
+        from .person_text import numeric_literals
+    except ImportError:
+        from person_records import observation
+        from person_text import numeric_literals
+    years = set()
+    kinds = {'career':{'appointment','founding'},'ownership':{'contract'},'education':{'education'},
+             'relations':{'appointment','founding','contract'}}.get(requirement['topic'])
+    for f in direct:
+        record = f.get('observation') or observation(f,requirement.get('target_name',''))
+        values = [record.get('period',''),*[r['source_value'] for r in record.get('role_date_fields',[])]]
+        values += [r['date_literal'] for r in record.get('source_events',[]) if kinds is None or r['kind'] in kinds]
+        years.update(event_years(numeric_literals(' '.join(values))))
     question = ' '.join(requirement['questions'])
     historical = requirement['topic'] in {'ownership', 'career', 'relations'} and re.search(r'历史|变化|变动|历任|曾任|histor|change', question, re.I)
     gaps = []

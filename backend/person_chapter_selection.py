@@ -1,0 +1,358 @@
+"""Question-directed selection of retained source statements, never verification.
+
+Coverage describes available material, not a personality/credit assessment. A
+template heading need not occur literally in a source for that source to help.
+"""
+import re
+import unicodedata
+from collections import Counter
+from urllib.parse import urlparse
+try:
+    from .person_text import folded
+except ImportError:
+    from person_text import folded
+
+
+SPECS = {
+    2: [('教育与早年经历', r'毕业|学历|学位|大学|就读|学士|硕士|博士|education|university|degree'),
+        ('职业时间线与职责', r'任职|任期|担任|创办|创立|历任|聘任|appointed|career|joined'),
+        ('履历断点与矛盾', r'任职|任期|担任|创办|创立|历任|聘任|appointed|career|joined'),
+        ('家庭健康等公开信息边界', r'(?!)')],
+    3: [('责任心与事业心', r'负责|(?<!有限)责任(?!公司)|创业|辞职|放弃|承担|responsib'),
+        ('诚信与利益取舍', r'诚信|利益|承诺|违约|契约|integrity|contract'),
+        ('表达与风险偏好', r'表示|指出|演讲|采访|公开表达|认为|said|interview'),
+        ('压力下行为与评价者立场', r'压力|困难|危机|回忆|评价|争议|conflict|pressure')],
+    4: [('战略设计与行业判断', r'战略|策略|转型|布局|strategy'),
+        ('执行与项目结果', r'交付|投产|量产|项目|产品|发布|研发|execution|product'),
+        ('资本资源与个人职责', r'融资|筹资|资本|资产支持证券|financing|capital'),
+        ('创新迭代与阶段匹配', r'研发|技术|专利|迭代|创新|innovation|technology')],
+    5: [('权责与授权', r'授权|提名|聘任|任免|分工|委派|批准|delegat|appoint'),
+        ('用人与关键岗位', r'人事|提名|聘任|任免|离任|离职|接班|选聘|继任|recruit|succession'),
+        ('文化与冲突处理', r'文化|冲突|裁员|激励|薪酬|员工|争议|culture|conflict'),
+        ('经营管控与稳定性', r'管控|内控|管理|授权|审批|审议|董事会|control|management')],
+    6: [('成员履历与职责', r'任职|任期|担任|历任|董事|高管|总裁|履历|团队|executive|director|team'),
+        ('产业资源与合作基础', r'曾在|历任|创办|共同|合作|工作|joined|career'),
+        ('关键人员变动', r'离任|离职|变动|聘任|任免|接班|继任|辞职|resign|appoint'),
+        ('团队治理与关系边界', r'兄长|亲属|共同|董事|管理|团队|关系|高管|team|board')],
+    9: [('任职持股及控制关系', r'任职|任期|担任|法定代表|持股|股权|股东|控股|控制人|角色|职位|shareholder|ownership'),
+        ('关联交易与利益一致性', r'关联交易|代持|利益冲突|同业竞争|关联方|related party'),
+        ('司法事项及当事人身份', r'案号|诉讼|裁判|被执行|处罚|当事人|失信|lawsuit|litigation'),
+        ('关系时间与透明度缺口', r'任职|任期|担任|持股|股权|股东|历史|角色|职位|ownership')],
+    11: [('人物实际决策角色', r'授权|决策|控股|控制人|表决权|董事长|delegat|control'),
+         ('投资方沟通与重大事项', r'投资方|重大事项|股东大会|资产支持证券|审议|批准|审批|investor|approval'),
+         ('关键岗位与制度承接', r'聘任|任免|继任|接班|董事会秘书|总裁|总经理|succession|appoint'),
+         ('退出路径及适用条件', r'锁定|不转让|限售|回购|退出|上市|exit|buyback|lock.up')],
+    12: [('已发现的直接信号', r'风险|诉讼|处罚|失信|被执行|争议|risk|lawsuit|penalty'),
+         ('关联主体间接信号', r'风险|诉讼|处罚|失信|被执行|争议|risk|lawsuit|penalty'),
+         ('尚未核验及未查询事项', r'(?!)'), ('风险核查覆盖清单', r'(?!)')],
+}
+
+
+def normalized(text):
+    return folded(str(text or ''))
+
+
+def is_lockup(text):
+    return bool(re.search(r'锁定|限售|每年转让|不转让|不得转让|股票上市之日', text))
+
+
+def judicial_party_material(fact):
+    """A lawsuit keyword next to a founder's name is not a party record."""
+    text = folded(fact.get('fact', ''))
+    if fact.get('claim_type') == 'person_platform_record':
+        return bool(re.search(r'案号|案件编号|执行案号|决定书文号|执行法院|被执行人姓名|失信被执行人姓名', text))
+    name = re.escape(folded(fact.get('subject') or ''))
+    if not name:
+        return False
+    return bool(re.search(r'案号|案件编号|决定书文号|执行案号', text) or
+                re.search(name + r'[^。；;\n]{0,35}(?:作为|系|为|被列为).{0,12}(?:原告|被告|被执行人|当事人|申请人|上诉人)', text) or
+                re.search(name + r'[^。；;\n]{0,25}(?:被.{0,12}起诉|提起.{0,12}诉讼|涉及.{0,12}诉讼|受到.{0,12}处罚|被.{0,8}执行|被.{0,8}处罚)', text))
+
+
+def prospective_company_risk(fact):
+    text = folded(fact.get('fact', ''))
+    return bool(re.search(r'控股股东.{0,15}控制风险|实际控制人控制风险|管理风险', text) and
+                re.search(r'本公司|本集团|招股|公司', text))
+
+
+def material_matches(fact, chapter, view):
+    text = folded(str(fact.get('fact') or ''))
+    scope = fact.get('subject_scope')
+    if chapter == 5 and is_lockup(text):
+        return False
+    if chapter == 5 and re.search(r'管理风险|控股股东.{0,15}控制风险', text) and not re.search(r'授权|聘任|提名|任免|审批', text):
+        return False
+    if chapter == 5 and re.search(r'丰富.{0,10}管理经验|充足时间和精力|资格|不得担任', text) and not re.search(r'授权|聘任|提名|任免|审批', text):
+        return False
+    if chapter == 6:
+        # A news item mentioning an external CEO is not a management-team bio.
+        team = (scope == 'other_person' and (bool(fact.get('team_member_name') and fact.get('team_affiliation_name')) or bool(re.search(r'本公司|本集团|其团队|管理团队|核心团队|共同创办|共同创立|团队成员|同属', text)))) or (scope == 'affiliated_company' and 6 in fact.get('person_chapters', []))
+        if not team:
+            return False
+        if '不得担任' in text and not re.search(r'现任|担任本|任职|共同创办', text):
+            return False
+    if chapter == 4 and re.search(r'控股股东.{0,15}控制风险|管理风险|重大经营及人事决策', text):
+        return False
+    if chapter == 4 and re.search(r'成功.{0,25}努力|创新精神|丰富.{0,10}管理经验|行业资源', text) and not re.search(r'负责|主导|研发|项目|创办|投资|交付', text):
+        return False
+    if chapter == 9 and view == '司法事项及当事人身份':
+        return judicial_party_material(fact)
+    if chapter == 9 and fact.get('literal_roster_row') and view in {'任职持股及控制关系', '关系时间与透明度缺口'}:
+        return True
+    if chapter == 12:
+        prospective = prospective_company_risk(fact)
+        if view == '已发现的直接信号':
+            if scope != 'person' or prospective:
+                return False
+            if re.search(r'诉讼|裁判|对簿公堂', text) and not judicial_party_material(fact):
+                return False
+        if view == '关联主体间接信号' and scope != 'affiliated_company' and not prospective:
+            return False
+    pattern = dict(SPECS.get(chapter, [])).get(view)
+    return bool(pattern and re.search(pattern, text, re.I))
+
+
+def useful_for_chapter(fact, chapter):
+    text = fact.get('fact', '')
+    if (all(word in folded(text) for word in ('真实','准确','完整')) and '法律责任' in text
+            and not re.search(r'案号|判决|处罚|执行法院|授权|聘任|任免',text)):
+        return False
+    if fact.get('source_text_issue') == 'possible_revision_overlap':
+        return False
+    from company_ocr import native_text_issue
+    if native_text_issue(text) in {'mixed_script_character_map', 'broken_character_map'}:
+        return False
+    # Date/title feeds are discovery leads, not the body of any one article.
+    if len(re.findall(r'(?:19|20)\d{2}-\d{2}-\d{2}', text)) >= 3 and not re.search(r'[。！？]', text):
+        return False
+    if len(text) < 260 and len(re.findall(r'(?:19|20)\d{2}-\d{2}-\d{2}', text)) >= 2 and '。' not in text:
+        return False
+    if (len(text) < 300 and re.search(r'详细简历.{0,20}请参见|简历具体情况请参见|具体情况请参见|具体内容请参见|相关简历请参见|^人物\s+冲突积怨|^.*?欢迎访问.*?官网[！!]$', text)):
+        return False
+    return chapter not in SPECS or any(material_matches(fact, chapter, view) for view, _ in SPECS[chapter])
+
+
+def question_priority(fact, chapter, view):
+    text = folded(fact['fact'])
+    if chapter == 2 and view == '教育与早年经历':
+        return 3 * bool(re.search(r'毕业|就读|学位|graduat|degree', text, re.I)) + bool(fact.get('observation', {}).get('source_events'))
+    if chapter in {5, 11}:
+        return 4 * bool(re.search(r'授权|委派|delegat', text, re.I)) + 2 * bool(re.search(r'重大事项|资产支持证券|聘任|任免', text))
+    if chapter == 9:
+        return 2 * bool(fact.get('observation', {}).get('role_date_fields') or fact.get('observation', {}).get('metrics'))
+    return 0
+
+
+def quality_key(fact):
+    grade = {'A': 4, 'B': 3, 'C': 2, 'D': 1}.get(str(fact.get('source_grade') or '').upper(), 0)
+    original = bool(fact.get('original_excerpt_match'))
+    clean = not bool(re.search(r'更多>>|点击浏览|欢迎访问|在线留言|当前位置|上一篇|下一篇', fact.get('fact', '')))
+    return (grade, original, clean, -len(fact.get('fact', '')))
+
+
+def prioritize_sentences(sentences, matches_name):
+    """Reserve distinct research questions across a complete retained source.
+
+    Ordering affects a bounded fact-card extractor, never source retention.
+    Later education, appointment or authorization events must not lose every
+    slot to repeated early mentions of the same name in a long annual report.
+    """
+    rows, seen = [], set()
+    for text in sentences:
+        text = re.sub(r'\s+', ' ', text).strip(' -•\t')
+        key = normalized(text)
+        if key in seen or not 24 <= len(text) <= 1200 or not matches_name(text):
+            continue
+        seen.add(key)
+        rows.append(text)
+    reserved = []
+    for chapter in (2, 5, 9, 11, 12, 3, 4):
+        for _, pattern in SPECS[chapter]:
+            candidates = [t for t in rows if re.search(pattern, t, re.I) and t not in reserved]
+            if candidates:
+                selected = max(candidates, key=lambda t: (bool(re.search(r'授权|聘任|毕业|案号|决定书|任职日期', t)),
+                    bool(re.search(r'(?:19|20)\d{2}', unicodedata.normalize('NFKC', t))), -len(t)))
+                reserved.append(selected)
+    return reserved + [t for t in rows if t not in reserved]
+
+
+def select_material(ranked, chapter, commissioned=(), commission_matches=None, limit=12):
+    """Reserve material for each question before filling a bounded chapter."""
+    eligible, audit, families = [], [], {}
+    for score, fact in ranked:
+        if not useful_for_chapter(fact, chapter):
+            audit.append({'evidence_id': fact['evidence_id'], 'status': 'not_selected', 'reason': fact.get('source_text_issue') or 'not_chapter_material'})
+            continue
+        family = (normalized(fact['fact']), fact.get('subject_scope'), fact.get('comparison_subject', ''))
+        previous = families.get(family)
+        if previous is not None:
+            winner, duplicate = (fact, previous[1]) if quality_key(fact) > quality_key(previous[1]) else (previous[1], fact)
+            if winner is fact:
+                eligible.remove(previous)
+                item = (score, fact)
+                eligible.append(item)
+                families[family] = item
+            audit.append({'evidence_id': duplicate['evidence_id'], 'status': 'not_selected', 'reason': 'same_source_statement', 'same_statement_as': winner['evidence_id']})
+            continue
+        item = (score, fact)
+        families[family] = item
+        eligible.append(item)
+    # Material quality precedes accidental hash ordering among equal topics.
+    eligible.sort(key=lambda pair: (not bool(pair[1].get('team_member_name')) if chapter == 6 else False,
+                                    not bool(pair[1].get('biography_excerpt')) if chapter == 8 else False,
+                                    not bool(pair[1].get('primary_disclosure')) if chapter == 8 else False,
+                                    not bool(pair[1].get('individual_peer_page')) if chapter == 8 else False,
+                                    tuple(-x for x in quality_key(pair[1])), -pair[0], pair[1]['evidence_id']))
+    reserved = []
+    if chapter in SPECS:
+        for view, _ in SPECS[chapter]:
+            candidates = [r for r in eligible if material_matches(r[1], chapter, view) and r not in reserved]
+            candidate = max(candidates, key=lambda r: (question_priority(r[1], chapter, view), quality_key(r[1]), r[0])) if candidates else None
+            if candidate:
+                reserved.append(candidate)
+    if chapter == 6:
+        named = []
+        seen_names = set()
+        for candidate in eligible:
+            name = normalized(candidate[1].get('team_member_name') or candidate[1].get('subject'))
+            if name and name not in seen_names:
+                seen_names.add(name)
+                named.append(candidate)
+        reserved = named + [r for r in reserved if r not in named]
+    if chapter == 10 and commission_matches:
+        for requirement in commissioned:
+            candidate = next((r for r in eligible if commission_matches(r[1], requirement) and r not in reserved), None)
+            if candidate:
+                reserved.append(candidate)
+    if chapter == 8:
+        names = sorted({r[1].get('comparison_subject') for r in eligible if r[1].get('comparison_subject')})
+        for name in names:
+            for kind in ('profile', 'nomination_basis'):
+                candidate = next((r for r in eligible if r[1].get('comparison_subject') == name and r[1].get('comparison_record_kind') == kind and r not in reserved), None)
+                if candidate:
+                    reserved.append(candidate)
+    ordered = reserved + [r for r in eligible if r not in reserved]
+    selected, sources, domains, members, peer_counts = [], Counter(), Counter(), Counter(), Counter()
+    peer_names = {f.get('comparison_subject') for _, f in eligible if f.get('comparison_subject')}
+    peer_cap = max(2, (limit + len(peer_names) - 1) // len(peer_names)) if peer_names else limit
+    for _, fact in ordered:
+        url = fact['source_url']
+        domain = urlparse(url).netloc or url
+        member = normalized(fact.get('team_member_name') or fact.get('subject')) if chapter == 6 else ''
+        reason = ('chapter_capacity' if len(selected) >= limit else 'same_member_profile' if member and members[member] else
+                  'peer_concentration' if chapter == 8 and fact.get('comparison_subject') and peer_counts[fact['comparison_subject']] >= peer_cap else
+                  'source_concentration' if sources[url] >= 3 and (_, fact) not in reserved else
+                  'domain_concentration' if domains[domain] >= 4 and (_, fact) not in reserved else '')
+        if reason:
+            audit.append({'evidence_id': fact['evidence_id'], 'status': 'not_selected', 'reason': reason})
+            continue
+        selected.append(fact)
+        sources[url] += 1
+        domains[domain] += 1
+        if member:
+            members[member] += 1
+        if fact.get('comparison_subject'):
+            peer_counts[fact['comparison_subject']] += 1
+        audit.append({'evidence_id': fact['evidence_id'], 'status': 'selected', 'reason': 'question_material'})
+    return selected, audit
+
+
+def dimension_coverage(chapter, facts, queries=()):
+    rows = []
+    for view, _ in SPECS.get(chapter, []):
+        matches = [f for f in facts if material_matches(f, chapter, view)]
+        state = 'partial' if matches else 'missing'
+        if chapter == 2 and view == '家庭健康等公开信息边界':
+            state, status = 'scope_limited', '仅使用与委托有关且明确公开的信息；未披露不作为风险，不扩张检索私密信息。'
+        elif chapter == 12 and view in {'尚未核验及未查询事项', '风险核查覆盖清单'}:
+            state = 'query_recorded' if queries else 'missing'
+            status = (f'已记录{len(queries)}项专业查询状态，逐项区分返回记录、空结果、失败及未查询；不作为无风险证明。' if queries else '尚缺可核对的专业查询覆盖记录，不能推定已经查全或无风险。')
+        elif matches:
+            if chapter == 2 and view == '教育与早年经历':
+                status = '已取得学历、学校或毕业相关原词；教育时间线与原始出处仍须核对，不再记为完全缺少材料。'
+            elif chapter == 2 and view == '履历断点与矛盾':
+                status = '已有履历记录；连续性、任期衔接和疑似冲突须逐时点核实，不能因未出现“断点”二字误报无材料。'
+            elif chapter == 3:
+                status = '已取得本人行为或公开表达线索；尚不足以据此判定人格、诚信或风险偏好。'
+            elif chapter == 4:
+                status = '已取得职责、事件或结果线索；个人贡献、对应时期及因果关系仍待核实。'
+            elif chapter == 6:
+                status = '已取得团队其他成员或团队结构资料；实际职务、任期及关系仍需核对，不归因目标本人。'
+            elif chapter == 11 and view == '退出路径及适用条件':
+                status = '已取得锁定、转让或退出相关原词；须核对历史时期、现行协议及触发条件，不推定当前退出权。'
+            elif chapter == 12:
+                status = ('已取得公司披露的潜在治理或控制风险因素；不代表风险已经发生，也不认定个人违法或失信。'
+                          if view == '关联主体间接信号' and all(prospective_company_risk(f) for f in matches) else
+                          '已取得对应归属的来源信号；事项性质、个人责任和处理结果仍需核实。')
+            else:
+                status = '已取得对应问题的原文线索；主体、时期、适用条件与结论仍待逐项核实。'
+        else:
+            status = '当前入选材料尚不能回答该问题，需核查留存原文或有针对性补证。'
+        rows.append({'view': view, 'state': state, 'status': status,
+                     'evidence_ids': [f['evidence_id'] for f in matches],
+                     'completion': 'available_source_material_is_not_verified_conclusion'})
+    return rows
+
+
+def team_source_facts(sources, intake):
+    """Recover exact colleague bios missed by target-name-only extraction.
+
+    Only retained full documents with the supplied company anchor, target name
+    and an explicit management-bio heading are eligible. This is not a search
+    or a statement that the appointments remain current.
+    """
+    target = str(intake.get('target_name') or intake.get('company_name') or '')
+    anchor = intake.get('person_anchor') or {}
+    orgs = [str(org) for org in anchor.get('known_affiliations', []) if len(str(org)) >= 3]
+    forms = {normalized(n) for n in [target, *anchor.get('aliases', [])] if n}
+    if not target or not orgs:
+        return []
+    rows = []
+    for source in sources:
+        meta, body = source.source_metadata or {}, source.content or ''
+        if (meta.get('identity_confidence') not in {'high', 'medium'} or meta.get('person_discovery_only')
+                or meta.get('identity_status') == 'quarantined' or meta.get('content_kind') in {'summary_only', 'low_content', 'empty_content'}
+                or meta.get('fetch_status') in {'failed', 'blocked', 'empty', 'skipped', 'challenge'}):
+            continue
+        compact_body = normalized(body)
+        org = next((org for org in orgs if normalized(org) in compact_body), '')
+        if not org or normalized(target) not in compact_body or not re.search(r'高级管理人员简历|董事.*?高级管理人员|管理层简历|directors and senior management|executive biographies', body, re.I):
+            continue
+        headings = list(re.finditer(r'(?m)^\s*(?:([\u4e00-\u9fff]{2,4})(?:先生|女士)[，,]|(?:Mr\.?|Ms\.?)\s+([A-Z][A-Za-z\'-]+(?:\s+[A-Z][A-Za-z\'-]+){1,4})\s*[,，])', body))
+        document_count = 0
+        for index, heading in enumerate(headings):
+            name = heading[1] or heading[2]
+            prefix = body[:heading.start()].rstrip()
+            if heading[1] and prefix and re.fullmatch(r'[\u4e00-\u9fff]', prefix.rsplit('\n', 1)[-1].strip()):
+                # A preceding isolated surname indicates a wrapped name; keep
+                # that ambiguous record out rather than invent a short name.
+                continue
+            if normalized(name) in forms:
+                continue
+            end = headings[index+1].start() if index+1 < len(headings) else len(body)
+            excerpt = body[heading.start():end].strip()
+            remainder = body[heading.end():end].lstrip()
+            if re.match(r'以及|及|、|和|and\b', remainder, re.I) or not re.search(r'出生|国籍|学历|毕业|加入|现任|历任|担任|born|graduat|director|chief|officer|president', remainder[:140], re.I):
+                continue
+            # Finish at an actual sentence boundary, not a fabricated summary.
+            if len(excerpt) > 1800:
+                last = max(excerpt.rfind('。', 0, 1800), excerpt.rfind('. ', 0, 1800))
+                if last < 120:
+                    continue
+                excerpt = excerpt[:last+1]
+            employer = r'(?:本公司|本集团|thecompany|thegroup|' + re.escape(normalized(org)) + r')'
+            role = r'(?:副总裁|董事|总裁|总经理|财务总监|首席|秘书|director|chief|officer|president)'
+            if len(excerpt) < 60 or not re.search(employer + r'.{0,50}' + role + '|' + role + r'.{0,20}' + employer, normalized(excerpt), re.I):
+                continue
+            rows.append({'fact': excerpt, 'evidence_quote': excerpt, 'source_url': source.url, 'source_title': source.title,
+                         'identity_match': 'confirmed', 'identity_confidence': meta['identity_confidence'],
+                         'claim_type': 'person_team_member_record', 'person_chapters': [6],
+                         'team_member_name': name, 'team_affiliation_name': org,
+                         'provider': meta.get('provider'), 'source_grade': meta.get('source_grade', ''),
+                         'retrieved_at': meta.get('retrieved_at', ''), 'published_at': meta.get('published_at', '')})
+            document_count += 1
+            if document_count >= 8 or len(rows) >= 24:
+                break
+        if len(rows) >= 24:
+            break
+    return rows

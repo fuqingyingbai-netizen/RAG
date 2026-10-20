@@ -2,14 +2,15 @@
 import json
 import os
 import re
+import uuid
 from datetime import date, datetime, timedelta
 from urllib.parse import urlencode
 
 try:
-    from .person_retrieval import integer
+    from .person_retrieval import integer, user_time_remaining
     from .person_evidence import compact, name_in_text
 except ImportError:
-    from person_retrieval import integer
+    from person_retrieval import integer, user_time_remaining
     from person_evidence import compact, name_in_text
 
 BASE = ['get_executive_related_companies', 'get_executive_positions',
@@ -55,6 +56,12 @@ def response_state(payload):
     if lists and all(not v for v in lists):
         return 'explicit_empty_record_list'
     return ''
+
+
+def entity_not_found(payload):
+    error = payload.get('error') if isinstance(payload,dict) else None
+    message = str(error.get('message','')) if isinstance(error,dict) else str(error or '')
+    return bool(re.search(r'未找到公司|未查到.{0,20}公司|company.{0,20}not found|company_not_found',message,re.I))
 
 
 def validated_records(payload, person, company, tool):
@@ -149,12 +156,15 @@ def coverage_rows(attempts):
                'quota_exceeded': '平台明确返回额度不足', 'unauthorized': '鉴权失败',
                'rate_limited': '平台限流', 'request_failed': '请求失败，尚不能判断原因',
                'not_configured': '未配置', 'online_search_disabled': '本轮未开启在线检索',
+               'access_denied':'平台拒绝该请求，需核对权限或主体范围', 'initialization_failed':'平台连接初始化未完成',
                'weak_affiliation_candidate': '关联线索不足，未扩展付费查询'}
+    reasons['user_time_budget_exhausted'] = '已到用户设定的时间预算，未发起新调用'
+    reasons['provider_entity_not_found'] = '平台未找到该公司记录，须核对实体匹配及覆盖范围；不代表主体不存在或无风险'
     reasons['regional_restriction'] = '平台返回地域或访问限制，并非无记录'
     result = []
     for row in latest.values():
         raw = row.get('status')
-        state = ('records_found' if raw in {'collected', 'selected_into_report'} else
+        state = ('records_found' if raw in {'collected', 'selected_into_report', 'validated_records'} else
                  'empty_result' if raw == 'empty_result' else 'failed' if raw == 'failed' else
                  'not_queried' if raw in {'not_queried', 'reused'} else 'returned_unresolved')
         tool_labels = {'get_executive_positions': '在外任职', 'get_executive_related_companies': '关联企业',
@@ -162,11 +172,107 @@ def coverage_rows(attempts):
                        'get_executive_risk_scan': '风险线索扫描', 'get_executive_dishonest': '失信被执行记录',
                        'get_executive_judgment_debtor': '被执行记录', 'get_executive_judicial_docs': '裁判文书',
                        'get_executive_equity_pledge': '股权质押', 'affiliation_core_checks': '关联线索核实'}
+        tool_labels.update(get_executive_high_consumption_ban='限制高消费',get_executive_admin_penalty='行政处罚',
+                           get_executive_equity_freeze='股权冻结',get_executive_case_filing='立案信息',
+                           get_project_events='关联机构事件',get_entity_profile='关联机构背景')
+        tool = row.get('tool','')
+        label = '企业资料·' + tool.split(':',1)[1] if tool.startswith('get_company_info:') else tool_labels.get(tool,tool)
         result.append({**{k: row.get(k, '') for k in ('provider', 'subject', 'tool', 'reason', 'retrieved_at')},
-                       'tool_label': tool_labels.get(row.get('tool'), row.get('tool', '')),
+                       'tool_label': label,
                        'status': state, 'status_label': labels[state],
                        'reason_label': reasons.get(row.get('reason'), '结果仍需复核' if not row.get('reason') else row['reason'])})
     return result
+
+
+def retain_response(project, provider, tool, payload, subject=''):
+    """Keep returned originals, including empty/summary/schema-change responses."""
+    if not getattr(project, 'id', None):
+        return ''
+    try:
+        from .research_store import research_store
+    except ImportError:
+        from research_store import research_store
+    text = json.dumps(payload, ensure_ascii=False)
+    for name in ('QCC_API_KEY', 'XINIU_API_KEY', 'TYC_API_KEY'):
+        secret = os.getenv(name, '').strip()
+        if secret:
+            text = text.replace(secret, '[REDACTED]')
+            bare = re.sub(r'^Bearer\s+', '', secret, flags=re.I)
+            if len(bare) >= 8:
+                text = text.replace(bare, '[REDACTED]')
+    key = research_store.put_text(f'projects/{project.id}/person-platform-responses/{provider}_{uuid.uuid4().hex[:20]}.json',
+                                  text, 'application/json; charset=utf-8')
+    retrieval = dict(getattr(project, 'person_retrieval_audit', None) or {})
+    retrieval['professional_response_objects'] = [*retrieval.get('professional_response_objects', []),
+        {'provider': provider, 'tool': tool, 'subject': subject, 'object_key': key,
+         'retrieved_at': datetime.now().isoformat(timespec='seconds')}]
+    project.person_retrieval_audit = retrieval
+    return key
+
+
+def primary_affiliation_basis(project, intake, company):
+    """A public filing can locate company context without clearing QCC checks."""
+    try:
+        from .person_text import folded
+        from .person_chapter_research import primary_document
+        from .person_identity import discovery_index
+    except ImportError:
+        from person_text import folded
+        from person_chapter_research import primary_document
+        from person_identity import discovery_index
+    person = folded(intake.get('target_name') or project.target_name)
+    organization = folded(company)
+    aliases = [folded(v) for v in (intake.get('person_anchor') or {}).get('known_affiliations', [])]
+    forms = [organization, *[a for a in aliases if len(a)>=3 and a in organization]]
+    references = []
+    for source in getattr(project, 'sources', []) or []:
+        meta = source.source_metadata or {}
+        if not primary_document(source) or meta.get('identity_confidence') not in {'high','medium'} or meta.get('identity_status') == 'quarantined':
+            continue
+        if discovery_index(source.title, source.content):
+            continue
+        text = folded(source.content)
+        for match in re.finditer(re.escape(person), text):
+            window = text[max(0,match.start()-180):match.end()+180]
+            if any(org and org in window for org in forms) and re.search(r'董事|主席|创始|创办|任职|担任|总裁|founder|chairman|director', window, re.I):
+                references.append({'source_id':source.id,'url':source.url})
+                break
+    return references[:3]
+
+
+def reassess_retained_outcomes(project):
+    """Clarify old generic failures from saved originals; make no provider call."""
+    try:
+        from .research_store import research_store
+    except ImportError:
+        from research_store import research_store
+    rows = getattr(project,'person_platform_attempts',None) or []
+    objects = (getattr(project,'person_retrieval_audit',None) or {}).get('professional_response_objects',[])
+    changed = 0
+    for record in objects:
+        tool = record.get('tool','').removesuffix(':retry')
+        candidates = [r for r in rows if r.get('provider')==record.get('provider') and r.get('subject')==record.get('subject') and r.get('tool')==tool]
+        if not candidates:
+            continue
+        latest = candidates[-1]
+        if not (latest.get('status') == 'failed' and latest.get('reason') == 'request_failed' or latest.get('status')=='returned'):
+            continue
+        try:
+            raw = json.loads(research_store.get_text(record['object_key']))
+        except Exception:
+            continue
+        state,reason = ('failed','provider_entity_not_found') if entity_not_found(raw) else (
+            ('empty_result','explicit_empty_record_list') if response_state(raw)=='explicit_empty_record_list' else ('',''))
+        if not state:
+            continue
+        for row in candidates:
+            if row.get('status') != latest.get('status'):
+                continue
+            row.update(original_status=row.get('status'),original_reason=row.get('reason',''),
+                       status=state,reason=reason,classification_source='retained_original_response',
+                       raw_response_key=record['object_key'])
+            changed += 1
+    return changed
 
 
 def collect_group(workflow, db, project, jobs, emit=None):
@@ -242,6 +348,10 @@ def collect(workflow, db, project, company, intake, emit=None, phase='all'):
     audit.planned(tasks)
 
     def reserve(provider, tool, args, active_audit):
+        remaining = user_time_remaining()
+        if remaining is not None and remaining < 60:
+            active_audit.record(tool, args, 'not_queried', 'user_time_budget_exhausted')
+            return False
         key = (provider, tool, json.dumps(args, ensure_ascii=False, sort_keys=True))
         label = tool + (':' + args['aspect'] if args.get('aspect') else '')
         pending = getattr(project, 'person_platform_core_pending', set())
@@ -265,7 +375,11 @@ def collect(workflow, db, project, company, intake, emit=None, phase='all'):
         pending.discard(key)
         return True
 
-    if not token:
+    remaining = user_time_remaining()
+    if remaining is not None and remaining < 60:
+        audit.stop_reason = 'user_time_budget_exhausted'
+        audit.finish_unqueried()
+    elif not token:
         audit.stop_reason = 'not_configured'
         audit.finish_unqueried()
     elif not audit.cached_failure():
@@ -284,6 +398,7 @@ def collect(workflow, db, project, company, intake, emit=None, phase='all'):
                     if not reserve('qcc', tool, args, audit):
                         continue
                     payload, session = audit.call(workflow._mcp_call_tool, url, headers, tool, args, session=session, request_id=100+index, timeout=timeout)
+                    raw_key = retain_response(project, 'qcc', tool, payload, company)
                     response_kind = response_state(payload)
                     if response_kind == 'regional_restriction':
                         audit.result(tool, args, {'error': {'code': 403, 'message': 'provider_region_restricted'}})
@@ -293,6 +408,8 @@ def collect(workflow, db, project, company, intake, emit=None, phase='all'):
                         break
                     if audit.result(tool, args, payload):
                         break
+                    if raw_key:
+                        project.person_platform_attempts[-1]['raw_response_key'] = raw_key
                     if payload.get('error'):
                         continue
                     docs = documents(payload)
@@ -329,6 +446,8 @@ def collect(workflow, db, project, company, intake, emit=None, phase='all'):
                             f'企查查-{tool}-{person}-{company}', content, meta, emit=emit, intake=intake):
                         added += 1
                         audit.record(tool, args, 'collected', 'source_statement_pending_review')
+                    else:
+                        audit.record(tool, args, 'validated_records', 'source_statement_pending_review')
         except Exception as exc:
             # Do not put exception URLs (which may contain credentials) into logs.
             audit.record('person_collection', {}, 'failed', type(exc).__name__)
@@ -338,12 +457,17 @@ def collect(workflow, db, project, company, intake, emit=None, phase='all'):
         return added
     key = os.getenv('XINIU_API_KEY', '').strip()
     xa = workflow._company_platform_audit(project, intake, company, 'xiniu', key)
+    public_affiliation = primary_affiliation_basis(project, intake, company) if not identities.get(identity_key) else []
     xtasks = xiniu_plan(intake, company)
     xa.planned([t + (':' + a['aspect'] if a.get('aspect') else '') for t, a, _ in xtasks])
-    if not key:
+    remaining = user_time_remaining()
+    if remaining is not None and remaining < 60:
+        xa.stop_reason = 'user_time_budget_exhausted'
+        xa.finish_unqueried()
+    elif not key:
         xa.stop_reason = 'not_configured'
         xa.finish_unqueried()
-    elif not identities.get(identity_key):
+    elif not identities.get(identity_key) and not public_affiliation:
         xa.stop_reason = 'identity_not_verified'
         xa.finish_unqueried()
     elif xtasks and not xa.cached_failure():
@@ -356,14 +480,23 @@ def collect(workflow, db, project, company, intake, emit=None, phase='all'):
                 xa.stop_reason = xa.stop_reason or 'initialization_failed'
                 xa.finish_unqueried()
             else:
+                company_profile_missing = False
                 for index, (tool, args, module) in enumerate(xtasks):
                     label = tool + (':' + args['aspect'] if args.get('aspect') else '')
+                    if tool == 'get_company_info' and company_profile_missing:
+                        xa.record(label,args,'not_queried','provider_entity_not_found')
+                        continue
                     if not reserve('xiniu', tool, args, xa):
                         continue
                     payload, session = xa.call(workflow._mcp_call_tool, xurl, {}, tool, args, session=session, request_id=200+index, timeout=timeout)
+                    retain_response(project, 'xiniu', label, payload, company)
                     if xa.result(label, args, payload):
                         break
                     if payload.get('error'):
+                        if entity_not_found(payload):
+                            company_profile_missing = tool == 'get_company_info'
+                            xa.record(label,args,'failed','provider_entity_not_found')
+                            continue
                         try:
                             from .company_platform import failure_kind
                         except ImportError:
@@ -374,13 +507,19 @@ def collect(workflow, db, project, company, intake, emit=None, phase='all'):
                         if failure_kind(payload) == 'request_failed' and reserve('xiniu', tool, {**args, '_attempt': 2}, xa):
                             payload, session = xa.call(workflow._mcp_call_tool, xurl, {}, tool, args, session=session,
                                                        request_id=400+index, timeout=timeout)
+                            retain_response(project, 'xiniu', label + ':retry', payload, company)
                             if xa.result(label, args, payload):
                                 break
                     if payload.get('error'):
                         continue
+                    if response_state(payload) == 'explicit_empty_record_list':
+                        xa.record(label,args,'empty_result','explicit_empty_record_list')
+                        continue
                     text = workflow._extract_mcp_text(payload)
                     if workflow._save_structured_source(db, project, 'xiniu', module, f'烯牛-{label}-{company}', text,
                             {'tool': tool, 'target': company, 'query': company, 'person_chapters': [4, 6, 11],
+                             'affiliation_basis': 'public_primary_disclosure' if public_affiliation else 'qcc_returned_identity',
+                             'affiliation_basis_sources': public_affiliation,
                              'query_status': 'returned'}, emit=emit, intake=intake):
                         added += 1
                         xa.record(label, args, 'collected', 'source_statement_pending_review')

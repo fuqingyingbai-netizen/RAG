@@ -1,9 +1,43 @@
 """Keep intake clues separate from independently sourced identity evidence."""
 import re
 
-VERSION = 'person-identity-v4-context'
+VERSION = 'person-identity-v6-article-and-actor-context'
 ROLES = r'联合创始人|创始人|董事长|副董事长|总经理|副总经理|执行董事|董事|监事|合伙人|法定代表人|研究员|教授|工程师|员工|高管|CEO|CFO|CTO|COO|President|Founder|Partner|Chairman'
 SCHOOL = re.compile(r'大学|学院|University|College|School', re.I)
+
+
+def discovery_index(title, content=''):
+    """A namesake news index cannot confer one identity on all its items."""
+    title = str(title or '')
+    intro = str(content or '')[:700]
+    strong_title = re.search(r'最新新闻报道|最新新聞報道|新闻聚合|搜索结果|search results',title,re.I)
+    listing_intro = re.search(r'为您提供.{0,35}(?:最新新闻报道|相关消息)|為您提供.{0,35}(?:最新新聞|相關消息)',intro)
+    related_title = re.search(r'相关新闻|相關新聞|相关消息|相關消息',title)
+    dated_items = len(re.findall(r'(?:19|20)\d{2}[-/]\d{1,2}[-/]\d{1,2}',str(content or '')[:6000]))
+    return bool(strong_title or listing_intro or related_title and dated_items>=3)
+
+
+def relation_actor_is_target(text, relation_start, target):
+    """Require a local actor link, rather than the name anywhere on the page."""
+    try:
+        from .person_text import folded
+        from .person_records import observation
+    except ImportError:
+        from person_text import folded
+        from person_records import observation
+    before = text[:relation_start]
+    start = max(before.rfind('。'),before.rfind('；'),before.rfind(';'),before.rfind('\n'))+1
+    clause = text[start:relation_start+50]
+    local = before[max(start,len(before)-180):]
+    headings = list(re.finditer(r'(?<![\u4e00-\u9fff])([\u4e00-\u9fff]{2,4})(?:先生|女士)[，,\s]',before))
+    if headings and relation_start-headings[-1].start()<2000:
+        if folded(headings[-1][1]) != folded(target):
+            # A joint founder can be a co-actor, but a partner's subsequent
+            # appointments cannot transfer to the target.
+            return bool(folded(target) in folded(local) and re.search(r'(?:与|和)' + re.escape(target) + r'(?:先生|女士)?\s*(?:共同|联合)?$',local)
+                        and re.match(r'共同创办|联合创办|创办|创立',text[relation_start:]))
+        return True
+    return folded(target) in folded(local) and observation({'fact':clause},target)['subject_scope'] == 'person'
 
 
 def pieces(value):

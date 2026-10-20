@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+from datetime import datetime, timezone
 from collections import Counter
 from urllib.parse import urlparse
 
@@ -17,7 +18,7 @@ except ImportError:
     from person_evidence import TOPICS, VIEWS, TASKS, compact
     from person_commission import requirements as commission_requirements, event_years, matches as commission_matches
 
-VERSION = 'person-retrieval-v5-reserved-reputation-peer-research'
+VERSION = 'person-retrieval-v6-primary-identity-reserve'
 DIMENSIONS = {
     2: [('education', '教育时间与院校', ('教育', '毕业', '大学', '学历', 'education', 'university', 'degree')),
         ('career', '机构、职位与任职时间', ('任职', '担任', '履历', '创立', 'appointed', 'joined', 'career'))],
@@ -56,6 +57,13 @@ def integer(name, default, lo, hi):
         return max(lo, min(hi, int(os.getenv(name, default))))
     except (TypeError, ValueError):
         return default
+
+
+def user_time_remaining():
+    deadline = os.getenv('RESEARCH_USER_DEADLINE_UTC', '')
+    if not deadline:
+        return None
+    return (datetime.fromisoformat(deadline.replace('Z', '+00:00')) - datetime.now(timezone.utc)).total_seconds()
 
 
 def coverage(sources, intake):
@@ -143,11 +151,37 @@ class SearchSession:
         self.unavailable = {}
         self.last_coverage = None
 
+    def primary_identity_query(self, items, sources, round_index):
+        anchor = self.intake.get('person_anchor') or {}
+        orgs = anchor.get('known_affiliations') or []
+        if not orgs:
+            return None
+        primary = [s for s in sources if (s.source_metadata or {}).get('identity_confidence') in {'high','medium'}
+                   and not (s.source_metadata or {}).get('person_discovery_only')
+                   and (s.source_metadata or {}).get('identity_status') != 'quarantined'
+                   and s.source_type in {'official','filing','government','regulatory','upload','manual'}
+                   and len(s.content or '') >= 120]
+        if round_index > 1 and primary:
+            return None
+        target, org = self.intake['target_name'], str(orgs[0]).replace('"', '')
+        listed_context = any(re.search(r'上市|股票代码|股份代号|港交所|证券代码|stock ticker|listed company', (s.content or '')[:10000], re.I) for s in sources)
+        domains = {'hkexnews.hk','cninfo.com.cn','sse.com.cn','szse.cn','sec.gov'}
+        filings = [r for r in items if domains.intersection(r.get('include_domains') or []) and target in r['query'] and org in r['query']]
+        query = dict(filings[0]) if round_index > 1 and listed_context and filings else {
+            'module':'人物原始身份资料', 'query':f'"{target}" "{org}" 官方 简历 任职 董事会', 'search_tier':'open_web'}
+        return {**query, 'person_chapters':[2,6,9,11],
+                'retrieval_reason':'primary_identity_source_reserve' if round_index == 1 else 'independent_engine_probe'}
+
     def choose(self, items, round_index, sources):
+        remaining = user_time_remaining()
+        if remaining is not None and remaining < 60:
+            self.time_budget_exhausted = True
+            return []
         self.last_coverage = coverage(sources, self.intake)
+        primary_query = self.primary_identity_query(items, sources, round_index)
         if round_index == 1:
             # Spread the initial budget over chapters before aliases or template variants.
-            chosen = []
+            chosen = [primary_query] if primary_query else []
             for chapter in DIMENSIONS:
                 if chapter == 10 and not (self.intake.get('special_requirements') or self.intake.get('focus_questions')):
                     continue
@@ -159,7 +193,7 @@ class SearchSession:
                     chosen.append(dict((exact or options)[0], person_chapters=[chapter]))
             chosen += [dict(r) for r in items if r.get('commission_id')][1:3]
         else:
-            chosen = []
+            chosen = [primary_query] if primary_query else []
             anchor = self.intake.get('person_anchor') or {}
             orgs = list(anchor.get('known_affiliations') or [])
             chapter_rows = sorted(self.last_coverage['chapters'],
@@ -236,6 +270,7 @@ class SearchSession:
                 'call_budget': self.budget, 'calls_planned': len(self.rows),
                 'chapter_7_8_reserved_calls': self.followup_reserve, 'initial_stage_call_budget': self.initial_budget,
                 'budget_exhausted': len(self.rows) >= self.budget, 'attempts': self.rows,
+                'user_time_budget_exhausted': getattr(self, 'time_budget_exhausted', False),
                 'unavailable_providers': self.unavailable,
                 'coverage': coverage(sources, self.intake),
                 'cost_note': '按实际请求次数限制；供应商单价及账户扣费未在此估算'}
