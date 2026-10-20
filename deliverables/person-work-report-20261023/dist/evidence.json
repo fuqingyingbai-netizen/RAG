@@ -59,6 +59,17 @@
       "gap": "关键章节仍有缺口，摘要不能独立给出人物信用等级或正式验收结论。",
       "first_run_cited_ids": 11,
       "after_cited_ids": 10,
+      "actual_text_comparison": {
+        "before_sha256": "c21f58b71a9903152c2142d1e055ccfc5d9641c381ad30c2320337814c5bc276",
+        "after_sha256": "13a5bef4d7a19bc0c34bd6b1079349f73813c53bcd78e24c9b69a097c3210552",
+        "before_chars": 18672,
+        "after_chars": 2503,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          8,
+          9
+        ]
+      },
       "after_review_status": "upstream_review_required",
       "current_remaining_gaps": []
     },
@@ -74,6 +85,17 @@
       "gap": "教育与早年经历、履历断点和现任时期仍需原件核对；家庭健康资料缺失不作为负面。",
       "first_run_cited_ids": 12,
       "after_cited_ids": 12,
+      "actual_text_comparison": {
+        "before_sha256": "bb002094bbda95ec2baf1dcabd58a58add0bda7a4e1c52896999fe03f3b76e82",
+        "after_sha256": "21d2ddce9ff0e1eabb6f823bcbef1118737e029c9215b5deeb2d93f00df99b5d",
+        "before_chars": 11284,
+        "after_chars": 3708,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          10,
+          12
+        ]
+      },
       "after_review_status": "needs_model_review",
       "current_remaining_gaps": [
         "研究维度“教育与早年经历”缺少能回答问题的原文、个人角色或时期证据。",
@@ -93,6 +115,17 @@
       "gap": "缺少跨事件、跨时期、不同立场的直接材料，当前不能确认人格或诚信特质。",
       "first_run_cited_ids": 4,
       "after_cited_ids": 3,
+      "actual_text_comparison": {
+        "before_sha256": "cde39ea22d17d07c0a1e509d5a004ea1aec90aa5de36015c6894bed2a4ec4eec",
+        "after_sha256": "b30a3de02e4791377d9504556e61c1ad3e26d9f832b48eaa80a83b401ba6289f",
+        "before_chars": 17106,
+        "after_chars": 1174,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          4,
+          5
+        ]
+      },
       "after_review_status": "needs_model_review",
       "current_remaining_gaps": [
         "研究维度“责任心与事业心”缺少能回答问题的原文、个人角色或时期证据。",
@@ -113,6 +146,17 @@
       "gap": "战略、执行、资本资源及创新成果的个人贡献仍需补证，暂不做能力评分。",
       "first_run_cited_ids": 12,
       "after_cited_ids": 12,
+      "actual_text_comparison": {
+        "before_sha256": "583ca0d9400c04d54f0bf37e3842cc1eb61e1f9f14e506bf7a1fe352e265e4cb",
+        "after_sha256": "8f7a812b03a6f867de0b9eefa2cd96815d27901e33975431d77e4ba770c5083d",
+        "before_chars": 18800,
+        "after_chars": 2732,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          12,
+          16
+        ]
+      },
       "after_review_status": "evidence_gaps_remain",
       "current_remaining_gaps": [
         "研究维度“战略设计与行业判断”缺少能回答问题的原文、个人角色或时期证据。",
@@ -133,6 +177,17 @@
       "gap": "权责边界、实际用人决策和组织稳定性的事件链还不完整。",
       "first_run_cited_ids": 6,
       "after_cited_ids": 12,
+      "actual_text_comparison": {
+        "before_sha256": "1e952a97e63ef74104446f4b4cb73409d958854e95bd605314a89b050a978be3",
+        "after_sha256": "153a11b1af2a61ec2e222140ff3ac13e78b3f11332b3c00d60fcf1ddb56526e5",
+        "before_chars": 17539,
+        "after_chars": 2987,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          6,
+          14
+        ]
+      },
       "after_review_status": "needs_model_review",
       "current_remaining_gaps": [
         "研究维度“权责与授权”缺少能回答问题的原文、个人角色或时期证据。",
@@ -153,6 +208,17 @@
       "gap": "实际任期、关键人员变动及成员间的治理关系仍需核实。",
       "first_run_cited_ids": 12,
       "after_cited_ids": 12,
+      "actual_text_comparison": {
+        "before_sha256": "a1b9efba73ec04bd7c14ab00d072f0b00f8dff52a251584f3be5a523bc0996a1",
+        "after_sha256": "c3924af5fdfbf948ef742966235c21d8250481b00916d8e1aa7d43c6d9756fbe",
+        "before_chars": 10872,
+        "after_chars": 3218,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          7,
+          9
+        ]
+      },
       "after_review_status": "needs_model_review",
       "current_remaining_gaps": [
         "研究维度“成员履历与职责”缺少能回答问题的原文、个人角色或时期证据。",
@@ -173,6 +239,17 @@
       "gap": "承诺是否履行、评价者利益关系、目标回应及原始处理结果仍待核查，授权访谈尚未完成。",
       "first_run_cited_ids": 4,
       "after_cited_ids": 6,
+      "actual_text_comparison": {
+        "before_sha256": "49a68115ff15d642014dc71d9983c20171e7b35b844b564ebf5952512978799f",
+        "after_sha256": "8f7809a1a11fe145fd675c620f05628dc387fa723d5bff99b60958dde7d67c61",
+        "before_chars": 16842,
+        "after_chars": 2093,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          8,
+          12
+        ]
+      },
       "after_review_status": "needs_model_review",
       "current_remaining_gaps": [
         "未接入授权访谈材料时，多方访谈与口碑交叉验证仍待人工完成。",
@@ -194,6 +271,17 @@
       "gap": "候选的一手披露、发展阶段、对应时期和同口径指标仍缺，尚不支持能力或品行排名。",
       "first_run_cited_ids": 3,
       "after_cited_ids": 11,
+      "actual_text_comparison": {
+        "before_sha256": "88af94eccfce79cb994e6242291bb3dd37dc141b9cc038131e9065f79f15890a",
+        "after_sha256": "08818bf4c25edf5e29e426f32d5dbd78de0a99cb9a0703a5e71faf9eac6d537d",
+        "before_chars": 16875,
+        "after_chars": 2969,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          8,
+          26
+        ]
+      },
       "after_review_status": "evidence_gaps_remain",
       "current_remaining_gaps": [
         "可比候选李斌尚缺行业原词、发展阶段、对应时期；候选具名不代表比较口径已经对齐。",
@@ -217,6 +305,17 @@
       "gap": "案件当事人、案号、时期、实际责任及关联交易原件仍需逐条核查。",
       "first_run_cited_ids": 8,
       "after_cited_ids": 9,
+      "actual_text_comparison": {
+        "before_sha256": "79b64af22a51b2289baba87872925569bc44bd744a518515836a3ae0b542b866",
+        "after_sha256": "61734c988d400e24e7104351f4ef410da42fb36f502b016f8f6999e1a38479fe",
+        "before_chars": 10749,
+        "after_chars": 2650,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          5,
+          4
+        ]
+      },
       "after_review_status": "needs_model_review",
       "current_remaining_gaps": [
         "研究维度“任职持股及控制关系”缺少能回答问题的原文、个人角色或时期证据。",
@@ -237,6 +336,17 @@
       "gap": "持股及任职变化仍需前后两个可核对时点，专项中的司法、经营及对标问题仍有缺口。",
       "first_run_cited_ids": 1,
       "after_cited_ids": 12,
+      "actual_text_comparison": {
+        "before_sha256": "53fafe87d76aa258d13cbebbdfe92a130f09b1e7eee8eed4e61d1e51e384f119",
+        "after_sha256": "c7f60f871cb2c5eefa7774ec348cb829b1802d7dcd74580b97467bd6be9ee0c4",
+        "before_chars": 8435,
+        "after_chars": 5103,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          5,
+          24
+        ]
+      },
       "after_review_status": "evidence_gaps_remain",
       "current_remaining_gaps": [
         "委托问题“持股及权益”：需逐条核对变动前后记录及生效时点；多个年份不能自行证明任职或持股变化",
@@ -260,6 +370,17 @@
       "gap": "当前协议、实际决策权限、投资方沟通及退出触发条件需要进一步核实。",
       "first_run_cited_ids": 4,
       "after_cited_ids": 12,
+      "actual_text_comparison": {
+        "before_sha256": "5851e1216ec3114360b6b69f33b14e7f47dbd62bce9758f0bfe161efdc6c0f52",
+        "after_sha256": "29fd375352b7e0941e2da7a7a25321958e309584ff40ffba5fc561f16d582fd8",
+        "before_chars": 17108,
+        "after_chars": 3080,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          5,
+          16
+        ]
+      },
       "after_review_status": "evidence_gaps_remain",
       "current_remaining_gaps": [
         "研究维度“人物实际决策角色”缺少能回答问题的原文、个人角色或时期证据。",
@@ -280,6 +401,17 @@
       "gap": "直接信号、间接关系及司法覆盖范围尚需逐项人工确认。",
       "first_run_cited_ids": 7,
       "after_cited_ids": 3,
+      "actual_text_comparison": {
+        "before_sha256": "186b7049d95c0425576fdad9a8cb39ed0122e6f1761cc444b33b438b26e99dfb",
+        "after_sha256": "b20759405719b736a2b0ca1e77fcdddaeb81859535d34978775ca1781bb831b1",
+        "before_chars": 10700,
+        "after_chars": 1514,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          7,
+          4
+        ]
+      },
       "after_review_status": "evidence_gaps_remain",
       "current_remaining_gaps": [
         "研究维度“已发现的直接信号”缺少能回答问题的原文、个人角色或时期证据。",
@@ -300,6 +432,17 @@
       "gap": "复核规则不能替代完整语义验证，关键结论仍需人工决定采用、修改或删除。",
       "first_run_cited_ids": 11,
       "after_cited_ids": 10,
+      "actual_text_comparison": {
+        "before_sha256": "a365c3121b2483349de7129505d5b36f34e9f34a5ae9be7840a178ddc85b1e58",
+        "after_sha256": "89fe9d03b241b3b4274b4411244414a4f4fd598eb1fa592be7530b81dc481c6c",
+        "before_chars": 18886,
+        "after_chars": 2488,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          10,
+          9
+        ]
+      },
       "after_review_status": "upstream_review_required",
       "current_remaining_gaps": []
     },
@@ -315,6 +458,17 @@
       "gap": "来源可信度、同源转载及原始出处仍需复核，索引完整不代表内容真实。",
       "first_run_cited_ids": 33,
       "after_cited_ids": 65,
+      "actual_text_comparison": {
+        "before_sha256": "a6f7e74f30ed2e6769171fe3b549f4020d35169e1fc59f22abc4082156691281",
+        "after_sha256": "f70bfa47df96bb78ef567a26e1e82614a19572fcb6643c9b9f4b651ae4fd1946",
+        "before_chars": 26815,
+        "after_chars": 19914,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          33,
+          65
+        ]
+      },
       "after_review_status": "source_index",
       "current_remaining_gaps": []
     },
@@ -330,8 +484,41 @@
       "gap": "按清单补关键原件、人工核对人物与结论，并完成Word逐页视觉验收。",
       "first_run_cited_ids": 0,
       "after_cited_ids": 0,
+      "actual_text_comparison": {
+        "before_sha256": "f0f209122ef976af18792c9ebe44f511f86d1c4b1ef4a8cd4eb388c70cc08cbd",
+        "after_sha256": "16a09069c762765af97e35055d3fe9129c930378098b55743ab9722ef0267e1d",
+        "before_chars": 2952,
+        "after_chars": 10850,
+        "full_text_present": true,
+        "text_matching_changed_blocks": [
+          15,
+          122
+        ]
+      },
       "after_review_status": "verification_plan",
       "current_remaining_gaps": []
+    }
+  ],
+  "actual_report_sha256": [
+    "20d1a553c23feaa0a2c7b03086a3dd317490872f15027a26c9f61a74598acbb1",
+    "f1a1c2aa9d6a5221317ec16a6a093e9d5ae4dac32317456336682b86e6a79917"
+  ],
+  "text_hash_basis": "UTF-8 decoded report text with universal newline normalization",
+  "actual_report_markdown_downloads": [
+    "report-before.md",
+    "report-after.md"
+  ],
+  "difference_highlighting": "whole_rows_and_paragraphs_after_whitespace_and_evidence_id_normalization_not_factual_verification",
+  "original_graphs": [
+    {
+      "source_reference": "projects/1/visual_evidence/relationship_graph_20261020051103.svg",
+      "sha256": "105d609f11c235d5099bb9b15d6d0fa8b2acf7b1a362f7cd68e24f3d3c03460f",
+      "bundled_file": "graphs/7a099673330e0a8c.svg"
+    },
+    {
+      "source_reference": "projects/1/visual_evidence/relationship_graph_20261020084838.svg",
+      "sha256": "443ec76ad74f3fd7ae5fb12757a664161d59383802273d0ba98cbb1be22f6fd8",
+      "bundled_file": "graphs/453750833c27cd21.svg"
     }
   ]
 }

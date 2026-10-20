@@ -11,7 +11,11 @@
     "chapter_filter_shows_7_8_10_11_12",
     "hidden_chapter_navigation_restores_all_15",
     "responsive_narrow_view_no_horizontal_overflow",
-    "desktop_layout_reviewed"
+    "desktop_layout_reviewed",
+    "30_actual_chapter_text_panels_loaded",
+    "full_chapter_expansion_removes_both_height_limits",
+    "difference_highlight_toggle",
+    "both_original_graphs_loaded_natural_width_1120"
   ],
   "actual_document_narrow_width_px": 375,
   "credential_scan": "passed",
@@ -21,9 +25,45 @@
     "status": "succeeded",
     "audience": "owner_private",
     "url": "https://person-report-progress-wangli-20261023.smokybat12.chatgpt.site",
-    "source_commit": "5e69f984924974280582b7a5529e48feb8522865"
+    "source_commit": "2ebe30cab3857908563b3d01b2927118255c11b6",
+    "deployment_id": "appgdep_6ad73906ff688191afd8d2b7d7eb4bab",
+    "version_id": "appgprj_6ad7316fb71081918703a11bfd44ed8b~appgver_949d585262808191b9a350ad241896b1"
   },
   "tencent_cloud_reference_page_modified": false,
-  "html_sha256": "8efa90aca449a178e174f708d4c29f7739b22a7ac46042d683f2e2592ee57347",
-  "offline_zip_sha256": "55d75bee22ab4b4f55ed2cc80bd2462b88506e81a3643a2a3fc49bbee1c7abf4"
+  "html_sha256": "17a61849c883250133e54b8e0a9a979a81b415c7dd5d4c62f4ab35574dc93bbe",
+  "offline_zip_sha256": "79435c1517dec826e6bab75a48de72b55b93041ac82323f9b1936c2efb4410e6",
+  "revision": "actual_saved_chapter_text_comparison",
+  "actual_body_panels": 30,
+  "original_graphs": 2,
+  "per_chapter_full_text_expansion": 15,
+  "complete_report_reading_pages": 2,
+  "complete_report_markdown_snapshots": 2,
+  "text_hash_basis": "UTF-8 decoded report text with universal newline normalization",
+  "actual_report_sha256": [
+    "20d1a553c23feaa0a2c7b03086a3dd317490872f15027a26c9f61a74598acbb1",
+    "f1a1c2aa9d6a5221317ec16a6a093e9d5ae4dac32317456336682b86e6a79917"
+  ],
+  "original_graph_hashes": [
+    {
+      "source_reference": "projects/1/visual_evidence/relationship_graph_20261020051103.svg",
+      "sha256": "105d609f11c235d5099bb9b15d6d0fa8b2acf7b1a362f7cd68e24f3d3c03460f",
+      "bundled_file": "graphs/7a099673330e0a8c.svg"
+    },
+    {
+      "source_reference": "projects/1/visual_evidence/relationship_graph_20261020084838.svg",
+      "sha256": "443ec76ad74f3fd7ae5fb12757a664161d59383802273d0ba98cbb1be22f6fd8",
+      "bundled_file": "graphs/453750833c27cd21.svg"
+    }
+  ],
+  "original_run_paths": {
+    "before_run": "work\\person-optimization\\full-live-20261020T130852",
+    "after_run": "work\\person-optimization\\same-corpus-20261020T164818",
+    "before_sources": 35,
+    "after_sources": 76,
+    "same_subject": true,
+    "same_source_corpus": false,
+    "not_original_main_branch_baseline": true,
+    "middle_zero_for_chapters_7_8": "work\\person-optimization\\same-corpus-20261020T155330"
+  },
+  "online_browser_reload": "not_confirmed_timeout_native_deployment_success_is_verified"
 }

@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="760" viewBox="0 0 1120 760">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="44" y="48" font-family="Microsoft YaHei, Arial" font-size="25" font-weight="700" fill="#1f2937">核心关系网络图</text>
+<text x="44" y="78" font-family="Microsoft YaHei, Arial" font-size="14" fill="#64748b">分析示意图：基于已取得的结构化记录与可追溯事实生成；待核验关系不代表已确认事实。</text>
+<line x1="560" y1="400" x2="380" y2="176" stroke="#94a3b8" stroke-width="1.8"/>
+<text x="415" y="288" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">已保留人物关联定位...</text>
+<line x1="560" y1="400" x2="380" y2="288" stroke="#94a3b8" stroke-width="1.8"/>
+<text x="415" y="344" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">创办</text>
+<line x1="560" y1="400" x2="380" y2="400" stroke="#94a3b8" stroke-width="1.8"/>
+<text x="415" y="400" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">创办</text>
+<line x1="560" y1="400" x2="380" y2="512" stroke="#94a3b8" stroke-width="1.8"/>
+<text x="415" y="456" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">创办</text>
+<line x1="560" y1="400" x2="380" y2="624" stroke="#94a3b8" stroke-width="1.8"/>
+<text x="415" y="512" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">担任</text>
+<line x1="560" y1="400" x2="740" y2="176" stroke="#94a3b8" stroke-width="1.8"/>
+<text x="705" y="288" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">任职</text>
+<line x1="560" y1="400" x2="740" y2="288" stroke="#94a3b8" stroke-width="1.8"/>
+<text x="705" y="344" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">创办</text>
+<line x1="560" y1="400" x2="740" y2="400" stroke="#94a3b8" stroke-width="1.8"/>
+<text x="705" y="400" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">创办</text>
+<line x1="560" y1="400" x2="740" y2="512" stroke="#94a3b8" stroke-width="1.8"/>
+<text x="705" y="456" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">任职</text>
+<line x1="560" y1="400" x2="740" y2="624" stroke="#94a3b8" stroke-width="1.8"/>
+<text x="705" y="512" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">担任</text>
+<rect x="415" y="354" rx="10" ry="10" width="290" height="92" fill="#2563eb" stroke="#1d4ed8"/>
+<text x="560" y="390" font-family="Microsoft YaHei, Arial" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle">王传福</text>
+<text x="560" y="434" font-family="Microsoft YaHei, Arial" font-size="13" fill="#dbeafe" text-anchor="middle">目标人物</text>
+<rect x="60" y="136" rx="8" ry="8" width="320" height="80" fill="#ecfdf5" stroke="#10b981" stroke-width="1.4"/>
+<text x="220" y="163" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">比亚迪股份有限公司</text>
+<text x="220" y="201" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">企业/机构|已保留人物关联定位机构，平台返回公司|...</text>
+<rect x="60" y="248" rx="8" ry="8" width="320" height="80" fill="#ecfdf5" stroke="#10b981" stroke-width="1.4"/>
+<text x="220" y="275" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">现任本公司</text>
+<text x="220" y="313" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">企业/机构|创办|A级来源</text>
+<rect x="60" y="360" rx="8" ry="8" width="320" height="80" fill="#ecfdf5" stroke="#10b981" stroke-width="1.4"/>
+<text x="220" y="387" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">南京融捷康生物科技有限公司</text>
+<text x="220" y="425" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">企业/机构|创办|A级来源</text>
+<rect x="60" y="472" rx="8" ry="8" width="320" height="80" fill="#ecfdf5" stroke="#10b981" stroke-width="1.4"/>
+<text x="220" y="499" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">广东省制造业协会</text>
+<text x="220" y="537" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">企业/机构|创办|A级来源</text>
+<rect x="60" y="584" rx="8" ry="8" width="320" height="80" fill="#ecfdf5" stroke="#10b981" stroke-width="1.4"/>
+<text x="220" y="611" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">实际控制人同时担任上市公司</text>
+<text x="220" y="649" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">企业/机构|担任|A级来源</text>
+<rect x="740" y="136" rx="38" ry="38" width="320" height="80" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.4"/>
+<text x="900" y="163" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">主要工作经历</text>
+<text x="900" y="201" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">自然人|任职|A级来源</text>
+<rect x="740" y="248" rx="8" ry="8" width="320" height="80" fill="#ecfdf5" stroke="#10b981" stroke-width="1.4"/>
+<text x="900" y="275" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">融捷健康科技股份有限公司</text>
+<text x="900" y="313" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">企业/机构|创办|A级来源</text>
+<rect x="740" y="360" rx="8" ry="8" width="320" height="80" fill="#ecfdf5" stroke="#10b981" stroke-width="1.4"/>
+<text x="900" y="387" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">安华农业保险股份有限公司</text>
+<text x="900" y="425" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">企业/机构|创办|A级来源</text>
+<rect x="740" y="472" rx="8" ry="8" width="320" height="80" fill="#ecfdf5" stroke="#10b981" stroke-width="1.4"/>
+<text x="900" y="499" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">先生任本公司</text>
+<text x="900" y="537" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">企业/机构|任职|A级来源</text>
+<rect x="740" y="584" rx="8" ry="8" width="320" height="80" fill="#ecfdf5" stroke="#10b981" stroke-width="1.4"/>
+<text x="900" y="611" font-family="Microsoft YaHei, Arial" font-size="14" font-weight="700" fill="#111827" text-anchor="middle">先生为本公司</text>
+<text x="900" y="649" font-family="Microsoft YaHei, Arial" font-size="12" fill="#475569" text-anchor="middle">企业/机构|担任|A级来源</text>
+</svg>
