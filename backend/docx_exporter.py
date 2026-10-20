@@ -47,6 +47,7 @@ STYLES_XML = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:pPr><w:spacing w:after="120" w:line="300" w:lineRule="auto"/></w:pPr><w:rPr><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="21"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="CompanyTable"><w:name w:val="Company Table"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="60" w:line="240" w:lineRule="auto"/></w:pPr></w:style>
+  <w:style w:type="paragraph" w:styleId="TableText"><w:name w:val="Table Text"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="0" w:after="60" w:line="276" w:lineRule="auto"/></w:pPr></w:style>
   <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:before="240" w:after="240"/></w:pPr><w:rPr><w:b/><w:color w:val="111827"/><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="34"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr><w:rPr><w:color w:val="64748B"/><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="20"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="ReportTitle"><w:name w:val="Report Title"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:before="240" w:after="240"/></w:pPr><w:rPr><w:b/><w:color w:val="111827"/><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="34"/></w:rPr></w:style>
@@ -80,7 +81,8 @@ def _esc(text: str) -> str:
 # or explanatory text.  A generic non-whitespace match made that explanation
 # part of the Word hyperlink.
 _URL_RE = re.compile(r"https?://[A-Za-z0-9][A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]*", flags=re.I)
-_LINK_OR_URL_RE = re.compile(r'\[([^\]]+)\]\((https?://[^)\s]+)\)|' + _URL_RE.pattern, flags=re.I)
+_MARKDOWN_LINK_PATTERN = r'\[((?:\\.|[^\[\]\\]|\[(?:\\.|[^\[\]\\])*\])+)\]\((https?://[^)\s]+)\)'
+_LINK_OR_URL_RE = re.compile(_MARKDOWN_LINK_PATTERN + '|' + _URL_RE.pattern, flags=re.I)
 _EVIDENCE_ID_RE = re.compile(r"\bE-[A-Z0-9-]{6,}\b", flags=re.I)
 
 
@@ -134,7 +136,7 @@ def _run(
         for match in _LINK_OR_URL_RE.finditer(part):
             markdown_link = match.group(1) is not None
             url = _normalize_url(match.group(2) if markdown_link else match.group(0))
-            label = match.group(1) if markdown_link else url
+            label = re.sub(r'\\([\[\]\\])', r'\1', match.group(1)) if markdown_link else url
             if match.start() > cursor:
                 body.append(_plain_runs(part[cursor:match.start()], bold_xml, evidence_bookmarks, suppress_evidence_links))
             if url:
@@ -216,6 +218,24 @@ def _table(
     col_width = table_width // max(1, width)
     compact_source=company and rows[0]==['证据编号','支持章节','来源与关键摘要','台账定位']
     widths=[col_width]*width
+    if not company:
+        headers = rows[0]
+        if width == 4 and any('信息点' in h for h in headers) and any('支持章节' in h for h in headers):
+            weights = [24, 11, 50, 15]
+        elif headers == ['核验任务', '关联章节与候选证据', '问题与处理类型', '核验动作及材料', '优先级', '完成条件']:
+            weights = [14, 16, 17, 25, 7, 21]
+        elif headers == ['风险维度', '评估状态', '模型分值', '风险等级', '判断依据或未评分原因', '证据编号']:
+            weights = [17, 12, 10, 10, 34, 17]
+        elif width == 3 and any('定位' in h for h in headers):
+            weights = [23, 49, 28]
+        else:
+            weights=[]
+            for cidx in range(width):
+                sizes=sorted(len(_clean_inline_markdown(str(row[cidx] if cidx<len(row) else ''))) for row in rows)
+                typical=sizes[min(len(sizes)-1,int(len(sizes)*.75))]
+                weights.append(max(8,min(32,typical/3)))
+        widths=[int(table_width*w/sum(weights)) for w in weights]
+        widths[-1]+=table_width-sum(widths)
     if company:
         if compact_source:weights=[22,10,53,15]
         elif rows[0]==['姓名','职务／披露时点','履历要点（公司自述）','出处']:weights=[10,18,50,22]
@@ -248,17 +268,28 @@ def _table(
         row_props = '<w:tblHeader/>' if ridx == 0 else ''
         if company and max((len(_clean_inline_markdown(str(cell))) for cell in row), default=0) <= 160:
             row_props += '<w:cantSplit/>'
+        elif not company and (ridx == 0 or max((len(str(cell)) for cell in row), default=0) <= 80):
+            row_props += '<w:cantSplit/>'
         xml.append('<w:tr>' + ('<w:trPr>' + row_props + '</w:trPr>' if row_props else ''))
         padded = row + [""] * (width - len(row))
         for cidx, cell in enumerate(padded):
+            if not company and ridx > 0:
+                from text_integrity import text_issues
+                damaged = text_issues(cell)
+                if cidx < len(rows[0]) and rows[0][cidx] in {'信息点', '事实摘录'}:
+                    from industry_passages import passage_issues
+                    damaged = passage_issues(cell)
+                if damaged:
+                    cell = '原文存在乱码、缺字或残句，暂不转述；请核对原始来源。'
             if compact_source and ridx>0:cell=_company_source_cell(cell,cidx)
             shade = '<w:shd w:fill="EAF1F8"/>' if ridx == 0 else ""
-            v_align = '<w:vAlign w:val="top"/>' if company else '<w:vAlign w:val="center"/>'
+            long_row = max((len(str(value)) for value in row), default=0) > 80
+            v_align = '<w:vAlign w:val="top"/>' if company or long_row else '<w:vAlign w:val="center"/>'
             evidence_id = str(cell or "").strip().upper()
             bookmark = (evidence_bookmarks or {}).get(evidence_id) if ridx > 0 and cidx == 0 else None
             xml.append(
                 f"<w:tc><w:tcPr><w:tcW w:w=\"{widths[cidx]}\" w:type=\"dxa\"/>{shade}{v_align}</w:tcPr>"
-                f"{_paragraph(cell, style='CompanyTable' if company else None, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, bookmark=bookmark, suppress_evidence_links=bool(bookmark), compact_url_labels=bool(compact_source and ridx>0 and cidx==3))}</w:tc>"
+                f"{_paragraph(cell, style='CompanyTable' if company else 'TableText', hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, bookmark=bookmark, suppress_evidence_links=bool(bookmark), compact_url_labels=bool(compact_source and ridx>0 and cidx==3), bold=ridx == 0)}</w:tc>"
             )
         xml.append("</w:tr>")
     xml.append("</w:tbl>")
@@ -276,6 +307,7 @@ def _paragraph(
     compact_url_labels: bool = False,
     keep_next: bool = False,
     keep_lines: bool = False,
+    bold: bool = False,
 ) -> str:
     style_xml = f'<w:pStyle w:val="{style}"/>' if style else ""
     indent_xml = '<w:ind w:left="420" w:hanging="220"/>' if bullet else ""
@@ -288,8 +320,9 @@ def _paragraph(
         evidence_bookmarks=evidence_bookmarks,
         suppress_evidence_links=suppress_evidence_links,
         compact_url_labels=compact_url_labels,
+        bold=bold,
     )
-    after='60' if style=='CompanyTable' else '120'
+    after='60' if style in {'CompanyTable', 'TableText'} else '120'
     keep_xml=('<w:keepNext/>' if keep_next else '')+('<w:keepLines/>' if keep_next or keep_lines else '')
     return f"<w:p><w:pPr>{style_xml}{indent_xml}{keep_xml}<w:spacing w:after=\"{after}\"/></w:pPr>{bookmark_start}{runs}{bookmark_end}</w:p>"
 

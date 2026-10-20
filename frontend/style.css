@@ -8,6 +8,18 @@
 
 .task-table{container-type:inline-size}
 .task-table .task-expand{width:100cqi;max-width:100%}
+
+.task-row-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 8px; }
+.task-row-actions .el-button { margin: 0; min-height: 30px; }
+.table-scroll-hint { display: none; }
+@media (max-width: 960px) {
+  .table-scroll-hint { display: block; margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+  /* Keep the project title readable while the small-screen table scrolls. */
+  .task-table .el-table-fixed-column--right { position: static !important; }
+  .task-table .el-table-fixed-column--right::before { display: none; }
+  .task-row-actions .el-button { min-height: 44px; }
+  .pagination-bar .el-pagination { flex-wrap: wrap; justify-content: flex-end; row-gap: 8px; }
+}
 .primary-result-grid{grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr)}
 .secondary-detail-grid{margin-top:18px;grid-template-columns:1fr}
 .result-panel{padding:16px;background:#f8fbfd;border:1px solid #cfdce8}

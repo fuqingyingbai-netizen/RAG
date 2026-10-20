@@ -16,7 +16,7 @@ const app = {
 };
 vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../frontend/script.js'), 'utf8'), {
   Vue: { createApp(value) { definition = value; return app; } },
-  ElementPlus: {}, CompanyKnowledge: knowledge, localStorage: { getItem() { return null; } }, Date, JSON,
+  ElementPlus: {}, CompanyKnowledge: knowledge, AccountManagement: {}, PersonalHome: {}, localStorage: { getItem() { return null; } }, Date, JSON,
 });
 assert.ok(knowledgeRegistered);
 const state = definition.data();

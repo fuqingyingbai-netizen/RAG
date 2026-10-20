@@ -3,6 +3,21 @@ import json
 import re
 
 
+def _task_overview(tasks, risk):
+    """Project questions first; detailed work and source locators live in appendices."""
+    from industry_delivery import _cell
+    unknown = [str(d.get('name')) for d in risk.get('dimensions', []) if d.get('score') is None and d.get('name')]
+    lines = []
+    if unknown:
+        lines += ['本轮尚未完成有效评估的事项：' + '、'.join(unknown) + '。先区分评分校验问题与真实资料缺口，再决定复核、补采或缩减范围。', '']
+    lines += ['| 优先级 | 本轮待解决问题 | 完成条件 |', '| --- | --- | --- |']
+    for t in tasks:
+        lines.append('| ' + ' | '.join(map(_cell, (t.get('priority', '高'),
+            str(t.get('task_id') or t.get('key') or '') + ' ' + str(t.get('topic') or '待确认问题'),
+            t.get('completion') or '核对原始材料后复核；缺证继续保留未知。'))) + ' |')
+    return '\n'.join(lines) if tasks else '本轮尚未登记专项任务，实施前先核对报告及实际研究缺口。'
+
+
 def build_industry_proposal(project, report='', risk_json='{}') -> str:
     scope = getattr(project, 'industry_scope', {}) or {}
     segments = '、'.join(scope.get('segments') or [project.target_name])
@@ -12,37 +27,30 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
         risk = json.loads(risk_json) if isinstance(risk_json, str) else (risk_json or {})
     except (ValueError, TypeError):
         risk = {}
-    tasks = []
-    for row in risk.get('dimensions', []):
-        if row.get('score') is not None or row.get('applicable') is False or row.get('status') in {'disabled', 'not_applicable'}:
-            continue
-        name = str(row.get('name') or '')
-        if not name or ('资本' in name and scope.get('capital_market') != 'summary'):
-            continue
-        from industry_claims import industry_gap_plan
-        reason = str(row.get('reason') or row.get('unknown_cause') or '证据尚不足以完成评估')
-        if not re.search(r'[\u4e00-\u9fff]', reason):
-            reason = '适用证据、引用或数值校验尚未通过，需核对原始资料。'
-        _why, action, priority, materials = industry_gap_plan(name)
-        tasks.append((name, reason, action, priority, materials))
-    if re.search(r'技术路线.{0,40}(?:缺失|缺少|待核验)|无法构建横向对比', report):
-        tasks.append(('技术路线对比', '报告尚未形成同条件技术比较', '补充原始测试配置、性能和单位成本，不能用算力市场规模代替技术对比。', '高', '测试报告、环境与版本说明'))
-    for item in getattr(project, 'industry_report_degradations', []) or []:
-        if item.get('chapter') in {8, 9} and scope.get('capital_market') != 'summary':
-            continue
-        tasks.append((f"第{item.get('chapter')}章综合写作", str(item.get('message') or '章节采用来源摘录'),
-                      '复核对应章节来源、属性和判断；证据不足时保留缺口，不强行补结论。', '高', '本章来源原文和引用索引'))
+    from industry_delivery import verification_tasks, verification_task_table
     structured_tasks = getattr(project,'industry_verification_tasks',None)
     if isinstance(structured_tasks,list):
         # The current report and proposal share one prioritized gap list. Do
         # not rescan prose or silently truncate late technical/quality tasks.
-        tasks=[tuple(t.get(k,'') for k in ('topic','reason','action','priority','materials'))
-               for t in structured_tasks if isinstance(t,dict)]
-    def cell(value):
-        return re.sub(r'\s+', ' ', str(value)).replace('|', '/')
-    task_rows = '\n'.join('| ' + ' | '.join(cell(v) for v in row) + ' |' for row in tasks)
-    task_section = ('| 专项任务 | 本轮未完成原因 | 核验动作 | 优先级 | 所需材料 |\n| --- | --- | --- | --- | --- |\n' + task_rows
-                    if tasks else '本轮专项任务尚待确认；启动前应依据最新报告和风险诊断逐项确认，不将通用研究框架视为已完成的专项分析。')
+        tasks=[dict(t) for t in structured_tasks if isinstance(t,dict)]
+    else:
+        tasks=verification_tasks(getattr(project,'industry_evidence_payload',{}) or {},risk,
+                                 getattr(project,'industry_report_degradations',[]) or [],scope)
+        # Legacy callers may only have the report. Treat an explicit technical
+        # gap as a review task, never synthesize technical facts from its prose.
+        if re.search(r'技术路线.{0,40}(?:缺失|缺少|待核验)|无法构建横向对比',report) and not any('技术' in t['topic'] for t in tasks):
+            tasks += verification_tasks({}, {}, [{'chapter':7,'message':'技术路线尚未形成同条件比较，需复核测试条件及性能成本材料。'}], scope)
+    task_section=_task_overview(tasks, risk)
+    task_detail=verification_task_table(tasks, include_reference_index=False, reference_location='附录B候选来源索引')
+    task_sources=verification_task_table(tasks, reference_index_only=True)
+    dependency=getattr(project,'industry_report_dependency',{}) or {}
+    basis=('依据报告：v'+str(dependency.get('report_version') or '待核验')
+           +'（产物 '+str(dependency.get('report_artifact_id') or '待核验')+'）；生成时间：'
+           +str(dependency.get('report_created_at') or '待核验')+' UTC；运行编号：'
+           +str(dependency.get('run_id') or '待核验')+'。\n\n'
+           +'报告正文SHA256：'+str(dependency.get('report_sha256') or '待核验')+'；事实产物：'
+           +str(dependency.get('cleaned_artifact_id') or '待核验')+'；评分产物：'
+           +str(dependency.get('risk_artifact_id') or '待核验')+'。') if dependency else '依据报告产物及版本尚未绑定，实施前须核对本建议书所承接的报告。'
     conditional_rows = ''
     if scope.get('named_companies'):
         conditional_rows += '| 核心企业 | 仅对已指定企业核对注册、股权、经营和风险 | 独立企业证据清单及核验边界 |\n'
@@ -55,6 +63,8 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
 ## 1. 项目基本情况
 
 本项目研究 {scope.get('industry_name') or project.target_name}，用于 {scope.get('purpose') or '行业了解'}。后续工作以本轮报告的证据缺口为起点，明确需要补充的数据、交叉验证方式和预期判断价值。
+
+{basis}
 
 | 范围要素 | 本轮口径 |
 | --- | --- |
@@ -71,6 +81,8 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
 优先核验对决策影响大的缺口：规模统计是否同口径、关键政策是否仍适用、技术路线的性能与成本是否有可比数据、需求和商业化是否有原始披露支持。来源观点单独标注，预测必须列假设，企业样本不能替代行业整体统计。
 
 本轮专项任务如下。完成标准为问题与原始资料逐项对应，形成可追溯结论，或明确保留缺证原因和下一步；不能以增加网页数量替代指标核验。
+
+本章保留优先问题与完成条件；具体核验动作和所需材料见附录A，候选来源链接与原文位置见附录B。候选材料须先核验，不能直接作为评分依据。
 
 {task_section}
 
@@ -124,4 +136,12 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
 可约定启动预付、中期交付和最终验收分阶段付款，比例及期限在合同中确定。本建议书不生成未经报价确认的金额或折扣。
 
 无论双方最终是否形成委托，涉及委托方及其咨询业务的文字、声像、图片和其他载体资料均应按双方书面约定保密；未经书面许可不向第三方披露。数据保管、访问权限、使用期限、项目结束后的归档或删除方式，以及专家和访谈对象的保密责任应纳入合同或保密协议，由双方确认。
+
+## 附录A 核验任务明细
+
+{task_detail}
+
+## 附录B 候选来源索引
+
+{task_sources}
 '''

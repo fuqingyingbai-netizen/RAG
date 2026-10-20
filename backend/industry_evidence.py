@@ -47,7 +47,7 @@ def source_fingerprint(sources: list) -> str:
         meta=source.source_metadata or {}
         row={'document':_locator_key(source.url),'body_sha256':hashlib.sha256(body.encode()).hexdigest(),
             'title':source.title,'type':source.source_type,'credibility':getattr(source,'credibility_score',None),
-            'publication':{k:meta.get(k) for k in ('published_date','published_at','publication_date','publisher','provider')},
+            'publication':{k:meta.get(k) for k in ('published_date','published_at','publication_date','publisher','provider','original_source_url','original_publisher')},
             'scope':{k:meta.get(k) for k in ('module','evidence_scope','company_role','industry_name','segment_name','company_name')}}
         rows.add(json.dumps(row,sort_keys=True,ensure_ascii=False))
     return hashlib.sha256(json.dumps(sorted(rows),ensure_ascii=False).encode()).hexdigest()
@@ -152,11 +152,25 @@ def attach_provenance(facts: list[dict], sources: list, body_snapshots: dict | N
             anchor=str(fact.get('scope_anchor_quote') or '')
             if anchor:
                 anchor_start=body.find(anchor)
+                anchor_end=anchor_start+len(anchor)
+                if anchor_start<0:
+                    # PDF soft wraps use the same normalization and original
+                    # offsets as the main quote; never invent a scope anchor.
+                    cached=normalized_bodies.get(id(source))
+                    if cached is None:
+                        normalized=re.sub(r'\s+','',body).lower()
+                        positions=array('I',(i for i,ch in enumerate(body) if not ch.isspace() for _ in ch.lower()))
+                    else:
+                        normalized,positions=cached
+                    needle=re.sub(r'\s+','',anchor).lower()
+                    offset=normalized.find(needle) if needle else -1
+                    if offset>=0:
+                        anchor_start=positions[offset];anchor_end=positions[offset+len(needle)-1]+1
                 if anchor_start<0:
                     fact.update(eligible_for_report=False,eligible_for_risk_scoring=False)
                     fact['scope_anchor_validation']='unlocated'
                 else:
-                    locator['scope_anchor']={'start':anchor_start,'end':anchor_start+len(anchor),'quote':anchor}
+                    locator['scope_anchor']={'start':anchor_start,'end':anchor_end,'quote':body[anchor_start:anchor_end]}
             if body_snapshots is not None:
                 digest=locator['body_sha256']
                 body_snapshots.setdefault(digest,{'content':body,'body_sha256':digest,
@@ -167,7 +181,10 @@ def attach_provenance(facts: list[dict], sources: list, body_snapshots: dict | N
             from industry_grounding import source_metadata
             if source.title:fact['source_title']=source.title
             for name,value in source_metadata(source).items():
-                if value and not fact.get(name):fact[name]=value
+                if name in {'date','published_date','publisher','original_source_url','original_publisher'}:
+                    # Model-supplied provenance cannot override bound source metadata.
+                    fact[name]=value
+                elif value and not fact.get(name):fact[name]=value
             from industry_grounding import sample_boundary
             boundary=sample_boundary(fact)
             if boundary:
@@ -195,6 +212,9 @@ def fact_requirement_ids(fact: dict, requirements: list[dict], verified_only: bo
             continue
         if not _metric_present(str(fact.get('fact') or ''),req): continue
         if verified_only:
+            contract = fact.get('fact_contract') or {}
+            if contract and (not contract.get('risk_admitted') or contract.get('source_role') in {'opinion', 'commentary', 'policy_commentary'}):
+                continue
             if not locator_ok or fact.get('claim_type')=='source_excerpt': continue
             context = fact.get('numeric_context') or {}
             if req['kind']!='qualitative' and ((fact.get('numeric_validation') or {}).get('passed') is not True

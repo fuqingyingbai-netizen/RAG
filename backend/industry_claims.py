@@ -52,7 +52,7 @@ def claim_contract_issues(text, facts):
                     add('concentration_inference_unsupported', '企业数量不能证明行业集中度或高度碎片化，需适用的份额或集中度指标。')
         barrier = re.search(r'(?:低门槛|门槛.{0,6}(?:较低|更低|很低)|较低.{0,8}壁垒|壁垒.{0,6}(?:更高|较高|更低|较低)|隐含更高能力门槛)', line)
         if barrier and not re.search(r'不能|不足以|是否|尚待|需核验',line[max(0,barrier.start()-15):barrier.start()]):
-            direct = [f for f in rows if re.search(r'准入(?:要求|条件)|许可(?:成本|要求)|迁移成本|进入壁垒|技术壁垒|专利壁垒',
+            direct = [f for f in rows if re.search(r'准入(?:要求|条件)|许可(?:成本|要求)|迁移成本|专利保护|专利许可|研发投入|客户认证|资质要求|专用接口|硬件投入',
                 str(f.get('evidence_quote') or f.get('fact') or '')) and f.get('evidence_scope') in {'industry_level','segment_level'}]
             if not direct:
                 add('entry_barrier_inference_unsupported','企业数量或层级占比不能推出准入及技术壁垒，须有适用的准入、成本或能力证据。')
@@ -95,6 +95,8 @@ def claim_contract_issues(text, facts):
     if re.search(r'人工智能生成合成内容标识|GB\s*45438', text) and re.search(r'2025\s*年\s*3\s*月(?:份)?(?:起|开始|即)?(?:施行|实施|生效)', text):
         issues.append({'code': 'policy_effective_date_conflict', 'message': '标识办法及配套强制标准于2025年9月1日起施行，不能将3月发布日期当成施行日期。'})
     issues.extend(table_completeness_issues(text))
+    from industry_assertions import assertion_issues
+    issues.extend(assertion_issues(text, facts))
     return issues
 
 
@@ -123,11 +125,15 @@ def industry_gap_plan(item):
         return ('本章生成校验未完成。','对照原文及风险结果重写失败章节，复核引用、数值归属及结论边界。','高','本轮章节正文、失败原因、原始证据及当前评分结果。')
     if re.search(r'产业链|分层|上中下游',item):
         return ('产业链环节及其对应证据尚需核对。','核对行业原始报告的环节定义、产品及上下游关系，区分行业层与企业样本。','高','原始产业链图表、环节定义及对应来源位置。')
+    if re.search(r'集中度|市场份额|市占率|CR[235]|HHI|竞争格局', item, re.I):
+        return ('集中度或份额尚缺同口径的指标支持。', '核对CR3/CR5、HHI或头部玩家份额的原始表，统一地域、期间、行业边界及分母；企业数量和网页数量不能替代集中度。', '高', '集中度或份额原表、头部玩家与行业分母、样本及计算方法。')
+    if re.search(r'商业化|盈利模式|变现|续约|付费转化|定价|收费', item):
+        return ('实际收费、客户转化或盈利质量尚需原始披露支持。', '核对实际收费、付费客户、续约及收入成本口径；分别记录行业统计和企业样本，不将计费观点当作商业落地证明。', '高', '原始收费及经营披露、统计期间、成本定义、样本选择与覆盖范围。')
     if re.search(r'规模|增长|增速|口径|统计|集中度|份额|CR[235]|HHI|盈利|毛利率', item, re.I) and not re.search(r'专利',item):
         return ('统计期间、地域、定义或分母仍需对应原始资料核对。', '核对统计机构原报告和数据表，分别记录实际值与预测值；转载按原始来源去重。', '高', '原始统计表、期间、地域、行业定义、样本和分母。')
     if re.search(r'专利|知识产权',item):
         return ('现有记录不足以核对原始文件及适用范围。', '核对发布机关或专利主管部门原文，分别记录发布、生效日期和统计定义。', '高', '正式文件编号、原始链接、适用地域与时间；专利统计方法。')
-    if re.search(r'政策|监管|标准|准入',item):
+    if re.search(r'政策|监管|标准|准入|法规|标识办法|适用主体|处罚条款',item):
         return ('现有材料尚未核对政策适用性及执行情况。','核对发布机关原文，区分发布日期、生效日期、适用义务与执行结果。','高','正式文件编号、原始链接、适用地域与时间；需要时补执行决定或检查结果。')
     if re.search(r'技术|路线|性能|成本|推理|算力', item):
         return ('现有资料未形成同条件的技术比较。', '核对原始测试报告、配置、负载和测试方法；必要时访谈技术负责人。', '高', '测试环境、版本、性能与单位成本表、方法说明。')

@@ -220,7 +220,7 @@ def test_proposal_uses_exact_current_structured_task_list_without_truncating_lat
                             industry_verification_tasks=tasks,industry_report_degradations=[])
     proposal=build_industry_proposal(project,report='旧正文技术路线缺少数据',risk_json='{}')
     assert '核验问题20' in proposal and '旧正文' not in proposal
-    assert proposal.count('| 对应材料缺失 |')==21
+    assert proposal.count('对应材料缺失')==21
 
 
 def test_summary_only_content_never_becomes_a_rule_fact_and_independent_test_is_not_called_vendor():

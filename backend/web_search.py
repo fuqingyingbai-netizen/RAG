@@ -507,8 +507,11 @@ class WebSearchProvider:
                 }
             if "text/html" not in content_type and "text/plain" not in content_type and "application/xhtml" not in content_type:
                 return {"status": "unsupported_content_type", "content": "", "error": content_type, "fetch_attempt": attempt_name}
-            resp.encoding = resp.encoding or resp.apparent_encoding
-            body = resp.text or ""
+            try:
+                from .text_integrity import decode_http_text
+            except ImportError:
+                from text_integrity import decode_http_text
+            body = decode_http_text(resp)
             if "text/html" in content_type or "<html" in body[:500].lower():
                 text = self._extract_html_text(body)
             else:
@@ -598,8 +601,11 @@ class WebSearchProvider:
                 allow_redirects=True,
             )
             resp.raise_for_status()
-            resp.encoding = resp.encoding or resp.apparent_encoding
-            text = self._normalize_text(resp.text or "")
+            try:
+                from .text_integrity import decode_http_text
+            except ImportError:
+                from text_integrity import decode_http_text
+            text = self._normalize_text(decode_http_text(resp))
             return {
                 "status": "reader_done" if text else "reader_empty",
                 "content": text[:max_chars],

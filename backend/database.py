@@ -32,5 +32,6 @@ def init_db() -> None:
     延迟导入models：避免循环依赖（models依赖Base，若提前导入会导致Base未初始化）
     """
     import models  # noqa: F401（抑制"导入未使用"的语法提示）
-    # 根据Base的元数据（models中定义的表结构）创建所有表
-    Base.metadata.create_all(bind=engine)
+    # Serialize table creation and additive account migrations together.
+    from account_migrations import migrate_accounts
+    migrate_accounts(engine)

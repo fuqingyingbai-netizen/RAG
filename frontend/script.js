@@ -1,12 +1,26 @@
 ﻿const { createApp } = Vue;
 
+function newResearchForm() {
+  return {
+    projectName: '', startDate: '', endDate: '', companyName: '', identifier: '',
+    industry: '', region: '', targetType: 'company', ddType: '商业尽调', targetContext: '',
+    modules: ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], aiSearchEnabled: true,
+    searchQueries: '', focusQuestions: '', keyQuestions: '',
+    industryFocus: '', excludedSegments: '', researchPurpose: '日常了解',
+    includeCapitalMarkets: false, asOfDate: ''
+  };
+}
+
 createApp({
+  components: { 'account-management': AccountManagement, 'personal-home': PersonalHome },
   data() {
     return {
       token: localStorage.getItem('accessToken') || '', currentUser: null,
       authStep: 'role', authRole: 'user', authMode: 'login', authLoading: false,
-      authForm: { username: '', password: '', admin_code: '' },
-      activeView: localStorage.getItem('activeView') || 'submit', projects: [], projectMeta: {}, projectDetails: {}, artifactsByProject: {}, sourcesByProject: {}, traceByProject: {},
+      authForm: { username: '', password: '', confirm_password: '', invitation: '' },
+      inviteStatus: '', inviteValid: false, inviteChecking: false, inviteRequestId: 0,
+      passwordOpen: false, passwordLoading: false, passwordForm: { current_password: '', new_password: '', confirm_password: '' },
+      activeView: 'home', mobileNavOpen: false, projects: [], projectMeta: {}, projectDetails: {}, artifactsByProject: {}, sourcesByProject: {}, traceByProject: {},
       taskSearch: '', selectedFiles: [], submitting: false, reindexing: false,
       taskPage: 1, taskPageSize: 12, sourcePage: 1, sourcePageSize: 50,
       nowTick: Date.now(), nowTimer: null, taskRefreshTimer: null, taskRefreshBusy: false, taskRefreshTicks: 0,
@@ -25,21 +39,16 @@ createApp({
         { label: '收入情况', value: '收入情况' }, { label: '行业政策', value: '行业政策' },
         { label: '舆情', value: '舆情' }
       ], person: ['创始人底色画像（家庭/教育/履历）', '人格特质与诚信评估', '商业操守与行业口碑', '经营胜任力（战略/执行/创新）', '识人用人与团队管控', '关联利益冲突（体外公司/代持/关联交易）', '司法负面与诉讼核查', '个人信用与财务风险', '投后治理与退出风险', '同业对标评估', '核心管理团队背景'].map(x => ({ label: x, value: x })), industry: ['行业定义与边界', '细分赛道与产业链', '政策与监管', '市场规模与增长', '竞争格局与代表企业', '商业模式与盈利逻辑', '技术演进与平台生态', '技术路线对比', '投融资与资本市场', '行业风险与不确定性'].map(x => ({ label: x, value: x })) },
-      form: {
-        projectName: '', startDate: '', endDate: '', companyName: '', identifier: '',
-        industry: '', region: '', targetType: 'company', ddType: '商业尽调', targetContext: '',
-        modules: ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], aiSearchEnabled: true,
-        searchQueries: '', focusQuestions: '', keyQuestions: '',
-        industryFocus: '', excludedSegments: '', researchPurpose: '日常了解',
-        includeCapitalMarkets: false, asOfDate: ''
-      }
+      form: newResearchForm()
     };
   },
   computed: {
     isAuthenticated() { return !!this.token && !!this.currentUser; },
     authRoleLabel() { return this.authRole === 'admin' ? '管理员' : '普通用户'; },
-    pageTitle() { return this.activeView === 'company-knowledge' ? '公司知识库' : this.activeView === 'tasks' ? '任务管理' : this.activeView === 'sources' ? '溯源库' : this.activeView === 'review' ? '复核与一手资料' : '提交尽调任务'; },
+    pageTitle() { if (this.activeView === 'home') return '个人首页'; if (this.activeView === 'accounts') return '账号管理'; return this.activeView === 'company-knowledge' ? '公司知识库' : this.activeView === 'tasks' ? '任务管理' : this.activeView === 'sources' ? '溯源库' : this.activeView === 'review' ? '复核与一手资料' : '提交尽调任务'; },
     pageSubtitle() {
+      if (this.activeView === 'home') return '查看自己的任务、研究成果与常用入口。';
+      if (this.activeView === 'accounts') return '管理公司账号、管理员角色、知识库授权与注册邀请。';
       if (this.activeView === 'company-knowledge') return '让每一份资料，成为下一次决策的起点。';
       if (this.activeView === 'tasks') return '查看任务成果、下载报告，并跟踪工作流 trace。';
       if (this.activeView === 'sources') return '检索项目资料、Markdown 报告和清洗事实，并使用 AI 小助手问答。';
@@ -73,50 +82,135 @@ createApp({
     async mounted() {
       this.nowTimer = setInterval(() => { this.nowTick = Date.now(); }, 1000);
       this.taskRefreshTimer = setInterval(() => this.refreshVisibleTaskProgress(), 5000);
-      if (this.token) { try { await this.fetchMe(); this.loadAssistantState(); await this.loadProjects(); } catch (_) { this.handleLogout(); } }
+      this.readInvitationFromUrl();
+      if (this.token) { try { await this.fetchMe(); if (!this.currentUser.must_change_password) { this.ensureAllowedView(); this.loadAssistantState(); await this.loadProjects(); } } catch (_) { this.handleLogout(); } }
     },
   beforeUnmount() { if (this.nowTimer) clearInterval(this.nowTimer); if (this.taskRefreshTimer) clearInterval(this.taskRefreshTimer); },
   methods: {
     authHeaders(extra = {}) { return this.token ? { ...extra, Authorization: `Bearer ${this.token}` } : extra; },
     async authFetch(url, options = {}) {
+      const sentToken = this.token;
       const opts = { ...options, headers: this.authHeaders(options.headers || {}) };
       const response = await fetch(url, opts);
+      if (sentToken !== this.token) throw new Error('登录账号已变更，请重试');
+      if (response.headers.get('X-Password-Change-Required') === 'true' && this.currentUser) { this.currentUser.must_change_password = true; }
       if (response.status === 401) { this.handleLogout(); throw new Error('登录已过期，请重新登录'); }
       return response;
     },
     async fetchMe() { const r = await this.authFetch('/auth/me'); if (!r.ok) throw new Error('认证失败'); this.currentUser = await r.json(); },
+    ensureAllowedView() { if (!['home', 'submit', 'tasks', 'review', 'sources', 'company-knowledge', 'accounts'].includes(this.activeView) || (this.activeView === 'accounts' && this.currentUser?.role !== 'admin')) { this.activeView = 'home'; localStorage.setItem('activeView', 'home'); } },
+    readInvitationFromUrl() {
+      const url = new URL(window.location.href);
+      const invitation = new URLSearchParams(url.hash.slice(1)).get('invite') || url.searchParams.get('invite');
+      if (!invitation) return;
+      url.hash = ''; url.searchParams.delete('invite');
+      window.history.replaceState(null, '', url.pathname + url.search);
+      if (this.token) { ElementPlus.ElMessage.info('请先退出当前账号，再使用邀请注册链接'); return; }
+      this.authRole = 'user'; this.authStep = 'form'; this.authMode = 'register';
+      this.authForm.invitation = invitation; this.checkInvitation();
+    },
+    async checkInvitation() {
+      const requestId = ++this.inviteRequestId;
+      this.inviteValid = false; this.inviteStatus = '';
+      if (!this.authForm.invitation.trim()) return false;
+      this.inviteChecking = true;
+      try {
+        const r = await fetch('/auth/invitations/validate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({invitation:this.authForm.invitation.trim()}) });
+        const data = await r.json();
+        if (requestId !== this.inviteRequestId) return;
+        if (!r.ok) throw new Error(typeof data.detail === 'string' ? data.detail : '邀请码格式有误');
+        this.inviteValid = true;
+        if (this.authMode === 'register') this.authRole = data.role === 'admin' ? 'admin' : 'user';
+        this.inviteStatus = (data.role === 'admin' ? '管理员' : '普通账号') + '邀请有效，到期时间：' + new Date(data.expires_at).toLocaleString();
+        return true;
+      } catch (e) { if (requestId === this.inviteRequestId) this.inviteStatus = e.message; }
+      finally { if (requestId === this.inviteRequestId) this.inviteChecking = false; }
+    },
     selectAuthRole(role) {
-      this.authRole = role === 'admin' ? 'admin' : 'user';
-      this.authStep = 'form';
-      this.authMode = 'login';
-      this.authForm.admin_code = '';
+      this.authRole = role === 'admin' ? 'admin' : 'user'; this.authStep = 'form'; this.authMode = 'login';
+      this.authForm.password = ''; this.authForm.confirm_password = '';
     },
-    backToRoleSelect() {
-      this.authStep = 'role';
-      this.authMode = 'login';
-      this.authForm.admin_code = '';
-    },
-    switchAuthMode() {
-      this.authMode = this.authMode === 'login' ? 'register' : 'login';
-      this.authForm.admin_code = '';
+    backToRoleSelect() { this.authStep = 'role'; this.authMode = 'login'; this.authForm.password = ''; this.authForm.confirm_password = ''; },
+    switchAuthMode() { this.authMode = this.authMode === 'login' ? 'register' : 'login'; this.authForm.password = ''; this.authForm.confirm_password = ''; },
+    async acceptAuthentication(data, { openHome = true } = {}) {
+      this.token = data.access_token; this.currentUser = {username:data.username, role:data.role, must_change_password:data.must_change_password};
+      localStorage.setItem('accessToken', this.token);
+      if (openHome) { this.activeView = 'home'; localStorage.setItem('activeView', 'home'); }
+      this.ensureAllowedView();
+      if (!data.must_change_password) { this.loadAssistantState(); await this.loadProjects(); }
     },
     async handleAuthSubmit() {
-      const username = this.authForm.username.trim(), password = this.authForm.password.trim();
-      if (!username || !password) return ElementPlus.ElMessage.warning('请填写账号和密码');
-      if (this.authMode === 'register' && this.authRole === 'admin' && !this.authForm.admin_code.trim()) return ElementPlus.ElMessage.warning('请填写管理员邀请码');
+      if (this.authLoading) return;
+      const username = this.authForm.username.trim(), password = this.authForm.password;
+      if (!username || !password) return ElementPlus.ElMessage.warning('请填写用户名和密码');
+      if (this.authMode === 'register') {
+        if (!this.authForm.invitation.trim()) return ElementPlus.ElMessage.warning('请填写邀请码');
+        if (password !== this.authForm.confirm_password) return ElementPlus.ElMessage.warning('两次输入的密码不一致');
+      }
       this.authLoading = true;
       try {
-        const payload = { username, password };
-        if (this.authMode === 'register') { payload.role = this.authRole; payload.admin_code = this.authForm.admin_code || null; }
-        const r = await fetch(this.authMode === 'login' ? '/auth/login' : '/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        const data = await r.json().catch(() => ({})); if (!r.ok) throw new Error(data.detail || '认证失败');
-        if (data.role !== this.authRole) throw new Error(`该账号是${data.role === 'admin' ? '管理员' : '普通用户'}，请从对应入口登录`);
-        this.token = data.access_token; this.currentUser = { username: data.username, role: data.role };
-        localStorage.setItem('accessToken', this.token); this.loadAssistantState(); await this.loadProjects();
+        if (this.authMode === 'register' && !(await this.checkInvitation())) return;
+        const payload = {username, password};
+        if (this.authMode === 'register') { payload.invitation = this.authForm.invitation.trim(); payload.confirm_password = this.authForm.confirm_password; }
+        const r = await fetch(this.authMode === 'login' ? '/auth/login' : '/auth/register', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(typeof data.detail === 'string' ? data.detail : '输入格式有误，请检查后重试');
+        if (this.authMode === 'login' && data.role !== this.authRole) throw new Error(`该账号是${data.role === 'admin' ? '管理员' : '普通用户'}，请从对应入口登录`);
+        this.authForm.password = ''; this.authForm.confirm_password = ''; this.authForm.invitation = '';
+        this.inviteStatus = ''; this.inviteValid = false;
+        await this.acceptAuthentication(data);
       } catch (e) { ElementPlus.ElMessage.error(e.message); } finally { this.authLoading = false; }
     },
-    handleLogout() { this.token = ''; this.currentUser = null; this.authStep = 'role'; this.authMode = 'login'; this.authForm.admin_code = ''; this.projects = []; this.knowledgeResults = []; localStorage.removeItem('accessToken'); },
-    switchView(view) { this.activeView = view; localStorage.setItem('activeView', view); if (view === 'tasks' || view === 'review') { this.loadProjects(); this.refreshVisibleTaskProgress(); } if (view === 'sources') this.loadRepository(); },
+    handleLogout() {
+      this.activeView = 'home'; this.mobileNavOpen = false; localStorage.setItem('activeView', 'home');
+      this.token = ''; this.currentUser = null; this.authStep = 'role'; this.authMode = 'login';
+      this.authForm = {username:'',password:'',confirm_password:'',invitation:''}; this.inviteStatus = ''; this.inviteValid = false; this.inviteRequestId++;
+      this.passwordOpen = false; this.passwordForm = {current_password:'',new_password:'',confirm_password:''};
+      this.projects = []; this.knowledgeResults = []; this.assistantOpen = false; localStorage.removeItem('accessToken');
+      this.projectMeta = {}; this.projectDetails = {}; this.artifactsByProject = {}; this.sourcesByProject = {}; this.traceByProject = {};
+      this.assistantMessages = []; this.assistantContextSummary = ''; this.selectedFiles = [];
+      this.form = newResearchForm(); this.taskSearch = ''; this.taskPage = 1;
+      this.reviewProjectId = ''; this.reviewReportFiles = []; this.reviewProposalFiles = []; this.fieldSourceFiles = [];
+      this.knowledgeQuery = '';
+    },
+    openPasswordChange() { this.passwordForm = {current_password:'',new_password:'',confirm_password:''}; this.passwordOpen = true; },
+    async changePassword() {
+      if (this.passwordLoading) return;
+      if (!this.passwordForm.current_password || !this.passwordForm.new_password) return ElementPlus.ElMessage.warning('请填写原密码和新密码');
+      if (this.passwordForm.new_password !== this.passwordForm.confirm_password) return ElementPlus.ElMessage.warning('两次输入的新密码不一致');
+      this.passwordLoading = true;
+      try {
+        const r = await this.authFetch('/auth/change-password', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(this.passwordForm)});
+        const data = await r.json();
+        if (!r.ok) throw new Error(typeof data.detail === 'string' ? data.detail : '输入格式有误');
+        this.passwordOpen = false; this.passwordForm = {current_password:'',new_password:'',confirm_password:''};
+        await this.acceptAuthentication(data, { openHome: !!this.currentUser?.must_change_password }); ElementPlus.ElMessage.success('密码已修改，其他登录凭证已失效');
+      } catch (e) { ElementPlus.ElMessage.error(e.message); } finally { this.passwordLoading = false; }
+    },
+    switchView(view) {
+      if (!['home', 'submit', 'tasks', 'review', 'sources', 'company-knowledge', 'accounts'].includes(view)) return;
+      if (view === 'accounts' && this.currentUser?.role !== 'admin') return;
+      this.activeView = view; this.mobileNavOpen = false; localStorage.setItem('activeView', view);
+      if (view === 'tasks' || view === 'review') { this.loadProjects(); this.refreshVisibleTaskProgress(); }
+      if (view === 'sources') this.loadRepository();
+    },
+    async openHomeProject(project) {
+      const sentToken = this.token;
+      try {
+        await this.loadProjects();
+        if (sentToken !== this.token) return;
+        const index = this.projects.findIndex(item => item.id === project.id);
+        if (index < 0) throw new Error('任务已不存在或当前账号无法访问，请刷新首页');
+        this.taskSearch = '';
+        await this.$nextTick();
+        if (sentToken !== this.token) return;
+        this.taskPage = Math.floor(index / this.taskPageSize) + 1;
+        this.activeView = 'tasks'; localStorage.setItem('activeView', 'tasks');
+        await this.$nextTick();
+        if (sentToken !== this.token) return;
+        await this.viewProject(this.projects[index]);
+      } catch (error) { ElementPlus.ElMessage.error(error.message || '加载任务失败'); }
+    },
     splitLines(text) { return (text || '').split('\n').map(x => x.trim()).filter(Boolean); },
     industryRunFields(targetType, intake = null) {
       if (targetType !== 'industry') return {};
@@ -140,7 +234,9 @@ createApp({
     handleFileChange(file, fileList) { this.selectedFiles = fileList.map(item => item.raw || item).filter(Boolean); },
     handleFileRemove(file, fileList) { this.selectedFiles = fileList.map(item => item.raw || item).filter(Boolean); },
     async loadProjects() {
+      const sentToken = this.token;
       const r = await this.authFetch('/research/projects'); const data = await r.json().catch(() => ({}));
+      if (sentToken !== this.token) throw new Error('登录账号已变更，请重试');
       if (!r.ok) throw new Error(data.detail || '加载任务失败'); this.projects = data.projects || [];
     },
     async submitTask() {
@@ -280,10 +376,12 @@ createApp({
     async onTaskExpand(row, expandedRows) { if (expandedRows.some(item => item.id === row.id)) await this.loadProjectDetail(row); },
     async viewProject(project) {
       await this.loadProjectDetail(project);
-      this.$nextTick(() => this.$refs.taskTable?.toggleRowExpansion(project, true));
+      this.$nextTick(() => this.$refs.taskTable?.toggleRowExpansion(this.projects.find(item => item.id === project.id) || project, true));
     },
     async loadProjectDetail(project) {
+      const sentToken = this.token;
       const r = await this.authFetch(`/research/projects/${project.id}/detail`); const data = await r.json().catch(() => ({}));
+      if (sentToken !== this.token) throw new Error('登录账号已变更，请重试');
       if (!r.ok) throw new Error(data.detail || '加载项目详情失败');
       if (data.project) this.replaceProject(data.project);
       this.projectDetails[project.id] = data;
@@ -303,7 +401,7 @@ createApp({
       if (data.trace?.length) this.mergeTraceList(project.id, data.trace);
     },
     async refreshVisibleTaskProgress() {
-      if (!this.token || !this.currentUser || !['tasks', 'review'].includes(this.activeView) || this.taskRefreshBusy) return;
+      if (!this.token || !this.currentUser || this.currentUser.must_change_password || !['tasks', 'review'].includes(this.activeView) || this.taskRefreshBusy) return;
       const activeProjects = this.projects.filter(project => !['completed', 'failed', 'draft', 'paused'].includes(project.status));
       if (!activeProjects.length) return;
       this.taskRefreshBusy = true;
@@ -812,6 +910,6 @@ createApp({
       return timestamp ? new Date(timestamp).toLocaleString() : '-';
     },
     escapeHtml(text) { const div = document.createElement('div'); div.textContent = text || ''; return div.innerHTML; },
-    parseMarkdown(text) { return window.marked ? marked.parse(text || '') : this.escapeHtml(text || ''); }
+    parseMarkdown(text) { return window.SafeMarkdown ? window.SafeMarkdown.render(text) : this.escapeHtml(text); }
   }
 }).component('company-knowledge', CompanyKnowledge).use(ElementPlus).mount('#app');

@@ -304,6 +304,13 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     with zipfile.ZipFile(io.BytesIO(exports[0])) as archive:
         assert archive.testzip() is None and 'word/document.xml' in archive.namelist()
     assert any(a.artifact_type == 'proposal' for a in artifacts)
+    from industry_delivery import verification_task_table
+    proposal = next(a for a in artifacts if a.artifact_type == 'proposal')
+    task_table = verification_task_table(report.artifact_metadata['verification_tasks'])
+    assert task_table in report.content
+    assert verification_task_table(report.artifact_metadata['verification_tasks'], include_reference_index=False,
+                                   reference_location='附录B候选来源索引') in proposal.content
+    assert verification_task_table(report.artifact_metadata['verification_tasks'], reference_index_only=True) in proposal.content
     ledger_artifact=next(a for a in artifacts if a.artifact_type=='industry_claim_ledger')
     ledger=json.loads(ledger_artifact.content)
     assert ledger['dependencies']['report_artifact_id']==report.id
@@ -352,7 +359,8 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     new_risk=next(a for a in refreshed if a.artifact_type=='risk_assessment')
     new_report=next(a for a in refreshed if a.artifact_type=='desktop_report')
     assert len(risk_calls)==1 and new_risk.id!=prior_risk.id
-    assert new_risk.artifact_metadata['risk_pipeline_version']=='industry-risk-v7-sample-boundaries'
+    from industry_research import INDUSTRY_RISK_VERSION
+    assert new_risk.artifact_metadata['risk_pipeline_version']==INDUSTRY_RISK_VERSION
     assert 'reexported_from_artifact_id' not in new_report.artifact_metadata
 
     # Same source set and pipeline version do not authorize a stale downstream

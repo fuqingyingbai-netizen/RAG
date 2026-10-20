@@ -62,6 +62,8 @@ FIXED_MAX_SEARCH_ROUNDS = 3
 FIXED_AI_SEARCH_ENABLED = True
 FIXED_GENERATE_PROPOSAL = True
 PERSON_IDENTITY_POLICY_VERSION = "person-identity-v2-proximity"
+INDUSTRY_CLEANING_VERSION = "industry-evidence-v16-subject-grounding"
+INDUSTRY_REPORT_VERSION = "industry-report-evidence-v25-question-led"
 
 DEFAULT_RESEARCH_MODULES = [
     "公司背景",
@@ -757,7 +759,7 @@ class ResearchWorkflow:
             if standardized_type == "person"
             else "company-evidence-v11-vector-survey-charts"
             if standardized_type == "company"
-            else "industry-evidence-v11-atomic-passages"
+            else INDUSTRY_CLEANING_VERSION
             if standardized_type == "industry"
             else "default-v4-auditable"
         )
@@ -779,7 +781,7 @@ class ResearchWorkflow:
             # v5 demotes nested duplicate global chapter headings inside
             # sections, which previously polluted Word navigation under
             # chapters such as "10. 前景展望".
-            "industry": "industry-report-evidence-v19-consistent-synthesis",
+            "industry": INDUSTRY_REPORT_VERSION,
         }.get(standardized_type, "default-report-v1")
         if standardized_type == "industry":
             setattr(project, "industry_scope", normalized_intake.get("industry_scope") or {})
@@ -1333,6 +1335,13 @@ class ResearchWorkflow:
                     'evidence_contract_version':VERSION,**dependencies,**ledger['summary']})
             report_artifact.artifact_metadata={**(report_artifact.artifact_metadata or {}),
                 'claim_ledger_artifact_id':claim_artifact.id,'claim_reference_summary':ledger['summary']}
+        if standardized_type == 'industry':
+            project.industry_report_dependency = {
+                'report_artifact_id': report_artifact.id, 'report_version': getattr(report_artifact,'version',None),
+                'report_sha256': hashlib.sha256(report.encode()).hexdigest(),
+                'report_created_at': str(getattr(report_artifact,'created_at','') or ''),
+                'cleaned_artifact_id': cleaned_artifact.id, 'risk_artifact_id': risk_artifact.id,
+                'run_id': getattr(project,'industry_run_id',None)}
         checkpoint("report")
 
         artifacts = [plan_artifact, quality_artifact, cleaned_artifact, risk_artifact, report_artifact]
@@ -2758,6 +2767,16 @@ class ResearchWorkflow:
             if fact['provenance']['locator']['status']!='verified':
                 fact.update(eligible_for_report=False,eligible_for_risk_scoring=False,requires_human_review=True)
                 fact['provenance']['quarantine_reason']='unlocated_source_quote'
+        from industry_fact_contracts import attach_contract, VERSION as FACT_CONTRACT_VERSION
+        payload['facts'] = [attach_contract(fact, payload.get('industry_scope') or getattr(project, 'industry_scope', {}),
+            (body_snapshots.get((fact.get('provenance') or {}).get('locator', {}).get('snapshot_key')) or {}).get('content', ''))
+            for fact in payload['facts']]
+        payload['fact_contract_version'] = FACT_CONTRACT_VERSION
+        payload['fact_contract_summary'] = {
+            'report_admitted': sum(f['fact_contract']['report_admitted'] for f in payload['facts']),
+            'risk_admitted': sum(f['fact_contract']['risk_admitted'] for f in payload['facts']),
+            'held_for_review': sum(not f['fact_contract']['report_admitted'] for f in payload['facts']),
+            'semantic_status': 'not_evaluated'}
         payload['evidence_requirements']=plan.get('evidence_requirements',[])
         payload['provenance_summary']={'total_fact_count':len(payload['facts']),
             'located_fact_count':sum(f['provenance']['locator']['status']=='verified' for f in payload['facts']),
@@ -5346,6 +5365,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 parsed = normalize_industry_risk(parsed, retained, getattr(project, "industry_scope", {}))
                 parsed = self._repair_industry_risk(parsed, json.loads(risk_evidence), retained,
                                                     getattr(project, 'industry_scope', {}), emit=emit)
+                from industry_risk_input import attach_selection
+                parsed = attach_selection(parsed, json.loads(risk_evidence).get('input_selection', {}))
                 _emit(emit, "risk", "risk_assessment_agent", "模型行业风险评分完成", f"risk_level={parsed.get('risk_level')}", risk_level=parsed.get("risk_level"), status="done")
                 return json.dumps(parsed, ensure_ascii=False, indent=2)
             fallback = unknown_industry_risk(scope=getattr(project, "industry_scope", {}))
@@ -5356,6 +5377,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             fallback = attach_risk_support(fallback, retained, getattr(project, 'industry_scope', {}))
             fallback['validation_diagnostics'] = {'primary_status': 'empty_or_invalid_json',
                 'model_response_excerpt': answer[:3000], 'repair': {'attempted': False, 'attempts': 0}}
+            from industry_risk_input import attach_selection
+            fallback = attach_selection(fallback, json.loads(risk_evidence).get('input_selection', {}))
             _emit(emit, "risk", "risk_assessment_agent", "使用规则降级行业评分", f"risk_level={fallback.get('risk_level')}", risk_level=fallback.get("risk_level"), status="fallback")
             return json.dumps(fallback, ensure_ascii=False, indent=2)
         prompt = f"""
@@ -5467,11 +5490,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         rows = []
         facts = parsed.get("facts") or []
         if target_type == "industry":
-            try:
-                from .industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions, source_document_key
-            except ImportError:
-                from industry_research import balanced_risk_facts, risk_fact_text, risk_fact_applicable, active_risk_dimensions, source_document_key
-            facts = balanced_risk_facts(facts)
+            from industry_risk_input import risk_input
+            return json.dumps(risk_input(facts, parsed.get('industry_scope') or {}), ensure_ascii=False)
         for fact in facts:
             if not isinstance(fact, dict):
                 continue
@@ -5489,45 +5509,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             if target_type == "company":
                 row["evidence_id"] = fact.get("evidence_id")
                 row["evidence_scope"] = fact.get("evidence_scope")
-            if target_type == "industry":
-                row['fact'] = risk_fact_text(fact)[:700]
-                row['source_document_key'] = source_document_key(fact.get('source_url', ''))
-                row["evidence_id"] = fact.get("evidence_id")
-                row["evidence_scope"] = fact.get("evidence_scope")
-                row["industry_name"] = fact.get("industry_name")
-                row["segment_name"] = fact.get("segment_name")
-                row["company_role"] = fact.get("company_role")
-                row["attribution_boundary"] = fact.get("attribution_boundary")
-                row["numeric_context"] = fact.get("numeric_context")
-                row["numeric_validation"] = fact.get("numeric_validation")
-                context = fact.get('numeric_context') or {}
-                row['allowed_numbers'] = ([str(context.get('value')) + str(context.get('unit'))]
-                    if (fact.get('numeric_validation') or {}).get('passed') is True else [])
             rows.append(row)
             if len(rows) >= 60:
                 break
-        if target_type == 'industry':
-            try:
-                from .industry_research import bounded_package
-            except ImportError:
-                from industry_research import bounded_package
-            # The full payload used to reach ~79k chars and get sliced mid-JSON.
-            # Cap complete cards before composing the risk prompt.
-            for row in rows:
-                row['source_title'] = str(row.get('source_title') or '')[:160]
-                row['attribution_boundary'] = str(row.get('attribution_boundary') or '')[:250]
-            payload = json.loads(bounded_package({'facts': rows,
-                'information_gaps': [str(x)[:200] for x in (parsed.get('information_gaps') or [])[:12]],
-                'gap_interpretation': '缺口是单批抽取线索，需结合全库事实核对；不能据此断言全行业无数据。'}, 25000))
-            original_by_id = {f.get('evidence_id'): f for f in facts}
-            while True:
-                payload['dimension_evidence_ids'] = {name: [r['evidence_id'] for r in payload['facts']
-                    if risk_fact_applicable(original_by_id[r['evidence_id']], name)]
-                    for name in active_risk_dimensions(parsed.get('industry_scope') or {})}
-                encoded = json.dumps(payload, ensure_ascii=False)
-                if len(encoded) <= 28000 or not payload['facts']:
-                    return encoded
-                payload['facts'].pop()
         return json.dumps(
             {"facts": rows, "information_gaps": (parsed.get("information_gaps") or [])[:15]},
             ensure_ascii=False,
@@ -6728,11 +6712,13 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                   review_reason_count=len(reasons), status='fallback')
         return report, {'delivery_status': 'review_draft' if reasons else 'final_candidate',
                         'verification_tasks': tasks,
-                        'synthesis_contract_version': 'industry-synthesis-v1',
+                        'synthesis_contract_version': 'industry-synthesis-v2-actionable-tasks',
                         'risk_transparency': project.industry_risk_transparency,
                         'delivery_review_reasons': reasons, 'quality_issues': issues,
                         'industry_evidence_diagnostic': getattr(project, 'industry_delivery_diagnostic', {}),
                         'generation_degradations': degradations,
+                        'statement_plans': getattr(project, 'industry_statement_plans', {}),
+                        'fact_contract_version': (getattr(project, 'industry_evidence_payload', {}) or {}).get('fact_contract_version'),
                         **({'quality_warning': warning} if warning else {})}
 
     def _build_report_quality_diagnostic(self, project: ResearchProject, report: str, warning: str) -> str:
@@ -7429,7 +7415,11 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 artifact_metadata["vector_index_status"] = "error"
                 artifact_metadata["vector_index_error"] = str(exc)
         if artifact_type == 'proposal' and project.target_type == 'industry':
+            from industry_delivery import VERIFICATION_TASK_VERSION
             artifact_metadata.update(delivery_status='review_draft', proposal_confirmation_status='pending',
+                                     verification_task_version=VERIFICATION_TASK_VERSION,
+                                     verification_tasks=getattr(project,'industry_verification_tasks',[]) or [],
+                                     report_dependency=getattr(project,'industry_report_dependency',{}) or {},
                                      quality_warning='建议书的范围、周期、人员、报价及验收标准需双方确认。')
         if artifact_type in {"desktop_report", "proposal"}:
             try:
@@ -8030,7 +8020,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 f"身份锚点：{meta.get('identity_anchors', [])}\n"
                 f"人物关联企业上下文：{json.dumps(meta.get('person_affiliation', {}), ensure_ascii=False)}\n"
                 f"质量评分：{quality}\n"
-                f"鍥剧墖/鍥捐〃鍏冩暟鎹細{_clip(json.dumps(meta.get('images', []), ensure_ascii=False), 1200)}\n"
+                f"图片/图表元数据：{_clip(json.dumps(meta.get('images', []), ensure_ascii=False), 1200)}\n"
                 f"内容：{_clip(text, source_limit)}"
             )
         return "\n\n---\n\n".join(blocks)
@@ -8314,6 +8304,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 from .report_agents.industry_proposal import build_industry_proposal
             except ImportError:
                 from report_agents.industry_proposal import build_industry_proposal
+            project.industry_current_risk = risk_json
             _emit(emit, "proposal", "proposal_agent", "行业建议书按研究范围和七章模板生成", "人员、周期和报价保留确认项", status="done")
             return build_industry_proposal(project, report=report, risk_json=risk_json)
         if (
@@ -8410,7 +8401,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 from .report_agents.industry_proposal import build_industry_proposal
             except ImportError:
                 from report_agents.industry_proposal import build_industry_proposal
-            return build_industry_proposal(project)
+            return build_industry_proposal(project, report=report, risk_json=getattr(project,'industry_current_risk',{}))
         if str(project.target_type or "").lower() == "company":
             return self._fallback_company_proposal(project)
         subject = project.target_name or project.industry or project.title

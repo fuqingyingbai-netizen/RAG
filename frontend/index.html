@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="no-referrer" />
   <title>观复咨询 AI 尽调工作流</title>
   <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -10,6 +11,8 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="company-knowledge.css" />
   <link rel="stylesheet" href="navigation.css" />
+  <link rel="stylesheet" href="accounts.css" />
+  <link rel="stylesheet" href="personal-home.css" />
 </head>
 <body>
 <main id="app" v-cloak>
@@ -22,28 +25,42 @@
         <el-button type="primary" size="large" @click="selectAuthRole('user')">普通用户</el-button>
         <el-button size="large" @click="selectAuthRole('admin')">管理员</el-button>
       </div>
-      <el-form v-else class="login-form" @keyup.enter="handleAuthSubmit">
+      <el-form v-else class="login-form" @submit.prevent="handleAuthSubmit" @keyup.enter="handleAuthSubmit">
         <div class="auth-toolbar">
           <div class="auth-mode-actions">
             <el-button :type="authMode === 'login' ? 'primary' : 'default'" @click="authMode = 'login'">登录</el-button>
-            <el-button :type="authMode === 'register' ? 'primary' : 'default'" @click="authMode = 'register'">注册</el-button>
+            <el-button :type="authMode === 'register' ? 'primary' : 'default'" @click="authMode = 'register'">邀请注册</el-button>
           </div>
           <el-button text @click="backToRoleSelect">重新选择</el-button>
         </div>
         <el-alert :title="authRoleLabel + (authMode === 'login' ? '登录' : '注册')" type="info" :closable="false" show-icon></el-alert>
-        <el-input v-model="authForm.username" placeholder="账号" size="large"></el-input>
-        <el-input v-model="authForm.password" placeholder="密码" type="password" size="large" show-password></el-input>
-        <el-input v-if="authMode === 'register' && authRole === 'admin'" v-model="authForm.admin_code" placeholder="管理员邀请码" type="password" size="large" show-password></el-input>
+        <el-input v-if="authMode === 'register'" v-model="authForm.invitation" placeholder="粘贴邀请码（也支持完整邀请链接）" aria-label="邀请码" size="large" maxlength="2048" @input="inviteValid=false; inviteStatus=''; inviteRequestId++" @change="checkInvitation"></el-input>
+        <el-alert v-if="authMode === 'register' && inviteStatus" :title="inviteStatus" :type="inviteValid ? 'success' : 'error'" :closable="false" show-icon class="auth-invite-status"></el-alert>
+        <el-input v-model="authForm.username" placeholder="用户名" aria-label="用户名" autocomplete="username" maxlength="100" size="large"></el-input>
+        <el-input v-model="authForm.password" placeholder="密码" aria-label="密码" :autocomplete="authMode === 'register' ? 'new-password' : 'current-password'" type="password" maxlength="128" size="large" show-password></el-input>
+        <template v-if="authMode === 'register'"><el-input v-model="authForm.confirm_password" placeholder="确认密码" aria-label="确认密码" autocomplete="new-password" type="password" maxlength="128" size="large" show-password></el-input><p class="auth-password-help">密码为8至128位，须包含字母和数字，首尾不能有空白。</p></template>
         <el-button type="primary" size="large" class="full" :loading="authLoading" @click="handleAuthSubmit">{{ authRoleLabel }}{{ authMode === 'login' ? '登录' : '注册' }}</el-button>
-        <el-button text class="full" @click="switchAuthMode">{{ authMode === 'login' ? '没有账号？去注册' : '已有账号？去登录' }}</el-button>
+        <el-button text class="full" @click="switchAuthMode">{{ authMode === 'login' ? '有邀请码？去注册' : '已有账号？去登录' }}</el-button>
       </el-form>
     </el-card>
   </section>
 
+  <section v-else-if="currentUser.must_change_password" class="login-page">
+    <el-card class="password-card" shadow="never"><template #header><h2>请修改临时密码</h2></template>
+      <p class="account-help">{{currentUser.username}}，请设置自己的新密码后继续使用。</p>
+      <el-form class="password-form" label-position="top" @submit.prevent="changePassword">
+        <el-form-item label="临时密码"><el-input v-model="passwordForm.current_password" aria-label="临时密码" type="password" show-password autocomplete="current-password" maxlength="128"></el-input></el-form-item>
+        <el-form-item label="新密码"><el-input v-model="passwordForm.new_password" aria-label="新密码" type="password" show-password autocomplete="new-password" maxlength="128"></el-input></el-form-item>
+        <el-form-item label="确认新密码"><el-input v-model="passwordForm.confirm_password" aria-label="确认新密码" type="password" show-password autocomplete="new-password" maxlength="128"></el-input></el-form-item>
+        <p class="auth-password-help">密码为8至128位，须包含字母和数字，首尾不能有空白。</p><el-button native-type="submit" type="primary" :loading="passwordLoading">修改密码并继续</el-button><el-button @click="handleLogout">退出登录</el-button>
+      </el-form>
+    </el-card>
+  </section>
   <el-container class="app-frame" v-else>
-    <el-aside width="248px" class="sidebar">
-      <div class="sidebar-brand"><img src="logo.png" alt="观复咨询" class="sidebar-logo" /></div>
-      <el-menu :default-active="activeView" :default-openeds="['due-diligence']" class="side-menu" @select="switchView">
+    <el-aside width="248px" class="sidebar" :class="{ 'mobile-nav-open': mobileNavOpen }" @keydown.esc="mobileNavOpen = false">
+      <div class="sidebar-brand"><img src="logo.png" alt="观复咨询" class="sidebar-logo" /><button type="button" class="mobile-nav-toggle" :aria-expanded="mobileNavOpen" aria-controls="primary-navigation sidebar-account" @click="mobileNavOpen = !mobileNavOpen"><i :class="mobileNavOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars'" aria-hidden="true"></i>{{ mobileNavOpen ? '收起导航' : '展开导航' }}</button></div>
+      <el-menu id="primary-navigation" :default-active="activeView" :default-openeds="['due-diligence']" class="side-menu" @select="switchView">
+        <el-menu-item index="home"><i class="fa-solid fa-house" aria-hidden="true"></i><span>个人首页</span></el-menu-item>
         <el-sub-menu index="due-diligence" class="research-nav-group">
           <template #title><i class="fa-solid fa-folder-tree" aria-hidden="true"></i><span>尽调工作台</span></template>
           <el-menu-item index="submit"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i><span>提交尽调任务</span></el-menu-item>
@@ -52,16 +69,19 @@
           <el-menu-item index="sources"><i class="fa-solid fa-database" aria-hidden="true"></i><span>溯源库</span></el-menu-item>
         </el-sub-menu>
         <el-menu-item index="company-knowledge" class="company-knowledge-nav"><i class="fa-solid fa-book-open"></i><span>公司知识库</span></el-menu-item>
+        <el-menu-item v-if="currentUser?.role === 'admin'" index="accounts"><i class="fa-solid fa-users-gear"></i><span>账号管理</span></el-menu-item>
       </el-menu>
-      <div class="sidebar-note"><span>当前用户</span><strong>{{ currentUser?.username }}</strong><small>{{ currentUser?.role }}</small><el-button type="danger" plain @click="handleLogout">退出登录</el-button></div>
+      <div id="sidebar-account" class="sidebar-note"><span>当前用户</span><strong>{{ currentUser?.username }}</strong><small>{{ currentUser?.role === 'admin' ? '管理员' : '普通用户' }}</small><el-button @click="openPasswordChange">修改密码</el-button><el-button type="danger" plain @click="handleLogout">退出登录</el-button></div>
     </el-aside>
 
     <el-container class="app-shell" :class="{ 'company-knowledge-shell': activeView === 'company-knowledge' }">
-      <el-header height="76px" class="topbar"><div><h1>{{ pageTitle }}</h1><p>{{ pageSubtitle }}</p></div><el-space><el-tag type="success" effect="light">{{ currentUser?.role }}</el-tag><el-button text @click="handleLogout">退出</el-button></el-space></el-header>
+      <el-header height="76px" class="topbar"><div><h1>{{ pageTitle }}</h1><p>{{ pageSubtitle }}</p></div><el-space><el-tag type="success" effect="light">{{ currentUser?.role === 'admin' ? '管理员' : '普通用户' }}</el-tag><el-button text @click="handleLogout">退出</el-button></el-space></el-header>
       <el-main>
-        <section v-if="activeView !== 'company-knowledge'" class="summary-band"><div><span>任务总数</span><strong>{{ projects.length }}</strong></div><div><span>生成中</span><strong>{{ generatingCount }}</strong></div><div><span>可下载</span><strong>{{ readyCount }}</strong></div><div><span>溯源条目</span><strong>{{ sourceCount }}</strong></div></section>
+        <section v-if="!['home','company-knowledge','accounts'].includes(activeView)" class="summary-band"><div><span>任务总数</span><strong>{{ projects.length }}</strong></div><div><span>生成中</span><strong>{{ generatingCount }}</strong></div><div><span>可下载</span><strong>{{ readyCount }}</strong></div><div><span>溯源条目</span><strong>{{ sourceCount }}</strong></div></section>
+        <personal-home v-if="activeView === 'home'" :request="authFetch" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @open-project="openHomeProject"></personal-home>
         <company-knowledge v-if="activeView === 'company-knowledge'" :projects="projects"></company-knowledge>
 
+        <account-management v-if="activeView === 'accounts' && currentUser?.role === 'admin'" :request="authFetch" @session-invalidated="handleLogout"></account-management>
         <section v-if="activeView === 'submit'">
           <el-card shadow="never" class="panel-card">
             <template #header><div class="card-header"><div><p class="eyebrow">Request Intake</p><h2>新建尽调任务</h2></div><el-tag type="primary" effect="plain">连接现有工作流</el-tag></div></template>
@@ -97,6 +117,7 @@
           <el-card shadow="never" class="panel-card">
             <template #header><div class="card-header"><div><p class="eyebrow">Task Management</p><h2>任务管理</h2></div><el-button type="primary" @click="switchView('submit')">新建任务</el-button></div></template>
             <div class="table-toolbar"><div class="table-meta">显示 {{ filteredProjects.length }} 个任务</div><el-input v-model="taskSearch" clearable placeholder="搜索项目、公司、行业、状态" class="table-search" ></el-input></div>
+            <p class="table-scroll-hint">表格可左右滑动，查看全部信息和操作。</p>
             <el-table ref="taskTable" :data="pagedProjects" row-key="id" class="task-table" empty-text="暂无任务" @expand-change="onTaskExpand">
               <el-table-column type="expand"><template #default="{ row }"><div class="task-expand">
                 <div class="detail-grid primary-result-grid">
@@ -194,7 +215,7 @@
               <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)" effect="light">{{ row.status }}</el-tag></template></el-table-column>
               <el-table-column label="进度" min-width="180"><template #default="{ row }"><el-progress :percentage="progressFor(row)" ></el-progress></template></el-table-column>
               <el-table-column label="更新" width="190"><template #default="{ row }"><div>{{ formatTime(row.updated_at) }}</div><div class="table-subtext">创建 {{ formatTime(row.created_at) }}</div></template></el-table-column>
-              <el-table-column label="操作" width="270" align="right"><template #default="{ row }"><el-button link type="primary" @click="viewProject(row)">查看</el-button><el-button v-if="canPauseProject(row)" link type="warning" @click="pauseProject(row)">暂停</el-button><el-button v-else link type="warning" @click="rerunProject(row)">{{ row.status === 'completed' ? '重跑' : '继续' }}</el-button><el-button link type="primary" :disabled="!latestDownloadable(row)" @click="downloadArtifact(latestDownloadable(row))">下载</el-button><el-button link type="danger" @click="deleteProject(row)">删除</el-button></template></el-table-column>
+              <el-table-column label="操作" width="184" fixed="right" align="center"><template #default="{ row }"><div class="task-row-actions"><el-button link type="primary" @click="viewProject(row)">查看</el-button><el-button link type="primary" :disabled="!latestDownloadable(row)" @click="downloadArtifact(latestDownloadable(row))">下载</el-button><el-button v-if="canPauseProject(row)" link type="warning" @click="pauseProject(row)">暂停</el-button><el-button v-else link type="warning" @click="rerunProject(row)">{{ row.status === 'completed' ? '重跑' : '继续' }}</el-button><el-button link type="danger" @click="deleteProject(row)">删除</el-button></div></template></el-table-column>
             </el-table>
             <div class="pagination-bar"><el-pagination background layout="prev, pager, next, sizes, total" :total="filteredProjects.length" v-model:current-page="taskPage" v-model:page-size="taskPageSize" :page-sizes="[10,12,20,50]" ></el-pagination></div>
           </el-card>
@@ -259,17 +280,29 @@
       </el-main>
     </el-container>
 
-    <button v-if="activeView !== 'company-knowledge'" class="assistant-fab" :style="assistantFabStyle" @mousedown.stop.prevent="startAssistantDrag" @click="toggleAssistant"><img src="aizhushou.png" alt="AI 小助手" /></button>
-    <section v-if="assistantOpen && activeView !== 'company-knowledge'" class="assistant-panel" :style="assistantPanelStyle">
+    <button v-if="!['home','company-knowledge','accounts'].includes(activeView)" class="assistant-fab" :style="assistantFabStyle" @mousedown.stop.prevent="startAssistantDrag" @click="toggleAssistant"><img src="aizhushou.png" alt="AI 小助手" /></button>
+    <section v-if="assistantOpen && !['home','company-knowledge','accounts'].includes(activeView)" class="assistant-panel" :style="assistantPanelStyle">
       <header class="assistant-drag-handle" @mousedown.prevent="startAssistantDrag"><strong>AI 小助手</strong><el-button text @click="assistantOpen = false">关闭</el-button></header>
       <div class="assistant-messages" ref="assistantMessages"><div v-for="(msg, index) in assistantMessages" :key="index" :class="['assistant-msg', msg.isUser ? 'user' : 'bot']" v-html="msg.isUser ? escapeHtml(msg.text) : parseMarkdown(msg.text)"></div></div>
       <div class="assistant-input"><el-input v-model="assistantInput" placeholder="问问现有资料和报告..." @keyup.enter="sendAssistantMessage" ></el-input><el-button type="primary" :loading="assistantLoading" @click="sendAssistantMessage">发送</el-button></div>
     </section>
   </el-container>
+  <el-dialog v-model="passwordOpen" title="修改密码" width="min(520px, 94vw)" :close-on-click-modal="false" @closed="passwordForm={current_password:'',new_password:'',confirm_password:''}">
+    <el-form class="password-form" label-position="top" @submit.prevent="changePassword">
+      <el-form-item label="原密码"><el-input v-model="passwordForm.current_password" aria-label="原密码" type="password" show-password autocomplete="current-password" maxlength="128"></el-input></el-form-item>
+      <el-form-item label="新密码"><el-input v-model="passwordForm.new_password" aria-label="新密码" type="password" show-password autocomplete="new-password" maxlength="128"></el-input></el-form-item>
+      <el-form-item label="确认新密码"><el-input v-model="passwordForm.confirm_password" aria-label="确认新密码" type="password" show-password autocomplete="new-password" maxlength="128"></el-input></el-form-item>
+      <p class="auth-password-help">密码为8至128位，须包含字母和数字，首尾不能有空白。</p><el-button native-type="submit" type="primary" :loading="passwordLoading">保存新密码</el-button>
+    </el-form>
+  </el-dialog>
 </main>
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+<script src="vendor/purify-3.4.17.min.js"></script>
+<script src="safe-markdown.js"></script>
 <script src="company-knowledge.js"></script>
+<script src="account-management.js"></script>
+<script src="personal-home.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

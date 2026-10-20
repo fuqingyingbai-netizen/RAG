@@ -30,6 +30,8 @@ INDUSTRY_FEW_SHOT = """
 - 企业数量不能推出市场集中度；跨期或未授权的增速不能直接比较。发布与施行日期分开，处罚上限绑定违法类型；律所及企业解读不得称为政策原文。
 - 上市企业或供应商样本只能列为样本观察，来源自己称“行业平均”也不能据此外推。占比不能推出进入壁垒，缺少执行材料不能推出政策执行效力存疑。
 - 只列有来源的预测，不自建未经计算验证的金额或区间；“待核验”不能授权新增预测值。不得将本章选证范围扩大为“所有清洗事实/全部公开资料均无”。
+- 同比、环比和复合年增长率不得互换；与GDP或其他增速比较须有同期间可比基准。原始披露时点不得改成报告截止日。
+- 词元/token计费只是适用业务的模式观察，不能变成全行业投资硬门槛或据此排除离线SDK、定制算法。宏观增长不能证明投入错配、并购整合、采购刚性或投资确定性。
 """
 
 # Evidence-density-driven chapter writing (company v8 pattern):
@@ -61,6 +63,8 @@ class IndustryReportAgent:
         used_urls: set[str] = set()
         section_packages: dict[int, str] = {}
         payload = json.loads(cleaned_json)
+        project.industry_statement_mode = bool(payload.get('fact_contract_version'))
+        project.industry_statement_plans = {}
         risk = json.loads(risk_json)
         for index, (section_title, requirements) in enumerate(self.outline, 1):
             if index >= 15:
@@ -121,7 +125,7 @@ class IndustryReportAgent:
             if fact_count == 0:
                 sections_by_index[index] = (
                     f"## {index}. {section_title}\n\n"
-                    "本次已检索公开来源未形成可引用记录；相关核验事项见第16章。"
+                    "本章保留的原文证据尚不足以形成可引用结论；相关核验事项见第16章。"
                 )
 
         workers = max(1, min(5, int(os.getenv("REPORT_SECTION_MAX_WORKERS", "3"))))
@@ -185,6 +189,9 @@ class IndustryReportAgent:
         return final
 
     def _write_section(self, project: Any, cleaned_json: str, risk_json: str, index: int, section_title: str, requirements: list[str], fact_count: int, invoke: Callable[[str, str, Any], str], clip: Callable[[str, int], str], emit: Callable[..., None], trace_emit: Any, completed_sections: str = "") -> str:
+        package = json.loads(cleaned_json)
+        if getattr(project, 'industry_statement_mode', False) or any(f.get('fact_contract') for f in package.get('facts', [])):
+            return self._write_statement_section(project, package, index, section_title, invoke, emit, trace_emit)
         emit(trace_emit, "report", self.trace_agent, "章节写作启动", f"{index}/{len(self.outline)} {section_title}", section=section_title, status="running")
         # Evidence-density-driven chapter writing (company v8 pattern):
         #   fact_count >= 3 -> full section structure + few-shot
@@ -237,6 +244,10 @@ class IndustryReportAgent:
 9. 同一章节内部避免重复同一论点；同一来源的不同事实可以分别支持不同章节，摘要可以概括实体章节中已引用的事实。
 10. 预测、预估、情景或目标数值须在数值所在分句明确标记，不能当成已实现统计。多张证据卡或同一发布方不同页面不等于独立来源，不得据此声称多源一致或交叉印证。
 11. ### 子标题总数硬性上限：rich_evidence 章节最多 12 个，稀疏章节最多 3 个。超过上限的必须合并或删除，不是列出更多子标题。
+12. 同比、环比、CAGR及其统计区间分别保留；单年同比不能改写为跨年复合增速，不因数值一致而视为同一指标。
+13. 一种计费模式或专家观点不得升级为全行业投资硬门槛；没有覆盖的商业模式、赛道或企业不能据此判为不合格。
+14. 企业数量占比不代表投入错配；市场增长不证明已进入规模化商用、采购刚性或整合加速。分析假设必须与已证实事实分开，不得宣称降低投资风险或高确定性。
+15. 历史统计、来源发布日期与报告截止日分别记录；没有新披露不能将旧累计数量写成截至当前。
 """
         prompt += f"\n章节格式硬性要求：本章顶级标题必须且只能是 `## {index}. {section_title}`（两个#号）。正文子标题用 `###`（三个#号）。禁止将章节标题写成 `# {index}.`（一个#号）。\n"
         if not rich_evidence and index <= 14:
@@ -271,7 +282,55 @@ class IndustryReportAgent:
         getattr(project, 'industry_report_degradations', []).append({'chapter': index, 'message': f'第{index}章模型未返回有效正文，使用来源事实摘录；建议复核综合判断。'})
         return mark_unverified_numbers(self._fallback_section(package, index, section_title), package.get('facts', []))
 
+    def _write_statement_section(self, project, package, index, title, invoke, emit, trace_emit):
+        """Compile a bounded ID plan; model-authored numerical/legal prose is never rendered."""
+        from industry_fact_contracts import chapter_admitted, plan_prompt, parse_plan, render_plan, PLAN_VERSION
+        facts = [f for f in package.get('facts', []) if f.get('fact_contract') and chapter_admitted(f, index)]
+        if index == 1:
+            facts = [f for f in facts if f.get('summary_lineage')]
+        admitted = {**package, 'facts': facts}
+        ids, failures = [], []
+        if index == 1 or not facts:
+            ids = [f['evidence_id'] for f in facts[:5]]
+        else:
+            prompt = plan_prompt(admitted, index)
+            for attempt in range(2):
+                try:
+                    raw = invoke(f'{self.report_kind}章节' + ('修复' if attempt else '编排') + f' Agent - {title}',
+                                 prompt + ('\n上次计划格式或编号无效，请仅返回规定JSON。' if attempt else ''), trace_emit)
+                    ids = parse_plan(raw, admitted, index)
+                    break
+                except Exception as exc:
+                    failures.append(type(exc).__name__)
+            else:
+                ids = [f['evidence_id'] for f in facts[:8]]
+                getattr(project, 'industry_report_degradations', []).append({'chapter': index,
+                    'message': f'第{index}章编排计划未通过，保留已准入陈述的顺序；综合分析待复核。',
+                    'initial_validation_reasons': ['invalid_statement_plan'], 'attempt_failures': failures})
+        if index != 1:
+            from industry_analysis import complete_plan
+            ids = complete_plan(admitted, index, ids)
+        plans = getattr(project, 'industry_statement_plans', None)
+        if plans is not None:
+            plans[index] = {'version': PLAN_VERSION, 'evidence_ids': ids, 'model_attempts': (len(failures) if len(failures) == 2 else len(failures)+1) if index != 1 and facts else 0,
+                            'fallback': len(failures) == 2, 'semantic_status': 'not_evaluated',
+                            'analysis_method': 'deterministic_evidence_operations'}
+        # This mode produces auditable source statements, not a certified analyst
+        # synthesis. Keep that limitation visible in delivery state and tasks.
+        if index not in {1, 15, 16}:
+            from industry_fact_contracts import chapter_coverage
+            getattr(project, 'industry_report_degradations', []).append({'chapter': index,
+                'message': f'第{index}章已完成受约束陈述编排，分析结论尚待语义复核。', 'review_type': 'statement_synthesis_review',
+                'evidence_ids': list(ids), 'content_coverage': chapter_coverage(admitted, index, ids)})
+        emit(trace_emit, 'report', self.trace_agent, '章节陈述编排完成', f'chapter={index}; statements={len(ids)}', status='done')
+        return render_plan(admitted, index, title, ids)
+
     def _fallback_section(self, package, index, title):
+        if any(f.get('fact_contract') for f in package.get('facts', [])):
+            from industry_fact_contracts import chapter_admitted, render_plan
+            ids = [f['evidence_id'] for f in package['facts'] if f.get('fact_contract') and chapter_admitted(f, index)
+                   and (index != 1 or f.get('summary_lineage'))][:8]
+            return render_plan(package, index, title, ids)
         facts, seen = [], set()
         for fact in package.get('facts', []):
             if fact.get('eligible_for_report') is False:
@@ -292,12 +351,16 @@ class IndustryReportAgent:
             facts = [f for f in facts if re.search(r'发布|开源|政策|推出|发布会|热度|关注|搜索指数', risk_fact_text(f))][:4]
         if index == 11:
             facts = [f for f in facts if (f.get('numeric_context') or {}).get('is_forecast') is True][:4]
+        if index == 7:
+            from industry_grounding import passage_tasks
+            facts = [f for f in facts if any(t.startswith('技术') for t in passage_tasks(f))]
         if index == 1:
             # A synthesis fallback remains short, traceable and explicit about its limits.
             facts = facts[:5]
         heading = f'## {index}. {title}\n\n'
         body = '以下为已完成章节的主要事实摘要；模型摘要未通过校验，综合判断需人工复核。\n\n' if index == 1 else ''
         body += {5: '热度成因和事件时间线尚待核验；以下仅为来源事件摘录，不推定传播机制。\n\n',
+                 7: '本章尚未形成同条件技术路线比较；仅列保留的测试条件、性能或成本材料，样本不代表行业整体。需补核的测试条件、性能、单位成本与适配问题见第16章。\n\n',
                  11: '尚未形成情景对照与触发条件；以下仅列来源预测，不作为确定性展望。\n\n',
                  14: '综合评估尚待完成；以下为可追溯背景，不能替代风险未知项和证据缺口的复核。\n\n'}.get(index, '')
         for fact in facts:
@@ -374,6 +437,7 @@ class IndustryReportAgent:
             prompt = (f'仅修复第{index}章，顶级标题为 {expected_heading}。删除无证据结论，保留合法来源编号。'
                       '只输出本章；不能新增数字或证据编号。预测值须在同一分句保留预计/预测标记；'
                       '多卡片或同一发布方不等于独立来源，禁止无据声称多源一致。'
+                      '保留同比/环比/CAGR的原指标，不按报告截止日更新旧统计；删除由计费观点推导的强制投资门槛及由宏观数量推导的商业确定性。'
                       '\n校验原因：' + ','.join(initial_reasons) + '\n证据：' + json.dumps(repair_package, ensure_ascii=False)
                       + '\n待修复章节：\n' + section[:8000])
             if index == 1:
@@ -408,6 +472,11 @@ class IndustryReportAgent:
                         'policy_causal_inference_unsupported':'政策效果推断缺证','evidence_absence_overstated':'选证范围被扩大',
                         'sample_extrapolation_unsupported':'企业样本外推行业','table_total_incomplete':'表格列示与总数不一致',
                         'section_task_conflict':'子标题与本章任务不符'})
+                    labels.update({'business_screening_rule_unsupported':'投资筛选门槛缺证','growth_rate_kind_conflict':'增长率类型被替换',
+                        'growth_benchmark_missing':'增速比较缺少基准','allocation_inference_unsupported':'投入错配推断缺证',
+                        'integration_inference_unsupported':'产业整合推断缺证','commercial_certainty_unsupported':'商业确定性推断缺证',
+                        'statistic_asof_rebased':'历史统计被更新到截止日','rate_unit_conflict':'增长率单位错误'})
+                    labels.update({'publisher_attribution_unsupported':'发布机构归属缺证','roadmap_as_current_state':'历史目标误作现状'})
                     explanation = '、'.join(labels.get(reason, reason) for reason in repair_reasons)
                     degradations.append({'chapter': index, 'initial_validation_reasons': initial_reasons,
                         'repair_validation_reasons': repair_reasons,
