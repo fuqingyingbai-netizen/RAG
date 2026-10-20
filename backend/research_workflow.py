@@ -700,7 +700,7 @@ class ResearchWorkflow:
             self._refresh_person_source_identities(project, normalized_intake)
             db.commit()
         cleaning_pipeline_version = (
-            "person-evidence-v12-context-platform-rows"
+            "person-evidence-v13-scoped-company-records"
             if standardized_type == "person"
             else "company-evidence-v11-vector-survey-charts"
             if standardized_type == "company"
@@ -709,7 +709,7 @@ class ResearchWorkflow:
             else "default-v4-auditable"
         )
         report_pipeline_version = {
-            "person": "person-report-v5-context-retrieval-platform",
+            "person": "person-report-v6-scoped-chapter-records",
             # v8 additionally indexes structured business records (QCC/Xiniu)
             # and uses evidence-density-aware company chapter writing. Do not
             # reuse a report produced before those delivery rules.
@@ -4714,6 +4714,17 @@ class ResearchWorkflow:
         # refinement is enabled.  The model may add interpretations/facts, but
         # it cannot erase deterministic or professional-platform evidence.
         if person_mode:
+            try:
+                from .person_company_records import company_records
+            except ImportError:
+                from person_company_records import company_records
+            company_sources = {source.url: source for source in selected_sources
+                               if (source.source_metadata or {}).get("person_affiliation")}
+            fast["facts"] = [f for f in fast.get("facts", []) if f.get("source_url") not in company_sources]
+            rule_facts = [f for f in rule_facts if f.get("source_url") not in company_sources]
+            structured_rule_facts = [f for f in structured_rule_facts if f.get("source_url") not in company_sources]
+            for source in company_sources.values():
+                rule_facts.extend(company_records(source))
             record_sources = {source.url: source for source in selected_sources
                               if (source.source_metadata or {}).get("person_record_quotes")}
             fast["facts"] = [f for f in fast.get("facts", []) if f.get("source_url") not in record_sources]
@@ -6816,6 +6827,24 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
 
     def _build_report_quality_diagnostic(self, project: ResearchProject, report: str, warning: str) -> str:
         """Persist a reviewable diagnosis alongside a failed-but-exported Word draft."""
+        if str(project.target_type or '').lower() == 'person':
+            audit = getattr(project, 'person_delivery_diagnostic', {}) or {}
+            diagnostics = audit.get('section_diagnostics') or {}
+            rows = []
+            for chapter in audit.get('chapters', []):
+                index = chapter['chapter']
+                generation = diagnostics.get(index, diagnostics.get(str(index), {}))
+                issues = list(chapter.get('gaps') or [])
+                issues += ['模型分析或事实校验拦截：' + str(reason) for reason in generation.get('validation_rejections', [])]
+                if generation.get('status') == 'insufficient_evidence' and not issues:
+                    issues.append('缺少可引用且身份匹配的本章证据。')
+                for issue in issues:
+                    text = str(issue).replace('|', '/').replace('\n', ' ')
+                    rows.append(f'| 第{index}章 | {text} |')
+            table = '\n'.join(rows) or '| 全文 | 自动校验未列出具体缺口，仍须人工核对原文、身份和归属。 |'
+            return (f'# {_project_doc_title(project, "报告质量诊断")}\n\n状态：待复核稿，生成完成不代表正式交付验收通过。\n\n'
+                    f'质量门记录：{warning}\n\n| 章节 | 待核验或被拦截的事项 |\n| --- | --- |\n' + table +
+                    '\n\n复核动作：对照第14章实际引用索引核验原文；按第15章补证；公司资料不能替代个人能力、品行或责任证据。Word逐页视觉验收单独记录。\n')
         if str(project.target_type or '').lower() == 'industry':
             reasons = getattr(project, 'industry_delivery_review_reasons', []) or []
             def cell(value):
