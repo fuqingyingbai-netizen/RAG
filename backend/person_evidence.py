@@ -19,7 +19,7 @@ except ImportError:
     from person_commission import requirements as commission_requirements, matches as commission_matches, assess as assess_commission
     from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
 
-VERSION = "person-template-v5-typed-evidence-20261020"
+VERSION = "person-template-v6-review-markers-20261020"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
@@ -144,6 +144,8 @@ def normalize_facts(payload, target, aliases=(), sources=()):
             reason = "missing_source_or_statement"
         elif any(x in compact(text) for x in ("errorcallingtool", "requesttimedout", "上一页下一页", "空结果：", "insufficient_quota")):
             reason = "tool_or_page_noise"
+        elif re.match(r'^(?:相关文章|相关阅读|相关链接|推荐阅读|related\s+articles)', text, re.I):
+            reason = 'navigation_or_related_articles'
         original = originals.get(url, "")
         if original and url.startswith(("https://", "http://")):
             if compact(text) not in compact(original):
@@ -347,6 +349,8 @@ def validate_model_claims(answer, package):
             rejected.append("statement_not_in_cited_fact")
             continue
         analysis = str(row.get("analysis") or "").strip()
+        original_analysis = analysis
+        reason_start = len(rejected)
         if analysis and selection_contract and not server_support:
             quotes = row.get('support_quotes')
             quoted = set()
@@ -384,7 +388,19 @@ def validate_model_claims(answer, package):
             if comparison_rejections:
                 rejected.extend(comparison_rejections)
                 analysis = ''
+        review_reasons = rejected[reason_start:]
+        # Keep uncertain interpretation separately from factual assertions.
+        # Known mismatched dimensions, made-up data, attribution and character
+        # conclusions remain blocked. Missing semantic proof can be reviewed.
+        soft = {'comparison_basis_insufficient', 'direction_or_change_not_verified',
+                'comparison_period_missing_or_mismatched'}
+        periods = {f.get('observation', {}).get('period') for f in supports} - {None, ''}
+        can_review = bool(original_analysis and review_reasons and set(review_reasons) <= soft
+                          and len(supports) >= 2 and len(periods) <= 1)
         accepted.append({"statement": statement, "evidence_ids": ids, "analysis": analysis,
+                         'review_analysis': original_analysis if can_review else '',
+                         'review_reasons': review_reasons if can_review else [],
+                         'analysis_status': 'pending_review' if can_review else 'blocked' if review_reasons else 'source_bound_draft',
                          'source_support': [{'evidence_id': f['evidence_id'], 'quote': f['fact']} for f in supports]})
     return accepted, rejected
 
@@ -416,6 +432,16 @@ def render_section(package, claims=()):
         lines += ["", "### 基于上述材料的初步分析", ""]
         for claim in analyses:
             lines.append("- 研究判断（待人工复核）：" + claim["analysis"] + " " + " ".join(f"[{eid}]" for eid in claim["evidence_ids"]))
+    pending = [c for c in claims if c.get('review_analysis')]
+    if pending:
+        labels = {'comparison_basis_insufficient': '比较依据尚不完整',
+                  'direction_or_change_not_verified': '变化方向及因果联系尚未核实',
+                  'comparison_period_missing_or_mismatched': '数据对应时期尚不完整'}
+        lines += ['', '### 待复核分析（不作为已确认发现）', '']
+        for claim in pending:
+            reason = '；'.join(labels[r] for r in dict.fromkeys(claim['review_reasons']))
+            refs = ' '.join(f'[{eid}]' for eid in claim['evidence_ids'])
+            lines.append(f"- 【待复核】{cell(claim['review_analysis'])} {refs}（原因：{reason}；须核对原件后决定采用、修改或删除。）")
     if chapter in {3, 7}:
         lines += ["", "来源中的评价仅代表评价者观点；现有资料不足以据此确定人格、诚信或个人信用等级。"]
     if chapter == 8:
@@ -494,7 +520,7 @@ def report_audit(report, contract, degradations=()):
     if not known:
         errors.append("未形成可引用人物事实")
     if degradations:
-        errors.append("部分章节模型写作失败或未通过事实校验，已保留来源底稿")
+        errors.append("部分分析待复核、被拦截或调用未完成，已保留来源底稿及复核标记")
     return {"version": VERSION, "chapters": rows, "errors": errors, "degradations": list(degradations),
             "source_fact_count": len(known), "rejected_fact_count": len(contract["rejected"]),
             "conflicts": contract["conflicts"], "semantic_verification": "requires_human_review"}
@@ -541,6 +567,10 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
             diagnostics[14] = {"status": "actual_citation_index", "model_calls": 0}
             continue
         if chapter == 15:
+            try:
+                from .person_platforms import coverage_rows
+            except ImportError:
+                from person_platforms import coverage_rows
             gaps = []
             for index, pack in contract["chapters"].items():
                 gaps.extend((index, gap) for gap in pack["information_gaps"])
@@ -569,6 +599,11 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                 lines.append(f"| {priority} | {index or '全流程'} | {cell(gap)} | {action} |")
             if not gaps:
                 lines.append("| 中 | 全流程 | 公开资料尚未经人工复核 | 逐项复核原件、日期、归属和判断边界。 |")
+            coverage = coverage_rows(platforms)
+            if coverage:
+                lines += ['', '### 专业平台查询范围', '', '状态只描述本次查询，不构成无风险结论。返回摘要或主体不符单列为“返回待核验”，不计作空结果。', '',
+                          '| 平台 | 定位机构 | 查询项 | 状态 | 原因 |', '| --- | --- | --- | --- | --- |']
+                lines.extend(f"| {cell(r['provider'])} | {cell(r['subject'])} | {cell(r['tool_label'])} | {cell(r['status_label'])} | {cell(r['reason_label'])} |" for r in coverage)
             sections[15] = "\n".join(lines)
             diagnostics[15] = {"status": "deduplicated_verification_plan", "gap_count": len(seen), "model_calls": 0}
             continue
@@ -645,10 +680,12 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
             sections[chapter] += "\n".join(f"| {name} | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |" for name in RISK_TOPICS)
         if chapter == 13:
             sections[chapter] += "\n\n### 综合判断与证据充分程度\n\n未建立经人工认可的量表，不自动给出A/B或数值评分。已引用材料为研究底稿；事实冲突、个人归属与信息缺口见第15章。"
-        diagnostics[chapter] = {"status": "insufficient_evidence" if not package['facts'] else "source_bound_draft" if not reasons else "source_excerpt_after_rejection",
+        diagnostics[chapter] = {"status": "insufficient_evidence" if not package['facts'] else 'draft_with_review_markers' if any(c.get('review_analysis') for c in claims) else "source_bound_draft" if not reasons else "source_excerpt_after_rejection",
                                 "candidate_facts": len(package["facts"]), "model_calls": calls,
                                 "writing_contract": package['writing_contract'],
                                 "accepted_analysis_count": sum(bool(c.get('analysis')) for c in claims),
+                                'pending_review_analysis_count': sum(bool(c.get('review_analysis')) for c in claims),
+                                'blocked_analysis_count': sum(c.get('analysis_status') == 'blocked' for c in claims),
                                 'analysis_candidate_count': len(analysis_candidates),
                                 "validation_rejections": reasons, "cited_evidence_ids": sorted(cited_ids(sections[chapter]))}
         emit(trace_emit, "report", "person_report_agent", "人物章节已记录核验结果", package["title"], section=package["title"], status="fallback" if reasons else "done")
@@ -657,6 +694,11 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
     audit = report_audit(report, contract, degradations)
     audit.update(section_diagnostics=diagnostics, api_attempts=attempts,
                  platform_attempts=getattr(project, "person_platform_attempts", []), retrieval_audit=retrieval, generation_order=list(ORDER))
+    try:
+        from .person_platforms import coverage_rows
+    except ImportError:
+        from person_platforms import coverage_rows
+    audit['platform_query_coverage'] = coverage_rows(audit['platform_attempts'])
     project.person_delivery_diagnostic = audit
     project.person_section_packages = contract["chapters"]
     return report

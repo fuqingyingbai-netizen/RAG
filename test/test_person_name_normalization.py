@@ -224,7 +224,9 @@ def test_person_affiliation_structured_collection_is_bounded_and_non_recursive(m
         collected.append(dict(intake))
         return 1
 
-    monkeypatch.setattr(workflow, "collect_structured_sources", fake_collect)
+    def grouped(_workflow, db, project, jobs, emit=None):
+        return sum(fake_collect(db, project, value, emit) for _, value in jobs)
+    monkeypatch.setattr('person_platforms.collect_group', grouped)
     intake = {
         "target_type": "person",
         "target_name": "马云",

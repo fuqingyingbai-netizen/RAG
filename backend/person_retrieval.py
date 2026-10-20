@@ -17,7 +17,7 @@ except ImportError:
     from person_evidence import TOPICS, VIEWS, TASKS, compact
     from person_commission import requirements as commission_requirements, event_years, matches as commission_matches
 
-VERSION = 'person-retrieval-v3-commission-questions'
+VERSION = 'person-retrieval-v4-chapter-followup'
 DIMENSIONS = {
     2: [('education', '教育时间与院校', ('教育', '毕业', '大学', '学历', 'education', 'university', 'degree')),
         ('career', '机构、职位与任职时间', ('任职', '担任', '履历', '创立', 'appointed', 'joined', 'career'))],
@@ -32,6 +32,21 @@ DIMENSIONS = {
     10: [('commission', '委托问题对应原件', ('专项', '债务', '资产', '知识产权', 'debt', 'patent', 'dispute'))],
     11: [('governance', '实际决策权与投后制度', ('治理', '董事会', '退出', '回购', 'governance', 'board', 'exit'))],
     12: [('risk', '直接与关联风险及查询边界', ('风险', '诉讼', '处罚', '失信', 'risk', 'sanction', 'penalty', 'lawsuit'))],
+}
+DIMENSIONS[7] += [('attributed_feedback', '具名员工、前同事、客户或合作方的原始评价及利益立场',
+                   ('员工评价', '前同事', '客户评价', '合作伙伴', '评价者', '履约', 'contract'))]
+DIMENSIONS[8] += [('peer_basis', '至少两名可比人物的行业、发展阶段、职责、时期与同单位指标',
+                   ('可比人物', '竞争对手', '同行', '董事长', '创始人', 'benchmark'))]
+DIMENSIONS[11] += [('exit_terms', '董事会授权、重大事项审批、回购及退出安排原始条款与适用条件',
+                    ('授权', '重大事项', '回购', '退出', '股东协议', 'exit'))]
+DIMENSIONS[12] += [('judicial_scope', '失信被执行、执行案件、裁判文书的当事人身份、案号、日期及查询范围',
+                    ('失信', '被执行', '案号', '裁判文书', 'judgment', 'court'))]
+FOLLOWUP_PRIORITY = (7, 8, 9, 12, 11)
+FOLLOWUP_QUERIES = {
+    'attributed_feedback': '前同事 员工 合作伙伴 客户 评价 采访 履约',
+    'peer_basis': '同行 竞争对手 创始人 董事长 履历 年报',
+    'exit_terms': '董事会 授权 股东协议 重大事项 回购 退出 条款',
+    'judicial_scope': '失信 被执行人 裁判文书 案号 法院',
 }
 ORIGINAL_TYPES = {'official', 'filing', 'court', 'government', 'regulatory', 'upload', 'manual', 'business_database'}
 
@@ -91,6 +106,13 @@ def coverage(sources, intake):
                 gaps.append('缺少第二个独立证据来源；转载不重复计数')
             if candidates and all(r['scope'] == 'affiliated_company' for r in candidates):
                 gaps.append('仅有关联机构材料，个人职责或责任待核实')
+            # Candidate relevance does not prove these multi-part requirements.
+            if key == 'peer_basis':
+                gaps.append('须人工确认至少两名可比人物及行业、阶段、角色、时期、指标口径，不按关键词自动验收')
+            if key == 'attributed_feedback':
+                gaps.append('须核对评价者身份、与目标关系及原始出处；公开报道不等于已完成授权访谈')
+            if key in {'exit_terms', 'judicial_scope'}:
+                gaps.append('须逐项核实原始条款或案件记录；公司事项不能直接认定为个人权利或责任')
             requirements.append({'id': f'{chapter}.{key}', 'question': label,
                                  'state': 'missing' if not candidates else 'partial' if gaps else 'ready_for_extraction',
                                  'gaps': gaps, 'candidates': candidates[:8],
@@ -138,7 +160,9 @@ class SearchSession:
             chosen = []
             anchor = self.intake.get('person_anchor') or {}
             orgs = list(anchor.get('known_affiliations') or [])
-            for row in self.last_coverage['chapters']:
+            chapter_rows = sorted(self.last_coverage['chapters'],
+                                  key=lambda r: FOLLOWUP_PRIORITY.index(r['chapter']) if r['chapter'] in FOLLOWUP_PRIORITY else 10 + r['chapter'])
+            for row in chapter_rows:
                 requirements = [r for r in row['requirements'] if r['state'] != 'scope_not_specified']
                 # Round two is a mandatory independent engine probe, even if the
                 # first engine looks complete. Round three requires a concrete gap.
@@ -151,11 +175,15 @@ class SearchSession:
                 if chapter == 10:
                     candidates = sorted(candidates, key=lambda r: sum(r['id'] in row.get('requirement_ids', []) or r.get('commission_id') in row.get('requirement_ids', []) for row in self.rows))[:2]
                 else:
-                    candidates = candidates[:1]
+                    candidates = sorted(candidates, key=lambda req: (
+                        sum(req['id'] in attempt.get('requirement_ids', []) for attempt in self.rows),
+                        0 if req['state'] == 'missing' else 1))[:1]
                 for req in candidates:
                     # Relax the current employer once for old affiliations / namesakes.
                     clue = '' if round_index == 3 and req['state'] == 'missing' else context
-                    chosen.append({'module': '人物逐章缺口', 'query': f'"{self.intake["target_name"]}"{clue} {req.get("query_terms", req["question"])}',
+                    key = req['id'].split('.', 1)[-1]
+                    query_terms = req.get('query_terms') or FOLLOWUP_QUERIES.get(key) or req['question']
+                    chosen.append({'module': '人物逐章缺口', 'query': f'"{self.intake["target_name"]}"{clue} {query_terms}',
                                    'person_chapters': [chapter], 'requirement_ids': [req['id']],
                                    'commission_id': req.get('commission_id', ''),
                                    'retrieval_reason': 'independent_engine_probe' if round_index == 2 else '; '.join(req['gaps']),

@@ -1,0 +1,1369 @@
+{
+  "date": "2026-10-20",
+  "scope": "fixed_corpus_policy_comparison_plus_separate_supplemented_corpus_review",
+  "formal_delivery_accepted": false,
+  "same_corpus_and_saved_outputs_for_policy_test": true,
+  "before": "work\\person-optimization\\same-corpus-20261020T145357",
+  "policy_after": "work\\person-optimization\\same-corpus-20261020T155256",
+  "latest": "work\\person-optimization\\same-corpus-20261020T155330",
+  "latest_new_model_requests": 0,
+  "latest_retained_responses_used": 10,
+  "platform_query_coverage": [
+    {
+      "provider": "qcc",
+      "subject": "比亚迪股份有限公司",
+      "tool": "get_executive_positions",
+      "reason": "source_statement_pending_review",
+      "retrieved_at": "2026-10-20T15:30:39",
+      "tool_label": "在外任职",
+      "status": "records_found",
+      "status_label": "查到记录",
+      "reason_label": "取得来源记录，内容仍须复核"
+    },
+    {
+      "provider": "qcc",
+      "subject": "比亚迪股份有限公司",
+      "tool": "get_executive_related_companies",
+      "reason": "source_statement_pending_review",
+      "retrieved_at": "2026-10-20T15:30:40",
+      "tool_label": "关联企业",
+      "status": "records_found",
+      "status_label": "查到记录",
+      "reason_label": "取得来源记录，内容仍须复核"
+    },
+    {
+      "provider": "qcc",
+      "subject": "比亚迪股份有限公司",
+      "tool": "get_executive_risk_scan",
+      "reason": "zero_or_summary_only_not_exoneration",
+      "retrieved_at": "2026-10-20T15:30:41",
+      "tool_label": "风险线索扫描",
+      "status": "returned_unresolved",
+      "status_label": "返回待核验",
+      "reason_label": "仅返回摘要或缺少可引用明细"
+    },
+    {
+      "provider": "qcc",
+      "subject": "比亚迪股份有限公司",
+      "tool": "get_executive_dishonest",
+      "reason": "explicit_empty_record_list",
+      "retrieved_at": "2026-10-20T15:32:56.415266",
+      "tool_label": "失信被执行记录",
+      "status": "empty_result",
+      "status_label": "返回空结果",
+      "reason_label": "匹配主体的记录列表为空，仅限该项查询"
+    },
+    {
+      "provider": "qcc",
+      "subject": "比亚迪股份有限公司",
+      "tool": "get_executive_judgment_debtor",
+      "reason": "explicit_empty_record_list",
+      "retrieved_at": "2026-10-20T15:32:56.415266",
+      "tool_label": "被执行记录",
+      "status": "empty_result",
+      "status_label": "返回空结果",
+      "reason_label": "匹配主体的记录列表为空，仅限该项查询"
+    },
+    {
+      "provider": "qcc",
+      "subject": "比亚迪股份有限公司",
+      "tool": "get_executive_judicial_docs",
+      "reason": "explicit_empty_record_list",
+      "retrieved_at": "2026-10-20T15:32:56.415266",
+      "tool_label": "裁判文书",
+      "status": "empty_result",
+      "status_label": "返回空结果",
+      "reason_label": "匹配主体的记录列表为空，仅限该项查询"
+    },
+    {
+      "provider": "qcc",
+      "subject": "比亚迪股份有限公司",
+      "tool": "get_executive_historical_related_companies",
+      "reason": "source_statement_pending_review",
+      "retrieved_at": "2026-10-20T15:30:42",
+      "tool_label": "历史关联企业",
+      "status": "records_found",
+      "status_label": "查到记录",
+      "reason_label": "取得来源记录，内容仍须复核"
+    },
+    {
+      "provider": "qcc",
+      "subject": "比亚迪股份有限公司",
+      "tool": "get_executive_historical_positions",
+      "reason": "source_statement_pending_review",
+      "retrieved_at": "2026-10-20T15:30:44",
+      "tool_label": "历史任职",
+      "status": "records_found",
+      "status_label": "查到记录",
+      "reason_label": "取得来源记录，内容仍须复核"
+    },
+    {
+      "provider": "qcc",
+      "subject": "比亚迪股份有限公司",
+      "tool": "get_executive_equity_pledge",
+      "reason": "zero_or_summary_only_not_exoneration",
+      "retrieved_at": "2026-10-20T15:30:44",
+      "tool_label": "股权质押",
+      "status": "returned_unresolved",
+      "status_label": "返回待核验",
+      "reason_label": "仅返回摘要或缺少可引用明细"
+    },
+    {
+      "provider": "xiniu",
+      "subject": "比亚迪股份有限公司",
+      "tool": "get_company_info:融资状况分析",
+      "reason": "source_statement_pending_review",
+      "retrieved_at": "2026-10-20T15:37:58.980408",
+      "tool_label": "get_company_info:融资状况分析",
+      "status": "records_found",
+      "status_label": "查到记录",
+      "reason_label": "取得来源记录，内容仍须复核"
+    },
+    {
+      "provider": "xiniu",
+      "subject": "比亚迪股份有限公司",
+      "tool": "get_company_info",
+      "reason": "affiliation_budget_reserved",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "get_company_info",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "为关联主体关键查询预留预算"
+    },
+    {
+      "provider": "xiniu",
+      "subject": "比亚迪股份有限公司",
+      "tool": "get_project_events",
+      "reason": "affiliation_budget_reserved",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "get_project_events",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "为关联主体关键查询预留预算"
+    },
+    {
+      "provider": "qcc",
+      "subject": "并担任融捷投资控股集团有限公司",
+      "tool": "get_executive_positions",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "在外任职",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "并担任融捷投资控股集团有限公司",
+      "tool": "get_executive_related_companies",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "关联企业",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "并担任融捷投资控股集团有限公司",
+      "tool": "get_executive_risk_scan",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "风险线索扫描",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "并担任融捷投资控股集团有限公司",
+      "tool": "get_executive_dishonest",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "失信被执行记录",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "并担任融捷投资控股集团有限公司",
+      "tool": "get_executive_judgment_debtor",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "被执行记录",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "并担任融捷投资控股集团有限公司",
+      "tool": "get_executive_judicial_docs",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "裁判文书",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "西藏日喀则扎布耶锂业高科技有限公司",
+      "tool": "get_executive_positions",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "在外任职",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "西藏日喀则扎布耶锂业高科技有限公司",
+      "tool": "get_executive_related_companies",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "关联企业",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "西藏日喀则扎布耶锂业高科技有限公司",
+      "tool": "get_executive_risk_scan",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "风险线索扫描",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "西藏日喀则扎布耶锂业高科技有限公司",
+      "tool": "get_executive_dishonest",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "失信被执行记录",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "西藏日喀则扎布耶锂业高科技有限公司",
+      "tool": "get_executive_judgment_debtor",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "被执行记录",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "西藏日喀则扎布耶锂业高科技有限公司",
+      "tool": "get_executive_judicial_docs",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "裁判文书",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳市正轩投资有限公司",
+      "tool": "get_executive_positions",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "在外任职",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳市正轩投资有限公司",
+      "tool": "get_executive_related_companies",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "关联企业",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳市正轩投资有限公司",
+      "tool": "get_executive_risk_scan",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "风险线索扫描",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳市正轩投资有限公司",
+      "tool": "get_executive_dishonest",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "失信被执行记录",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳市正轩投资有限公司",
+      "tool": "get_executive_judgment_debtor",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "被执行记录",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳市正轩投资有限公司",
+      "tool": "get_executive_judicial_docs",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "裁判文书",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳正轩前海股权投资基金管理有限公司",
+      "tool": "get_executive_positions",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "在外任职",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳正轩前海股权投资基金管理有限公司",
+      "tool": "get_executive_related_companies",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "关联企业",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳正轩前海股权投资基金管理有限公司",
+      "tool": "get_executive_risk_scan",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "风险线索扫描",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳正轩前海股权投资基金管理有限公司",
+      "tool": "get_executive_dishonest",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "失信被执行记录",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳正轩前海股权投资基金管理有限公司",
+      "tool": "get_executive_judgment_debtor",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "被执行记录",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳正轩前海股权投资基金管理有限公司",
+      "tool": "get_executive_judicial_docs",
+      "reason": "person_platform_budget_exhausted",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "裁判文书",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "本轮本地调用预算已用尽"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳市比亚迪实业有限公司",
+      "tool": "get_executive_positions",
+      "reason": "regional_restriction",
+      "retrieved_at": "2026-10-20T15:37:58.777445",
+      "tool_label": "在外任职",
+      "status": "failed",
+      "status_label": "调用失败",
+      "reason_label": "平台返回地域或访问限制，并非无记录"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳市比亚迪实业有限公司",
+      "tool": "get_executive_related_companies",
+      "reason": "returned_person_or_company_identity_not_matched",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "关联企业",
+      "status": "returned_unresolved",
+      "status_label": "返回待核验",
+      "reason_label": "返回主体与目标不匹配"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳市比亚迪实业有限公司",
+      "tool": "get_executive_risk_scan",
+      "reason": "identity_not_verified",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "风险线索扫描",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "人物与定位机构关系尚未核实"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳市比亚迪实业有限公司",
+      "tool": "get_executive_dishonest",
+      "reason": "identity_not_verified",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "失信被执行记录",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "人物与定位机构关系尚未核实"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳市比亚迪实业有限公司",
+      "tool": "get_executive_judgment_debtor",
+      "reason": "identity_not_verified",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "被执行记录",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "人物与定位机构关系尚未核实"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳市比亚迪实业有限公司",
+      "tool": "get_executive_judicial_docs",
+      "reason": "identity_not_verified",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "裁判文书",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "人物与定位机构关系尚未核实"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳市比亚迪实业有限公司",
+      "tool": "get_executive_historical_related_companies",
+      "reason": "identity_not_verified",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "历史关联企业",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "人物与定位机构关系尚未核实"
+    },
+    {
+      "provider": "qcc",
+      "subject": "深圳市比亚迪实业有限公司",
+      "tool": "get_executive_historical_positions",
+      "reason": "identity_not_verified",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "历史任职",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "人物与定位机构关系尚未核实"
+    },
+    {
+      "provider": "xiniu",
+      "subject": "深圳市比亚迪实业有限公司",
+      "tool": "get_company_info:融资状况分析",
+      "reason": "identity_not_verified",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "get_company_info:融资状况分析",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "人物与定位机构关系尚未核实"
+    },
+    {
+      "provider": "xiniu",
+      "subject": "深圳市比亚迪实业有限公司",
+      "tool": "get_company_info:团队人物及招聘分析",
+      "reason": "identity_not_verified",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "get_company_info:团队人物及招聘分析",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "人物与定位机构关系尚未核实"
+    },
+    {
+      "provider": "xiniu",
+      "subject": "深圳市比亚迪实业有限公司",
+      "tool": "get_project_events",
+      "reason": "identity_not_verified",
+      "retrieved_at": "2026-10-20T15:30:48",
+      "tool_label": "get_project_events",
+      "status": "not_queried",
+      "status_label": "尚未查询",
+      "reason_label": "人物与定位机构关系尚未核实"
+    }
+  ],
+  "chapters": [
+    {
+      "chapter": 1,
+      "title": "摘要",
+      "change": "摘要继承正文待复核状态；待确认分析带标记，不自动变成确认发现。",
+      "before": {
+        "cited_ids": 8,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "upstream_review_required",
+        "gaps": [],
+        "validation_rejections": [],
+        "source_scope_counts": {
+          "person": 6,
+          "affiliated_company": 2
+        }
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 8,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "upstream_review_required",
+        "gaps": [],
+        "validation_rejections": [],
+        "source_scope_counts": {
+          "affiliated_company": 2,
+          "person": 6
+        }
+      },
+      "supplement_after": {
+        "cited_ids": 9,
+        "pending_analysis": 1,
+        "blocked_analysis": 1,
+        "review_status": "upstream_review_required",
+        "gaps": [],
+        "validation_rejections": [
+          "comparison_basis_insufficient",
+          "unsupported_analysis"
+        ],
+        "source_scope_counts": {
+          "person": 9
+        }
+      }
+    },
+    {
+      "chapter": 2,
+      "title": "创始人底色画像",
+      "change": "原始任职、事件时间与当前状态分开；缺时期不称现任。",
+      "before": {
+        "cited_ids": 11,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“职业时间线与职责”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“履历断点与矛盾”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“家庭健康等公开信息边界”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "comparison_basis_insufficient"
+        ],
+        "source_scope_counts": {
+          "person": 11
+        }
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 11,
+        "pending_analysis": 1,
+        "blocked_analysis": 0,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“职业时间线与职责”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“履历断点与矛盾”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“家庭健康等公开信息边界”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "comparison_basis_insufficient"
+        ],
+        "source_scope_counts": {
+          "person": 11
+        }
+      },
+      "supplement_after": {
+        "cited_ids": 12,
+        "pending_analysis": 0,
+        "blocked_analysis": 1,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“教育与早年经历”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“职业时间线与职责”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“履历断点与矛盾”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“家庭健康等公开信息边界”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "unsupported_analysis"
+        ],
+        "source_scope_counts": {
+          "person": 12
+        }
+      }
+    },
+    {
+      "chapter": 3,
+      "title": "人格特质风险",
+      "change": "公开表达仅作行为材料；不从宣传或业务结果确定人格、能力和诚信。",
+      "before": {
+        "cited_ids": 1,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“责任心与事业心”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“诚信与利益取舍”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“表达与风险偏好”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“压力下行为与评价者立场”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "comparison_basis_insufficient",
+          "personal_conclusion_not_verified"
+        ],
+        "source_scope_counts": {
+          "person": 1
+        }
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 1,
+        "pending_analysis": 0,
+        "blocked_analysis": 1,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“责任心与事业心”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“诚信与利益取舍”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“表达与风险偏好”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“压力下行为与评价者立场”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "comparison_basis_insufficient",
+          "personal_conclusion_not_verified"
+        ],
+        "source_scope_counts": {
+          "person": 1
+        }
+      },
+      "supplement_after": {
+        "cited_ids": 3,
+        "pending_analysis": 0,
+        "blocked_analysis": 1,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“责任心与事业心”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“诚信与利益取舍”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“表达与风险偏好”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“压力下行为与评价者立场”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "personal_conclusion_not_verified"
+        ],
+        "source_scope_counts": {
+          "person": 3
+        }
+      }
+    },
+    {
+      "chapter": 4,
+      "title": "经营胜任力、持续创新与迭代能力验证",
+      "change": "公司结果与个人贡献分开；缺乏推理支持时按明确错误或待复核分别处理。",
+      "before": {
+        "cited_ids": 8,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“战略设计与行业判断”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“资本资源与个人职责”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“创新迭代与阶段匹配”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "personal_conclusion_not_verified",
+          "current_status_without_effective_period"
+        ],
+        "source_scope_counts": {
+          "person": 4,
+          "affiliated_company": 4
+        }
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 8,
+        "pending_analysis": 0,
+        "blocked_analysis": 2,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“战略设计与行业判断”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“资本资源与个人职责”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“创新迭代与阶段匹配”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "personal_conclusion_not_verified",
+          "current_status_without_effective_period"
+        ],
+        "source_scope_counts": {
+          "person": 4,
+          "affiliated_company": 4
+        }
+      },
+      "supplement_after": {
+        "cited_ids": 12,
+        "pending_analysis": 0,
+        "blocked_analysis": 1,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“战略设计与行业判断”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“执行与项目结果”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“资本资源与个人职责”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“创新迭代与阶段匹配”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "comparison_basis_insufficient"
+        ],
+        "source_scope_counts": {
+          "affiliated_company": 4,
+          "person": 8
+        }
+      }
+    },
+    {
+      "chapter": 5,
+      "title": "识人用人、统筹管理及核心经营管控能力",
+      "change": "保留管理来源陈述；错误数字、无效编号及无依据能力结论仍被拦截。",
+      "before": {
+        "cited_ids": 4,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“权责与授权”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“用人与关键岗位”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“文化与冲突处理”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“经营管控与稳定性”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "unsupported_analysis",
+          "personal_conclusion_not_verified"
+        ],
+        "source_scope_counts": {
+          "person": 4
+        }
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 4,
+        "pending_analysis": 0,
+        "blocked_analysis": 2,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“权责与授权”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“用人与关键岗位”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“文化与冲突处理”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“经营管控与稳定性”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "unsupported_analysis",
+          "personal_conclusion_not_verified"
+        ],
+        "source_scope_counts": {
+          "person": 4
+        }
+      },
+      "supplement_after": {
+        "cited_ids": 12,
+        "pending_analysis": 0,
+        "blocked_analysis": 1,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“权责与授权”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“用人与关键岗位”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“文化与冲突处理”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“经营管控与稳定性”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "unsupported_analysis",
+          "unknown_or_missing_evidence_id"
+        ],
+        "source_scope_counts": {
+          "person": 12
+        }
+      }
+    },
+    {
+      "chapter": 6,
+      "title": "核心管理团队背景调研",
+      "change": "同姓亲属及团队其他成员单独归属；亲属持股不能归给本人。",
+      "before": {
+        "cited_ids": 12,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“成员履历与职责”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“产业资源与合作基础”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关键人员变动”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“团队治理与关系边界”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "current_status_without_effective_period",
+          "company_founding_date_used_as_role_date"
+        ],
+        "source_scope_counts": {
+          "person": 9,
+          "other_person": 3
+        }
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 12,
+        "pending_analysis": 0,
+        "blocked_analysis": 2,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“成员履历与职责”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“产业资源与合作基础”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关键人员变动”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“团队治理与关系边界”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "current_status_without_effective_period",
+          "company_founding_date_used_as_role_date"
+        ],
+        "source_scope_counts": {
+          "other_person": 3,
+          "person": 9
+        }
+      },
+      "supplement_after": {
+        "cited_ids": 12,
+        "pending_analysis": 0,
+        "blocked_analysis": 1,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“成员履历与职责”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“产业资源与合作基础”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关键人员变动”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“团队治理与关系边界”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "comparison_basis_insufficient"
+        ],
+        "source_scope_counts": {
+          "person": 12
+        }
+      }
+    },
+    {
+      "chapter": 7,
+      "title": "商业操守与个人信用风险核查",
+      "change": "具名评价与契约记录优先补查；没有材料时保留缺口，不用兄长资格说明填章。",
+      "before": {
+        "cited_ids": 0,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_evidence",
+        "gaps": [
+          "本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。",
+          "未接入授权访谈材料时，多方访谈与口碑交叉验证仍待人工完成。",
+          "研究维度“员工与前同事评价”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“合作伙伴与客户评价”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“同行评价与利益立场”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“契约信用与交叉核验”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [],
+        "source_scope_counts": {}
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 0,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_evidence",
+        "gaps": [
+          "本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。",
+          "未接入授权访谈材料时，多方访谈与口碑交叉验证仍待人工完成。",
+          "研究维度“员工与前同事评价”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“合作伙伴与客户评价”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“同行评价与利益立场”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“契约信用与交叉核验”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [],
+        "source_scope_counts": {}
+      },
+      "supplement_after": {
+        "cited_ids": 0,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_evidence",
+        "gaps": [
+          "本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。",
+          "未接入授权访谈材料时，多方访谈与口碑交叉验证仍待人工完成。",
+          "研究维度“员工与前同事评价”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“合作伙伴与客户评价”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“同行评价与利益立场”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“契约信用与交叉核验”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [],
+        "source_scope_counts": {}
+      }
+    },
+    {
+      "chapter": 8,
+      "title": "同业对标下综合能力与品行隐患评估",
+      "change": "竞争力宣传与“感谢同行伙伴”不当作人物对标；可比人物和口径未齐不排名。",
+      "before": {
+        "cited_ids": 0,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_evidence",
+        "gaps": [
+          "本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。",
+          "缺少至少两位同赛道、同阶段、同角色的可比人物证据，不作横向评级。",
+          "研究维度“可比人物与筛选口径”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“同期间能力与成果”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“行为风格与信用证据”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“比较局限与待核验项”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [],
+        "source_scope_counts": {}
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 0,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_evidence",
+        "gaps": [
+          "本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。",
+          "缺少至少两位同赛道、同阶段、同角色的可比人物证据，不作横向评级。",
+          "研究维度“可比人物与筛选口径”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“同期间能力与成果”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“行为风格与信用证据”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“比较局限与待核验项”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [],
+        "source_scope_counts": {}
+      },
+      "supplement_after": {
+        "cited_ids": 0,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_evidence",
+        "gaps": [
+          "本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。",
+          "缺少至少两位同赛道、同阶段、同角色的可比人物证据，不作横向评级。",
+          "研究维度“可比人物与筛选口径”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“同期间能力与成果”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“行为风格与信用证据”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“比较局限与待核验项”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [],
+        "source_scope_counts": {}
+      }
+    },
+    {
+      "chapter": 9,
+      "title": "关联利益冲突及司法负面核查",
+      "change": "查询任职、持股及司法事项；比较必须核对主体、指标、单位和时期。",
+      "before": {
+        "cited_ids": 10,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“任职持股及控制关系”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关联交易与利益一致性”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“司法事项及当事人身份”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关系时间与透明度缺口”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "unsupported_analysis"
+        ],
+        "source_scope_counts": {
+          "person": 7,
+          "affiliated_company": 3
+        }
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 10,
+        "pending_analysis": 0,
+        "blocked_analysis": 1,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“任职持股及控制关系”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关联交易与利益一致性”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“司法事项及当事人身份”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关系时间与透明度缺口”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "unsupported_analysis"
+        ],
+        "source_scope_counts": {
+          "affiliated_company": 3,
+          "person": 7
+        }
+      },
+      "supplement_after": {
+        "cited_ids": 9,
+        "pending_analysis": 0,
+        "blocked_analysis": 2,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“任职持股及控制关系”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关联交易与利益一致性”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“司法事项及当事人身份”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关系时间与透明度缺口”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "unsupported_analysis",
+          "unsupported_analysis"
+        ],
+        "source_scope_counts": {
+          "person": 8,
+          "affiliated_company": 1
+        }
+      }
+    },
+    {
+      "chapter": 10,
+      "title": "专项调研",
+      "change": "按委托问题逐项留材料与缺口，不把已有事实数量当作专项已完成。",
+      "before": {
+        "cited_ids": 12,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "委托问题“持股及权益”：需逐条核对变动前后记录及生效时点；多个年份不能自行证明任职或持股变化",
+          "委托问题“任职及职责”：需逐条核对变动前后记录及生效时点；多个年份不能自行证明任职或持股变化",
+          "委托问题“关联关系”：缺少事件时期；平台采集日及企业成立日不能替代",
+          "委托问题“关联关系”：历史变化缺少至少两个可核对时点，单次平台快照不能证明变化",
+          "委托问题“司法及契约事项”：缺少与委托问题直接相关、身份匹配的原文记录",
+          "委托问题“经营与融资”：只有关联企业材料，缺少目标人物的角色或责任记录",
+          "委托问题“经营与融资”：缺少事件时期；平台采集日及企业成立日不能替代",
+          "委托问题“同业比较”：缺少与委托问题直接相关、身份匹配的原文记录"
+        ],
+        "validation_rejections": [
+          "comparison_period_missing_or_mismatched"
+        ],
+        "source_scope_counts": {
+          "person": 10,
+          "affiliated_company": 2
+        }
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 12,
+        "pending_analysis": 0,
+        "blocked_analysis": 1,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "委托问题“持股及权益”：需逐条核对变动前后记录及生效时点；多个年份不能自行证明任职或持股变化",
+          "委托问题“任职及职责”：需逐条核对变动前后记录及生效时点；多个年份不能自行证明任职或持股变化",
+          "委托问题“关联关系”：缺少事件时期；平台采集日及企业成立日不能替代",
+          "委托问题“关联关系”：历史变化缺少至少两个可核对时点，单次平台快照不能证明变化",
+          "委托问题“司法及契约事项”：缺少与委托问题直接相关、身份匹配的原文记录",
+          "委托问题“经营与融资”：只有关联企业材料，缺少目标人物的角色或责任记录",
+          "委托问题“经营与融资”：缺少事件时期；平台采集日及企业成立日不能替代",
+          "委托问题“同业比较”：缺少与委托问题直接相关、身份匹配的原文记录"
+        ],
+        "validation_rejections": [
+          "comparison_period_missing_or_mismatched"
+        ],
+        "source_scope_counts": {
+          "affiliated_company": 2,
+          "person": 10
+        }
+      },
+      "supplement_after": {
+        "cited_ids": 12,
+        "pending_analysis": 0,
+        "blocked_analysis": 1,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "委托问题“持股及权益”：需逐条核对变动前后记录及生效时点；多个年份不能自行证明任职或持股变化",
+          "委托问题“任职及职责”：需逐条核对变动前后记录及生效时点；多个年份不能自行证明任职或持股变化",
+          "委托问题“关联关系”：缺少事件时期；平台采集日及企业成立日不能替代",
+          "委托问题“关联关系”：历史变化缺少至少两个可核对时点，单次平台快照不能证明变化",
+          "委托问题“司法及契约事项”：缺少与委托问题直接相关、身份匹配的原文记录",
+          "委托问题“经营与融资”：缺少事件时期；平台采集日及企业成立日不能替代",
+          "委托问题“同业比较”：缺少与委托问题直接相关、身份匹配的原文记录"
+        ],
+        "validation_rejections": [
+          "unsupported_analysis"
+        ],
+        "source_scope_counts": {
+          "person": 12
+        }
+      }
+    },
+    {
+      "chapter": 11,
+      "title": "投后治理及退出风险研判",
+      "change": "补充董事会授权及历史锁定承诺；不得推导当前控制权或通用退出权利。",
+      "before": {
+        "cited_ids": 4,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "evidence_gaps_remain",
+        "gaps": [
+          "研究维度“人物实际决策角色”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“投资方沟通与重大事项”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关键岗位与制度承接”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“退出路径及适用条件”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [],
+        "source_scope_counts": {
+          "person": 2,
+          "affiliated_company": 2
+        }
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 4,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "evidence_gaps_remain",
+        "gaps": [
+          "研究维度“人物实际决策角色”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“投资方沟通与重大事项”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关键岗位与制度承接”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“退出路径及适用条件”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [],
+        "source_scope_counts": {
+          "affiliated_company": 2,
+          "person": 2
+        }
+      },
+      "supplement_after": {
+        "cited_ids": 12,
+        "pending_analysis": 0,
+        "blocked_analysis": 1,
+        "review_status": "needs_model_review",
+        "gaps": [
+          "研究维度“人物实际决策角色”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“投资方沟通与重大事项”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关键岗位与制度承接”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“退出路径及适用条件”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [
+          "unsupported_analysis"
+        ],
+        "source_scope_counts": {
+          "person": 11,
+          "affiliated_company": 1
+        }
+      }
+    },
+    {
+      "chapter": 12,
+      "title": "风险核查",
+      "change": "关键司法、信用查询先于公司背景扩展；查询为空和平台失败均不等于无风险。",
+      "before": {
+        "cited_ids": 0,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_evidence",
+        "gaps": [
+          "本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。",
+          "研究维度“已发现的直接信号”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关联主体间接信号”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“尚未核验及未查询事项”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“风险核查覆盖清单”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [],
+        "source_scope_counts": {}
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 0,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "needs_evidence",
+        "gaps": [
+          "本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。",
+          "研究维度“已发现的直接信号”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关联主体间接信号”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“尚未核验及未查询事项”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“风险核查覆盖清单”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [],
+        "source_scope_counts": {}
+      },
+      "supplement_after": {
+        "cited_ids": 3,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "evidence_gaps_remain",
+        "gaps": [
+          "研究维度“已发现的直接信号”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“关联主体间接信号”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“尚未核验及未查询事项”缺少能回答问题的原文、个人角色或时期证据。",
+          "研究维度“风险核查覆盖清单”缺少能回答问题的原文、个人角色或时期证据。"
+        ],
+        "validation_rejections": [],
+        "source_scope_counts": {
+          "person": 3
+        }
+      }
+    },
+    {
+      "chapter": 13,
+      "title": "综合评估",
+      "change": "综合评估继承正文限制；不自动给出信用评级或人格判断。",
+      "before": {
+        "cited_ids": 8,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "upstream_review_required",
+        "gaps": [],
+        "validation_rejections": [],
+        "source_scope_counts": {
+          "person": 6,
+          "affiliated_company": 2
+        }
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 8,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "upstream_review_required",
+        "gaps": [],
+        "validation_rejections": [],
+        "source_scope_counts": {
+          "affiliated_company": 2,
+          "person": 6
+        }
+      },
+      "supplement_after": {
+        "cited_ids": 9,
+        "pending_analysis": 1,
+        "blocked_analysis": 1,
+        "review_status": "upstream_review_required",
+        "gaps": [],
+        "validation_rejections": [
+          "comparison_basis_insufficient",
+          "unsupported_analysis"
+        ],
+        "source_scope_counts": {
+          "person": 9
+        }
+      }
+    },
+    {
+      "chapter": 14,
+      "title": "信息来源",
+      "change": "引用索引保留真实来源；待复核分析的引用也能回查。",
+      "before": {
+        "cited_ids": 34,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "source_index",
+        "gaps": [],
+        "validation_rejections": [],
+        "source_scope_counts": {}
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 34,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "source_index",
+        "gaps": [],
+        "validation_rejections": [],
+        "source_scope_counts": {}
+      },
+      "supplement_after": {
+        "cited_ids": 50,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "source_index",
+        "gaps": [],
+        "validation_rejections": [],
+        "source_scope_counts": {}
+      }
+    },
+    {
+      "chapter": 15,
+      "title": "后续研究点",
+      "change": "逐章补证计划与专业平台查询结果分开列出，保留空结果、失败、未查询和返回待核验。",
+      "before": {
+        "cited_ids": 9,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "verification_plan",
+        "gaps": [],
+        "validation_rejections": [],
+        "source_scope_counts": {}
+      },
+      "same_corpus_policy_after": {
+        "cited_ids": 0,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "verification_plan",
+        "gaps": [],
+        "validation_rejections": [],
+        "source_scope_counts": {}
+      },
+      "supplement_after": {
+        "cited_ids": 0,
+        "pending_analysis": 0,
+        "blocked_analysis": 0,
+        "review_status": "verification_plan",
+        "gaps": [],
+        "validation_rejections": [],
+        "source_scope_counts": {}
+      }
+    }
+  ],
+  "word_visual_qa": {
+    "status": "blocked",
+    "reason": "LibreOffice soffice.exe unavailable; packaged renderer failed; binary download unavailable"
+  },
+  "tests": {
+    "full_workspace": {
+      "passed": 1270,
+      "skipped": 14,
+      "xml": "work/person-optimization/review-followup-final-tests.xml",
+      "scope": "includes concurrent uncommitted company changes; before final person postprocessing guard"
+    },
+    "final_person_suite": {
+      "passed": 145,
+      "xml": "work/person-optimization/review-followup-focused-tests.xml"
+    },
+    "new_test_functions": 13
+  },
+  "full_live_run": "work/person-optimization/full-live-20261020T152905",
+  "live_writing_run": "work/person-optimization/same-corpus-20261020T154320",
+  "paid_call_scope": {
+    "search_plans": 30,
+    "original_fetch_attempts": 33,
+    "full_run_chapter_requests": 12,
+    "supplement_chapter_requests": 11,
+    "additional_qcc_probe_requests": 4,
+    "additional_xiniu_probe_requests": 1,
+    "actual_bill_amount": "not_available",
+    "new_requests_in_final_validation": 0
+  },
+  "docx_integrity_ok": true,
+  "docx_review_marker_present": true,
+  "production_deployment": "not_performed"
+}

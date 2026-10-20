@@ -47,6 +47,15 @@ def observation(fact, target, aliases=()):
     if honorific and not compact(target).startswith(compact(honorific[1])):
         other = True
         named_person = honorific[1] + '先生/女士'
+    # A shared surname is not identity. Listed-company bios often describe a
+    # sibling as "王先生...为...王某某先生的兄长" in the same excerpt.
+    for form in forms:
+        relative = re.search(r'([\u4e00-\u9fff]{1,4}(?:先生|女士)).{0,100}?为.{0,100}?'
+                             + re.escape(compact(form)) + r'(?:先生|女士)?的(兄长|弟弟|姐姐|妹妹|配偶|父亲|母亲|儿子|女儿)', compact(text))
+        if relative and compact(relative[1]).removesuffix('先生').removesuffix('女士') != compact(form):
+            other = True
+            named_person = f'{target}的{relative[2]}（原文：{relative[1]}）'
+            break
     scope = 'other_person' if other else 'affiliated_company' if fact.get('subject_scope') == 'affiliated_company' or context else 'person'
     # Only source event fields and explicitly labelled source snapshots count
     # as periods. Birthday, company founding, page publication and collection
@@ -148,10 +157,10 @@ def chapter_relevant(fact, chapter):
     if chapter == 3 and '年度报告' in text and '法律责任' in text and re.search(r'真实.{0,8}准确.{0,8}完整', text):
         return False
     if chapter == 8 and not fact.get('comparison_subject'):
-        return bool(re.search(r'同业|对标|竞争|比较|可比|竞品|benchmark|competitor|comparison', text, re.I))
+        return bool(re.search(r'同业|对标|竞争对手|竞争者|同行评价|比较|可比|竞品|benchmark|competitor|comparison', text, re.I))
     if chapter == 12:
         text = text.replace('非执行董事', '').replace('执行董事', '')
-        return bool(re.search(r'风险|诉讼|处罚|失信|被执行|执行案号|执行法院|强制执行|负面|监管|违规|纠纷|贪腐|舞弊|争议|risk|litigation|penalty|sanction|fraud', text, re.I))
+        return bool(re.search(r'风险|诉讼|处罚|失信|被执行|执行案号|执行法院|强制执行|负面|监管(?:调查|措施|问询|处罚)|违规|纠纷|贪腐|舞弊|争议|risk|litigation|penalty|sanction|fraud', text, re.I))
     return True
 
 

@@ -698,10 +698,12 @@ class ResearchWorkflow:
             project.person_research_intake = normalized_intake
             project.person_platform_query_keys = set()
             project.person_platform_attempts = []
+            project.person_platform_identities = {}
+            project.person_platform_core_pending = set()
             self._refresh_person_source_identities(project, normalized_intake)
             db.commit()
         cleaning_pipeline_version = (
-            "person-evidence-v15-typed-source-records"
+            "person-evidence-v16-critical-platform-coverage"
             if standardized_type == "person"
             else "company-evidence-v11-vector-survey-charts"
             if standardized_type == "company"
@@ -710,7 +712,7 @@ class ResearchWorkflow:
             else "default-v4-auditable"
         )
         report_pipeline_version = {
-            "person": "person-report-v8-typed-analysis-validation",
+            "person": "person-report-v9-review-markers",
             # v8 additionally indexes structured business records (QCC/Xiniu)
             # and uses evidence-density-aware company chapter writing. Do not
             # reuse a report produced before those delivery rules.
@@ -3591,6 +3593,16 @@ class ResearchWorkflow:
         for row in rows:
             name = str(row.get("name") or "").strip()
             key = re.sub(r"\s+", "", name).lower()
+            strong = row.get('explicit_intake') or int(row.get('host_count') or 0) >= 2 or (
+                int(row.get('source_count') or 0) >= 1 and int(row.get('max_score') or 0) >= 85)
+            if not strong or (not row.get('explicit_intake') and re.match(r'^(?:在|任职于|曾任职于|并担任|同时担任|曾担任|担任)', name)):
+                attempts = getattr(project, 'person_platform_attempts', None)
+                if attempts is None:
+                    attempts = []
+                    project.person_platform_attempts = attempts
+                attempts.append({'provider': 'person_routing', 'tool': 'affiliation_core_checks', 'subject': name,
+                                 'status': 'not_queried', 'reason': 'weak_affiliation_candidate'})
+                continue
             already_collected = any(key == initial or key in initial or initial in key for initial in initial_keys)
             if len(key) < 3 or key in seen or already_collected:
                 continue
@@ -3612,6 +3624,7 @@ class ResearchWorkflow:
             status="running",
         )
         added = 0
+        jobs = []
         for selection_rank, row in enumerate(selected, 1):
             name = str(row.get("name") or "").strip()
             affiliation_context = {
@@ -3660,20 +3673,24 @@ class ResearchWorkflow:
             candidate_intake["structured_target"] = candidates[0]
             candidate_intake["canonical_company_name"] = candidates[0]
             affiliation_context["canonical_company_name"] = candidates[0]
-            before = added
-            added += self.collect_structured_sources(db, project, candidate_intake, emit=emit)
+            jobs.append((candidates[0], candidate_intake))
             _emit(
                 emit,
                 "structured_data",
                 "person_affiliation_structured_agent",
-                "人物直接关联企业穿透完成",
+                "人物关联机构查询计划已生成",
                 name,
                 affiliation=name,
                 canonical_candidate=candidates[0],
-                sources_added=added - before,
+                sources_added=0,
                 recursion_depth=1,
-                status="done",
+                status="planned",
             )
+        try:
+            from .person_platforms import collect_group
+        except ImportError:
+            from person_platforms import collect_group
+        added += collect_group(self, db, project, jobs, emit)
         return added
 
     def _credit_code_is_near_affiliation(
@@ -5925,6 +5942,12 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
     ) -> str:
         if not report.strip():
             return report
+        if target_type == 'person':
+            # Person chapters already contain source-bound quotes, explicit
+            # review markers and a chapter-15 verification plan. Global prose
+            # softening must not rewrite literal source statements such as
+            # "未履约", or duplicate them into a generic follow-up appendix.
+            return report
         if target_type == "company":
             from report_agents.company_delivery import company_followup_rows, company_followup_plan
             groups=company_followup_rows(report)
@@ -6071,7 +6094,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             result = append_person_index(report, contract["facts"])
             project.person_evidence_contract = contract
             diagnostic = audit_person_report(result, contract, previous.get("degradations", []))
-            diagnostic.update({k: previous[k] for k in ("section_diagnostics", "api_attempts", "platform_attempts", "generation_order") if k in previous})
+            diagnostic.update({k: previous[k] for k in ("section_diagnostics", "api_attempts", "platform_attempts", "platform_query_coverage", "retrieval_audit", "generation_order") if k in previous})
             project.person_delivery_diagnostic = diagnostic
             return result
         if target_type == "industry" and report.strip():

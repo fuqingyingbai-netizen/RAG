@@ -27,7 +27,7 @@
     "passed": 167,
     "failed": 0
   },
-  "completion_level": "typed_evidence_and_guardrails_verified_content_acceptance_pending",
+  "completion_level": "person_workflow_review_markers_and_bounded_platform_followup_verified_formal_acceptance_pending",
   "platform_probes_20261020": [
     {
       "provider": "企查查",
@@ -251,5 +251,6 @@
   },
   "latest_full_live_acceptance": "PERSON_FULL_RUN_VALIDATION_20261020.json",
   "latest_commission_validation": "PERSON_COMMISSION_VALIDATION_20261020.json",
-  "latest_typed_evidence_validation": "PERSON_TYPED_EVIDENCE_VALIDATION_20261020.json"
+  "latest_typed_evidence_validation": "PERSON_TYPED_EVIDENCE_VALIDATION_20261020.json",
+  "latest_review_followup_validation": "docs/PERSON_REVIEW_FOLLOWUP_VALIDATION_20261020.json"
 }

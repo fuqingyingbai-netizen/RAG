@@ -24,6 +24,7 @@ sys.path.insert(0, str(ROOT / 'backend'))
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--live', action='store_true', help='Authorize a new paid bounded run')
+    parser.add_argument('--intake', type=Path, help='JSON intake for any person; otherwise use the retained QA example')
     args = parser.parse_args()
     if not args.live:
         parser.error('Use --live for real provider requests; this script has no automatic paid replay.')
@@ -102,6 +103,14 @@ def main():
                   'focus_questions': ['核对教育与职业履历，区分历史任职与现任职责', '核对本人持股、关联企业和公开司法事项', '经营、管理及同业比较分别列证据与缺口'],
                   'special_requirements': '专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项。',
                   'as_of_date': datetime.now().date().isoformat(), 'ai_search_enabled': True}
+        if args.intake:
+            intake = json.loads(args.intake.read_text(encoding='utf-8'))
+            target = str(intake.get('target_name') or intake.get('company_name') or '').strip()
+            if not target or intake.get('target_type', 'person') != 'person':
+                raise ValueError('Expected person intake with target name')
+            project.target_name = target
+            project.title = target + '人物背景调查全链路验收'
+            db.commit()
         (run / 'intake.json').write_text(json.dumps(intake, ensure_ascii=False, indent=2), encoding='utf-8')
         try:
             artifacts, added = workflow.run_project(db, project, [], [], emit=emit, intake=intake)
