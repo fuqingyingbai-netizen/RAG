@@ -30,14 +30,25 @@ NOTES = {
 
 def main():
     before, after = [Path(p).resolve() for p in sys.argv[1:3]]
+    commissioned = '--commission' in sys.argv[3:]
+    notes = dict(NOTES)
+    if commissioned:
+        for i in (1, 2, 3, 4, 5, 6, 8, 9, 11, 13):
+            notes[i] = '程序保留事实原文；模型选择证据编号并为分析提供原文支持。' + notes[i]
+        notes[10] = '按委托问题动态选材；排除公司名称关键词和其他团队成员；逐项列已有记录与尚未回答的问题。'
+        notes[15] = '补查计划包含每个委托问题的缺口；多个年份和单个平台快照均不能自动证明历史变化。'
     summaries = [json.loads((p / 'summary.json').read_text(encoding='utf-8')) for p in (before, after)]
     reports = [split_sections((p / 'desktop_report.md').read_text(encoding='utf-8')) for p in (before, after)]
     audits = [{r['chapter']: r for r in s['chapter_audit']['chapters']} for s in summaries]
+    if summaries[0].get('corpus_sha256'):
+        assert summaries[0]['corpus_sha256'] == summaries[1]['corpus_sha256'], 'Different source corpora'
+        assert summaries[0]['intake_sha256'] == summaries[1]['intake_sha256'], 'Different intakes'
     strip_images = lambda t: re.sub(r'!\[[^\]]*\]\([^\n]*\)', '[图像另存，文字对照中省略]', t)
     rows, cards = [], []
     for i in range(1, 16):
         b, a = [audit[i] for audit in audits]
         generation = summaries[1]['chapter_audit'].get('section_diagnostics', {}).get(str(i), {})
+        old_generation = summaries[0]['chapter_audit'].get('section_diagnostics', {}).get(str(i), {})
         rejection = generation.get('validation_rejections', [])
         status = ('模型部分输出被拦截，保留底稿：' + ', '.join(rejection) if rejection else
                   '缺少本章可引用证据' if generation.get('status') == 'insufficient_evidence' else
@@ -47,15 +58,20 @@ def main():
                 'before_text_chars': len(strip_images(reports[0].get(i, ''))),
                 'after_text_chars': len(strip_images(reports[1].get(i, ''))),
                 'before_listed_gaps': len(b.get('gaps', [])), 'after_listed_gaps': len(a.get('gaps', [])),
-                'status': status, 'change': NOTES[i], 'current_gaps': a.get('gaps', [])}
+                'before_validation_rejections': old_generation.get('validation_rejections', []),
+                'after_validation_rejections': rejection,
+                'before_analysis_count': reports[0].get(i, '').count('- 研究判断（待人工复核）'),
+                'after_analysis_count': reports[1].get(i, '').count('- 研究判断（待人工复核）'),
+                'status': status, 'change': notes[i], 'current_gaps': a.get('gaps', [])}
         rows.append(item)
         esc = html.escape
-        cards.append(f'<section id="c{i}"><h2>{i}. {esc(a["title"])}</h2><p>{esc(NOTES[i])}</p><p class="state">{esc(status)}</p>'
+        cards.append(f'<section id="c{i}"><h2>{i}. {esc(a["title"])}</h2><p>{esc(notes[i])}</p><p class="state">{esc(status)}</p>'
+                     f'<p>入选分析条数：{item["before_analysis_count"]} → {item["after_analysis_count"]}；数量不代表分析已核实。</p>'
                      f'<p>已列明缺口：{item["before_listed_gaps"]} → {item["after_listed_gaps"]}；'
                      f'文字长度：{item["before_text_chars"]} → {item["after_text_chars"]}（不含图像数据）</p>'
                      '<div class="pair">' + ''.join(f'<details><summary>{label}：查看实际章节正文</summary><pre>{esc(strip_images(report.get(i, "")))}</pre></details>'
                                                             for label, report in zip(('修正前', '修正后'), reports)) + '</div></section>')
-    result = {'date': '2026-10-20', 'comparison_scope': 'same retained 35-source full live corpus before and after scoped company records; not legacy-main baseline',
+    result = {'date': '2026-10-20', 'comparison_scope': 'same retained 35-source corpus before and after commissioned routing and analysis-only writing' if commissioned else 'same retained 35-source full live corpus before and after scoped company records; not legacy-main baseline',
               'baseline': str(before), 'after': str(after), 'corpus_sha256': summaries[1]['corpus_sha256'],
               'intake_sha256': summaries[1]['intake_sha256'], 'chapters': rows,
               'baseline_errors': summaries[0]['chapter_audit']['errors'], 'after_errors': summaries[1]['chapter_audit']['errors'],
@@ -64,7 +80,7 @@ def main():
     (after / 'chapter-comparison.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
     # Public-source draft only; raw archives, logs, credentials and local DBs
     # are deliberately not copied into deliverables.
-    output = ROOT / 'deliverables/person-full-run-20261020.html'
+    output = ROOT / ('deliverables/person-commission-optimization-20261020.html' if commissioned else 'deliverables/person-full-run-20261020.html')
     table = ''.join(f'<tr><td><a href="#c{r["chapter"]}">{r["chapter"]}. {html.escape(r["title"])}</a></td><td>{r["before_eids"]} → {r["after_eids"]}</td><td>{html.escape(r["change"])}</td><td>{html.escape(r["status"])}</td></tr>' for r in rows)
     page = '''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>人物链路15章实际运行对照</title>
 <style>body{font:16px/1.7 system-ui,sans-serif;color:#1c2a3a;background:#f3f6fa;max-width:1200px;margin:30px auto;padding:0 22px}h1{font-size:30px}section,.intro{background:white;padding:24px;margin:22px 0;border-radius:12px}table{border-collapse:collapse;width:100%;background:white}td,th{padding:12px;border:1px solid #dbe3ee;text-align:left;vertical-align:top}a{color:#165bb5}.state{color:#9d4312}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.7 system-ui}details{background:#f6f8fb;padding:12px;margin:10px 0}summary{cursor:pointer;font-weight:600}.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:800px){.pair{display:block}table{font-size:13px}}</style>
@@ -74,6 +90,13 @@ def main():
 <p>E-ID计数是本章出现的不同证据编号，不是独立来源数，也不等于核实事实数。缺口增加表示识别更完整，不代表材料变差。文字变短是去除整段公司资料重复，不单独证明质量更高。</p>
 <p>运行限制：博查本轮限流后熔断，由其他引擎继续；部分关联公司采集失败/身份不符被排除。建议书模型超时后使用模板兜底。Word包结构检查通过，因缺少LibreOffice尚未逐页视觉验收。应用登录、前端完整操作、共享知识入库和部署不在本次隔离运行范围。</p></div>
 <table><thead><tr><th>章节</th><th>E-ID修正前→后</th><th>实际改善及边界</th><th>当前状态</th></tr></thead><tbody>'''
+    if commissioned:
+        page = page.replace('修正前：本次新凭据下的完整真实检索、专业平台、清洗、报告及Word流程；35个归档来源（29网页、4企查查、2稀牛）。修正后：复用相同35个来源和相同委托条件，只重跑清洗及真实模型写作，没有新增检索或专业平台付费请求。',
+                            '前后均使用同一批35个来源和相同委托条件。修正前是首次按章节拆分公司记录后的复跑；修正后增加委托问题驱动选材及证据编号写作。该对照没有新增搜索或专业平台调用。另有两次专项搜索接口探针，仅验证查询连通，没有把搜索摘要加入报告。')
+        page = page.replace('这是本次完整运行发现问题后的对照', '这是专项选材与写作协议修正的同材料对照')
+        page = page.replace('文字变短是去除整段公司资料重复，不单独证明质量更高。', '文字长度用于检查冗余，分析条数和引用条数都不能单独证明质量提高。')
+        page = page.replace('运行限制：博查本轮限流后熔断，由其他引擎继续；部分关联公司采集失败/身份不符被排除。建议书模型超时后使用模板兜底。',
+                            '运行限制：原始采集曾遇博查限流及部分平台失败，本轮未重跑采集；另做的两个新搜索探针均有返回。最新写作复跑第9章模型超时，部分其他章节分析仍被拦截。建议书本轮未重跑。')
     page += table + '</tbody></table>' + ''.join(cards) + '</html>'
     output.write_text(page, encoding='utf-8')
     print(json.dumps({'page': str(output), 'comparison': str(after / 'chapter-comparison.json'), 'chapters': rows,

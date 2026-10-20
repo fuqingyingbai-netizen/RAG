@@ -3,6 +3,7 @@
 Only chapter writing uses live model calls. Source and intake hashes make the
 comparison reproducible; output stays in an isolated SQLite/object store.
 """
+import argparse
 import hashlib
 import json
 import os
@@ -18,7 +19,11 @@ sys.path.insert(0, str(ROOT / 'backend'))
 
 
 def main():
-    baseline = Path(sys.argv[1]).resolve()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('baseline', type=Path)
+    parser.add_argument('--live-model', action='store_true', help='Use paid real chapter model calls; otherwise record a model-free evidence replay')
+    args = parser.parse_args()
+    baseline = args.baseline.resolve()
     from dotenv import load_dotenv
     load_dotenv(ROOT / '.env')
     run = ROOT / 'work/person-optimization' / ('same-corpus-' + datetime.now().strftime('%Y%m%dT%H%M%S'))
@@ -47,6 +52,8 @@ def main():
     previous = json.loads((baseline / 'summary.json').read_text(encoding='utf-8'))
     retrieval = json.loads((baseline / 'person_retrieval_audit.json').read_text(encoding='utf-8'))
     workflow = research_workflow.ResearchWorkflow()
+    if not args.live_model:
+        workflow._invoke_person_report_section = lambda *a, **kw: '{"claims":[]}'
 
     def collect(db, project, *args, **kwargs):
         for row in snapshots:
@@ -79,7 +86,8 @@ def main():
     started = time.monotonic()
     engine = create_engine(os.environ['DATABASE_URL'])
     Base.metadata.create_all(engine)
-    summary = {'scope': 'same_corpus_report_replay_live_chapter_models', 'baseline': str(baseline),
+    summary = {'scope': 'same_corpus_report_replay_live_chapter_models' if args.live_model else 'same_corpus_evidence_replay_no_model', 'baseline': str(baseline),
+               'live_model_enabled': args.live_model,
                'new_search_calls': 0, 'new_professional_calls': 0, 'proposal': 'excluded_already_exercised_in_baseline',
                'corpus_sha256': hashlib.sha256((baseline / 'source-snapshots.json').read_bytes()).hexdigest(),
                'intake_sha256': hashlib.sha256((baseline / 'intake.json').read_bytes()).hexdigest()}
@@ -88,7 +96,10 @@ def main():
         user = User(username='same-corpus-person-qa', password_hash='not-a-product-login')
         db.add(user)
         db.flush()
-        project = ResearchProject(title='王传福人物背景调查全链路验收', target_name='王传福', target_type='person',
+        target = str(intake.get('target_name') or intake.get('company_name') or '').strip()
+        if not target:
+            raise ValueError('Baseline intake has no target name')
+        project = ResearchProject(title=f'{target}人物背景调查全链路验收', target_name=target, target_type='person',
                                   industry='', description='公开资料背景调查接口与章节验收，不代替正式尽调及人工复核', created_by_id=user.id)
         db.add(project)
         db.commit()

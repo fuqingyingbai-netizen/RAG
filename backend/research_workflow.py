@@ -12,6 +12,7 @@ import tempfile
 import time
 import threading
 import hashlib
+import uuid
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -700,7 +701,7 @@ class ResearchWorkflow:
             self._refresh_person_source_identities(project, normalized_intake)
             db.commit()
         cleaning_pipeline_version = (
-            "person-evidence-v13-scoped-company-records"
+            "person-evidence-v14-commission-questions"
             if standardized_type == "person"
             else "company-evidence-v11-vector-survey-charts"
             if standardized_type == "company"
@@ -709,7 +710,7 @@ class ResearchWorkflow:
             else "default-v4-auditable"
         )
         report_pipeline_version = {
-            "person": "person-report-v6-scoped-chapter-records",
+            "person": "person-report-v7-commission-analysis-selection",
             # v8 additionally indexes structured business records (QCC/Xiniu)
             # and uses evidence-density-aware company chapter writing. Do not
             # reuse a report produced before those delivery rules.
@@ -3417,7 +3418,7 @@ class ResearchWorkflow:
             db.flush()
         # Several tools can finish within the same second. Their raw responses
         # must remain separate objects so later evidence can be reproduced.
-        source_stamp = f"{_now_key()}_{time.time_ns()}"
+        source_stamp = f"{_now_key()}_{uuid.uuid4().hex}"
         object_key = research_store.put_text(
             f"projects/{project.id}/structured/{provider}_{module}_{source_stamp}.md",
             content,
@@ -4169,6 +4170,8 @@ class ResearchWorkflow:
                                 "query": query,
                                 "module": module,
                                 "person_chapters": list(query_item.get("person_chapters") or []),
+                                "person_commission_id": query_item.get("commission_id", ""),
+                                "person_requirement_ids": list(query_item.get("requirement_ids") or []),
                                 "round": round_index,
                                 "search_tier": search_tier,
                                 "authority_domains": include_domains,
@@ -4383,6 +4386,8 @@ class ResearchWorkflow:
                             "query": query,
                             "module": module,
                                 "person_chapters": list(query_item.get("person_chapters") or []),
+                                "person_commission_id": query_item.get("commission_id", ""),
+                                "person_requirement_ids": list(query_item.get("requirement_ids") or []),
                             "round": round_index,
                             "search_tier": search_tier,
                             "authority_domains": include_domains,

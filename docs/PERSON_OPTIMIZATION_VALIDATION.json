@@ -1,7 +1,7 @@
 {
   "branch": "codex/company",
   "base_commit": "f637636",
-  "template_version": "person-template-v3-20261020",
+  "template_version": "person-template-v4-commission-analysis-20261020",
   "tests": {
     "tests": 1155,
     "failures": 0,
@@ -27,7 +27,7 @@
     "passed": 167,
     "failed": 0
   },
-  "completion_level": "full_research_workflow_completed_content_acceptance_failed",
+  "completion_level": "commission_routing_and_writing_improved_content_acceptance_pending",
   "platform_probes_20261020": [
     {
       "provider": "企查查",
@@ -249,5 +249,6 @@
     "returned_person_match": true,
     "returned_company_match": true
   },
-  "latest_full_live_acceptance": "PERSON_FULL_RUN_VALIDATION_20261020.json"
+  "latest_full_live_acceptance": "PERSON_FULL_RUN_VALIDATION_20261020.json",
+  "latest_commission_validation": "PERSON_COMMISSION_VALIDATION_20261020.json"
 }

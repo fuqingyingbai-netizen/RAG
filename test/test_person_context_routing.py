@@ -251,6 +251,7 @@ def test_fast_person_tools_do_not_overwrite_each_others_original_objects(monkeyp
         return key
     monkeypatch.setattr(module.research_store, 'put_text', put)
     monkeypatch.setattr(module, '_now_key', lambda: '20261020120000')
+    monkeypatch.setattr(module.time, 'time_ns', lambda: 1792476237651063900)
     project = SimpleNamespace(id=1)
     for tool in ('get_executive_positions', 'get_executive_historical_positions'):
         assert workflow._save_structured_source(db, project, 'qcc_executive', '人物核查', tool,

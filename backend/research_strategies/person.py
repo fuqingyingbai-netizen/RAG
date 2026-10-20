@@ -97,8 +97,10 @@ class PersonResearchStrategy(BaseResearchStrategy):
         rows = super().expand_search_queries(plan, intake)
         try:
             from ..person_evidence import TOPICS, EN_TOPICS
+            from ..person_commission import search_rows as commission_search_rows
         except ImportError:
             from person_evidence import TOPICS, EN_TOPICS
+            from person_commission import search_rows as commission_search_rows
         target = str(intake.get("target_name") or "").strip()
         aliases = (intake.get("person_anchor") or {}).get("aliases") or []
         names = list(dict.fromkeys([target, *[str(a) for a in aliases if a]]))[:4]
@@ -111,19 +113,16 @@ class PersonResearchStrategy(BaseResearchStrategy):
                 if re.search(r"[A-Za-z]", name):
                     rows.append({"module": "人物章节专项", "query": f'"{name}" ' + " ".join(EN_TOPICS[chapter][:3]),
                                  "search_tier": "open_web", "person_chapters": [chapter]})
-        special = str(intake.get("special_requirements") or "").strip()
-        if special:
-            rows.append({"module": "专项风险", "query": f'"{target}" {special[:180]}',
-                         "search_tier": "open_web", "person_chapters": [10]})
         for row in rows:
             if "person_chapters" not in row:
                 blob = row.get("module", "") + " " + row.get("query", "")
                 row["person_chapters"] = [i for i, terms in TOPICS.items() if any(term.lower() in blob.lower() for term in terms)]
         anchor = intake.get("person_anchor") or {}
         clues = list(anchor.get("known_affiliations") or []) + list(anchor.get("identity_anchors") or [])
-        for question in intake.get("focus_questions") or []:
-            rows.append({"module": "委托重点问题", "query": f'"{target}" {str(question)[:160]}',
-                         "search_tier": "open_web", "person_chapters": [10]})
+        # Keep the actual question in the plan, while the bounded topic query
+        # drives retrieval. It is never a substitute for evidence in chapter 10.
+        commissioned_rows = commission_search_rows(intake)
+        rows = commissioned_rows + rows
         # Keep one broad identity discovery query; focused searches receive a
         # bounded clue, while future gap searches can relax it for old roles.
         for row in rows:

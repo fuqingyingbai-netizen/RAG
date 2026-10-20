@@ -12,10 +12,12 @@ from urllib.parse import urlparse
 
 try:
     from .person_evidence import TOPICS, VIEWS, TASKS, compact
+    from .person_commission import requirements as commission_requirements, event_years, matches as commission_matches
 except ImportError:
     from person_evidence import TOPICS, VIEWS, TASKS, compact
+    from person_commission import requirements as commission_requirements, event_years, matches as commission_matches
 
-VERSION = 'person-retrieval-v2-budget-context'
+VERSION = 'person-retrieval-v3-commission-questions'
 DIMENSIONS = {
     2: [('education', '教育时间与院校', ('教育', '毕业', '大学', '学历', 'education', 'university', 'degree')),
         ('career', '机构、职位与任职时间', ('任职', '担任', '履历', '创立', 'appointed', 'joined', 'career'))],
@@ -43,9 +45,14 @@ def integer(name, default, lo, hi):
 
 def coverage(sources, intake):
     chapters = []
+    commissioned = commission_requirements(intake)
     for chapter in range(1, 16):
         requirements = []
-        for key, label, terms in DIMENSIONS.get(chapter, []):
+        specs = DIMENSIONS.get(chapter, [])
+        if chapter == 10 and commissioned:
+            specs = [(r['id'], r['question'], r['terms']) for r in commissioned]
+        for key, label, terms in specs:
+            commission = next((r for r in commissioned if r['id'] == key), None)
             candidates = []
             for source in sources:
                 meta = source.source_metadata or {}
@@ -60,7 +67,8 @@ def coverage(sources, intake):
                 if len(text) < 120 or meta.get('fetch_status') in {'blocked', 'failed', 'challenge'}:
                     continue
                 excerpts = [p.strip()[:600] for p in re.split(r'[\n。！？]+', text)
-                            if any(t.lower() in p.lower() for t in terms) and len(p.strip()) >= 24]
+                            if (commission_matches({'fact': p, 'person_affiliation': meta.get('person_affiliation')}, commission)
+                                if commission else any(t.lower() in p.lower() for t in terms)) and len(p.strip()) >= 24]
                 if not excerpts:
                     continue
                 host = urlparse(source.url or '').netloc.lower().removeprefix('www.')
@@ -68,7 +76,7 @@ def coverage(sources, intake):
                 family = hashlib.sha256(compact(excerpts[0]).encode()).hexdigest()[:16]
                 candidates.append({'source_id': source.id, 'url': source.url, 'host': host, 'family': family,
                                    'excerpt': excerpts[0], 'original': source.source_type in ORIGINAL_TYPES,
-                                   'event_date_present': bool(re.search(r'(?:19|20)\d{2}', ' '.join(excerpts))),
+                                   'event_date_present': bool(event_years(' '.join(excerpts))) if commission else bool(re.search(r'(?:19|20)\d{2}', ' '.join(excerpts))),
                                    'scope': 'affiliated_company' if meta.get('person_affiliation') else 'person'})
             hosts = {r['host'] for r in candidates if r['host']}
             families = {r['family'] for r in candidates}
@@ -87,6 +95,9 @@ def coverage(sources, intake):
                                  'state': 'missing' if not candidates else 'partial' if gaps else 'ready_for_extraction',
                                  'gaps': gaps, 'candidates': candidates[:8],
                                  'completion_condition': '经事实账本核对原文、身份、事件时间、归属及冲突；候选齐全不等于已证实'})
+            if commission:
+                requirements[-1].update(commission_id=commission['id'], query_terms=commission['query_terms'],
+                                        questions=commission['questions'])
         if chapter == 10 and not (intake.get('special_requirements') or intake.get('focus_questions')):
             for item in requirements:
                 item.update(state='scope_not_specified', gaps=['未指定专项问题，不自动扩张敏感事项调查'])
@@ -119,8 +130,10 @@ class SearchSession:
                 options = [r for r in items if chapter in r.get('person_chapters', [])]
                 if options:
                     exact = [r for r in options if r.get('person_chapters') == [chapter]]
+                    if chapter == 10:
+                        exact = [r for r in options if r.get('commission_id')] or exact
                     chosen.append(dict((exact or options)[0], person_chapters=[chapter]))
-            chosen += [dict(r) for r in items if r.get('module') == '委托重点问题'][:3]
+            chosen += [dict(r) for r in items if r.get('commission_id')][1:3]
         else:
             chosen = []
             anchor = self.intake.get('person_anchor') or {}
@@ -133,21 +146,27 @@ class SearchSession:
                 if not requirements or (round_index > 2 and not gaps):
                     continue
                 chapter = row['chapter']
-                req = (gaps or requirements)[0]
                 context = (' "' + orgs[0].replace('"', '')[:100] + '"') if orgs else ''
-                # Relax the current employer once for old affiliations / namesakes.
-                if round_index == 3 and req['state'] == 'missing':
-                    context = ''
-                chosen.append({'module': '人物逐章缺口', 'query': f'"{self.intake["target_name"]}"{context} {req["question"]}',
-                               'person_chapters': [chapter], 'requirement_ids': [req['id']],
-                               'retrieval_reason': 'independent_engine_probe' if round_index == 2 else '; '.join(req['gaps']),
-                               'search_tier': 'open_web'})
+                candidates = gaps or requirements
+                if chapter == 10:
+                    candidates = sorted(candidates, key=lambda r: sum(r['id'] in row.get('requirement_ids', []) or r.get('commission_id') in row.get('requirement_ids', []) for row in self.rows))[:2]
+                else:
+                    candidates = candidates[:1]
+                for req in candidates:
+                    # Relax the current employer once for old affiliations / namesakes.
+                    clue = '' if round_index == 3 and req['state'] == 'missing' else context
+                    chosen.append({'module': '人物逐章缺口', 'query': f'"{self.intake["target_name"]}"{clue} {req.get("query_terms", req["question"])}',
+                                   'person_chapters': [chapter], 'requirement_ids': [req['id']],
+                                   'commission_id': req.get('commission_id', ''),
+                                   'retrieval_reason': 'independent_engine_probe' if round_index == 2 else '; '.join(req['gaps']),
+                                   'search_tier': 'open_web'})
         routed = []
         for item in chosen:
             if not self.providers or len(self.rows) >= self.budget:
                 break
             chapter = next(iter(item.get('person_chapters') or [2]))
-            if self.chapter_calls[chapter] >= 5:
+            chapter_limit = min(8, max(5, len(commission_requirements(self.intake)))) if chapter == 10 else 5
+            if self.chapter_calls[chapter] >= chapter_limit:
                 continue
             primary = 'exa' if re.search(r'[A-Za-z]{3}', self.intake.get('target_name', '')) else 'bocha'
             order = list(dict.fromkeys([primary, 'tavily', 'exa', 'bocha']))
@@ -162,6 +181,7 @@ class SearchSession:
                 continue
             self.seen.add(key)
             row = {'query': item['query'], 'provider': engine, 'chapters': item.get('person_chapters') or [chapter],
+                   'requirement_ids': item.get('requirement_ids') or [], 'commission_id': item.get('commission_id', ''),
                    'reason': item.get('retrieval_reason', 'initial_chapter_recall'), 'status': 'planned',
                    'result_count': 0, 'include_domains': item.get('include_domains') or []}
             item = {**item, 'preferred_providers': [engine], 'person_search_audit_index': len(self.rows)}

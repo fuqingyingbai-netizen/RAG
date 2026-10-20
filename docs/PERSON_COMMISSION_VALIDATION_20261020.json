@@ -1,0 +1,644 @@
+{
+  "date": "2026-10-20",
+  "scope": "commission_question_routing_and_evidence_selection_writing",
+  "baseline": "work\\person-optimization\\same-corpus-20261020T131943",
+  "after": "work\\person-optimization\\same-corpus-20261020T141022",
+  "corpus_sha256": "69edb3834e546cb5da7e8bc64059309e863dd5bf0810b6f46d289ee18820fd05",
+  "intake_sha256": "1b4dc430381625d4541153e19fa1e4a4a4e23de85e4e827fb7d7d76cb39a82e8",
+  "chapter_count": 15,
+  "chapter10_candidates_before": 0,
+  "chapter10_candidates_after": 12,
+  "fact_copy_rejections_before": 2,
+  "fact_copy_rejections_after": 0,
+  "baseline_degraded_chapters": [
+    2,
+    5,
+    9,
+    13,
+    1
+  ],
+  "after_degraded_chapters": [
+    {
+      "chapter": 2,
+      "reasons": [
+        "unsupported_analysis"
+      ]
+    },
+    {
+      "chapter": 4,
+      "reasons": [
+        "unsupported_analysis"
+      ]
+    },
+    {
+      "chapter": 6,
+      "reasons": [
+        "unsupported_analysis"
+      ]
+    },
+    {
+      "chapter": 9,
+      "reasons": [
+        "api_failed:request_failed"
+      ]
+    },
+    {
+      "chapter": 10,
+      "reasons": [
+        "missing_or_invalid_analysis_support_quote",
+        "unsupported_analysis"
+      ]
+    },
+    {
+      "chapter": 13,
+      "reasons": [
+        "missing_or_invalid_analysis_support_quote",
+        "unsupported_analysis"
+      ]
+    },
+    {
+      "chapter": 1,
+      "reasons": [
+        "missing_or_invalid_analysis_support_quote",
+        "unsupported_analysis"
+      ]
+    }
+  ],
+  "baseline_elapsed_seconds": 229.3,
+  "after_elapsed_seconds": 263.7,
+  "actual_report_model_calls": 11,
+  "new_retrieval_calls_in_comparison": 0,
+  "new_professional_calls": 0,
+  "separate_search_probe": {
+    "scope": "two_commission_queries_search_transport_only",
+    "paid_search_requests": 2,
+    "original_fetches": 0,
+    "professional_calls": 0,
+    "report_facts_added": 0,
+    "qualification": "Discovery results only; original text, identity and dates remain unverified",
+    "probes": [
+      {
+        "query": "\"王传福\" \"比亚迪股份有限公司\" 持股 变动 公告 专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项",
+        "commission_id": "C-01B8016FDC",
+        "provider": "bocha",
+        "status": "returned",
+        "result_count": 3,
+        "discovery_results": [
+          {
+            "title": "王传福_牛散王传福最新持股查询",
+            "url": "http://www.tetegu.com/gudong/18711.html"
+          },
+          {
+            "title": "查询股票最新股东数目股东持股(输入股票代码):",
+            "url": "http://www.ddx.gubit.cn/mango/gudong/002594.html"
+          },
+          {
+            "title": "查询股票最新股东数目股东持股(输入股票代码):",
+            "url": "http://ddx.gubit.cn/mango/gudong/002594.html"
+          }
+        ],
+        "elapsed_seconds": 0.3
+      },
+      {
+        "query": "\"王传福\" \"比亚迪股份有限公司\" 任职 历史 职务 公告 专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项",
+        "commission_id": "C-89B7505AD7",
+        "provider": "exa",
+        "status": "returned",
+        "result_count": 3,
+        "discovery_results": [
+          {
+            "title": "证券代码：002594        证券简称：比亚迪        公告编号：【】",
+            "url": "http://static.cninfo.com.cn/finalpage/2020-08-22/1208227898.PDF"
+          },
+          {
+            "title": "比亚迪股份有限公司 简式权益变动报告书",
+            "url": "https://disc.static.szse.cn/disc/disk02/finalpage/2021-11-19/0ee9b67e-ffc3-4cb3-b809-bdf65a07c007.PDF"
+          },
+          {
+            "title": "",
+            "url": "https://epaper.stcn.com/paper/zqsb/page/1/2014-07/25/B049/20140725B049_pdf.pdf"
+          }
+        ],
+        "elapsed_seconds": 1.0
+      }
+    ]
+  },
+  "delivery_status": "review_draft",
+  "docx_integrity_ok": true,
+  "docx_visual_qa": "unavailable",
+  "tests": {
+    "tests": 1234,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 14
+  },
+  "commission_coverage": [
+    {
+      "id": "C-01B8016FDC",
+      "question": "持股及权益",
+      "questions": [
+        "专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项",
+        "核对本人持股、关联企业和公开司法事项"
+      ],
+      "state": "partial",
+      "matched_evidence_ids": [
+        "E-P0FB6090CC423F3",
+        "E-P08EEE138BBDBE1",
+        "E-P0B5701CBC54BF7",
+        "E-P12CA133A55C536",
+        "E-P17AC5DA6683E80",
+        "E-P1B819A2140059D",
+        "E-P91F1018D97D4D8"
+      ],
+      "gaps": [
+        "需逐条核对变动前后记录及生效时点；多个年份不能自行证明任职或持股变化"
+      ],
+      "completion_condition": "核对原文、人物角色、事件时期及适用边界；候选命中不代表核查完成"
+    },
+    {
+      "id": "C-89B7505AD7",
+      "question": "任职及职责",
+      "questions": [
+        "专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项",
+        "核对教育与职业履历，区分历史任职与现任职责"
+      ],
+      "state": "partial",
+      "matched_evidence_ids": [
+        "E-P0FB6090CC423F3",
+        "E-P08EEE138BBDBE1",
+        "E-P4CB205A5AC01B8",
+        "E-P0B5701CBC54BF7",
+        "E-P12CA133A55C536",
+        "E-P17AC5DA6683E80",
+        "E-P1B819A2140059D",
+        "E-P91F1018D97D4D8",
+        "E-PB1D710ACE1B0FA",
+        "E-P0DAA49ADA7A96D",
+        "E-P4425878A1A2CA3",
+        "E-P668AA3B9907491"
+      ],
+      "gaps": [
+        "需逐条核对变动前后记录及生效时点；多个年份不能自行证明任职或持股变化"
+      ],
+      "completion_condition": "核对原文、人物角色、事件时期及适用边界；候选命中不代表核查完成"
+    },
+    {
+      "id": "C-E2BA41AF03",
+      "question": "关联关系",
+      "questions": [
+        "专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项",
+        "核对本人持股、关联企业和公开司法事项"
+      ],
+      "state": "partial",
+      "matched_evidence_ids": [
+        "E-P08EEE138BBDBE1",
+        "E-P12CA133A55C536",
+        "E-P17AC5DA6683E80",
+        "E-P1B819A2140059D"
+      ],
+      "gaps": [
+        "缺少事件时期；平台采集日及企业成立日不能替代",
+        "历史变化缺少至少两个可核对时点，单次平台快照不能证明变化"
+      ],
+      "completion_condition": "核对原文、人物角色、事件时期及适用边界；候选命中不代表核查完成"
+    },
+    {
+      "id": "C-68BF0109C6",
+      "question": "教育与资格",
+      "questions": [
+        "核对教育与职业履历，区分历史任职与现任职责"
+      ],
+      "state": "ready_for_review",
+      "matched_evidence_ids": [
+        "E-P0FB6090CC423F3",
+        "E-P4CB205A5AC01B8",
+        "E-P0B5701CBC54BF7",
+        "E-P91F1018D97D4D8",
+        "E-PB1D710ACE1B0FA",
+        "E-P0DAA49ADA7A96D"
+      ],
+      "gaps": [],
+      "completion_condition": "核对原文、人物角色、事件时期及适用边界；候选命中不代表核查完成"
+    },
+    {
+      "id": "C-A708DF92C9",
+      "question": "司法及契约事项",
+      "questions": [
+        "核对本人持股、关联企业和公开司法事项"
+      ],
+      "state": "missing",
+      "matched_evidence_ids": [],
+      "gaps": [
+        "缺少与委托问题直接相关、身份匹配的原文记录"
+      ],
+      "completion_condition": "核对原文、人物角色、事件时期及适用边界；候选命中不代表核查完成"
+    },
+    {
+      "id": "C-74DE07C4E9",
+      "question": "经营与融资",
+      "questions": [
+        "经营、管理及同业比较分别列证据与缺口"
+      ],
+      "state": "partial",
+      "matched_evidence_ids": [
+        "E-P4CB205A5AC01B8",
+        "E-PB1D710ACE1B0FA"
+      ],
+      "gaps": [
+        "只有关联企业材料，缺少目标人物的角色或责任记录",
+        "缺少事件时期；平台采集日及企业成立日不能替代"
+      ],
+      "completion_condition": "核对原文、人物角色、事件时期及适用边界；候选命中不代表核查完成"
+    },
+    {
+      "id": "C-288965A1F2",
+      "question": "管理与团队",
+      "questions": [
+        "经营、管理及同业比较分别列证据与缺口"
+      ],
+      "state": "ready_for_review",
+      "matched_evidence_ids": [
+        "E-P0FB6090CC423F3",
+        "E-P4425878A1A2CA3",
+        "E-P668AA3B9907491"
+      ],
+      "gaps": [],
+      "completion_condition": "核对原文、人物角色、事件时期及适用边界；候选命中不代表核查完成"
+    },
+    {
+      "id": "C-C271F2BB93",
+      "question": "同业比较",
+      "questions": [
+        "经营、管理及同业比较分别列证据与缺口"
+      ],
+      "state": "missing",
+      "matched_evidence_ids": [],
+      "gaps": [
+        "缺少与委托问题直接相关、身份匹配的原文记录"
+      ],
+      "completion_condition": "核对原文、人物角色、事件时期及适用边界；候选命中不代表核查完成"
+    }
+  ],
+  "chapters": [
+    {
+      "chapter": 1,
+      "title": "摘要",
+      "before_eids": 9,
+      "after_eids": 10,
+      "before_text_chars": 2899,
+      "after_text_chars": 2600,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 0,
+      "before_validation_rejections": [
+        "unsupported_analysis"
+      ],
+      "after_validation_rejections": [
+        "missing_or_invalid_analysis_support_quote",
+        "unsupported_analysis"
+      ],
+      "before_analysis_count": 6,
+      "after_analysis_count": 1,
+      "status": "模型部分输出被拦截，保留底稿：missing_or_invalid_analysis_support_quote, unsupported_analysis",
+      "change": "程序保留事实原文；模型选择证据编号并为分析提供原文支持。摘要只消费正文实际引用；仍为待人工复核摘要。",
+      "current_gaps": []
+    },
+    {
+      "chapter": 2,
+      "title": "创始人底色画像",
+      "before_eids": 12,
+      "after_eids": 12,
+      "before_text_chars": 3914,
+      "after_text_chars": 3725,
+      "before_listed_gaps": 3,
+      "after_listed_gaps": 3,
+      "before_validation_rejections": [
+        "statement_not_in_cited_fact",
+        "statement_not_in_cited_fact",
+        "unsupported_analysis",
+        "unsupported_analysis"
+      ],
+      "after_validation_rejections": [
+        "unsupported_analysis"
+      ],
+      "before_analysis_count": 4,
+      "after_analysis_count": 2,
+      "status": "模型部分输出被拦截，保留底稿：unsupported_analysis",
+      "change": "程序保留事实原文；模型选择证据编号并为分析提供原文支持。公司资料退出个人履历；学校、职责与时期仍需逐项核验。",
+      "current_gaps": [
+        "研究维度“职业时间线与职责”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“履历断点与矛盾”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“家庭健康等公开信息边界”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 3,
+      "title": "人格特质风险",
+      "before_eids": 2,
+      "after_eids": 2,
+      "before_text_chars": 939,
+      "after_text_chars": 1055,
+      "before_listed_gaps": 4,
+      "after_listed_gaps": 4,
+      "before_validation_rejections": [],
+      "after_validation_rejections": [],
+      "before_analysis_count": 1,
+      "after_analysis_count": 2,
+      "status": "程序校验未拦截；待人工复核",
+      "change": "程序保留事实原文；模型选择证据编号并为分析提供原文支持。不再以公司介绍支撑人格判断；来源评价不等于人格结论。",
+      "current_gaps": [
+        "研究维度“责任心与事业心”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“诚信与利益取舍”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“表达与风险偏好”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“压力下行为与评价者立场”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 4,
+      "title": "经营胜任力、持续创新与迭代能力验证",
+      "before_eids": 12,
+      "after_eids": 12,
+      "before_text_chars": 3399,
+      "after_text_chars": 3112,
+      "before_listed_gaps": 3,
+      "after_listed_gaps": 3,
+      "before_validation_rejections": [],
+      "after_validation_rejections": [
+        "unsupported_analysis"
+      ],
+      "before_analysis_count": 5,
+      "after_analysis_count": 2,
+      "status": "模型部分输出被拦截，保留底稿：unsupported_analysis",
+      "change": "程序保留事实原文；模型选择证据编号并为分析提供原文支持。公司经营资料拆成短记录；公司业绩不能直接归因为个人能力。",
+      "current_gaps": [
+        "研究维度“战略设计与行业判断”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“资本资源与个人职责”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“创新迭代与阶段匹配”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 5,
+      "title": "识人用人、统筹管理及核心经营管控能力",
+      "before_eids": 4,
+      "after_eids": 4,
+      "before_text_chars": 1356,
+      "after_text_chars": 1545,
+      "before_listed_gaps": 4,
+      "after_listed_gaps": 4,
+      "before_validation_rejections": [
+        "unsupported_analysis"
+      ],
+      "after_validation_rejections": [],
+      "before_analysis_count": 1,
+      "after_analysis_count": 3,
+      "status": "程序校验未拦截；待人工复核",
+      "change": "程序保留事实原文；模型选择证据编号并为分析提供原文支持。保留管理相关来源；决策过程、机制和个人贡献需要补证。",
+      "current_gaps": [
+        "研究维度“权责与授权”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“用人与关键岗位”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“文化与冲突处理”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“经营管控与稳定性”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 6,
+      "title": "核心管理团队背景调研",
+      "before_eids": 12,
+      "after_eids": 12,
+      "before_text_chars": 4326,
+      "after_text_chars": 3677,
+      "before_listed_gaps": 4,
+      "after_listed_gaps": 4,
+      "before_validation_rejections": [],
+      "after_validation_rejections": [
+        "unsupported_analysis"
+      ],
+      "before_analysis_count": 7,
+      "after_analysis_count": 2,
+      "status": "模型部分输出被拦截，保留底稿：unsupported_analysis",
+      "change": "程序保留事实原文；模型选择证据编号并为分析提供原文支持。人员任职记录按章节标签入选；团队背景和现任状态仍需原件。",
+      "current_gaps": [
+        "研究维度“成员履历与职责”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“产业资源与合作基础”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关键人员变动”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“团队治理与关系边界”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 7,
+      "title": "商业操守与个人信用风险核查",
+      "before_eids": 0,
+      "after_eids": 0,
+      "before_text_chars": 90,
+      "after_text_chars": 90,
+      "before_listed_gaps": 6,
+      "after_listed_gaps": 6,
+      "before_validation_rejections": [],
+      "after_validation_rejections": [],
+      "before_analysis_count": 0,
+      "after_analysis_count": 0,
+      "status": "缺少本章可引用证据",
+      "change": "公司资料退出个人信用；公开负面线索不自动生成个人信用评分。",
+      "current_gaps": [
+        "本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。",
+        "未接入授权访谈材料时，多方访谈与口碑交叉验证仍待人工完成。",
+        "研究维度“员工与前同事评价”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“合作伙伴与客户评价”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“同行评价与利益立场”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“契约信用与交叉核验”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 8,
+      "title": "同业对标下综合能力与品行隐患评估",
+      "before_eids": 1,
+      "after_eids": 1,
+      "before_text_chars": 664,
+      "after_text_chars": 514,
+      "before_listed_gaps": 5,
+      "after_listed_gaps": 5,
+      "before_validation_rejections": [],
+      "after_validation_rejections": [],
+      "before_analysis_count": 1,
+      "after_analysis_count": 0,
+      "status": "程序校验未拦截；待人工复核",
+      "change": "程序保留事实原文；模型选择证据编号并为分析提供原文支持。没有两名口径一致的可比人物，不做排名；本轮仍有缺口。",
+      "current_gaps": [
+        "缺少至少两位同赛道、同阶段、同角色的可比人物证据，不作横向评级。",
+        "研究维度“可比人物与筛选口径”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“同期间能力与成果”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“行为风格与信用证据”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“比较局限与待核验项”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 9,
+      "title": "关联利益冲突及司法负面核查",
+      "before_eids": 11,
+      "after_eids": 11,
+      "before_text_chars": 3415,
+      "after_text_chars": 2784,
+      "before_listed_gaps": 4,
+      "after_listed_gaps": 4,
+      "before_validation_rejections": [
+        "unsupported_analysis",
+        "unsupported_analysis"
+      ],
+      "after_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "before_analysis_count": 5,
+      "after_analysis_count": 0,
+      "status": "模型部分输出被拦截，保留底稿：api_failed:request_failed",
+      "change": "程序保留事实原文；模型选择证据编号并为分析提供原文支持。企查查角色记录可按结构标签进入；关联企业事项与个人责任分开。",
+      "current_gaps": [
+        "研究维度“任职持股及控制关系”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关联交易与利益一致性”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“司法事项及当事人身份”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关系时间与透明度缺口”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 10,
+      "title": "专项调研",
+      "before_eids": 0,
+      "after_eids": 12,
+      "before_text_chars": 81,
+      "after_text_chars": 5370,
+      "before_listed_gaps": 5,
+      "after_listed_gaps": 8,
+      "before_validation_rejections": [],
+      "after_validation_rejections": [
+        "missing_or_invalid_analysis_support_quote",
+        "unsupported_analysis"
+      ],
+      "before_analysis_count": 0,
+      "after_analysis_count": 1,
+      "status": "模型部分输出被拦截，保留底稿：missing_or_invalid_analysis_support_quote, unsupported_analysis",
+      "change": "按委托问题动态选材；排除公司名称关键词和其他团队成员；逐项列已有记录与尚未回答的问题。",
+      "current_gaps": [
+        "委托问题“持股及权益”：需逐条核对变动前后记录及生效时点；多个年份不能自行证明任职或持股变化",
+        "委托问题“任职及职责”：需逐条核对变动前后记录及生效时点；多个年份不能自行证明任职或持股变化",
+        "委托问题“关联关系”：缺少事件时期；平台采集日及企业成立日不能替代",
+        "委托问题“关联关系”：历史变化缺少至少两个可核对时点，单次平台快照不能证明变化",
+        "委托问题“司法及契约事项”：缺少与委托问题直接相关、身份匹配的原文记录",
+        "委托问题“经营与融资”：只有关联企业材料，缺少目标人物的角色或责任记录",
+        "委托问题“经营与融资”：缺少事件时期；平台采集日及企业成立日不能替代",
+        "委托问题“同业比较”：缺少与委托问题直接相关、身份匹配的原文记录"
+      ]
+    },
+    {
+      "chapter": 11,
+      "title": "投后治理及退出风险研判",
+      "before_eids": 4,
+      "after_eids": 4,
+      "before_text_chars": 1153,
+      "after_text_chars": 1153,
+      "before_listed_gaps": 4,
+      "after_listed_gaps": 4,
+      "before_validation_rejections": [],
+      "after_validation_rejections": [],
+      "before_analysis_count": 0,
+      "after_analysis_count": 0,
+      "status": "程序校验未拦截；待人工复核",
+      "change": "程序保留事实原文；模型选择证据编号并为分析提供原文支持。治理资料按主题入选；历史任职不推导当前控制权和退出权。",
+      "current_gaps": [
+        "研究维度“人物实际决策角色”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“投资方沟通与重大事项”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关键岗位与制度承接”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“退出路径及适用条件”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 12,
+      "title": "风险核查",
+      "before_eids": 5,
+      "after_eids": 5,
+      "before_text_chars": 2331,
+      "after_text_chars": 2331,
+      "before_listed_gaps": 4,
+      "after_listed_gaps": 4,
+      "before_validation_rejections": [],
+      "after_validation_rejections": [],
+      "before_analysis_count": 0,
+      "after_analysis_count": 0,
+      "status": "程序校验未拦截；待人工复核",
+      "change": "按来源登记核查线索；缺失、未命中及企业风险均不自动评分。",
+      "current_gaps": [
+        "研究维度“已发现的直接信号”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“关联主体间接信号”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“尚未核验及未查询事项”缺少能回答问题的原文、个人角色或时期证据。",
+        "研究维度“风险核查覆盖清单”缺少能回答问题的原文、个人角色或时期证据。"
+      ]
+    },
+    {
+      "chapter": 13,
+      "title": "综合评估",
+      "before_eids": 9,
+      "after_eids": 10,
+      "before_text_chars": 2829,
+      "after_text_chars": 2686,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 0,
+      "before_validation_rejections": [
+        "unsupported_analysis"
+      ],
+      "after_validation_rejections": [
+        "missing_or_invalid_analysis_support_quote",
+        "unsupported_analysis"
+      ],
+      "before_analysis_count": 5,
+      "after_analysis_count": 1,
+      "status": "模型部分输出被拦截，保留底稿：missing_or_invalid_analysis_support_quote, unsupported_analysis",
+      "change": "程序保留事实原文；模型选择证据编号并为分析提供原文支持。综合评估引用前文章节材料；仍不输出无量表的A/B评级。",
+      "current_gaps": []
+    },
+    {
+      "chapter": 14,
+      "title": "信息来源",
+      "before_eids": 38,
+      "after_eids": 40,
+      "before_text_chars": 12541,
+      "after_text_chars": 14085,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 0,
+      "before_validation_rejections": [],
+      "after_validation_rejections": [],
+      "before_analysis_count": 0,
+      "after_analysis_count": 0,
+      "status": "自动生成核验记录",
+      "change": "索引由正文真实出现的E-ID生成；编号数量不等于独立来源或核实事实数。",
+      "current_gaps": []
+    },
+    {
+      "chapter": 15,
+      "title": "后续研究点",
+      "before_eids": 1,
+      "after_eids": 0,
+      "before_text_chars": 6952,
+      "after_text_chars": 7033,
+      "before_listed_gaps": 0,
+      "after_listed_gaps": 0,
+      "before_validation_rejections": [],
+      "after_validation_rejections": [],
+      "before_analysis_count": 0,
+      "after_analysis_count": 0,
+      "status": "自动生成核验记录",
+      "change": "补查计划包含每个委托问题的缺口；多个年份和单个平台快照均不能自动证明历史变化。",
+      "current_gaps": []
+    }
+  ],
+  "code_sha256": {
+    "backend/person_commission.py": "3d3ffef4198b221765dbb7a35fc0d46cac056175fe89c2c2f0b6d3aa0f652a0d",
+    "backend/person_evidence.py": "09b0ae78160da90f76b9eb718890413854910489a9b91b9943788dd7cb798af4",
+    "backend/person_retrieval.py": "8f80192786bbedc75377da0b9415f3a04ed61248757f3f47e2fca0158dca9558",
+    "backend/research_strategies/person.py": "be6aae1713e527049e2868104b085cf22a757cb189080ee1e70459e1844f5239"
+  },
+  "limitations": [
+    "Same-corpus replay is not a fresh complete search-to-report acceptance",
+    "Two search probes verify discovery transport only, not original-source findings",
+    "Candidate matching and date presence are heuristics, not semantic verification",
+    "Personal credit and comparable peers still lack adequate direct evidence",
+    "Remaining rejected analyses, one model timeout, and Word visual QA require follow-up",
+    "An intermediate replay was stopped after finding suffix/team-member mismatches; it is excluded from the comparison"
+  ]
+}
