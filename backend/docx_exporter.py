@@ -484,12 +484,13 @@ def markdown_to_docx_bytes(
 ) -> bytes:
     lines = (markdown or "").replace("\r\n", "\n").split("\n")
     company_claim_index = bool(re.search(r"(?m)^##\s*13[.、．]\s*信息来源（自动生成审计索引）", markdown or ""))
+    person_claim_index = bool(re.search(r"(?m)^##\s*14[.、．]\s*信息来源（正文实际引用索引）", markdown or ""))
     indexed_evidence_ids = sorted(set(
         match.group(1).upper()
         for line in lines
         for match in [re.match(r"^\|\s*(E-[A-Z0-9-]{6,})\s*\|", line.strip(), flags=re.I)]
         if match
-    )) if company_claim_index else []
+    )) if company_claim_index or person_claim_index else []
     evidence_bookmarks = {
         evidence_id: (1000 + index, "evidence_" + re.sub(r"[^A-Za-z0-9_]", "_", evidence_id))
         for index, evidence_id in enumerate(indexed_evidence_ids)

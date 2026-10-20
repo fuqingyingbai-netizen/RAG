@@ -347,7 +347,7 @@ def classify_person_fact_scope(fact: dict[str, Any], target_name: str) -> str:
         if source_url.startswith("structured://"):
             return "person_direct" if identity in {"matched", "verified", "exact"} else "person_direct_weak"
         return "person_direct" if identity in {"matched", "verified", "exact", ""} else "person_direct_weak"
-    if any(word in blob for word in ("阿里", "Alibaba", "菜鸟", "蚂蚁", "SoftBank", "软银")):
+    if fact.get("evidence_scope") == "group_context":
         return "group_context"
     return "media_or_context"
 

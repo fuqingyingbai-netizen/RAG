@@ -22,15 +22,16 @@ def failure_kind(payload):
         return 'rate_limited'
     if re.search(r'\b403\b|forbidden|permission denied|access denied|权限不足', text):
         return 'access_denied'
-    if any(x in text for x in ('未启用', '未配置', '未开通', 'not enabled', 'not configured', 'disabled')):
+    if any(x in text for x in ('未启用', '未配置', '未开通', 'not enabled', 'not configured', 'not_configured', 'disabled')):
         return 'tool_unavailable'
     return 'request_failed'
 
 
 class CompanyPlatformAudit:
     """One provider pass, with a short credential-scoped in-memory circuit."""
-    def __init__(self, project, provider, credential, cache, enabled=True):
+    def __init__(self, project, provider, credential, cache, enabled=True, attribute='company_professional_platform_attempts', subject=''):
         self.project, self.provider, self.enabled = project, provider, enabled
+        self.attribute, self.subject = attribute, subject
         self.cache = cache
         self.key = (provider, hashlib.sha256(credential.encode()).hexdigest())
         self.plan = []
@@ -64,11 +65,11 @@ class CompanyPlatformAudit:
     def record(self, tool, arguments, status, reason='', error=None):
         if not self.enabled:
             return
-        rows = getattr(self.project, 'company_professional_platform_attempts', None)
+        rows = getattr(self.project, self.attribute, None)
         if rows is None:
             rows = []
-            self.project.company_professional_platform_attempts = rows
-        row = {'provider': self.provider, 'tool': tool, 'arguments': dict(arguments),
+            setattr(self.project, self.attribute, rows)
+        row = {'provider': self.provider, 'tool': tool, 'subject': self.subject, 'arguments': dict(arguments),
                'status': status, 'reason': reason, 'retrieved_at': datetime.now().isoformat(timespec='seconds')}
         if isinstance(error, dict):
             # Keep machine diagnostics, not external instructions or credentials.
@@ -78,7 +79,7 @@ class CompanyPlatformAudit:
                 row['error_type'] = data.get('error_type')
                 row['quota_status'] = data.get('quota_status')
         rows.append(row)
-        if self.provider == 'qcc' and tool in {
+        if self.attribute == 'company_professional_platform_attempts' and self.provider == 'qcc' and tool in {
             'get_company_risk_scan', 'get_administrative_penalty', 'get_judicial_documents',
             'get_judicial_document_detail', 'get_service_announcement', 'get_filing_information',
             'get_court_announcement', 'get_hearing_announcement',

@@ -1,0 +1,1331 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>人物身份锚定与逐章检索优化</title><style>body{font:16px/1.7 "Microsoft YaHei",sans-serif;background:#f2f6fa;color:#203248;margin:0}header,main{max-width:1200px;margin:auto;padding:24px}article,.overview{background:white;border:1px solid #dce5ef;border-radius:12px;padding:24px;margin:18px 0}nav{display:flex;flex-wrap:wrap;gap:14px}a,summary{color:#087f7a}summary{cursor:pointer}pre{font:13px/1.6 monospace;white-space:pre-wrap;word-break:break-word;max-height:700px;overflow:auto}</style><header><h1>人物身份锚定与逐章检索优化</h1><p>codex/company · 2026-10-20 · 15章均保留改进、证据及未完成事项</p></header><main><section class="overview" id="xiniu-key-recovery"><h2>烯牛新Key复测通过</h2><p>2026-10-20：同一MCP端点，企业团队人物分析业务返回成功，约7923字符。当前开发工作树本地配置已更新；原Key额度错误为历史记录。未验收全部21工具，企查查积分问题仍待处理。线上配置及已启动服务尚未更新。</p></section><section class="overview"><h2>本轮变化</h2><p>姓名、身份与关联机构、任职时间、重点问题和上传材料共同定位人物；用户提供的线索仍需来源验证。任职、教育、公司经营、个人责任分开归属。</p><p>真实接口抽样 2 人；完整调查仍需补齐各章缺口并人工复核。零结果、接口失败、预算用尽均不等于无风险。</p><pre>{
+  &quot;默认搜索调用上限&quot;: 48,
+  &quot;单次结果数上限&quot;: 6,
+  &quot;正文抓取上限&quot;: 44,
+  &quot;专业业务调用上限&quot;: 18,
+  &quot;说明&quot;: &quot;上述为生产默认上限，可用环境变量下调。二引擎独立探测逐章执行；三引擎按剩余缺口与预算扩展。&quot;
+}</pre><p>同输入合成文本前后对照来自<a href="person-report-optimization.html">原15章对照记录</a>；本页增加身份上下文、请求编排及真实采集抽样。没有把合成结果当作真实调查效果。</p></section><nav><a href="#ch1">1 摘要</a><a href="#ch2">2 创始人底色画像</a><a href="#ch3">3 人格特质风险</a><a href="#ch4">4 经营胜任力、持续创新与迭代能力验证</a><a href="#ch5">5 识人用人、统筹管理及核心经营管控能力</a><a href="#ch6">6 核心管理团队背景调研</a><a href="#ch7">7 商业操守与个人信用风险核查</a><a href="#ch8">8 同业对标下综合能力与品行隐患评估</a><a href="#ch9">9 关联利益冲突及司法负面核查</a><a href="#ch10">10 专项调研</a><a href="#ch11">11 投后治理及退出风险研判</a><a href="#ch12">12 风险核查</a><a href="#ch13">13 综合评估</a><a href="#ch14">14 信息来源</a><a href="#ch15">15 后续研究点</a></nav><article id="ch1"><h2>1. 摘要</h2><p>摘要接收统一身份上下文，仅汇总前文实际引用。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 1,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 963,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 1. 摘要\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 1594,
+    &quot;actual_citations&quot;: 11,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 1. 摘要\n\n汇总前文已引用事实、关键修正、竞争背景、风险信号和研究边界；不得新增事实。\n\n### 已检索事实与来源边界\n\n| 信息点或来源陈述 | 事件时间 | 归属与边界 | 证据 |\n| --- | --- | --- | --- |\n| 林知远在2021年参与恒川软件的家庭/教育/健康/婚姻等基本信息相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P0EFA1382A8D55B] |\n| 林知远在2021年参与恒川软件的责任心相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P6F818A92777A09] |\n| 林知远在2021年参与恒川软件的顶层业务设计相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P0CED529A5A6B33] |\n| 林知远在2021年参与恒川软件的管理层履历相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P20BCCF603585BC] |\n| 林知远在2021年参与恒川软件的团队搭建相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P5BCEF8488143ED] |\n| 林知远在2021年参与恒川软件的员工/合作伙伴/同行/客户评价相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-PFEE3324E9FCFE4] |\n| 林知远在2021年参与恒川软件的同业竞争对手横向对标相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P51F75A9FFBB472] |\n| 林知远在2021年参与恒川软件的体外关联产业相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P89B4988DC8D718] |\n| 林知远在2021年参与恒川软件的根据项目重点填写具体专项方向相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P5546D40FE17149] |\n| 林知远在2021年参与恒川软件的上市/退出路径相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-PCE74C9055AC3FE] |\n| 林知远在2021年参与恒川软件的经验不足相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-PF4A1E413579A8B] |\n\n### 本章研究覆盖与核验问题\n\n| 研究维度 | 当前证据边界 |\n| --- | --- |\n| 报告概述 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 核心发现点 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 需关注信号 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 公司所属赛道竞争格局 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 总体评估 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 1,
+    &quot;task&quot;: &quot;汇总前文已引用事实、关键修正、竞争背景、风险信号和研究边界；不得新增事实。&quot;,
+    &quot;state&quot;: &quot;derived_from_cited_chapters&quot;,
+    &quot;requirements&quot;: []
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 6,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 8,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P0493E12273DF98&quot;,
+          &quot;E-P05F48292FF223E&quot;,
+          &quot;E-P065E94567E3DC9&quot;,
+          &quot;E-P073CD56383D2B0&quot;,
+          &quot;E-P08EEE138BBDBE1&quot;,
+          &quot;E-P5E31CD7A46BBC7&quot;,
+          &quot;E-P9C1EE6C22FF38A&quot;,
+          &quot;E-PC979BEAFB2D3C8&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 1,
+        &quot;title&quot;: &quot;摘要&quot;,
+        &quot;chars&quot;: 820,
+        &quot;candidate_facts&quot;: 2,
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P021D43781DD109&quot;,
+          &quot;E-P026FE4337AFE0B&quot;
+        ],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [],
+        &quot;status&quot;: &quot;evidence_excerpt&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 7,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 9,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P00DB5FDABD0C8E&quot;,
+          &quot;E-P01A687DD5F1000&quot;,
+          &quot;E-P035B6136BD5AC4&quot;,
+          &quot;E-P0BC0E581D25325&quot;,
+          &quot;E-P0CCFF78A5A6564&quot;,
+          &quot;E-P11CCB38CAD4FFB&quot;,
+          &quot;E-P12B416B0BA657E&quot;,
+          &quot;E-P2D9A5A3E29B610&quot;,
+          &quot;E-P5262010BA4864E&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 1,
+        &quot;title&quot;: &quot;摘要&quot;,
+        &quot;chars&quot;: 826,
+        &quot;candidate_facts&quot;: 2,
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P01A9432980747D&quot;,
+          &quot;E-P02FFAB0E4A0421&quot;
+        ],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [],
+        &quot;status&quot;: &quot;evidence_excerpt&quot;
+      }
+    }
+  ]
+}</pre></details></article><article id="ch2"><h2>2. 创始人底色画像</h2><p>机构、角色、学校、任职时间分开保留；同名只作隔离线索；人员现任及历史记录入账。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 2,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 968,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 2. 创始人底色画像\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 639,
+    &quot;actual_citations&quot;: 2,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 2. 创始人底色画像\n\n按事件时间梳理教育与职业路径；家庭、婚姻和健康仅保留明确公开且与委托相关的信息，不推断。\n\n### 已检索事实与来源边界\n\n| 信息点或来源陈述 | 事件时间 | 归属与边界 | 证据 |\n| --- | --- | --- | --- |\n| 林知远在2021年参与恒川软件的家庭/教育/健康/婚姻等基本信息相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P0EFA1382A8D55B] |\n| 林知远在2021年参与恒川软件的管理层履历相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P20BCCF603585BC] |\n\n### 本章研究覆盖与核验问题\n\n| 研究维度 | 当前证据边界 |\n| --- | --- |\n| 教育与早年经历 | 已收集相关来源陈述，尚须核对个人职责、时期和原件。 [E-P0EFA1382A8D55B] |\n| 职业时间线与职责 | 已收集相关来源陈述，尚须核对个人职责、时期和原件。 [E-P0EFA1382A8D55B] [E-P20BCCF603585BC] |\n| 履历断点与矛盾 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 家庭健康等公开信息边界 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 2,
+    &quot;task&quot;: &quot;按事件时间梳理教育与职业路径；家庭、婚姻和健康仅保留明确公开且与委托相关的信息，不推断。&quot;,
+    &quot;state&quot;: &quot;needs_review&quot;,
+    &quot;requirements&quot;: [
+      {
+        &quot;id&quot;: &quot;2.education&quot;,
+        &quot;question&quot;: &quot;教育时间与院校&quot;,
+        &quot;state&quot;: &quot;missing&quot;,
+        &quot;gaps&quot;: [
+          &quot;缺少身份匹配且有正文的候选资料&quot;,
+          &quot;缺少第二个独立证据来源；转载不重复计数&quot;
+        ],
+        &quot;candidates&quot;: [],
+        &quot;completion_condition&quot;: &quot;经事实账本核对原文、身份、事件时间、归属及冲突；候选齐全不等于已证实&quot;
+      },
+      {
+        &quot;id&quot;: &quot;2.career&quot;,
+        &quot;question&quot;: &quot;机构、职位与任职时间&quot;,
+        &quot;state&quot;: &quot;missing&quot;,
+        &quot;gaps&quot;: [
+          &quot;缺少身份匹配且有正文的候选资料&quot;,
+          &quot;缺少第二个独立证据来源；转载不重复计数&quot;
+        ],
+        &quot;candidates&quot;: [],
+        &quot;completion_condition&quot;: &quot;经事实账本核对原文、身份、事件时间、归属及冲突；候选齐全不等于已证实&quot;
+      }
+    ]
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 6,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 6,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P0493E12273DF98&quot;,
+          &quot;E-P05F48292FF223E&quot;,
+          &quot;E-P065E94567E3DC9&quot;,
+          &quot;E-P073CD56383D2B0&quot;,
+          &quot;E-P07903B0878833E&quot;,
+          &quot;E-P9C1EE6C22FF38A&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 2,
+        &quot;title&quot;: &quot;创始人底色画像&quot;,
+        &quot;chars&quot;: 1255,
+        &quot;candidate_facts&quot;: 4,
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P021D43781DD109&quot;,
+          &quot;E-P026FE4337AFE0B&quot;,
+          &quot;E-P0962B3FD7E22E3&quot;,
+          &quot;E-P0A221F807A2652&quot;
+        ],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [],
+        &quot;status&quot;: &quot;evidence_excerpt&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 7,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 7,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P00DB5FDABD0C8E&quot;,
+          &quot;E-P486DCE8205283C&quot;,
+          &quot;E-P5262010BA4864E&quot;,
+          &quot;E-P707B12CE716C2F&quot;,
+          &quot;E-P8FCBE5A7A887C1&quot;,
+          &quot;E-P9599B0D603A21C&quot;,
+          &quot;E-PF99C95C4AD8D43&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 2,
+        &quot;title&quot;: &quot;创始人底色画像&quot;,
+        &quot;chars&quot;: 1268,
+        &quot;candidate_facts&quot;: 4,
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P01A9432980747D&quot;,
+          &quot;E-P02FFAB0E4A0421&quot;,
+          &quot;E-P0B5B9526FC5781&quot;,
+          &quot;E-P146F32469E44AA&quot;
+        ],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [],
+        &quot;status&quot;: &quot;evidence_excerpt&quot;
+      }
+    }
+  ]
+}</pre></details></article><article id="ch3"><h2>3. 人格特质风险</h2><p>补充背景作为定位线索；公开行为候选与人格判断分开。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 3,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 967,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 3. 人格特质风险\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 519,
+    &quot;actual_citations&quot;: 1,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 3. 人格特质风险\n\n围绕责任、诚信、事业心、表达、风险偏好、压力与利益取舍列具体行为及来源观点，不作心理诊断。\n\n### 已检索事实与来源边界\n\n| 信息点或来源陈述 | 事件时间 | 归属与边界 | 证据 |\n| --- | --- | --- | --- |\n| 林知远在2021年参与恒川软件的责任心相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P6F818A92777A09] |\n\n来源中的评价仅代表评价者观点；现有资料不足以据此确定人格、诚信或个人信用等级。\n\n### 本章研究覆盖与核验问题\n\n| 研究维度 | 当前证据边界 |\n| --- | --- |\n| 责任心与事业心 | 已收集相关来源陈述，尚须核对个人职责、时期和原件。 [E-P6F818A92777A09] |\n| 诚信与利益取舍 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 表达与风险偏好 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 压力下行为与评价者立场 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 3,
+    &quot;task&quot;: &quot;围绕责任、诚信、事业心、表达、风险偏好、压力与利益取舍列具体行为及来源观点，不作心理诊断。&quot;,
+    &quot;state&quot;: &quot;needs_review&quot;,
+    &quot;requirements&quot;: [
+      {
+        &quot;id&quot;: &quot;3.behavior&quot;,
+        &quot;question&quot;: &quot;可定位的行为与表达&quot;,
+        &quot;state&quot;: &quot;missing&quot;,
+        &quot;gaps&quot;: [
+          &quot;缺少身份匹配且有正文的候选资料&quot;,
+          &quot;缺少第二个独立证据来源；转载不重复计数&quot;
+        ],
+        &quot;candidates&quot;: [],
+        &quot;completion_condition&quot;: &quot;经事实账本核对原文、身份、事件时间、归属及冲突；候选齐全不等于已证实&quot;
+      }
+    ]
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 0,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 0,
+        &quot;model_calls&quot;: 0,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: []
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 3,
+        &quot;title&quot;: &quot;人格特质风险&quot;,
+        &quot;chars&quot;: 88,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 4,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 4,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P11CCB38CAD4FFB&quot;,
+          &quot;E-P157120F62B33AC&quot;,
+          &quot;E-P19C95CD627780E&quot;,
+          &quot;E-P25E96003585F7D&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 3,
+        &quot;title&quot;: &quot;人格特质风险&quot;,
+        &quot;chars&quot;: 88,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    }
+  ]
+}</pre></details></article><article id="ch4"><h2>4. 经营胜任力、持续创新与迭代能力验证</h2><p>融资资料按需调用，企业结果保持关联主体边界。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 4,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 978,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 4. 经营胜任力、持续创新与迭代能力验证\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 478,
+    &quot;actual_citations&quot;: 1,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 4. 经营胜任力、持续创新与迭代能力验证\n\n按战略、执行、资本、资源、创新迭代列事件、个人职责、结果和阶段匹配，企业业绩不能自动归功于个人。\n\n### 已检索事实与来源边界\n\n| 信息点或来源陈述 | 事件时间 | 归属与边界 | 证据 |\n| --- | --- | --- | --- |\n| 林知远在2021年参与恒川软件的顶层业务设计相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P0CED529A5A6B33] |\n\n### 本章研究覆盖与核验问题\n\n| 研究维度 | 当前证据边界 |\n| --- | --- |\n| 战略设计与行业判断 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 执行与项目结果 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 资本资源与个人职责 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 创新迭代与阶段匹配 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 4,
+    &quot;task&quot;: &quot;按战略、执行、资本、资源、创新迭代列事件、个人职责、结果和阶段匹配，企业业绩不能自动归功于个人。&quot;,
+    &quot;state&quot;: &quot;needs_review&quot;,
+    &quot;requirements&quot;: [
+      {
+        &quot;id&quot;: &quot;4.role_result&quot;,
+        &quot;question&quot;: &quot;个人职责及经营结果&quot;,
+        &quot;state&quot;: &quot;missing&quot;,
+        &quot;gaps&quot;: [
+          &quot;缺少身份匹配且有正文的候选资料&quot;,
+          &quot;缺少第二个独立证据来源；转载不重复计数&quot;
+        ],
+        &quot;candidates&quot;: [],
+        &quot;completion_condition&quot;: &quot;经事实账本核对原文、身份、事件时间、归属及冲突；候选齐全不等于已证实&quot;
+      }
+    ]
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 4,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 4,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P073CD56383D2B0&quot;,
+          &quot;E-P0AFC12F6B9B885&quot;,
+          &quot;E-P115F8186451672&quot;,
+          &quot;E-P12CA133A55C536&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 4,
+        &quot;title&quot;: &quot;经营胜任力、持续创新与迭代能力验证&quot;,
+        &quot;chars&quot;: 102,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 4,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 4,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P2D9A5A3E29B610&quot;,
+          &quot;E-P394BCA3370738A&quot;,
+          &quot;E-P52BC81EC2B8323&quot;,
+          &quot;E-P580433CCEF797E&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 4,
+        &quot;title&quot;: &quot;经营胜任力、持续创新与迭代能力验证&quot;,
+        &quot;chars&quot;: 102,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    }
+  ]
+}</pre></details></article><article id="ch5"><h2>5. 识人用人、统筹管理及核心经营管控能力</h2><p>管理事件查询携带身份上下文；正文抓取按章节保留额度。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 5,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 979,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 5. 识人用人、统筹管理及核心经营管控能力\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 565,
+    &quot;actual_citations&quot;: 2,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 5. 识人用人、统筹管理及核心经营管控能力\n\n按权责、人事、经营列用人、授权、冲突与稳定性事件，区分历史与现任职责。\n\n### 已检索事实与来源边界\n\n| 信息点或来源陈述 | 事件时间 | 归属与边界 | 证据 |\n| --- | --- | --- | --- |\n| 林知远在2021年参与恒川软件的团队搭建相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P5BCEF8488143ED] |\n| 林知远在2021年参与恒川软件的管理层履历相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P20BCCF603585BC] |\n\n### 本章研究覆盖与核验问题\n\n| 研究维度 | 当前证据边界 |\n| --- | --- |\n| 权责与授权 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 用人与关键岗位 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 文化与冲突处理 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 经营管控与稳定性 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 5,
+    &quot;task&quot;: &quot;按权责、人事、经营列用人、授权、冲突与稳定性事件，区分历史与现任职责。&quot;,
+    &quot;state&quot;: &quot;needs_review&quot;,
+    &quot;requirements&quot;: [
+      {
+        &quot;id&quot;: &quot;5.management&quot;,
+        &quot;question&quot;: &quot;授权、用人与冲突事件&quot;,
+        &quot;state&quot;: &quot;missing&quot;,
+        &quot;gaps&quot;: [
+          &quot;缺少身份匹配且有正文的候选资料&quot;,
+          &quot;缺少第二个独立证据来源；转载不重复计数&quot;
+        ],
+        &quot;candidates&quot;: [],
+        &quot;completion_condition&quot;: &quot;经事实账本核对原文、身份、事件时间、归属及冲突；候选齐全不等于已证实&quot;
+      }
+    ]
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 0,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 0,
+        &quot;model_calls&quot;: 0,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: []
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 5,
+        &quot;title&quot;: &quot;识人用人、统筹管理及核心经营管控能力&quot;,
+        &quot;chars&quot;: 90,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 0,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 0,
+        &quot;model_calls&quot;: 0,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: []
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 5,
+        &quot;title&quot;: &quot;识人用人、统筹管理及核心经营管控能力&quot;,
+        &quot;chars&quot;: 90,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    }
+  ]
+}</pre></details></article><article id="ch6"><h2>6. 核心管理团队背景调研</h2><p>人员任职记录与烯牛团队分析按需调用，成员不混入目标身份。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 6,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 971,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 6. 核心管理团队背景调研\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 604,
+    &quot;actual_citations&quot;: 2,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 6. 核心管理团队背景调研\n\n按团队成员列姓名、职责、履历、资源、合作基础；团队其他人的事实不归给目标人物。\n\n### 已检索事实与来源边界\n\n| 信息点或来源陈述 | 事件时间 | 归属与边界 | 证据 |\n| --- | --- | --- | --- |\n| 林知远在2021年参与恒川软件的管理层履历相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P20BCCF603585BC] |\n| 林知远在2021年参与恒川软件的团队搭建相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P5BCEF8488143ED] |\n\n### 本章研究覆盖与核验问题\n\n| 研究维度 | 当前证据边界 |\n| --- | --- |\n| 成员履历与职责 | 已收集相关来源陈述，尚须核对个人职责、时期和原件。 [E-P20BCCF603585BC] [E-P5BCEF8488143ED] |\n| 产业资源与合作基础 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 关键人员变动 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 团队治理与关系边界 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 6,
+    &quot;task&quot;: &quot;按团队成员列姓名、职责、履历、资源、合作基础；团队其他人的事实不归给目标人物。&quot;,
+    &quot;state&quot;: &quot;needs_review&quot;,
+    &quot;requirements&quot;: [
+      {
+        &quot;id&quot;: &quot;6.team&quot;,
+        &quot;question&quot;: &quot;团队成员职责和变动&quot;,
+        &quot;state&quot;: &quot;missing&quot;,
+        &quot;gaps&quot;: [
+          &quot;缺少身份匹配且有正文的候选资料&quot;,
+          &quot;缺少第二个独立证据来源；转载不重复计数&quot;
+        ],
+        &quot;candidates&quot;: [],
+        &quot;completion_condition&quot;: &quot;经事实账本核对原文、身份、事件时间、归属及冲突；候选齐全不等于已证实&quot;
+      }
+    ]
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 6,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_excerpt_after_rejection&quot;,
+        &quot;candidate_facts&quot;: 6,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [
+          &quot;unsupported_analysis&quot;
+        ],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P0493E12273DF98&quot;,
+          &quot;E-P05F48292FF223E&quot;,
+          &quot;E-P065E94567E3DC9&quot;,
+          &quot;E-P073CD56383D2B0&quot;,
+          &quot;E-P07903B0878833E&quot;,
+          &quot;E-P9C1EE6C22FF38A&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 6,
+        &quot;title&quot;: &quot;核心管理团队背景调研&quot;,
+        &quot;chars&quot;: 1240,
+        &quot;candidate_facts&quot;: 4,
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P021D43781DD109&quot;,
+          &quot;E-P026FE4337AFE0B&quot;,
+          &quot;E-P06274F00841A9E&quot;,
+          &quot;E-P0962B3FD7E22E3&quot;
+        ],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [],
+        &quot;status&quot;: &quot;evidence_excerpt&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 7,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 7,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P00DB5FDABD0C8E&quot;,
+          &quot;E-P01A687DD5F1000&quot;,
+          &quot;E-P040B6CBB7E44E4&quot;,
+          &quot;E-P0BC0E581D25325&quot;,
+          &quot;E-P5262010BA4864E&quot;,
+          &quot;E-P8FCBE5A7A887C1&quot;,
+          &quot;E-PF99C95C4AD8D43&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 6,
+        &quot;title&quot;: &quot;核心管理团队背景调研&quot;,
+        &quot;chars&quot;: 1245,
+        &quot;candidate_facts&quot;: 4,
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P02FFAB0E4A0421&quot;,
+          &quot;E-P03CEF98277A23E&quot;,
+          &quot;E-P0764D9C5184BEB&quot;,
+          &quot;E-P0B5B9526FC5781&quot;
+        ],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [],
+        &quot;status&quot;: &quot;evidence_excerpt&quot;
+      }
+    }
+  ]
+}</pre></details></article><article id="ch7"><h2>7. 商业操守与个人信用风险核查</h2><p>未拿到原文或独立评价保留缺口，不由摘要推定信用。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 7,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 974,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 7. 商业操守与个人信用风险核查\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 577,
+    &quot;actual_citations&quot;: 1,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 7. 商业操守与个人信用风险核查\n\n区分公开报道、来源评价和已授权访谈；未实际访谈不得声称完成多方访谈或已交叉验证。\n\n### 已检索事实与来源边界\n\n| 信息点或来源陈述 | 事件时间 | 归属与边界 | 证据 |\n| --- | --- | --- | --- |\n| 林知远在2021年参与恒川软件的员工/合作伙伴/同行/客户评价相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-PFEE3324E9FCFE4] |\n\n来源中的评价仅代表评价者观点；现有资料不足以据此确定人格、诚信或个人信用等级。\n\n### 本章研究覆盖与核验问题\n\n| 研究维度 | 当前证据边界 |\n| --- | --- |\n| 员工与前同事评价 | 已收集相关来源陈述，尚须核对个人职责、时期和原件。 [E-PFEE3324E9FCFE4] |\n| 合作伙伴与客户评价 | 已收集相关来源陈述，尚须核对个人职责、时期和原件。 [E-PFEE3324E9FCFE4] |\n| 同行评价与利益立场 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 契约信用与交叉核验 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n\n本章仍有未核验事项，已集中列入第15章。&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 7,
+    &quot;task&quot;: &quot;区分公开报道、来源评价和已授权访谈；未实际访谈不得声称完成多方访谈或已交叉验证。&quot;,
+    &quot;state&quot;: &quot;needs_review&quot;,
+    &quot;requirements&quot;: [
+      {
+        &quot;id&quot;: &quot;7.reputation&quot;,
+        &quot;question&quot;: &quot;评价者立场与契约记录&quot;,
+        &quot;state&quot;: &quot;missing&quot;,
+        &quot;gaps&quot;: [
+          &quot;缺少身份匹配且有正文的候选资料&quot;,
+          &quot;缺少第二个独立证据来源；转载不重复计数&quot;
+        ],
+        &quot;candidates&quot;: [],
+        &quot;completion_condition&quot;: &quot;经事实账本核对原文、身份、事件时间、归属及冲突；候选齐全不等于已证实&quot;
+      }
+    ]
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 4,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 4,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P0493E12273DF98&quot;,
+          &quot;E-P065E94567E3DC9&quot;,
+          &quot;E-P073CD56383D2B0&quot;,
+          &quot;E-P07903B0878833E&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 7,
+        &quot;title&quot;: &quot;商业操守与个人信用风险核查&quot;,
+        &quot;chars&quot;: 90,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;,
+          &quot;未接入授权访谈材料时，多方访谈与口碑交叉验证仍待人工完成。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 4,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 4,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P00DB5FDABD0C8E&quot;,
+          &quot;E-P01A687DD5F1000&quot;,
+          &quot;E-P035B6136BD5AC4&quot;,
+          &quot;E-P040B6CBB7E44E4&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 7,
+        &quot;title&quot;: &quot;商业操守与个人信用风险核查&quot;,
+        &quot;chars&quot;: 90,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;,
+          &quot;未接入授权访谈材料时，多方访谈与口碑交叉验证仍待人工完成。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    }
+  ]
+}</pre></details></article><article id="ch8"><h2>8. 同业对标下综合能力与品行隐患评估</h2><p>比较候选与指标口径待审，不以找到竞争关键词视为完成。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 8,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 977,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 8. 同业对标下综合能力与品行隐患评估\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 649,
+    &quot;actual_citations&quot;: 2,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 8. 同业对标下综合能力与品行隐患评估\n\n只有同赛道、同阶段、同角色、同时期的可比证据才作横向比较，不凭名气或大厂规模排名。\n\n### 已检索事实与来源边界\n\n| 信息点或来源陈述 | 事件时间 | 归属与边界 | 证据 |\n| --- | --- | --- | --- |\n| 林知远在2021年参与恒川软件的同业竞争对手横向对标相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P51F75A9FFBB472] |\n| 林知远在2021年参与恒川软件的员工/合作伙伴/同行/客户评价相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-PFEE3324E9FCFE4] |\n\n比较口径：赛道、阶段、职责、时期；口径未齐备时仅列事实，不排名。\n\n### 本章研究覆盖与核验问题\n\n| 研究维度 | 当前证据边界 |\n| --- | --- |\n| 可比人物与筛选口径 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 同期间能力与成果 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 行为风格与信用证据 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 比较局限与待核验项 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n\n本章仍有未核验事项，已集中列入第15章。&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 8,
+    &quot;task&quot;: &quot;只有同赛道、同阶段、同角色、同时期的可比证据才作横向比较，不凭名气或大厂规模排名。&quot;,
+    &quot;state&quot;: &quot;needs_review&quot;,
+    &quot;requirements&quot;: [
+      {
+        &quot;id&quot;: &quot;8.comparison&quot;,
+        &quot;question&quot;: &quot;可比人物、时期与同口径指标&quot;,
+        &quot;state&quot;: &quot;missing&quot;,
+        &quot;gaps&quot;: [
+          &quot;缺少身份匹配且有正文的候选资料&quot;,
+          &quot;缺少第二个独立证据来源；转载不重复计数&quot;
+        ],
+        &quot;candidates&quot;: [],
+        &quot;completion_condition&quot;: &quot;经事实账本核对原文、身份、事件时间、归属及冲突；候选齐全不等于已证实&quot;
+      }
+    ]
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 0,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 0,
+        &quot;model_calls&quot;: 0,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: []
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 8,
+        &quot;title&quot;: &quot;同业对标下综合能力与品行隐患评估&quot;,
+        &quot;chars&quot;: 94,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;,
+          &quot;缺少至少两位同赛道、同阶段、同角色的可比人物证据，不作横向评级。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 0,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 0,
+        &quot;model_calls&quot;: 0,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: []
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 8,
+        &quot;title&quot;: &quot;同业对标下综合能力与品行隐患评估&quot;,
+        &quot;chars&quot;: 94,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;,
+          &quot;缺少至少两位同赛道、同阶段、同角色的可比人物证据，不作横向评级。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    }
+  ]
+}</pre></details></article><article id="ch9"><h2>9. 关联利益冲突及司法负面核查</h2><p>企查查人员及历史工具使用姓名与机构双锚；校验返回主体，明细按风险线索触发。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 9,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 974,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 9. 关联利益冲突及司法负面核查\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 470,
+    &quot;actual_citations&quot;: 1,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 9. 关联利益冲突及司法负面核查\n\n按人物—主体—关系—时间—原文列关联利益与案件；任职、持股与实际控制必须分开。\n\n### 已检索事实与来源边界\n\n| 信息点或来源陈述 | 事件时间 | 归属与边界 | 证据 |\n| --- | --- | --- | --- |\n| 林知远在2021年参与恒川软件的体外关联产业相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P89B4988DC8D718] |\n\n### 本章研究覆盖与核验问题\n\n| 研究维度 | 当前证据边界 |\n| --- | --- |\n| 任职持股及控制关系 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 关联交易与利益一致性 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 司法事项及当事人身份 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 关系时间与透明度缺口 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 9,
+    &quot;task&quot;: &quot;按人物—主体—关系—时间—原文列关联利益与案件；任职、持股与实际控制必须分开。&quot;,
+    &quot;state&quot;: &quot;needs_review&quot;,
+    &quot;requirements&quot;: [
+      {
+        &quot;id&quot;: &quot;9.relations&quot;,
+        &quot;question&quot;: &quot;任职、持股及关系时间&quot;,
+        &quot;state&quot;: &quot;missing&quot;,
+        &quot;gaps&quot;: [
+          &quot;缺少身份匹配且有正文的候选资料&quot;,
+          &quot;缺少第二个独立证据来源；转载不重复计数&quot;
+        ],
+        &quot;candidates&quot;: [],
+        &quot;completion_condition&quot;: &quot;经事实账本核对原文、身份、事件时间、归属及冲突；候选齐全不等于已证实&quot;
+      },
+      {
+        &quot;id&quot;: &quot;9.legal&quot;,
+        &quot;question&quot;: &quot;案件当事人、案号与时间&quot;,
+        &quot;state&quot;: &quot;missing&quot;,
+        &quot;gaps&quot;: [
+          &quot;缺少身份匹配且有正文的候选资料&quot;,
+          &quot;缺少第二个独立证据来源；转载不重复计数&quot;
+        ],
+        &quot;candidates&quot;: [],
+        &quot;completion_condition&quot;: &quot;经事实账本核对原文、身份、事件时间、归属及冲突；候选齐全不等于已证实&quot;
+      }
+    ]
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 4,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_excerpt_after_rejection&quot;,
+        &quot;candidate_facts&quot;: 4,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [
+          &quot;unsupported_analysis&quot;
+        ],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P08EEE138BBDBE1&quot;,
+          &quot;E-P12CA133A55C536&quot;,
+          &quot;E-P17AC5DA6683E80&quot;,
+          &quot;E-P1B819A2140059D&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 9,
+        &quot;title&quot;: &quot;关联利益冲突及司法负面核查&quot;,
+        &quot;chars&quot;: 89,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 4,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 4,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P0BC0E581D25325&quot;,
+          &quot;E-P12B416B0BA657E&quot;,
+          &quot;E-P1D4B8E6781777A&quot;,
+          &quot;E-P2289F448CBEA4A&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 9,
+        &quot;title&quot;: &quot;关联利益冲突及司法负面核查&quot;,
+        &quot;chars&quot;: 89,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    }
+  ]
+}</pre></details></article><article id="ch10"><h2>10. 专项调研</h2><p>重点问题持续进入检索和写作；未指定专项不自动扩张敏感事项。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 10,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 966,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 10. 专项调研\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 485,
+    &quot;actual_citations&quot;: 1,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 10. 专项调研\n\n按委托人专项问题组织事实、已核对范围、未解决问题；未指定专项则明确范围待确认。\n\n### 已检索事实与来源边界\n\n| 信息点或来源陈述 | 事件时间 | 归属与边界 | 证据 |\n| --- | --- | --- | --- |\n| 林知远在2021年参与恒川软件的根据项目重点填写具体专项方向相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P5546D40FE17149] |\n\n### 本章研究覆盖与核验问题\n\n| 研究维度 | 当前证据边界 |\n| --- | --- |\n| 委托专项问题与范围 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 对应原始资料 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 已发现信号与适用边界 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 尚未解决的问题 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n\n本章仍有未核验事项，已集中列入第15章。&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 10,
+    &quot;task&quot;: &quot;按委托人专项问题组织事实、已核对范围、未解决问题；未指定专项则明确范围待确认。&quot;,
+    &quot;state&quot;: &quot;needs_review&quot;,
+    &quot;requirements&quot;: [
+      {
+        &quot;id&quot;: &quot;10.commission&quot;,
+        &quot;question&quot;: &quot;委托问题对应原件&quot;,
+        &quot;state&quot;: &quot;missing&quot;,
+        &quot;gaps&quot;: [
+          &quot;缺少身份匹配且有正文的候选资料&quot;,
+          &quot;缺少第二个独立证据来源；转载不重复计数&quot;
+        ],
+        &quot;candidates&quot;: [],
+        &quot;completion_condition&quot;: &quot;经事实账本核对原文、身份、事件时间、归属及冲突；候选齐全不等于已证实&quot;
+      }
+    ]
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 2,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 2,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-PC979BEAFB2D3C8&quot;,
+          &quot;E-PD8772139A0B9F3&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 10,
+        &quot;title&quot;: &quot;专项调研&quot;,
+        &quot;chars&quot;: 81,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;,
+          &quot;委托人尚未明确专项方向；已收集线索仅供确定核查范围。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 4,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 4,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P12B416B0BA657E&quot;,
+          &quot;E-P1D4B8E6781777A&quot;,
+          &quot;E-P97EA6D7719325F&quot;,
+          &quot;E-PA6FC749EAAB181&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 10,
+        &quot;title&quot;: &quot;专项调研&quot;,
+        &quot;chars&quot;: 81,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;,
+          &quot;委托人尚未明确专项方向；已收集线索仅供确定核查范围。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    }
+  ]
+}</pre></details></article><article id="ch11"><h2>11. 投后治理及退出风险研判</h2><p>融资与近期事件工具按委托方向调用；公司治理不自动归为个人能力。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 11,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 973,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 11. 投后治理及退出风险研判\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 529,
+    &quot;actual_citations&quot;: 1,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 11. 投后治理及退出风险研判\n\n围绕目标人物实际决策角色和投资场景评估治理、退出机制，不默认每个人都是现任创始人。\n\n### 已检索事实与来源边界\n\n| 信息点或来源陈述 | 事件时间 | 归属与边界 | 证据 |\n| --- | --- | --- | --- |\n| 林知远在2021年参与恒川软件的上市/退出路径相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-PCE74C9055AC3FE] |\n\n适用范围：仅讨论资料披露的职责与治理安排，历史任职不代表当前控制权或退出权利。\n\n### 本章研究覆盖与核验问题\n\n| 研究维度 | 当前证据边界 |\n| --- | --- |\n| 人物实际决策角色 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 投资方沟通与重大事项 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 关键岗位与制度承接 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 退出路径及适用条件 | 已收集相关来源陈述，尚须核对个人职责、时期和原件。 [E-PCE74C9055AC3FE] |&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 11,
+    &quot;task&quot;: &quot;围绕目标人物实际决策角色和投资场景评估治理、退出机制，不默认每个人都是现任创始人。&quot;,
+    &quot;state&quot;: &quot;needs_review&quot;,
+    &quot;requirements&quot;: [
+      {
+        &quot;id&quot;: &quot;11.governance&quot;,
+        &quot;question&quot;: &quot;实际决策权与投后制度&quot;,
+        &quot;state&quot;: &quot;missing&quot;,
+        &quot;gaps&quot;: [
+          &quot;缺少身份匹配且有正文的候选资料&quot;,
+          &quot;缺少第二个独立证据来源；转载不重复计数&quot;
+        ],
+        &quot;candidates&quot;: [],
+        &quot;completion_condition&quot;: &quot;经事实账本核对原文、身份、事件时间、归属及冲突；候选齐全不等于已证实&quot;
+      }
+    ]
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 1,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 1,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P9C1EE6C22FF38A&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 11,
+        &quot;title&quot;: &quot;投后治理及退出风险研判&quot;,
+        &quot;chars&quot;: 90,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 3,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 3,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P5262010BA4864E&quot;,
+          &quot;E-P8FCBE5A7A887C1&quot;,
+          &quot;E-PF99C95C4AD8D43&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 11,
+        &quot;title&quot;: &quot;投后治理及退出风险研判&quot;,
+        &quot;chars&quot;: 90,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    }
+  ]
+}</pre></details></article><article id="ch12"><h2>12. 风险核查</h2><p>零结果、摘要、接口失败不作无风险事实；个人与关联风险分开。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 12,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 966,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 12. 风险核查\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 1187,
+    &quot;actual_citations&quot;: 1,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 12. 风险核查\n\n逐项列信号、直接或间接归属、证据和未知项；未查到、采集失败、未查询不等同无风险。\n\n### 已检索事实与来源边界\n\n| 信息点或来源陈述 | 事件时间 | 归属与边界 | 证据 |\n| --- | --- | --- | --- |\n| 林知远在2021年参与恒川软件的经验不足相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-PF4A1E413579A8B] |\n\n### 本章研究覆盖与核验问题\n\n| 研究维度 | 当前证据边界 |\n| --- | --- |\n| 已发现的直接信号 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 关联主体间接信号 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 尚未核验及未查询事项 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 风险核查覆盖清单 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n\n### 风险核查覆盖清单\n\n| 核查维度 | 当前状态 | 风险分 |\n| --- | --- | --- |\n| 经验不足 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 业务能力局限 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 战略能力 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 管理能力局限 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 驱动力不足 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 资源局限 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 贪腐 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 创业目的不纯 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 个人道德问题 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 商业信誉度低 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 不良嗜好 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 为人处世风格问题 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 奢侈消费观 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 个人健康风险 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 婚变风险 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 诉讼纠纷及舆情监管 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |\n| 背景与职业转换相关核验 | 仅据上述来源逐项核验，未核验不代表无风险 | 不评分 |&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 12,
+    &quot;task&quot;: &quot;逐项列信号、直接或间接归属、证据和未知项；未查到、采集失败、未查询不等同无风险。&quot;,
+    &quot;state&quot;: &quot;needs_review&quot;,
+    &quot;requirements&quot;: [
+      {
+        &quot;id&quot;: &quot;12.risk&quot;,
+        &quot;question&quot;: &quot;直接与关联风险及查询边界&quot;,
+        &quot;state&quot;: &quot;missing&quot;,
+        &quot;gaps&quot;: [
+          &quot;缺少身份匹配且有正文的候选资料&quot;,
+          &quot;缺少第二个独立证据来源；转载不重复计数&quot;
+        ],
+        &quot;candidates&quot;: [],
+        &quot;completion_condition&quot;: &quot;经事实账本核对原文、身份、事件时间、归属及冲突；候选齐全不等于已证实&quot;
+      }
+    ]
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 4,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 4,
+        &quot;model_calls&quot;: 0,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P5E31CD7A46BBC7&quot;,
+          &quot;E-P6D19ABDE8D4055&quot;,
+          &quot;E-P82110209A2A8F4&quot;,
+          &quot;E-P936F2528677724&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 12,
+        &quot;title&quot;: &quot;风险核查&quot;,
+        &quot;chars&quot;: 813,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 4,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 4,
+        &quot;model_calls&quot;: 0,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P0CCFF78A5A6564&quot;,
+          &quot;E-P1D4B8E6781777A&quot;,
+          &quot;E-P310490385B3F08&quot;,
+          &quot;E-P580433CCEF797E&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 12,
+        &quot;title&quot;: &quot;风险核查&quot;,
+        &quot;chars&quot;: 813,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [
+          &quot;本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。&quot;
+        ],
+        &quot;status&quot;: &quot;insufficient_evidence&quot;
+      }
+    }
+  ]
+}</pre></details></article><article id="ch13"><h2>13. 综合评估</h2><p>综合评估保留身份定位及证据限制，不自动生成分数。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 13,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 966,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 13. 综合评估\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 1650,
+    &quot;actual_citations&quot;: 11,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 13. 综合评估\n\n只汇总前文已引用结论；风险程度与证据充分程度分列，没有预设标尺不输出字母或数值评级。\n\n### 已检索事实与来源边界\n\n| 信息点或来源陈述 | 事件时间 | 归属与边界 | 证据 |\n| --- | --- | --- | --- |\n| 林知远在2021年参与恒川软件的家庭/教育/健康/婚姻等基本信息相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P0EFA1382A8D55B] |\n| 林知远在2021年参与恒川软件的责任心相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P6F818A92777A09] |\n| 林知远在2021年参与恒川软件的顶层业务设计相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P0CED529A5A6B33] |\n| 林知远在2021年参与恒川软件的管理层履历相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P20BCCF603585BC] |\n| 林知远在2021年参与恒川软件的团队搭建相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P5BCEF8488143ED] |\n| 林知远在2021年参与恒川软件的员工/合作伙伴/同行/客户评价相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-PFEE3324E9FCFE4] |\n| 林知远在2021年参与恒川软件的同业竞争对手横向对标相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P51F75A9FFBB472] |\n| 林知远在2021年参与恒川软件的体外关联产业相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P89B4988DC8D718] |\n| 林知远在2021年参与恒川软件的根据项目重点填写具体专项方向相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-P5546D40FE17149] |\n| 林知远在2021年参与恒川软件的上市/退出路径相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-PCE74C9055AC3FE] |\n| 林知远在2021年参与恒川软件的经验不足相关工作，材料仅披露其职责，未披露个人能力评级。 | 未披露 | 林知远；来源陈述，尚未经人工独立核验；观点不等于事实。 | [E-PF4A1E413579A8B] |\n\n### 本章研究覆盖与核验问题\n\n| 研究维度 | 当前证据边界 |\n| --- | --- |\n| 已获来源支持的发现 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 关键局限及冲突 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 风险与证据充分程度 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n| 下一步决策所需材料 | 现有材料不足以对该维度作判断，需按第15章补充核验。 |\n\n### 综合判断与证据充分程度\n\n未建立经人工认可的量表，不自动给出A/B或数值评分。已引用材料为研究底稿；事实冲突、个人归属与信息缺口见第15章。&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 13,
+    &quot;task&quot;: &quot;只汇总前文已引用结论；风险程度与证据充分程度分列，没有预设标尺不输出字母或数值评级。&quot;,
+    &quot;state&quot;: &quot;derived_from_cited_chapters&quot;,
+    &quot;requirements&quot;: []
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 6,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_excerpt_after_rejection&quot;,
+        &quot;candidate_facts&quot;: 8,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [
+          &quot;foreign_entity_in_analysis&quot;
+        ],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P0493E12273DF98&quot;,
+          &quot;E-P05F48292FF223E&quot;,
+          &quot;E-P065E94567E3DC9&quot;,
+          &quot;E-P073CD56383D2B0&quot;,
+          &quot;E-P08EEE138BBDBE1&quot;,
+          &quot;E-P5E31CD7A46BBC7&quot;,
+          &quot;E-P9C1EE6C22FF38A&quot;,
+          &quot;E-PC979BEAFB2D3C8&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 13,
+        &quot;title&quot;: &quot;综合评估&quot;,
+        &quot;chars&quot;: 876,
+        &quot;candidate_facts&quot;: 2,
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P021D43781DD109&quot;,
+          &quot;E-P026FE4337AFE0B&quot;
+        ],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [],
+        &quot;status&quot;: &quot;evidence_excerpt&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 7,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;source_bound_draft&quot;,
+        &quot;candidate_facts&quot;: 9,
+        &quot;model_calls&quot;: 1,
+        &quot;validation_rejections&quot;: [],
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P00DB5FDABD0C8E&quot;,
+          &quot;E-P01A687DD5F1000&quot;,
+          &quot;E-P035B6136BD5AC4&quot;,
+          &quot;E-P0BC0E581D25325&quot;,
+          &quot;E-P0CCFF78A5A6564&quot;,
+          &quot;E-P11CCB38CAD4FFB&quot;,
+          &quot;E-P12B416B0BA657E&quot;,
+          &quot;E-P2D9A5A3E29B610&quot;,
+          &quot;E-P5262010BA4864E&quot;
+        ]
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 13,
+        &quot;title&quot;: &quot;综合评估&quot;,
+        &quot;chars&quot;: 882,
+        &quot;candidate_facts&quot;: 2,
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P01A9432980747D&quot;,
+          &quot;E-P02FFAB0E4A0421&quot;
+        ],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [],
+        &quot;status&quot;: &quot;evidence_excerpt&quot;
+      }
+    }
+  ]
+}</pre></details></article><article id="ch14"><h2>14. 信息来源</h2><p>仅索引实际引用；接口审计另保留检索次数、主体和失败原因。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 14,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 966,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 14. 信息来源\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 1876,
+    &quot;actual_citations&quot;: 11,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 14. 信息来源（正文实际引用索引）\n\n仅列第1—13章实际出现的证据编号；编号入选不代表该来源已获人工核验。\n\n| 证据编号 | 信息点与来源标题 | 原始定位 | 工具/平台与等级 | 事件/采集时间 | 支持章节 |\n| --- | --- | --- | --- | --- | --- |\n| E-P0CED529A5A6B33 | 合成原件4：林知远在2021年参与恒川软件的顶层业务设计相关工作，材料仅披露其职责，未披露个人能力评级。 | https://research-fixture.invalid/record/4 | 公开资料 / B | 未披露 / 未记录 | 1,4,13 |\n| E-P0EFA1382A8D55B | 合成原件2：林知远在2021年参与恒川软件的家庭/教育/健康/婚姻等基本信息相关工作，材料仅披露其职责，未披露个人能力评级。 | https://research-fixture.invalid/record/2 | 公开资料 / B | 未披露 / 未记录 | 1,2,13 |\n| E-P20BCCF603585BC | 合成原件6：林知远在2021年参与恒川软件的管理层履历相关工作，材料仅披露其职责，未披露个人能力评级。 | https://research-fixture.invalid/record/6 | 公开资料 / B | 未披露 / 未记录 | 1,2,5,6,13 |\n| E-P51F75A9FFBB472 | 合成原件8：林知远在2021年参与恒川软件的同业竞争对手横向对标相关工作，材料仅披露其职责，未披露个人能力评级。 | https://research-fixture.invalid/record/8 | 公开资料 / B | 未披露 / 未记录 | 1,8,13 |\n| E-P5546D40FE17149 | 合成原件10：林知远在2021年参与恒川软件的根据项目重点填写具体专项方向相关工作，材料仅披露其职责，未披露个人能力评级。 | https://research-fixture.invalid/record/10 | 公开资料 / B | 未披露 / 未记录 | 1,10,13 |\n| E-P5BCEF8488143ED | 合成原件5：林知远在2021年参与恒川软件的团队搭建相关工作，材料仅披露其职责，未披露个人能力评级。 | https://research-fixture.invalid/record/5 | 公开资料 / B | 未披露 / 未记录 | 1,5,6,13 |\n| E-P6F818A92777A09 | 合成原件3：林知远在2021年参与恒川软件的责任心相关工作，材料仅披露其职责，未披露个人能力评级。 | https://research-fixture.invalid/record/3 | 公开资料 / B | 未披露 / 未记录 | 1,3,13 |\n| E-P89B4988DC8D718 | 合成原件9：林知远在2021年参与恒川软件的体外关联产业相关工作，材料仅披露其职责，未披露个人能力评级。 | https://research-fixture.invalid/record/9 | 公开资料 / B | 未披露 / 未记录 | 1,9,13 |\n| E-PCE74C9055AC3FE | 合成原件11：林知远在2021年参与恒川软件的上市/退出路径相关工作，材料仅披露其职责，未披露个人能力评级。 | https://research-fixture.invalid/record/11 | 公开资料 / B | 未披露 / 未记录 | 1,11,13 |\n| E-PF4A1E413579A8B | 合成原件12：林知远在2021年参与恒川软件的经验不足相关工作，材料仅披露其职责，未披露个人能力评级。 | https://research-fixture.invalid/record/12 | 公开资料 / B | 未披露 / 未记录 | 1,12,13 |\n| E-PFEE3324E9FCFE4 | 合成原件7：林知远在2021年参与恒川软件的员工/合作伙伴/同行/客户评价相关工作，材料仅披露其职责，未披露个人能力评级。 | https://research-fixture.invalid/record/7 | 公开资料 / B | 未披露 / 未记录 | 1,7,8,13 |&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 14,
+    &quot;task&quot;: &quot;按正文实际证据编号生成信息点、网址或结构化定位、工具、等级、日期与支持章节。&quot;,
+    &quot;state&quot;: &quot;derived_from_cited_chapters&quot;,
+    &quot;requirements&quot;: []
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 0,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;actual_citation_index&quot;,
+        &quot;model_calls&quot;: 0
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 14,
+        &quot;title&quot;: &quot;信息来源&quot;,
+        &quot;chars&quot;: 1850,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P021D43781DD109&quot;,
+          &quot;E-P026FE4337AFE0B&quot;,
+          &quot;E-P06274F00841A9E&quot;,
+          &quot;E-P0962B3FD7E22E3&quot;,
+          &quot;E-P0A221F807A2652&quot;
+        ],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [],
+        &quot;status&quot;: &quot;evidence_excerpt&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 0,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;actual_citation_index&quot;,
+        &quot;model_calls&quot;: 0
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 14,
+        &quot;title&quot;: &quot;信息来源&quot;,
+        &quot;chars&quot;: 2215,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [
+          &quot;E-P01A9432980747D&quot;,
+          &quot;E-P02FFAB0E4A0421&quot;,
+          &quot;E-P03CEF98277A23E&quot;,
+          &quot;E-P0764D9C5184BEB&quot;,
+          &quot;E-P0B5B9526FC5781&quot;,
+          &quot;E-P146F32469E44AA&quot;
+        ],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [],
+        &quot;status&quot;: &quot;evidence_excerpt&quot;
+      }
+    }
+  ]
+}</pre></details></article><article id="ch15"><h2>15. 后续研究点</h2><p>汇总逐问题缺口、独立来源不足、正文不足、预算用尽和API阻碍。</p><details><summary>改前、改后、检索缺口与真实接口抽样记录</summary><pre>{
+  &quot;chapter&quot;: 15,
+  &quot;same_fixture_before&quot;: {
+    &quot;chars&quot;: 1047,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 18,
+    &quot;text&quot;: &quot;## 15. 后续研究点\n\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\nOTHER LABS在2099年完成999亿元融资，林知远没有任何诉讼，个人诚信优秀。证据边界：待核验。\n\n## 报告编制说明\n\n本报告基于公开信息和系统检索结果整理，自动生成内容可能存在信息缺口。报告中的判断应结合客户资料、访谈、实地调研和付费数据库进一步验证。&quot;
+  },
+  &quot;same_fixture_after&quot;: {
+    &quot;chars&quot;: 353,
+    &quot;actual_citations&quot;: 0,
+    &quot;foreign_example_hits&quot;: 0,
+    &quot;text&quot;: &quot;## 15. 后续研究点\n\n| 优先级 | 对应章节 | 尚待确认的问题 | 建议来源与完成条件 |\n| --- | --- | --- | --- |\n| 高 | 7 | 未接入授权访谈材料时，多方访谈与口碑交叉验证仍待人工完成。 | 核对原始公告/司法原件和身份锚点，记录匹配字段及截至日期。 |\n| 中 | 8 | 缺少至少两位同赛道、同阶段、同角色的可比人物证据，不作横向评级。 | 补充原始披露或授权访谈，取得可引用记录后更新对应章节。 |\n| 高 | 10 | 委托人尚未明确专项方向；已收集线索仅供确定核查范围。 | 核对原始公告/司法原件和身份锚点，记录匹配字段及截至日期。 |\n| 中 | 全流程 | 尚未获得授权访谈材料。 | 补充原始披露或授权访谈，取得可引用记录后更新对应章节。 |\n| 高 | 2 | 模型写作未通过校验或API调用未完成：statement_not_in_cited_fact | 补充原始披露或授权访谈，取得可引用记录后更新对应章节。 |&quot;
+  },
+  &quot;retrieval_contract&quot;: {
+    &quot;chapter&quot;: 15,
+    &quot;task&quot;: &quot;汇总全部章节缺口、冲突和API阻碍，按优先级列问题、原因、下一步来源和完成条件。&quot;,
+    &quot;state&quot;: &quot;derived_from_cited_chapters&quot;,
+    &quot;requirements&quot;: []
+  },
+  &quot;live_cases&quot;: [
+    {
+      &quot;target&quot;: &quot;王传福&quot;,
+      &quot;fact_candidates&quot;: 0,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;deduplicated_verification_plan&quot;,
+        &quot;gap_count&quot;: 39,
+        &quot;model_calls&quot;: 0
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 15,
+        &quot;title&quot;: &quot;后续研究点&quot;,
+        &quot;chars&quot;: 369,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [],
+        &quot;status&quot;: &quot;verification_plan&quot;
+      }
+    },
+    {
+      &quot;target&quot;: &quot;董明珠&quot;,
+      &quot;fact_candidates&quot;: 0,
+      &quot;diagnostic&quot;: {
+        &quot;status&quot;: &quot;deduplicated_verification_plan&quot;,
+        &quot;gap_count&quot;: 35,
+        &quot;model_calls&quot;: 0
+      },
+      &quot;current_retained_record_replay&quot;: {
+        &quot;chapter&quot;: 15,
+        &quot;title&quot;: &quot;后续研究点&quot;,
+        &quot;chars&quot;: 369,
+        &quot;candidate_facts&quot;: 0,
+        &quot;cited_evidence_ids&quot;: [],
+        &quot;unknown_evidence_ids&quot;: [],
+        &quot;gaps&quot;: [],
+        &quot;status&quot;: &quot;verification_plan&quot;
+      }
+    }
+  ]
+}</pre></details></article></main></html>

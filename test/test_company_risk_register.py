@@ -270,8 +270,11 @@ def test_person_and_industry_risk_paths_keep_their_own_model_dispatch():
         w._invoke = lambda agent, prompt, **kw: calls.append('person') or json.dumps({'dimensions': [], 'overall_score': None})
         w._invoke_industry_risk = lambda agent, prompt, **kw: calls.append('industry') or json.dumps({'dimensions': [], 'overall_score': None})
         p = SimpleNamespace(target_type=kind, title='测试', target_name='独立对象', industry='测试', sources=[])
-        w.assess_risk(p, '{}')
-        assert calls == [kind] and not hasattr(p, 'company_risk_register_package')
+        result = json.loads(w.assess_risk(p, '{}'))
+        assert calls == ([] if kind == 'person' else ['industry'])
+        assert not hasattr(p, 'company_risk_register_package')
+        if kind == 'person':
+            assert result['overall_score'] is None and len(result['dimensions']) == 17
 
 
 def judicial_row(**kw):

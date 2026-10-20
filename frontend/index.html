@@ -71,6 +71,10 @@
               <el-form-item label="报告类型"><el-select v-model="form.targetType" class="full"><el-option label="BDD目标人报告" value="person" ></el-option><el-option label="BDD目标公司报告" value="company" ></el-option><el-option label="CDD目标行业报告" value="industry" ></el-option></el-select></el-form-item>
               <el-form-item :label="targetPrimaryLabel"><el-input v-model="form.companyName" ></el-input></el-form-item>
               <el-form-item :label="targetSecondaryLabel"><el-input v-if="form.targetType === 'company'" v-model="form.identifier" ></el-input><el-input v-else v-model="form.targetContext" :placeholder="targetSecondaryPlaceholder" clearable></el-input></el-form-item>
+              <template v-if="form.targetType === 'person'">
+                <el-form-item label="人物补充线索（选填）"><el-input v-model="form.personContext" type="textarea" :rows="3" placeholder="可写任职起止时间、学校、地区、职责或用于排除同名者的信息；也可上传简历等材料"></el-input><small>这些信息用于定位研究对象，报告中的事实仍需来源核实。</small></el-form-item>
+                <el-form-item label="曾用名或中英文姓名（选填，每行一个）"><el-input v-model="form.personAliases" type="textarea" :rows="2"></el-input></el-form-item>
+              </template>
               <el-row v-if="form.targetType === 'company'" :gutter="14"><el-col :xs="24" :sm="12"><el-form-item label="行业"><el-input v-model="form.industry" ></el-input></el-form-item></el-col><el-col :xs="24" :sm="12"><el-form-item label="地区"><el-input v-model="form.region" ></el-input></el-form-item></el-col></el-row>
               <template v-if="form.targetType === 'industry'">
                 <el-form-item label="重点赛道（选填，多个用顿号分隔）"><el-input v-model="form.industryFocus" placeholder="例如：协作机器人、焊接机器人；留空研究主行业"></el-input></el-form-item>
