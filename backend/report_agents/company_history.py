@@ -17,6 +17,7 @@ from .company_governance import (
     _table, compact, get, read_fields, refs,
 )
 from .report_prompts import _company_fact_has_trusted_target_anchor
+from .company_text import match_text
 
 TITLE = '历史沿革与成长质量'
 HEADINGS = ('关键沿革与业务发展时间线', '成长质量核对', '历史遗留事项', '核验重点')
@@ -25,7 +26,7 @@ DATE = re.compile(r'(20\d{2}|19\d{2})年(?:(\d{1,2})月)?(?:(\d{1,2})日)?')
 METRICS = ('营业收入','归属于上市公司股东的净利润','经营活动产生的现金流量净额')
 EVENT_WORDS = re.compile(r'整体改制|改制设立|更名|收购|并购|增资|减资|回购|注销|增发|发行|配售|转增|送红股|上市(?!公司|规则|管理)|投产|量产|停产|停止生产|成立|设立|签署|发布|推出|上线')
 RULE = re.compile(r'应当|不得|可以|有权|如发生|若发生|候选|假设|承诺函|竞业承诺|《不竞争承诺》|详情请见|公告编号')
-NON_EVENT = re.compile(r'上市规则|上市管理|公司法|制订本章程|制定本章程|本所接受|特聘法律顾问|注册简称|本次注册|法律意见|榜单|排行榜|排名第|位列|荣获|论文|发表|研究论文|发布于|披露于|财务报表主要项目|合同负债|预收购房款')
+NON_EVENT = re.compile(r'上市规则|上市管理|公司法|制订本章程|制定本章程|本所接受|特聘法律顾问|注册简称|本次注册|法律意见|榜单|排行榜|排名第|位列|荣获|论文|发表|研究论文|发布于|披露于|财务报表主要项目|合同负债|预收购房款|上市发行人董事进行证券交易|证券及期货条例第|概无[^。]{0,180}(?:权益|淡仓)')
 PENDING = re.compile(r'拟|计划|预计|将于|尚未|尚待|待完成|不超过|意向|签署|签订|达成协议')
 AMOUNT = r'[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)\.\d{2}'
 # “公司” inside another legal name (e.g. 有限责任公司成立) is not an
@@ -37,6 +38,15 @@ def accounting_background(text):
     """Accounting rules and measurement definitions are not issuer actions."""
     value=compact(text)
     return bool(re.search(r'财务报表的编制基础|财务报表按照财政部|信息披露编报规则|金融资产的分类|债务工具.*是指|合同现金流量特征与基本借贷安排相一致|交易性金融负债为纳入合并范围|公允价值变动.*计入当期损益',value))
+
+
+def non_issuer_event_context(text):
+    """Match script variants without rewriting the archived event quotation."""
+    value=match_text(text)
+    publication=re.search(r'(?:年度|半年度|季度|社会责任|可持续发展)报告(?:全文|摘要)?(?:的)?(?:发布|披露)日期|(?:发布|披露)(?:了|的)?[《“"]?(?:20\d{2}年)?(?:年度|半年度|季度|社会责任|可持续发展)报告',value)
+    return bool(NON_EVENT.search(value) or accounting_background(value) or publication
+                or re.search(r'引用日期|参考资料|参考文献|\[\s*引用|本版第\d+版|星期[一二三四五六日天].{0,20}(?:版|天气)|自本公司成立以来实施|都可能被授予|(?:现任|时任)[^。；]{0,35}(?:董事|首席|总裁)',value)
+                or re.search(r'子公司|附属公司|参股公司|联营公司|(?:本公司|本集团)(?:的)?下属',value))
 
 
 def _date(text, event=True):
@@ -69,6 +79,7 @@ def _normalize_year(text):
 
 
 def _event_kind(text):
+    text=match_text(text)
     if re.search(r'整体改制|改制设立|变更设立',text):
         return '工商沿革'
     if re.search(r'更名|成立|设立',text) and not re.search(r'发行|配售|上市|收购|发布|推出|量产|投产',text):
@@ -77,6 +88,7 @@ def _event_kind(text):
 
 
 def _event_status(text):
+    text=match_text(text)
     # Signature is a completed signing action, not completed acquisition or
     # funding. Do not let the word "完成" elsewhere erase that distinction.
     # A restriction on an employee's shares is not the completion status of
@@ -303,10 +315,11 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
                 # Reuse the same original-page/header/unit checks as chapter
                 # 12; integer 千元 tables must not become a false data gap.
                 from .company_assessment import financial_observations
-                financial=[{k:r[k] for k in ('metric','value','previous_value','unit','yoy','period','page') if k in r}
+                financial=[{k:r[k] for k in ('metric','source_metric','value','previous_value','unit','currency','yoy','yoy_basis','period','page','cutoff','statement_scope','source_translation_note') if k in r}
                            for r in financial_observations(src,{'entity':target})]
             for metric in financial:
-                quote=f"{metric['metric']}（{metric['unit']}）：本期{metric['value']}，上年同期{metric['previous_value']}"+(f"，同比{metric['yoy']}。" if metric['yoy'] else '。')
+                currency=metric.get('currency') if metric.get('currency') in {'人民币','港元','美元'} else ''
+                quote=f"{metric.get('source_metric') or metric['metric']}（{currency}{metric['unit']}）：本期{metric['value']}，上年同期{metric['previous_value']}"+(f"，同比{metric['yoy']}。" if metric['yoy'] else '。')
                 add(f,'performance',quote,source_rank=rank,**metric)
         # Only bounded, explicit issuer actions become milestones. Personal
         # resumes, legal permissions and subsidiary histories remain excluded.
@@ -345,7 +358,7 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
                 sentence=sentence.rsplit('注：',1)[-1]
             if not 10<=len(sentence)<=550 or not DATE.search(_normalize_year(sentence)) or not EVENT_WORDS.search(sentence):
                 continue
-            if RULE.search(sentence) or NON_EVENT.search(sentence) or re.search(r'用户查询|若你需要|先生|女士|工作经历|任职经历|前10名股东|上述股东|□||☑',sentence):
+            if RULE.search(sentence) or non_issuer_event_context(sentence) or re.search(r'用户查询|若你需要|先生|女士|工作经历|任职经历|前10名股东|上述股东|□||☑',sentence):
                 continue
             if accounting_background(sentence) or ('该项收购' in sentence and len(sentence)<100):
                 continue
@@ -361,6 +374,10 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
                 continue
             action=re.search(r'(?:'+re.escape(target)+r'|'+ISSUER_PRONOUN+r').{0,180}(?:整体改制|变更设立|收购|并购|增资|减资|回购|注销|增发|发行(?!在外)|发售|配售|转增|送红股|上市(?!公司|规则|管理)|投产|量产|停止生产|成立|设立|签署|发布|推出|上线)',sentence)
             if not action:
+                continue
+            if re.search(r'(?:主办方|主办单位|承办方|协办方|出版方|发布单位)[：:\s]*$',
+                         match_text(sentence[max(0,action.start()-15):action.start()])):
+                counts['publisher_or_host_not_action_subject']+=1
                 continue
             if re.search(r'子公司|附属公司|参股公司|联营公司',sentence):
                 continue
@@ -379,7 +396,7 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
                 continue
             date=_date(claim)
             if date and EVENT_WORDS.search(claim) and re.search(re.escape(target)+r'|本公司|本集团',claim):
-                if not re.search(r'子公司|行业|先生|女士',claim) and not NON_EVENT.search(claim) and not accounting_background(claim):
+                if not re.search(r'行业|先生|女士',claim) and not non_issuer_event_context(claim):
                     add(atom,'event',claim,period=date,source_rank=rank,event_type=_event_kind(claim),status=_event_status(claim))
             if re.search(r'历史遗留|未决诉讼|权属纠纷|历史债务|违规担保',claim) and re.search(r'判决|立案|收到|发生|承担',claim):
                 add(atom,'legacy',claim,period=date or str(atom.get('date') or ''),source_rank=rank)
@@ -413,6 +430,18 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
     for event_type,quota in [('工商沿革',2),('创业起点（公司自述）',1),('业务动作',8),('资本事项',7)]:
         rows=[r for r in dedup if r['event_type']==event_type]
         if event_type=='工商沿革':
+            registrations=[r for r in rows if r['status']=='登记记录']
+            # A year/month-only description of the same incorporation adds
+            # no event when its precise registry date is already available.
+            # Conflicting dates and subsequent legal-form changes stay visible.
+            def redundant_formation(row):
+                text=match_text(row['fact'])
+                formation=re.search(r'成立于|创立于|(?:'+re.escape(match_text(target))+r'|本公司)[^。]{0,35}成立',text)
+                local_date=re.search(r'(?:成立于|创立于)\s*(\d{4})年(?:\s*(\d{1,2})月)?',text)
+                formation_period=(local_date[1]+('-'+local_date[2].zfill(2) if local_date[2] else '')) if local_date else row['period']
+                return (row['status']!='登记记录' and formation and not re.search(r'改制|变更|更名',text)
+                        and any(r['period'].startswith(formation_period) and r['source_rank']>=row['source_rank'] for r in registrations))
+            rows=[r for r in rows if not redundant_formation(r)]
             rows.sort(key=lambda r:(bool(re.search(r'核准|拟议|签约',r['status'])),-r['source_rank'],
                                     0 if r['status']=='登记记录' or '营业执照' in r['fact'] else 1,r['period']))
             chosen+=rows[:quota]
@@ -485,15 +514,18 @@ def render_history(package):
         for metric in METRICS:
             r=items.get(metric)
             if not r:values.append('本章未形成可核对数据');continue
-            value=r['value']+r['unit']+'；上年同期'+r['previous_value']+r['unit']+(('；同比'+r['yoy']) if r['yoy'] else '')
+            currency=r.get('currency') if r.get('currency') in {'人民币','港元','美元'} else ''
+            value=currency+r['value']+r['unit']+'；上年同期'+currency+r['previous_value']+r['unit']+(('；同比'+r['yoy']) if r['yoy'] else '')
             if r.get('conflict'):
                 value+='；另有来源值：'+'／'.join(a['value']+a['unit']+'（上年同期'+a['previous_value']+a['unit']+'）' for a in r['alternative_records'])+'，差异待核验'
             values.append(value)
             ids+=r['evidence_ids']
         rows.append([period,*values,refs({'evidence_ids':list(dict.fromkeys(ids))})])
     lines+=_table(['数据期','营业收入','归母净利润','经营现金流净额','来源'],rows)
+    notes={r.get('source_translation_note'):r for r in performance if r.get('source_translation_note')}
+    lines+=['原件版本说明：'+note+refs(row) for note,row in notes.items()]
     if performance:
-        lines+=['','年度与半年度分开，变化方向只比较源表同口径的本期和上年同期；不拿半年数与全年数相除，不自行换汇。']
+        lines+=['',('年度、半年度与三个月季度分别列示，季度不年化，只比较同季度上年同期，不自行换汇。' if any('季度业绩' in r['period'] for r in performance) else '年度与半年度分开，变化方向只比较源表同口径的本期和上年同期；不拿半年数与全年数相除，不自行换汇。')]
         for period,items in sorted(by_period.items(),key=lambda x:_period_rank(x[0])):
             revenue=items.get(METRICS[0]);profit=items.get(METRICS[1]);cash=items.get(METRICS[2])
             if not revenue or not profit or _trend(revenue) is None or _trend(profit) is None:continue

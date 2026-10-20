@@ -278,6 +278,7 @@ class CompanyReportAgent:
                 package_payload = build_business_package(
                     parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
                     list(getattr(project, "sources", []) or []),
+                    as_of=str((getattr(project, "company_research_intake", {}) or {}).get('as_of_date') or ''),
                 )
                 project.company_business_package = package_payload
                 chapter = self._write_business(project, package_payload, emit, trace_emit)
@@ -291,6 +292,7 @@ class CompanyReportAgent:
                 package_payload = build_management_package(
                     parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
                     list(getattr(project, "sources", []) or []),
+                    governance=getattr(project, "company_governance_package", {}),
                 )
                 project.company_management_package = package_payload
                 chapter = self._write_management(project, package_payload, emit, trace_emit)
@@ -690,7 +692,7 @@ class CompanyReportAgent:
         package = build_company_summary_package(
             cleaned, str(project.target_name or ""), list(getattr(project, "sources", []) or []),
             chapter_packages={key: getattr(project, 'company_' + key + '_package', {})
-                              for key in ('assessment', 'reputation')},
+                              for key in ('assessment', 'reputation', 'business', 'governance', 'management')},
         )
         project.company_summary_package = package
         diagnostic = {
@@ -712,21 +714,9 @@ class CompanyReportAgent:
         try:
             answer = normalize_company_summary(invoke(f"{self.report_kind}摘要 Agent", prompt, trace_emit))
             errors = summary_errors(answer, package)
-            if errors:
-                diagnostic["repair_attempted"] = True
-                diagnostic["errors"] = errors
-                # The previous draft locates the exact failing claim. It is
-                # explicitly not evidence; all corrections still use the same
-                # complete cards and undergo the identical validator.
-                repair = (
-                    prompt
-                    + "\n待修订草稿（不是证据；其中与事实卡不符的内容必须删除或按事实卡纠正）：\n"
-                    + answer
-                    + "\n校验错误如下，请逐项修正；已正确的事实不要重写为其他判断。仍返回上述五键JSON：\n"
-                    + "\n".join(errors)
-                )
-                answer = normalize_company_summary(invoke(f"{self.report_kind}摘要修订 Agent", repair, trace_emit))
-                errors = summary_errors(answer, package)
+            # A second free-form revision can introduce a different unsupported
+            # relationship or absence claim. Rebuild from the same verified
+            # cards as soon as the initial draft fails, then validate again.
         except Exception as exc:
             errors = [f"摘要模型调用失败：{type(exc).__name__}"]
         diagnostic["errors"] = errors

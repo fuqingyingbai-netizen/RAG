@@ -166,7 +166,9 @@ def _policy_rows(pages,period,target=''):
         for raw in re.split(r'(?<=[。；])',text):
             quote=_prose(raw)
             if not 25<=len(quote)<=650:continue
-            if re.search(r'会计期间|会计政策|计入当期损益|确认为负债|摊销|预计负债|包括短期薪酬|其他长期职工福利',quote):continue
+            if re.search(r'若未遵守|可能使.{0,120}(?:罚款|处罚)|被处以.{0,80}(?:罚款|处罚)|承担责任或受到处罚',quote):continue
+            if re.search(r'(?:为其提供|向其支付|该等人士|上述人员)',quote):continue
+            if re.search(r'会计期间|会计政策|计入当期损益|确认为负债|摊销|预计负债|包括短期薪酬|其他长期职工福利|合并财务报表|财务报表主要项目注释|库存股',quote):continue
             if re.search(r'设定提存计划|设定受益计划',quote) and re.search(r'期初余额|本期增加|本期减少|期末余额|缴费基数|计提和缴纳',quote):continue
             if quote.count('•')>3 or quote.count('%')>4 or re.search(r'B[1-9]\.\d|主要绩效指标摘要',quote):continue
             if re.search(r'以下措施|如下|下表|流程图',quote):continue

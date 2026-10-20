@@ -14,6 +14,7 @@ from difflib import SequenceMatcher
 from typing import Any
 
 from .report_prompts import _company_fact_has_trusted_target_anchor
+from .company_governance import _primary_filing,read_fields,pick,SHARE_NAMES,PEOPLE,ROLES
 
 
 SUMMARY_HEADINGS = ("报告概述", "核心发现点", "需关注信号", "公司所属赛道竞争格局", "总体评估")
@@ -56,9 +57,39 @@ def _period(title: str, content: str, fallback: str = "") -> str:
     return match.group(0) if match else str(fallback or "")[:30]
 
 
+def _bound_summary_filing(source,target):
+    if _primary_filing(source,target):return True
+    # A retained mirror can carry an explicit original issuer heading; a
+    # title, footer or incidental target mention in a market roundup cannot.
+    head=str(_get(source,'content') or '')[:2400]
+    return bool(re.search(r'(?m)^\s*'+re.escape(target)+r'\s*20\d{2}\s*年\s*(?:年度|半年度|第一季度|第三季度)报告',head))
+
+
 def _structured_claims(content: str, tool: str, target: str) -> list[tuple[str, str]]:
     """Read actual field/row boundaries, rather than a platform's evaluation."""
     result: list[tuple[str, str]] = []
+    if tool in {'get_shareholder_info','get_key_personnel'}:
+        _,rows=read_fields(content)
+        if not rows:
+            header=[]
+            for line in content.splitlines():
+                if not line.strip().startswith('|'):continue
+                cells=[v.strip() for v in line.strip().strip('|').split('|')]
+                if any(v in cells for v in (*SHARE_NAMES,*PEOPLE)) and any(v in cells for v in ('持股比例','职务','职位')):
+                    header=cells;continue
+                if header and len(cells)==len(header) and not all(re.fullmatch(r'[-: ]*',v) for v in cells):rows.append(dict(zip(header,cells)))
+                elif not header and tool=='get_key_personnel' and len(cells)==4 and cells[0].isdigit() and re.search(r'董事|经理|总裁|秘书|财务负责人',cells[3]):
+                    rows.append({'姓名':cells[1],'职务':cells[3]})
+        for row in rows:
+            if tool=='get_shareholder_info':
+                name=pick(row,SHARE_NAMES);ratio=pick(row,('持股比例','持股比例(%)','持股比例（%）'))
+                if not name or not re.search(r'\d.*%',ratio):continue
+                amounts=[k+'：'+str(v) for k,v in row.items() if re.search(r'认缴|出资额|持股数|股份数量',k) and str(v).strip() not in {'','待查','未载'}]
+                result.append((target+'股东记录：'+name+'，持股比例'+ratio+('，'+'；'.join(amounts) if amounts else '')+'。','governance'))
+            else:
+                name,role=pick(row,PEOPLE),pick(row,ROLES)
+                if name and role:result.append((target+'主要人员记录：'+name+'，源表职务'+role+'。','governance'))
+        return result
     registration: dict[str, str] = {}
     for line in content.splitlines():
         if not line.strip().startswith("|"):
@@ -128,6 +159,15 @@ def _disclosure_financial_claims(content: str, period: str) -> list[str]:
 def _chapter_summary_cards(packages: dict[str, Any]) -> list[dict[str, Any]]:
     """Use admitted fields, not chapter prose, to synchronize the summary."""
     result = []
+    overseas=[r for r in (packages.get('governance') or {}).get('facts',[]) if r.get('basis')=='official_overseas_filing']
+    jurisdiction=next((r for r in overseas if r.get('field')=='注册司法辖区'),None)
+    if jurisdiction:
+        result.append({**jurisdiction,'summary_topic':'identity','fact':(packages.get('governance') or {}).get('target_name','目标企业')+'注册司法辖区为'+jurisdiction['value']+'；依据发行人文件披露，非独立工商核验，不套用内地法定代表人字段。'})
+        roles=[r for r in (packages.get('management') or {}).get('facts',[]) if r.get('kind')=='role' and r.get('roster_format')=='simple_annual']
+        if roles:
+            latest=max(r.get('document_period_end','') for r in roles)
+            for r in [r for r in roles if r.get('document_period_end','')==latest][:2]:
+                result.append({**r,'summary_topic':'governance','fact':r['period']+'文件名册列示：'+r['entity']+'，'+r['source_role']+'；名册生效日未另载，不认定截至研究日仍在任。'})
     assessment = packages.get('assessment') or {}
     financial = [r for r in assessment.get('financial_observations', [])
                  if r.get('cutoff') and r.get('unit') and not r.get('printed_yoy_conflict')]
@@ -135,9 +175,10 @@ def _chapter_summary_cards(packages: dict[str, Any]) -> list[dict[str, Any]]:
     for r in financial:
         if r['cutoff'] != latest:
             continue
-        change = '，同比' + r['yoy'] if r.get('yoy') else ''
+        change = ('，同比（据原表同币种计算）' if r.get('yoy_basis') else '，同比') + r['yoy'] if r.get('yoy') else ''
+        currency = r['currency'] if r.get('currency') in {'人民币','港元','美元'} else ''
         result.append({**r, 'summary_topic': 'financial',
-                       'fact': f"本集团{r['period']}：{r['metric']}为{r['value']}{r['unit']}{change}。"})
+                       'fact': f"本集团{r['period']}：{r.get('source_metric') or r['metric']}为{currency}{r['value']}{r['unit']}{change}。"})
     for dimension in assessment.get('dimensions', []):
         if dimension.get('id') == 'funding':
             for r in dimension.get('records', []):
@@ -149,6 +190,10 @@ def _chapter_summary_cards(packages: dict[str, Any]) -> list[dict[str, Any]]:
             result.append({**r, 'summary_topic': 'risk',
                            'fact': f"{r.get('publication_date') or r.get('effective_date')}，主管部门公告{r['entity']}召回事项，编号{r['recall_number']}：{r['defect_quote']}"})
             break
+    releases=[r for r in (packages.get('business') or {}).get('facts',[]) if r.get('kind')=='product_release']
+    if releases:
+        r=max(releases,key=lambda x:x['release_date'])
+        result.append({**r,'summary_topic':'business','fact':r['release_date']+'，页脚自署目标企业版权的网页刊载产品动态“'+r['entity']+'”；仅为发布自述，不证明收入、订单或独立性能。'})
     benchmarks = [r for r in (packages.get('reputation') or {}).get('facts', []) if r.get('kind') == 'benchmark']
     target = next((r for r in benchmarks if r.get('target_row')), None)
     if target:
@@ -177,6 +222,17 @@ def build_company_summary_package(
         if topic not in SUMMARY_TOPICS or not 10 <= len(text) <= 650 or NATIONAL_DATA.search(text) or any(x in text for x in PROCESS_NOISE) or re.search(r"(?:的企业名称|：企业名称)为", text):
             counts["unsuitable_claim"] += 1
             return
+        original_source = source_by_url.get(str(fact.get("source_url") or ""))
+        structured=str(fact.get('source_url') or '').startswith('structured://')
+        if not verified and not structured and (topic=='identity' or re.search(r'法定代表人|现任|当前.{0,8}(?:董事长|首席执行官)|董事局主席兼首席执行官',text)):
+            counts['unbound_registry_or_current_role']+=1
+            return
+        if topic=='funding' and not verified and re.search(r'领先|巩固.{0,25}地位|竞争优势|赋能',text):
+            counts['promotional_funding_claim']+=1
+            return
+        if topic=='financial' and not verified and original_source is not None and not _bound_summary_filing(original_source,target):
+            counts['unbound_financial_issuer']+=1
+            return
         key = (str(fact.get("source_url") or ""), _compact(text))
         if key in seen:
             counts["duplicate_claim"] += 1
@@ -198,7 +254,7 @@ def build_company_summary_package(
             "source_grade": str(fact.get("source_grade") or ""),
             "source_kind": "checked_chapter_field" if verified else "disclosure" if is_disclosure else "other",
             "claim_type": "original_source_claim" if raw else str(fact.get("claim_type") or "fact"),
-            "temporal_basis": 'undated_platform_snapshot' if structured_governance else 'source_period',
+            "temporal_basis": 'undated_platform_snapshot' if structured_governance else fact.get('temporal_basis') or 'source_period',
         })
 
     for fact in _chapter_summary_cards(chapter_packages or {}):
@@ -240,7 +296,7 @@ def build_company_summary_package(
             else:
                 sentences = _source_sentences(raw)
                 by_topic: Counter[str] = Counter()
-                filing = bool(re.search(r"(?:年度|半年度)报告", _compact(title + raw[:1000])))
+                filing = _bound_summary_filing(source,target)
                 if filing:
                     for claim in _disclosure_financial_claims(raw, period):
                         add(fact, claim, "financial", raw=True, period=period)
@@ -255,6 +311,9 @@ def build_company_summary_package(
                     if len(re.findall(r"第[一二三四五六七八九十]+节", sentence)) > 1 or "目录和释义" in sentence:
                         continue
                     topic = _topic(sentence)
+                    if not filing and topic in {'business','governance'} and _compact(target) not in _compact(sentence):
+                        counts['no_local_summary_subject']+=1
+                        continue
                     if not any(word in sentence for words in SUMMARY_TOPICS.values() for word in words):
                         continue
                     if by_topic[topic] >= 2:
@@ -382,6 +441,8 @@ def build_company_summary_prompt(project: Any, package: dict[str, Any], complete
 - 每条事实和基于事实的判断就近引用本章提供的[E-ID]。编号可复用，但同一事实只讲一次。
 - 数字原样保留币种、单位、年度和统计主体；不得把全国/行业数据写成目标公司指标。
 - 原文的“本集团/母公司/子公司”分别保留，不得把关联主体收入归给目标公司，不推定一致行动关系。
+- 即使用“是否/需核实”措辞，也不能凭空构造具名股东间的一致行动、代持或控制归属关系；没有对应原文时只保留名义登记与控制判断分开的边界。
+- 召回后续核验限于型号、范围、整改和实际影响；没有直接原文时不得添加特定报告的计提或披露完整性推断，不能要求更早报告披露后来事件。
 - 名义持有人与实际控制人分别表述；HKSCC等名义登记节点不得直接写成实控人，股东排序须注明登记口径。
 - HKSCC NOMINEES LIMITED与香港中央结算有限公司必须按平台原文分别保留名称，不合并、不翻译成同一个节点。
 - 主要人员表的任期只能按原字段列示，不得推断其所有角色（尤其法定代表人）均在同一天开始任职。
@@ -409,7 +470,7 @@ def build_company_summary_prompt(project: Any, package: dict[str, Any], complete
 """
 
 
-NUMBER = re.compile(r"(?<![A-Za-z\d])(?P<n>[-+]?\d[\d,]*(?:\.\d+)?)(?P<u>\s*(?:万亿|亿|万|百)?(?:美元|港元|人民币|元|人|辆|股)|\s*[%％])?")
+NUMBER = re.compile(r"(?<![A-Za-z\d])(?P<n>[-+]?\d[\d,]*(?:\.\d+)?)(?P<u>\s*(?:万亿|亿|千万|百万|万|千|百)?(?:美元|港元|人民币|元|人|辆|股)|\s*[%％])?")
 
 
 def _numbers(text: str) -> set[tuple[Decimal, str]]:
@@ -419,7 +480,7 @@ def _numbers(text: str) -> set[tuple[Decimal, str]]:
     for m in NUMBER.finditer(text):
         unit = _compact(m["u"] or "")
         amount = Decimal(m["n"].replace(",", ""))
-        for prefix, scale in (("万亿", "1000000000000"), ("亿", "100000000"), ("万", "10000"), ("百", "100")):
+        for prefix, scale in (("万亿", "1000000000000"), ("亿", "100000000"), ("千万", "10000000"), ("百万", "1000000"), ("万", "10000"), ("千", "1000"), ("百", "100")):
             if unit.startswith(prefix):
                 amount *= Decimal(scale)
                 unit = unit[len(prefix):]
@@ -431,6 +492,7 @@ def _numbers(text: str) -> set[tuple[Decimal, str]]:
 def normalize_company_summary(text: str) -> str:
     """Normalize Markdown whitespace, never change a fact to make it pass."""
     text = text.strip()
+    text = re.sub(r'\[\s*(E-[A-Z0-9-]{6,})\s*\]',r'[\1]',text,flags=re.I)
     if text.startswith("```") and text.endswith("```"):
         text = "\n".join(text.splitlines()[1:-1])
     if text.lstrip().startswith("{"):
@@ -495,14 +557,29 @@ def summary_errors(text: str, package: dict[str, Any]) -> list[str]:
             support = " ".join(f["fact"] + " " + f.get("period", "") for eid in ids for f in by_id[eid])
             supported_cards = [f for eid in ids for f in by_id[eid]]
             undated = any(f.get('temporal_basis') == 'undated_platform_snapshot' for f in supported_cards)
+            roster_undated=any(f.get('temporal_basis')=='roster_effective_date_not_stated' for f in supported_cards)
+            if roster_undated and re.search(r'现任|目前担任|当前.{0,10}(?:主席|董事|首席|总裁)',line) and not re.search(r'不认定|不能认定|不保证',line):
+                errors.append('文件名册生效日未另载，不得写成截至研究日仍在任')
             if undated and re.search(r'当前|现任|目前|至今|第一大股东|最大股东',line):
                 errors.append('未载数据基准日的平台记录不能写成当前任职或股东排序')
             if undated and re.search(r'持股|股东|职务|董事长|总裁',line) and not re.search(r'平台|源表|登记记录|基准日未载',line):
                 errors.append('摘要引用平台股东或人员表时须保留登记记录及未载基准日的边界')
             if _numbers(line) - _numbers(support):
                 errors.append("数值、单位或年份未被本段引用原文支持")
+            if set(re.findall(r'人民币|美元|港元',line)) - set(re.findall(r'人民币|美元|港元',support)):
+                errors.append('币种未被本段引用原文支持')
             if re.search(r"营收|营业收入|利润|经营.{0,5}现金流", line) and not re.search(r"营业收入|利润|现金流", support):
                 errors.append("财务判断引用了不含财务事实的编号：" + line[:90])
+            if re.search(r'融资|配售|募集(?:资金|净额|款项)',line) and not re.search(r'融资|配售|募集(?:资金|净额|款项)',support):
+                errors.append('融资判断未就近引用完成或计划融资原文')
+            if re.search(r'计提|财务报告|合规披露|财务披露',line) and not re.search(r'计提|财务报告|合规披露|财务披露',support):
+                errors.append('不能由风险事件自行添加特定财务报告计提或披露完整性判断')
+            if re.search(r'一致行动|代持|实际控制归属',line) and not re.search(r'一致行动|代持|实际控制归属',support):
+                errors.append('不能自行添加具名股东间一致行动、代持或实际控制归属假设')
+            if re.search(r'未披露|未提供|未载明|未载|缺乏',line) and not re.search(r'未披露|未提供|未载明|未载|缺乏',support):
+                errors.append('不能把摘要材料未列细节扩大为原件或企业未披露')
+            if 'HKSCCNOMINEESLIMITED' in _compact(line).upper() and 'HKSCCNOMINEESLIMITED' not in _compact(support).upper():
+                errors.append('名义持股节点判断须就近引用对应登记事实')
             if "法定代表人" in line and "法定代表人" not in support:
                 errors.append("法定代表人判断未引用工商登记事实卡：" + line[:90])
             if "法定代表人" in line and re.search(r"任期|自\d{4}年.{0,12}起", line):
@@ -545,9 +622,13 @@ def fallback_company_summary(project: Any, package: dict[str, Any]) -> str:
     if financial:
         period = financial[0].get("period", "")
         financial = [f for f in financial if f.get("period", "") == period]
-        # Keep the data period once, and keep every original amount and unit.
-        claims = [re.sub(r"^本集团[^：]{0,40}：", "", literal(f)).rstrip("。") for f in financial]
-        lines.append("- " + (f"{period}，" if period else "") + "；".join(claims) + "。" + refs(financial))
+        # Compress only an identical group/period prefix. Parent-company and
+        # mixed-scope statements must retain their own original subject.
+        prefix=f'本集团{period}：'
+        grouped=bool(period and all(literal(f).startswith(prefix) for f in financial))
+        claims=[(literal(f)[len(prefix):] if grouped else literal(f)).rstrip('。') for f in financial]
+        heading=(('本集团' if grouped else '')+period+'，') if period else ''
+        lines.append('- '+heading+'；'.join(claims)+'。'+refs(financial))
     shareholders = [f for f in groups["governance"] if "股东记录" in f["fact"]][:1]
     if groups['funding']:
         lines.append('- ' + literal(groups['funding'][0]) + refs(groups['funding'][:1]))
@@ -559,7 +640,9 @@ def fallback_company_summary(project: Any, package: dict[str, Any]) -> str:
     if groups["risk"]:
         f = groups["risk"][0]
         followup = ("应追踪整改覆盖、后续状态和实际影响；公告不证明已发生事故或损失。"
-                    if f['source_kind'] == 'checked_chapter_field' else "本次仅确认平台返回记录，案件性质、审理状态及实际影响需调取明细核验。")
+                    if f['source_kind'] == 'checked_chapter_field' else
+                    "本次仅确认平台返回记录，案件性质、审理状态及实际影响需调取明细核验。" if f.get('source_url','').startswith('structured://') else
+                    "以上接续所引来源的事件记载；原始文件、历史日期及后续处理仍需核验，不能据此判定当前状态。")
         lines.append("- " + literal(f) + followup + refs([f]))
     else:
         lines.append("本章尚未形成可直接引用的风险事件明细，相关判断待核验；平台未命中不构成安全结论。")

@@ -11,6 +11,7 @@ from opencc import OpenCC
 from .company_evidence import source_body, document_pages, pending_ocr_notice
 from .company_governance import EID, get, refs, _table, cited_evidence_ids
 from .company_history import _issuer_hosts
+from .company_financial_statements import fiscal_report_period,quarter_report_period
 
 VERSION='company-diligence-v2-cross-chapter-display'
 TITLE='定向穿透专项尽职调查'
@@ -35,6 +36,10 @@ def period_of(source,pages):
     text='\n'.join(str(p['text']) for p in pages[:4])+'\n'+str(get(source,'title'))
     m=re.search(r'(20\d{2})\s*年\s*(?:年度|半年度|中期)报告',_CC.convert(text))
     if m:return m[0].replace(' ','')
+    fiscal=fiscal_report_period(text)
+    if fiscal:return fiscal['period']
+    quarter=quarter_report_period(str(get(source,'content') or text))
+    if quarter:return quarter['period']
     m=re.search(r'(?:ANNUAL\s+REPORT|REPORT\s+AND\s+ACCOUNTS)\s*(20\d{2})',text,re.I)
     if m:return m[1]+'年度报告'
     m=re.search(r'\b(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+20\d{2})\b',text)
@@ -73,6 +78,8 @@ def scoped_government_pages(source,target):
 
 
 def issuer_heading(pages,name):
+    from .company_financial_statements import quarter_report_period
+    if quarter_report_period('\n'.join(p['text'] for p in pages[:8]),name):return True
     for p in pages[:8]:
         for line in p['text'].splitlines():
             value=folded(line)
@@ -238,11 +245,15 @@ def classify_quote(quote):
     t=_CC.convert(quote);low=t.lower()
     from .company_history import accounting_background
     if accounting_background(t):return None
+    if re.search(r'如果|若|不时进行企业合并|可能.{0,100}完成|完成.{0,50}可能',low):return None
     if re.search(r'(?:从|自).{0,35}控制权之日起|when.{0,20}control.{0,20}obtained',low):return None
     if re.search(r'unaudited pro forma|for the purpose of.*pro forma|备考|假设.{0,25}(?:交易|收购|完成|已发生)',low):return 'pro_forma','大额资金往来','备考假设/模拟影响，非实际提款或付款'
-    if re.search(r'未(?:使用|付)|not paid yet',low):return 'payment_pending','大额资金往来','未付/未使用，不能写成已全部支付'
+    if re.search(r'未付|not paid yet',low) or (re.search(r'未使用',low) and re.search(r'募集|配售|融资款|所得款项',low)):return 'payment_pending','大额资金往来','未付/未使用，不能写成已全部支付'
     if re.search(r'(?:采用|拟)?发行股份.{0,30}募集配套资金|拟发行债券',low):return 'financing_plan','融资情况','融资/交易方案披露；完成、到账和实际用途另行核验'
-    if re.search(r'完成.*(?:配售|发行)|配售.*净额|已使用.*(?:配售|募集)|used.*net proceeds',low):return 'fund_use' if re.search(r'已使用|used',low) else 'financing','融资情况','公司融资及资金使用披露，非银行流水独立核验'
+    if re.search(r'完成[^，。；:：]{0,25}(?:配售|发行)|配售完成后[^。；]{0,150}(?:股份总数|股本总额)|配售[^。；]{0,80}净额|已使用.*(?:配售|募集)|used.*net proceeds',low):
+        if not re.search(r'已使用|used',low) and re.search(r'提名权|权利|股东的意向|发行完成前|发行完成时|发行完成后',low):return None
+        if re.search(r'坚定看好|顶级|全球[^。；]{0,30}最大|充分体现|这份认可|期许',low):return None
+        return 'fund_use' if re.search(r'已使用|used',low) else 'financing','融资情况','公司融资及资金使用披露，非银行流水独立核验'
     if re.search(r'loan|entrusted loan|借款|股东贷款|委托贷款',low):return 'related_funding','大额资金往来','主体/额度/余额/提款和用途分开；未自动归入本次收购'
     if re.search(r'(?:since|from).{0,35}acquisition.{0,160}(?:revenue|profit)|收购完成后.{0,80}(?:实现|营业收入)|标的公司.{0,50}实现净利润',low):return 'acquired_contribution','业务真实性','集团并购后表现与标的贡献分别保留；统计期按原文，不归因全部增长或机械年化'
     if re.search(r'本次(?:交易|收购).{0,60}不形成商誉',low):return 'accounting_treatment','业务真实性','原文仅针对本次交易的会计处理，非公司全部历史商誉为零'
@@ -276,7 +287,9 @@ def disclosure_rows(source,pages,base):
             category=classify_quote(quote)
             if not category:continue
             kind,stream,mode=category
+            if kind=='financing' and not re.search(r'本公司|本集团|我们|(?:日|[，,；。:：\s])公司(?:完成|已完成|发行|配售)|'+re.escape(base.get('entity') or '\x00')+r'|\b(?:the company|our company|we)\b',_CC.convert(quote),re.I):continue
             if kind=='consolidation' and re.search(r'详见|见附注',quote):continue
+            if kind=='consolidation' and re.search(r'该公司|该子公司',quote):continue # bind the controlled entity on its native row first
             if kind in {'strategy','closing','consideration','purchase_accounting','consolidation'} and not re.search(r'[。.!?；]$',quote):continue
             if len(re.findall(r'\d[\d,.]*',quote))>18:continue
             if kind=='payment_pending':
@@ -377,6 +390,12 @@ def build_diligence_package(cleaned,target,sources=None,*,prior_packages=None,in
     # Checked chapters supply typed signals, never generated risk prose.
     for r in prior_packages.get('history',{}).get('facts',[]):
         if r.get('kind')=='event' and re.search(r'配售|募集|发行.*(?:债券|股份)|融资',r.get('fact','')):
+            text=_CC.convert(r.get('fact',''));position=text.find(_CC.convert(target))
+            local=text[position:position+240] if position>=0 else ''
+            if ('战略配售' in text and re.search(r'作为.{0,180}入围|(?:作为|以).{0,35}战略投资者|(?:获选|入围|列入).{0,40}(?:投资者|配售)',local)):
+                records.append({**r,'kind':'investment_candidacy','stream':'战略布局','entity':target,
+                                'mode':'目标作为他人发行/配售的投资者或名单入围方；不等于目标自身融资、认购完成或资金到账'})
+                continue
             year=re.search(r'20\d{2}',str(r.get('period','')))
             if year and int(year[0])<latest.get(target,int(year[0]))-2:continue
             records.append({**r,'kind':'financing','stream':'融资情况','entity':target,'mode':'第三章已核对的具体融资事件；用途仍按原件核对'})
@@ -488,9 +507,10 @@ def render_diligence(p):
         lines+=['委托方明确指定的待核事项（属于研究任务，未作为企业事实或已完成核查）：']+['- '+x for x in p['client_specified_checks']]
     else:lines+=['项目未明确指定专项对象；以下由已核对证据建议核查，不能把一般研究要求或企业自身客户关系改写成委托方特指某笔交易，也不代表已完成专项尽调。']
     for task in p['tasks']:
-        lines+=['- '+task['task_id']+' '+task['stream']+'；具体触发对象：'+task['object']+' ['+'] ['.join(task['evidence_ids'])+']']
+        lines+=['- '+task['task_id']+' '+task['stream']+'；原件主体或事项线索：'+task['object']+' ['+'] ['.join(task['evidence_ids'])+']']
     if not p['tasks']:lines+=['尚未形成可追溯到具体事项的核查对象；不能用通用检查清单冒充本项目已完成穿透。']
-    lines+=['','### 已核到的公开披露及其边界','']
+    lines+=['','### 已核到的公开披露及其边界','',
+            '首列用于定位披露文件的主体或原件已列事项；文件发行人不自动等于子公司交易的收付款人。交易参与方、合并范围与单体资金分别按原文核对；仅以“该公司”指代而未绑定实体的并表语句不单独列为持股事实。','']
     for stream in STREAMS[:5]+('追偿与执行','担保与质押'):
         group=[r for r in p['facts'] if r.get('stream')==stream]
         if not group:continue
@@ -500,7 +520,7 @@ def render_diligence(p):
         quota={'融资情况':4,'战略布局':3,'业务真实性':8,'追偿与执行':3,'担保与质押':3}.get(stream,12)
         selected=select_rows(group,quota)
         lines+=['本节证据包保留'+str(len(group))+'项原文记录，以下展示'+str(len(selected))+'项；按来源时期分别理解，不作全量覆盖结论。','']
-        lines+=_table(['主体/文件期','原文核对记录','含义与边界','出处'],[
+        lines+=_table(['披露来源或事项／文件期','原文核对记录','含义与边界','出处'],[
             [r['entity']+'；'+r.get('period','原记录时期'),display_diligence_fact(r),r.get('mode','')+'；'+r.get('stage_note','')+'；'+r.get('negotiation_note',''),
              refs(r)+(f"（物理页{r['page']}）" if r.get('page') else '')] for r in selected])
     relations=[r for r in p['facts'] if r['kind']=='relationship']

@@ -9,6 +9,8 @@ from .company_evidence import source_body,document_pages,pending_ocr_notice
 from .company_governance import cited_evidence_ids
 from .company_governance import EID,_table,_filing_period,_period_rank,_primary_filing,compact,get,refs
 from .company_history import _issuer_hosts
+from .company_financial_statements import fiscal_segment_revenue_rows
+from .company_product_releases import product_release_rows
 
 TITLE='主营业务真实经营情况核验'
 HEADINGS=('分部门业务运营数据核验表','核心业务板块运营进展核验表','关键经营事实与核验判断','视觉与原页核对')
@@ -289,15 +291,33 @@ def operating_updates(pages,period,target):
     return rows
 
 
-def build_business_package(cleaned,target,sources=None,*,limit=50000):
+def build_business_package(cleaned,target,sources=None,*,limit=50000,as_of=''):
     by_url=defaultdict(list)
     for card in cleaned.get('facts') or []:
         if isinstance(card,dict) and EID.fullmatch(str(card.get('evidence_id') or '')):by_url[str(card.get('source_url') or '')].append(card)
     hosts=_issuer_hosts(sources,target);records=[];counts=Counter()
     for source in sources or []:
         raw,origin=source_body(source);url=str(get(source,'url'))
-        if origin=='discovery_summary' or not _issuer(source,target,hosts):continue
         cards=[c for c in by_url[url] if c.get('eligible_for_report') is not False and c.get('entity_match') not in {'mismatch','ambiguous','out_of_scope'} and c.get('source_entity_validation')!='rejected']
+        direct=[c for c in cards if c.get('evidence_scope')=='target_direct']
+        # A clipped broad excerpt can lose a footer's full legal name and be
+        # auto-labelled noise. Keep that card excluded. New native dated fields
+        # may use its locator only after independent full-page attribution;
+        # rejected entities, untruncated/atomic exclusions and summaries stay out.
+        clipped=[c for c in by_url[url] if c.get('claim_type')=='source_excerpt'
+                 and c.get('evidence_scope')=='noise' and c.get('entity_match')=='unknown'
+                 and c.get('text_origin')=='retrieved_content' and '[truncated]' in str(c.get('fact') or '')
+                 and not c.get('source_entity_validation') and not c.get('exclusion_reason') and not c.get('rejected_reason')]
+        release_locator=direct[0] if direct else clipped[0] if clipped else None
+        if release_locator:
+            for row in product_release_rows(source,target,as_of):
+                row.update(evidence_id=release_locator['evidence_id'],evidence_ids=[release_locator['evidence_id']],source_url=url,
+                           source_title=release_locator.get('source_title',''),evidence_scope='target_direct',eligible_for_risk_scoring=False)
+                if not direct:
+                    row['locator_recovery']='Original broad clipped source_excerpt remains excluded; new dated native fields and full-page copyright independently bound'
+                    counts['clipped_release_original_fields_recovered']+=1
+                records.append(row)
+        if origin=='discovery_summary' or not _issuer(source,target,hosts):continue
         if not cards:continue
         card=cards[0];period=_filing_period({'content':raw,'title':''})
         if not period:
@@ -307,7 +327,7 @@ def build_business_package(cleaned,target,sources=None,*,limit=50000):
         pages=document_pages(source)
         financial=vector_financial_rows(pages,period)
         revenue=[r for r in financial if r['kind']=='revenue'] or revenue_rows(raw,period,target)
-        rows=revenue+[r for r in financial if r['kind']=='margin']+project_rows(pages,period)+production_rows(pages,period)+operating_updates(pages,period,target)
+        rows=revenue+[r for r in financial if r['kind']=='margin']+fiscal_segment_revenue_rows(pages,target,period)+project_rows(pages,period)+production_rows(pages,period)+operating_updates(pages,period,target)
         extraction=(get(source,'source_metadata',{}) or {}).get('document_extraction') or {}
         counts['table_pages_pending']+=len((extraction.get('business_tables') or {}).get('pending_pages') or [])
         counts['empty_grid_pages']+=len((extraction.get('business_tables') or {}).get('empty_grid_pages') or [])
@@ -341,6 +361,11 @@ def build_business_package(cleaned,target,sources=None,*,limit=50000):
     latest=periods[0] if periods else None
     selected=[r for r in unique if r['kind'] in {'revenue','margin'} and r['period'] in selected_periods
               and (r.get('dimension') in {'分产品','合计'} or (r['period']==latest and r.get('dimension') in {'分地区','分销售模式'}))]
+    segment_rows=[r for r in unique if r['kind']=='segment_revenue']
+    if segment_rows:
+        latest_segment=max((r['period'] for r in segment_rows),key=_period_rank)
+        selected.extend(r for r in segment_rows if r['period']==latest_segment)
+    selected.extend(sorted([r for r in unique if r['kind']=='product_release'],key=lambda r:r['release_date'],reverse=True)[:8])
     projects=sorted([r for r in unique if r['kind']=='project'],key=lambda r:_period_rank(r['period']),reverse=True)
     # Cover original table pages and stages before filling the remaining slots;
     # first-N rows can omit whole business lines at the end of a filing.
@@ -381,6 +406,7 @@ def build_business_package(cleaned,target,sources=None,*,limit=50000):
     if counts['omitted_document_pages']:gaps.append('部分原件因提取上限尚未覆盖全文；本章仅使用已取得原页，不把未提取部分视为无披露。')
     if counts['needs_ocr_pages']:gaps.append(pending_ocr_notice(sources,'原件含低文字页，尚未实际执行OCR；嵌入文本/向量表格提取不能代表扫描页已识别。'))
     if conflicts:gaps.append('同主体、期间、维度与单位的来源记录存在差异，保留各值及出处，需核对重述、范围或版本；未择一认定。')
+    if counts['clipped_release_original_fields_recovered']:gaps.append('原宽泛节选因截断未绑定目标而被自动排除，仍保留原排除状态；本章仅从完整归档重新绑定日期块和页脚署名，不将宽泛节选或宣传性能作为已核经营结论。')
     return {'version':VERSION,'target_name':target,'facts':delivered,'information_gaps':gaps,
             'conflicts':conflicts,
             'diagnostic':{'candidate_claims':len(records),'delivered_claims':len(delivered),
@@ -407,7 +433,25 @@ def render_business(package):
             rows.append([r['dimension']+'：'+r['entity'],r['period'],values,boundary,citation])
         lines+=_table(['市场/业务范围','期间','源表数据','核验边界','来源'],rows)
         lines+=['','分产品、分地区、销售模式各为不同观察维度；同表总项与“其中”子项不能相加。各期名称/范围按原表保留，名称变化不视为完全可比。']
+    elif any(r['kind']=='segment_revenue' for r in records):
+        lines+=['原件按报告分部列示收入，见下表；报告分部不直接当产品类别或单个部门台账。']
     else:lines+=['尚未形成可核对的分产品收入表，不能把评级预估或经营范围当实际收入。']
+    segments=[r for r in records if r['kind']=='segment_revenue']
+    if segments:
+        lines+=['','原件财年分部收入与合并调节（人民币原列）：','']
+        lines+=_table(['原表顶层分部／调节行','财年期间','本期','上期','来源'],[
+            [r['entity'],r['period'],r['value']+r['unit']+'人民币',r['previous_value']+r['unit']+'人民币',refs(r)+f"（物理页{r['page']}）"] for r in segments])
+        lines+=['','表内分部、未分摊及抵消按原表逐年勾稽至合并收入；分部间抵消前收入不能直接相加当外部客户收入。已排除嵌套业务明细，美元换算列未参与比较。未由收入差额推毛利、产能或订单兑现。']
+        for note in dict.fromkeys(r['reclassification_note'] for r in segments if r.get('reclassification_note')):
+            lines+=['','原表范围／重分类说明：“'+note+'”。跨期比较使用该表已列示口径，不能将旧分部名称直接拼接。']
+        for note in dict.fromkeys(r['source_translation_note'] for r in segments if r.get('source_translation_note')):
+            lines+=['','原文件版本说明：“'+note+'”。']
+    releases=[r for r in records if r['kind']=='product_release']
+    if releases:
+        lines+=['','带日期的产品发布自述（页面页脚自署目标企业版权，非独立商业化核验）：','']
+        lines+=_table(['发布页日期','标题原文','发布页原文（公司自述）','边界及来源'],[
+            [r['release_date'],r['entity'],r['release_description'],'署名不等于独立真实性/性能核验；'+refs(r)] for r in releases])
+        lines+=['','发布、开源或预览版上线分别按原文保留，不当作已实现收入、付费客户、订单、实际交付、独立性能测试或公司商业化能力评分。相关服务可能由目标及关联公司共同运营，单体收入、合同及收款主体仍需分别核对。']
     lines+=['','### 生产与销售数量核对','']
     production=[r for r in records if r['kind'] in {'production','monthly'}]
     if production:

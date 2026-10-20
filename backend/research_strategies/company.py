@@ -3,6 +3,23 @@ from .base import BaseResearchStrategy
 
 class CompanyResearchStrategy(BaseResearchStrategy):
     target_type = "company"
+
+    def expand_search_queries(self, plan, intake):
+        from datetime import date
+        import re
+        rows=super().expand_search_queries(plan,intake)
+        target=str(intake.get('target_name') or '').strip()
+        if not target:return rows
+        cutoff=str(intake.get('as_of_date') or date.today().isoformat())
+        year=date.fromisoformat(cutoff).year
+        stem=re.sub(r'(?:股份有限公司|有限责任公司|有限公司)$','',target)
+        # Retrieval year hints are not asserted report dates or fiscal periods.
+        recent=[{'module':'企业文化及人员流失情况',
+            'query':f'{stem} {y} 可持续发展报告 ESG 原文',
+            'search_tier':'authority_first','include_domains':['cninfo.com.cn','szse.cn','sse.com.cn','hkexnews.hk'],
+            'preferred_providers':['tavily','exa','serper','bocha'],'authority_required':1,'search_year_hint':y,'as_of_date':cutoff}
+            for y in (year,year-1)]
+        return recent+rows
     default_modules = [
         "公司背景",
         "诉讼/制裁",

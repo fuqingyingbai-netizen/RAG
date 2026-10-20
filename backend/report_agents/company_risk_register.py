@@ -18,6 +18,7 @@ from .company_evidence import document_pages, source_body
 from .company_governance import EID, get, refs, _table, cited_evidence_ids, combined_refs
 from .company_judicial import build_judicial_package, displayed_case_key
 from .company_people import build_people_package
+from .company_financial_statements import fiscal_report_period
 
 VERSION = 'company-risk-register-v2-case-display-references'
 TITLE = '风险核查'
@@ -85,6 +86,9 @@ def source_anchor(source, cards):
 
 def filing_cutoff(pages):
     """Use the issuer's actual consolidated balance-sheet date, not FY=Dec31."""
+    from .company_financial_statements import quarter_report_period
+    quarter=quarter_report_period('\n'.join(p['text'] for p in pages[:4]))
+    if quarter:return quarter['cutoff']
     for page in pages:
         text = page['text']
         heading = re.search(r'合并(?:及(?:母)?公司)?资产负债表|CONSOLIDATED\s+STATEMENT\s+OF\s+FINANCIAL\s+POSITION|CONSOLIDATED(?:\s+AND\s+COMPANY)?\s+BALANCE\s+SHEETS?', text, re.I)
@@ -103,7 +107,8 @@ def filing_cutoff(pages):
         english = re.search(r'\b\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+20\d{2}\b', area, re.I)
         if english:
             return datetime.strptime(english[0], '%d %B %Y').date().isoformat()
-    return None
+    fiscal = fiscal_report_period('\n'.join(p['text'] for p in pages[:4]))
+    return fiscal['cutoff'] if fiscal else None
 
 
 def later_than_research_cutoff(source, as_of):
@@ -184,6 +189,13 @@ def recall_events(source, base):
     publication = publication_date(source, raw)
     if not publication:
         return [], 'publication_date_unbound'
+    # Local portals can concatenate several independent notices. A heading
+    # manufacturer cannot bind every later campaign, defect and remedy on the
+    # page. Indexed defect/remedy blocks also need an explicit scope join.
+    if len(re.findall(r'向国家市场监督管理总局备案了召回计划', raw)) > 1:
+        return [], 'multiple_notices_require_manual_scope_review'
+    if re.search(r'本次召回范围\s*[（(][一二三四五六七八九十\d]+[）)]', raw):
+        return [], 'indexed_recall_scopes_require_manual_scope_review'
     # Manufacturers must appear in the heading before the legal preamble.
     lead = re.split(r'根据|依据|\n\s*[一二三四五六七八九十]+[、．.]', raw)[0]
     names = re.findall(LEGAL, lead)
@@ -594,7 +606,7 @@ def render_risk_register(p):
                 if e.get('supporting_records'):
                     records = _context_sample(records)
                     lines += ['下表选列不同来源、时期的关键原文；完整记录见风险登记附件，资金及购买会计明细接续第十章，不跨笔、跨币种累计。', '']
-                lines.extend(_table(['主体/事项', '原件时期与定位', '已核披露'],
+                lines.extend(_table(['事项或披露文件主体', '原件时期与定位', '已核披露'],
                     [[str(x.get('entity') or x.get('case_description') or x.get('case_number') or p['target_name']),
                       str(x.get('period') or x.get('date') or '按原件') + ('；物理页' + str(x['page']) if x.get('page') else '') + refs(x),
                       _display_fact(x)] for x in records]))

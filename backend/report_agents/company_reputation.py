@@ -12,6 +12,10 @@ from .company_history import _issuer_hosts
 from .company_management import issuer as management_issuer
 from .company_text import OriginalTextView
 try:
+    from ..company_publishers import statistics_publisher_identity
+except ImportError:
+    from company_publishers import statistics_publisher_identity
+try:
     from ..company_charts import VERSION as CHART_VERSION
 except ImportError:
     from company_charts import VERSION as CHART_VERSION
@@ -69,6 +73,23 @@ def aliases_for_target(target,sources):
         m=re.search(r'公司(?:的)?外文名称缩写(?:[（(]如有[）)])?\s*[:：|]?\s*([A-Z][A-Z0-9.-]{1,20})',head)
         if m:aliases.add(m[1])
     return aliases
+
+
+def benchmark_discovery_queries(sources,target,seen=None,as_of_date=''):
+    """Use an abbreviation actually disclosed by the issuer, not a guessed brand."""
+    from datetime import date
+    seen=seen if seen is not None else set()
+    try:year=date.fromisoformat(as_of_date).year if as_of_date else date.today().year
+    except ValueError:return []
+    aliases=sorted(a for a in aliases_for_target(target,sources) if a.isascii() and re.fullmatch(r'[A-Z][A-Z0-9.-]{1,19}',a))
+    rows=[]
+    for alias in aliases[:2]:
+        query=f'"{alias}" {year} market share peers original statistics tracker'
+        if query in seen:continue
+        seen.add(query)
+        rows.append({'module':TITLE,'query':query,'search_tier':'open_web','evidence_scope':'industry_context',
+                     'company_role':'benchmark','company_name':target,'discovery_basis':'issuer_disclosed_abbreviation'})
+    return rows
 
 
 def _mentions(text,aliases):
@@ -200,6 +221,9 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000):
         seen.add(key);records.append(record)
     for source in sources or []:
         url=str(get(source,'url'));raw,origin=source_body(source);meta=get(source,'source_metadata',{}) or {}
+        inferred=statistics_publisher_identity(url,raw)
+        if inferred and not meta.get('publisher_role') and meta.get('publisher_verified') is not False:
+            meta={**meta,**inferred}
         if origin=='discovery_summary':counts['discovery_only']+=1;continue
         if meta.get('entity_validation') in {'rejected','ambiguous'}:continue
         issuer=management_issuer(source,target,hosts)

@@ -91,6 +91,11 @@ def _structured(raw,tool,target,base,counts):
         return [{**base,'kind':'lookup','fact':'行政处罚接口已返回内容，尚需逐条绑定处罚决定书、受罚主体、日期和处罚内容。'}]
     if tool=='get_judicial_document_detail':
         fields={r['字段']:r.get('值','') for r in rows if '字段' in r}
+        # A multiline reasoning field can interrupt a Markdown table. Recover
+        # these explicitly labelled native rows without carrying a stale header
+        # into the decision or inventing an absent result.
+        detail_rows={m[1]:m[0] for m in re.finditer(r'(?m)^\|\s*(案号|法院|审理程序|裁判日期|判决结果|当事人原文)\s*\|\s*(.*?)\s*\|\s*$',raw)}
+        for key,line in detail_rows.items():fields[key]=line.split('|',2)[2].rsplit('|',1)[0].strip()
         case=fields.get('案号','');parties=fields.get('当事人原文','')
         # The queried entity field alone never establishes who is a party.
         mapped=any(target in line and line.lstrip().startswith('- ') for line in raw.splitlines())
@@ -98,7 +103,7 @@ def _structured(raw,tool,target,base,counts):
         result=fields.get('判决结果','待核')
         return [{**base,'kind':'case_detail','case_number':case,'fact':case+'；法院：'+fields.get('法院','待核')+
                  '；程序：'+fields.get('审理程序','待核')+'；裁判日期：'+fields.get('裁判日期','待核')+'；结果：'+result,
-                 'evidence_quote':'\n'.join(row_quote(raw,r) for r in rows if r.get('字段') in {'案号','法院','审理程序','裁判日期','判决结果'}),
+                 'evidence_quote':'\n'.join(detail_rows.get(k) or next((row_quote(raw,r) for r in rows if r.get('字段')==k),'') for k in ('案号','法院','审理程序','裁判日期','判决结果')),
                  'mode':'数据库所载文书原文含完整主体名，仍待法院原件复核' if target in parties else '原文当事人匿名，仅由数据库映射到目标主体；法院原件身份仍待复核'}]
     for r in rows:
         row_base={**base,'evidence_quote':row_quote(raw,r)}

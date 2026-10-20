@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-20",
+  "scope": "Multi-engine candidate recall, URL grouping, deterministic content selection and downstream admission",
+  "verified_defects": [
+    "The research path previously inherited the search display limit: a global top 30 after merging all engines.",
+    "Incomparable native relevance scores and provider constants controlled that truncation.",
+    "Raw URL equality admitted tracking variants; the first completed engine chose duplicate content."
+  ],
+  "changes": [
+    "Research explicitly requests the candidate union up to engine_count * per_engine_limit; ordinary search still respects its result limit.",
+    "Conservative canonical URL identity is shared by search, ingestion, ledger and fast cleaner. Original URLs remain available for fetching and citations.",
+    "Reciprocal rank fusion uses one vote per engine per document. Legacy scores are retained as provenance, not used as cross-engine credibility.",
+    "Body selection is deterministic and prefers usable original content; selected content keeps its own extraction metadata.",
+    "Per-query audit records raw, unique, retained, duplicate and truncated counts plus provider failures.",
+    "Tavily max_results is capped at its documented maximum of 20."
+  ],
+  "controlled_fixture": {
+    "label": "Synthetic Alibaba-named documents, not live search results",
+    "provider_calls_mocked": true,
+    "raw_results": 180,
+    "canonical_unique": 80,
+    "tracking_duplicates_collapsed": 100,
+    "research_candidates_retained": 80,
+    "research_candidates_truncated": 0,
+    "actual_collector_and_sqlite_used": true,
+    "stored_sources": 56,
+    "explicit_domain_quota_skips": 24,
+    "archive_failures": 0
+  },
+  "verification": {
+    "full_suite_before_final_tavily_parameter_cap": {
+      "command": "python -m pytest test -q --disable-warnings",
+      "passed": 1310,
+      "skipped": 14,
+      "warnings": 702
+    },
+    "affected_suite_after_final_parameter_cap": {
+      "command": "python -m pytest test/test_search_recall_fusion.py test/test_web_search_domain_filters.py test/test_intake_identity_and_bocha.py -q --disable-warnings",
+      "passed": 50,
+      "warnings": 259
+    }
+  },
+  "limitations": [
+    "No paid live search or full new company report was run in this initial controlled-fixture stage; subsequent actual live validation is recorded separately in COMPANY_LIVE_VALIDATION_20261020.json.",
+    "Provider limits, available credentials, domain quotas, identity checks and empty-content rules still constrain admission.",
+    "More candidates may require more downstream fetch time; existing fetch and domain budgets remain in force.",
+    "This local repair does not regenerate historical reports or deploy a running service."
+  ],
+  "reference": "https://docs.tavily.com/documentation/api-reference/endpoint/search#body-max-results",
+  "subsequent_live_validation": {
+    "record": "COMPANY_LIVE_VALIDATION_20261020.json",
+    "initial_fixture_not_live_proof": true,
+    "byd_latest_accepted_report": "byd-repaired-r21-final-v65",
+    "source_admission_attribution": "Baseline already recalled ESG and full interim originals; quota admission improved. SNE744 was explicit known-original supplementation.",
+    "candidate_count_not_quality_score": true,
+    "final_full_test_result": {
+      "command": "python -m pytest test -q --disable-warnings",
+      "isolated_base": "2f6dfb75f262689316d166ec8b8c7f484b0c72ab",
+      "passed": 1496,
+      "skipped": 14,
+      "warnings": 743,
+      "seconds": 93.04,
+      "production_code_unchanged_during_run": true,
+      "exact_final_code_still_matches_test_hashes": true,
+      "log": "company-integrated-full-tests-v66-final.log",
+      "integrity": "company-final-integrated-test-integrity.json"
+    },
+    "cross_type_status": "BYD sample accepted; two cross-type real runs completed and reviewed as limited-evidence drafts, not full acceptance"
+  }
+}

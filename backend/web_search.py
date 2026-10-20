@@ -3,6 +3,7 @@ import re
 import threading
 import time
 import base64
+import hashlib
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from html.parser import HTMLParser
@@ -11,6 +12,11 @@ from urllib.parse import urlparse
 
 import requests
 from pypdf import PdfReader
+
+try:
+    from .search_results import fuse_search_results, SearchResults
+except ImportError:
+    from search_results import fuse_search_results, SearchResults
 
 try:
     from bs4 import BeautifulSoup
@@ -75,6 +81,10 @@ class WebSearchProvider:
         self._exa_last_request_at = 0.0
         self._engine_state_lock = threading.Lock()
         self._disabled_engines: set[str] = set()
+        self._disabled_engine_reasons: dict[str, str] = {}
+        self._serper_capability_lock = threading.Lock()
+        self._serper_caps: dict[str, int] = {}
+        self._serper_large_verified: set[str] = set()
         self.engines = [
             ("tavily", self._search_tavily),
             ("serper", self._search_serper),
@@ -101,6 +111,7 @@ class WebSearchProvider:
         exclude_domains: list[str] | None = None,
         category: str | None = None,
         preferred_providers: list[str] | None = None,
+        *, candidate_limit: int | None = None,
     ) -> list[dict[str, Any]]:
         provider = os.getenv("WEB_SEARCH_PROVIDER", "").strip().lower()
         if provider == "tavily":
@@ -115,7 +126,8 @@ class WebSearchProvider:
             return self._search_brave(self._query_with_sites(query, include_domains), limit)
         if provider == "bocha":
             return self._search_bocha(query, limit, include_domains, exclude_domains)
-        return self.multi_engine_search(query, limit, include_domains, exclude_domains, category, preferred_providers)
+        return self.multi_engine_search(query, limit, include_domains, exclude_domains, category, preferred_providers,
+                                        candidate_limit=candidate_limit)
 
     def search_single(self, provider: str, query: str, limit: int = 6,
                       include_domains=None, category=None) -> list[dict[str, Any]]:
@@ -145,17 +157,26 @@ class WebSearchProvider:
         exclude_domains: list[str] | None = None,
         category: str | None = None,
         preferred_providers: list[str] | None = None,
+        *, candidate_limit: int | None = None,
     ) -> list[dict[str, Any]]:
-        all_results: list[dict[str, Any]] = []
+        # limit is the per-engine request size. Interactive callers keep a
+        # bounded result list; research ingestion explicitly requests the full
+        # candidate union and applies its own quality/fetch/domain budgets.
+        batches: dict[str, list[dict[str, Any]]] = {}
+        failures: dict[str, str] = {}
+        engine_states: dict[str, dict[str, Any]] = {}
+        engine_audits: dict[str, dict[str, Any]] = {}
         futures: dict[Any, str] = {}
 
-        with ThreadPoolExecutor(max_workers=len(self.engines)) as executor:
+        with ThreadPoolExecutor(max_workers=max(1, len(self.engines))) as executor:
             allowed = set(preferred_providers or [])
             for name, engine_func in self.engines:
                 if allowed and name not in allowed:
+                    engine_states[name] = {'status': 'not_selected'}
                     continue
                 with self._engine_state_lock:
                     if name in self._disabled_engines:
+                        engine_states[name] = {'status':'not_queried','reason':self._disabled_engine_reasons.get(name,'previous_authorization_failure')}
                         continue
                 api_key_env = f"{name.upper()}_API_KEY"
                 if os.getenv(api_key_env):
@@ -168,33 +189,52 @@ class WebSearchProvider:
                     else:
                         future = executor.submit(engine_func, self._query_with_sites(query, include_domains), limit)
                     futures[future] = name
+                else:
+                    engine_states[name] = {'status':'not_configured'}
 
             for future in as_completed(futures):
                 name = futures[future]
                 try:
-                    all_results.extend(future.result())
+                    returned = future.result()
+                    engine_audits[name] = dict(getattr(returned, 'audit', {}) or {})
+                    batches[name] = list(returned or [])[:max(0, limit)]
+                    engine_states[name] = {'status':'returned','result_count':len(batches[name])}
                 except Exception as exc:
                     status_code = getattr(getattr(exc, "response", None), "status_code", None)
-                    if status_code in {401, 403}:
+                    failures[name] = f"HTTP {status_code}" if status_code else type(exc).__name__
+                    reason = self._search_failure_reason(exc)
+                    engine_states[name] = {'status':'failed','reason':reason,'http_status':status_code}
+                    if reason in {'unauthorized','access_denied','quota_exceeded'}:
                         # An invalid/expired credential will fail identically for every
                         # query. Quarantine that provider for this process and continue
                         # with the remaining configured engines instead of flooding the
                         # backend with repeated errors.
                         with self._engine_state_lock:
                             self._disabled_engines.add(name)
+                            self._disabled_engine_reasons[name] = reason
                     suffix = f" HTTP {status_code}" if status_code else f" {type(exc).__name__}"
                     print(f"Search engine {name} unavailable:{suffix}; continuing with fallback engines")
 
-        seen_urls = set()
-        unique_results = []
-        for result in all_results:
-            url = result.get("url", "")
-            if url and url not in seen_urls:
-                seen_urls.add(url)
-                unique_results.append(result)
+        budget = limit if candidate_limit is None else candidate_limit
+        results = fuse_search_results(batches, result_limit=max(0, min(budget, max(0, limit) * len(batches))))
+        results.audit.update(requested_engines=sorted(futures.values()), unavailable_engines=failures,
+                             engine_states=engine_states, engine_request_audits=engine_audits)
+        return results
 
-        unique_results.sort(key=lambda item: item.get("credibility_score", 0), reverse=True)
-        return unique_results[:limit]
+    @staticmethod
+    def _search_failure_reason(exc):
+        status = getattr(getattr(exc, 'response', None), 'status_code', None)
+        try:body = str(exc.response.json()).lower()
+        except (AttributeError, ValueError):body = ''
+        if status in {402,432,433} or any(s in body for s in ('insufficient_quota','quota_exceeded','credit_balance_insufficient','insufficient balance','余额不足','配额不足','quota exceeded')):
+            return 'quota_exceeded'
+        if status == 401 or any(s in body for s in ('unauthorized','invalid_api_key','invalid api key','invalid_token')):return 'unauthorized'
+        if status == 429:return 'rate_limited'
+        if status == 403:return 'access_denied'
+        if status and status >= 500:return 'temporary_service_failure'
+        if isinstance(exc, (requests.Timeout, requests.ConnectionError)):return 'temporary_network_failure'
+        if status == 400:return 'invalid_request'
+        return 'request_failed'
 
     def _search_tavily(
         self,
@@ -212,7 +252,9 @@ class WebSearchProvider:
             json={
                 "api_key": api_key,
                 "query": query,
-                "max_results": limit,
+                # Tavily accepts 0..20; the research candidate budget is wider
+                # than this provider's own request limit.
+                "max_results": max(0, min(limit, 20)),
                 "search_depth": "basic" if lightweight else "advanced",
                 "include_answer": False,
                 "include_raw_content": not lightweight,
@@ -236,6 +278,7 @@ class WebSearchProvider:
                 "source_type": "web",
                 "metadata": {
                     "provider": "tavily",
+                    "content_origin": "provider_raw_content" if item.get("raw_content") else "search_summary",
                     "score": item.get("score"),
                     "published_date": item.get("published_date"),
                     "images": images,
@@ -249,12 +292,34 @@ class WebSearchProvider:
         api_key = os.getenv("SERPER_API_KEY", "")
         if not api_key:
             return []
-        resp = requests.post(
-            "https://google.serper.dev/search",
-            headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
-            json={"q": query, "num": limit},
-            timeout=30,
-        )
+        requested = max(0, limit)
+        if not requested:
+            return SearchResults([],audit={'requested_limit':0,'effective_limit':0})
+        credential = hashlib.sha256(api_key.encode()).hexdigest()
+        def send(count):
+            return requests.post("https://google.serper.dev/search",
+                headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
+                json={"q":query, "num":count}, timeout=30)
+        resp = None
+        effective = requested
+        # One bounded negotiation, only for the observed free-account error.
+        # A successful empty response still proves request acceptance, not recall.
+        if requested > 10 and credential not in self._serper_large_verified and credential not in self._serper_caps:
+            with self._serper_capability_lock:
+                if credential not in self._serper_large_verified and credential not in self._serper_caps:
+                    resp = send(requested)
+                    try:message = str(resp.json().get('message','')).lower()
+                    except (ValueError, AttributeError):message = ''
+                    if resp.status_code == 400 and 'query pattern not allowed for free accounts' in message:
+                        retried = send(10)
+                        retried.raise_for_status()
+                        self._serper_caps[credential] = 10
+                        resp, effective = retried, 10
+                    elif 200 <= resp.status_code < 300:
+                        self._serper_large_verified.add(credential)
+        if resp is None:
+            effective = min(requested, self._serper_caps.get(credential, requested))
+            resp = send(effective)
         resp.raise_for_status()
         rows = resp.json().get("organic", [])[:limit]
         fetch_enabled = os.getenv("SERPER_FETCH_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
@@ -267,6 +332,7 @@ class WebSearchProvider:
             content = fetched.get("content") or snippet
             metadata = {
                 "provider": "serper",
+                "content_origin": "original_page" if fetched.get("content") and fetched.get("status") == "done" else "search_summary",
                 "position": item.get("position"),
                 "fetch_status": fetched.get("status", "skipped" if not fetch_enabled or index >= max_fetch else "empty"),
                 "fetch_error": fetched.get("error", ""),
@@ -283,7 +349,9 @@ class WebSearchProvider:
                 "credibility_score": 60,
             }
             )
-        return results
+        return SearchResults(results, audit={'requested_limit':requested,'effective_limit':effective,
+            'negotiated_account_cap':self._serper_caps.get(credential),
+            'limit_adjustment':'free_account_capability' if effective < requested else ''})
 
     def _search_exa(
         self,
@@ -321,7 +389,8 @@ class WebSearchProvider:
                 "content": item.get("text", "") or item.get("content", "") or item.get("snippet", ""),
                 "summary": item.get("summary", "") or item.get("text", "") or item.get("content", "") or item.get("snippet", ""),
                 "source_type": "web",
-                "metadata": {"provider": "exa", "score": item.get("score")},
+                "metadata": {"provider": "exa", "score": item.get("score"),
+                             "content_origin": "provider_text" if item.get("text") or item.get("content") else "search_summary"},
                 "credibility_score": 65,
             }
             for item in rows
@@ -420,6 +489,7 @@ class WebSearchProvider:
                     "source_type": "web",
                     "metadata": {
                         "provider": "bocha",
+                        "content_origin": "original_page" if fetched.get("content") and fetched.get("status") == "done" else "search_summary",
                         "site_name": item.get("siteName"),
                         "published_date": item.get("datePublished"),
                         "fetch_status": fetched.get("status", "skipped" if not fetch_enabled or index >= max_fetch else "empty"),

@@ -340,7 +340,7 @@ def test_common_control_no_goodwill_declaration_is_kept_without_global_zero_infe
 def test_work_order_names_actual_trigger_not_only_generic_checklist():
     p=package(source(body='本公司于2025年完成配售，所得净额100万元，用于研发。'))
     assert p['tasks'] and all(ROOT in t['object'] and '100万元' in t['object'] for t in p['tasks'])
-    assert '具体触发对象' in render_diligence(p)
+    assert '原件主体或事项线索' in render_diligence(p)
 
 
 def test_proforma_and_historical_target_tables_are_not_actual_purchase_cashflow():

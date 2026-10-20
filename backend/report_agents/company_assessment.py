@@ -17,6 +17,7 @@ from .company_evidence import document_pages, source_body
 from .company_governance import build_governance_package, _table, refs, get, cited_evidence_ids, combined_refs
 from .company_history import build_history_package, financial_rows, METRICS
 from .company_management import build_management_package, latest_roles
+from .company_financial_statements import consolidated_statement_rows
 from .company_risk_register import (
     build_risk_register, filing_cutoff, iso_date, later_than_research_cutoff,
     source_anchor, usable,
@@ -79,8 +80,10 @@ def financial_observations(source, base):
     pages = document_pages(source)
     period = period_of(source, pages)
     cutoff = filing_cutoff(pages)
-    if not cutoff or not re.search(r'年度|半年度|中期', period):
+    if not cutoff or not re.search(r'年度|半年度|中期|季度业绩', period):
         return []
+    if '季度业绩' in period:
+        return consolidated_statement_rows(pages,base['entity'],base,period,cutoff,METRICS)
     rows = []
     for p in pages[:55]:
         text = p['text']
@@ -130,7 +133,7 @@ def financial_observations(source, base):
                          'mode': '发行人主要会计数据表；非银行流水或逐单交易独立核验'})
         if rows:
             break
-    return rows
+    return rows or consolidated_statement_rows(pages, base['entity'], base, period, cutoff, METRICS)
 
 
 def _latest_metric(rows, metric):
@@ -139,7 +142,7 @@ def _latest_metric(rows, metric):
         return [], '对应会计指标未取得'
     cutoff = max(r['cutoff'] for r in group)
     group = [r for r in group if r['cutoff'] == cutoff]
-    signatures = {(decimal(r['value']), decimal(r['previous_value']), r['unit'], r['period_kind']) for r in group}
+    signatures = {(decimal(r['value']), decimal(r['previous_value']), r['unit'], r['period_kind'], r.get('currency','')) for r in group}
     if len(signatures) != 1 or any(r['printed_yoy_conflict'] for r in group):
         return group, '同截至日指标存在原文数值/单位/同比冲突，停止该分项评分'
     return group, ''
@@ -161,8 +164,8 @@ def _financial_scores(rows):
     profits, pe = _latest_metric(rows, METRICS[1]);cash, ce = _latest_metric(rows, METRICS[2])
     if pe or ce:
         earnings = score_row('earnings_cash', None, pe or ce, profits + cash)
-    elif (profits[0]['cutoff'], profits[0]['period_kind'], profits[0]['unit']) != (cash[0]['cutoff'], cash[0]['period_kind'], cash[0]['unit']):
-        earnings = score_row('earnings_cash', None, '归母净利润与经营现金流不是同一截至日/期间/单位，不拼接评分', profits + cash)
+    elif (profits[0]['cutoff'], profits[0]['period_kind'], profits[0]['unit'], profits[0].get('currency','')) != (cash[0]['cutoff'], cash[0]['period_kind'], cash[0]['unit'], cash[0].get('currency','')):
+        earnings = score_row('earnings_cash', None, '归母净利润与经营现金流不是同一截至日/期间/币种/单位，不拼接评分', profits + cash)
     else:
         a, b = profits[0], cash[0]
         pv, cv = decimal(a['value']), decimal(b['value'])
@@ -499,13 +502,13 @@ def build_assessment_package(cleaned, target, sources=None, *, intake=None, indu
             anchors.append({**base, 'fact': '原件定位，评分事实由对应字段解析，不采用模型评分。', 'evidence_scope': 'target_direct'})
             financial += financial_observations(s, base)
             controls += internal_control_observations(s, base)
-    financial = [r for r in financial if _recent(r['cutoff'], as_of)]
+    financial = [r for r in financial if _recent(r['cutoff'], as_of) and (not r.get('publication_date') or r['publication_date']<=as_of)]
     controls = [r for r in controls if _recent(r['cutoff'], as_of)]
     clean = {**cleaned, 'facts': list(cleaned.get('facts', [])) + anchors}
     governance = build_governance_package(clean, target, source_list)
     history = build_history_package(clean, target, source_list, governance=governance)
-    business = build_business_package(clean, target, source_list)
-    management = build_management_package(clean, target, source_list)
+    business = build_business_package(clean, target, source_list,as_of=as_of)
+    management = build_management_package(clean, target, source_list, governance=governance)
     risk = build_risk_register(clean, target, source_list, industry=industry, intake=intake)
     dimensions = _financial_scores(financial)
     projects = [r for r in business['facts'] if r['kind'] == 'project' and not r.get('conflict')]
@@ -624,14 +627,17 @@ def render_assessment(p):
         lines += _table(['完成日期', '原文融资事实及净额（原币种）', '来源定位'], [
             [r['funding_date'], r['fact'], refs(r)+('（物理页'+ '、'.join(map(str,r['pages']))+'）' if r.get('pages') else '')]
             for r in funding['records']])
-    periods = {kind: max((r['cutoff'] for r in p['financial_observations'] if r['period_kind'] == kind), default='') for kind in ('annual', 'interim')}
+    periods = {kind: max((r['cutoff'] for r in p['financial_observations'] if r['period_kind'] == kind), default='') for kind in ('annual', 'interim','quarterly')}
     financial = _sample([r for r in p['financial_observations'] if r['cutoff'] == periods[r['period_kind']]], 6,
-                        key=lambda r: (r['cutoff'], r['metric'], r['unit']))
+                        key=lambda r: (r['cutoff'], r['metric'], r['unit'], r.get('currency','')))
     if financial:
-        lines += ['', '经营指标按年度与中期分别列示，不把半年度数直接乘二或拿全年与半年增速相比较。', '']
-        lines += _table(['原件期间/主体', '指标', '本期/上年同期（原单位）', '同口径变化/定位'],
-                        [[r['period'] + '；' + r['entity'], r['metric'], r['value'] + ' / ' + r['previous_value'] + ' ' + r['unit'],
+        lines += ['', '经营指标按年度、中期与单季分别列示，不将半年度或季度数年化，不混用全年、半年和单季增速。'
+                  '下表名称为披露发行人，指标取原件主要会计数据表，不能据发行人名称解释为母公司单体数据。', '']
+        lines += _table(['文件期／披露发行人', '指标', '本期/上年同期（原单位）', '同口径变化/定位'],
+                        [[r['period'] + '；' + r['entity'], r.get('source_metric') or r['metric'], r['value'] + ' / ' + r['previous_value'] + ' ' + (r['currency'] if r.get('currency') in {'人民币','港元','美元'} else '') + r['unit'],
                           _change(r) + '；物理页' + str(r['page']) + refs(r)] for r in financial])
+        notes={r.get('source_translation_note'):r for r in financial if r.get('source_translation_note')}
+        lines += ['原件版本说明：'+note+refs(row) for note,row in notes.items()]
     projects = next(d for d in p['dimensions'] if d['id'] == 'technology')['project_scores']
     if projects:
         lines += ['', '项目阶段可以评价，但不能代表整个公司技术领先程度：', '']

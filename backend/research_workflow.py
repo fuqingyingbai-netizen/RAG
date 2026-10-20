@@ -40,6 +40,7 @@ try:
     from .research_store import research_store
     from .research_strategies import get_research_strategy
     from .web_search import web_search_provider
+    from .search_results import canonical_source_url, interleave_research_candidates
 except ImportError:
     from person_retrieval import SearchSession as PersonSearchSession, coverage as person_retrieval_coverage, VERSION as PERSON_RETRIEVAL_VERSION
     from person_identity import build_anchor as build_identity_anchor, affiliations as identity_affiliations
@@ -54,6 +55,7 @@ except ImportError:
     from research_store import research_store
     from research_strategies import get_research_strategy
     from web_search import web_search_provider
+    from search_results import canonical_source_url, interleave_research_candidates
 
 load_dotenv()
 
@@ -708,7 +710,7 @@ class ResearchWorkflow:
         cleaning_pipeline_version = (
             "person-evidence-v20-article-actor-and-event-dates"
             if standardized_type == "person"
-            else "company-evidence-v11-vector-survey-charts"
+            else "company-evidence-v12-verified-statistics-context"
             if standardized_type == "company"
             else "industry-evidence-v9-local-nature"
             if standardized_type == "industry"
@@ -721,7 +723,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-            "company": "company-report-evidence-v38-original-recovery-consistency",
+    "company": "company-report-evidence-v66-historical-role-event-boundaries",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -945,9 +947,16 @@ class ResearchWorkflow:
             and standardized_type == "company"
             and not self._project_has_structured_sources(project)
         ):
-            message = "目标公司报告缺少企查查/天眼查/稀牛等专业数据库来源，已停止生成，避免输出缺少硬证据的报告。"
-            _emit(emit, "structured_data", "structured_data_agent", "专业数据库来源缺失，质量闸门拦截", message, status="error")
-            raise RuntimeError(message)
+            from report_agents.company_overseas_identity import overseas_filing_identity
+            alternative=overseas_filing_identity(list(project.sources or []),str(project.target_name or ''))
+            if alternative:
+                project.company_identity_source_route=alternative
+                _emit(emit,'structured_data','structured_data_agent','境外发行人采用官方原件独立身份路径',
+                      json.dumps(alternative,ensure_ascii=False),status='warning')
+            else:
+                message = "目标公司报告缺少企查查/天眼查/稀牛等专业数据库来源，已停止生成，避免输出缺少硬证据的报告。"
+                _emit(emit, "structured_data", "structured_data_agent", "专业数据库来源缺失，质量闸门拦截", message, status="error")
+                raise RuntimeError(message)
 
         if standardized_type == 'person':
             try:
@@ -1513,6 +1522,8 @@ class ResearchWorkflow:
             "max_search_rounds": FIXED_MAX_SEARCH_ROUNDS,
             "force_refresh_from_upload_ocr": bool(intake.get("force_refresh_from_upload_ocr")),
         }
+        if target_type == 'company':
+            normalized['as_of_date'] = str(intake.get('as_of_date') or '').strip()
         if target_type == "person":
             normalized["person_aliases"] = [str(a).strip() for a in intake.get("person_aliases", []) if str(a).strip()][:12]
             normalized["as_of_date"] = str(intake.get("as_of_date") or "").strip()
@@ -1581,6 +1592,7 @@ class ResearchWorkflow:
             "identity_policy": PERSON_IDENTITY_POLICY_VERSION
             if str(intake.get("target_type") or "").lower() == "person"
             else "",
+            **({'as_of_date': intake.get('as_of_date','')} if str(intake.get('target_type') or '').lower()=='company' else {}),
             **({"person_aliases": anchor.get("aliases", []), "person_anchor": anchor, "as_of_date": intake.get("as_of_date", "")}
                if str(intake.get("target_type") or "").lower() == "person" else {}),
         }
@@ -1738,6 +1750,12 @@ class ResearchWorkflow:
         return prepared
 
     def _structured_entity_candidates(self, project: ResearchProject, intake: dict[str, Any], target: str) -> list[str]:
+        if (str(getattr(project,'target_type','')).lower()=='company'
+                and re.search(r'(?:股份有限公司|有限责任公司|有限公司)$',target)):
+            # An explicit legal entity must not be replaced by names or credit
+            # codes belonging to companies merely mentioned in its documents.
+            values=[target,str(intake.get('official_identifier') or '').strip()]
+            return list(dict.fromkeys(v for v in values if v==target or re.fullmatch(r'[0-9A-Z]{18}',v)))
         raw_values: list[str] = []
         for value in [
             intake.get("official_identifier"),
@@ -2063,7 +2081,10 @@ class ResearchWorkflow:
                         query, limit=max(1, max_results_per_query),
                         include_domains=list(query_item.get("include_domains") or []),
                         category=query_item.get("exa_category"),
-                        preferred_providers=list(query_item.get("preferred_providers") or []))
+                        preferred_providers=list(query_item.get("preferred_providers") or []),
+                        candidate_limit=max(1, max_results_per_query) * max(1, len(web_search_provider.engines)))
+                query_item["search_result_audit"] = dict(getattr(results, "audit", {}) or {
+                    "method": "single_provider_or_external_results", "kept_count": len(results)})
                 query_item["person_search_status"] = "returned" if results else "empty_or_unavailable"
                 return index, query_item, results, ""
             except WorkflowPaused:
@@ -2104,6 +2125,7 @@ class ResearchWorkflow:
                         query=query,
                         module=module,
                         result_count=len(results),
+                        search_result_audit=result_item.get("search_result_audit", {}),
                         status="done",
                     )
                 ordered.append((result_index, result_item, results))
@@ -2559,7 +2581,8 @@ class ResearchWorkflow:
         except Exception:
             host = ""
 
-        score = int(item.get("credibility_score") or item.get("score") or 50)
+        fused_search = metadata.get('search_score_kind') == 'reciprocal_rank_fusion'
+        score = 0 if fused_search else int(item.get("credibility_score") or item.get("score") or 50)
         authority_score = 0
         if source_type in {"government", "court", "regulatory", "filing"} or host.endswith(".gov.cn"):
             authority_score = 35
@@ -2571,7 +2594,7 @@ class ResearchWorkflow:
             authority_score = 10
 
         provider_score = 0
-        if provider in {"serper", "tavily", "exa"}:
+        if not fused_search and provider in {"serper", "tavily", "exa"}:
             provider_score = 12
         if platform in {"企查查", "天眼查", "爱企查", "启信宝", "稀牛"}:
             provider_score = max(provider_score, 25)
@@ -2610,6 +2633,16 @@ class ResearchWorkflow:
             "platform": platform,
             "provider": provider,
         }
+
+    @staticmethod
+    def _source_title_for_storage(title: str, metadata: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+        # Match ResearchSource.title's VARCHAR(512), preserving the original
+        # instead of losing a collected source when PostgreSQL rejects it.
+        title=str(title or '')
+        if len(title)<=512:
+            return title, metadata
+        return title[:509]+'...', {**metadata,'full_source_title':title,
+            'title_truncated':True,'title_original_chars':len(title),'title_storage_limit':512}
 
     def _clean_source_text(self, text: str) -> str:
         text = html.unescape(str(text or ""))
@@ -4059,12 +4092,19 @@ class ResearchWorkflow:
         added = 0
         discovered_affiliations: set[str] = set()
         discovered_company_diligence: set[str] = set()
+        discovered_company_benchmarks: set[str] = set()
         active_sources = self._active_industry_sources(project)
-        seen_urls = {s.url for s in active_sources if s.url and (s.source_metadata or {}).get("retention_policy") != "record_only"}
+        seen_urls = {canonical_source_url(s.url) for s in active_sources if s.url and (s.source_metadata or {}).get("retention_policy") != "record_only"}
         host_counts: defaultdict[str, int] = defaultdict(int)
         authority_host_counts: defaultdict[str, int] = defaultdict(int)
         tech_content_saved = 0
+        counted_existing_urls = set()
         for existing_source in active_sources:
+            existing_key = canonical_source_url(existing_source.url)
+            if existing_key and existing_key in counted_existing_urls:
+                continue
+            if existing_key:
+                counted_existing_urls.add(existing_key)
             existing_host = urlparse(existing_source.url or "").netloc.lower().replace("www.", "")
             if existing_host:
                 host_counts[existing_host] += 1
@@ -4131,6 +4171,10 @@ class ResearchWorkflow:
             )
             if person_search:
                 person_search.record(search_batches)
+            if str(intake.get('target_type') or '').lower()=='company':
+                _emit(emit,'web_search','online_search_agent','按模块与查询轮转归档候选',
+                      '候选全集保留；查询内排名及原有域名、主体、空正文规则不变',status='running')
+                search_batches=interleave_research_candidates(search_batches)
             for query_item, results in search_batches:
                 if pause_requested and pause_requested():
                     raise WorkflowPaused("任务已暂停")
@@ -4158,7 +4202,7 @@ class ResearchWorkflow:
                             )
                             if low_quality:
                                 if url:
-                                    seen_urls.add(url)
+                                    seen_urls.add(canonical_source_url(url))
                                 _emit(
                                     emit,
                                     "web_search",
@@ -4174,7 +4218,7 @@ class ResearchWorkflow:
                                     status="skipped",
                                 )
                                 continue
-                        if url and url in seen_urls:
+                        if url and canonical_source_url(url) in seen_urls:
                             _emit(
                                 emit,
                                 "web_search",
@@ -4204,7 +4248,7 @@ class ResearchWorkflow:
                                 intake,
                             )
                             if identity["confidence"] == "rejected":
-                                seen_urls.add(url)
+                                seen_urls.add(canonical_source_url(url))
                                 _emit(
                                     emit,
                                     "web_search",
@@ -4246,10 +4290,11 @@ class ResearchWorkflow:
                                 "content_kind": reused_meta.get("content_kind", "reused_full_text"),
                                 "extraction_status": "reused_archive",
                             }
+                            stored_title, metadata = self._source_title_for_storage(title or reused_source.title, metadata)
                             source = ResearchSource(
                                 project_id=project.id,
                                 source_type=reused_source.source_type,
-                                title=title or reused_source.title,
+                                title=stored_title,
                                 url=url,
                                 object_key=reused_source.object_key,
                                 content=reused_source.content,
@@ -4259,7 +4304,7 @@ class ResearchWorkflow:
                             )
                             db.add(source)
                             db.commit()
-                            seen_urls.add(url)
+                            seen_urls.add(canonical_source_url(url))
                             host = urlparse(url or "").netloc.lower().replace("www.", "")
                             if host:
                                 host_counts[host] += 1
@@ -4287,7 +4332,7 @@ class ResearchWorkflow:
                         active_host_count = authority_host_counts[host] if search_tier == "authority_first" else host_counts[host]
                         if host and active_host_count >= active_host_limit:
                             if url:
-                                seen_urls.add(url)
+                                seen_urls.add(canonical_source_url(url))
                             _emit(
                                 emit,
                                 "web_search",
@@ -4317,6 +4362,9 @@ class ResearchWorkflow:
                                 or (summary_probe and cleaned_probe == summary_probe)
                             )
                         )
+                        if project.target_type=='company':
+                            from company_publishers import statistics_release_candidate
+                            should_refetch=should_refetch or statistics_release_candidate(url)
                         if person_mode and should_refetch:
                             chapter_key = next(iter(query_item.get("person_chapters") or [2]))
                             round_limit = 2 if round_index == 1 else 1
@@ -4393,7 +4441,7 @@ class ResearchWorkflow:
                         identity = self._person_source_identity_confidence(title, content or summary, intake)
                         if identity["confidence"] == "rejected":
                             if url:
-                                seen_urls.add(url)
+                                seen_urls.add(canonical_source_url(url))
                             _emit(
                                 emit,
                                 "web_search",
@@ -4412,7 +4460,7 @@ class ResearchWorkflow:
                         is_tech_source = self._is_technical_content_source(host, title, content or summary, query)
                         if is_tech_source and tech_content_saved >= max_tech_sources:
                             if url:
-                                seen_urls.add(url)
+                                seen_urls.add(canonical_source_url(url))
                             _emit(
                                 emit,
                                 "web_search",
@@ -4470,6 +4518,9 @@ class ResearchWorkflow:
                             **item_metadata,
                             **({"industry_scope_fingerprint": getattr(project, "industry_scope_fingerprint", scope_fingerprint(intake, source_only=True))} if intake.get("target_type") == "industry" else {}),
                         }
+                        if project.target_type=='company' and item_metadata.get('fetch_status')=='done':
+                            from company_publishers import statistics_publisher_identity
+                            metadata.update(statistics_publisher_identity(url,content))
                         fetch_status = metadata.get("fetch_status", "")
                         detail = f"[{platform_name}] {title}（搜索工具：{provider_name}）"
                         if fetch_status:
@@ -4517,7 +4568,7 @@ class ResearchWorkflow:
                         if fetch_status in {"empty", "empty_pdf", "browser_empty", "reader_empty"} and len(stored_clean) < min_store_chars:
                             if len(summary_clean) < min_summary_chars:
                                 if url:
-                                    seen_urls.add(url)
+                                    seen_urls.add(canonical_source_url(url))
                                 _emit(
                                     emit,
                                     "web_search",
@@ -4551,6 +4602,7 @@ class ResearchWorkflow:
                         except ImportError:
                             from json_utils import strip_nul
                         title, summary, stored_text, metadata = strip_nul([str(title or ''), str(summary or ''), stored_text, metadata])
+                        title, metadata = self._source_title_for_storage(title, metadata)
                         metadata["retention_policy"] = "transient_web_body"
                         object_key = research_store.put_text(
                             f"projects/{project.id}/raw_web/{_now_key()}_{added}.txt",
@@ -4570,7 +4622,7 @@ class ResearchWorkflow:
                         db.add(source)
                         db.commit()
                         if url:
-                            seen_urls.add(url)
+                            seen_urls.add(canonical_source_url(url))
                         if host:
                             host_counts[host] += 1
                             if search_tier == "authority_first":
@@ -4659,6 +4711,10 @@ class ResearchWorkflow:
                 from report_agents.company_risk_register import recall_discovery_queries
                 company_discovery += recall_discovery_queries(list(project.sources or []),
                     str(intake.get("target_name") or project.target_name or ""), discovered_company_recalls)
+                from report_agents.company_reputation import benchmark_discovery_queries
+                company_discovery += benchmark_discovery_queries(list(project.sources or []),
+                    str(intake.get('target_name') or project.target_name or ''),discovered_company_benchmarks,
+                    str(intake.get('as_of_date') or ''))
                 if company_discovery:
                     discovery_items.extend(company_discovery)
                     _emit(emit, "web_search", "company_diligence_discovery_agent",
@@ -6461,7 +6517,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 assessment_by_id[evidence_id.upper()].append(record)
         facts_by_id: dict[str, dict[str, Any]] = {}
         for item in facts:
-            url = str(item.get("source_url") or "").rstrip("/")
+            url = str(item.get("source_url") or "").strip()
             # Structured business records (for example QCC and Xiniu) use a
             # ``structured://`` locator rather than a public web URL.  They
             # are core company evidence and must be indexed just like web
@@ -6532,7 +6588,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                     chapters_by_id.setdefault(canonical, set()).add(chapter)
 
         selected_urls = {
-            str(facts_by_id[evidence_id].get("source_url") or "").rstrip("/")
+            canonical_source_url(facts_by_id[evidence_id].get("source_url"))
             for evidence_id in chapters_by_id
             if evidence_id in facts_by_id
         }
@@ -6574,7 +6630,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                         "fact": label + "；".join(dict.fromkeys(str(
                                 r.get("value") if r.get("field") else r.get("fact") or r.get("entity") or r.get("value") or "")
                             for r in admitted[:3]))}
-            url = str(item.get("source_url") or "").rstrip("/")
+            url = str(item.get("source_url") or "").strip()
             source_title = source_excerpt(str(item.get("source_title") or "公开来源").replace("|", "/"),48)
             fact = source_excerpt(str(item.get("fact") or item.get("evidence_quote") or "正文引用证据编号，事实卡待回溯").replace("|", "/"),90)
             supports = "、".join(
@@ -7167,9 +7223,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 return 'organization'
             organization_suffixes = (
                 "公司", "集团", "基金", "资本", "控股", "大学", "学院",
-                "协会", "商会", "实验室", "研究院", "中心", "机构",
+                "协会", "商会", "实验室", "研究院", "中心", "机构", "合伙企业", "有限合伙", "合作社", "信托",
             )
-            english_org = company_package is not None and re.search(r"\b(?:LIMITED|LTD|INC|LLC|CORPORATION|PLC|LP)\b", name, re.I)
+            english_org = company_package is not None and re.search(r"\b(?:LIMITED|LTD|INC|LLC|CORPORATION|PLC|LP|LLP)\b", name, re.I)
             return "organization" if english_org or any(token in str(name) for token in organization_suffixes) else "person"
 
         if not nodes:
@@ -7869,6 +7925,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         target = str(getattr(project, "target_name", "") or "")
         original_issuers = {}
         issuer_conflicts = set()
+        statistical_contexts = {}
         if target_type == 'company':
             from report_agents.company_evidence import source_body
             from report_agents.company_management import issuer
@@ -7883,6 +7940,15 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 url=str(company_get(source,'url',''))
                 if anchor.get('conflicting_heading'):issuer_conflicts.add(url)
                 elif issuer(source,target,hosts):original_issuers[url] = anchor
+            from company_publishers import statistics_publisher_identity
+            from report_agents.company_reputation import aliases_for_target, _market_rows
+            statistical_sources=[s for s in sources if statistics_publisher_identity(str(company_get(s,'url','')),company_get(s,'content',''))]
+            if statistical_sources:
+                aliases=aliases_for_target(target,sources)
+                for source in statistical_sources:
+                    url=str(company_get(source,'url',''))
+                    if _market_rows(company_get(source,'content',''),aliases):
+                        statistical_contexts[url]=statistics_publisher_identity(url,company_get(source,'content',''))
         annotated: list[dict[str, Any]] = []
         industry_sources = self._active_industry_sources(project) if target_type == "industry" else []
         industry_by_url = {str(s.url).rstrip('/'): s for s in industry_sources if s.url}
@@ -7910,6 +7976,14 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                     item.update(source_issuer_name=anchor['issuer_name'],source_issuer_quote=anchor['evidence_quote'],
                                 source_entity_validation='matched_original_issuer')
                 scope = classify_company_fact_scope(item, target)
+                statistical=statistical_contexts.get(str(item.get('source_url') or ''))
+                if (statistical and item.get('eligible_for_report') is not False
+                        and item.get('entity_match') not in {'mismatch','ambiguous','out_of_scope'}
+                        and item.get('source_entity_validation') not in {'rejected','ambiguous'}):
+                    # A verified original peer statistic is industry context,
+                    # never a company registry fact or a company risk verdict.
+                    scope='industry_context'
+                    item.update(statistical)
                 item["evidence_scope"] = scope
                 # A context item is retained for the industry chapter but never
                 # eligible for company risk scoring or company-fact conclusions.
@@ -7994,8 +8068,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             source_key = getattr(source, "id", None) or (source.url or id(source))
             failed = self._is_failed_extraction_source(source)
             safe = self._structured_source_is_safe(source)
-            canonical_url = (source.url or "").split("#", 1)[0]
-            canonical_url = re.sub(r"([?&])(utm_[^=&]+|spm|from|clickfrom|fr|source)=[^&]*", r"\1", canonical_url)
+            canonical_url = canonical_source_url(source.url)
             normalized = re.sub(r"\s+", "", f"{source.title}{(source.content or source.summary or '')[:300]}").lower()
             content_key = canonical_url or normalized[:240]
             duplicate = bool(content_key and content_key in seen_content_keys)
@@ -8083,8 +8156,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             if is_structured_source and self._is_structured_no_hit_text(text):
                 source_errors += 1
                 continue
-            canonical_url = (source.url or "").split("#", 1)[0]
-            canonical_url = re.sub(r"([?&])(utm_[^=&]+|spm|from|clickfrom|fr|source)=[^&]*", r"\1", canonical_url)
+            canonical_url = canonical_source_url(source.url)
             normalized = re.sub(r"\s+", "", f"{source.title}{text[:300]}").lower()
             key = canonical_url or normalized[:240]
             if key in seen:

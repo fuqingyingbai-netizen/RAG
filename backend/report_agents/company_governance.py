@@ -11,7 +11,8 @@ from typing import Any
 from urllib.parse import urlparse
 
 from .report_prompts import _company_fact_has_trusted_target_anchor
-from .company_text import match_compact
+from .company_text import match_compact, issuer_anchor
+from .company_financial_statements import fiscal_report_period,quarter_report_period
 
 TITLE = "主体工商基本信息核查股东关系与治理底盘"
 HEADINGS = ("主体工商信息表", "股权与治理信息表", "股东/实控人/关联方关系网图", "治理底盘判断")
@@ -149,13 +150,18 @@ def _primary_filing(source, target):
     head=match_compact(str(get(source,'content'))[:2400])
     # A parent's mention inside a subsidiary filing is insufficient. Require
     # the issuer's full name immediately followed by its reporting period.
-    return official and bool(re.search(re.escape(match_compact(target))+r'20\d{2}年(?:年度|半年度|第[一三]季度)报告',head))
+    normal=bool(re.search(re.escape(match_compact(target))+r'20\d{2}年(?:年度|半年度|第[一三]季度)报告',head))
+    fiscal=fiscal_report_period(str(get(source,'content'))[:6500])
+    return official and (normal or bool(fiscal and issuer_anchor(str(get(source,'content'))[:6500],target)['matched']) or bool(quarter_report_period(str(get(source,'content')),target)))
 
 
 def _filing_period(source):
     text=match_compact(str(get(source,'title'))+' '+str(get(source,'content'))[:2400])
     m=re.search(r'20\d{2}年(?:半年度|年度|第一季度|第三季度)报告',text)
-    return m[0] if m else ''
+    if m:return m[0]
+    fiscal=fiscal_report_period(str(get(source,'title'))+' '+str(get(source,'content'))[:6500])
+    quarter=quarter_report_period(str(get(source,'content')))
+    return fiscal['period'] if fiscal else quarter['period'] if quarter else ''
 
 
 def _period_rank(value):
@@ -255,6 +261,12 @@ def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=
         raw=str(get(src,'content') or '')
         if primary:
             report_period=_filing_period(src)
+            from .company_overseas_identity import overseas_filing_identity
+            overseas=overseas_filing_identity([src],target)
+            if overseas:
+                for field,value in [('企业名称',target),('注册司法辖区',overseas['jurisdiction'])]:
+                    add(eligible[0],'registry',field=field,value=value,
+                        period=report_period+'（发行人文件披露，非独立工商核验）',basis='official_overseas_filing')
             declarations,events=_filing_claims(src)
             for quote in declarations:
                 add(eligible[0],'control',field='报告原文明确披露',value=quote,period=report_period,
@@ -270,6 +282,9 @@ def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=
             history=_historical(str(get(src,'title'))+' '+str(meta.get('tool') or ''))
             for field,value in fields.items():
                 if field=='数据日期' or not present(value):
+                    continue
+                if field in {'注册资本','实缴资本'} and len(re.findall(r'人民币|美元|港元',str(value)))>1:
+                    counters['duplicated_currency_unit_rejected']+=1
                     continue
                 if field!='经营范围' and re.search(r'(?:注册资本|成立日期|法定代表人|登记状态)\s*[：:]',value):
                     counters['concatenated_fields_rejected']+=1
@@ -361,6 +376,8 @@ def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=
                               'evidence_ids':list(dict.fromkeys(eid for r in rs for eid in r['evidence_ids']))})
     kinds={r['kind'] for r in selected}
     gaps=[]
+    if any(r.get('basis')=='official_overseas_filing' for r in selected):
+        gaps.append('境外发行人名称和注册司法辖区来自官方发行人文件，未替代专业平台实际查询或独立工商档案核验；不能套用中国内地统一社会信用代码、法定代表人或注册资本字段。')
     for kind,label in (('registry','工商登记原始字段'),('shareholder','当前股东明细'),('personnel','主要人员明细'),
                        ('history','股权变动与减资事件记录'),('control','明确的控制关系或表决权安排披露')):
         if kind not in kinds:

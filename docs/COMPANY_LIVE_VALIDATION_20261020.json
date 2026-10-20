@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-20",
+  "recorded_at": "2026-10-20T20:40:58.800421+00:00",
+  "branch": "codex/company",
+  "scope": "Actual company/search repair validation only; no person implementation, deployment, authentication settings or historical report body modified",
+  "artifact_root": "E:\\projects\\output\\公司链路真实闭环_20261020_205129",
+  "session_start": "2026-10-20T20:51:29+08:00",
+  "absolute_deadline": "2026-10-21T04:51:29+08:00",
+  "research_cutoff": "2026-10-20",
+  "overall_status": "BYD sample accepted; two cross-type real runs completed and reviewed as limited-evidence drafts, not full acceptance",
+  "cases": {
+    "比亚迪": {
+      "run": "byd-repaired-r21-final-v65",
+      "completed": true,
+      "accepted": true,
+      "status": "manual_sample_acceptance_passed_with_disclosed_limits",
+      "elapsed_seconds": 591.84,
+      "scope": "frozen_real_inputs_production_risk_report_export_replay",
+      "source_count": 2823,
+      "report_pipeline_version": "company-report-evidence-v65-bounded-history-and-personnel-referents",
+      "report_sha256_utf8": "6a7a72fd200fa171e91d9c2d899a8730a1a08eadeea28491a4ce3e542a3a1607",
+      "full_report": "byd-repaired-r21-final-v65/report.html",
+      "all14_chapter_comparison": "byd-repaired-r21-final-v65/comparison.html",
+      "acceptance_record": "byd-repaired-r21-final-v65/acceptance.json",
+      "known_history_time_binding_issue_count": 0,
+      "limits": [
+        "独立访谈、逐笔资金穿透、召回整改完成情况及集团重大性仍须后续核验。",
+        "专业平台权限缺口与源文件/OCR覆盖限制按实际状态保留；样本验收不代表全部原始资料已独立审计。"
+      ]
+    },
+    "阿里巴巴": {
+      "run": "alibaba-final-v65",
+      "completed": true,
+      "accepted": false,
+      "status": "limited_evidence_review_completed_not_full_acceptance",
+      "elapsed_seconds": 653.45,
+      "scope": "frozen_real_inputs_production_risk_report_export_replay",
+      "source_count": 3071,
+      "report_pipeline_version": "company-report-evidence-v65-bounded-history-and-personnel-referents",
+      "report_sha256_utf8": "c8c714962a3632687c287bb41146bbb9a223f1f60555884020aa6ae996a47c28",
+      "full_report": "alibaba-final-v65/report.html",
+      "all14_chapter_comparison": "alibaba-final-v65/comparison.html",
+      "acceptance_record": "alibaba-final-v65/acceptance.json",
+      "known_history_time_binding_issue_count": 1,
+      "limits": [
+        "治理实际执行、行业独立评价/对标、母公司司法明细及互联网/云业务专项风险未达完整验收；既有解析器与行业模板的接纳覆盖也不足，不能统一称作公开资料不存在。",
+        "境外独立工商/股权/表决与控制核验未完成；官方发行人文件只是自披露身份路线，专业平台失败及天眼查401不当作命中或无记录。",
+        "实际正文引用来源仍未达到既有交付质量闸门，未降低门槛强行通过。",
+        "2019历史上市不当2026近期融资；银行资金、独立访谈、现任任期、内控及公司范围技术和组织考核仍需专门材料。",
+        "PDF尚有低文字/OCR待识别页；已核局部财务及名册不证明全文完成独立核验。",
+        "Known mixed-time history row remains in this draft; see acceptance record. It is not qualified for formal delivery."
+      ]
+    },
+    "深度求索": {
+      "run": "deepseek-final-v65",
+      "completed": true,
+      "accepted": false,
+      "status": "limited_evidence_review_completed_not_full_acceptance",
+      "elapsed_seconds": 358.34,
+      "scope": "frozen_real_inputs_production_risk_report_export_replay",
+      "source_count": 1931,
+      "report_pipeline_version": "company-report-evidence-v65-bounded-history-and-personnel-referents",
+      "report_sha256_utf8": "e31c5f6ffb239ace080a8c05c970453c2d09f4ef7690af9a20ad2cc6e237b31f",
+      "full_report": "deepseek-final-v65/report.html",
+      "all14_chapter_comparison": "deepseek-final-v65/comparison.html",
+      "acceptance_record": "deepseek-final-v65/acceptance.json",
+      "known_history_time_binding_issue_count": 0,
+      "limits": [
+        "第4章治理执行、第5章独立评价与同口径对标、第8章文化人员统计仍未形成足够可核记录。",
+        "第11章行业特殊风险字典及事件核查覆盖不足；75项目录不是75个实际风险。",
+        "第12章未取得可用财务、融资到账和完整组织考核证据，6维仍不评分；不补造非公开财务。",
+        "15个实际正文引用来源仍未达到现有交付质量闸门；没有降低门槛强制通过。",
+        "登记人员及股东数据基准日未载；平台团队描述、法院身份映射、产品页面自述尚未独立验证；天眼查401仍为权限缺口。"
+      ]
+    }
+  },
+  "latest_code_pipeline_version": "company-report-evidence-v66-historical-role-event-boundaries",
+  "last_guard_compatibility": "BYD and DeepSeek actual full reports are v65; final v66 only broadens the existing historical-role exclusion to 时任. Targeted check on their actual reviewed event fields removed no records; exact boundary and complete current-code tests passed. See final-history-guard-compatibility.json.",
+  "validation": {
+    "command": "python -m pytest test -q --disable-warnings",
+    "isolated_base": "2f6dfb75f262689316d166ec8b8c7f484b0c72ab",
+    "passed": 1496,
+    "skipped": 14,
+    "warnings": 743,
+    "seconds": 93.04,
+    "production_code_unchanged_during_run": true,
+    "exact_final_code_still_matches_test_hashes": true,
+    "log": "company-integrated-full-tests-v66-final.log",
+    "integrity": "company-final-integrated-test-integrity.json"
+  },
+  "repairs": [
+    "Research candidate union, conservative URL identity and deterministic one-vote-per-engine RRF; original citation URLs preserved.",
+    "Company module/query admission interleaving; Serper capability-aware bounded retry and accurate provider failure classes.",
+    "Native issuer period/unit/currency/subject readers; annual, interim and quarterly periods remain separate; no annualization or unsupported current-role inference.",
+    "Original roster/biography/outside-role fields, publisher statistics and original financial/segment columns; market roundup figures cannot become target financials.",
+    "Court party roles and actual decisions, investor-versus-funded-issuer direction, conditional clauses versus completed events, tax expiry versus unpaid obligations.",
+    "No automatic resurrection of rejected source excerpts; bounded source-owned dated product releases remain self-claims.",
+    "Literal checked-card summary rebuild after invalid model draft; unchanged report body integrity and all14 chapter full comparisons.",
+    "Harness source snapshots streamed per source to reduce memory pressure; invalid source-snippet fallback run rejected and retained."
+  ],
+  "truthful_attribution": [
+    "2025 ESG and full2026 interim already occurred in original BYD raw candidates; principal improvement is downstream admission, not all-new recall.",
+    "SNE release744 is explicit known-original supplementation, not proof of automatic new recall.",
+    "Baseline Serper had61success48HTTP400oneSSLerror; no proof that30returned results were discarded by that provider.",
+    "R1 preloaded88business-database sources comprise17actual professionalAPI returns plus71web business pages.",
+    "StoppedR3 actually made2successful model calls with11988returned tokens; old zero-call note was corrected.",
+    "Ali original full collection failed before cleaning at the professional-source gate. Exact real sources were resumed with real cleaning; an official overseas filing identity route is not an API hit or independent registry clearance.",
+    "TYC401 remains a permission gap, never a no-record result. Ali and private-company evidence gaps were not bypassed to claim acceptance.",
+    "Fresh, incremental, known-original supplementation and report-only replay scopes have separate timings; no unsupported speedup claim.",
+    "Only actual returned usage is totalled; failed, timed out and interrupted requests may lack usage. No billed monetary amount was obtained."
+  ],
+  "proof_files": [
+    "session-run-cost-time-audit.json",
+    "company-integrated-candidate-manifest.json",
+    "baseline-key-primary-admission-failures.json",
+    "pdf-original-qa/visual-original-qa.json",
+    "pdf-original-qa/alibaba-visual-original-qa.json",
+    "pdf-original-qa/alibaba-quarter-visual-original-qa.json",
+    "alibaba-latest-quarter-whole-assessment-proof.json",
+    "alibaba-actual-source-boundary-proof.json",
+    "alibaba-overseas-identity-route-real-proof.json",
+    "deepseek-actual-source-cross-case-guard-proof.json",
+    "deepseek-investor-direction-real-proof.json",
+    "final-native-preservation-proof.json",
+    "final-history-guard-compatibility.json"
+  ]
+}

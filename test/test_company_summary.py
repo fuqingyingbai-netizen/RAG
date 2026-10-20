@@ -174,7 +174,7 @@ def test_summary_invalid_repair_falls_back_visibly_without_fabricated_claims():
         calls.append(role)
         return section('营业收入999亿元。[E-FFFFFFFFFFFF]')
     result=CompanyReportAgent()._write_summary(p,json.dumps({'facts':[card()]}),{},invoke,lambda *a,**k:None)
-    assert len(calls)==2 and p.company_summary_diagnostic['rebuilt_from_evidence']
+    assert len(calls)==1 and p.company_summary_diagnostic['rebuilt_from_evidence']
     assert p.company_summary_diagnostic['model_errors']
     assert not p.company_summary_diagnostic['degraded']
     assert '999' not in result and 'FFFFFFFFFFFF' not in result
