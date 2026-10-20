@@ -81,6 +81,10 @@ class ResearchRunRequest(BaseModel):
     company_name: str = ""
     official_identifier: str = ""
     affiliation: str = ""
+    person_aliases: list[str] = Field(default_factory=list)
+    person_context: str = Field(default="", max_length=12000)
+    identity_anchors: str = Field(default="", max_length=6000)
+    uploaded_identity_clues: list[dict[str, Any]] = Field(default_factory=list)
     focus_entities: str = ""
     region: str = ""
     research_type: str = "商业尽调"

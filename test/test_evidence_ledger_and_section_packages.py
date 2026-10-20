@@ -181,12 +181,15 @@ def test_person_report_gets_deterministic_audit_index_from_fact_library():
         json.dumps({"facts": facts}, ensure_ascii=False),
     )
 
-    assert "## 14. 信息来源（自动生成审计索引）" in report
-    assert "| 证据编号 | 来源标题 | 信源等级/类型 | 支持章节 |" in report
-    links = re.findall(r"\[(E-[A-F0-9]+)\]\((https://evidence\.example\.com/\d+)\)", report)
-    assert {url for _evidence_id, url in links} == {fact["source_url"] for fact in facts}
-    assert len({evidence_id for evidence_id, _url in links}) == len(facts)
-    assert "已纳入章节证据包的唯一来源：60 / 清洗事实库可追溯来源：60" in report
+    assert "## 14. 信息来源（正文实际引用索引）" in report
+    assert "正文未形成有效引用" in report
+    assert "https://evidence.example.com/" not in report
+    from person_evidence import normalize_facts
+    cards, _ = normalize_facts({"facts": facts}, project.target_name)
+    eid = cards[0]["evidence_id"]
+    cited = workflow._append_person_report_evidence_index(project, f"## 1. 摘要\n\n报告正文 [{eid}]", json.dumps({"facts": facts}, ensure_ascii=False))
+    assert facts[0]["source_url"] in cited
+    assert facts[1]["source_url"] + " |" not in cited
 
 
 def test_industry_scope_is_safe_for_non_expert_input():

@@ -2,6 +2,9 @@
 
 
 import os
+import pytest
+
+pytestmark = pytest.mark.skipif(os.getenv("RUN_LIVE_PROVIDER_TESTS") != "1", reason="Set RUN_LIVE_PROVIDER_TESTS=1 for paid live diagnostics")
 import sys
 from pathlib import Path
 from dotenv import load_dotenv

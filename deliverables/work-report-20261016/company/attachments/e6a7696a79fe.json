@@ -1,0 +1,110 @@
+{
+  "status": "complete",
+  "scope": "已取得原件和当前公司链路中的可复现事实/取值/主体时期/引用/重复及展示规则验收；保留报告明确列示的材料和独立核验边界",
+  "branch": "codex/company",
+  "latest_commit": "2464992",
+  "chapter_commits": [
+    {
+      "chapter": 1,
+      "commit": "b7c317b"
+    },
+    {
+      "chapter": 2,
+      "commit": "b774038"
+    },
+    {
+      "chapter": 3,
+      "commit": "283d3b2"
+    },
+    {
+      "chapter": 4,
+      "commit": "0edef84"
+    },
+    {
+      "chapter": 5,
+      "commit": "db2a9a0"
+    },
+    {
+      "chapter": 6,
+      "commit": "e9e2ac9"
+    },
+    {
+      "chapter": 7,
+      "commit": "afa7e45"
+    },
+    {
+      "chapter": 8,
+      "commit": "3d108e8"
+    },
+    {
+      "chapter": 9,
+      "commit": "ed9c982"
+    },
+    {
+      "chapter": 10,
+      "commit": "3fb2f40"
+    },
+    {
+      "chapter": 11,
+      "commit": "1df7cfc"
+    },
+    {
+      "chapter": 12,
+      "commit": "5d785ad"
+    }
+  ],
+  "integration_commits": [
+    [
+      "9abc996",
+      774,
+      "原页标号、表格引用、来源节选、跨章核验清单与分页"
+    ],
+    [
+      "4b2fe66",
+      781,
+      "会计背景/日期脚注及整数千元财务表"
+    ],
+    [
+      "7392033",
+      783,
+      "方案背景年份、多日期范围及计划完成阶段"
+    ],
+    [
+      "aed3f17",
+      785,
+      "合并政策与短收购语句上下文边界"
+    ],
+    [
+      "586d220",
+      785,
+      "取得/丧失控制政策及纯附注跳转过滤"
+    ],
+    [
+      "2464992",
+      787,
+      "双栏连续脚注定义分开显示，原文保留"
+    ]
+  ],
+  "tests_passed": 787,
+  "word_pages_reviewed": 146,
+  "original_source_rows_unchanged": 488,
+  "all_requirements": [
+    "INT-01",
+    "INT-02",
+    "INT-03",
+    "INT-04",
+    "INT-05",
+    "INT-06",
+    "INT-07",
+    "INT-08",
+    "INT-09",
+    "INT-10"
+  ],
+  "external_action_required": [
+    "模型账户Arrearage；当前摘要为事实卡重建及同一引用/结构校验，未声称模型调用恢复",
+    "企查查余额、天眼查鉴权、稀牛额度等真实限制保留",
+    "稀疏比亚迪第五章缺证仍由质量闸门拦截",
+    "私域银行/合同/全量司法后续及缺项评分仍需补材料；OCR低置信度/横置/预算未覆盖页不作已识别保证"
+  ],
+  "formal_business_diligence_status": "按报告列明材料与独立核验要求继续；未将缺证当无风险"
+}

@@ -3,7 +3,7 @@ const { createApp } = Vue;
 function newResearchForm() {
   return {
     projectName: '', startDate: '', endDate: '', companyName: '', identifier: '',
-    industry: '', region: '', targetType: 'company', ddType: '商业尽调', targetContext: '',
+    industry: '', region: '', targetType: 'company', ddType: '商业尽调', targetContext: '', personContext: '', personAliases: '',
     modules: ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], aiSearchEnabled: true,
     searchQueries: '', focusQuestions: '', keyQuestions: '',
     industryFocus: '', excludedSegments: '', researchPurpose: '日常了解',
@@ -66,7 +66,7 @@ createApp({
     ddTypes() { if (this.form.targetType === 'person') return ['人物背景尽调', '诚信与声誉核查', '投前人物综合评估']; if (this.form.targetType === 'industry') return ['行业全景研究', '赛道投资研究', '竞争与技术研究']; return ['商业尽调', '合规尽调', '负面新闻筛查', '综合桌面研究']; },
     targetPrimaryLabel() { return this.form.targetType === 'person' ? '目标人物姓名' : this.form.targetType === 'industry' ? '目标行业 / 赛道' : '目标公司名称'; },
     targetSecondaryLabel() { return this.form.targetType === 'person' ? '身份与关联机构（选填）' : this.form.targetType === 'industry' ? '核心企业（选填，多个用顿号分隔）' : '官网 / 统一社会信用代码'; },
-    targetSecondaryPlaceholder() { return this.form.targetType === 'person' ? '可留空；多个机构用 / 分隔，如：阿里巴巴 / 蚂蚁集团 / 云锋基金' : this.form.targetType === 'industry' ? '填写需开展公开资料尽调的公司名称；关注产品可写在重点问题中' : ''; },
+    targetSecondaryPlaceholder() { return this.form.targetType === 'person' ? '可填写现任或曾任机构及职位；多个机构用 / 分隔' : this.form.targetType === 'industry' ? '填写需开展公开资料尽调的公司名称；关注产品可写在重点问题中' : ''; },
     filteredProjects() {
       const keyword = this.taskSearch.trim().toLowerCase();
       if (!keyword) return this.projects;
@@ -78,7 +78,7 @@ createApp({
   watch: {
     taskSearch() { this.taskPage = 1; },
     knowledgeQuery() { this.sourcePage = 1; },
-    'form.targetType'(value) { const defaults = { company: ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], person: this.modulesByTarget.person.map(x => x.value), industry: this.modulesByTarget.industry.map(x => x.value) }; this.form.modules = defaults[value] || defaults.company; this.form.ddType = this.ddTypes[0]; this.form.targetContext = ''; if (value === 'person' || value === 'industry') { this.form.industry = ''; this.form.region = ''; } }
+    'form.targetType'(value) { const defaults = { company: ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], person: this.modulesByTarget.person.map(x => x.value), industry: this.modulesByTarget.industry.map(x => x.value) }; this.form.modules = defaults[value] || defaults.company; this.form.ddType = this.ddTypes[0]; this.form.targetContext = ''; this.form.personContext = ''; this.form.personAliases = ''; if (value === 'person' || value === 'industry') { this.form.industry = ''; this.form.region = ''; } }
   },
     async mounted() {
       this.nowTimer = setInterval(() => { this.nowTick = Date.now(); }, 1000);
@@ -257,6 +257,8 @@ createApp({
             company_name: this.form.companyName,
             official_identifier: this.form.identifier,
             affiliation: this.form.targetType === 'person' ? this.form.targetContext : '',
+            person_context: this.form.targetType === 'person' ? this.form.personContext : '',
+            person_aliases: this.form.targetType === 'person' ? this.splitLines(this.form.personAliases) : [],
             focus_entities: this.form.targetType === 'industry' ? this.form.targetContext : '',
             region: this.form.region,
             research_type: this.form.ddType,
@@ -287,7 +289,9 @@ createApp({
         search_queries: this.splitLines(this.form.searchQueries), focus_questions: this.splitLines(this.form.focusQuestions || this.form.keyQuestions),
         target_type: this.form.targetType, client_name: '', deadline: this.form.endDate || '',
         company_name: this.form.companyName || project.target_name || '', official_identifier: this.form.targetType === 'company' ? (this.form.identifier || '') : '', region: this.form.region || '',
-        affiliation: this.form.targetType === 'person' ? this.form.targetContext : '', focus_entities: this.form.targetType === 'industry' ? this.form.targetContext : '',
+        affiliation: this.form.targetType === 'person' ? this.form.targetContext : '',
+            person_context: this.form.targetType === 'person' ? this.form.personContext : '',
+            person_aliases: this.form.targetType === 'person' ? this.splitLines(this.form.personAliases) : [], focus_entities: this.form.targetType === 'industry' ? this.form.targetContext : '',
         research_type: this.form.ddType || '商业尽调', focus_modules: this.form.modules, ai_search_enabled: this.form.aiSearchEnabled,
         special_requirements: this.form.keyQuestions || '', generate_proposal: true
       };
@@ -345,6 +349,9 @@ createApp({
         company_name: intake.company_name || project.target_name || '',
         official_identifier: intake.official_identifier || '',
         affiliation: project.target_type === 'person' ? (intake.affiliation || '') : '',
+        person_context: intake.person_context || '', person_aliases: intake.person_aliases || [],
+        identity_anchors: intake.identity_anchors || '', uploaded_identity_clues: intake.uploaded_identity_clues || [],
+        ...(project.target_type === 'person' ? { as_of_date: intake.as_of_date || '' } : {}),
         focus_entities: project.target_type === 'industry' ? (intake.focus_entities || '') : '',
         region: intake.region || '',
         research_type: intake.research_type || '商业尽调',
@@ -622,13 +629,16 @@ createApp({
         const intake = this.projectDetails[project.id]?.intake || {};
         const payload = {
           ...this.industryRunFields(project.target_type, intake),
-          search_queries: [], focus_questions: ['基于人工复核报告、专家访谈、走访纪要和一手资料更新核心事实、风险和建议'],
+          search_queries: [], focus_questions: [...(intake.focus_questions || []), '基于人工复核报告、专家访谈、走访纪要和一手资料更新核心事实、风险和建议'],
           target_type: project.target_type, client_name: '', deadline: intake.deadline || '',
           company_name: project.target_name || '', official_identifier: intake.official_identifier || '', region: intake.region || '',
           affiliation: project.target_type === 'person' ? (intake.affiliation || '') : '',
+        person_context: intake.person_context || '', person_aliases: intake.person_aliases || [],
+        identity_anchors: intake.identity_anchors || '', uploaded_identity_clues: intake.uploaded_identity_clues || [],
+        ...(project.target_type === 'person' ? { as_of_date: intake.as_of_date || '' } : {}),
           focus_entities: project.target_type === 'industry' ? (intake.focus_entities || '') : '',
           research_type: intake.research_type || '二阶段复核', focus_modules: intake.focus_modules || this.form.modules,
-          ai_search_enabled: false, special_requirements: '二阶段：优先利用人工复核产物和一手资料，重写桌面研究报告与建议书。', generate_proposal: true
+          ai_search_enabled: false, special_requirements: [intake.special_requirements, '二阶段：优先利用人工复核产物和一手资料，重写桌面研究报告与建议书。'].filter(Boolean).join('\n'), generate_proposal: true
         };
         const r = await this.authFetch(`/research/projects/${project.id}/second-stage/run/stream`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || '二阶段生成启动失败'); }

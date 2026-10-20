@@ -166,7 +166,7 @@ def _unsubscribe_running_project(project_id: int, queue: asyncio.Queue) -> None:
 
 def _locked_run_intake(request: ResearchRunRequest, target_type: str = "") -> dict:
     effective_type = request.target_type or target_type
-    intake = request.model_dump(exclude_unset=effective_type == "industry")
+    intake = request.model_dump(exclude_unset=effective_type in {"industry", "person"})
     intake.update(
         {
             "max_results_per_query": FIXED_MAX_RESULTS_PER_QUERY,
@@ -176,9 +176,12 @@ def _locked_run_intake(request: ResearchRunRequest, target_type: str = "") -> di
             "max_search_rounds": FIXED_MAX_SEARCH_ROUNDS,
         }
     )
-    if effective_type == "industry":
-        intake["target_type"] = "industry"
-        intake["ai_search_enabled"] = request.ai_search_enabled
+    if effective_type in {"industry", "person"}:
+        intake["target_type"] = effective_type
+        if effective_type == "industry" or "ai_search_enabled" in request.model_fields_set:
+            intake["ai_search_enabled"] = request.ai_search_enabled
+        else:
+            intake.pop("ai_search_enabled", None)
         intake["max_search_rounds"] = min(3, max(1, request.max_search_rounds))
     return intake
 
@@ -823,6 +826,10 @@ def _workflow_failure_trace_event(exc: Exception) -> dict:
 
 def _save_project_intake(db: Session, project: ResearchProject, metadata: dict | None) -> None:
     intake = dict(metadata or {})
+    if project.target_type == "person":
+        intake = {**_project_intake(project), **intake}
+        if isinstance(metadata, dict):
+            metadata.update(intake)
     if project.target_type == "industry":
         saved = _project_intake(project)
         intake = {**saved, **intake}
@@ -843,7 +850,7 @@ def _save_project_intake(db: Session, project: ResearchProject, metadata: dict |
             "target_name": project.target_name,
             "target_type": project.target_type,
             "industry": project.industry,
-            "special_requirements": intake.get("special_requirements", project.description) if project.target_type == "industry" else project.description,
+            "special_requirements": intake.get("special_requirements", project.description) if project.target_type in {"industry", "person"} else project.description,
         }
     )
     content = json.dumps(intake, ensure_ascii=False, indent=2)
@@ -1209,33 +1216,24 @@ def _identity_skeleton(text: str, target_type: str) -> dict[str, str]:
         role = re.search(r"(?:职位|职务|现任)\s*[：:]\s*([^\n；;]{2,40})", sample)
         bilingual_name = re.search(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s+([\u4e00-\u9fff]{2,4})\b", sample)
         executive_role = re.search(r"\b((?:Founding\s+)?(?:CEO|CFO|COO|CTO|President|Managing Director|Partner))\b", sample, flags=re.I)
-        employer = re.search(r"(?im)^([^\n]{2,100}(?:BMW|ArcherMind|Technology|Technologies|Software|Capital|Group|Holdings)[^\n]*)$", sample)
+        employer = re.search(r"(?im)^([^\n]{2,100}(?:Technology|Technologies|Software|Capital|Group|Holdings|\bJV\b)[^\n]*)$", sample)
         if name:
             result["target_name"] = name.group(1).strip()
         elif bilingual_name:
             result["target_name"] = f"{bilingual_name.group(1)} {bilingual_name.group(2)}"
-        company_context = result.get("company_name", "") or (employer.group(1).strip() if employer else "")
+        company_context = result.pop("company_name", "") or (employer.group(1).strip() if employer else "")
         role_context = role.group(1).strip() if role else executive_role.group(1).strip() if executive_role else ""
         context = " / ".join(x for x in [company_context, role_context] if x)
         if context:
             result["affiliation"] = context
-        anchors = []
-        for label, pattern in [
-            ("University of Oxford", r"University of Oxford"),
-            ("CFA", r"CFA(?: Institute| Charter Holder)?"),
-            ("University of Hong Kong", r"University of Hong Kong"),
-            ("Chinese University of Hong Kong", r"Chinese University of Hong Kong"),
-            ("PMP", r"Project Management Professional|\bPMP\b"),
-        ]:
-            if re.search(pattern, sample, flags=re.I):
-                anchors.append(label)
+        anchors = re.findall(r"(?:毕业院校|学校|教育|学历|资格|School|University|Education)\s*[:：]\s*([^\n；;]{2,120})", sample, flags=re.I)
+        anchors += [line.strip() for line in sample.splitlines()
+                    if len(line.strip()) <= 160 and re.search(r"\bUniversity\b|\bCollege\b|大学|学院", line, re.I)]
         if anchors:
-            for value in [company_context, role_context]:
-                if value and value not in anchors:
-                    anchors.append(value)
-            result["identity_anchors"] = " / ".join(anchors)
+            anchors += [value for value in [company_context, role_context] if value]
+            result["identity_anchors"] = " / ".join(dict.fromkeys(anchors[:12]))
         if not result.get("industry"):
-            if re.search(r"digital car software|automotive software|BMW|汽车软件", sample, flags=re.I):
+            if re.search(r"digital car software|automotive software|汽车软件", sample, flags=re.I):
                 result["industry"] = "汽车软件与数字化研发"
             elif re.search(r"high-tech industry|高科技", sample, flags=re.I):
                 result["industry"] = "高科技"
@@ -1243,11 +1241,31 @@ def _identity_skeleton(text: str, target_type: str) -> dict[str, str]:
 
 
 def _merge_upload_identity_into_intake(db: Session, project: ResearchProject, text: str) -> dict[str, str]:
+    if project.target_type == "person" and project.target_name:
+        # Restrict extraction to the named subject's neighborhood. Attachments
+        # can discuss many people and are data, never workflow instructions.
+        try:
+            from .person_evidence import matched_name_forms
+        except ImportError:
+            from person_evidence import matched_name_forms
+        forms = matched_name_forms(project.target_name, text or "")
+        positions = [m.start() for name in forms for m in re.finditer(re.escape(name), text or "", re.I)]
+        if not positions:
+            return {}
+        text = "\n".join((text or "")[max(0, pos-150):pos+1200] for pos in positions[:6])
     skeleton = _identity_skeleton(text, project.target_type)
     if not skeleton:
         return {}
     current = _project_intake(project)
     changed: dict[str, str] = {}
+    if project.target_type == "person":
+        skeleton.pop("target_name", None) if project.target_name else None
+        clues = list(current.get("uploaded_identity_clues") or [])
+        clue = {"subject": project.target_name or skeleton.get("target_name", ""),
+                "fields": skeleton, "provenance": "uploaded_material_unverified", "excerpt": text[:1800]}
+        if skeleton and clue not in clues:
+            current["uploaded_identity_clues"] = (clues + [clue])[-12:]
+            changed["uploaded_identity_clues"] = current["uploaded_identity_clues"]
     for key, value in skeleton.items():
         if value and not str(current.get(key) or "").strip():
             current[key] = value
@@ -1914,7 +1932,7 @@ async def run_second_stage_stream(
                 if not is_admin and project.created_by_id != user_id:
                     emit({"type": "error", "content": "无权访问该研究项目"})
                     return
-                intake = request.model_dump(exclude_unset=project.target_type == "industry")
+                intake = request.model_dump(exclude_unset=project.target_type in {"industry", "person"})
                 intake.update(
                     {
                         "ai_search_enabled": False,

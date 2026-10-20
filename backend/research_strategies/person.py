@@ -68,7 +68,7 @@ class PersonResearchStrategy(BaseResearchStrategy):
         {"module": "上市披露", "query": '"{affiliation}" "{target}" HKEX announcement annual report', "domains": ["hkexnews.hk"], "exa_category": "financial report", "min_sources": 2},
         {"module": "上市披露", "query": '"{affiliation}" "{target}" 年报 公告 董事会 控制权', "domains": ["hkexnews.hk", "cninfo.com.cn", "sse.com.cn", "szse.cn"], "exa_category": "financial report", "min_sources": 2},
         {"module": "上市披露", "query": '"{affiliation}" 年报 港交所 公告 董事会 股东 治理', "domains": ["hkexnews.hk", "cninfo.com.cn", "sse.com.cn", "szse.cn"], "exa_category": "financial report", "min_sources": 2},
-        {"module": "企业经营与战略事件", "query": '"{affiliation}" "{target}" 官网 公告 治理 股权 表决权', "domains": ["alibabagroup.com", "antgroup.com", "hkexnews.hk", "sec.gov"], "exa_category": "financial report", "min_sources": 2},
+        {"module": "企业经营与战略事件", "query": '"{affiliation}" "{target}" 官网 公告 治理 股权 表决权', "domains": ["hkexnews.hk", "sec.gov"], "exa_category": "financial report", "min_sources": 2},
         {"module": "知识产权", "query": '"{target}" 申请人 发明人', "domains": ["cnipa.gov.cn"], "min_sources": 1},
     ]
     module_templates = {
@@ -76,7 +76,7 @@ class PersonResearchStrategy(BaseResearchStrategy):
         "人格特质与诚信评估": ["{target} 采访 演讲 价值观", "{target} 管理风格 公开评价", "{target} 争议 诚信 口碑"],
         "经营胜任力（战略/执行/创新）": ["{target} {affiliation} 战略 执行 创新", "{target} {affiliation} 融资 上市 并购", "{target} 创业 经营 业绩"],
         "识人用人与团队管控": ["{target} 团队 管理 高管 合伙人", "{target} {affiliation} 组织 文化 用人 接班", "{target} 高管 离职 管理争议"],
-        "核心管理团队背景": ["{target} {affiliation} 管理团队 高管 董事", "{target} 合伙人 蔡崇信 组织治理", "{target} 核心团队 背景"],
+        "核心管理团队背景": ["{target} {affiliation} 管理团队 高管 董事", "{target} 合伙人 联合创始人 组织治理", "{target} 核心团队 背景"],
         "商业操守与行业口碑": ["{target} 商业操守 诚信 口碑", "{target} 员工 合作伙伴 同行 客户 评价", "{target} 公开争议 声誉"],
         "同业对标下综合能力与品行隐患": ["{target} 同业 对标 创始人 能力", "{affiliation} 竞争对手 创始人 比较", "{target} 管理风格 对比"],
         "关联利益冲突（体外公司/代持/关联交易）": ["{target} 关联公司 股东 投资", "{target} 代持 关联交易 利益冲突", "{target} 配偶 亲属 关联企业"],
@@ -87,13 +87,60 @@ class PersonResearchStrategy(BaseResearchStrategy):
     }
 
     def normalize_affiliations(self, value: str) -> list[str]:
-        role_terms = {"创始人", "联合创始人", "董事长", "董事", "总经理", "高管", "员工", "合伙人", "ceo", "coo", "cto", "cfo", "founder", "chairman", "partner"}
-        rows: list[str] = []
-        for item in re.split(r"\s*[/／|｜,，;；、\n]\s*", str(value or "")):
-            text = re.sub(r"(?:等|旗下|相关公司)$", "", item.strip()).strip()
-            if len(text) >= 2 and text.lower() not in role_terms and text not in rows:
-                rows.append(text)
-        return rows[:12]
+        try:
+            from ..person_identity import affiliations
+        except ImportError:
+            from person_identity import affiliations
+        return affiliations(value)
+
+    def expand_search_queries(self, plan, intake):
+        rows = super().expand_search_queries(plan, intake)
+        try:
+            from ..person_evidence import TOPICS, EN_TOPICS
+        except ImportError:
+            from person_evidence import TOPICS, EN_TOPICS
+        target = str(intake.get("target_name") or "").strip()
+        aliases = (intake.get("person_anchor") or {}).get("aliases") or []
+        names = list(dict.fromkeys([target, *[str(a) for a in aliases if a]]))[:4]
+        # Every substantive chapter has a retrieval task, independently of which
+        # modules were selected in a legacy frontend form.
+        for chapter, terms in TOPICS.items():
+            for name in names:
+                rows.append({"module": "人物章节专项", "query": f'"{name}" ' + " ".join(terms[:3]),
+                             "search_tier": "open_web", "person_chapters": [chapter]})
+                if re.search(r"[A-Za-z]", name):
+                    rows.append({"module": "人物章节专项", "query": f'"{name}" ' + " ".join(EN_TOPICS[chapter][:3]),
+                                 "search_tier": "open_web", "person_chapters": [chapter]})
+        special = str(intake.get("special_requirements") or "").strip()
+        if special:
+            rows.append({"module": "专项风险", "query": f'"{target}" {special[:180]}',
+                         "search_tier": "open_web", "person_chapters": [10]})
+        for row in rows:
+            if "person_chapters" not in row:
+                blob = row.get("module", "") + " " + row.get("query", "")
+                row["person_chapters"] = [i for i, terms in TOPICS.items() if any(term.lower() in blob.lower() for term in terms)]
+        anchor = intake.get("person_anchor") or {}
+        clues = list(anchor.get("known_affiliations") or []) + list(anchor.get("identity_anchors") or [])
+        for question in intake.get("focus_questions") or []:
+            rows.append({"module": "委托重点问题", "query": f'"{target}" {str(question)[:160]}',
+                         "search_tier": "open_web", "person_chapters": [10]})
+        # Keep one broad identity discovery query; focused searches receive a
+        # bounded clue, while future gap searches can relax it for old roles.
+        for row in rows:
+            row["identity_context"] = anchor
+            if clues and not any(clue in row["query"] for clue in clues):
+                row["query"] += ' "' + str(clues[0])[:100].replace('"', '') + '"'
+            if row.get("domains") and not row.get("include_domains"):
+                row["include_domains"] = row["domains"]
+        rows.append({"module": "身份消歧", "query": f'"{target}" biography 履历',
+                        "search_tier": "open_web", "person_chapters": [2], "identity_context": anchor})
+        seen, result = set(), []
+        for row in rows:
+            key = (row["query"], tuple(row.get("include_domains") or []))
+            if key not in seen:
+                result.append(row)
+                seen.add(key)
+        return result
 
     def required_source_types(self, module: str) -> list[str]:
         if module in {"司法信用", "司法负面与诉讼核查", "个人信用与财务风险", "专项风险"}:
@@ -113,6 +160,6 @@ class PersonResearchStrategy(BaseResearchStrategy):
                 {"module": "经营业绩", "query": f"{target} {affiliation} 公告 年报 公开资料", "search_tier": "open_web", "preferred_providers": ["tavily", "exa", "serpapi", "brave"], "exa_category": "financial report"},
                 {"module": "上市披露", "query": f"{affiliation} annual report Form 20-F SEC filing", "search_tier": "authoritative", "preferred_providers": ["exa", "serpapi", "brave"], "domains": ["sec.gov"], "exa_category": "financial report"},
                 {"module": "上市披露", "query": f"{affiliation} HKEX announcement annual report 董事会 股东 治理", "search_tier": "authoritative", "preferred_providers": ["exa", "serpapi", "brave"], "domains": ["hkexnews.hk"], "exa_category": "financial report"},
-                {"module": "企业经营与战略事件", "query": f"{affiliation} 官网 公告 治理 股权 表决权 {target}", "search_tier": "authoritative", "preferred_providers": ["exa", "serpapi", "brave"], "domains": ["alibabagroup.com", "antgroup.com", "cainiao.com", "sec.gov", "hkexnews.hk"], "exa_category": "financial report"},
+                {"module": "企业经营与战略事件", "query": f"{affiliation} 官网 公告 治理 股权 表决权 {target}", "search_tier": "authoritative", "preferred_providers": ["exa", "serpapi", "brave"], "domains": ["sec.gov", "hkexnews.hk"], "exa_category": "financial report"},
             ])
         return rows
