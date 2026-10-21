@@ -76,14 +76,32 @@ def source_context_errors(analysis, supports, context_facts=()):
         errors.append('unsupported_date_combination')
     if not calendar_months(analysis) <= calendar_months(' '.join(str(f.get('fact') or '') for f in supports)):
         errors.append('unsupported_date_combination')
-    if re.search(r'直接持(?:有|股)',text) and not any(
-            re.search(r'直接持(?:有|股)',folded(f.get('fact') or '')) for f in supports):
-        errors.append('ownership_mode_not_in_source')
-    if (re.search(r'主导退出路径|退出路径设计|设计.{0,8}退出(?:路径|机制)|形成.{0,8}退出(?:路径|机制)',text)
-            and re.search(r'退休|接班|继任',original)
-            and not re.search(r'投资协议|股权退出|股份退出|出售股权|赎回|清算|回购|股份转让',original)
-            and not re.search(r'管理层退出|退出管理岗位|退出经营|不能|不构成|未说明|未涉及',text)):
-        errors.append('retirement_as_shareholder_exit')
+    direct_pattern=r'直接(?:持有|持股|拥有)(?:(?!间接|另|而|但|其中|其他|未说明|未披露|未注明|是否)[^。；;])*'
+    def direct_spans(value):
+        value=folded(numeric_literals(value))
+        return [m for m in re.finditer(direct_pattern,value)
+            if not re.search(r'(?:未|不|没有|并非|是否|不能|不代表)[^。；;，,]{0,8}$',value[max(0,m.start()-16):m.start()])]
+    direct_claims=direct_spans(analysis)
+    if direct_claims:
+        value_pattern=r'(?<![\d.])\d+(?:\.\d+)?(?:%|(?:亿|万)?股)'
+        source_scopes=[m[0] for f in supports for m in direct_spans(f.get('fact') or '')]
+        permitted={v for scope in source_scopes for v in re.findall(value_pattern,scope)}
+        claimed={v for scope in direct_claims for v in re.findall(value_pattern,scope[0])}
+        if not source_scopes or not claimed <= permitted:
+            errors.append('ownership_mode_not_in_source')
+    if (re.search(r'退休|接班|继任',original)
+            and not re.search(r'投资协议|股权退出|股份退出|出售股权|赎回|清算|回购|股份转让',original)):
+        for clause in re.split(r'[。；;，,]',text):
+            exit_phrase=re.search(r'退出(?:路径|机制|安排|规划)',clause)
+            if (exit_phrase and not re.search(r'管理层退出|退出管理岗位|退出经营|退休退出|岗位退出',clause)
+                    and not re.search(r'不能|不构成|未说明|未涉及|未提供|不等于|不代表|没有',clause[:exit_phrase.start()])):
+                errors.append('retirement_as_shareholder_exit')
+    if (re.search(r'当前投后阶段|现有投后阶段|当前投后安排|当前投资项目',text)
+            and not re.search(r'投后|投资协议|本次投资|本项目',original)):
+        errors.append('investment_scenario_not_established')
+    for absent in re.finditer(r'(?:亦|也)?无(?:任何|历史|个人)?(?:司法负面记录|司法记录|法律风险|不良记录)',text):
+        if not re.search(r'不代表|不等于|不能推定|并非|不是|无法证明|不能认定|不能证明|不能据此认定',text[max(0,absent.start()-18):absent.start()]):
+            errors.append('absence_as_general_exoneration')
     if (re.search(r'有利于提高.{0,12}效率|确保.{0,12}战略.{0,8}稳定',text)
             and re.search(r'有利于提高|确保长期战略',original)
             and not re.search(r'(?:公司|公告|文件|来源|材料|披露|原文).{0,12}(?:称|认为|表示|评价|自述|表述|宣称|载明)',text)):
@@ -97,6 +115,28 @@ def source_context_errors(analysis, supports, context_facts=()):
         has_range = re.search(r'(?:19|20)\d{2}年\d{1,2}月\d{1,2}日至(?:19|20)\d{2}年\d{1,2}月\d{1,2}日', numeric_literals(original))
         if has_range or any((f.get('observation') or {}).get('role_date_fields') for f in supports):
             errors.append('available_role_period_denied')
+    denied_roles=re.search(r'未(?:注明|载明|提供|说明|披露)(?:其|具体)?(?:任职起止|任职起始|任期起止|任职开始|起始时间)',text)
+    if denied_roles and not re.search(r'所引|本条|本段|这些摘录|本批|此条',text):
+        from person_records import payload
+        def role_set(fact):
+            data=payload(fact.get('fact') or '')
+            value=data.get('职位') or data.get('角色') or data.get('曾担任角色') or ''
+            return set(re.split(r'[,，、/\s]+',folded(' '.join(map(str,value)) if isinstance(value,list) else value))) - {''}
+        for support in supports:
+            issuer=(support.get('observation') or {}).get('issuer')
+            roles=role_set(support)
+            if not issuer or not roles:
+                continue
+            for fact in context_facts:
+                record=fact.get('observation') or {}
+                if record.get('issuer')!=issuer or not roles & role_set(fact) or fact.get('subject_scope')!='person':
+                    continue
+                fields=record.get('role_date_fields') or []
+                if '起始' in denied_roles[0] or '开始' in denied_roles[0]:
+                    fields=[f for f in fields if re.search(r'开始时间\s*[:：]\s*\d{4}|任职日期',f.get('source_value','')+f.get('field',''))]
+                if fields:
+                    errors.append('broader_material_contains_role_dates')
+                    break
     reactions = r'员工不接受|员工.{0,10}(?:反对|抵制|不满)|集体辞职|店长推不下去|员工反馈|员工投诉'
     denied_reactions = r'(?:未提及|未见|没有|未说明|未提供)[^。；;]{0,20}(?:员工反应|员工反馈|员工意见|员工抵制|员工回应)'
     if re.search(denied_reactions, text) and re.search(reactions, original):

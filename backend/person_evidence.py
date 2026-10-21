@@ -22,7 +22,7 @@ except ImportError:
     from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
     from person_chapter_selection import select_material, dimension_coverage, team_source_facts, prospective_company_risk
 
-VERSION = "person-template-v22-calendar-precision-and-ownership-mode"
+VERSION = "person-template-v23-cross-record-context-and-qualified-absence"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
@@ -1057,6 +1057,7 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
             # Read every admitted scope, with explicit attribution. Context
             # rows remain ineligible as support for personal interpretations.
             writing_input = {'chapter': chapter, 'title': package['title'], 'task': package['task'],
+                             'research_questions':[row['view'] for row in package.get('material_coverage',[])],
                              'identity_clues_not_facts': {k: package['identity_clues_not_facts'].get(k, [])
                                  for k in ('aliases', 'known_affiliations', 'identity_anchors', 'roles', 'supplementary_context')},
                              'facts': [{'evidence_id': f['evidence_id'], 'fact': f['fact'],
@@ -1076,6 +1077,7 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                 '本批若无允许个人分析的材料，返回空claims，团队、候选对标及具名观点由程序按原文另列，不强行推断目标个人。'
                 '每章最多3条分析，每条尽量不超过120字，不必覆盖每个事实编号。'
                 '同一事件、任职、教育或承诺只说明一次，不要先总括几件事再分别复述；各条优先回答不同的实质问题。合并同义内容时保留所用来源编号。'
+                'research_questions列明本章需要回答的具体问题；有多类实际事件时分别保留其要点，不让一项重复叙述挤掉其他已有材料的问题。'
                 '先简洁回答本章的具体问题；已有履历、职责或持股记录时写清来源所述内容及其边界，不要把每项分析都写成泛泛的“未说明”。'
                 '原文支持由程序根据编号填入，不要返回support_quotes，不要抄写原文。引用仅供回查，不等于结论已获核实。'
                 '本章优先围绕已经提供的具体事件、职责和时点说明资料能回答什么；不要强行做横向比较。'

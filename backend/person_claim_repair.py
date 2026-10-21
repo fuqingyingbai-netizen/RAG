@@ -4,6 +4,8 @@ import re
 
 
 LABELS = {
+    'absence_as_general_exoneration': '所引材料未列个人司法事项不等于现实中无司法负面记录，只说明本次已查范围或原文未提供，不作全面无风险结论',
+    'broader_material_contains_role_dates': '完整研究池另有同一企业、同一角色的任职日期字段，应结合任职表与关联企业表，不因当前所引表未列任期而称全部未披露',
     'company_assessment_without_attribution': '提高效率、确保战略稳定是公司对安排的自评，须明确公司称或公告称，不能改成研究者客观效果判断',
     'ownership_mode_not_in_source': '原文只写持有或持股，没有明确直接持有；不能自行增加直接或间接持股性质，保留原文口径',
     'retirement_as_shareholder_exit': '退休与接班安排是管理层岗位交接，不等于投资方股权退出路径；按原文说明退休和接班，不补股权退出设计',
@@ -86,7 +88,7 @@ def repair_once(answer, package, writing_input, claims, reasons, invoke, emit, v
     if not bad:
         return claims, reasons, {'status': 'not_repairable', 'initial_rejections': reasons}
     allowed_ids = {eid for b in bad for eid in b['evidence_ids']}
-    if 'broader_material_contains_claimed_missing_fact' in reasons:
+    if {'broader_material_contains_claimed_missing_fact','broader_material_contains_role_dates'} & set(reasons):
         # Correction needs the contrary material, not just the narrower
         # subset that caused the unsupported absence claim.
         allowed_ids.update(f['evidence_id'] for f in package.get('research_facts', package['facts']) if f.get('analysis_allowed'))

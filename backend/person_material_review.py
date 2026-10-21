@@ -103,6 +103,7 @@ def read_then_write(role, prefix, writing_input, package, invoke, emit, validate
     final_input = {**writing_input, 'facts':[by_id[eid] for eid in by_id if eid in support_ids],
                    'research_findings':proposals}
     note = ('全部批次的研究候选已完成。现在综合压缩为最多3条简短判断，合并重复，'
+            '结合research_questions优先保留不同问题已有的具体事项；授权、组织变动与接班等不同事项不要全部压成单一主题。'
             '不要先总括学历履历再用两条分别重复，同一事项只说明一次；优先保留不同问题的实质信息，所用来源合并引用。'
             '保留有实质影响的不同机构、历史变化、反例及矛盾。候选判断尚未独立核实，'
             '必须重新依据facts原句检查，不可将多个候选拼成更强的结论。'

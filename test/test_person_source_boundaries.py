@@ -83,6 +83,38 @@ def test_company_efficiency_assessment_keeps_its_source_stance():
     assert not source_context_errors('公司称同时担任两个职务有利于提高决策效率和运营效率。',source)
 
 
+def test_direct_mode_is_checked_per_quantity_not_inherited_from_another_ratio():
+    sources=[{'fact':'林知远直接持有公司25.08%股份。'}, {'fact':'林知远；持股比例16.9%。'}]
+    assert 'ownership_mode_not_in_source' in source_context_errors('林知远直接持股比例分别为25.08%和16.9%。',sources)
+    assert not source_context_errors('林知远直接持有25.08%，未说明另一记录是否直接持股16.9%。',sources)
+    assert 'ownership_mode_not_in_source' in source_context_errors('林知远直接持有16.9%。',[{'fact':'林知远未直接持有16.9%。'}])
+
+
+def test_retirement_exit_phrase_is_checked_before_an_unrelated_later_negation():
+    source=[{'fact':'林知远宣布10至15年内退休并建立接班人制度。'}]
+    assert 'retirement_as_shareholder_exit' in source_context_errors('明确其退出路径规划，但未说明实际执行。',source)
+    assert not source_context_errors('仅为退休及接班计划，未说明投资方退出路径。',source)
+
+
+def test_general_exoneration_is_not_inferred_from_an_omitted_case_record():
+    source=[{'fact':'材料记载林知远的一次股权转让。'}]
+    assert 'absence_as_general_exoneration' in source_context_errors('亦无司法负面记录。',source)
+    assert not source_context_errors('原文未列司法事项，不代表无司法负面记录。',source)
+
+
+def test_same_entity_role_dates_in_the_broader_pool_cannot_be_denied():
+    from person_records import observation
+    def record(data):
+        import json
+        fact={'fact':'林知远；'+json.dumps(data,ensure_ascii=False),'subject_scope':'person'}
+        fact['observation']=observation(fact,'林知远')
+        return fact
+    sparse=record({'企业名称':'恒川软件有限公司','角色':['董事长'],'成立日期':'2002-01-01'})
+    dated=record({'企业名称':'恒川软件有限公司','职位':'董事长','任职起止时间':'开始时间:2018-10-15,结束时间:2024-12-20'})
+    assert 'broader_material_contains_role_dates' in source_context_errors('所有记录均未注明任职起止时间。',[sparse],[sparse,dated])
+    assert not source_context_errors('所引关联企业表未注明任职起止时间。',[sparse],[sparse,dated])
+
+
 def test_actor_and_reaction_denial_conflicts_with_retained_context():
     original = [{'fact': '张勇宣布裁撤小区经理。员工不接受，店长推不下去，杨利娟当即下令开除员工，这些都是张勇后来才知道的。'}]
     assert source_context_errors('来源未提及其他主体介入或权责转移。', original) == ['other_actor_action_denied']
