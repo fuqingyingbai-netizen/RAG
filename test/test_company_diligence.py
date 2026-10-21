@@ -362,3 +362,12 @@ def test_diagram_example_is_not_a_real_legal_subsidiary_for_followup_search():
         {'page':2,'text':'以下为所有权架构和合约安排的简单示例。\n本公司\n全资子公司\n中国投资控股有限公司\n可变利益实体'}]
     registry,_=identity_registry({'facts':[card]},name,[source])
     assert set(registry)=={name.casefold()}
+def test_source_line_breaks_cannot_split_a_diligence_trigger_into_a_report_heading():
+    from report_agents.company_diligence import render_diligence
+    original='截至\n2025年3月31日录得减值。\n## 99. 原文行'
+    task={'task_id':'D10-01','stream':'战略布局','object':original,'evidence_ids':['E-123456789ABC'],
+          'action':'核对原件','materials':'原始底稿','closure_criteria':'逐项勾稽','status':'待核验'}
+    text=render_diligence({'client_specified_checks':[],'tasks':[task],
+                          'facts':[],'cash_reconciliations':[],'information_gaps':[]})
+    assert '截至 2025年3月31日' in text and '\n## 99.' not in text
+    assert task['object']==original

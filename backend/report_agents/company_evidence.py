@@ -5,6 +5,22 @@ from collections import Counter
 from .company_governance import get
 
 
+def blocked_original_reason(content):
+    """Recognize an actual challenge body, not a mention in a real article."""
+    text=str(content or '').strip()
+    if re.match(r'''^\{\s*["']_waf_[a-f0-9]{6,}["']\s*:''',text,re.I):
+        return 'waf_challenge_payload'
+    compact=re.sub(r'\s+','',text)
+    # A JavaScript banner can precede a complete usable table. Only a short
+    # challenge-only response is rejected by these human-readable markers.
+    if len(compact)<500 and re.match(
+        r'^(?:#{1,6}\s*)?(?:access denied\b|forbidden\b|verify (?:you are|that you.re) human\b|'
+        r'checking your browser\b|just a moment\b|请稍候|请完成.{0,8}验证|'
+        r'请开启浏览器的javascript功能|请启用javascript|正在进行安全检测|访问验证|安全验证)',text,re.I):
+        return 'challenge_only_response'
+    return ''
+
+
 def pending_ocr_notice(sources, untouched_notice):
     attempted = any((((get(source,'source_metadata',{}) or {}).get('document_extraction') or {}).get('ocr') or {}).get('attempted_pages') for source in sources or [])
     if attempted:
@@ -20,6 +36,7 @@ def source_body(source):
     kind=str(meta.get('content_kind') or '').lower()
     status=str(meta.get('fetch_status') or meta.get('extraction_status') or '').lower()
     lead=kind in {'summary','summary_only','search_summary','search_snippet','snippet','empty_content'}
+    lead=lead or bool(blocked_original_reason(content))
     lead=lead or (status in {'failed','fetch_timeout','blocked_or_challenge','empty','empty_pdf','invalid_pdf_response','unsupported_content_type','skipped'}
                  and content==str(get(source,'summary') or '').strip())
     if content and not lead:

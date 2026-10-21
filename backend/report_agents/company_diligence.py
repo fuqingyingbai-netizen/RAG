@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 from opencc import OpenCC
 
 from .company_evidence import source_body, document_pages, pending_ocr_notice
-from .company_governance import EID, get, refs, _table, cited_evidence_ids
+from .company_governance import EID, get, refs, _table, _cell, cited_evidence_ids
 from .company_history import _issuer_hosts
 from .company_financial_statements import fiscal_report_period,quarter_report_period
 
@@ -524,7 +524,7 @@ def render_diligence(p):
         lines+=['委托方明确指定的待核事项（属于研究任务，未作为企业事实或已完成核查）：']+['- '+x for x in p['client_specified_checks']]
     else:lines+=['项目未明确指定专项对象；以下由已核对证据建议核查，不能把一般研究要求或企业自身客户关系改写成委托方特指某笔交易，也不代表已完成专项尽调。']
     for task in p['tasks']:
-        lines+=['- '+task['task_id']+' '+task['stream']+'；原件主体或事项线索：'+task['object']+' ['+'] ['.join(task['evidence_ids'])+']']
+        lines+=['- '+task['task_id']+' '+task['stream']+'；原件主体或事项线索：'+_cell(task['object'])+' ['+'] ['.join(task['evidence_ids'])+']']
     if not p['tasks']:lines+=['尚未形成可追溯到具体事项的核查对象；不能用通用检查清单冒充本项目已完成穿透。']
     lines+=['','### 已核到的公开披露及其边界','',
             '首列用于定位披露文件的主体或原件已列事项；文件发行人不自动等于子公司交易的收付款人。交易参与方、合并范围与单体资金分别按原文核对；仅以“该公司”指代而未绑定实体的并表语句不单独列为持股事实。','']

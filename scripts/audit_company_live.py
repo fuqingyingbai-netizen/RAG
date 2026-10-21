@@ -33,6 +33,7 @@ def main():
     parser.add_argument('--deadline', required=True, help='Absolute ISO timestamp with timezone')
     parser.add_argument('--reuse-search-from', type=Path, help='Retained real provider responses and originals; missing requests remain live')
     parser.add_argument('--report-only', action='store_true', help='Requires retained run; freeze original sources and cleaned facts, regenerate production risk/report/export only')
+    parser.add_argument('--reclean-retained', action='store_true', help='Requires completed retained run; freeze actual collected originals, execute the current production cleaner and risk/report/export without reusing old cleaned facts')
     parser.add_argument('--resume-collected', action='store_true', help='Resume a retained run stopped at the pre-clean professional-source gate; freeze its actual collected sources, then execute real cleaning/risk/report')
     parser.add_argument('--supplement-json', type=Path, help='Requires retained run; fetch explicitly listed known original URLs, retain prior corpus, clean changed inputs, regenerate report; no search replay')
     parser.add_argument('--max-new-search-calls', type=int, default=240, help='Bound additional provider calls in retained-input follow-up mode')
@@ -41,11 +42,13 @@ def main():
         parser.error('--live is required for paid external calls')
     if args.report_only and not args.reuse_search_from:
         parser.error('--report-only requires --reuse-search-from')
+    if args.reclean_retained and (not args.reuse_search_from or args.report_only or args.resume_collected or args.supplement_json):
+        parser.error('--reclean-retained requires --reuse-search-from and excludes other replay modes')
     if args.resume_collected and (not args.reuse_search_from or args.report_only or args.supplement_json):
         parser.error('--resume-collected requires --reuse-search-from and excludes report-only/supplement modes')
     if args.supplement_json and (not args.reuse_search_from or args.report_only):
         parser.error('--supplement-json requires --reuse-search-from and cannot be combined with --report-only')
-    frozen_retrieval=bool(args.report_only or args.supplement_json or args.resume_collected)
+    frozen_retrieval=bool(args.report_only or args.supplement_json or args.resume_collected or args.reclean_retained)
     deadline = datetime.fromisoformat(args.deadline).timestamp()
     if deadline - time.time() < 300:
         parser.error('Less than five minutes remain; no new run may start')
@@ -127,6 +130,11 @@ def main():
         runtime.update(scope='resume_actual_collected_sources_after_preclean_gate_failure',
                        sources='Frozen actual collected originals; real cleaning/risk/report executes now; prior failed run remains unchanged')
         write('runtime.json',runtime)
+    if args.reclean_retained:
+        runtime=json.loads((run/'runtime.json').read_text(encoding='utf-8'))
+        runtime.update(scope='frozen_actual_originals_current_production_reclean_risk_report_export',
+                       sources='Frozen real collected originals; old cleaned facts are not used as cleaner output')
+        write('runtime.json',runtime)
 
     import requests
     import httpx
@@ -170,7 +178,12 @@ def main():
         previous_intake=json.loads((previous/'intake.json').read_text(encoding='utf-8'))
         if any(previous_intake.get(k)!=intake.get(k) for k in ('company_name','industry','as_of_date','focus_questions')):
             raise ValueError('Retained-input follow-up requires the same target, industry, cutoff and focus questions')
-        previous_cleaned={} if args.resume_collected else json.loads((previous/'cleaned_facts.json').read_text(encoding='utf-8'))
+        previous_cleaned={} if args.resume_collected or args.reclean_retained else json.loads((previous/'cleaned_facts.json').read_text(encoding='utf-8'))
+        if args.reclean_retained:
+            write('reclean-retained-inputs.json',{'scope':'Same actual retained originals; current production cleaner executes from originals, without prior cleaned output reuse',
+                'retained_run':str(previous),'source_count':len(retained_sources),
+                'sources_sha256':hashlib.sha256((previous/'source-snapshots.json').read_bytes()).hexdigest(),
+                'prior_cleaned_facts_sha256':hashlib.sha256((previous/'cleaned_facts.json').read_bytes()).hexdigest()})
         if args.report_only:
             write('frozen-report-inputs.json',{'scope':'Report-stage replay; no claim of a new full collection or cleaning run',
                 'retained_run':str(previous),'source_count':len(retained_sources),
@@ -399,11 +412,11 @@ def main():
     if frozen_retrieval:
         def frozen_collection(*a,**kw):
             emit({'stage':'web_search','label':'保留本轮真实来源，跳过重复搜索','status':'skipped',
-                  'detail':'Explicitly scoped retained-corpus report validation; no new search or platform queries.'})
+                  'detail':'Explicitly scoped retained-corpus validation; no new search or platform queries. Cleaning mode is recorded separately.'})
             return 0
         workflow.collect_web_sources=frozen_collection
         workflow.collect_structured_sources=frozen_collection
-    if args.report_only:
+    if args.report_only or args.reclean_retained:
         workflow.enrich_ocr_sources=frozen_collection
         workflow.enrich_company_survey_charts=frozen_collection
     finalize_original = workflow._finalize_source_records
@@ -435,6 +448,7 @@ def main():
     result = {'acceptance_status': 'not_evaluated',
               'scope':'known_original_supplement_incremental_cleaning_production_report' if args.supplement_json else 'frozen_real_inputs_production_risk_report_export_replay' if args.report_only else 'retained_real_inputs_with_live_missing_requests_and_incremental_cleaning' if args.reuse_search_from else 'real_full_run_not_yet_independently_accepted'}
     if args.resume_collected:result['scope']='retained_actual_collection_after_preclean_failure_with_real_cleaning_and_report'
+    if args.reclean_retained:result['scope']='retained_actual_originals_current_production_cleaning_risk_report_export'
     try:
         with Session(engine) as db:
             user = User(username='company-live-qa', password_hash='no-product-login')

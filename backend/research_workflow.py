@@ -782,7 +782,7 @@ class ResearchWorkflow:
         cleaning_pipeline_version = (
             "person-evidence-v20-article-actor-and-event-dates"
             if standardized_type == "person"
-            else "company-evidence-v13-verified-bilingual-issuer-publisher"
+            else "company-evidence-v14-original-content-availability"
             if standardized_type == "company"
             else INDUSTRY_CLEANING_VERSION
             if standardized_type == "industry"
@@ -795,7 +795,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-    "company": "company-report-evidence-v69-native-audit-loss-and-provenance-boundaries",
+    "company": "company-report-evidence-v70-provenance-recall-and-original-availability",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -8066,6 +8066,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         target = str(getattr(project, "target_name", "") or "")
         original_issuers = {}
         issuer_conflicts = set()
+        unavailable_company_originals = set()
         statistical_contexts = {}
         if target_type == 'company':
             from report_agents.company_evidence import source_body
@@ -8078,7 +8079,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             issuer_identity=build_issuer_identity(sources,target)
             hosts = issuer_hosts(sources,target,issuer_identity)
             for source in sources:
-                if source_body(source)[1] == 'discovery_summary':continue
+                if source_body(source)[1] == 'discovery_summary':
+                    unavailable_company_originals.add(str(company_get(source,'url','')))
+                    continue
                 anchor=issuer_anchor(company_get(source,'content',''),target)
                 url=str(company_get(source,'url',''))
                 if anchor.get('conflicting_heading'):issuer_conflicts.add(url)
@@ -8112,6 +8115,10 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 item.pop('source_issuer_name', None)
                 item.pop('source_issuer_quote', None)
                 item.pop('source_issuer_binding', None)
+                if str(item.get('source_url') or '') in unavailable_company_originals:
+                    item.update(eligible_for_report=False,eligible_for_risk_scoring=False,
+                                requires_human_review=True,source_content_status='discovery_only',
+                                eligibility_reason='未取得可用原件正文；保留线索，不作公司事实或评分依据。')
                 if (str(item.get('source_url') or '') in issuer_conflicts
                         and item.get('source_entity_validation')!='rejected'):
                     item['source_entity_validation']='related_entity_context'

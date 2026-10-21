@@ -16,7 +16,7 @@ from .company_financial_statements import fiscal_report_period,quarter_report_pe
 
 TITLE = "主体工商基本信息核查股东关系与治理底盘"
 HEADINGS = ("主体工商信息表", "股权与治理信息表", "股东/实控人/关联方关系网图", "治理底盘判断")
-VERSION = "company-governance-v1"
+VERSION = "company-governance-v2-dated-provenance"
 EID = re.compile(r"E-[A-Z0-9-]{6,}", re.I)
 
 
@@ -208,7 +208,9 @@ def _controller_entity(value):
     return value if re.fullmatch(r'[\u4e00-\u9fff·]{2,10}',value) and not re.search(r'不适用|未披露|待核验|无实际|无控股|不存在|未知',value) else ''
 
 
-def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=45000) -> dict:
+def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=50000) -> dict:
+    # Explicit acquisition-date provenance adds bookkeeping to every row.
+    # Allow for it without displacing previously retained substantive records.
     by_url = {str(get(s, "url")):s for s in sources or []}
     source_cards = defaultdict(list)
     counters = Counter()
