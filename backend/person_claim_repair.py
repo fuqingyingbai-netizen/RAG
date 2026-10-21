@@ -4,6 +4,10 @@ import re
 
 
 LABELS = {
+    'source_reaction_denied': '原文已记载员工反应，不能称未提供员工反馈；保留反应及来源立场',
+    'other_actor_action_denied': '原文已记载其他主体的具体行为，不能称无人介入；分别说明谁决策、谁处置及目标何时知悉',
+    'historical_role_without_qualification': '所引平台记录均为历史任职，须使用曾任、历史记录等限定，不能写成现任',
+    'publication_year_as_event_date': '出版年份不是制度实施年份；仅说明书中记载及出版时间，不补制度实施时点',
     'unsupported_analysis': '增加了引用材料未包含的数字、日期或确定结论；请删去或按原词限定',
     'foreign_entity_in_analysis': '混入未提供的名称或把证据编号写入分析句子',
     'conditional_authorization_as_completed': '把提请、拟授权或取得批准后授权写成已经生效；须说明批准条件。本材料未证明已生效，不等于现实中尚未生效',

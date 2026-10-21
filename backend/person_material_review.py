@@ -79,7 +79,8 @@ def read_then_write(role, prefix, writing_input, package, invoke, emit, validate
             # final draft; the outer writer records a failed research stage.
             raise ValueError('invalid_research_batch_response')
         allowed = {r['evidence_id'] for r in batch}
-        batch_package = {**package, 'facts': [f for f in package['research_facts'] if f['evidence_id'] in allowed]}
+        batch_package = {**package, 'facts': [f for f in package['research_facts']
+            if f['evidence_id'] in allowed and f.get('analysis_allowed')]}
         accepted, rejected = validate(answer, batch_package)
         event.update(status='returned', validation_rejections=rejected,
                      valid_findings=sum(bool(c.get('analysis')) for c in accepted))
@@ -116,7 +117,15 @@ def presentation_facts(package, claims, max_records=4, max_chars=1600):
     """Budget illustrative original quotations after complete research."""
     by_id={f['evidence_id']:f for f in package.get('research_facts', package['facts'])}
     ordered=[]
-    for claim in claims:
+    # Prefer one support per distinct finding before filling with additional
+    # cards. Three near-identical biographies must not crowd out a different
+    # event merely because the first finding cites all three.
+    active = [c for c in claims if c.get('analysis')]
+    for claim in active:
+        first = next((by_id[eid] for eid in claim['evidence_ids'] if eid in by_id and by_id[eid] not in ordered), None)
+        if first is not None:
+            ordered.append(first)
+    for claim in active:
         if not claim.get('analysis'):
             continue
         for eid in claim['evidence_ids']:

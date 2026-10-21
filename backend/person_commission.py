@@ -85,6 +85,16 @@ def matches(value, requirement):
     for key in ('affiliation_name', 'canonical_company_name'):
         if context.get(key):
             text = text.replace(str(context[key]), '')
+    if requirement['topic'] == 'legal':
+        try:
+            from .person_text import folded
+        except ImportError:
+            from person_text import folded
+        literal = folded(text)
+        # A circular's glossary of legal terms and company laws is not a
+        # personal judicial matter or a personal undertaking.
+        if re.search(r'除文义另有所指|具有以下涵义|具有上市规则|开曼公司法', literal) and not re.search(r'案号|案件编号|执行法院|本人.{0,20}承诺|出具承诺|签署.{0,20}协议|补缴.{0,15}税', literal):
+            return False
     if requirement['topic'] == 'career' and not re.search(r'任职|履历|职务|职位|董事|总经理|高管|聘任|出任|担任|主管|负责|career|appointed|position|director',text,re.I):
         return False
     if requirement['topic'] == 'comparison':

@@ -43,11 +43,15 @@ def source_events(text):
     date = year + r'(?:(?:\d{1,2}|[一二三四五六七八九十]{1,3})月(?:(?:\d{1,2}|[一二三四五六七八九十]{1,3})日)?)?'
     specs = [('education', r'(?P<date>' + date + r')\s*(?:本科|研究生|硕士|博士|大学|技校|高中|初中|小学)?(?:毕业|入学|就读|获.{0,35}学位)'),
              ('appointment', r'(?P<date>' + date + r'(?:至' + date + r')?)\s*(?:起)?(?:被聘任|获委任|出任|加入|担任|任我们|任本公司)'),
-             ('founding', r'(?P<date>' + date + r')(?:(?!' + year + r'|出生|毕业)[^。；;]){0,20}?(?:共同创办|联合创办|创办|创立)'),
-             ('contract', r'(?P<date>' + date + r')(?:(?!' + year + r'|成立|出生)[^。；;]){0,30}?(?:签署|签订|转让|赠与|出具承诺)')]
+             ('founding', r'(?P<date>' + date + r')(?:(?!' + year + r'|出生|毕业)[^。；;]){0,20}?(?:共同创办|联合创办|创办|创立)(?!人|者)'),
+             ('contract', r'(?P<date>' + date + r')(?:(?!' + year + r'|成立|出生)[^。；;]){0,30}?(?:签署|签订|转让|赠与|出具承诺)'),
+             ('management', r'(?P<date>' + date + r')(?:(?!' + year + r'|出生|毕业|出版)[^。；;]){0,110}?(?:宣布.{0,12}(?:裁撤|接班|退休|计划)|推行.{0,12}(?:计划|制度|工资)|内部(?:信|邮件))'),
+             ('publication', r'(?P<date>' + date + r')\s*出版')]
     rows = []
     for kind, pattern in specs:
         for match in re.finditer(pattern, clean):
+            if kind in {'founding', 'contract', 'management'} and re.search(r'出生[于於]?\s*$', clean[max(0, match.start()-8):match.start()]):
+                continue
             start, end = match.span('date')
             literal = text[offsets[start]:offsets[end-1]+1]
             quote = text[offsets[match.start()]:offsets[match.end()-1]+1]

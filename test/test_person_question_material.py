@@ -30,7 +30,9 @@ def test_a_school_or_degree_is_material_without_the_template_heading(name):
     chapter = p['chapters'][2]
     education = chapter['material_coverage'][0]
     assert education['state'] == 'partial' and education['evidence_ids']
-    assert '完全缺少材料' in education['status']
+    assert '已取得教育经历线索' in education['status']
+    assert '须核对' in education['status']
+    assert '不再记为' not in education['status']
     assert not any('家庭' in gap for gap in chapter['information_gaps'])
     assert '教育事件原文日期：２００９年' in render_section(chapter)
 

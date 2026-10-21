@@ -72,3 +72,20 @@ def test_failed_batch_cannot_be_presented_as_complete(monkeypatch):
         read_then_write('章节Agent','仅用给定原文。\n',{'facts':rows},package,invoke,None,validate_model_claims)
     assert package['material_review']['status']=='failed'
     assert package['material_review']['batches'][0]['status']=='failed'
+
+
+def test_distinct_findings_get_display_slots_before_repeated_supports():
+    package = facts(12)
+    rows = package['research_facts']
+    claims = [{'analysis': '第一项判断', 'evidence_ids': [r['evidence_id'] for r in rows[:4]]},
+              {'analysis': '另一事项', 'evidence_ids': [rows[-1]['evidence_id']]}]
+    shown = presentation_facts(package, claims, max_records=2)
+    assert [f['evidence_id'] for f in shown] == [rows[0]['evidence_id'], rows[-1]['evidence_id']]
+
+
+def test_summary_keeps_different_findings_without_repeating_same_support():
+    from person_material_tables import distinct_inherited_analyses
+    claims = {5: [{'analysis': '历史授权安排', 'evidence_ids': ['a']}],
+              11: [{'analysis': '再次叙述同一授权', 'evidence_ids': ['a']},
+                   {'analysis': '另一退出安排', 'evidence_ids': ['b']}]}
+    assert [r['analysis'] for r in distinct_inherited_analyses(claims, [5, 11])] == ['历史授权安排', '另一退出安排']

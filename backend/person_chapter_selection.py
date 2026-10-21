@@ -100,6 +100,12 @@ def material_matches(fact, chapter, view):
     if chapter == 9 and fact.get('literal_roster_row') and view in {'任职持股及控制关系', '关系时间与透明度缺口'}:
         return True
     if chapter == 12:
+        # A comparison about another enterprise's risk appetite is not a
+        # negative event involving the target, even if it contains "风险".
+        if (re.search(r'回避风险|风险偏好|风险承担|敢于冒险', text)
+                and not judicial_party_material(fact)
+                and not re.search(r'被调查|受.{0,8}处罚|违约|舞弊|贪腐|失信记录|重大亏损|管理风险|控制风险', text)):
+            return False
         prospective = prospective_company_risk(fact)
         if view == '已发现的直接信号':
             if scope != 'person' or prospective:
@@ -114,6 +120,8 @@ def material_matches(fact, chapter, view):
 
 def useful_for_chapter(fact, chapter):
     text = fact.get('fact', '')
+    if chapter == 3 and re.search(r'(?:儿子|女儿|孩子).{0,25}(?:优点|善良|聪明)|(?:评价|谈到).{0,12}(?:儿子|女儿)', folded(text)):
+        return False
     if (all(word in folded(text) for word in ('真实','准确','完整')) and '法律责任' in text
             and not re.search(r'案号|判决|处罚|执行法院|授权|聘任|任免',text)):
         return False
@@ -367,9 +375,9 @@ def dimension_coverage(chapter, facts, queries=()):
             status = (f'已记录{len(queries)}项专业查询状态，逐项区分返回记录、空结果、失败及未查询；不作为无风险证明。' if queries else '尚缺可核对的专业查询覆盖记录，不能推定已经查全或无风险。')
         elif matches:
             if chapter == 2 and view == '教育与早年经历':
-                status = '已取得学历、学校或毕业相关原词；教育时间线与原始出处仍须核对，不再记为完全缺少材料。'
+                status = '已取得教育经历线索；学校、专业、毕业时间及原始出处仍须核对。'
             elif chapter == 2 and view == '履历断点与矛盾':
-                status = '已有履历记录；连续性、任期衔接和疑似冲突须逐时点核实，不能因未出现“断点”二字误报无材料。'
+                status = '已有履历记录；连续性、任期衔接和疑似冲突须逐时点核实。'
             elif chapter == 3:
                 status = '已取得本人行为或公开表达线索；尚不足以据此判定人格、诚信或风险偏好。'
             elif chapter == 4:
@@ -392,7 +400,22 @@ def dimension_coverage(chapter, facts, queries=()):
     return rows
 
 
-def team_source_facts(sources, intake):
+def document_issuer(source):
+    """Use a retained cover's explicit company name, never a product logo."""
+    meta = source.source_metadata or {}
+    pages = meta.get('document_pages') or []
+    cover = next((p for p in pages if p.get('page') == 1), {})
+    text = str(cover.get('ocr_text') or cover.get('text') or '')
+    # A cover can be absent while body starts at a contents page. Do not
+    # manufacture an issuer from whichever company occurs most often.
+    for line in text.splitlines()[:25]:
+        match = re.search(r'([\u4e00-\u9fff]{2,35}(?:股份|控股)?有限公司)', folded(line))
+        if match:
+            return match[1]
+    return ''
+
+
+def team_source_facts(sources, intake, audit=None):
     """Recover exact colleague bios missed by target-name-only extraction.
 
     Only retained full documents with the supplied company anchor, target name
@@ -415,6 +438,13 @@ def team_source_facts(sources, intake):
         compact_body = normalized(body)
         org = next((org for org in orgs if normalized(org) in compact_body), '')
         if not org or normalized(target) not in compact_body or not re.search(r'高级管理人员简历|董事.*?高级管理人员|管理层简历|directors and senior management|executive biographies', body, re.I):
+            continue
+        issuer = document_issuer(source)
+        if issuer and not any(normalized(org) in normalized(issuer) for org in orgs):
+            if audit is not None:
+                audit.append({'source_url': source.url, 'status': 'not_main_company_team_material',
+                    'reason': 'document_issuer_differs_from_target_affiliation', 'document_issuer': issuer,
+                    'requested_affiliations': orgs, 'boundary': 'retained_for_other_questions_not_deleted_from_source_corpus'})
             continue
         headings = list(re.finditer(r'(?m)^\s*(?:([\u4e00-\u9fff]{2,4})(?:先生|女士)[，,]|(?:Mr\.?|Ms\.?)\s+([A-Z][A-Za-z\'-]+(?:\s+[A-Z][A-Za-z\'-]+){1,4})\s*[,，])', body))
         document_count = 0
@@ -449,8 +479,7 @@ def team_source_facts(sources, intake):
                          'provider': meta.get('provider'), 'source_grade': meta.get('source_grade', ''),
                          'retrieved_at': meta.get('retrieved_at', ''), 'published_at': meta.get('published_at', '')})
             document_count += 1
-            if document_count >= 8 or len(rows) >= 24:
-                break
-        if len(rows) >= 24:
-            break
+        if audit is not None:
+            audit.append({'source_url': source.url, 'status': 'retained_team_candidates',
+                'document_issuer': issuer, 'candidate_count': document_count})
     return rows
