@@ -197,7 +197,8 @@ def _change(record):
 
 
 def internal_control_observations(source, base):
-    records = []
+    from .company_audit_disclosures import combined_control_rows
+    records = combined_control_rows(document_pages(source),base.get('entity') or '',base)
     cutoff = filing_cutoff(document_pages(source))
     for p in document_pages(source):
         text = re.sub(r'\s+', '', p['text'])

@@ -144,6 +144,22 @@ def test_web_event_is_not_described_as_a_professional_platform_return():
     assert '平台返回记录' in fallback_company_summary(SimpleNamespace(target_name=TARGET),{'facts':[f]})
 
 
+def test_native_historical_penalty_and_remediation_both_reach_summary_with_separate_dates():
+    from report_agents.company_summary import fallback_company_summary,summary_errors
+    penalty={'kind':'administrative_penalty','entity':TARGET,'date':'2021-04-10','publication_date':'2021-04-10',
+        'authority':'某监管机关','penalty_amount_text':'12亿元','fact':'历史决定。',
+        'evidence_id':'E-000000000001','source_url':'https://www.samr.gov.cn/penalty','source_title':'原处罚公告'}
+    followup={**penalty,'kind':'regulatory_remediation','date':'2024-08-30','publication_date':'2024-08-30',
+        'evidence_id':'E-000000000002','source_url':'https://www.samr.gov.cn/followup','source_title':'整改评估原公告'}
+    packages={'assessment':{'risk_signals':[{'fact_record':r} for r in [penalty,followup]]}}
+    p=build_company_summary_package({'facts':[]},TARGET,[],chapter_packages=packages)
+    assert len([r for r in p['facts'] if r['summary_topic']=='risk'])==2
+    text=fallback_company_summary(SimpleNamespace(target_name=TARGET),p)
+    assert '2021-04-10' in text and '2024-08-30' in text and '当前未付余额' in text
+    assert '[E-000000000001]' in text and '[E-000000000002]' in text
+    assert not summary_errors(text,p)
+
+
 def test_completed_placement_share_counts_survive_without_conditional_rights():
     from report_agents.company_diligence import classify_quote,disclosure_rows
     q='配售完成后，本公司的已发行股份总数由100股增加至120股，A股数目维持不变。'

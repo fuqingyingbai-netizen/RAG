@@ -150,6 +150,36 @@ def test_company_response_plan_and_actual_exercise_remain_distinct():
     assert modes=={'公司运行披露','计划／执行待核验'}
 
 
+def test_traditional_governance_keeps_original_quotes_and_separates_evidence_modes():
+    from opencc import OpenCC
+    name='青禾食品有限公司'
+    raw=('目前，我们的薪酬委员会由三名成员组成，均为独立董事。'
+         '我们的审计委员会的政策是，事先批准所有审计及非审计服务。'
+         '我们的独立注册公众会计师事务所已对我们财务报告内部控制的有效性进行了审计。'
+         '我们对财务报告内部控制的审计包括了解内部控制及评估是否存在重大缺陷的风险。')
+    c,s=filing(name,OpenCC('s2t').convert(raw))
+    p=package(name,(c,s))
+    modes={r['mode'] for r in p['facts']}
+    assert {'委员会组成披露','制度条款','公司披露的外部审计范围','外部审计程序／非全面有效结论'}<=modes
+    assert all(r['fact'] in s['content'] for r in p['facts'])
+    assert any('審計' in r['fact'] for r in p['facts'])
+
+
+@pytest.mark.parametrize('raw',[
+    '请参见「第4项.公司资料—C.组织架构」。',
+    '• 「代表性实体」 指 「 第4项.公司资料—C.组织架构」中我们识别的实体；',
+    '网络运营者负有制定网络安全事件应急预案等义务。',
+    '上市公司须设有薪酬委员会及提名委员会，各委员会均完全由独立董事组成。',
+    '组织架构调整可能会对我们的业务造成干扰，并产生重大不利影响。',
+    '当本公司改变其内部组织架构导致报告分部组成变化时，先前期间将重列。',
+    '• 薪酬委员会或提名委员会完全由独立董事组成；',
+])
+def test_traditional_references_legal_requirements_and_hypotheses_are_not_running_evidence(raw):
+    from opencc import OpenCC
+    name='青禾食品有限公司'
+    assert not package(name,filing(name,OpenCC('s2t').convert(raw)))['facts']
+
+
 def test_budget_keeps_whole_evidence_records_and_no_unknown_ids():
     name='青禾食品有限公司'
     p=package(name,filing(name,'公司董事会召开会议。总经理对董事会负责。'),limit=4000)

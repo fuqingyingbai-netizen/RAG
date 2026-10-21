@@ -265,6 +265,7 @@ class CompanyReportAgent:
                 package_payload = build_reputation_package(
                     parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
                     list(getattr(project, "sources", []) or []),
+                    as_of=str((getattr(project, "company_research_intake", {}) or {}).get('as_of_date') or ''),
                 )
                 project.company_reputation_package = package_payload
                 chapter = self._write_reputation(project, package_payload, emit, trace_emit)

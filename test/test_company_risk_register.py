@@ -59,6 +59,15 @@ def test_dictionary_exactly_preserves_75_template_questions_and_three_categories
     assert 'B24' in d['template_reference']
 
 
+def test_platform_cloud_and_ai_questions_extend_scope_without_changing_75_items_or_scoring_absence():
+    p=build(industry='互联网平台、云计算与人工智能模型服务')
+    assert len(p['checklist'])==75 and len(p['industry_extensions'])==6
+    assert p['overall_score'] is None and not p['entries']
+    assert all(r['score'] is None and not r['entry_ids'] for r in p['industry_extensions'])
+    assert '不是已发生的风险事实或评分' in render_risk_register(p)
+    assert '尚未形成具体可追溯风险事项' in '；'.join(risk_register_errors(render_risk_register(p),p))
+
+
 @pytest.mark.parametrize('value, expected', [('2026-09-18', '2026-09-18'), ('2026年6月30日', '2026-06-30'),
                                           ('2025年2月30日', None), ('2025年', None)])
 def test_date_parsing_rejects_incomplete_or_invalid_dates(value, expected):
@@ -259,7 +268,7 @@ def test_company_workflow_uses_originals_without_model_or_old_normalizers():
     s = notice(owner=ROOT)
     project = SimpleNamespace(target_type='company', target_name=ROOT, industry='制造', sources=[s])
     r = json.loads(w.assess_risk(project, json.dumps({'facts': []})))
-    assert r['version'] == 'company-risk-register-v2-case-display-references' and len(r['entries']) == 1
+    assert r['version'] == 'company-risk-register-v3-regulatory-decisions' and len(r['entries']) == 1
 
 
 def test_person_and_industry_risk_paths_keep_their_own_model_dispatch():
