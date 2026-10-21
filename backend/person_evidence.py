@@ -22,7 +22,7 @@ except ImportError:
     from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
     from person_chapter_selection import select_material, dimension_coverage, team_source_facts, prospective_company_risk
 
-VERSION = "person-template-v20-local-event-period-and-source-synthesis"
+VERSION = "person-template-v21-typed-record-dates-and-contained-quotes"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
@@ -1188,8 +1188,12 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
         if chapter not in {1, 13}:
             from person_material_review import presentation_facts
             package['display_facts'] = presentation_facts(package, claims)
-            package['prior_originals'] = {f['evidence_id']: seen_originals[(f['source_url'], compact(f['fact']))]
-                for f in package['display_facts'] if (f['source_url'], compact(f['fact'])) in seen_originals}
+            package['prior_originals'] = {}
+            for fact in package['display_facts']:
+                prior = next((record for (url,quote),record in seen_originals.items()
+                    if url==fact['source_url'] and compact(fact['fact']) in quote),None)
+                if prior:
+                    package['prior_originals'][fact['evidence_id']] = prior
         sections[chapter] = render_section(package, claims)
         if chapter not in {1, 13}:
             for fact in package['display_facts']:

@@ -133,9 +133,10 @@ def useful_for_chapter(fact, chapter):
     if native_text_issue(text) in {'mixed_script_character_map', 'broken_character_map'}:
         return False
     # Date/title feeds are discovery leads, not the body of any one article.
-    if len(re.findall(r'(?:19|20)\d{2}-\d{2}-\d{2}', text)) >= 3 and not re.search(r'[。！？]', text):
+    structured = fact.get('claim_type') in {'person_platform_record','person_company_record'}
+    if not structured and len(re.findall(r'(?:19|20)\d{2}-\d{2}-\d{2}', text)) >= 3 and not re.search(r'[。！？]', text):
         return False
-    if len(text) < 260 and len(re.findall(r'(?:19|20)\d{2}-\d{2}-\d{2}', text)) >= 2 and '。' not in text:
+    if not structured and len(text) < 260 and len(re.findall(r'(?:19|20)\d{2}-\d{2}-\d{2}', text)) >= 2 and '。' not in text:
         return False
     if (len(text) < 300 and re.search(r'详细简历.{0,20}请参见|简历具体情况请参见|具体情况请参见|具体内容请参见|相关简历请参见|^人物\s+冲突积怨|^.*?欢迎访问.*?官网[！!]$', text)):
         return False

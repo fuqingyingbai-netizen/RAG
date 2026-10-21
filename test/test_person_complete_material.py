@@ -32,6 +32,27 @@ def test_a_busy_source_is_fully_researched_before_display_budget():
     assert last['evidence_id'] in {f['evidence_id'] for f in package['research_facts']}
 
 
+def test_structured_start_and_end_dates_are_not_a_news_listing():
+    text='林知远；查询定位机构：恒川软件；历史记录；'+json.dumps({'任职起止时间':'开始时间:2018-10-15,结束时间:2024-12-20','企业名称':'远山科技有限公司','职位':'董事长'},ensure_ascii=False)
+    row={'fact':text,'source_url':'structured://qcc/positions','identity_match':'confirmed',
+         'claim_type':'person_platform_record','person_chapters':[2,9,10]}
+    result=build_packages({'facts':[row]},'林知远',PERSON_REPORT_OUTLINE,
+        {'special_requirements':'核对任职变化'})
+    for n in [2,9,10]:
+        assert text in {f['fact'] for f in result['chapters'][n]['research_facts']}
+    from person_chapter_selection import useful_for_chapter
+    assert not useful_for_chapter({'fact':'林知远相关新闻 2018-10-15 2024-12-20 更多新闻'},9)
+
+
+def test_contained_display_quote_does_not_repeat_its_larger_original():
+    package=facts(1)
+    short={**package['facts'][0],'evidence_id':'E-PSHORT0001','fact':'林知远在公开记录中担任远山科技董事，负责公司技术管理。'}
+    long={**short,'evidence_id':'E-PLONG00001','fact':short['fact']+'该来源说明上述资料为历史时点，不代表当前职责。'}
+    package.update(facts=[short,long],research_facts=[short,long])
+    claims=[{'analysis':'来源说明历史任职及职责。','evidence_ids':[short['evidence_id'],long['evidence_id']]}]
+    assert presentation_facts(package,claims)==[long]
+
+
 def test_batch_budget_never_drops_a_long_original_or_late_record():
     rows=[{'evidence_id':str(i),'fact':'原文'*size} for i,size in enumerate([20,25,600,15,40])]
     batches=material_batches(rows,max_chars=180)

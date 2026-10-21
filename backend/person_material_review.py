@@ -137,6 +137,15 @@ def presentation_facts(package, claims, max_records=4, max_chars=1600):
             if eid in by_id and by_id[eid] not in ordered:
                 ordered.append(by_id[eid])
     ordered += [f for f in package['facts'] if f not in ordered]
+    # Display a complete containing excerpt once. Nested cards stay in the
+    # research/claim ledger and keep their own citations, but do not consume a
+    # second illustrative quotation slot merely for one extra closing mark.
+    ordered = [fact for fact in ordered if not any(
+        other is not fact and other['source_url']==fact['source_url']
+        and len(other['fact'])<=max_chars
+        and len(re.sub(r'\s+','',other['fact']))>len(re.sub(r'\s+','',fact['fact']))
+        and re.sub(r'\s+','',fact['fact']) in re.sub(r'\s+','',other['fact'])
+        for other in ordered)]
     chosen,used,originals=[],0,set()
     for fact in ordered:
         if len(chosen)>=max_records:
