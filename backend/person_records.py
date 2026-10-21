@@ -111,7 +111,13 @@ def observation(fact, target, aliases=()):
                 period, period_basis = str(data[key]), 'source_snapshot_field'
                 break
         if not period:
-            match = re.search(r'(?:截至|截止|数据基准日|统计日期)\s*[:：]?\s*((?:19|20)\d{2}(?:[-年]\d{1,2}(?:[-月]\d{1,2}日?)?)?)', text)
+            context = folded(text)
+            if scope == 'person':
+                # Dates belonging to another event on the same PDF page or
+                # article are not the person's holding/role snapshot.
+                context = '。'.join(sentence for sentence in re.split(r'[。；;]', context)
+                    if any(folded(name) in sentence for name in forms if name))
+            match = re.search(r'(?:截至|截止|数据基准日|统计日期)[:：]?((?:19|20)\d{2}(?:[-年]\d{1,2}(?:[-月]\d{1,2}日?)?)?)', context)
             if match:
                 period, period_basis = match[1], 'source_labelled_snapshot'
     period = re.sub(r'年|月', '-', period).rstrip('日-')
@@ -249,7 +255,7 @@ def chapter_relevant(fact, chapter):
     if chapter == 8 and not fact.get('comparison_subject'):
         if re.search(r'同业竞争|显失公平.{0,8}关联交易', text) and not re.search(r'对标|可比人物|同行评价|竞争对手', text):
             return False
-        return bool(re.search(r'同业|对标|竞争对手|竞争者|同行评价|比较|可比|竞品|benchmark|competitor|comparison', text, re.I))
+        return bool(re.search(r'同业|对标|竞争对手|竞争者|同行评价|横向比较|比较对象|可比人物|可比企业|竞品|benchmark|competitor|comparison', text, re.I))
     if chapter == 12:
         text = text.replace('非执行董事', '').replace('执行董事', '')
         return bool(re.search(r'风险|诉讼|处罚|失信|被执行|执行案号|执行法院|强制执行|负面|监管(?:调查|措施|问询|处罚)|违规|纠纷|贪腐|舞弊|争议|risk|litigation|penalty|sanction|fraud', text, re.I))

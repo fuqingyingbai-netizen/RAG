@@ -16,6 +16,48 @@ def source_context_errors(analysis, supports, context_facts=()):
     original = folded(' '.join(str(f.get('fact') or '') for f in supports))
     errors = []
     from person_text import numeric_literals
+    # A union of support cards cannot prove that EACH source contains the
+    # same date, quantity or legal subject. Same-URL excerpts also remain one
+    # source when the prose counts documents rather than individual snippets.
+    source_count = re.search(r'([二两三四五六七八九十\d]+)份(?:材料|来源|报道|文献)', text)
+    urls = {str(f.get('source_url') or '').rstrip('/') for f in supports if f.get('source_url')}
+    if source_count and urls:
+        digits={'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10}
+        count=int(source_count[1]) if source_count[1].isdigit() else digits.get(source_count[1],0)
+        if count > len(urls):
+            errors.append('source_document_count_misstated')
+    universal = re.search(r'(?:材料|来源|记录|原文|表述|披露|报道|证据)[^。；;]{0,6}?(?:均|都)(?:仅)?(?:确认|记载|载明|说明|披露|描述|提到|表明|指向|显示)', text)
+    if universal and len(supports)>1:
+        assertion=text[universal.end():].split('。',1)[0]
+        values=re.findall(r'(?:19|20)\d{2}年(?:\d{1,2}月(?:\d{1,2}日)?)?|\d+(?:\.\d+)?%|\d+(?:\.\d+)?(?:亿|万)?股',folded(numeric_literals(assertion)))
+        entity=re.search(r'(?:在|于)([\u4e00-\u9fffA-Za-z0-9]{2,20}?(?:投资|集团|有限公司|股份公司))',assertion)
+        if (any(any(value not in folded(numeric_literals(f.get('fact') or '')) for value in values) for f in supports)
+                or entity and any(entity[1] not in folded(f.get('fact') or '') for f in supports)):
+            errors.append('universal_source_claim_not_shared')
+    # A date somewhere in the supplied page is not a date for every holding
+    # or appointment. Require a local literal event sentence or an explicit
+    # typed snapshot field before associating it with a ratio/role statement.
+    dated = re.search(r'(?:截至|于)((?:19|20)\d{2}年(?:\d{1,2}月(?:\d{1,2}日)?)?)[^。；;]{0,45}(?:持有|持股|担任|任职|签署)',text)
+    if dated:
+        declared=folded(numeric_literals(dated[1]))
+        aligned=False
+        for fact in supports:
+            material=folded(numeric_literals(fact.get('fact') or ''))
+            subject=folded((fact.get('observation') or {}).get('subject') or fact.get('subject') or '')
+            period=(fact.get('observation') or {}).get('period') or ''
+            period_parts=tuple(map(int,re.findall(r'\d+',period)))
+            declared_parts=tuple(map(int,re.findall(r'\d+',declared)))
+            if period_parts and period_parts[:len(declared_parts)]==declared_parts:
+                aligned=True
+            for sentence in re.split(r'[。；;]',material):
+                if declared in sentence and (subject and subject in sentence) and re.search(r'持有|持股|担任|任职|签署',sentence):
+                    aligned=True
+        if not aligned and any((f.get('observation') or {}).get('subject') or f.get('subject') for f in supports):
+            errors.append('date_bound_to_different_source_event')
+    if (re.search(r'而非既成事实|仅(?:仅)?为(?:待审)?(?:提案|议案)|尚未获(?:董事会)?批准',text)
+            and re.search(r'董事会同意聘任|经审议[，,]?同意选举|表决情况[：:]\d+票同意[，,]0票反对',original)
+            and re.search(r'自本次董事会审议通过之日起',original)):
+        errors.append('adopted_resolution_as_unapproved_proposal')
     def calendar_dates(value):
         literal = numeric_literals(value)
         return {(int(y), int(m), int(d)) for y, m, d in re.findall(

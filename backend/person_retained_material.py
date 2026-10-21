@@ -71,7 +71,7 @@ def retained_source_statements(sources, intake, existing=(), audit=None):
                 seen.add(canonical)
                 # Titles, related links, menus and dated news feeds are leads,
                 # even if the surrounding fetched page is otherwise useful.
-                if ((not profile and not re.search(r'[。！？!?]|[.!?]\s+[A-Z]', quote))
+                if ((not profile and not re.search(r'[。！？!?]|[.](?:\s+[A-Z]|$)', quote))
                         or re.search(r'^(?:相关文章|相关阅读|推荐阅读|本文关键词|本文标题|本文链接|题图|（题图)', quote)
                         or (not profile and re.search(r'加入收藏|最新新闻|最新新聞|更多新闻|详细资料>>|全部新闻|全部新聞', quote))
                         or (not profile and re.search(r'\((?:19|20)\d{2}-\d{2}-\d{2}[^)]*\)\s*$', quote) and '。' not in quote)
@@ -91,6 +91,7 @@ def retained_source_statements(sources, intake, existing=(), audit=None):
                        'source_grade': meta.get('source_grade') or 'C',
                        'provider': meta.get('provider'), 'platform': meta.get('platform'),
                        'retrieved_at': meta.get('retrieved_at', ''),
+                       'published_at': meta.get('published_date') or '',
                        'extraction_method': 'retained_original_full_scan'}
                 if profile:
                     row['literal_profile_fields'] = True

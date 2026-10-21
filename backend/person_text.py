@@ -39,13 +39,18 @@ def person_statement_excerpt(text, names):
         for index, match in enumerate(rows):
             if folded(match[1]) in forms and index+1 < len(rows):
                 return text[match.start():rows[index+1].start()].strip()
-    if len(re.findall(r'PDF page \d+', text)) >= 2:
+    if re.search(r'PDF page \d+', text):
         positions = [m for name in names for m in re.finditer(re.escape(name), text)]
         first = min(positions, key=lambda m: m.start(), default=None)
         if first and first.start() > 250:
             prefix = text[:first.start()]
+            # One physical page can contain the end of an unrelated product
+            # event followed by the person's risk/holding section. Preserve
+            # the complete local sentence before the name, including an
+            # "as of signing" qualifier; do not borrow the prior event date.
+            boundary = max(prefix.rfind('。'), prefix.rfind('；'), prefix.rfind(';'))+1
             role = re.search(r'(?:本公司)?(?:控股股东及)?实际控制人\s*$', prefix)
-            return text[role.start() if role else first.start():].strip()
+            return text[boundary if boundary else role.start() if role else first.start():].strip()
     return text
 
 

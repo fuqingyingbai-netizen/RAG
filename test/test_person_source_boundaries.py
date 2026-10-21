@@ -7,6 +7,57 @@ def test_month_and_day_are_preserved_when_year_is_unknown():
     assert not source_context_errors('公告载明1月13日获委任，未披露年份及完整日期。',source)
 
 
+def test_universal_dates_must_appear_in_each_source_not_just_the_union():
+    sources=[{'fact':'林知远于1994年3月创办公司。','source_url':'https://a.invalid/1'},
+             {'fact':'公司于1994年创立，由林知远负责经营。','source_url':'https://b.invalid/2'}]
+    assert 'universal_source_claim_not_shared' in source_context_errors('两份材料均确认1994年3月创办公司。',sources)
+    assert not source_context_errors('两份材料均记载1994年创办公司。',sources)
+
+
+def test_fact_cards_are_not_counted_as_independent_documents():
+    sources=[{'fact':'林知远于1994年3月创办公司。','source_url':'https://a.invalid/1'},
+             {'fact':'林知远于1994年3月与同学创办公司。','source_url':'https://a.invalid/1'}]
+    assert source_context_errors('两份材料均确认1994年3月创办公司。',sources)==['source_document_count_misstated']
+    assert not source_context_errors('两个摘录均确认1994年3月创办公司。',sources)
+
+
+def test_equal_ratio_with_different_companies_cannot_form_one_universal_holding():
+    sources=[{'fact':'林知远持有恒川软件68%股权。'}, {'fact':'林知远在静远投资持有68%股权。'}]
+    assert 'universal_source_claim_not_shared' in source_context_errors('材料均描述林知远在静远投资持有68%股权。',sources)
+
+
+def test_adverbial_comparison_does_not_create_a_peer_chapter():
+    from person_records import chapter_relevant
+    assert not chapter_relevant({'fact':'张勇说，火锅店老板一般都比较勤奋，员工比较努力。'},8)
+    assert chapter_relevant({'fact':'张勇讨论同业竞争对手及可比人物的筛选条件。'},8)
+
+
+def test_date_for_an_unrelated_event_on_the_same_page_cannot_date_a_holding():
+    from person_records import observation
+    from person_text import person_statement_excerpt
+    original=('--- PDF page 48 ---\n截至2010 年 6 月 30 日，公司从客户处收到充电器换货26080只。'
+              +'产品责任及客户关系说明。'*35+'\n四、管理风险\n截至本招股说明书签署之日，林知远直接持有本公司25.08%的股份。')
+    assert observation({'fact':original},'林知远')['period']==''
+    excerpt=person_statement_excerpt(original,['林知远'])
+    assert excerpt in original and '截至本招股说明书签署之日' in excerpt
+    assert '2010' not in excerpt and '充电器' not in excerpt
+    fact={'fact':original,'subject':'林知远','observation':observation({'fact':original},'林知远')}
+    assert 'date_bound_to_different_source_event' in source_context_errors('截至2010年6月30日，林知远直接持有25.08%股份。',[fact])
+    assert not source_context_errors('原文称截至本招股说明书签署之日，林知远直接持有25.08%股份。',[fact])
+
+
+def test_explicit_typed_period_still_supports_calendar_equivalent_spelling():
+    fact={'fact':'林知远；数据基准日：2020-01-01；持股比例为25.08%。','subject':'林知远',
+          'observation':{'subject':'林知远','period':'2020-01-01'}}
+    assert not source_context_errors('截至2020年1月1日，林知远持有25.08%股份。',[fact])
+
+
+def test_approved_appointment_is_not_downgraded_to_a_pending_proposal():
+    fact={'fact':'表决情况：9票同意，0票反对。董事会同意聘任林知远为总裁，任期自本次董事会审议通过之日起计算。'}
+    assert 'adopted_resolution_as_unapproved_proposal' in source_context_errors('属于董事会议案而非既成事实。',[fact])
+    assert not source_context_errors('董事会同意聘任林知远为总裁，自审议通过日起计算任期，后续任职状态待核。',[fact])
+
+
 def test_actor_and_reaction_denial_conflicts_with_retained_context():
     original = [{'fact': '张勇宣布裁撤小区经理。员工不接受，店长推不下去，杨利娟当即下令开除员工，这些都是张勇后来才知道的。'}]
     assert source_context_errors('来源未提及其他主体介入或权责转移。', original) == ['other_actor_action_denied']

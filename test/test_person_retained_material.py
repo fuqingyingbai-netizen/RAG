@@ -62,3 +62,13 @@ def test_context_admission_cannot_accept_an_invented_quote():
     row['evidence_quote']=row['fact']
     facts,rejected=normalize_facts({'facts':[row]},'林知远',sources=[source('原文没有此项陈述。',person_feedback_only=True)])
     assert not facts and rejected
+
+
+def test_recovered_source_keeps_publication_cutoff_instead_of_losing_metadata():
+    from person_evidence import build_packages
+    from report_agents.person_report_agent import PERSON_REPORT_OUTLINE
+    original='林知远于2025年担任恒川软件董事长，负责公司技术战略与日常管理。'
+    result=build_packages({'facts':[]},'林知远',PERSON_REPORT_OUTLINE,
+        {**INTAKE,'as_of_date':'2026-10-20'},[source(original,published_date='2026-10-21')])
+    assert not result['facts']
+    assert result['rejected'][0]['rejection_reason']=='published_after_research_cutoff'

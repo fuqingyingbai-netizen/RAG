@@ -22,7 +22,7 @@ except ImportError:
     from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
     from person_chapter_selection import select_material, dimension_coverage, team_source_facts, prospective_company_risk
 
-VERSION = "person-template-v18-retained-original-source-scan"
+VERSION = "person-template-v20-local-event-period-and-source-synthesis"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
@@ -1085,6 +1085,8 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                 '作材料缺失判断时考虑本章全部facts，不能只因选中的两条摘录未写，就否认其他材料已有的任职或持股。'
                 '先写材料能够回答的具体事实与事件，缺口只补充真正缺失的字段，不以笼统待核实替代已有信息。'
                 '原文只写月日时，保留月日并说明年份未明；不能笼统说没有具体日期。'
+                '同一URL的多段摘录不称多份来源；“材料均记载”必须每份都具备该日期、数值与主体，否则分别表述，不把合并内容当作各自共有信息。'
+                '日期只能归于原文同一事项，不能拿同页前一事件的截至日填持股或文件签署日；已表决通过且自审议通过日起任职，不要称为尚待批准的提案。'
                 '用具体行为、职责和条件写作，避免无原文依据的“价值锚点”等抽象包装；来源观点须保留评价者或报道立场。'
                 '书籍出版年份不能当成制度实施年份；曾担任、历史记录不能省略历史限定。'
                 '媒体预期效果不证明正式职责或任命；未提供具体投资交易和协议，不声称已经处于投后或已有退出权。'
