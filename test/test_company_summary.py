@@ -33,6 +33,26 @@ def section(text):
                                                 for i, heading in enumerate(SUMMARY_HEADINGS))
 
 
+def test_confirmed_annual_impairment_summary_does_not_deny_the_disclosed_loss():
+    f=card(text='2025年度审计报告记载已确认商誉减值损失人民币8百万元。')
+    f.update(summary_topic='risk',source_kind='checked_chapter_field',original_record_kind='goodwill_impairment_loss',period='2025年度')
+    package={'facts':[f]}
+    text=fallback_company_summary(project(),package)
+    assert '已确认商誉减值损失人民币8百万元' in text
+    assert '减值测试假设' in text and '公告不证明已发生事故或损失' not in text
+    assert not summary_errors(text,package)
+    bad=text.replace('应核对对应资产组、减值测试假设及后续变化；已确认年度损失与后续影响分别核查。',
+                     '公告不证明已发生事故或损失。')
+    assert any('已确认年度减值损失' in error for error in summary_errors(bad,package))
+
+
+def test_recall_summary_preserves_the_unproved_accident_and_loss_boundary():
+    f=card(text='2025年主管机关公告目标科技股份有限公司召回部分产品。')
+    f.update(summary_topic='risk',source_kind='checked_chapter_field',original_record_kind='recall',period='2025年')
+    text=fallback_company_summary(project(),{'facts':[f]})
+    assert '公告不证明已发生事故或损失' in text and '减值测试假设' not in text
+
+
 def test_summary_cannot_turn_undated_personnel_snapshot_into_current_role():
     f=card();f.update(source_url='structured://qcc/personnel',is_structured_evidence=True,source_entity_validation='verified',claim_type='source_excerpt')
     raw='| 企业名称 | 目标科技股份有限公司 |\n| 1 | 王甲 | 2008-06-11至今 | 董事长 |'
