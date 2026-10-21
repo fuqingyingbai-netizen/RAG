@@ -147,3 +147,27 @@ def test_year_month_day_cannot_be_recombined_from_different_dates():
     rows = [{'fact': '林知远于2022年3月1日卸任，公司于2026年1月13日披露新安排。'}]
     assert 'unsupported_date_combination' in source_context_errors('来源载明林知远于2022年1月13日卸任。', rows)
     assert not source_context_errors('来源载明2022年3月1日卸任，另一安排披露于2026-01-13。', rows)
+
+
+def test_existing_roster_date_range_is_not_reported_as_absent():
+    from person_records import observation
+    row = {'fact': '林知远 董事长、执行董事 男 １９６６年出生 ２００８年６月１１日至２０１１年６月１０日；具体职务对应仍待核。'}
+    row['observation'] = observation(row, '林知远')
+    assert row['observation']['role_date_fields'][0]['source_value'] == '２００８年６月１１日至２０１１年６月１０日'
+    assert source_context_errors('所有材料未载明具体起始日期或任期覆盖区间。', [row]) == ['available_role_period_denied']
+    assert not source_context_errors('原文已列历史时间区间，但未说明当前任职起止与职务对应。', [row])
+
+
+def test_exact_source_monetary_bound_is_not_a_new_comparison():
+    from person_records import comparison_errors
+    rows = [{'fact': '公司公告称林知远计划在12个月内增持不少于1亿元。', 'subject': '林知远'},
+            {'fact': '另一报道载明林知远于5月增持1135万股。', 'subject': '林知远'}]
+    assert not comparison_errors('公告载明计划增持不少于1亿元，另一报道记载1135万股，材料类型分别为计划和交易。', rows)
+    assert comparison_errors('实际增持1135万股高于计划1亿元。', rows)
+
+
+def test_approved_transfer_and_payment_do_not_establish_actual_closing():
+    from person_records import definition_errors
+    rows = [{'fact': '1997年股东会一致同意将持有的公司全部出资额290万元以总价302万元转让给甲公司、林知远和陈雨安。1995年已有转让意向，部分价款已支付。'}]
+    assert 'conditional_transfer_as_completed' in definition_errors('1995年意向与1997年实际交割存在时间差。', rows)
+    assert 'conditional_transfer_as_completed' not in definition_errors('股东会同意转让，已支付部分价款，未说明实际交割时点。', rows)

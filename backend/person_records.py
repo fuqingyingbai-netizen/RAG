@@ -127,6 +127,11 @@ def observation(fact, target, aliases=()):
         tenure = re.search(date + r'\s*(?:至|到|—|－|-)\s*' + date, text)
         if tenure:
             dates.append({'field': '任期起止原文', 'source_value': tenure[0]})
+    if not dates and (fact.get('literal_roster_row') or re.match(r'^[\u4e00-\u9fff]{2,4}\s*(?:董事长|董事|执行董事|总裁|总经理)', text)):
+        date = r'[０-９0-9]{4}\s*年\s*[０-９0-9]{1,2}\s*月\s*[０-９0-9]{1,2}\s*日'
+        tenure = re.search(date + r'\s*(?:至|到|—|－|-)\s*' + date, text)
+        if tenure:
+            dates.append({'field': '原文时间区间（职务对应待核）', 'source_value': tenure[0]})
     ownership_subject = ''
     for form in forms:
         group = re.search(re.escape(form) + r'(?:(?:与|和|及|、)[\u4e00-\u9fff]{2,4})?(?:夫妇|夫妻|及其配偶)',text)
@@ -179,8 +184,16 @@ def comparison_errors(analysis, supports):
     """Require aligned dimensions before a new comparison can enter a draft."""
     comparative = r'差异|矛盾|不一致|有出入|相互冲突|互相冲突|高于|低于|多于|少于|增加|减少|提升|下降|增长|领先|落后|发生变化|发生变动'
     assertions = []
+    from person_text import numeric_literals
+    allowed_literals = re.sub(r'\s+', '', numeric_literals(' '.join(f['fact'] for f in supports)))
     for sentence in re.split(r'[。！？；;\n]', analysis):
         for match in re.finditer(comparative, sentence):
+            # A source's exact lower/upper monetary bound is an event
+            # condition, not a new cross-source numerical comparison.
+            if match[0] in {'高于', '低于', '多于', '少于'} and sentence[max(0, match.start()-1):match.start()] == '不':
+                bound = re.match(r'不(?:高于|低于|多于|少于)\s*\d+(?:\.\d+)?\s*(?:亿元|万元|元|亿股|万股|股|%)', numeric_literals(sentence[match.start()-1:]))
+                if bound and re.sub(r'\s+', '', bound[0]) in allowed_literals:
+                    continue
             limitation_prefix = sentence[max(0, match.start()-48):match.start()]
             if re.search(r'(?:未说明|未披露|未提供|未载明|尚不清楚)[^，,。；;]{0,40}$', limitation_prefix):
                 continue
@@ -332,9 +345,9 @@ def definition_errors(analysis, supports):
             errors.append('repeated_disclosure_not_repeated_event')
     if re.search(r'(?:显示|表明|体现|说明|反映)[^。；，,]{0,20}(?:控制意图|持股信心)', analysis) and not re.search(r'控制意图|持股信心', allowed):
         errors.append('personal_intention_not_supported')
-    if re.search(r'同意.{0,35}转让', allowed) and not re.search(r'已完成.{0,15}转让|已办理.{0,15}变更|完成.{0,15}交割', allowed):
+    if re.search(r'同意.{0,80}转让|申请.{0,80}转让', compact(allowed)) and not re.search(r'已完成.{0,15}转让|已办理.{0,15}变更|完成.{0,15}交割', allowed):
         for clause in re.split(r'[。；，,]', analysis):
-            if re.search(r'于.{0,30}向.{0,20}转让|已经?转让|完成.{0,30}转让|转让了', clause) and not re.search(r'同意|拟|计划|是否|未说明|未披露|未载明', clause):
+            if re.search(r'于.{0,30}向.{0,20}转让|已经?转让|完成.{0,30}转让|转让了|实际交割|已经?交割|完成.{0,15}过户|已办理.{0,15}变更', clause) and not re.search(r'同意|拟|计划|是否|未说明|未披露|未载明|不能|无法确认|不等于', clause):
                 errors.append('conditional_transfer_as_completed')
                 break
     conditional = re.search(r'提请.{0,35}授权|在取得.{0,35}批准|拟.{0,20}授权', compact(allowed))

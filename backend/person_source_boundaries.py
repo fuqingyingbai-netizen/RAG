@@ -22,6 +22,11 @@ def source_context_errors(analysis, supports, context_facts=()):
             r'(?<!\d)((?:19|20)\d{2})\s*(?:年|[-/])\s*(\d{1,2})\s*(?:月|[-/])\s*(\d{1,2})(?:\s*日)?', literal)}
     if not calendar_dates(analysis) <= calendar_dates(' '.join(str(f.get('fact') or '') for f in supports)):
         errors.append('unsupported_date_combination')
+    denied_period = re.search(r'未(?:载明|说明|提供|披露)[^。；;]{0,12}(?:具体起始日期|任期覆盖区间|任职起止|任期起止)', text)
+    if denied_period and not re.search(r'当前|现任|后续|全部|逐项|逐职务', denied_period[0]):
+        has_range = re.search(r'(?:19|20)\d{2}年\d{1,2}月\d{1,2}日至(?:19|20)\d{2}年\d{1,2}月\d{1,2}日', numeric_literals(original))
+        if has_range or any((f.get('observation') or {}).get('role_date_fields') for f in supports):
+            errors.append('available_role_period_denied')
     reactions = r'员工不接受|员工.{0,10}(?:反对|抵制|不满)|集体辞职|店长推不下去|员工反馈|员工投诉'
     denied_reactions = r'(?:未提及|未见|没有|未说明|未提供)[^。；;]{0,20}(?:员工反应|员工反馈|员工意见|员工抵制|员工回应)'
     if re.search(denied_reactions, text) and re.search(reactions, original):

@@ -4,6 +4,7 @@ import re
 
 
 LABELS = {
+    'available_role_period_denied': '原文已有任职时间字段或时间区间，不能称完全未列起始日期；仅说明职务对应、后续延续或基准日尚未对齐',
     'unsupported_date_combination': '年月日组合未逐字对应原文日期，不能把不同日期的年份、月份或日拼接；保留原文时间精度',
     'broader_material_contains_claimed_missing_fact': '完整研究池另有该机构的持股或权益记录，不能笼统称没有材料；须综合全部相关记录，或仅明确本条片段未说明的字段',
     'threatened_event_as_occurred': '原文是以集体辞职相要挟，不能写成已经集体辞职；保留威胁或提议状态',
