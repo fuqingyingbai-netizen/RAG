@@ -26,7 +26,7 @@ SPECS = {
         ('执行与项目结果', r'交付|投产|量产|项目|产品|发布|研发|execution|product'),
         ('资本资源与个人职责', r'融资|筹资|资本|资产支持证券|financing|capital'),
         ('创新迭代与阶段匹配', r'研发|技术|专利|迭代|创新|innovation|technology')],
-    5: [('权责与授权', r'授权|提名|聘任|任免|分工|委派|批准|delegat|appoint'),
+    5: [('权责与授权', r'授权|签字权|提名|聘任|任免|分工|委派|批准|delegat|appoint'),
         ('用人与关键岗位', r'人事|提名|聘任|任免|离任|离职|接班|选聘|继任|recruit|succession'),
         ('文化与冲突处理', r'文化|冲突|裁员|激励|薪酬|员工|争议|culture|conflict'),
         ('经营管控与稳定性', r'管控|内控|管理|授权|审批|审议|董事会|control|management')],
@@ -38,7 +38,7 @@ SPECS = {
         ('关联交易与利益一致性', r'关联交易|代持|利益冲突|同业竞争|关联方|related party'),
         ('司法事项及当事人身份', r'案号|诉讼|裁判|被执行|处罚|当事人|失信|lawsuit|litigation'),
         ('关系时间与透明度缺口', r'任职|任期|担任|持股|股权|股东|历史|角色|职位|ownership')],
-    11: [('人物实际决策角色', r'授权|决策|控股|控制人|表决权|董事长|delegat|control'),
+    11: [('人物实际决策角色', r'授权|签字权|决策|控股|控制人|表决权|董事长|delegat|control'),
          ('投资方沟通与重大事项', r'投资方|重大事项|股东大会|资产支持证券|审议|批准|审批|investor|approval'),
          ('关键岗位与制度承接', r'聘任|任免|继任|接班|董事会秘书|总裁|总经理|succession|appoint'),
          ('退出路径及适用条件', r'锁定|不转让|限售|回购|退出|上市|exit|buyback|lock.up')],
@@ -137,7 +137,9 @@ def question_priority(fact, chapter, view):
     if chapter == 2 and view == '教育与早年经历':
         return 3 * bool(re.search(r'毕业|就读|学位|graduat|degree', text, re.I)) + bool(fact.get('observation', {}).get('source_events'))
     if chapter in {5, 11}:
-        return 4 * bool(re.search(r'授权|委派|delegat', text, re.I)) + 2 * bool(re.search(r'重大事项|资产支持证券|聘任|任免', text))
+        return (6 * (fact.get('claim_type') == 'person_management_event')
+                + 4 * bool(re.search(r'授权|委派|delegat', text, re.I))
+                + 2 * bool(re.search(r'重大事项|资产支持证券|聘任|任免', text)))
     if chapter == 9:
         return 2 * bool(fact.get('observation', {}).get('role_date_fields') or fact.get('observation', {}).get('metrics'))
     return 0
@@ -231,6 +233,36 @@ def select_material(ranked, chapter, commissioned=(), commission_matches=None, l
                 candidate = next((r for r in eligible if r[1].get('comparison_subject') == name and r[1].get('comparison_record_kind') == kind and r not in reserved), None)
                 if candidate:
                     reserved.append(candidate)
+    if chapter in {9, 10}:
+        # A biography or lockup cannot answer a dated appointment query.
+        # Reserve distinct record questions, not a quota per provider or URL.
+        topics = {r['topic'] for r in commissioned} if chapter == 10 else {'career', 'ownership'}
+        questions = ([('appointment', False), ('appointment', True)] if 'career' in topics else [])
+        questions += [('holding', None)] if 'ownership' in topics else []
+        for relation, historical in questions:
+            candidates = []
+            for pair in eligible:
+                f, obs = pair[1], pair[1].get('observation') or {}
+                if (f.get('claim_type') != 'person_platform_record' or f.get('subject_scope') != 'person'
+                        or not obs.get('direct_person_link') or not obs.get('issuer')
+                        or relation not in obs.get('relations', [])):
+                    continue
+                old = bool(re.search(r'；历史记录；|曾担任角色|结束时间:\s*(?:19|20)\d{2}', f['fact']))
+                if historical is not None and (old != historical or not obs.get('role_date_fields')):
+                    continue
+                if relation == 'holding' and not obs.get('metrics'):
+                    continue
+                candidates.append(pair)
+            if candidates:
+                def record_key(pair):
+                    f, obs = pair[1], pair[1].get('observation') or {}
+                    seed = re.search(r'查询定位机构：([^；]+)', f['fact'])
+                    dates = [d for row in obs.get('role_date_fields', []) for d in re.findall(r'(?:19|20)\d{2}-\d{2}-\d{2}', row['source_value'])]
+                    return (bool(seed and normalized(seed[1]) == normalized(obs['issuer'])),
+                            max(dates, default=''), quality_key(f), pair[0], f['evidence_id'])
+                candidate = max(candidates, key=record_key)
+                if candidate not in reserved:
+                    reserved.append(candidate)
     ordered = reserved + [r for r in eligible if r not in reserved]
     selected, sources, domains, members, peer_counts = [], Counter(), Counter(), Counter(), Counter()
     peer_names = {f.get('comparison_subject') for _, f in eligible if f.get('comparison_subject')}
@@ -255,6 +287,64 @@ def select_material(ranked, chapter, commissioned=(), commission_matches=None, l
             peer_counts[fact['comparison_subject']] += 1
         audit.append({'evidence_id': fact['evidence_id'], 'status': 'selected', 'reason': 'question_material'})
     return selected, audit
+
+
+def management_event(text, forms, orgs):
+    from person_evidence import name_in_text
+    if not 40 <= len(text) <= 1200 or not any(name_in_text(n, text) for n in forms if n):
+        return False
+    if not any(normalized(org) in normalized(text) for org in orgs if len(org) >= 3):
+        return False
+    # A comparison mentioning a namesake at another employer needs its own
+    # attribution. Page-level identity cannot establish this paragraph's actor.
+    if re.search(r'比如|例如|相比|相较|such as|compared', text, re.I):
+        return False
+    if re.search(r'善良|性格|人格|感性|柔软|脾气|人品', text):
+        return False
+    return bool(re.search(r'裁撤|裁员|组织变革|制度创新|授权|签字权|任免|聘任|接班|继任|重组|计件工资|激励|分配|任期|restructur|appoint|delegat|succession', text, re.I))
+
+
+def retained_management_events(sources, intake):
+    """Recover exact locally anchored events from feedback-discovery originals.
+
+    Collection purpose is not a ban on other research questions. These typed
+    records route only to management/event chapters, never personal credit.
+    """
+    target = str(intake.get('target_name') or '')
+    anchor = intake.get('person_anchor') or {}
+    forms = [target, *anchor.get('aliases', [])]
+    orgs = [re.sub(r'(?:股份有限公司|有限责任公司|有限公司)$', '', str(v))
+            for v in anchor.get('known_affiliations', []) if len(str(v)) >= 3]
+    rows = []
+    for source in sources:
+        meta, body = source.source_metadata or {}, source.content or ''
+        if (not meta.get('person_feedback_only') or meta.get('identity_confidence') not in {'high', 'medium'}
+                or meta.get('identity_status') == 'quarantined' or meta.get('person_discovery_only')
+                or meta.get('content_kind') in {'summary_only', 'low_content', 'empty_content'}
+                or meta.get('fetch_status') in {'failed', 'blocked', 'empty', 'skipped', 'challenge'}):
+            continue
+        paragraphs = list(re.finditer(r'\S[\s\S]*?(?=\n\s*\n|\Z)', body))
+        for index, paragraph in enumerate(paragraphs):
+            quote = paragraph[0].strip()
+            if not management_event(quote, forms, orgs):
+                continue
+            # Keep an immediately adjacent response/result paragraph. A bounded
+            # event card must not say feedback is absent when the next original
+            # paragraph reports dissent or a different decision-maker's action.
+            if index+1 < len(paragraphs) and re.search(r'裁撤|裁员|计件工资|重组|任免|restructur', quote, re.I):
+                following = paragraphs[index+1]
+                context = following[0].strip()
+                if (len(quote)+len(context) <= 1800 and any(normalized(org) in normalized(context) for org in orgs)
+                        and re.search(r'不满|不接受|辞职|开除|反馈|反对|执行|结果|反应|resign|oppos|reaction', context, re.I)):
+                    quote = body[paragraph.start():following.end()].strip()
+            rows.append({'fact': quote, 'evidence_quote': quote, 'source_url': source.url, 'source_title': source.title,
+                'claim_type': 'person_management_event', 'person_chapters': [4, 5, 11],
+                'identity_match': 'confirmed', 'identity_confidence': meta['identity_confidence'],
+                'source_grade': meta.get('source_grade') or 'C',
+                'event_identity_context': {'known_affiliations': orgs},
+                'provider': meta.get('provider'), 'retrieved_at': meta.get('retrieved_at', ''),
+                'extraction_method': 'retained_local_management_event'})
+    return rows
 
 
 def dimension_coverage(chapter, facts, queries=()):

@@ -4936,6 +4936,9 @@ class ResearchWorkflow:
         fast = self._fast_clean_sources(selected_sources, project=project, max_chars_per_source=max_chars_per_source, emit=emit)
         person_mode = str(project.target_type or "").lower() == "person"
         rule_facts = self._extract_sentence_facts(selected_sources, project) if person_mode else []
+        if person_mode:
+            from person_chapter_selection import retained_management_events
+            rule_facts.extend(retained_management_events(selected_sources, getattr(project, 'person_research_intake', {}) or {}))
         structured_rule_facts = self._extract_professional_structured_facts(selected_sources, project)
         # Rule-cleaned excerpts are the durable baseline, including when LLM
         # refinement is enabled.  The model may add interpretations/facts, but
@@ -4974,6 +4977,10 @@ class ResearchWorkflow:
             all_facts.extend(self._extract_industry_rule_facts(selected_sources, project))
         if person_mode:
             all_facts.extend(rule_facts)
+            # Generic page clips may share a prefix with a complete typed
+            # event. Preserve its local context and routing contract before
+            # the legacy prefix deduper sees the interchangeable page clip.
+            all_facts.sort(key=lambda f: f.get('claim_type') != 'person_management_event')
         discarded_patterns = self._normalize_cleaning_text_items(fast.get("discarded_patterns", []))
         information_gaps = self._normalize_cleaning_text_items(quality.get("information_gaps", []))
         information_gaps.extend(self._normalize_cleaning_text_items(fast.get("information_gaps", [])))
@@ -5026,7 +5033,8 @@ class ResearchWorkflow:
                     fact.setdefault("person_affiliation", meta.get("person_affiliation"))
                     fact.setdefault("person_chapters", list(meta.get("person_chapters") or []))
                     fact.setdefault("retrieved_at", str(getattr(src, "created_at", "") or "未记录"))
-            deduped, person_rejections = normalize_person_facts({"facts": deduped}, str(project.target_name or ""), sources=selected_sources)
+            aliases = ((getattr(project, 'person_research_intake', {}) or {}).get('person_anchor') or {}).get('aliases') or []
+            deduped, person_rejections = normalize_person_facts({"facts": deduped}, str(project.target_name or ""), aliases, sources=selected_sources)
             self._validate_person_cleaned_facts(deduped)
         evidence_ledger = self._build_evidence_ledger(self._active_industry_sources(project), selected_sources, target_type=str(project.target_type or ''))
         result = {
@@ -5074,6 +5082,9 @@ class ResearchWorkflow:
     def _extract_sentence_facts(self, sources: list[ResearchSource], project: ResearchProject) -> list[dict[str, Any]]:
         """Deterministic fallback: retain concise attributed sentences, never whole pages."""
         target = re.sub(r"\s+", "", str(project.target_name or "")).lower()
+        anchor = ((getattr(project, 'person_research_intake', {}) or {}).get('person_anchor') or {})
+        names = [project.target_name, *anchor.get('aliases', [])]
+        matches_target = lambda text: any(person_name_in_text(name, text) for name in names if name)
         facts: list[dict[str, Any]] = []
         noise = ("javascript", "var arg", "base64", "登录", "注册", "下载app", "网站首页", "推荐 快报", "免责声明")
         for source in sources:
@@ -5085,12 +5096,12 @@ class ResearchWorkflow:
             text = self._clean_source_text(source.content or source.summary or "")
             candidates = re.split(r'(?<=[。！？!?；;])\s*|(?<=[.!?])(?<!\bDr\.)(?<!\bMr\.)(?<!\bMs\.)(?<!\bMrs\.)(?<!\bProf\.)(?<!\b[A-Z]\.)\s+(?=[A-Z“"\'])|[\r\n]+', text)
             from person_chapter_selection import prioritize_sentences
-            candidates = prioritize_sentences(candidates, lambda sentence: not target or person_name_in_text(project.target_name, sentence))
+            candidates = prioritize_sentences(candidates, lambda sentence: not target or matches_target(sentence))
             kept = 0
             for sentence in candidates:
                 sentence = re.sub(r"\s+", " ", sentence).strip(" -•\t")
                 compact = re.sub(r"\s+", "", sentence).lower()
-                if not (24 <= len(sentence) <= 1200) or (target and not person_name_in_text(project.target_name, sentence)):
+                if not (24 <= len(sentence) <= 1200) or (target and not matches_target(sentence)):
                     continue
                 if any(marker in compact for marker in noise):
                     continue
@@ -8204,6 +8215,10 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             if target_type == 'company':
                 from report_agents.company_evidence import source_body
                 discovery_only = source_body(source)[1] == 'discovery_summary'
+            elif target_type == 'person':
+                from person_identity import discovery_index
+                discovery_only = bool(meta.get('person_discovery_only') or discovery_index(source.title, source.content)
+                    or meta.get('content_kind') in {'summary_only', 'low_content', 'empty_content'})
             quality = meta.get("quality") if isinstance(meta.get("quality"), dict) else {}
             source_key = getattr(source, "id", None) or (source.url or id(source))
             failed = self._is_failed_extraction_source(source)
@@ -8216,7 +8231,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 seen_content_keys.add(content_key)
             person_affiliation = meta.get("person_affiliation") if isinstance(meta.get("person_affiliation"), dict) else {}
             processed = source_key in cleaned_ids
-            cleaned = bool(processed and not failed and safe and not duplicate)
+            identity_excluded = target_type == 'person' and (meta.get('identity_confidence') in {'low', 'rejected'} or meta.get('identity_status') == 'quarantined')
+            cleaned = bool(processed and not failed and safe and not duplicate and not discovery_only and not identity_excluded)
             rows.append({
                 "evidence_id": self._stable_evidence_id(source.url, source.title),
                 "source_id": getattr(source, "id", None),
@@ -8234,11 +8250,13 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 "content_kind": meta.get("content_kind") or meta.get("extraction_status") or "",
                 "content_chars": len(source.content or source.summary or ""),
                 "duplicate": duplicate,
-                "usable_for_hard_fact": bool(not failed and safe and not discovery_only and self._source_grade(source, quality) in {"A", "B"}),
+                "usable_for_hard_fact": bool(not failed and safe and not discovery_only and not identity_excluded and self._source_grade(source, quality) in {"A", "B"}),
                 "deterministically_processed": processed,
                 "deterministically_cleaned": cleaned,
-                "status": "duplicate" if duplicate else "discovery_only" if discovery_only else "cleaned" if cleaned else "rejected",
-                "rejected_reason": "duplicate" if duplicate else "failed_extraction" if failed else "entity_mismatch" if not safe else "empty_content",
+                "status": "duplicate" if duplicate else "rejected" if identity_excluded else "discovery_only" if discovery_only else "cleaned" if cleaned else "rejected",
+                "rejected_reason": ("duplicate" if duplicate else "identity_quarantine" if identity_excluded else
+                    "discovery_only" if discovery_only else "failed_extraction" if failed else "entity_mismatch" if not safe else
+                    "" if cleaned else "empty_content" if not (source.content or source.summary or '').strip() else "not_processed"),
             })
         return rows
 

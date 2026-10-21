@@ -22,7 +22,7 @@ except ImportError:
     from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
     from person_chapter_selection import select_material, dimension_coverage, team_source_facts, prospective_company_risk
 
-VERSION = "person-template-v10-bounded-source-interpretations"
+VERSION = "person-template-v11-retained-event-and-record-coverage"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
@@ -174,7 +174,10 @@ def normalize_facts(payload, target, aliases=(), sources=()):
         confidence = str(f.get("identity_confidence") or "").lower()
         reason = ""
         if source_meta.get(url, {}).get('person_feedback_only') and not f.get('feedback_record'):
-            reason = 'feedback_source_requires_attribution_record'
+            from person_chapter_selection import management_event
+            event_orgs = (f.get('event_identity_context') or {}).get('known_affiliations', [])
+            if f.get('claim_type') != 'person_management_event' or not management_event(text, raw_names, event_orgs):
+                reason = 'feedback_source_requires_attribution_record'
         if f.get("eligible_for_report") is False or identity in {"ambiguous", "mismatch"} or confidence in {"low", "rejected"} or f.get("usable_as") == "identity_quarantine":
             reason = "identity_quarantine"
         elif not text or not url.startswith(("https://", "http://", "structured://")):
@@ -271,7 +274,9 @@ def temporal_conflicts(facts):
 def build_packages(payload, target, outline, intake=None, sources=(), platform_attempts=()):
     intake = intake or {}
     aliases = (intake.get("person_anchor") or {}).get("aliases") or []
-    facts, rejected = normalize_facts({**payload, 'facts': [*payload.get('facts', []), *team_source_facts(sources, {**intake, 'target_name': target})]}, target, aliases, sources)
+    from person_chapter_selection import retained_management_events
+    events = retained_management_events(sources, {**intake, 'target_name': target})
+    facts, rejected = normalize_facts({**payload, 'facts': [*payload.get('facts', []), *team_source_facts(sources, {**intake, 'target_name': target}), *events]}, target, aliases, sources)
     try:
         from .person_chapter_research import annotated_facts, view_status
     except ImportError:
@@ -315,19 +320,30 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
     packages = {}
     for chapter, (title, requirements) in enumerate(outline, 1):
         terms = TOPICS.get(chapter, ())
-        ranked = []
+        ranked, routing_audit = [], []
+        def not_candidate(fact, reason):
+            routing_audit.append({'evidence_id': fact['evidence_id'], 'status': 'not_candidate', 'reason': reason})
         for f in facts:
+            if f.get('claim_type') == 'person_management_event' and chapter not in f.get('person_chapters', []):
+                not_candidate(f, 'management_event_scope')
+                continue
             if f['subject_scope'] == 'comparison_person' and chapter != 8:
+                not_candidate(f, 'comparison_person_scope')
                 continue
             if f.get('feedback_record') and chapter != 7:
+                not_candidate(f, 'feedback_record_scope')
                 continue
             if not chapter_relevant(f, chapter):
+                not_candidate(f, 'not_chapter_relevant')
                 continue
             if f['subject_scope'] == 'other_person' and chapter != 6:
+                not_candidate(f, 'other_person_scope')
                 continue
             if f['subject_scope'] == 'affiliated_company' and chapter in {2, 3, 7}:
+                not_candidate(f, 'affiliated_company_not_personal_material')
                 continue
             if f['subject_scope'] == 'affiliated_company' and chapter in {9, 10} and not f['observation']['direct_person_link']:
+                not_candidate(f, 'affiliated_company_without_direct_person_link')
                 continue
             # A search title or query module is not evidence of the fact's
             # subject matter. Personnel records also have explicit scope tags:
@@ -336,6 +352,7 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
             if (f.get("claim_type") in {"person_platform_record", "person_company_record"} and chapter not in {1, 13}
                     and not (chapter == 10 and commission_hits)
                     and chapter not in f.get("person_chapters", [])):
+                not_candidate(f, 'structured_record_chapter_scope')
                 continue
             try:
                 from .person_text import folded
@@ -343,6 +360,9 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
                 from person_text import folded
             blob = folded(f.get("fact"))
             hits = sum(compact(term) in blob for term in terms)
+            if f.get('claim_type') == 'person_management_event':
+                from person_chapter_selection import useful_for_chapter
+                hits += int(useful_for_chapter(f, chapter))
             if (f.get('claim_type') in {'person_platform_record', 'person_company_record'}
                     and chapter in f.get('person_chapters', [])):
                 hits += 1
@@ -360,6 +380,9 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
             if chapter in {1, 13} or (chapter < 14 and hits):
                 # Unrelated facts never fill an empty chapter.
                 ranked.append((hits + 8 * module_match + (2 if f["subject_scope"] == "person" else 0), f))
+                routing_audit.append({'evidence_id': f['evidence_id'], 'status': 'candidate', 'reason': 'question_or_topic_match'})
+            else:
+                not_candidate(f, 'no_question_or_topic_match')
         ranked.sort(key=lambda pair: (-pair[0], pair[1]["evidence_id"]))
         if chapter == 10 and commissioned:
             # Reserve a relevant card per question before filling the rest;
@@ -446,6 +469,7 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
                              "task": TASKS[chapter], "identity_clues_not_facts": intake.get("person_anchor") or {}, "facts": selected, "information_gaps": gaps,
                              "commission_coverage": commission_coverage,
                              "material_coverage": coverage, "selection_audit": selection_audit,
+                             "routing_audit": routing_audit,
                              "query_coverage": query_coverage,
                              "conflicts": [r for r in conflicts if set(r["evidence_ids"]) & {f["evidence_id"] for f in selected}]}
     return {"version": VERSION, "target_name": target, "as_of_date": cutoff, "facts": facts, "rejected": rejected,
@@ -808,7 +832,7 @@ def normalize_person_risk(payload):
     return result
 
 
-def generate_person_report(project, cleaned_json, risk_json, outline, invoke, emit, trace_emit=None):
+def generate_person_report(project, cleaned_json, risk_json, outline, invoke, emit, trace_emit=None, *, retained_sections=None):
     """Write all template chapters in dependency order, retaining per-chapter audits."""
     try:
         payload = json.loads(cleaned_json or "{}")
@@ -840,6 +864,23 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
     for chapter in ORDER:
         package = contract["chapters"][chapter]
         package['writing_contract'] = 'evidence_selection_v2'
+        if chapter in (retained_sections or {}):
+            # Local replay only: the caller must verify the selected IDs and
+            # original corpus hash before supplying an unchanged body section.
+            # Summary, index and follow-up always rebuild from the final body.
+            if chapter not in range(2, 13):
+                raise ValueError('Only substantive body chapters can be retained')
+            retained = retained_sections[chapter]
+            if set(retained['selected_ids']) != {f['evidence_id'] for f in package['facts']}:
+                raise ValueError('Retained chapter material changed; explicit rewrite required')
+            sections[chapter] = retained['text']
+            diagnostics[chapter] = {**retained['diagnostic'], 'replay_status': 'retained_verbatim_no_request'}
+            unresolved = retained['diagnostic'].get('unresolved_validation_rejections') or []
+            if unresolved:
+                degradations.append({'chapter': chapter, 'reasons': list(unresolved)})
+            section_claims[chapter] = retained['claims']
+            package['information_gaps'] = list(retained['gaps'])
+            continue
         if chapter == 14:
             sections[14] = "## 14. 信息来源\n\n由正文实际引用生成。"
             diagnostics[14] = {"status": "actual_citation_index", "model_calls": 0}

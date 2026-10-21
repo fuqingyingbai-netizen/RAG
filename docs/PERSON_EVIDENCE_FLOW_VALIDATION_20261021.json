@@ -1,0 +1,713 @@
+{
+  "scope": "same_retained_corpus_partial_chapter_replays",
+  "new_search_calls": 0,
+  "new_fetch_calls": 0,
+  "new_platform_calls": 0,
+  "subjects": {
+    "wang": {
+      "baseline": "C:\\Users\\wangli\\.codex\\worktrees\\company-knowledge-workbench\\RAG\\work\\person-optimization\\same-corpus-20261021T005547-ef6911",
+      "final_replay": "C:\\Users\\wangli\\.codex\\worktrees\\person-evidence-audit\\RAG\\work\\person-flow\\wang-final-validated",
+      "corpus_sha256": "cf99e0e6998932f9707173d5326ddc3f6378bd5aa91797e46aa8d77a9f8b430d",
+      "source_records": 95,
+      "normalized_unique_urls": 95,
+      "cleaned_cards_before": 500,
+      "report_cards_before": 547,
+      "report_cards_after": 548,
+      "body_evidence_ids_before": 82,
+      "body_evidence_ids_after": 82,
+      "body_unique_urls_before": 24,
+      "body_unique_urls_after": 27,
+      "all_15_chapters": [
+        {
+          "chapter": 1,
+          "title": "## 1. 摘要",
+          "selected_before": 16,
+          "candidates_before": 493,
+          "candidates_after": 493,
+          "cited_before": 16,
+          "cited_after": 17,
+          "urls_before": 8,
+          "urls_after": 8,
+          "added_ids": [
+            "E-P2116A6060A157E"
+          ],
+          "removed_ids": [],
+          "text_unchanged": false,
+          "note": "从最终正文继承摘要；未新建独立推断。"
+        },
+        {
+          "chapter": 2,
+          "title": "## 2. 创始人底色画像",
+          "selected_before": 12,
+          "candidates_before": 189,
+          "candidates_after": 189,
+          "cited_before": 12,
+          "cited_after": 12,
+          "urls_before": 9,
+          "urls_after": 9,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "两例保持原文。教育与任期已有材料，不因没有访谈或私密材料补推断；仍有长表格、逐句只命中姓名的提取覆盖待核。"
+        },
+        {
+          "chapter": 3,
+          "title": "## 3. 人格特质风险",
+          "selected_before": 1,
+          "candidates_before": 3,
+          "candidates_after": 3,
+          "cited_before": 1,
+          "cited_after": 1,
+          "urls_before": 1,
+          "urls_after": 1,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "两例保持原文。公开发言不支持人格、诚信或风险偏好评级；排除公司责任套话合理。"
+        },
+        {
+          "chapter": 4,
+          "title": "## 4. 经营胜任力、持续创新与迭代能力验证",
+          "selected_before": 12,
+          "candidates_before": 171,
+          "candidates_after": 171,
+          "cited_before": 12,
+          "cited_after": 12,
+          "urls_before": 5,
+          "urls_after": 5,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "主样本保持；第二样本恢复原采访中的制度创新和组织变革资料。来源对回归经营的预测仍按预测处理，不能写成已实现效果。"
+        },
+        {
+          "chapter": 5,
+          "title": "## 5. 识人用人、统筹管理及核心经营管控能力",
+          "selected_before": 11,
+          "candidates_before": 34,
+          "candidates_after": 34,
+          "cited_before": 11,
+          "cited_after": 11,
+          "urls_before": 8,
+          "urls_after": 8,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "第二样本恢复2015年层级调整、计件工资及历史签字权限；时间、金额沿用原句。公司与人物自述仍须独立核实。"
+        },
+        {
+          "chapter": 6,
+          "title": "## 6. 核心管理团队背景调研",
+          "selected_before": 12,
+          "candidates_before": 236,
+          "candidates_after": 236,
+          "cited_before": 12,
+          "cited_after": 12,
+          "urls_before": 2,
+          "urls_after": 2,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "两例保持。其他团队成员独立归属，外部合作对象和同名人士不计入目标团队；第二样本团队原件仍稀疏。"
+        },
+        {
+          "chapter": 7,
+          "title": "## 7. 商业操守与个人信用风险核查",
+          "selected_before": 7,
+          "candidates_before": 11,
+          "candidates_after": 12,
+          "cited_before": 7,
+          "cited_after": 8,
+          "urls_before": 4,
+          "urls_after": 5,
+          "added_ids": [
+            "E-PB69EF4F531802F"
+          ],
+          "removed_ids": [],
+          "text_unchanged": false,
+          "note": "主样本增加俞敏洪具名观点；第二样本从0恢复为杨利娟公开陈述与施永宏历史单方争议。非授权访谈，不作诚信结论；匿名记者与公司承诺继续排除。"
+        },
+        {
+          "chapter": 8,
+          "title": "## 8. 同业对标下综合能力与品行隐患评估",
+          "selected_before": 12,
+          "candidates_before": 31,
+          "candidates_after": 31,
+          "cited_before": 12,
+          "cited_after": 12,
+          "urls_before": 9,
+          "urls_after": 9,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "两例保持。主样本有候选原件，但部分PDF文本损坏且时期、指标未对齐；第二样本未形成合格外部对标，不以关联公司管理者充当同行。"
+        },
+        {
+          "chapter": 9,
+          "title": "## 9. 关联利益冲突及司法负面核查",
+          "selected_before": 12,
+          "candidates_before": 209,
+          "candidates_after": 209,
+          "cited_before": 12,
+          "cited_after": 12,
+          "urls_before": 7,
+          "urls_after": 9,
+          "added_ids": [
+            "E-P1B819A2140059D",
+            "E-P2B19941556C7B1",
+            "E-PDDDF04495AC7B2"
+          ],
+          "removed_ids": [
+            "E-P24B8C6EB3F5F6F",
+            "E-P89390D35DFB84D",
+            "E-PF898E6D49D4E4D"
+          ],
+          "text_unchanged": false,
+          "note": "主样本让已取得的起始任职、历史离任和权益字段进入正文。公司诉讼叙事不能当作本人当事人证明；仍缺完整个人司法原件。单位判断仍保留拦截。"
+        },
+        {
+          "chapter": 10,
+          "title": "## 10. 专项调研",
+          "selected_before": 14,
+          "candidates_before": 293,
+          "candidates_after": 293,
+          "cited_before": 14,
+          "cited_after": 14,
+          "urls_before": 6,
+          "urls_after": 9,
+          "added_ids": [
+            "E-P1B819A2140059D",
+            "E-P2B19941556C7B1",
+            "E-PDDDF04495AC7B2"
+          ],
+          "removed_ids": [
+            "E-P307F2D0DC59552",
+            "E-P6F067DA25913ED",
+            "E-P71EEF5D3EE9925"
+          ],
+          "text_unchanged": false,
+          "note": "主样本把起止任职与历史记录用于委托问题；数据基准日缺失仍明确，不能把成立日当任职日或把历史比例写成当前持股。第二样本保持。"
+        },
+        {
+          "chapter": 11,
+          "title": "## 11. 投后治理及退出风险研判",
+          "selected_before": 12,
+          "candidates_before": 29,
+          "candidates_after": 29,
+          "cited_before": 12,
+          "cited_after": 12,
+          "urls_before": 8,
+          "urls_after": 8,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "第二样本补历史授权分级与制度时期。未取得现行投资协议、信息权及退出触发条件，不认定存在当前退出权。主样本保持。"
+        },
+        {
+          "chapter": 12,
+          "title": "## 12. 风险核查",
+          "selected_before": 3,
+          "candidates_before": 4,
+          "candidates_after": 4,
+          "cited_before": 3,
+          "cited_after": 3,
+          "urls_before": 3,
+          "urls_after": 3,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "两例保持。直接个人信号与公司披露的潜在风险分列，17维未知项不评分；关联企业法律事件未完成全量上下文恢复，仍待证。"
+        },
+        {
+          "chapter": 13,
+          "title": "## 13. 综合评估",
+          "selected_before": 16,
+          "candidates_before": 493,
+          "candidates_after": 493,
+          "cited_before": 16,
+          "cited_after": 17,
+          "urls_before": 8,
+          "urls_after": 8,
+          "added_ids": [
+            "E-P2116A6060A157E"
+          ],
+          "removed_ids": [],
+          "text_unchanged": false,
+          "note": "按最终正文实际保留分析汇总；被拦截内容不重新进入结论，待核验不变成风险等级。"
+        },
+        {
+          "chapter": 14,
+          "title": "## 14. 信息来源（正文实际引用索引）",
+          "selected_before": 82,
+          "candidates_before": 0,
+          "candidates_after": 0,
+          "cited_before": 82,
+          "cited_after": 82,
+          "urls_before": 24,
+          "urls_after": 27,
+          "added_ids": [
+            "E-P1B819A2140059D",
+            "E-P2B19941556C7B1",
+            "E-PB69EF4F531802F",
+            "E-PDDDF04495AC7B2"
+          ],
+          "removed_ids": [
+            "E-P24B8C6EB3F5F6F",
+            "E-P307F2D0DC59552",
+            "E-P89390D35DFB84D",
+            "E-PF898E6D49D4E4D"
+          ],
+          "text_unchanged": false,
+          "note": "按正文实际E-ID重建。E-ID是事实卡标识，同一URL多张卡不能算多个独立来源；来源镜像/同源转载仍需文档级核对。"
+        },
+        {
+          "chapter": 15,
+          "title": "## 15. 后续研究点",
+          "selected_before": 0,
+          "candidates_before": 0,
+          "candidates_after": 0,
+          "cited_before": 0,
+          "cited_after": 0,
+          "urls_before": 0,
+          "urls_after": 0,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": false,
+          "note": "同步更新缺口及平台状态。上下级关系现有材料与缺少客户/同行评价分开；地域限制、空列表、调用失败和未查询不混同。"
+        }
+      ],
+      "unchanged_body_chapters": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        11,
+        12
+      ],
+      "model_requests": 14,
+      "model_failures": 0,
+      "extraction_calls": 2,
+      "remaining_degradations": [
+        {
+          "chapter": 9,
+          "reasons": [
+            "quantity_unit_not_supported"
+          ]
+        }
+      ],
+      "original_docx_sha256": "caa0865c5603b2a74f081ff3dd35037aa562c03bb5eda45f67f67a19ea83ee31",
+      "retrieval_attempt_states": {
+        "returned": 27,
+        "failed": 3
+      },
+      "execution_stages": [
+        {
+          "stage": "wang-final",
+          "elapsed_seconds": 44.671
+        },
+        {
+          "stage": "wang-final-validated",
+          "elapsed_seconds": 18.688
+        },
+        {
+          "stage": "wang-replay",
+          "elapsed_seconds": 94.656
+        }
+      ],
+      "extraction_stages": [
+        {
+          "stage": "wang-feedback",
+          "elapsed_seconds": 11.562
+        },
+        {
+          "stage": "wang-feedback-v2",
+          "elapsed_seconds": 8.266
+        }
+      ]
+    },
+    "zhang": {
+      "baseline": "C:\\Users\\wangli\\.codex\\worktrees\\company-knowledge-workbench\\RAG\\work\\person-optimization\\same-corpus-20261021T005547-20608c",
+      "final_replay": "C:\\Users\\wangli\\.codex\\worktrees\\person-evidence-audit\\RAG\\work\\person-flow\\zhang-context-replay",
+      "corpus_sha256": "755763281fc8bea28553f5f05a3c7eb448361260fb2c08fbcf6a89aaf7a49254",
+      "source_records": 53,
+      "normalized_unique_urls": 53,
+      "cleaned_cards_before": 147,
+      "report_cards_before": 150,
+      "report_cards_after": 157,
+      "body_evidence_ids_before": 48,
+      "body_evidence_ids_after": 51,
+      "body_unique_urls_before": 15,
+      "body_unique_urls_after": 16,
+      "all_15_chapters": [
+        {
+          "chapter": 1,
+          "title": "## 1. 摘要",
+          "selected_before": 12,
+          "candidates_before": 145,
+          "candidates_after": 145,
+          "cited_before": 12,
+          "cited_after": 12,
+          "urls_before": 9,
+          "urls_after": 8,
+          "added_ids": [
+            "E-P5B5763E4D93E6D",
+            "E-P779AA95AD748A0"
+          ],
+          "removed_ids": [
+            "E-PB23730F2BA0A86",
+            "E-PD27CA928B6F795"
+          ],
+          "text_unchanged": false,
+          "note": "从最终正文继承摘要；未新建独立推断。"
+        },
+        {
+          "chapter": 2,
+          "title": "## 2. 创始人底色画像",
+          "selected_before": 5,
+          "candidates_before": 26,
+          "candidates_after": 26,
+          "cited_before": 5,
+          "cited_after": 5,
+          "urls_before": 4,
+          "urls_after": 4,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "两例保持原文。教育与任期已有材料，不因没有访谈或私密材料补推断；仍有长表格、逐句只命中姓名的提取覆盖待核。"
+        },
+        {
+          "chapter": 3,
+          "title": "## 3. 人格特质风险",
+          "selected_before": 4,
+          "candidates_before": 6,
+          "candidates_after": 6,
+          "cited_before": 4,
+          "cited_after": 4,
+          "urls_before": 2,
+          "urls_after": 2,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "两例保持原文。公开发言不支持人格、诚信或风险偏好评级；排除公司责任套话合理。"
+        },
+        {
+          "chapter": 4,
+          "title": "## 4. 经营胜任力、持续创新与迭代能力验证",
+          "selected_before": 10,
+          "candidates_before": 25,
+          "candidates_after": 27,
+          "cited_before": 10,
+          "cited_after": 11,
+          "urls_before": 8,
+          "urls_after": 9,
+          "added_ids": [
+            "E-PED11AE249D87ED"
+          ],
+          "removed_ids": [],
+          "text_unchanged": false,
+          "note": "主样本保持；第二样本恢复原采访中的制度创新和组织变革资料。来源对回归经营的预测仍按预测处理，不能写成已实现效果。"
+        },
+        {
+          "chapter": 5,
+          "title": "## 5. 识人用人、统筹管理及核心经营管控能力",
+          "selected_before": 12,
+          "candidates_before": 33,
+          "candidates_after": 38,
+          "cited_before": 12,
+          "cited_after": 12,
+          "urls_before": 9,
+          "urls_after": 6,
+          "added_ids": [
+            "E-P5B5763E4D93E6D",
+            "E-P779AA95AD748A0",
+            "E-PA922054DC5E4DD",
+            "E-PED11AE249D87ED"
+          ],
+          "removed_ids": [
+            "E-P6B0A6F6C745DC1",
+            "E-PA0A56098AE9C34",
+            "E-PB23730F2BA0A86",
+            "E-PED2349EB855EF4"
+          ],
+          "text_unchanged": false,
+          "note": "第二样本恢复2015年层级调整、计件工资及历史签字权限；时间、金额沿用原句。公司与人物自述仍须独立核实。"
+        },
+        {
+          "chapter": 6,
+          "title": "## 6. 核心管理团队背景调研",
+          "selected_before": 2,
+          "candidates_before": 44,
+          "candidates_after": 44,
+          "cited_before": 2,
+          "cited_after": 2,
+          "urls_before": 1,
+          "urls_after": 1,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "两例保持。其他团队成员独立归属，外部合作对象和同名人士不计入目标团队；第二样本团队原件仍稀疏。"
+        },
+        {
+          "chapter": 7,
+          "title": "## 7. 商业操守与个人信用风险核查",
+          "selected_before": 0,
+          "candidates_before": 0,
+          "candidates_after": 2,
+          "cited_before": 0,
+          "cited_after": 2,
+          "urls_before": 0,
+          "urls_after": 2,
+          "added_ids": [
+            "E-P19251BB81D1AE3",
+            "E-PDA9163C9DD6C79"
+          ],
+          "removed_ids": [],
+          "text_unchanged": false,
+          "note": "主样本增加俞敏洪具名观点；第二样本从0恢复为杨利娟公开陈述与施永宏历史单方争议。非授权访谈，不作诚信结论；匿名记者与公司承诺继续排除。"
+        },
+        {
+          "chapter": 8,
+          "title": "## 8. 同业对标下综合能力与品行隐患评估",
+          "selected_before": 0,
+          "candidates_before": 1,
+          "candidates_after": 1,
+          "cited_before": 0,
+          "cited_after": 0,
+          "urls_before": 0,
+          "urls_after": 0,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "两例保持。主样本有候选原件，但部分PDF文本损坏且时期、指标未对齐；第二样本未形成合格外部对标，不以关联公司管理者充当同行。"
+        },
+        {
+          "chapter": 9,
+          "title": "## 9. 关联利益冲突及司法负面核查",
+          "selected_before": 9,
+          "candidates_before": 15,
+          "candidates_after": 15,
+          "cited_before": 9,
+          "cited_after": 9,
+          "urls_before": 6,
+          "urls_after": 6,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "主样本让已取得的起始任职、历史离任和权益字段进入正文。公司诉讼叙事不能当作本人当事人证明；仍缺完整个人司法原件。单位判断仍保留拦截。"
+        },
+        {
+          "chapter": 10,
+          "title": "## 10. 专项调研",
+          "selected_before": 12,
+          "candidates_before": 50,
+          "candidates_after": 50,
+          "cited_before": 12,
+          "cited_after": 12,
+          "urls_before": 9,
+          "urls_after": 9,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "主样本把起止任职与历史记录用于委托问题；数据基准日缺失仍明确，不能把成立日当任职日或把历史比例写成当前持股。第二样本保持。"
+        },
+        {
+          "chapter": 11,
+          "title": "## 11. 投后治理及退出风险研判",
+          "selected_before": 11,
+          "candidates_before": 23,
+          "candidates_after": 25,
+          "cited_before": 11,
+          "cited_after": 12,
+          "urls_before": 7,
+          "urls_after": 8,
+          "added_ids": [
+            "E-P5B5763E4D93E6D",
+            "E-P779AA95AD748A0"
+          ],
+          "removed_ids": [
+            "E-PB23B2122A86F35"
+          ],
+          "text_unchanged": false,
+          "note": "第二样本补历史授权分级与制度时期。未取得现行投资协议、信息权及退出触发条件，不认定存在当前退出权。主样本保持。"
+        },
+        {
+          "chapter": 12,
+          "title": "## 12. 风险核查",
+          "selected_before": 1,
+          "candidates_before": 1,
+          "candidates_after": 1,
+          "cited_before": 1,
+          "cited_after": 1,
+          "urls_before": 1,
+          "urls_after": 1,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": true,
+          "note": "两例保持。直接个人信号与公司披露的潜在风险分列，17维未知项不评分；关联企业法律事件未完成全量上下文恢复，仍待证。"
+        },
+        {
+          "chapter": 13,
+          "title": "## 13. 综合评估",
+          "selected_before": 12,
+          "candidates_before": 145,
+          "candidates_after": 145,
+          "cited_before": 12,
+          "cited_after": 12,
+          "urls_before": 9,
+          "urls_after": 8,
+          "added_ids": [
+            "E-P5B5763E4D93E6D",
+            "E-P779AA95AD748A0"
+          ],
+          "removed_ids": [
+            "E-PB23730F2BA0A86",
+            "E-PD27CA928B6F795"
+          ],
+          "text_unchanged": false,
+          "note": "按最终正文实际保留分析汇总；被拦截内容不重新进入结论，待核验不变成风险等级。"
+        },
+        {
+          "chapter": 14,
+          "title": "## 14. 信息来源（正文实际引用索引）",
+          "selected_before": 48,
+          "candidates_before": 0,
+          "candidates_after": 0,
+          "cited_before": 48,
+          "cited_after": 51,
+          "urls_before": 15,
+          "urls_after": 16,
+          "added_ids": [
+            "E-P19251BB81D1AE3",
+            "E-P5B5763E4D93E6D",
+            "E-P779AA95AD748A0",
+            "E-PA922054DC5E4DD",
+            "E-PDA9163C9DD6C79",
+            "E-PED11AE249D87ED"
+          ],
+          "removed_ids": [
+            "E-P6B0A6F6C745DC1",
+            "E-PA0A56098AE9C34",
+            "E-PB23730F2BA0A86"
+          ],
+          "text_unchanged": false,
+          "note": "按正文实际E-ID重建。E-ID是事实卡标识，同一URL多张卡不能算多个独立来源；来源镜像/同源转载仍需文档级核对。"
+        },
+        {
+          "chapter": 15,
+          "title": "## 15. 后续研究点",
+          "selected_before": 0,
+          "candidates_before": 0,
+          "candidates_after": 0,
+          "cited_before": 0,
+          "cited_after": 0,
+          "urls_before": 0,
+          "urls_after": 0,
+          "added_ids": [],
+          "removed_ids": [],
+          "text_unchanged": false,
+          "note": "同步更新缺口及平台状态。上下级关系现有材料与缺少客户/同行评价分开；地域限制、空列表、调用失败和未查询不混同。"
+        }
+      ],
+      "unchanged_body_chapters": [
+        2,
+        3,
+        6,
+        8,
+        9,
+        10,
+        12
+      ],
+      "model_requests": 14,
+      "model_failures": 0,
+      "extraction_calls": 2,
+      "remaining_degradations": [],
+      "original_docx_sha256": "963421ba1866e4e0744032cfc73112933be664dc166c5dc562d6ba348695d166",
+      "retrieval_attempt_states": {
+        "returned": 16,
+        "failed": 6
+      },
+      "execution_stages": [
+        {
+          "stage": "zhang-context-replay",
+          "elapsed_seconds": 34.531
+        },
+        {
+          "stage": "zhang-final",
+          "elapsed_seconds": 6.437
+        },
+        {
+          "stage": "zhang-final-validated",
+          "elapsed_seconds": 5.578
+        },
+        {
+          "stage": "zhang-replay",
+          "elapsed_seconds": 114.281
+        }
+      ],
+      "extraction_stages": [
+        {
+          "stage": "zhang-feedback",
+          "elapsed_seconds": 12.156
+        },
+        {
+          "stage": "zhang-feedback-v2",
+          "elapsed_seconds": 7.454
+        }
+      ]
+    }
+  },
+  "tests": {
+    "person-tests.xml": {
+      "tests": 248.0,
+      "failures": 0.0,
+      "errors": 0.0,
+      "skipped": 0.0,
+      "time": 208.895
+    },
+    "final-targeted-tests.xml": {
+      "tests": 177.0,
+      "failures": 0.0,
+      "errors": 0.0,
+      "skipped": 0.0,
+      "time": 6.284
+    }
+  },
+  "limitations": [
+    "Not an independent truth or legal-responsibility verification",
+    "No fresh full-report online acceptance",
+    "No deployment or push"
+  ],
+  "actual_model_requests": 28,
+  "reclean_validation": [
+    {
+      "sample": "zhang",
+      "source_id": 50,
+      "original_sha256": "424de61d49d9af7dc44f8d7f2df3e907a71aa4500af2a6553861a562af6a8b97",
+      "before_cleaned_cards": 0,
+      "after_cleaned_cards": 5,
+      "management_events": 5,
+      "new_external_calls": 0,
+      "elapsed_seconds": 0.187
+    },
+    {
+      "sample": "wang",
+      "source_id": 66,
+      "original_sha256": "6aca83d0eb293bfb778a5ad9e462eb14ee2b059a8e6d07ba6d01d4e540133963",
+      "before_cleaned_cards": 27,
+      "after_cleaned_cards": 27,
+      "management_events": 0,
+      "new_external_calls": 0,
+      "elapsed_seconds": 0.094
+    }
+  ],
+  "billing_cost_available": false,
+  "validation": {
+    "all_original_source_hashes_unchanged": true,
+    "all_new_selected_quotes_are_literal_substrings": true,
+    "actual_body_ids_equal_source_index": true,
+    "unaffected_body_sections_verbatim": true,
+    "remaining_review_gates_preserved": true
+  }
+}

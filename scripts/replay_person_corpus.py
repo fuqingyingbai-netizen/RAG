@@ -254,6 +254,7 @@ def main():
         selection = {str(n): {'selected_ids': [f['evidence_id'] for f in p['facts']],
                               'material_coverage': p.get('material_coverage', []),
                               'selection_audit': p.get('selection_audit', []),
+                              'routing_audit': p.get('routing_audit', []),
                               'query_coverage': p.get('query_coverage', [])}
                      for n, p in contract.get('chapters', {}).items()}
         (run / 'chapter-selection-audit.json').write_text(json.dumps(safe(selection), ensure_ascii=False, indent=2), encoding='utf-8')
