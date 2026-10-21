@@ -25,7 +25,9 @@ def inspect(run):
         package = contract['chapters'][str(n)]
         pool = package.get('research_facts', package['facts'])
         diagnostic = audit.get('section_diagnostics', {}).get(str(n), {})
-        displayed = re.findall(r'\*\*来源记录 \d+.*?\[(E-[A-Z0-9-]+)\]', body)
+        records = list(re.finditer(r'\*\*来源记录 \d+.*?\[(E-[A-Z0-9-]+)\]', body))
+        displayed = [m[1] for i, m in enumerate(records)
+            if re.search(r'(?m)^> ', body[m.end():records[i+1].start() if i+1 < len(records) else len(body)])]
         analyses = []
         for line in body.splitlines():
             if line.startswith('- 研究判断（待人工复核）：'):

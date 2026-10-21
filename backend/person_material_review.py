@@ -50,6 +50,11 @@ def read_then_write(role, prefix, writing_input, package, invoke, emit, validate
             result = invoke(role, prefix+json.dumps(writing_input, ensure_ascii=False), emit)
             audit['batches'][0]['status'] = 'returned' if _parsed(result) is not None else 'invalid_structured_response'
             audit['status'] = 'returned' if _parsed(result) is not None else 'invalid_structured_response'
+            if _parsed(result) is not None and not any(f.get('analysis_allowed') for f in package['research_facts']):
+                audit['context_only'] = True
+                audit['ignored_interpretation_count'] = sum(bool(c.get('analysis')) for c in _parsed(result)['claims'] if isinstance(c, dict))
+                audit['boundary'] += ';context_interpretations_never_adopted'
+                return '{"claims":[]}', 1
             return result, 1
         except Exception:
             audit['batches'][0]['status'] = audit['status'] = 'failed'

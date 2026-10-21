@@ -140,21 +140,24 @@ def test_server_builds_support_and_does_not_trust_model_rewritten_quote():
     assert accepted[0]['source_support'] == [{'evidence_id': rows[0]['evidence_id'], 'quote': rows[0]['fact']}]
 
 
-def test_writer_only_receives_eligible_person_sources_and_preserves_identity_context():
+def test_writer_reads_admitted_scopes_with_personal_inference_permissions():
     p = SimpleNamespace(target_name='林知远', target_type='person', title='合成测试', sources=[],
                         person_research_intake={'person_anchor': {'supplementary_context': '2018年曾任技术负责人'}})
     rows = [fact('林知远于2021年任职恒川软件董事，负责管理。'),
-            fact('恒川软件有限公司股东为某机构。', person_affiliation={'person_name': '林知远', 'affiliation_name': '恒川软件有限公司'})]
+            fact('恒川软件有限公司披露2021年研发创新项目已投产，营业收入为100万元，股东为某机构。', person_affiliation={'person_name': '林知远', 'affiliation_name': '恒川软件有限公司'})]
     inputs = []
     def invoke(role, prompt, trace):
         pack = json.loads(prompt[prompt.index('{"chapter":'):])
         inputs.append(pack)
-        assert pack['identity_clues_not_facts']['supplementary_context'] == '2018年曾任技术负责人'
-        assert all('analysis_allowed' not in f and 'subject_scope' not in f for f in pack['facts'])
-        assert all('某机构' not in f['fact'] for f in pack['facts'])
         return '{"claims":[]}'
     report = generate_person_report(p, json.dumps({'facts': rows}), '{}', PERSON_REPORT_OUTLINE, invoke, lambda *a, **kw: None)
     assert inputs and len(split_sections(report)) == 15
+    assert all(pack['identity_clues_not_facts']['supplementary_context'] == '2018年曾任技术负责人' for pack in inputs)
+    delivered = [f for pack in inputs for f in pack['facts']]
+    assert all('subject_scope' in f and 'personal_analysis_allowed' in f for f in delivered)
+    company = [f for f in delivered if '某机构' in f['fact']]
+    assert company and all(f['subject_scope'] == 'affiliated_company' and not f['personal_analysis_allowed'] for f in company)
+    assert not any(r['reason'].startswith('api_failed:') for r in p.person_delivery_diagnostic.get('api_attempts', []) if r.get('reason'))
     assert all(r['review_status'] != 'accepted' for r in p.person_delivery_diagnostic['chapters'])
 
 

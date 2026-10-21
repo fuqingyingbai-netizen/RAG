@@ -38,4 +38,28 @@ def source_context_errors(analysis, supports):
         source_event_date = re.search(year + r'年[^。；;]{0,14}(?:实施|建立|启动|设立|推行)', original)
         if event_date and not source_event_date:
             errors.append('publication_year_as_event_date')
+    if (re.search(r'被赋予.{0,15}(?:职责|权限)|获得.{0,12}决策权', text)
+            and re.search(r'能够|期望|有望|可望|预期', original)
+            and not re.search(r'聘任|任命|授权|委派|职责为|负责', original)):
+        errors.append('commentary_as_formal_authority')
+    if re.search(r'投后治理中|已进入投后|本次投资后|对本项目具有退出权', text) and not re.search(r'投后|投资协议|本次投资|本项目', original):
+        errors.append('investment_scenario_not_established')
+    for fact in supports:
+        record = fact.get('observation') or {}
+        if not record.get('ownership_subject'):
+            continue
+        name = folded(record.get('subject') or fact.get('subject') or '')
+        ratios = set(re.findall(r'\d+(?:\.\d+)?%', folded(fact['fact'])))
+        for clause in re.split(r'[，,。；;]', text):
+            if (name and name in clause and ratios & set(re.findall(r'\d+(?:\.\d+)?%', clause))
+                    and re.search(r'股东|持股|持有|拥有', clause)
+                    and not re.search(r'夫妇|夫妻|配偶|共同|合计|不等同|不能|未说明|未披露|不代表', clause)):
+                errors.append('joint_holding_as_individual')
+    relation_list = re.search(r'这些公司的关联方有([^。；;]+)', original)
+    if relation_list:
+        entities = [re.sub(r'等公司.*$', '', s) for s in re.split(r'[、，,]', relation_list[1])]
+        for clause in re.split(r'[，,。；;]', text):
+            if (re.search(r'关联|控制|拥有', clause) and any(entity and entity in clause for entity in entities)
+                    and not re.search(r'这些公司|该等公司|机构的关联|公司层面|上述机构|这些机构|间接|不能|不等于|未说明', clause)):
+                errors.append('indirect_relationship_flattened')
     return list(dict.fromkeys(errors))

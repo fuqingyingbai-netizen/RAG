@@ -4,6 +4,10 @@ import re
 
 
 LABELS = {
+    'indirect_relationship_flattened': '原文是目标出资机构的关联方，不能直接写成目标个人关联或控制；保留中间机构及关系层级',
+    'commentary_as_formal_authority': '媒体对效果的期望或预测不证明正式职责或授权；保留评论立场，不补任命事实',
+    'investment_scenario_not_established': '未提供本次投资交易或投后协议，不得把一般公开任职写成既有投后安排或退出权',
+    'personal_analysis_not_permitted': '该材料仅可作背景或具名观点，不能据此生成个人判断；保留原文，analysis留空',
     'source_reaction_denied': '原文已记载员工反应，不能称未提供员工反馈；保留反应及来源立场',
     'other_actor_action_denied': '原文已记载其他主体的具体行为，不能称无人介入；分别说明谁决策、谁处置及目标何时知悉',
     'historical_role_without_qualification': '所引平台记录均为历史任职，须使用曾任、历史记录等限定，不能写成现任',
@@ -40,11 +44,17 @@ def repair_once(answer, package, writing_input, claims, reasons, invoke, emit, v
         rows = json.loads(re.sub(r'^```(?:json)?\s*|\s*```$', '', str(answer).strip())).get('claims', [])
     except (ValueError, AttributeError):
         rows = []
-    good, bad = [], []
+    good, bad, scope_blocked, scope_reasons = [], [], [], []
     by_index = {r['claim_index']: r for r in review_findings if r.get('validation_reason')}
     for index, row in enumerate(rows if isinstance(rows, list) else []):
         validated, failures = validate(json.dumps({'claims': [row]}, ensure_ascii=False), package)
         review = by_index.get(index)
+        if failures and set(failures) <= {'personal_analysis_not_permitted', 'non_target_person_analysis', 'indirect_or_conflicting_analysis'}:
+            # Rephrasing cannot change whose evidence this is. Preserve the
+            # blocked claim and audit; never pay a writer to bypass its scope.
+            scope_blocked.extend(validated)
+            scope_reasons.extend(failures)
+            continue
         if failures or review:
             bad.append({'evidence_ids': row.get('evidence_ids', []) if isinstance(row, dict) else [],
                         'issues': [LABELS.get(r, '引用依据不足，请重新核对原句及适用边界') for r in dict.fromkeys(failures)]
@@ -72,8 +82,8 @@ def repair_once(answer, package, writing_input, claims, reasons, invoke, emit, v
     # Empty output is an acknowledged unresolved issue, not a successful fix.
     if len(meaningful) < len(bad) and not remaining:
         remaining = ['analysis_repair_incomplete']
-    return (good + changed)[:16], remaining, {'status': 'corrected' if not remaining else 'still_requires_review',
+    return (good + scope_blocked + changed)[:16], list(dict.fromkeys(remaining + scope_reasons)), {'status': 'corrected' if not remaining else 'still_requires_review',
         'initial_rejections': reasons, 'final_rejections': remaining,
-        'preserved_accepted_claims': len(good), 'repaired_analysis_count': len(meaningful),
+        'preserved_accepted_claims': len(good) + len(scope_blocked), 'preserved_scope_blocked_claims': len(scope_blocked), 'repaired_analysis_count': len(meaningful),
         'proposed_analyses': [{'analysis': c.get('analysis', ''), 'review_analysis': c.get('review_analysis', ''),
                               'evidence_ids': c['evidence_ids'], 'status': c['analysis_status']} for c in changed]}

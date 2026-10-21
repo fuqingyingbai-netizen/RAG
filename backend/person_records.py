@@ -134,14 +134,14 @@ def observation(fact, target, aliases=()):
             ownership_subject = group[0]
             break
     metrics = []
-    for match in re.finditer(r'(\d+(?:\.\d+)?)\s*(%|％|(?:万|亿)?股|(?:万|亿)?元)', text):
+    for match in re.finditer(r'(?<![\d,，.])((?:\d{1,3}(?:[,，]\d{3})+|\d+)(?:\.\d+)?)\s*(%|％|(?:万|亿)?股|(?:万|亿)?元)', text):
         context_before = text[max(0, match.start()-35):match.start()]
         unit = match[2].replace('％', '%')
-        metric = ('holding_ratio' if unit == '%' and re.search(r'持股|股东|股权|ownership|shareholding', context_before, re.I) else
+        metric = ('holding_ratio' if unit == '%' and re.search(r'持股|股东|股权|持有|股份|股本|ownership|shareholding', context_before, re.I) else
                   'share_count' if unit.endswith('股') else
                   'revenue' if unit.endswith('元') and re.search(r'营收|营业收入|revenue', context_before, re.I) else '')
         if metric:
-            metrics.append({'metric': metric, 'value': match[1], 'unit': unit,
+            metrics.append({'metric': metric, 'value': match[1].replace(',', '').replace('，', ''), 'unit': unit,
                             'source_literal': match[0], 'period': period, 'subject': ownership_subject or named_person or (target if scope == 'person' else issuer), 'issuer': issuer})
     relations = []
     if any(data.get(k) for k in ('角色', '曾担任角色', '职位', '职务', '任职起止时间')) or re.search(r'任职|担任|appointed|joined', text, re.I):
@@ -274,6 +274,10 @@ def definition_errors(analysis, supports):
     if (executive_tenure and re.search(r'董事长[^。；;]{0,18}(?:总裁|总经理)[^。；;]{0,8}任期',analysis)
             and not re.search(r'(?:其中|该)?(?:总裁|总经理)(?:职务)?(?:的)?任期',analysis)):
         errors.append('mixed_role_tenure_not_supported')
+    separate_role_dates = re.search(r'董事长[^。；;]{0,15}任期[^。；;]{0,100}总\s*裁任期自', allowed)
+    if (separate_role_dates and re.search(r'董事长[^。；;]{0,18}总裁[^。；;]{0,18}任期', analysis)
+            and not re.search(r'其中.{0,10}(?:董事长|执行董事)|总裁任期自|董事长、执行董事的任期', analysis)):
+        errors.append('mixed_role_tenure_not_supported')
     for match in re.finditer(r'属(?:于)?常规|为常规|符合惯例|属(?:于)?正常交易',analysis):
         if match[0] not in allowed and not re.search(r'不能|未说明|不代表|不足以',analysis[max(0,match.start()-14):match.start()]):
             errors.append('industry_norm_not_supported')
@@ -305,8 +309,10 @@ def definition_errors(analysis, supports):
             break
     # Numeric equality alone cannot license a changed scale or unit: 15.41%
     # must never become 15.41亿股. Require the literal quantity/unit pairing.
-    for value in re.findall(r'\d+(?:\.\d+)?\s*(?:亿股|万股|股|亿元|万元|元|%|个月)', canonical_analysis):
-        if compact(value) not in compact(clean):
+    quantity = r'(?<![\d.])\d+(?:\.\d+)?\s*(?:亿股|万股|股|亿元|万元|元|%|个月)'
+    allowed_quantities = {compact(value) for value in re.findall(quantity, clean)}
+    for value in re.findall(quantity, canonical_analysis):
+        if compact(value) not in allowed_quantities:
             errors.append('quantity_unit_not_supported')
             break
     for match in re.finditer(r'连带责任', analysis):
@@ -324,7 +330,7 @@ def definition_errors(analysis, supports):
                 errors.append('conditional_transfer_as_completed')
                 break
     conditional = re.search(r'提请.{0,35}授权|在取得.{0,35}批准|拟.{0,20}授权', compact(allowed))
-    if conditional and re.search(r'被.{0,8}授权|获明确授权|已.{0,8}授权|完成授权', analysis) and not re.search(r'待.{0,12}批准|取得.{0,12}批准.{0,8}后|提请|有条件|拟|尚未|不代表.*生效', analysis):
+    if conditional and re.search(r'被.{0,8}授权|获明确授权|已.{0,8}授权|完成授权|(?:董事会|公司|股东大会)(?:已|正式)?授权', analysis) and not re.search(r'待.{0,12}批准|取得.{0,12}批准.{0,8}后|提请|有条件|拟|尚未|须经|需经|以.{0,18}批准.{0,8}前提|不代表.*生效', analysis):
         errors.append('conditional_authorization_as_completed')
     if re.search(r'年薪|年度薪酬|年度报酬', analysis) and not re.search(r'年薪|年度薪酬|年度报酬', allowed):
         errors.append('metric_period_or_definition_not_supported')

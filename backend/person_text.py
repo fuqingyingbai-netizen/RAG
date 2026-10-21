@@ -10,6 +10,10 @@ _simplify = OpenCC('t2s')
 def numeric_literals(text):
     """Equivalent numeral spelling only; never convert a quantity's scale/unit."""
     text = unicodedata.normalize('NFKC', str(text or ''))
+    # Grouping separators are numeral spelling, not separate quantities.
+    # Preserve the original quote elsewhere; comparison uses a whole token.
+    text = re.sub(r'(?<![\d.])\d{1,3}(?:[,，]\d{3})+(?:\.\d+)?(?!\d)',
+                  lambda m: m[0].replace(',', '').replace('，', ''), text)
     digits = {c: i for i,c in enumerate('零一二三四五六七八九')}
     digits.update({'〇': 0, '两': 2})
     def convert(match):
@@ -30,7 +34,7 @@ def numeric_literals(text):
 def person_statement_excerpt(text, names):
     """Return a literal target row, not an adjacent director's whole roster."""
     if re.search(r'姓名.{0,45}(?:职务|職務|职位|職位)', text):
-        rows = list(re.finditer(r'(?<![\u4e00-\u9fff])([\u4e00-\u9fff]{2,4})\s+(?:副董事长|副董事長|董事长|董事長|非执行|非執行|执行董事|執行董事|独立董事|獨立董事|副总裁|副總裁|董事|总裁|總裁|监事|監事)', text))
+        rows = list(re.finditer(r'(?<![\u4e00-\u9fff])([\u4e00-\u9fff]{2,4})\s*(?:副董事长|副董事長|董事长|董事長|非执行|非執行|执行董事|執行董事|独立董事|獨立董事|副总裁|副總裁|董事|总裁|總裁|监事|監事)', text))
         forms = {folded(n) for n in names}
         for index, match in enumerate(rows):
             if folded(match[1]) in forms and index+1 < len(rows):

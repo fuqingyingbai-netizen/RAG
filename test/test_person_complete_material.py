@@ -89,3 +89,17 @@ def test_summary_keeps_different_findings_without_repeating_same_support():
               11: [{'analysis': '再次叙述同一授权', 'evidence_ids': ['a']},
                    {'analysis': '另一退出安排', 'evidence_ids': ['b']}]}
     assert [r['analysis'] for r in distinct_inherited_analyses(claims, [5, 11])] == ['历史授权安排', '另一退出安排']
+
+
+def test_repeated_original_is_quoted_once_while_chapter_citations_remain():
+    from person_evidence import generate_person_report, split_sections, cited_ids
+    original = '林知远于2021年担任远山科技董事，持股数量为30万股，任职期限与变更情况仍需核对。'
+    project = SimpleNamespace(target_name='林知远', title='合成尽调', target_type='person', sources=[],
+        person_research_intake={'focus_questions': ['核对历史任职及持股变化']})
+    report = generate_person_report(project, json.dumps({'facts': [{'fact': original,
+        'source_url': 'https://fixture.invalid/retained', 'identity_match': 'confirmed'}]}), '{}',
+        PERSON_REPORT_OUTLINE, lambda *a: '{"claims":[]}', lambda *a, **kw: None)
+    sections = split_sections(report)
+    assert report.count('> ' + original) == 1
+    assert '同一原文已列第2章' in sections[9]
+    assert cited_ids(sections[9]) <= cited_ids(sections[14])
