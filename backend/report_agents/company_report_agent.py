@@ -224,6 +224,7 @@ class CompanyReportAgent:
                 package_payload = build_governance_package(
                     parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
                     list(getattr(project, "sources", []) or []),
+                    as_of_date=str((getattr(project,"company_research_intake",{}) or {}).get('as_of_date') or ''),
                 )
                 project.company_governance_package = package_payload
                 chapter = self._write_governance(project, package_payload, emit, trace_emit)
