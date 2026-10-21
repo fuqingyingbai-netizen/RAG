@@ -1638,9 +1638,12 @@
         "知识库聊天记录",
         "知识库对话保存",
         "知识库新对话",
-        "知识库历史消息"
+        "知识库历史消息",
+        "研究历史",
+        "知识库刷新恢复",
+        "知识库会话记忆"
       ],
-      "body": "知识库“知识问答”的对话是当前页面组件状态，刷新或离开组件后不保证恢复；“开始新对话”清空该问答上下文，切换资料范围也会开始新对话。资料原件和索引不会因此删除。知识库收藏、阅读历史、视图保存在当前浏览器；小助手的账号会话则保存在服务器，两种聊天的保存规则不同。小助手顶部“清空记录”删除的是账号的小助手历史，不是知识库资料。",
+      "body": "新版公司知识库的研究会话保存在服务器，按登录账号、知识库和资料范围隔离。同一账号连接同一套后端数据库时，刷新、退出重登或更换浏览器后，可从“研究历史”恢复已保存的会话。“开始新对话”保留旧历史；切换所选资料或“我的项目”等范围会建立新上下文，避免资料混用。“删除当前对话”经页面确认后删除该会话的消息、引用和摘要，不影响资料原件、其他研究会话或小助手历史。每轮仍按当前权限重新检索，历史回答不是事实依据；资料撤权、删除或版本变化后，相关历史可能隐藏。尚未发送的草稿属于当前页面内容；中断的回答按未完成显示，需查看已保存记录，不保证未完成内容恢复。知识库收藏、阅读历史和视图仍保存在当前浏览器；小助手与知识库分别管理各自的账号会话。",
       "roles": [
         "user",
         "admin"
@@ -1648,7 +1651,19 @@
       "code_refs": [
         {
           "path": "frontend/company-knowledge.js",
-          "anchor": "newConversation() { this.controller?.abort(); this.messages = []; this.draft = ''; }"
+          "anchor": "newConversation() {"
+        },
+        {
+          "path": "backend/company_memory.py",
+          "anchor": "class KnowledgeChatThread(Base):"
+        },
+        {
+          "path": "backend/company_memory.py",
+          "anchor": "def snapshot(user, index_id, session_id=None"
+        },
+        {
+          "path": "backend/company_memory.py",
+          "anchor": "def delete_conversation(session_id: str"
         }
       ]
     },
