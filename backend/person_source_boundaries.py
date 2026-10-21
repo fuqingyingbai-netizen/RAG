@@ -49,6 +49,13 @@ def source_context_errors(analysis, supports, context_facts=()):
             declared_parts=tuple(map(int,re.findall(r'\d+',declared)))
             if period_parts and period_parts[:len(declared_parts)]==declared_parts:
                 aligned=True
+            for field in (fact.get('observation') or {}).get('role_date_fields',[]):
+                if '待核' in str(field.get('field') or ''):
+                    continue
+                for date in re.findall(r'(?:19|20)\d{2}[-年]\d{1,2}[-月]\d{1,2}',numeric_literals(field.get('source_value') or '')):
+                    parts=tuple(map(int,re.findall(r'\d+',date)))
+                    if parts[:len(declared_parts)]==declared_parts:
+                        aligned=True
             for sentence in re.split(r'[。；;]',material):
                 if declared in sentence and (subject and subject in sentence) and re.search(r'持有|持股|担任|任职|签署',sentence):
                     aligned=True
@@ -62,8 +69,25 @@ def source_context_errors(analysis, supports, context_facts=()):
         literal = numeric_literals(value)
         return {(int(y), int(m), int(d)) for y, m, d in re.findall(
             r'(?<!\d)((?:19|20)\d{2})\s*(?:年|[-/])\s*(\d{1,2})\s*(?:月|[-/])\s*(\d{1,2})(?:\s*日)?', literal)}
+    def calendar_months(value):
+        return {(int(y),int(month or iso_month)) for y,month,iso_month in re.findall(
+            r'(?<!\d)((?:19|20)\d{2})\s*(?:年\s*(\d{1,2})\s*月|[-/]\s*(\d{1,2})(?!\d))',numeric_literals(value))}
     if not calendar_dates(analysis) <= calendar_dates(' '.join(str(f.get('fact') or '') for f in supports)):
         errors.append('unsupported_date_combination')
+    if not calendar_months(analysis) <= calendar_months(' '.join(str(f.get('fact') or '') for f in supports)):
+        errors.append('unsupported_date_combination')
+    if re.search(r'直接持(?:有|股)',text) and not any(
+            re.search(r'直接持(?:有|股)',folded(f.get('fact') or '')) for f in supports):
+        errors.append('ownership_mode_not_in_source')
+    if (re.search(r'主导退出路径|退出路径设计|设计.{0,8}退出(?:路径|机制)|形成.{0,8}退出(?:路径|机制)',text)
+            and re.search(r'退休|接班|继任',original)
+            and not re.search(r'投资协议|股权退出|股份退出|出售股权|赎回|清算|回购|股份转让',original)
+            and not re.search(r'管理层退出|退出管理岗位|退出经营|不能|不构成|未说明|未涉及',text)):
+        errors.append('retirement_as_shareholder_exit')
+    if (re.search(r'有利于提高.{0,12}效率|确保.{0,12}战略.{0,8}稳定',text)
+            and re.search(r'有利于提高|确保长期战略',original)
+            and not re.search(r'(?:公司|公告|文件|来源|材料|披露|原文).{0,12}(?:称|认为|表示|评价|自述|表述|宣称|载明)',text)):
+        errors.append('company_assessment_without_attribution')
     if (re.search(r'未(?:载明|说明|提供|披露)[^。；;]{0,8}具体(?:年月日|日期)', text)
             and re.search(r'(?<!\d)\d{1,2}月\d{1,2}日', original)
             and not re.search(r'未(?:载明|说明|提供|披露)[^。；;]{0,8}(?:年份|完整日期|完整年月日)', text)):

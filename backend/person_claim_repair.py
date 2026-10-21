@@ -4,6 +4,9 @@ import re
 
 
 LABELS = {
+    'company_assessment_without_attribution': '提高效率、确保战略稳定是公司对安排的自评，须明确公司称或公告称，不能改成研究者客观效果判断',
+    'ownership_mode_not_in_source': '原文只写持有或持股，没有明确直接持有；不能自行增加直接或间接持股性质，保留原文口径',
+    'retirement_as_shareholder_exit': '退休与接班安排是管理层岗位交接，不等于投资方股权退出路径；按原文说明退休和接班，不补股权退出设计',
     'date_bound_to_different_source_event': '日期属于同页另一事项，不能套到人物持股、任职或文件签署；仅保留该事项自身明确日期或签署之日等原文限定',
     'adopted_resolution_as_unapproved_proposal': '原文已经记载董事会表决通过并自审议通过日起任职，不能写成尚未批准的提案或非既成事实；保留已通过事项与任期，不推定更晚现任状态',
     'source_document_count_misstated': '同一URL的多个摘录不是多份来源；不以事实卡数量声称来源数量，改为说明各原文具体内容',
@@ -99,7 +102,8 @@ def repair_once(answer, package, writing_input, claims, reasons, invoke, emit, v
               '直接提交可放入报告正文的替代分析，不输出对旧句的纠错评语；旧句中原文没有的实体也不要再写进替代句。'
               '可以删去未实际用于支撑替代分析的引用，只保留需要的编号；不得添加材料外的编号。'
               '不要把证据编号写进analysis；不作横向排名。无法形成可靠解释则留空，不强行给判断。\n'
-              + json.dumps({'material': data, 'corrections': bad, 'response_schema': skeleton}, ensure_ascii=False))
+              'accepted_analyses已保留，不要在修订句中重复同一事项；只有不同的实质信息才另写。'
+              + json.dumps({'material': data, 'corrections': bad, 'accepted_analyses':good,'response_schema': skeleton}, ensure_ascii=False))
     repaired = invoke(f"BDD目标人物章节 Agent - {package['title']}核验修订", prompt, emit)
     changed, remaining = validate(repaired, {**package, 'facts': [f for f in package['facts'] if f['evidence_id'] in allowed_ids]})
     meaningful = [c for c in changed if c.get('analysis') or c.get('review_analysis')]

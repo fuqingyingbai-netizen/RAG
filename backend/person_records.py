@@ -235,7 +235,7 @@ def comparison_errors(analysis, supports):
 
 
 def process_text(text):
-    return bool(re.search(r'analysis_allowed|writing_contract|subject_scope|evidence_ids|support_quotes|identity_clues_not_facts|source_bound_draft|证据禁止分析|系统提示词|按照提示词|模型必须|输出JSON|返回JSON', text, re.I))
+    return bool(re.search(r'analysis_allowed|writing_contract|subject_scope|evidence_ids|support_quotes|identity_clues_not_facts|source_bound_draft|\bE-P[A-F0-9]{14}\b|证据禁止分析|系统提示词|按照提示词|模型必须|输出JSON|返回JSON', text, re.I))
 
 
 def chapter_relevant(fact, chapter):

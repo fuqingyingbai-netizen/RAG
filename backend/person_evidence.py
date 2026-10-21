@@ -22,7 +22,7 @@ except ImportError:
     from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
     from person_chapter_selection import select_material, dimension_coverage, team_source_facts, prospective_company_risk
 
-VERSION = "person-template-v21-typed-record-dates-and-contained-quotes"
+VERSION = "person-template-v22-calendar-precision-and-ownership-mode"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
@@ -1075,6 +1075,7 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                 '所有facts都须纳入研读；subject_scope说明材料主体，personal_analysis_allowed为false的只作归属明确的背景或观点，不能引用为对目标个人的分析证据。'
                 '本批若无允许个人分析的材料，返回空claims，团队、候选对标及具名观点由程序按原文另列，不强行推断目标个人。'
                 '每章最多3条分析，每条尽量不超过120字，不必覆盖每个事实编号。'
+                '同一事件、任职、教育或承诺只说明一次，不要先总括几件事再分别复述；各条优先回答不同的实质问题。合并同义内容时保留所用来源编号。'
                 '先简洁回答本章的具体问题；已有履历、职责或持股记录时写清来源所述内容及其边界，不要把每项分析都写成泛泛的“未说明”。'
                 '原文支持由程序根据编号填入，不要返回support_quotes，不要抄写原文。引用仅供回查，不等于结论已获核实。'
                 '本章优先围绕已经提供的具体事件、职责和时点说明资料能回答什么；不要强行做横向比较。'
@@ -1087,6 +1088,7 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                 '原文只写月日时，保留月日并说明年份未明；不能笼统说没有具体日期。'
                 '同一URL的多段摘录不称多份来源；“材料均记载”必须每份都具备该日期、数值与主体，否则分别表述，不把合并内容当作各自共有信息。'
                 '日期只能归于原文同一事项，不能拿同页前一事件的截至日填持股或文件签署日；已表决通过且自审议通过日起任职，不要称为尚待批准的提案。'
+                '原文只写持有时不添加直接持有；退休、接班不是投资方股权退出。没有年份的10月不与同段其他事件的年份拼接，保留月份及年份未明。'
                 '用具体行为、职责和条件写作，避免无原文依据的“价值锚点”等抽象包装；来源观点须保留评价者或报道立场。'
                 '书籍出版年份不能当成制度实施年份；曾担任、历史记录不能省略历史限定。'
                 '媒体预期效果不证明正式职责或任命；未提供具体投资交易和协议，不声称已经处于投后或已有退出权。'

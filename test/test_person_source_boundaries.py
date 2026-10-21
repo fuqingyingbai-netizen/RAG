@@ -58,6 +58,31 @@ def test_approved_appointment_is_not_downgraded_to_a_pending_proposal():
     assert not source_context_errors('董事会同意聘任林知远为总裁，自审议通过日起计算任期，后续任职状态待核。',[fact])
 
 
+def test_year_and_month_cannot_be_recombined_from_different_events():
+    sources=[{'fact':'2022年末，公司人员紧缺。林知远表示，10月份左右管理可以恢复到此前水平。'}]
+    assert source_context_errors('林知远预计至2022年10月管理可恢复。',sources)==['unsupported_date_combination']
+    assert not source_context_errors('林知远预计10月左右管理可恢复，年份未明确。',sources)
+    assert not source_context_errors('来源载明2022年10月获任。',[{'fact':'2022 年 10 月获任。'}])
+
+
+def test_holding_is_not_automatically_direct_holding():
+    assert source_context_errors('来源称林知远直接持有公司33亿股。',[{'fact':'林知远持有公司33亿股。'}])==['ownership_mode_not_in_source']
+    assert not source_context_errors('来源称林知远持有公司33亿股。',[{'fact':'林知远持有公司33亿股。'}])
+    assert not source_context_errors('来源称林知远通过甲公司直接持股34.61%。',[{'fact':'林知远通过甲公司直接持股34.61%。'}])
+
+
+def test_retirement_plan_is_not_a_shareholder_exit_design():
+    source=[{'fact':'林知远在内部信中宣布10至15年内退休，并启动接班人选拔计划。'}]
+    assert source_context_errors('体现其主导退出路径设计。',source)==['retirement_as_shareholder_exit']
+    assert not source_context_errors('此为管理层退休及接班计划，不构成投资方退出路径设计。',source)
+
+
+def test_company_efficiency_assessment_keeps_its_source_stance():
+    source=[{'fact':'公司称同时担任两个职务有利于提高决策效率和运营效率，确保长期战略持续稳定。'}]
+    assert source_context_errors('同时担任两个职务有利于提高决策效率和运营效率。',source)==['company_assessment_without_attribution']
+    assert not source_context_errors('公司称同时担任两个职务有利于提高决策效率和运营效率。',source)
+
+
 def test_actor_and_reaction_denial_conflicts_with_retained_context():
     original = [{'fact': '张勇宣布裁撤小区经理。员工不接受，店长推不下去，杨利娟当即下令开除员工，这些都是张勇后来才知道的。'}]
     assert source_context_errors('来源未提及其他主体介入或权责转移。', original) == ['other_actor_action_denied']
