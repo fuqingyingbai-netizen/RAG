@@ -179,7 +179,11 @@ def prioritize_sentences(sentences, matches_name):
 
 
 def select_material(ranked, chapter, commissioned=(), commission_matches=None, limit=12):
-    """Reserve material for each question before filling a bounded chapter."""
+    """Build relevant material; an optional limit governs presentation only.
+
+    ``limit=None`` retains every distinct eligible statement for research.
+    Source/domain/peer/member quotas must never truncate that research pool.
+    """
     eligible, audit, families = [], [], {}
     for score, fact in ranked:
         if not useful_for_chapter(fact, chapter):
@@ -264,6 +268,10 @@ def select_material(ranked, chapter, commissioned=(), commission_matches=None, l
                 if candidate not in reserved:
                     reserved.append(candidate)
     ordered = reserved + [r for r in eligible if r not in reserved]
+    if limit is None:
+        for _, fact in ordered:
+            audit.append({'evidence_id': fact['evidence_id'], 'status': 'selected', 'reason': 'complete_research_material'})
+        return [fact for _, fact in ordered], audit
     selected, sources, domains, members, peer_counts = [], Counter(), Counter(), Counter(), Counter()
     peer_names = {f.get('comparison_subject') for _, f in eligible if f.get('comparison_subject')}
     peer_cap = max(2, (limit + len(peer_names) - 1) // len(peer_names)) if peer_names else limit

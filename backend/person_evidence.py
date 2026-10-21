@@ -22,7 +22,7 @@ except ImportError:
     from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
     from person_chapter_selection import select_material, dimension_coverage, team_source_facts, prospective_company_risk
 
-VERSION = "person-template-v11-retained-event-and-record-coverage"
+VERSION = "person-template-v12-complete-research-concise-writing"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
@@ -393,7 +393,11 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
                 if candidate is not None and candidate not in first:
                     first.append(candidate)
             ranked = first + [pair for pair in ranked if pair not in first]
+        research, research_audit = select_material(ranked, chapter, commissioned, commission_matches, limit=None)
         selected, selection_audit = select_material(ranked, chapter, commissioned, commission_matches)
+        research = [{**f, "temporal_conflict": f["evidence_id"] in conflicting,
+                     "analysis_allowed": f['subject_scope'] == 'person' and not f.get('opinion_only') and not f.get('source_text_issue') and f['evidence_id'] not in conflicting}
+                    for f in research]
         selected = [{**f, "temporal_conflict": f["evidence_id"] in conflicting,
                      "analysis_allowed": f['subject_scope'] == 'person' and not f.get('opinion_only') and not f.get('source_text_issue') and f['evidence_id'] not in conflicting}
                     for f in selected]
@@ -403,7 +407,7 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
             from person_platforms import coverage_rows
         query_pattern = r'失信|被执行|裁判|风险|处罚|司法|诉讼' if chapter == 12 else r'任职|关联|失信|被执行|裁判|风险|股权|持股|处罚|司法'
         query_coverage = [r for r in coverage_rows(platform_attempts) if re.search(query_pattern, r['tool_label'])] if chapter in {9, 12} else []
-        coverage = dimension_coverage(chapter, selected, query_coverage)
+        coverage = dimension_coverage(chapter, research, query_coverage)
         gaps = []
         if not selected and chapter < 14:
             gaps.append("本次资料尚未形成与本章问题直接相关、身份匹配的可引用事实。")
@@ -437,7 +441,7 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
             gaps.append("委托人尚未明确专项方向；已收集线索仅供确定核查范围。")
         if any(f["temporal_conflict"] for f in selected):
             gaps.append("同一事件存在时间或取值冲突，需核对原始记录，不能选取其中一个作为确定结论。")
-        commission_coverage = [assess_commission(selected, r) for r in commissioned] if chapter == 10 else []
+        commission_coverage = [assess_commission(research, r) for r in commissioned] if chapter == 10 else []
         if chapter == 10:
             for requirement,row in zip(commissioned,commission_coverage):
                 if requirement['topic'] != 'comparison':
@@ -469,6 +473,7 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
                              "task": TASKS[chapter], "identity_clues_not_facts": intake.get("person_anchor") or {}, "facts": selected, "information_gaps": gaps,
                              "commission_coverage": commission_coverage,
                              "material_coverage": coverage, "selection_audit": selection_audit,
+                             "research_facts": research, "research_selection_audit": research_audit,
                              "routing_audit": routing_audit,
                              "query_coverage": query_coverage,
                              "conflicts": [r for r in conflicts if set(r["evidence_ids"]) & {f["evidence_id"] for f in selected}]}
@@ -627,7 +632,8 @@ def review_issue_label(reason):
 
 
 def render_section(package, claims=()):
-    chapter, title, facts = package["chapter"], package["title"], package["facts"]
+    chapter, title = package["chapter"], package["title"]
+    facts = package.get('display_facts', package['facts'])
     lines = [f"## {chapter}. {title}", "", INTRO.get(chapter, ''), ""]
     if chapter == 10 and package.get('commission_coverage'):
         lines += ['### 委托问题逐项核查', '', '| 委托问题与范围 | 当前材料及边界 |', '| --- | --- |']
@@ -731,7 +737,7 @@ def render_section(package, claims=()):
                     from .person_chapter_research import view_status
                 except ImportError:
                     from person_chapter_research import view_status
-                _, matches, status = view_status(chapter, view, facts)
+                _, matches, status = view_status(chapter, view, package.get('research_facts', facts))
                 refs = ' '.join(f"[{f['evidence_id']}]" for f in matches)
                 lines.append(f"| {view} | {status} {refs} |")
                 continue
@@ -985,7 +991,7 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                     claims.append({**approved, 'inherited_from_chapter': body_chapter})
             semantic_audit = {'status': 'inherited_body_analyses_no_new_inference',
                               'source_chapters': [c['inherited_from_chapter'] for c in claims]}
-        analysis_candidates = [f for f in package['facts'] if f.get('analysis_allowed')] if chapter not in {1, 13} else []
+        analysis_candidates = [f for f in package.get('research_facts', package['facts']) if f.get('analysis_allowed')] if chapter not in {1, 13} else []
         if analysis_candidates and chapter != 12:
             # The writer sees source data only. Selection flags, workflow
             # diagnostics and company/other-person rows stay server-side.
@@ -998,7 +1004,7 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                                         'role_dates': f['observation'].get('role_date_fields', []),
                                         'source_events': f['observation'].get('source_events', [])}
                                        for f in analysis_candidates]}
-            prompt = (
+            prompt_prefix = (
                 f"人物背景调查第{chapter}章：{package['title']}。研究对象：{project.target_name}。\n"
                 '仅返回JSON，不输出Markdown：{"claims":[{"evidence_ids":["输入中存在的证据编号"],'
                 '"analysis":"有边界的简短分析，证据不足留空"}]}。\n'
@@ -1018,14 +1024,18 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                 "内部字段、写作规则、禁止分析等流程说明不得写进analysis。"
                 "不要在analysis中加入编号或章节号。已有局限由程序列出，不必为每条事实强写判断。"
                 "健康、家庭及婚姻缺失不扣分。不得根据人物类型推定性格、品行或风险。\n"
-                + json.dumps(writing_input, ensure_ascii=False)
             )
             if circuit:
                 reasons = ["api_circuit_open:" + circuit]
             else:
                 try:
-                    calls += 1
-                    answer = invoke(f"BDD目标人物章节 Agent - {package['title']}", prompt, trace_emit)
+                    from person_material_review import read_then_write
+                    def research_invoke(role, prompt, emitter=None):
+                        nonlocal calls
+                        calls += 1
+                        return invoke(role, prompt, emitter)
+                    answer, _ = read_then_write(f"BDD目标人物章节 Agent - {package['title']}",
+                        prompt_prefix, writing_input, package, research_invoke, trace_emit, validate_model_claims)
                     # Validate against exactly the allowed input set, so a
                     # known but withheld company/other-person ID cannot leak in.
                     claims, reasons = validate_model_claims(answer, {**package, 'facts': analysis_candidates})
@@ -1098,6 +1108,9 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                     reasons = []
                 else:
                     degradations.append({"chapter": chapter, "reasons": reasons})
+        if chapter not in {1, 13}:
+            from person_material_review import presentation_facts
+            package['display_facts'] = presentation_facts(package, claims)
         sections[chapter] = render_section(package, claims)
         section_claims[chapter] = claims
         if chapter == 12:
@@ -1112,6 +1125,10 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                                 'excluded_invalid_analysis_count': excluded_claim_count,
                                 'excluded_validation_rejections': excluded_rejections,
                                 'analysis_candidate_count': len(analysis_candidates),
+                                'research_fact_count': len(package.get('research_facts', package['facts'])),
+                                'research_source_count': len({f['source_url'] for f in package.get('research_facts', package['facts'])}),
+                                'display_fact_count': len(package.get('display_facts', package['facts'])),
+                                'material_review': package.get('material_review', {}),
                                 'repair': repair_audit,
                                 'semantic_review': semantic_audit,
                                 "validation_rejections": list(dict.fromkeys([*reasons,*excluded_rejections])),

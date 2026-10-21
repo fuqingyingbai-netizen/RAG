@@ -84,6 +84,10 @@ def main():
         'feedback_records': str(args.feedback_records) if args.feedback_records else None,
         'intake_sha256': hashlib.sha256((baseline/'intake.json').read_bytes()).hexdigest(),
         'material_changed_chapters': changed, 'rewrite_requested': args.chapters, 'outside_request': sorted(outside),
+        'research_scope': {str(n):{'admitted_facts':len(contract['chapters'][n].get('research_facts',[])),
+            'admitted_sources':len({f['source_url'] for f in contract['chapters'][n].get('research_facts',[])}),
+            'personal_analysis_candidates':sum(f.get('analysis_allowed',False) for f in contract['chapters'][n].get('research_facts',[]))}
+            for n in args.chapters},
         'new_search_calls': 0, 'new_fetch_calls': 0, 'new_professional_calls': 0}
     (output/'plan.json').write_text(json.dumps(plan,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(plan,ensure_ascii=False), flush=True)
