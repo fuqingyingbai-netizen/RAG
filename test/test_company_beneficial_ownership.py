@@ -75,6 +75,15 @@ def test_same_date_conflicting_values_are_not_overwritten_or_averaged():
     assert any('受益所有权' in r['field'] for r in p['conflicts'])
 
 
+def test_script_variants_of_one_holder_still_raise_conflicting_values():
+    alternate=ownership().replace('趙一','赵一').replace('12,000','14,000')
+    p=package(source_pair(1),source_pair(2,alternate))
+    rows=[r for r in p['facts'] if r['holder_key']=='赵一']
+    assert {r['ordinary_shares'] for r in rows}=={'12,000','14,000'}
+    conflicts=[r for r in p['conflicts'] if r['field']=='原件受益所有权:赵一']
+    assert len(conflicts)==1 and len(conflicts[0]['values'])==2
+
+
 def test_latest_allowed_table_date_is_not_the_fiscal_date_or_current_query_date():
     old=source_pair(1,ownership('2024 年5月18日'));new=source_pair(2)
     p=package(old,new,as_of='2024-12-31')

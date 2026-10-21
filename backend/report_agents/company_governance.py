@@ -400,7 +400,7 @@ def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=
         elif r['kind']=='shareholder':
             conflict_groups[('股东持股比例:'+r['entity'],r['period'])].append(r)
         elif r['kind'] in ownership_kinds:
-            conflict_groups[('原件受益所有权:'+r['entity'],r['period'])].append(r)
+            conflict_groups[('原件受益所有权:'+r['holder_key'],r['period'])].append(r)
     conflicts=[]
     for (field,date),rs in conflict_groups.items():
         vals={(f"普通股 {r['ordinary_shares']}；美国存托股 {r['ads']}；原表比例 {r['ratio']}"
