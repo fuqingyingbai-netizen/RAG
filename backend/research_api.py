@@ -2158,8 +2158,11 @@ async def research_assistant_stream(
                     pass  # Event loop closed during a client disconnect.
         def generate():
             if request.images:
-                answer, observation = answer_screenshot(research_workflow, request, role, emit, cancelled)
-                return answer, dict(memory, image_observation=observation)
+                context = prepare_context(research_workflow, plan, emit, cancelled)
+                prompt_request = request.model_copy(update={'history_summary': context['summary'],
+                    'recent_messages': [{'role': row['role'], 'content': row['content']} for row in context['recent']]})
+                answer, observation = answer_screenshot(research_workflow, prompt_request, role, emit, cancelled)
+                return answer, dict(context, image_observation=observation)
             answer = guide_answer(question, page, role)
             if answer:
                 # Deterministic operating instructions remain available without

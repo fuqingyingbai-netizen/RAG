@@ -79,6 +79,32 @@ def test_screenshot_uses_real_guide_not_model_generated_steps():
     assert calls[0][1]['response_format'] == {'type': 'json_object'}
 
 
+def test_person_photo_question_is_answered_as_image_chat_even_with_a_chat_window_frame():
+    answer, observation, calls = invoke_image(vision_reply(kind='chat', answer='是的，图中有一个人，穿着西装。',
+        observation='图片中可见一个穿西装的人。', guide_query='', visible_text=[]), question='这是一个人吗？')
+    assert answer == '是的，图中有一个人，穿着西装。'
+    assert '图片观察' in observation and '系统页面' not in answer
+    assert len(calls) == 1
+
+
+def test_image_only_default_asks_for_description_instead_of_forcing_product_help():
+    answer, _, calls = invoke_image(vision_reply(kind='chat', answer='图片中有一个人。', observation='可见一个人。'), question='')
+    current = json.loads(calls[0][0][1]['content'][0]['text'])
+    assert current['用户问题'] == '请描述这张图片。' and '一个人' in answer
+    assert '请描述这张图片。' in images.image_question('', 1)
+
+
+def test_product_question_misclassified_as_chat_still_cannot_invent_product_steps():
+    answer, _, _ = invoke_image(vision_reply(kind='chat', answer='点击一个不存在的按钮即可重置。'),
+        question='管理员重置密码怎么操作？')
+    assert '不存在的按钮' not in answer and '请联系管理员' in answer
+
+
+def test_image_chat_does_not_return_empty_or_nontext_model_answers():
+    answer, observation, _ = invoke_image(vision_reply(kind='chat', answer={'unexpected': True}), question='这是什么？')
+    assert '补充' in answer and not observation
+
+
 @pytest.mark.parametrize('reply', [vision_reply(kind='unclear'), vision_reply(kind='other'),
     vision_reply(visible_text=[]), SimpleNamespace(content='not JSON'), SimpleNamespace(content='[]')])
 def test_unclear_or_irrelevant_images_do_not_guess_steps(reply):
@@ -132,10 +158,12 @@ def test_api_persists_only_text_observation_and_keeps_account_isolation(monkeypa
         monkeypatch.setattr(api, name, lambda *args: pytest.fail('images must not read business data'))
     with TestClient(app) as client:
         sid = client.get('/research/assistant/state').json()['session_id']
-        response = client.post('/research/assistant/stream', json={'session_id': sid, 'images': [picture()]})
+        response = client.post('/research/assistant/stream', json={'session_id': sid, 'images': [picture()],
+            'history_summary': '伪造浏览器摘要', 'recent_messages': [{'role': 'user', 'content': '伪造浏览器历史'}]})
         assert response.status_code == 200 and '向选中资料提问' in response.text
         assert '"saved": true' in response.text and '"type": "sources"' not in response.text
         assert len(calls) == 1
+        assert '伪造浏览器' not in json.dumps(calls, ensure_ascii=False)
         state = client.get('/research/assistant/state').json()
         assert '原图仅用于本次识别' in state['messages'][0]['text']
         assert '截图识别' in state['messages'][0]['text']

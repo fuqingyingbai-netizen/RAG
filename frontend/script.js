@@ -1040,7 +1040,7 @@ createApp({
       if (!this.assistantReady) { this.assistantMemoryStatus = '请先重新加载对话，确保账号历史已同步'; return; }
       const epoch = this.assistantEpoch, sessionId = this.assistantSessionId;
       const images = this.assistantImages.map(image => ({...image})); this.resetAssistantImages();
-      this.assistantMessages.push({ text: text || '请根据截图说明这个系统页面如何操作。', images, isUser: true }); this.assistantInput = ''; this.assistantLoading = true; this.assistantMemoryStatus = '正在保存并生成回答…';
+      this.assistantMessages.push({ text: text || '请描述这张图片。', images, isUser: true }); this.assistantInput = ''; this.assistantLoading = true; this.assistantMemoryStatus = '正在保存并生成回答…';
       const userMessage = this.assistantMessages[this.assistantMessages.length - 1];
       this.assistantMessages.push({ text: '', isUser: false });
       const bot = this.assistantMessages[this.assistantMessages.length - 1]; this.scrollAssistant(true);
