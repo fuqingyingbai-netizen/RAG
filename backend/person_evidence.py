@@ -22,7 +22,7 @@ except ImportError:
     from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
     from person_chapter_selection import select_material, dimension_coverage, team_source_facts, prospective_company_risk
 
-VERSION = "person-template-v17-explicit-periods-and-event-conditions"
+VERSION = "person-template-v18-retained-original-source-scan"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
@@ -184,7 +184,12 @@ def normalize_facts(payload, target, aliases=(), sources=()):
                 and compact(f['team_member_name']) in compact(role_link)
                 and compact(f['team_affiliation_name']) in compact(role_link)
                 and bool(re.search(r'首席|董事|CEO|COO|CFO|经理|总裁', role_link, re.I)))
-            if not explicit_colleague and (f.get('claim_type') != 'person_management_event' or not management_event(text, raw_names, event_orgs)):
+            retained_context = (f.get('retained_attributed_context') and f.get('opinion_only')
+                and f.get('eligible_for_risk_scoring') is False
+                and f.get('extraction_method') == 'retained_original_full_scan'
+                and any(name_in_text(n, text) for n in raw_names) and bool(originals.get(url))
+                and compact(text) in compact(originals[url]))
+            if not explicit_colleague and not retained_context and (f.get('claim_type') != 'person_management_event' or not management_event(text, raw_names, event_orgs)):
                 reason = 'feedback_source_requires_attribution_record'
         if f.get("eligible_for_report") is False or identity in {"ambiguous", "mismatch"} or confidence in {"low", "rejected"} or f.get("usable_as") == "identity_quarantine":
             reason = "identity_quarantine"
@@ -295,7 +300,11 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
     team_material_audit = []
     teams = team_source_facts(sources, {**intake, 'target_name': target}, audit=team_material_audit)
     teams += explicit_colleague_roles(sources, {**intake, 'target_name': target}, audit=team_material_audit)
-    facts, rejected = normalize_facts({**payload, 'facts': [*payload.get('facts', []), *teams, *events]}, target, aliases, sources)
+    from person_retained_material import retained_source_statements
+    source_material_audit = []
+    collected = [*payload.get('facts', []), *teams, *events]
+    retained = retained_source_statements(sources, {**intake, 'target_name': target}, collected, audit=source_material_audit)
+    facts, rejected = normalize_facts({**payload, 'facts': [*collected, *retained]}, target, aliases, sources)
     try:
         from .person_chapter_research import annotated_facts, view_status
     except ImportError:
@@ -500,6 +509,7 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
                              "conflicts": [r for r in conflicts if set(r["evidence_ids"]) & {f["evidence_id"] for f in selected}]}
     return {"version": VERSION, "target_name": target, "as_of_date": cutoff, "facts": facts, "rejected": rejected,
             "commission_requirements": commissioned, "team_material_audit": team_material_audit,
+            "source_material_audit": source_material_audit,
             "conflicts": conflicts, "chapters": packages}
 
 
@@ -691,7 +701,7 @@ def render_section(package, claims=()):
         periods += [event_labels.get(r['kind'], '事件原文日期') + '：' + r['date_literal'] for r in record.get('source_events', [])[:6]]
         period = '；'.join(dict.fromkeys(periods)) or f['event_date']
         if period == '未披露':
-            literals = list(dict.fromkeys(re.findall(r'(?:19|20)\d{2}年(?:\d{1,2}月(?:\d{1,2}日)?)?', f['fact'])))
+            literals = list(dict.fromkeys(re.findall(r'(?:19|20)\d{2}年(?:\d{1,2}月(?:\d{1,2}日)?)?|(?<!\d)\d{1,2}月\d{1,2}日', f['fact'])))
             if literals:
                 period = '原文日期词：' + '、'.join(literals[:6]) + '（日期归属及适用事项待核实）'
         lines += [f"**来源记录 {number}　{cell(f['subject'])} [{f['evidence_id']}]**", '']
@@ -1073,6 +1083,8 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                 '来源已记载员工反应、其他人员处置或相反陈述时，不得声称没有反馈或无人介入；分别保留行为主体。'
                 '威胁辞职、宣布方案、下令处置、实际执行分别表述；不把相要挟写成已辞职，不把下令写成已执行。'
                 '作材料缺失判断时考虑本章全部facts，不能只因选中的两条摘录未写，就否认其他材料已有的任职或持股。'
+                '先写材料能够回答的具体事实与事件，缺口只补充真正缺失的字段，不以笼统待核实替代已有信息。'
+                '原文只写月日时，保留月日并说明年份未明；不能笼统说没有具体日期。'
                 '用具体行为、职责和条件写作，避免无原文依据的“价值锚点”等抽象包装；来源观点须保留评价者或报道立场。'
                 '书籍出版年份不能当成制度实施年份；曾担任、历史记录不能省略历史限定。'
                 '媒体预期效果不证明正式职责或任命；未提供具体投资交易和协议，不声称已经处于投后或已有退出权。'

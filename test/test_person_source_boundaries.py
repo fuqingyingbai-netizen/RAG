@@ -1,6 +1,12 @@
 from person_source_boundaries import source_context_errors
 
 
+def test_month_and_day_are_preserved_when_year_is_unknown():
+    source=[{'fact':'1月13日，公司公告称林知远获委任为首席执行官，即日起生效。'}]
+    assert source_context_errors('公告未提供具体年月日。',source)==['available_calendar_information_denied']
+    assert not source_context_errors('公告载明1月13日获委任，未披露年份及完整日期。',source)
+
+
 def test_actor_and_reaction_denial_conflicts_with_retained_context():
     original = [{'fact': '张勇宣布裁撤小区经理。员工不接受，店长推不下去，杨利娟当即下令开除员工，这些都是张勇后来才知道的。'}]
     assert source_context_errors('来源未提及其他主体介入或权责转移。', original) == ['other_actor_action_denied']

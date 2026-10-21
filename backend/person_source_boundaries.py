@@ -22,6 +22,10 @@ def source_context_errors(analysis, supports, context_facts=()):
             r'(?<!\d)((?:19|20)\d{2})\s*(?:年|[-/])\s*(\d{1,2})\s*(?:月|[-/])\s*(\d{1,2})(?:\s*日)?', literal)}
     if not calendar_dates(analysis) <= calendar_dates(' '.join(str(f.get('fact') or '') for f in supports)):
         errors.append('unsupported_date_combination')
+    if (re.search(r'未(?:载明|说明|提供|披露)[^。；;]{0,8}具体(?:年月日|日期)', text)
+            and re.search(r'(?<!\d)\d{1,2}月\d{1,2}日', original)
+            and not re.search(r'未(?:载明|说明|提供|披露)[^。；;]{0,8}(?:年份|完整日期|完整年月日)', text)):
+        errors.append('available_calendar_information_denied')
     denied_period = re.search(r'未(?:载明|说明|提供|披露)[^。；;]{0,12}(?:具体起始日期|任期覆盖区间|任职起止|任期起止)', text)
     if denied_period and not re.search(r'当前|现任|后续|全部|逐项|逐职务', denied_period[0]):
         has_range = re.search(r'(?:19|20)\d{2}年\d{1,2}月\d{1,2}日至(?:19|20)\d{2}年\d{1,2}月\d{1,2}日', numeric_literals(original))

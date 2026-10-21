@@ -4,6 +4,7 @@ import re
 
 
 LABELS = {
+    'available_calendar_information_denied': '来源已有月日或部分日期，应写明已知日期及尚缺年份；不能笼统称未提供具体日期，也不能自行补年份',
     'available_role_period_denied': '原文已有任职时间字段或时间区间，不能称完全未列起始日期；仅说明职务对应、后续延续或基准日尚未对齐',
     'unsupported_date_combination': '年月日组合未逐字对应原文日期，不能把不同日期的年份、月份或日拼接；保留原文时间精度',
     'broader_material_contains_claimed_missing_fact': '完整研究池另有该机构的持股或权益记录，不能笼统称没有材料；须综合全部相关记录，或仅明确本条片段未说明的字段',
