@@ -710,7 +710,7 @@ class ResearchWorkflow:
         cleaning_pipeline_version = (
             "person-evidence-v20-article-actor-and-event-dates"
             if standardized_type == "person"
-            else "company-evidence-v12-verified-statistics-context"
+            else "company-evidence-v13-verified-bilingual-issuer-publisher"
             if standardized_type == "company"
             else "industry-evidence-v9-local-nature"
             if standardized_type == "industry"
@@ -723,7 +723,7 @@ class ResearchWorkflow:
             # reuse a report produced before those delivery rules.
             # v12 keeps every cited E-ID in chapter 13 and strips model
             # placeholder URLs before validation/export.
-    "company": "company-report-evidence-v66-historical-role-event-boundaries",
+    "company": "company-report-evidence-v69-native-audit-loss-and-provenance-boundaries",
             # v3 fixes the keyword-scoring bottleneck for industry chapters
             # (zero-score filter disabled for industry so chapters 10/13 are
             # not starved) and raises the model-call threshold from fact_count
@@ -5960,7 +5960,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 heartbeat_label = "报告生成心跳正常"
                 heartbeat_status = "running"
                 if current_elapsed >= slow_threshold:
-                    heartbeat_label = "当前章节耗时较久，模型仍在返回"
+                    heartbeat_label = ("当前章节仍在处理，正在核对原件并生成报告" if str(getattr(project,'target_type','')).lower()=='company'
+                                       else "当前章节耗时较久，模型仍在返回")
                 _emit(
                     emit,
                     "report",
@@ -7931,15 +7932,19 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             from report_agents.company_management import issuer
             from report_agents.company_history import _issuer_hosts
             from report_agents.company_text import issuer_anchor
+            from report_agents.company_issuer_identity import build_issuer_identity,publisher_anchor,issuer_hosts
             from report_agents.company_governance import get as company_get
             sources = list(getattr(project, 'sources', []) or [])
-            hosts = _issuer_hosts(sources, target)
+            issuer_identity=build_issuer_identity(sources,target)
+            hosts = issuer_hosts(sources,target,issuer_identity)
             for source in sources:
                 if source_body(source)[1] == 'discovery_summary':continue
                 anchor=issuer_anchor(company_get(source,'content',''),target)
                 url=str(company_get(source,'url',''))
                 if anchor.get('conflicting_heading'):issuer_conflicts.add(url)
-                elif issuer(source,target,hosts):original_issuers[url] = anchor
+                else:
+                    original=publisher_anchor(source,target,issuer_identity)
+                    if original:original_issuers[url]=original
             from company_publishers import statistics_publisher_identity
             from report_agents.company_reputation import aliases_for_target, _market_rows
             statistical_sources=[s for s in sources if statistics_publisher_identity(str(company_get(s,'url','')),company_get(s,'content',''))]
@@ -7966,6 +7971,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 # extractor-invented issuer field or search title alone.
                 item.pop('source_issuer_name', None)
                 item.pop('source_issuer_quote', None)
+                item.pop('source_issuer_binding', None)
                 if (str(item.get('source_url') or '') in issuer_conflicts
                         and item.get('source_entity_validation')!='rejected'):
                     item['source_entity_validation']='related_entity_context'
@@ -7975,6 +7981,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                         and item.get('entity_match') not in {'mismatch','ambiguous','out_of_scope'}):
                     item.update(source_issuer_name=anchor['issuer_name'],source_issuer_quote=anchor['evidence_quote'],
                                 source_entity_validation='matched_original_issuer')
+                    if anchor.get('bilingual_binding'):item['source_issuer_binding']=anchor['bilingual_binding']
                 scope = classify_company_fact_scope(item, target)
                 statistical=statistical_contexts.get(str(item.get('source_url') or ''))
                 if (statistical and item.get('eligible_for_report') is not False

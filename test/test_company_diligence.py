@@ -353,3 +353,12 @@ def test_old_opinion_asof_does_not_crowd_out_newer_execution_asset_status():
     rows=[{**BASE,'kind':'execution_followup','period':'2025年度第一期融资券','as_of':'截至2024年12月末','fact':'正在执行','page':99},
           {**BASE,'kind':'execution_followup','period':'2025年年度报告','fact':'对方暂无财产可供执行','page':86}]
     assert select_rows(rows,1)[0]['fact']=='对方暂无财产可供执行'
+def test_diagram_example_is_not_a_real_legal_subsidiary_for_followup_search():
+    from report_agents.company_diligence import identity_registry
+    from test_company_history import filing
+    name='青禾网络科技有限公司'
+    card,source=filing(name,'本公司的所有权架构和合约安排的简单示例。')
+    source['source_metadata']['document_pages']=[{'page':1,'text':name+'\n2025年年度报告'},
+        {'page':2,'text':'以下为所有权架构和合约安排的简单示例。\n本公司\n全资子公司\n中国投资控股有限公司\n可变利益实体'}]
+    registry,_=identity_registry({'facts':[card]},name,[source])
+    assert set(registry)=={name.casefold()}

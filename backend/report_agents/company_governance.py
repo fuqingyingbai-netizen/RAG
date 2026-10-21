@@ -147,6 +147,7 @@ def _historical(text):
 def _primary_filing(source, target):
     host=(urlparse(str(get(source,'url'))).hostname or '').lower()
     official=any(host==d or host.endswith('.'+d) for d in ('szse.cn','sse.com.cn','cninfo.com.cn','hkexnews.hk'))
+    if not official:return False
     head=match_compact(str(get(source,'content'))[:2400])
     # A parent's mention inside a subsidiary filing is insufficient. Require
     # the issuer's full name immediately followed by its reporting period.
@@ -219,12 +220,15 @@ def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=
     def add(f, kind, *, value="", field="", entity="", period="", **values):
         source = by_url.get(str(f.get("source_url") or ""))
         meta = get(source, "source_metadata", {}) or {}
+        acquired=str(meta.get('retrieved_at') or '')
+        acquired=acquired if re.match(r'^20\d{2}-\d{2}-\d{2}',acquired) else ''
         r = dict(kind=kind, field=field, value=str(value), entity=entity,
-                 period=period or "数据基准日未载", observed_at=str(get(source,"created_at") or "")[:10],
+                 period=period or "数据基准日未载", observed_at=(acquired or str(get(source,"created_at") or ""))[:10],
+                 observed_at_basis='retrieved_at' if acquired else 'source_created_at',
                  evidence_id=f['evidence_id'], source_url=f.get('source_url',''),
                  source_title=f.get('source_title',''), evidence_scope='target_direct', **values)
         # Do not collapse conflicting values, distinct entities or different dates.
-        key = json.dumps({k:v for k,v in r.items() if k not in {'evidence_id','source_url','source_title','observed_at'}},ensure_ascii=False,sort_keys=True)
+        key = json.dumps({k:v for k,v in r.items() if k not in {'evidence_id','source_url','source_title','observed_at','observed_at_basis'}},ensure_ascii=False,sort_keys=True)
         if key in seen:
             prev=seen[key]
             if f['evidence_id'] not in prev['evidence_ids']:
@@ -407,7 +411,10 @@ def combined_refs(records):
 def provenance(record):
     period=record['period']
     observed=record.get('observed_at')
-    return period+(f'；采集于{observed}' if observed else '')
+    if not observed:return period
+    if record.get('observed_at_basis')=='retrieved_at':return period+f'；原件采集记录日期{observed}'
+    if record.get('observed_at_basis')=='source_created_at':return period+f'；本次入库日期{observed}（原始采集时间未单列）'
+    return period+f'；记录日期{observed}（时间性质未单列）'
 
 
 def _table(headers, rows):

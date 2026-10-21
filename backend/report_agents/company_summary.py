@@ -190,6 +190,18 @@ def _chapter_summary_cards(packages: dict[str, Any]) -> list[dict[str, Any]]:
             result.append({**r, 'summary_topic': 'risk',
                            'fact': f"{r.get('publication_date') or r.get('effective_date')}，主管部门公告{r['entity']}召回事项，编号{r['recall_number']}：{r['defect_quote']}"})
             break
+    for signal in assessment.get('risk_signals', []):
+        r=signal.get('fact_record') or {}
+        if r.get('kind')=='administrative_penalty':
+            amount=('；原罚款决定金额为'+r['penalty_amount_text']) if r.get('penalty_amount_text') else ''
+            result.append({**r,'summary_topic':'risk','fact':r['date']+'，'+r['authority']+'原公告记载对'+r['entity']+
+                '作出行政处罚'+amount+'。这是历史决定，决定金额不等于当前未付余额或本期损失。'})
+        elif r.get('kind')=='regulatory_remediation':
+            result.append({**r,'summary_topic':'risk','fact':r['publication_date']+'，'+r['authority']+
+                '发布'+r['entity']+'整改核查评估结果。评价按原公告时点及范围理解，不抹去历史处罚，也不证明其他业务及未来期间无风险。'})
+        elif r.get('kind')=='goodwill_impairment_loss':
+            result.append({**r,'summary_topic':'risk','fact':r['period']+'，审计报告列示已确认商誉减值损失'+
+                r['currency']+r['value']+r['unit']+'；按原审计报告主体范围理解，年度金额不当最新季度新增损失，也不从已披露利润中重复扣减。'})
     releases=[r for r in (packages.get('business') or {}).get('facts',[]) if r.get('kind')=='product_release']
     if releases:
         r=max(releases,key=lambda x:x['release_date'])
@@ -253,6 +265,7 @@ def build_company_summary_package(
             "period": period or str(fact.get("date") or "")[:30],
             "source_grade": str(fact.get("source_grade") or ""),
             "source_kind": "checked_chapter_field" if verified else "disclosure" if is_disclosure else "other",
+            "original_record_kind":fact.get('kind') if verified else '',
             "claim_type": "original_source_claim" if raw else str(fact.get("claim_type") or "fact"),
             "temporal_basis": 'undated_platform_snapshot' if structured_governance else fact.get('temporal_basis') or 'source_period',
         })
@@ -370,6 +383,7 @@ def build_company_summary_package(
     # Round robin prevents many registration rows from crowding out financials.
     topics = list(SUMMARY_TOPICS)
     quotas = {"identity": 1, "business": 1, "financial": 3, "governance": 3, "risk": 1, "competition": 2, "funding": 1}
+    if any(c.get('original_record_kind')=='regulatory_remediation' for c in candidates):quotas['risk']=2
     topic_counts: Counter[str] = Counter()
     package: dict[str, Any] = {"facts": [], "query_observations": list({x["source_title"]: x for x in observations}.values())[:3],
                                "evidence_boundary": "仅摘要所需的目标主体原文事实；其他主体或全库未覆盖状态不得由本章推定。"}
@@ -638,12 +652,14 @@ def fallback_company_summary(project: Any, package: dict[str, Any]) -> str:
         lines.append("本章尚未形成可直接摘录的事实，待核验。")
     lines += ["", "### 需关注信号"]
     if groups["risk"]:
-        f = groups["risk"][0]
-        followup = ("应追踪整改覆盖、后续状态和实际影响；公告不证明已发生事故或损失。"
-                    if f['source_kind'] == 'checked_chapter_field' else
-                    "本次仅确认平台返回记录，案件性质、审理状态及实际影响需调取明细核验。" if f.get('source_url','').startswith('structured://') else
-                    "以上接续所引来源的事件记载；原始文件、历史日期及后续处理仍需核验，不能据此判定当前状态。")
-        lines.append("- " + literal(f) + followup + refs([f]))
+        risks=groups['risk'][:2] if any(f.get('original_record_kind')=='regulatory_remediation' for f in groups['risk']) else groups['risk'][:1]
+        for f in risks:
+            followup = ("历史决定与后续评估分别看待，原件范围以第九、十一章为准。" if f.get('original_record_kind') in {'administrative_penalty','regulatory_remediation'} else
+                        "应追踪整改覆盖、后续状态和实际影响；公告不证明已发生事故或损失。"
+                        if f['source_kind'] == 'checked_chapter_field' else
+                        "本次仅确认平台返回记录，案件性质、审理状态及实际影响需调取明细核验。" if f.get('source_url','').startswith('structured://') else
+                        "以上接续所引来源的事件记载；原始文件、历史日期及后续处理仍需核验，不能据此判定当前状态。")
+            lines.append("- " + literal(f) + followup + refs([f]))
     else:
         lines.append("本章尚未形成可直接引用的风险事件明细，相关判断待核验；平台未命中不构成安全结论。")
     lines += ["", "### 公司所属赛道竞争格局"]

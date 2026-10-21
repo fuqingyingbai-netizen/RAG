@@ -9,8 +9,9 @@ from .company_governance import cited_evidence_ids
 from .company_governance import EID, get, refs, _table, compact
 from .company_history import _issuer_hosts
 from .company_management import issuer
+from .company_regulatory import regulatory_records
 
-VERSION='company-judicial-v1'
+VERSION='company-judicial-v2-regulatory-originals'
 TITLE='企业司法负面核查'
 DETAILS={'get_judicial_documents':'裁判文书','get_service_announcement':'劳动仲裁公告',
          'get_guarantee_info':'担保明细','get_stock_pledge_info':'股权质押明细'}
@@ -206,6 +207,7 @@ def build_judicial_package(cleaned,target,sources=None,*,limit=240000,query_atte
             safe=[t for t in tips if t and re.search(r'前\d+条|包含\d+条|累计共有\d+条|共有\d+条',t)]
             coverage.append({**base,'fact':tool+'：'+('；'.join(safe) if safe else '查询已返回，覆盖期及历史完整性未确认')})
             continue
+        records+=regulatory_records(s,target,base)
         records+=court_record(raw,s,target,base)
         pages=document_pages(s)
         legal=('法律意见书' in compact(raw[:7000]) and compact(target) in compact(raw[:1600])
@@ -304,6 +306,13 @@ def render_judicial(p):
     for r in f:
         if r['kind']=='case_detail':lines+=['- 文书分段核验：'+r['fact']+'（'+r['mode']+'） '+refs(r)]
         if r['kind']=='court_identity':lines+=['- '+r['fact']+' '+refs(r)]
+    regulators=[r for r in f if r['kind'] in {'administrative_penalty','regulatory_remediation'}]
+    if regulators:
+        lines+=['','### 行政监管决定与后续整改','',
+                '行政处罚及监管整改与法院裁判分列；后续评估不抹去历史决定，决定金额不当作当前未付余额。','']
+        lines+=_table(['原件日期及机关','具体记载','性质及核验边界','来源'],[
+            [r['date']+'；'+r['authority'],r['fact'],r['mode']+'；'+r['boundary'],refs(r)]
+            for r in sorted(regulators,key=lambda r:r['date'])])
     lines+=['','### 发行人及专项法律文件列示事项','']
     disclosed=[r for r in f if r['kind']=='disclosed_case']
     if disclosed:lines+=_table(['文件期/集团涉及方','涉案金额/预计负债','程序与裁判结果','执行情况/原页'],[

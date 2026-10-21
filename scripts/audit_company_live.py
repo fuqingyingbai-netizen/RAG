@@ -416,6 +416,16 @@ def main():
     save_original = workflow.save_artifact
     def save(db, project, kind, title, content, *a, **kw):
         artifact = save_original(db, project, kind, title, content, *a, **kw)
+        if kind=='cleaned_facts' and args.report_only:
+            prior_metadata=args.reuse_search_from/'cleaned_facts-metadata.json'
+            original_meta=json.loads(prior_metadata.read_text(encoding='utf-8-sig')) if prior_metadata.exists() else {}
+            current_meta=dict(artifact.artifact_metadata or {})
+            current_version=current_meta.get('pipeline_version')
+            current_meta.update(pipeline_version=original_meta.get('pipeline_version','retained_original_version_unknown'),
+                frozen_replay={'retained_from':str(args.reuse_search_from),'cleaning_executed':False,
+                    'current_cleaning_code_version':current_version})
+            artifact.artifact_metadata=current_meta
+            db.add(artifact);db.commit()
         (run / (kind + ('.md' if kind in {'desktop_report', 'proposal'} else '.json'))).write_text(content, encoding='utf-8')
         write(kind + '-metadata.json', artifact.artifact_metadata)
         return artifact
@@ -516,7 +526,7 @@ def main():
         result['finished_at'] = datetime.now(timezone.utc).isoformat()
         write('result.json', result)
         after = fingerprint()
-        write('code-end.json', {'hashes': after, 'changed_during_run': [k for k in code if code[k] != after.get(k)]})
+        write('code-end.json', {'hashes': after, 'changed_during_run': [k for k in sorted(set(code)|set(after)) if code.get(k) != after.get(k)]})
         budget_timer.cancel()
         print(json.dumps(safe(result), ensure_ascii=False), flush=True)
 

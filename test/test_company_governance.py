@@ -55,6 +55,16 @@ def test_fields_read_from_reordered_headers_and_no_query_date_borrowed_as_data_d
     assert row['period']=='数据基准日未载' and row['observed_at']=='2026-10-14'
 
 
+def test_source_insert_date_is_not_described_as_an_actual_acquisition_date():
+    name='青禾食品有限公司';pair=evidence(name,table(name,'| 注册资本 | 100万元 |'))
+    text=render_governance(package(name,pair))
+    assert '本次入库日期2026-10-14' in text and '原始采集时间未单列' in text
+    assert '采集于2026-10-14' not in text
+    pair[1]['source_metadata']['retrieved_at']='2026-10-10T12:00:00+00:00'
+    text=render_governance(package(name,pair))
+    assert '原件采集记录日期2026-10-10' in text and '本次入库日期2026-10-14' not in text
+
+
 def test_json_provider_keeps_explicit_subject_and_private_company_contributions():
     name='青禾食品有限公司'
     raw=json.dumps({'data':{'companyName':name,'regCapital':'100万美元','actualController':'钱二',

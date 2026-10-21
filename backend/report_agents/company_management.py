@@ -50,10 +50,10 @@ def issuer(source,target,hosts):
     if meta.get('entity_validation') in {'rejected','ambiguous','related_entity_context'}:return False
     host=(urlparse(str(get(source,'url'))).hostname or '').lower().removeprefix('www.')
     if not (host in hosts or any(host==d or host.endswith('.'+d) for d in ('cninfo.com.cn','szse.cn','sse.com.cn','hkexnews.hk'))):return False
-    raw=str(get(source,'content') or '')[:3000]
-    # A standalone issuer heading authenticates the document, not a search
-    # title or a parent's name mentioned in a subsidiary biography.
-    return issuer_anchor(raw,target)['matched']
+    from .company_issuer_identity import publisher_anchor
+    # A corporate footer can bind publisher-owned website material. It never
+    # overrides a conflicting subsidiary filing heading or a rejected source.
+    return bool(publisher_anchor(source,target,{'roots':set(hosts)}))
 
 
 def roster_rows(pages,period):

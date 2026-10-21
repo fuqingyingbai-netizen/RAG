@@ -158,6 +158,7 @@ def identity_registry(cleaned,target,sources):
         if direct:roots[folded(target)]['aliases']+=english_aliases(pages,target)
         for page in selected:
             text=_CC.convert(page['text'])
+            if re.search(r'简单示例|仅为示例|假设.{0,20}(?:架构|结构)|示例.{0,20}(?:架构|结构)',text):continue
             for m in re.finditer(r'(?:控股子公司|全资子公司|子公司|附属公司)(?:为|是|包括)?\s*('+LEGAL+r')',text):
                 child=m[1]
                 if re.search(r'根据|注册成立|成立于|简称|依据|以下|上述|通过',child):continue
@@ -348,7 +349,7 @@ def select_rows(rows,quota):
         key=(r.get('entity'),r.get('period'),r['kind'],folded(r['fact']))
         if key in seen or len(result)>=quota:return
         result.append(r);seen.add(key)
-    kinds=('fund_use','financing','financing_plan','related_funding','accounting_consideration','unpaid_consideration',
+    kinds=('fund_use','financing','financing_use_plan','financing_plan','goodwill_impairment_loss','related_funding','accounting_consideration','unpaid_consideration',
            'acquired_cash','acquisition_net_outflow','goodwill','acquired_net_assets','consideration',
            'pro_forma','closing','strategy','acquired_contribution','valuation','accounting_treatment','purchase_accounting','consolidation','execution_followup','encumbrance_followup')
     for kind in kinds:
@@ -373,11 +374,27 @@ TASK_ACTIONS={
 def build_diligence_package(cleaned,target,sources=None,*,prior_packages=None,intake=None,limit=180000):
     sources=list(sources or []);prior_packages=prior_packages or {};intake=intake or {};counts=Counter()
     registry,admitted=identity_registry(cleaned,target,sources);records=[]
+    from .company_issuer_identity import build_issuer_identity
+    from .company_press_releases import press_financing_rows
+    identity=build_issuer_identity(sources,target)
+    cards=defaultdict(list)
+    for card in cleaned.get('facts') or []:
+        if isinstance(card,dict) and EID.fullmatch(str(card.get('evidence_id') or '')):
+            cards[str(card.get('source_url') or '')].append(card)
+    for source in sources:
+        candidates=[c for c in cards[str(get(source,'url'))] if c.get('eligible_for_report') is not False
+            and c.get('entity_match') not in {'mismatch','ambiguous','out_of_scope'}
+            and c.get('source_entity_validation') not in {'rejected','ambiguous','related_entity_context'}]
+        if candidates:
+            base=_base(candidates[0],source,target,'')
+            records+=press_financing_rows(source,target,base,identity,as_of=str(intake.get('as_of_date') or ''))
     latest={}
     for _s,_p,base in admitted:
         year=re.search(r'20\d{2}',base['period'])
         if year:latest[base['entity']]=max(latest.get(base['entity'],0),int(year[0]))
     for source,pages,base in admitted:
+        from .company_audit_disclosures import goodwill_impairment_rows
+        records+=goodwill_impairment_rows(pages,base['entity'],base)
         for entry in registry.values():
             if entry['name']==base['entity']:records+=entry['links']
         year=re.search(r'20\d{2}',base['period'])

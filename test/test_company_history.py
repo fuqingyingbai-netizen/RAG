@@ -195,6 +195,48 @@ def test_page_excerpt_false_number_not_reintroduced_as_atomic_history():
     assert '999' not in render_history(p)
 
 
+@pytest.mark.parametrize('traditional',[False,True])
+def test_registry_name_list_and_faq_do_not_create_incorporation_event(traditional):
+    from opencc import OpenCC
+    name='青禾食品有限公司'
+    raw=('历史名称： 2019年11月7日 Blue River Limited '+name+'\n\n常见问题\n\n'
+         '香港公司'+name+'成立于哪一年？\n\n香港公司'+name+'成立年份：2019-11-07。')
+    if traditional:raw=OpenCC('s2t').convert(raw)
+    c,s=filing(name,raw)
+    # The collector's card is only a locator, not evidence of an event.
+    c.update(claim_type='source_excerpt')
+    assert not any(r['kind']=='event' for r in history(name,(c,s))['facts'])
+    c.update(claim_type='fact',fact=raw,evidence_quote=raw)
+    assert not any(r['kind']=='event' for r in history(name,(c,s))['facts'])
+
+
+def test_faq_elsewhere_does_not_suppress_a_complete_dated_company_action():
+    name='青禾食品有限公司'
+    p=history(name,filing(name,name+'于2025年6月1日完成新产线投产。\n\n常见问题\n该公司成立于哪一年？'))
+    events=[r for r in p['facts'] if r['kind']=='event']
+    assert len(events)==1 and events[0]['period']=='2025-06-01'
+
+
+def test_court_finding_that_conduct_is_established_is_not_company_formation():
+    name='青禾食品有限公司'
+    raw=('2023年12月29日，某法院对某公司诉'+name+'一案做出一审判决，'
+         '认定其滥用市场支配地位的垄断行为成立，判决赔偿10亿元。')
+    assert not any(r['kind']=='event' for r in history(name,filing(name,raw))['facts'])
+
+
+def test_a_history_label_does_not_suppress_an_explicit_real_name_change():
+    name='青禾食品有限公司'
+    p=history(name,filing(name,'历史名称：本公司于2020年6月1日更名为'+name+'。'))
+    assert any(r['kind']=='event' and r['period']=='2020-06-01' for r in p['facts'])
+
+
+def test_search_abstract_cannot_be_reparsed_as_original_company_history():
+    name='青禾食品有限公司';c,s=filing(name,name+'于2025年6月1日完成新产线投产。')
+    s['summary']=s['content'];s['source_metadata']={'content_kind':'search_summary'}
+    p=history(name,(c,s))
+    assert not p['facts'] and p['diagnostic']['filters']['discovery_summary_excluded']==1
+
+
 def test_legacy_absence_and_capital_rounding_do_not_prove_legality():
     name='青禾食品有限公司'
     p=history(name,filing(name,'公司于2019年成立。注册资本100万元，实缴资本100.01万元。'))
