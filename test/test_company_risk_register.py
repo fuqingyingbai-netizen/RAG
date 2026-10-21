@@ -268,7 +268,7 @@ def test_company_workflow_uses_originals_without_model_or_old_normalizers():
     s = notice(owner=ROOT)
     project = SimpleNamespace(target_type='company', target_name=ROOT, industry='制造', sources=[s])
     r = json.loads(w.assess_risk(project, json.dumps({'facts': []})))
-    assert r['version'] == 'company-risk-register-v3-regulatory-decisions' and len(r['entries']) == 1
+    assert r['version'] == 'company-risk-register-v4-publication-variants' and len(r['entries']) == 1
 
 
 def test_person_and_industry_risk_paths_keep_their_own_model_dispatch():

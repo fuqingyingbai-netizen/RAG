@@ -26,6 +26,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'backend'))
 
 
+def retained_project_state(previous, *, interrupted=False):
+    path=Path(previous)/'project-state.json'
+    # An interrupted collector may not have reached the first full snapshot.
+    # Absence supplies no query attempts; malformed existing state still fails.
+    if interrupted and not path.exists():return {}
+    state=json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(state,dict):raise ValueError('Retained project state must be an object')
+    return state
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--live', action='store_true')
@@ -496,7 +506,7 @@ def main():
                     fields['title'],fields['source_metadata']=workflow._source_title_for_storage(fields.get('title',''),fields.get('source_metadata') or {})
                     if frozen_retrieval and source.get('id'):fields['id']=source['id']
                     db.add(ResearchSource(project_id=project.id,**fields))
-                previous_state=json.loads((args.reuse_search_from/'project-state.json').read_text(encoding='utf-8'))
+                previous_state=retained_project_state(args.reuse_search_from,interrupted=args.resume_interrupted)
                 for key in ('company_professional_platform_attempts','company_judicial_query_attempts'):
                     if key in previous_state:setattr(project,key,previous_state[key])
                 db.commit();db.expire(project,['sources'])
