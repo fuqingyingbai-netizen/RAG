@@ -221,9 +221,17 @@ class KnowledgeQuestion(BaseModel):
     history: list[HistoryMessage] = Field(default_factory=list, max_length=20)
     document_ids: list[str] = Field(default_factory=list, max_length=20)
     scope: Literal['accessible', 'my-projects'] = 'accessible'
+    session_id: str | None = Field(default=None, max_length=64)
+    request_id: str | None = Field(default=None, max_length=64)
 
 
 async def cloud_answer(cfg, question):
+    if cfg.get('_conversation'):
+        from company_memory import conversation_stream
+        async with asyncio.timeout(270):
+            async for event in conversation_stream(*cfg['_conversation']):
+                yield event
+        return
     if 'allowed_documents' in cfg:
         from company_workspace import grounded_answer
         async with asyncio.timeout(240):
@@ -328,10 +336,23 @@ async def chat(question: KnowledgeQuestion, user: User = Depends(require_knowled
         question = question.model_copy(update={'scope': 'my-projects'})
     try:
         cfg = settings()
+        if question.session_id:
+            from company_memory import scope_of
+            saved_scope, saved_ids = scope_of(user, cfg['index_id'], question.session_id)
+            if saved_scope != question.scope or set(saved_ids) != set(question.document_ids):
+                raise HTTPException(409, '资料范围已变化，请开始新的研究对话。')
+            question = question.model_copy(update={'scope': saved_scope, 'document_ids': saved_ids, 'history': []})
+            cfg['explicit_document_scope'] = bool(saved_ids)
         from company_workspace import prepare_scope, my_projects
         cfg['allowed_documents'] = await prepare_scope(cfg, user, question.document_ids, question.scope)
         if question.scope == 'my-projects':
             cfg['project_portfolio'] = my_projects(user)
+        if question.session_id:
+            from company_memory import begin_turn
+            from uuid import uuid4
+            question = question.model_copy(update={'request_id': question.request_id or uuid4().hex})
+            token, plan, dependencies = begin_turn(user, cfg, question.session_id, question.request_id, question.message)
+            cfg['_conversation'] = (user, cfg, question, token, plan, dependencies)
     except KnowledgeError as exc:
         raise HTTPException(exc.status_code, str(exc)) from None
 
@@ -345,3 +366,5 @@ async def chat(question: KnowledgeQuestion, user: User = Depends(require_knowled
 
 from company_workspace import workspace_router
 router.include_router(workspace_router)
+from company_memory import memory_router
+router.include_router(memory_router)

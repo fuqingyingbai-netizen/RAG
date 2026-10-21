@@ -6,6 +6,8 @@ const CompanyKnowledge = {
       viewRestored: false, restoringView: false, libraryPage: 1, libraryPageSize: 10, homeQuestion: '', sortOrder: 'updated', readingHistory: [], recentUploadIds: [], mode: 'home', projectFilter: '', industryFilter: '', statusFilter: '', reviewFilter: '', selectedIds: [], pollClock: null, readerUrl: '', readerLoading: false, readerError: '', readerTotal: 0, previewPage: 1, readerPDFPage: 1, readerPDFPages: 0, uploadBusy: false, uploadError: '', uploadResults: [], editingDoc: null, metadataOpen: false, uploadForm: { project: '', industry: '', category: '项目原件', review: '待复核', confidentiality: 'internal', visibility: 'members', readersText: '' }, query: '', category: '全部资料', space: 'all', favoritesOnly: false, mineOnly: false,
       favorites: [], readerOpen: false, selectedDoc: null, readerPage: 0,
       uploadOpen: false, stagedFiles: [], draft: '', scope: 'all', chatScope: 'accessible', messages: [],
+      chatSessionId: '', chatSessions: [], chatHasMore: false, chatHistoryBusy: false, chatGeneration: 0,
+      chatScopeUnavailable: false, memoryStatus: '', chatError: '', chatDisposed: false,
       cloudDocuments: [], totalDocuments: 0, documentPage: 0, loading: false,
       service: { configured: false, access_allowed: false, is_admin: false }, serviceError: '',
       myProjects: { project_count: 0, document_count: 0, projects: [] }, accessRequests: [], requestCenterOpen: false, accessLoading: false,
@@ -66,12 +68,13 @@ const CompanyKnowledge = {
     allReferences() { const references = new Map(); for (const message of this.messages) for (const reference of message.references || []) references.set((reference.document_id || reference.url) + ':' + reference.id, reference); return [...references.values()]; },
   },
   watch: {
+    mode(value) { if (value === 'chat') this.scrollChat(); },
     libraryView: { deep: true, handler() { this.saveLibraryView(); } },
     libraryFilterKey() { if (!this.restoringView) { this.libraryPage = 1; this.scrollLibraryTop(); } },
     libraryPageCount(count) { if (!this.loading && this.libraryPage > count) this.libraryPage = count; },
   },
   mounted() { this.loadService(); this.pollClock = setInterval(() => { if (this.canAsk && !document.hidden) { this.loadDocuments(false, false); this.loadAccessRequests(); this.loadMyProjects(); } }, 6000); },
-  beforeUnmount() { this.controller?.abort(); clearInterval(this.activityClock); clearInterval(this.pollClock); this.releaseReader(); },
+  beforeUnmount() { this.chatDisposed = true; this.chatGeneration++; this.controller?.abort(); clearInterval(this.activityClock); clearInterval(this.pollClock); this.releaseReader(); },
   methods: {
     async apiFetch(url, options = {}) {
       const token = localStorage.getItem('accessToken');
@@ -93,10 +96,12 @@ const CompanyKnowledge = {
           this.browseLibrary(); this.mineOnly = true;
         }
         await Promise.all([this.loadDocuments(), this.loadMyProjects(), this.loadAccessRequests()]);
+        await this.loadChatHistory();
       } catch (error) { this.serviceError = error.message; }
     },
     async loadDocuments(more = false, refresh = false) {
       if (this.loading) return;
+      const previousAccess = JSON.stringify(this.cloudDocuments.map(doc => [doc.id, doc.can_read, doc.version, doc.modified_at, doc.state]));
       this.loading = true; this.serviceError = '';
       try {
         let lastPage = more ? this.documentPage + 1 : Math.max(1, this.documentPage);
@@ -104,6 +109,7 @@ const CompanyKnowledge = {
         for (let page = more ? lastPage : 1; page <= lastPage; page++) {
           const response = await this.apiFetch('/company-knowledge/documents?page_number=' + page + '&page_size=100&refresh=' + (refresh && page === 1));
           result = await response.json();
+          if (response.status === 403) { this.newConversation(); this.chatSessions = []; this.service.access_allowed = false; }
           if (!response.ok) throw new Error(result.detail || '资料加载失败。');
           incoming.push(...result.documents);
           lastPage = Math.max(lastPage, Math.ceil(result.total_count / 100));
@@ -112,6 +118,8 @@ const CompanyKnowledge = {
         this.cloudDocuments = [...new Map((more ? [...this.cloudDocuments, ...incoming] : incoming).map(doc => [doc.id, doc])).values()];
         this.totalDocuments = result.total_count; this.documentPage = lastPage;
         this.categories = ['全部资料', ...new Set([...['项目原件', '研究成果', '方法与模板', '访谈纪要', '行业资料'], ...this.cloudDocuments.map(doc => doc.category)])]; this.serviceError = result.warning || ''; this.selectedIds = this.selectedIds.filter(id => this.cloudDocuments.some(doc => doc.id === id && doc.can_read !== false));
+        const currentAccess = JSON.stringify(this.cloudDocuments.map(doc => [doc.id, doc.can_read, doc.version, doc.modified_at, doc.state]));
+        if (previousAccess !== currentAccess && this.chatSessionId && !this.busy && !this.chatHistoryBusy) await this.loadChatHistory(this.chatSessionId);
       } catch (error) { this.serviceError = error.message; }
       finally { this.loading = false; if (this.libraryPageCount) this.libraryPage = Math.min(this.libraryPage, this.libraryPageCount); }
     },
@@ -310,15 +318,62 @@ const CompanyKnowledge = {
     askDocument() { if (!this.selectedDoc?.id || this.busy) return; this.changeScope([this.selectedDoc.id]); this.draft = '请根据《' + this.selectedDoc.title + '》回答：'; this.askSelection(); },
     originalUrl(value) { try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password ? url.href : ''; } catch { return ''; } },
     sizeLabel(bytes) { return bytes < 1048576 ? Math.max(1, Math.round(bytes / 1024)) + ' KB' : (bytes / 1048576).toFixed(1) + ' MB'; },
-    newConversation() { this.controller?.abort(); this.messages = []; this.draft = ''; },
+    newConversation() { this.chatGeneration++; this.controller?.abort(); this.messages = []; this.draft = ''; this.chatSessionId = ''; this.chatHasMore = false; this.chatHistoryBusy = false; this.chatScopeUnavailable = false; this.memoryStatus = ''; this.chatError = ''; },
+    applyChatSnapshot(data, prepend = false) {
+      this.chatSessionId = data.session_id || ''; this.chatSessions = data.sessions || [];
+      this.chatHasMore = !!data.has_more; this.chatScopeUnavailable = !!data.scope_unavailable;
+      this.memoryStatus = data.memory_status || ''; this.chatScope = data.scope || 'accessible';
+      this.selectedIds = data.document_ids || [];
+      const rows = (data.messages || []).map(row => ({ ...row, scope: this.scopeLabel, progress: row.progress || [], references: row.references || [] }));
+      this.messages = prepend ? [...rows, ...this.messages.filter(row => !rows.some(previous => previous.id === row.id))] : rows;
+      if (data.busy) this.memoryStatus = '该会话仍在生成回答，请稍后点击刷新对话。';
+    },
+    async loadChatHistory(sessionId = '', more = false) {
+      if (this.busy || this.chatHistoryBusy) return;
+      this.chatHistoryBusy = true; this.chatError = '';
+      const generation = ++this.chatGeneration;
+      try {
+        let url = '/company-knowledge/conversations' + (sessionId ? '/' + encodeURIComponent(sessionId) : '');
+        if (more && this.messages[0]?.id) url += '?before_id=' + this.messages[0].id;
+        const response = await this.apiFetch(url); const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || '研究历史加载失败。');
+        if (this.chatDisposed || generation !== this.chatGeneration) return;
+        this.applyChatSnapshot(data, more); if (!more) this.scrollChat();
+      } catch (error) { if (generation === this.chatGeneration && !this.chatDisposed) this.chatError = error.message; }
+      finally { if (generation === this.chatGeneration) this.chatHistoryBusy = false; }
+    },
+    async createChatSession() {
+      const response = await this.apiFetch('/company-knowledge/conversations', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({scope:this.chatScope, document_ids:this.selectedIds})});
+      const data = await response.json(); if (!response.ok) throw new Error(data.detail || '无法创建研究对话。');
+      return data;
+    },
+    async startConversation() {
+      if (this.busy || this.chatHistoryBusy) return;
+      this.newConversation(); const generation = this.chatGeneration; this.chatHistoryBusy = true;
+      try { const data = await this.createChatSession(); if (!this.chatDisposed && generation === this.chatGeneration) this.applyChatSnapshot(data); }
+      catch (error) { if (generation === this.chatGeneration) this.chatError = error.message; }
+      finally { if (generation === this.chatGeneration) this.chatHistoryBusy = false; }
+    },
+    async deleteConversation() {
+      if (!this.chatSessionId || this.busy || this.chatHistoryBusy) return;
+      try { await ElementPlus.ElMessageBox.confirm('删除当前研究对话及其任务摘要？资料文件和其他会话不受影响。', '删除研究对话', {type:'warning',confirmButtonText:'删除',cancelButtonText:'取消'}); } catch { return; }
+      const sessionId = this.chatSessionId, generation = ++this.chatGeneration; this.chatHistoryBusy = true;
+      try { const response = await this.apiFetch('/company-knowledge/conversations/' + encodeURIComponent(sessionId), {method:'DELETE'}); const data = await response.json(); if (!response.ok) throw new Error(data.detail || '删除失败。'); if (!this.chatDisposed && generation === this.chatGeneration) this.applyChatSnapshot(data); }
+      catch (error) { if (generation === this.chatGeneration) this.chatError = error.message; }
+      finally { if (generation === this.chatGeneration) this.chatHistoryBusy = false; }
+    },
     scrollChat() { this.$nextTick(() => { const feed = this.$refs.chatFeed; if (feed) feed.scrollTop = feed.scrollHeight; }); },
     async sendQuestion(question) {
       const content = (typeof question === 'string' ? question : this.draft).trim();
-      if (!content || this.busy || !this.canAsk) return;
+      if (!content || this.busy || this.chatHistoryBusy || !this.canAsk) return;
       if (content.length > 1500) { ElementPlus.ElMessage.warning('问题请控制在 1500 字以内。'); return; }
-      if (!this.selectedIds.length && /(我的项目|我(?:曾经)?(?:做过|参与过|负责过|上传过|上传的).{0,12}(?:项目|资料|文件)|我.{0,6}(?:做了|做过|参与|负责|上传).{0,10}(?:哪些|什么).{0,6}(?:项目|资料|文件))/.test(content)) this.chatScope = 'my-projects';
-      const history = this.messages.filter(message => message.text && !message.error && (message.role === 'user' || message.complete)).slice(-20).map(message => ({ role: message.role, content: message.text.slice(0, 20000) }));
-      while (history.reduce((total, message) => total + message.content.length, 0) > 60000) history.shift();
+      if (this.chatScopeUnavailable) { this.chatError = '原资料范围已失效，请重新选择资料并开始新的研究对话。'; return; }
+      if (!this.selectedIds.length && this.chatScope !== 'my-projects' && /(我的项目|我(?:曾经)?(?:做过|参与过|负责过|上传过|上传的).{0,12}(?:项目|资料|文件)|我.{0,6}(?:做了|做过|参与|负责|上传).{0,10}(?:哪些|什么).{0,6}(?:项目|资料|文件))/.test(content)) { this.newConversation(); this.chatScope = 'my-projects'; }
+      const generation = this.chatGeneration;
+      this.busy = true; this.chatError = ''; this.memoryStatus = '正在保存到账号…';
+      try { if (!this.chatSessionId) { const data = await this.createChatSession(); if (this.chatDisposed || generation !== this.chatGeneration) return; this.chatSessionId = data.session_id; this.chatSessions = data.sessions; } }
+      catch (error) { this.chatError = error.message; this.busy = false; return; }
+      if (this.chatDisposed || generation !== this.chatGeneration) return;
       this.messages.push({ role: 'user', text: content, scope: this.scopeLabel });
       this.messages.push({ role: 'assistant', text: '', references: [], progress: [], elapsedSeconds: 0, scope: this.scopeLabel, complete: false });
       const answer = this.messages[this.messages.length - 1];
@@ -329,7 +384,8 @@ const CompanyKnowledge = {
       this.activityClock = setInterval(() => { answer.elapsedSeconds = Math.max(answer.elapsedSeconds, Math.floor((Date.now() - started) / 1000)); }, 1000);
       let reader;
       try {
-        const response = await this.apiFetch('/company-knowledge/chat/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: this.controller.signal, body: JSON.stringify({ message: content, history, document_ids: this.selectedIds, scope: this.chatScope }) });
+        const requestId = globalThis.crypto?.randomUUID?.() || Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+        const response = await this.apiFetch('/company-knowledge/chat/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: this.controller.signal, body: JSON.stringify({ message: content, session_id:this.chatSessionId, request_id:requestId, document_ids: this.selectedIds, scope: this.chatScope }) });
         if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.detail || '知识库请求失败。'); }
         if (!response.body) throw new Error('浏览器未收到流式回答。');
         reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '';
@@ -337,6 +393,10 @@ const CompanyKnowledge = {
           const data = block.split('\n').filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n');
           if (!data) return;
           const event = JSON.parse(data);
+          if (this.chatDisposed || generation !== this.chatGeneration) return;
+          if (event.type === 'memory') { this.memoryStatus = event.message; answer.memoryMessage = event.message; }
+          if (event.type === 'saved') { answer.saved = true; this.memoryStatus = '已保存到当前账号 · ' + (answer.memoryMessage || '每轮回答重新检索资料'); }
+          if (event.type === 'redacted') { this.messages.forEach(message => { message.text = event.message; message.references = []; message.redacted = true; }); this.chatScopeUnavailable = true; }
           if (Number.isFinite(event.elapsed_seconds)) answer.elapsedSeconds = Math.max(answer.elapsedSeconds, event.elapsed_seconds);
           if (event.type === 'heartbeat') return;
           if (event.type === 'progress') this.updateProgress(answer, event);
@@ -350,10 +410,11 @@ const CompanyKnowledge = {
         while (true) { const { value, done } = await reader.read(); buffer += decoder.decode(value || new Uint8Array(), { stream: !done }).replace(/\r\n/g, '\n'); let boundary; while ((boundary = buffer.indexOf('\n\n')) >= 0) { consume(buffer.slice(0, boundary)); buffer = buffer.slice(boundary + 2); } if (done) break; }
         if (buffer.trim()) consume(buffer);
         if (!answer.complete) throw new Error('回答中断，请重新提问。');
-      } catch (error) { answer.error = error.name === 'AbortError' ? '已停止生成。' : error.message; this.finishProgress(answer, true); }
-      finally { clearInterval(this.activityClock); this.activityClock = null; if (reader) { await reader.cancel().catch(() => {}); reader.releaseLock(); } this.busy = false; this.controller = null; this.answerStatus = ''; this.scrollChat(); }
+      } catch (error) { if (!this.chatDisposed && generation === this.chatGeneration) { answer.error = error.name === 'AbortError' ? '已停止生成。' : error.message; this.memoryStatus = '本次回答未完成，请刷新对话查看已保存记录。'; this.finishProgress(answer, true); } }
+      finally { clearInterval(this.activityClock); this.activityClock = null; if (reader) { await reader.cancel().catch(() => {}); reader.releaseLock(); } if (generation === this.chatGeneration) { this.busy = false; this.controller = null; this.answerStatus = ''; if (!this.chatDisposed) { this.scrollChat(); this.refreshChatSessions(); } } }
       return;
     },
+    async refreshChatSessions() { try { const response = await this.apiFetch('/company-knowledge/conversations'); const data = await response.json(); if (response.ok && !this.chatDisposed) this.chatSessions = data.sessions || []; } catch {} },
     onComposerKey(event) { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); this.sendQuestion(); } }
   },
   template: `
@@ -415,7 +476,10 @@ const CompanyKnowledge = {
       </section>
       <section v-if="mode === 'chat'" id="ckb-chat-panel" class="ckb-chat-layout" role="tabpanel" aria-labelledby="ckb-chat-tab">
         <aside class="ckb-chat-aside">
-          <button class="ckb-button ckb-button-outline" :disabled="busy" @click="newConversation">开始新对话</button>
+          <button class="ckb-button ckb-button-outline" :disabled="busy || chatHistoryBusy" @click="startConversation">开始新对话</button>
+          <label class="ckb-aside-label" for="ckb-chat-history">研究历史</label>
+          <select id="ckb-chat-history" aria-label="研究历史" v-model="chatSessionId" :disabled="busy || chatHistoryBusy" @change="loadChatHistory(chatSessionId)"><option value="">新研究对话</option><option v-for="session in chatSessions" :key="session.id" :value="session.id">{{ session.title }}</option></select>
+          <div class="ckb-history-actions"><button :disabled="busy || chatHistoryBusy" @click="loadChatHistory(chatSessionId)">刷新对话</button><button :disabled="busy || chatHistoryBusy || !chatSessionId" @click="deleteConversation">删除当前对话</button></div>
           <div class="ckb-aside-label">检索范围</div><strong>{{ scopeLabel }}</strong>
           <p class="ckb-scope-note">{{ selectedIds.length ? '回答仅依据选中文件的检索片段。' : chatScope === 'my-projects' ? '按当前账号 ID 统计上传项目，只检索本人上传且已完成索引的资料。' : '检索当前账号可访问且已完成索引的资料。' }}</p>
           <button class="ckb-button ckb-button-outline" :disabled="busy" @click="mode = 'library'">选择资料</button>
@@ -425,7 +489,9 @@ const CompanyKnowledge = {
         </aside>
         <div class="ckb-chat-main">
           <header class="ckb-chat-header"><span><i class="fa-solid fa-wand-magic-sparkles"></i> 知识助手</span><small>基于公司资料 · 引用可核查</small></header>
+          <div v-if="memoryStatus || chatError" class="ckb-memory-status" :class="{'ckb-memory-error': chatError}" role="status">{{ chatError || memoryStatus }}</div>
           <div ref="chatFeed" class="ckb-chat-feed" aria-live="polite" aria-relevant="additions">
+            <button v-if="chatHasMore" class="ckb-button ckb-button-outline" :disabled="busy || chatHistoryBusy" @click="loadChatHistory(chatSessionId, true)">加载更早消息</button>
             <div v-if="!messages.length" class="ckb-chat-welcome">
               <div class="ckb-knowledge-mark"><i class="fa-regular fa-compass"></i></div>
               <h3>从问题到有依据的判断</h3><p>查找项目经验、比较资料结论，或就选中文件深入提问。</p>
