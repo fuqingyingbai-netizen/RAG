@@ -108,6 +108,12 @@ def test_malformed_number_does_not_become_a_smaller_valid_holding():
     assert not any(r['entity']=='趙一' for r in rows)
 
 
+@pytest.mark.parametrize('sign',['-','−','–','+'])
+def test_signed_holding_is_not_reinterpreted_as_a_positive_number_and_holder_name(sign):
+    rows,_=beneficial_ownership_disclosures(pages(ownership().replace('12,000',sign+'12,000')))
+    assert not any('趙一' in r['entity'] for r in rows)
+
+
 def test_future_table_and_invalid_cutoff_are_not_silently_admitted():
     assert beneficial_ownership_disclosures(pages(),as_of_date='2024-01-01')[0]==[]
     assert beneficial_ownership_disclosures(pages(),as_of_date='bad-date')[0]==[]

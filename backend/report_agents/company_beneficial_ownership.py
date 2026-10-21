@@ -6,7 +6,7 @@ from decimal import Decimal
 from .company_text import OriginalTextView,match_compact
 
 NUMBER=r'(?:\d{1,3}(?:,\d{3})+|\d+)'
-VALUES=re.compile(r'(?<![\d,])(?P<ordinary>'+NUMBER+r')\s+(?P<ads>'+NUMBER+r')\s+(?P<ratio>\d+(?:\.\d+)?%)\s*$')
+VALUES=re.compile(r'(?<![\d,+−–-])(?P<ordinary>'+NUMBER+r')\s+(?P<ads>'+NUMBER+r')\s+(?P<ratio>\d+(?:\.\d+)?%)\s*$')
 DAY=r'(20\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日'
 
 
