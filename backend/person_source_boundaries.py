@@ -96,12 +96,23 @@ def source_context_errors(analysis, supports, context_facts=()):
             if (exit_phrase and not re.search(r'管理层退出|退出管理岗位|退出经营|退休退出|岗位退出',clause)
                     and not re.search(r'不能|不构成|未说明|未涉及|未提供|不等于|不代表|没有',clause[:exit_phrase.start()])):
                 errors.append('retirement_as_shareholder_exit')
-    if (re.search(r'当前投后阶段|现有投后阶段|当前投后安排|当前投资项目',text)
+    if (re.search(r'当前(?:的)?投后|现有(?:的)?投后|当前投资项目',text)
             and not re.search(r'投后|投资协议|本次投资|本项目',original)):
         errors.append('investment_scenario_not_established')
+    for confirmed in re.finditer(r'属实|已独立核实|一致证实|交叉验证确认',text):
+        if not re.search(r'不能|不代表|并非|不等于|尚未|未经|是否',text[max(0,confirmed.start()-12):confirmed.start()]):
+            errors.append('source_statement_promoted_to_verified_fact')
     for absent in re.finditer(r'(?:亦|也)?无(?:任何|历史|个人)?(?:司法负面记录|司法记录|法律风险|不良记录)',text):
         if not re.search(r'不代表|不等于|不能推定|并非|不是|无法证明|不能认定|不能证明|不能据此认定',text[max(0,absent.start()-18):absent.start()]):
             errors.append('absence_as_general_exoneration')
+    relative_snapshot=re.search(r'截至(?:本|该)?[^。；;]{0,20}(?:签署之日|签署日)',original)
+    holding_claim=re.search(r'持有|持股|控股股东|实际控制人|一直担任',text)
+    if relative_snapshot and holding_claim:
+        if not re.search(r'签署|当时|历史|截至|该材料|该记录|披露时点|来源时点|所载时点|彼时|曾',text):
+            errors.append('historical_snapshot_qualifier_missing')
+        if (re.search(r'未(?:说明|载明|注明|披露|提供)[^。；;]{0,25}(?:该持股比例|该比例|持股比例)?[^。；;]{0,10}(?:基准日|基准日期|持股时点)',text)
+                and not re.search(r'日历|具体年月日|具体签署日期|签署日的具体|具体年份',text)):
+            errors.append('available_relative_baseline_denied')
     if (re.search(r'有利于提高.{0,12}效率|确保.{0,12}战略.{0,8}稳定',text)
             and re.search(r'有利于提高|确保长期战略',original)
             and not re.search(r'(?:公司|公告|文件|来源|材料|披露|原文).{0,12}(?:称|认为|表示|评价|自述|表述|宣称|载明)',text)):

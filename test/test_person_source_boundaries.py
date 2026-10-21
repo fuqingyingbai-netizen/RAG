@@ -115,6 +115,13 @@ def test_same_entity_role_dates_in_the_broader_pool_cannot_be_denied():
     assert not source_context_errors('所引关联企业表未注明任职起止时间。',[sparse],[sparse,dated])
 
 
+def test_historical_signing_snapshot_is_preserved_without_inventing_calendar_date():
+    sources=[{'fact':'截至本招股说明书签署之日，林知远直接持有本公司25.08%股份，为控股股东及实际控制人。'}]
+    assert 'historical_snapshot_qualifier_missing' in source_context_errors('来源披露林知远直接持股25.08%，为实际控制人。',sources)
+    assert 'available_relative_baseline_denied' in source_context_errors('来源披露截至签署日直接持有25.08%，但未说明该比例对应的基准日期。',sources)
+    assert not source_context_errors('来源披露截至签署日林知远直接持股25.08%；签署日的具体日历日期仍待核对。',sources)
+
+
 def test_actor_and_reaction_denial_conflicts_with_retained_context():
     original = [{'fact': '张勇宣布裁撤小区经理。员工不接受，店长推不下去，杨利娟当即下令开除员工，这些都是张勇后来才知道的。'}]
     assert source_context_errors('来源未提及其他主体介入或权责转移。', original) == ['other_actor_action_denied']

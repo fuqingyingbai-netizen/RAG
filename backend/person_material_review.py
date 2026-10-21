@@ -60,7 +60,7 @@ def read_then_write(role, prefix, writing_input, package, invoke, emit, validate
             audit['batches'][0]['status'] = audit['status'] = 'failed'
             raise
     by_id = {r['evidence_id']:r for r in writing_input['facts']}
-    proposals, requests = [], 0
+    proposals, recovery_material, requests = [], [], 0
     for i, batch in enumerate(batches, 1):
         event = {'batch': i, 'evidence_ids': [r['evidence_id'] for r in batch], 'status': 'requested'}
         audit['batches'].append(event)
@@ -93,22 +93,31 @@ def read_then_write(role, prefix, writing_input, package, invoke, emit, validate
             audit['proposed_findings'].append({**claim, 'batch': i})
             if claim.get('analysis'):
                 proposals.append({'evidence_ids':claim['evidence_ids'], 'analysis':claim['analysis']})
+            elif claim.get('evidence_ids'):
+                # A rejected interpretation does not erase admissible source
+                # facts. Keep original cards available for final synthesis.
+                recovery_material.append({'evidence_ids':claim['evidence_ids'],
+                    'rejected_interpretation_reasons':list(rejected),
+                    'status':'original_material_retained_interpretation_rejected'})
     audit['status'] = 'all_batches_returned'
     # Every source statement has now reached a research batch. Only this final
     # writing stage is concise; an earlier source count does not ration reading.
-    if not proposals:
+    if not proposals and not recovery_material:
         audit['synthesis'] = {'status':'no_valid_analysis_proposals','requests':0}
         return '{"claims":[]}', requests
-    support_ids = {eid for p in proposals for eid in p['evidence_ids']}
+    support_ids = {eid for p in [*proposals,*recovery_material] for eid in p['evidence_ids']}
     final_input = {**writing_input, 'facts':[by_id[eid] for eid in by_id if eid in support_ids],
-                   'research_findings':proposals}
+                   'research_findings':proposals,'material_with_rejected_interpretations':recovery_material}
     note = ('全部批次的研究候选已完成。现在综合压缩为最多3条简短判断，合并重复，'
             '结合research_questions优先保留不同问题已有的具体事项；授权、组织变动与接班等不同事项不要全部压成单一主题。'
+            'material_with_rejected_interpretations中的原始材料仍须考虑：被拒绝的是此前的解释，不能因解释错误就遗漏有效原文。'
+            '根据拒绝原因重新读原文，出版年份不当作实施年份、辞职威胁不当作已辞职、指令不当作已执行；无需为每条材料强写推断。'
             '不要先总括学历履历再用两条分别重复，同一事项只说明一次；优先保留不同问题的实质信息，所用来源合并引用。'
             '保留有实质影响的不同机构、历史变化、反例及矛盾。候选判断尚未独立核实，'
             '必须重新依据facts原句检查，不可将多个候选拼成更强的结论。'
             '控制正文篇幅，不因来源多堆砌原文；来源内已有的限制、回应和不同主体行为必须保留。\n')
     audit['synthesis'] = {'status':'requested','requests':1,'proposal_count':len(proposals),
+                          'retained_rejected_interpretation_material':recovery_material,
                           'support_evidence_ids':sorted(support_ids)}
     try:
         requests += 1

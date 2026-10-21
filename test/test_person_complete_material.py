@@ -95,6 +95,33 @@ def test_failed_batch_cannot_be_presented_as_complete(monkeypatch):
     assert package['material_review']['batches'][0]['status']=='failed'
 
 
+def test_rejecting_an_initial_interpretation_does_not_erase_its_original(monkeypatch):
+    monkeypatch.setenv('PERSON_RESEARCH_BATCH_CHARS','4000')
+    package={**facts(80),'writing_contract':'evidence_selection_v2'}
+    rows=[{k:f[k] for k in ['evidence_id','fact','subject']} for f in package['research_facts']]
+    proposed=[]
+    final_packets=[]
+    def invoke(role,prompt,emit):
+        data=json.loads(prompt.splitlines()[-1])
+        if role.endswith('综合写作'):
+            final_packets.append(data)
+            return json.dumps({'claims':[{'evidence_ids':[data['facts'][0]['evidence_id']],
+                'analysis':'来源记录历史任职，后续职责仍须核对。'}]},ensure_ascii=False)
+        eid=data['facts'][-1]['evidence_id']
+        proposed.append(eid)
+        return json.dumps({'claims':[{'evidence_ids':[eid],
+            'analysis':'来源载明林知远持有99999万股。'}]},ensure_ascii=False)
+    answer,calls=read_then_write('章节Agent','仅使用原文。\n',{'facts':rows},package,invoke,None,validate_model_claims)
+    assert final_packets and len(final_packets)==1
+    packet=final_packets[0]
+    assert set(proposed)=={f['evidence_id'] for f in packet['facts']}
+    assert not packet['research_findings']
+    assert len(packet['material_with_rejected_interpretations'])==len(proposed)
+    assert '99999' not in json.dumps(packet,ensure_ascii=False)
+    accepted,rejected=validate_model_claims(answer,{**package,'facts':package['research_facts']})
+    assert not rejected and accepted[0]['analysis']
+
+
 def test_distinct_findings_get_display_slots_before_repeated_supports():
     package = facts(12)
     rows = package['research_facts']

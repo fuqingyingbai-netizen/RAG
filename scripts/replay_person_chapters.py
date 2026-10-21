@@ -25,6 +25,14 @@ def read(root, name):
     return json.loads((root/name).read_text(encoding='utf-8'))
 
 
+def generation_code_snapshot():
+    files=[*ROOT.joinpath('backend').glob('person*.py'),
+        ROOT/'backend/research_workflow.py',ROOT/'backend/report_agents/person_report_agent.py',
+        ROOT/'backend/company_ocr.py',ROOT/'scripts/replay_person_chapters.py',ROOT/'scripts/person_iteration.py']
+    return {str(path.relative_to(ROOT)).replace('\\','/'):hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(files) if path.is_file()}
+
+
 def retained_claims(text):
     rows = []
     for line in text.splitlines():
@@ -52,6 +60,8 @@ def main():
     start = time.monotonic()
     baseline, output = args.baseline.resolve(), args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
+    code_snapshot=generation_code_snapshot()
+    (output/'generation-code-snapshot.json').write_text(json.dumps(code_snapshot,indent=2)+'\n',encoding='utf-8')
     intake, payload, ledger = [read(baseline,n) for n in ['intake.json','cleaned_facts.json','person_claim_ledger.json']]
     source_bytes = (baseline/'source-snapshots.json').read_bytes()
     sources = [SimpleNamespace(**s) for s in json.loads(source_bytes)]
@@ -80,6 +90,7 @@ def main():
     changed = [n for n in range(2,13) if set(selection[str(n)]['selected_ids']) != {f['evidence_id'] for f in contract['chapters'][n]['facts']}]
     outside = set(changed) - set(args.chapters)
     plan = {'baseline': str(baseline), 'sources_sha256': hashlib.sha256(source_bytes).hexdigest(),
+        'generation_code_sha256':hashlib.sha256(json.dumps(code_snapshot,sort_keys=True).encode()).hexdigest(),
         'previous_replay': str(args.previous_replay) if args.previous_replay else None,
         'feedback_records': str(args.feedback_records) if args.feedback_records else None,
         'intake_sha256': hashlib.sha256((baseline/'intake.json').read_bytes()).hexdigest(),
@@ -155,6 +166,7 @@ def main():
         (output/f'chapter-{n}-before.md').write_text(before[n],encoding='utf-8')
         (output/f'chapter-{n}-after.md').write_text(after[n],encoding='utf-8')
     plan.update(model_requests=len(calls),model_requests_returned=sum(r['status']=='returned' for r in calls),
+        code_unchanged_during_run=code_snapshot==generation_code_snapshot(),
         exact_input_responses_reused=sum(e['status']=='exact_input_reused' for e in invoke.events),
         model_requests_failed=sum(r['status']=='failed' for r in calls),elapsed_seconds=round(time.monotonic()-start,3),
         unchanged_body_chapters=sorted(retained),comparisons=comparisons,
@@ -162,6 +174,8 @@ def main():
         audit={k:v for k,v in audit.items() if k in ['status','issues','degradations']})
     (output/'summary.json').write_text(json.dumps(safe(plan),ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps({k:v for k,v in plan.items() if k!='comparisons'},ensure_ascii=False),flush=True)
+    if not plan['code_unchanged_during_run']:
+        raise RuntimeError('Generation code changed during the run; retain diagnostics and replay the final frozen code')
 
 
 if __name__=='__main__':
