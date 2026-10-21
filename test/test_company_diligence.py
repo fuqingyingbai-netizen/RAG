@@ -56,6 +56,22 @@ def test_registry_requires_explicit_parent_relation_and_owner_heading():
     assert not package(child)['facts']  # A subsidiary report alone cannot describe the parent.
 
 
+def test_garbled_caption_does_not_turn_generic_vie_diagram_nodes_into_companies():
+    diagram=('ٙVIEᔊఊͪԷf\n50%50%\n25% 25% 25% 25%\n本公司\n全资子公司\n'
+             '境内投资控股有限公司\n可变利益实体\n普通合伙人的自然人股东\n'
+             '自然人有限合伙人\n中国有限合伙企业\n法定所有权\n合约安排')
+    p=package(source(body=diagram))
+    assert not p['diagnostic']['linked_entities']
+    # A concrete legal name in another explicit parent declaration survives.
+    c,s=source(body=diagram+'\n本公司全资子公司'+CHILD+'负责电子业务。')
+    assert package((c,s))['diagnostic']['linked_entities']==[CHILD]
+
+
+def test_generic_sounding_name_without_schematic_context_is_not_blacklisted():
+    p=package(source(body='本公司全资子公司境内投资控股有限公司负责投资业务。'))
+    assert p['diagnostic']['linked_entities']==['境内投资控股有限公司']
+
+
 def test_traditional_simplified_name_matching_does_not_merge_legal_entities():
     c,s=child_pair();s['source_metadata']['document_pages'][0]['text']=s['source_metadata']['document_pages'][0]['text'].replace('青禾电子（国际）有限公司','青禾電子（國際）有限公司')
     p=package(root_pair(),(c,s));assert any(r['entity']==CHILD for r in p['facts'])

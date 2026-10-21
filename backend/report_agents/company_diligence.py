@@ -159,8 +159,16 @@ def identity_registry(cleaned,target,sources):
         for page in selected:
             text=_CC.convert(page['text'])
             if re.search(r'简单示例|仅为示例|假设.{0,20}(?:架构|结构)|示例.{0,20}(?:架构|结构)',text):continue
+            compact=re.sub(r'\s+','',text)
+            # Older PDF fonts can corrupt the caption while leaving generic
+            # VIE diagram nodes readable. Those labels do not identify a legal
+            # subsidiary; an actually named entity elsewhere remains eligible.
+            schematic=(sum(word in compact for word in ('可变利益实体','普通合伙人','自然人有限合伙人',
+                         '中国有限合伙企业','法定所有权','合约安排'))>=4
+                       and len(re.findall(r'\d+(?:\.\d+)?\s*%',text))>=4)
             for m in re.finditer(r'(?:控股子公司|全资子公司|子公司|附属公司)(?:为|是|包括)?\s*('+LEGAL+r')',text):
                 child=m[1]
+                if schematic and re.fullmatch(r'(?:中国|境内|境外|国内|海外)(?:投资|经营|运营)?(?:控股)?(?:有限责任公司|有限公司)',child):continue
                 if re.search(r'根据|注册成立|成立于|简称|依据|以下|上述|通过',child):continue
                 prefix=re.sub(r'\s+','',re.split(r'[。；]',text[:m.start()])[-1])
                 if re.search(r'控股股东|实际控制人|交易对方|卖方|标的公司|目标公司',prefix):continue
