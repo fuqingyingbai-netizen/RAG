@@ -203,3 +203,34 @@ test('catalog loading fetches beyond 100 files before local filtering and pagina
  const calls=[]; const context={loading:false,documentPage:0,selectedIds:['last'],cloudDocuments:[],apiFetch:async url=>{calls.push(url);return {ok:true,json:async()=>({documents:url.includes('page_number=2')?[{id:'last',category:'研究成果'}]:Array.from({length:100},(_,i)=>({id:String(i),category:'项目原件'})),total_count:101})}}};
  await component.methods.loadDocuments.call(context);assert.equal(calls.length,2);assert.equal(context.cloudDocuments.length,101);assert.deepEqual(Array.from(context.selectedIds),['last']);
 });
+
+// Conversation history is server-owned and must survive refresh without crossing scopes.
+test('restored research conversation retains selected scope and protected history',()=>{
+ const context=libraryContext();context.scopeLabel='选中 1 份资料';
+ context.applyChatSnapshot({session_id:'one',scope:'accessible',document_ids:['a'],messages:[{id:1,role:'assistant',text:'已隐藏',references:[],redacted:true}],sessions:[{id:'one',title:'历史研究'}],scope_unavailable:true,has_more:true,memory_status:'权限变化'});
+ assert.equal(context.chatSessionId,'one');assert.equal(context.selectedIds[0],'a');assert.equal(context.messages[0].redacted,true);assert.equal(context.chatScopeUnavailable,true);assert.equal(context.chatHasMore,true);
+});
+test('pagination prepends history without duplicate messages',()=>{
+ const context=libraryContext();context.messages=[{id:3,text:'new'}];
+ context.applyChatSnapshot({session_id:'one',messages:[{id:1,text:'old'},{id:3,text:'new'}],sessions:[]},true);
+ assert.deepEqual(Array.from(context.messages.map(row=>row.id)),[1,3]);
+});
+test('late history cannot refill a new conversation or a logged-out component',async()=>{
+ const context=libraryContext();context.scrollChat=()=>{};let complete;
+ context.apiFetch=()=>new Promise(resolve=>{complete=resolve;});
+ const pending=context.loadChatHistory('old');context.newConversation();
+ complete({ok:true,json:async()=>({session_id:'old',messages:[{text:'PRIVATE'}]})});await pending;
+ assert.equal(context.messages.length,0);assert.equal(context.chatSessionId,'');assert.equal(context.chatHistoryBusy,false);
+ const later=context.loadChatHistory('old');context.chatDisposed=true;
+ complete({ok:true,json:async()=>({session_id:'old',messages:[{text:'PRIVATE'}]})});await later;
+ assert.equal(context.messages.length,0);
+});
+test('new context clears local history without deleting server conversations',()=>{
+ const context=libraryContext();context.chatSessionId='old';context.messages=[{text:'old'}];context.chatSessions=[{id:'old'}];context.selectedIds=['one'];
+ context.newConversation();assert.equal(context.chatSessionId,'');assert.equal(context.messages.length,0);assert.equal(context.chatSessions.length,1);assert.equal(context.selectedIds[0],'one');
+});
+test('creating a conversation sends scope only, not untrusted browser history',async()=>{
+ const context=libraryContext();context.selectedIds=['one'];context.messages=[{text:'UNTRUSTED'}];let sent;
+ context.apiFetch=async(url,options)=>{sent=JSON.parse(options.body);return {ok:true,json:async()=>({session_id:'new'})};};
+ assert.equal((await context.createChatSession()).session_id,'new');assert.equal(sent.document_ids[0],'one');assert.equal(sent.scope,'accessible');assert.equal('history' in sent,false);
+});
