@@ -43,12 +43,18 @@ def inspect(run):
         research = diagnostic.get('material_review', {})
         input_ids = research.get('input_evidence_ids', [])
         batch_ids = [eid for batch in research.get('batches', []) for eid in batch['evidence_ids']]
+        returned_ids = {eid for batch in research.get('batches', []) if batch.get('status') == 'returned' for eid in batch['evidence_ids']}
+        deterministic_ids = set(research.get('deterministically_processed_evidence_ids', []))
+        expected_ids = {f['evidence_id'] for f in pool}
         rows.append({'chapter': n, 'title': package['title'], 'chars': len(body),
             'research_facts': len(pool), 'research_source_urls': len({f['source_url'] for f in pool}),
             'displayed_original_records': displayed, 'cited_fact_count': len(all_ids),
             'cited_source_urls': len({by_id[eid]['source_url'] for eid in all_ids if eid in by_id}),
             'unknown_evidence_ids': sorted(all_ids - by_id.keys()),
-            'model_input_count': len(input_ids), 'batch_input_accounted_for': input_ids == batch_ids,
+            'model_input_count': len(input_ids), 'model_returned_input_count': len(returned_ids),
+            'deterministically_processed_fact_count': len(deterministic_ids),
+            'all_research_records_accounted_for': expected_ids <= returned_ids | deterministic_ids if 2 <= n <= 12 else None,
+            'batch_input_accounted_for': input_ids == batch_ids,
             'research_request_status': research.get('status', 'no_model_research_stage'),
             'research_scopes': {scope: sum(f['subject_scope'] == scope for f in pool)
                 for scope in sorted({f['subject_scope'] for f in pool})},

@@ -4,6 +4,7 @@ import re
 
 
 LABELS = {
+    'available_career_material_denied': '所引原文已有任职、加入或职业记录，不能称没有其他履历；只限定尚未提供的具体字段',
     'indirect_relationship_flattened': '原文是目标出资机构的关联方，不能直接写成目标个人关联或控制；保留中间机构及关系层级',
     'commentary_as_formal_authority': '媒体对效果的期望或预测不证明正式职责或授权；保留评论立场，不补任命事实',
     'investment_scenario_not_established': '未提供本次投资交易或投后协议，不得把一般公开任职写成既有投后安排或退出权',

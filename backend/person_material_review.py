@@ -137,13 +137,17 @@ def presentation_facts(package, claims, max_records=4, max_chars=1600):
             if eid in by_id and by_id[eid] not in ordered:
                 ordered.append(by_id[eid])
     ordered += [f for f in package['facts'] if f not in ordered]
-    chosen,used=[],0
+    chosen,used,originals=[],0,set()
     for fact in ordered:
         if len(chosen)>=max_records:
             break
         size=len(fact['fact'])
+        key = fact['source_url'], re.sub(r'\s+', '', fact['fact'])
+        if key in originals:
+            continue
         if chosen and used+size>max_chars:
             continue
         chosen.append(fact)
+        originals.add(key)
         used+=size
     return chosen

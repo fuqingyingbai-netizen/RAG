@@ -25,6 +25,9 @@ def source_context_errors(analysis, supports):
     actor_action = r'(?:员工|店长|经理|董事会|管理层|[\u4e00-\u9fff]{2,4}(?:先生|女士))[^。；;]{0,12}(?:下令|决定|辞职|反对|抵制|开除|否决)|(?:当即下令|集体辞职|员工不接受|店长推不下去)'
     if re.search(denied_actors, text) and re.search(actor_action, original):
         errors.append('other_actor_action_denied')
+    if (re.search(r'无其他(?:学历或)?履历信息|没有其他任职信息|未提供任何职业履历', text)
+            and re.search(r'现任|曾任|历任|担任|董事|总裁|总经理|任职|加入', original)):
+        errors.append('available_career_material_denied')
     platform_rows = [f for f in supports if f.get('claim_type') == 'person_platform_record']
     if platform_rows and len(platform_rows) == len(supports):
         all_historical = all(re.search(r'；历史记录；|曾担任角色|"历史任职"', folded(f['fact'])) for f in platform_rows)

@@ -121,3 +121,9 @@ def test_separate_role_dates_do_not_become_one_common_tenure():
     rows = [{'fact': '林知远董事长、执行董事、总裁 董事长、执行董事任期为2011年6月11日至2014年6月10日，总裁任期自2002年6月10日起。'}]
     assert 'mixed_role_tenure_not_supported' in definition_errors('来源载明林知远担任董事长、执行董事、总裁，任期起止为2011年6月11日至2014年6月10日。', rows)
     assert 'mixed_role_tenure_not_supported' not in definition_errors('董事长、执行董事的任期为2011年6月11日至2014年6月10日，总裁任期自2002年6月10日起。', rows)
+
+
+def test_education_summary_does_not_erase_career_details_in_same_source():
+    rows = [{'fact': '林知远于1987年毕业，1995年创办恒川软件，现任公司董事长。'}]
+    assert source_context_errors('教育经历仅限1987年毕业，无其他学历或履历信息。', rows) == ['available_career_material_denied']
+    assert not source_context_errors('来源载明1987年毕业及后续创办、任职，部分任期起止尚未对齐。', rows)

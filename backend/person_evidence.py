@@ -22,7 +22,7 @@ except ImportError:
     from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
     from person_chapter_selection import select_material, dimension_coverage, team_source_facts, prospective_company_risk
 
-VERSION = "person-template-v14-whole-numbers-and-source-boundaries"
+VERSION = "person-template-v15-complete-colleagues-and-context-records"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
@@ -212,11 +212,12 @@ def normalize_facts(payload, target, aliases=(), sources=()):
         if reason:
             rejected.append({**f, "rejection_reason": reason})
             continue
-        key = (compact(text), url.rstrip("/"))
+        member_key = str(f.get('team_member_name') or '') if f.get('claim_type') == 'person_team_member_record' else ''
+        key = (compact(text), url.rstrip("/"), member_key)
         if key in seen:
             continue
         seen.add(key)
-        f["evidence_id"] = "E-P" + hashlib.sha256((url.rstrip("/") + "\n" + text).encode()).hexdigest()[:14].upper()
+        f["evidence_id"] = "E-P" + hashlib.sha256((url.rstrip("/") + "\n" + text + ('\nteam=' + member_key if member_key else '')).encode()).hexdigest()[:14].upper()
         f["fact"] = text
         if url in source_objects:
             try:
@@ -233,9 +234,15 @@ def normalize_facts(payload, target, aliases=(), sources=()):
         f["published_at"] = str(f.get("published_at") or f.get("date") or "未披露")
         f["retrieved_at"] = str(f.get("retrieved_at") or "未记录")
         f["subject_scope"] = "affiliated_company" if affiliated else "person"
+        if re.search(r'有媒体曾问及[^。]{0,80}强盗|当年那次被动的股权转让[^。]{0,35}如鲠在喉', text) and not re.search(r'回答是|回答说|本人表示', text):
+            f['opinion_only'] = True
+            f['source_stance'] = 'reported_dispute_or_media_question'
+            f['eligible_for_risk_scoring'] = False
         f["subject"] = str(context.get("affiliation_name") or f.get("subject") or target)
         f["attribution_boundary"] = ("关联企业层面信息，不能证明人物个人信用、能力或司法责任。" if affiliated else
                                       "来源陈述，尚未经人工独立核验；观点不等于事实。")
+        if f.get('source_stance') == 'reported_dispute_or_media_question':
+            f['attribution_boundary'] = '媒体争议性描述或提问，不能当作当事人明确表态或司法事实。'
         if re.search(r'控股股束|主要股束',text):
             f['source_text_issue']='possible_legal_term_glyph_error'
             f['attribution_boundary'] += ' 原文中股东术语疑有字形转录异常，保留原句待核物理原页，不据此认定控股身份。'
@@ -275,9 +282,11 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
     intake = intake or {}
     aliases = (intake.get("person_anchor") or {}).get("aliases") or []
     from person_chapter_selection import retained_management_events
+    from person_colleague_material import explicit_colleague_roles
     events = retained_management_events(sources, {**intake, 'target_name': target})
     team_material_audit = []
     teams = team_source_facts(sources, {**intake, 'target_name': target}, audit=team_material_audit)
+    teams += explicit_colleague_roles(sources, {**intake, 'target_name': target}, audit=team_material_audit)
     facts, rejected = normalize_facts({**payload, 'facts': [*payload.get('facts', []), *teams, *events]}, target, aliases, sources)
     try:
         from .person_chapter_research import annotated_facts, view_status
@@ -368,6 +377,8 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
             if (f.get('claim_type') in {'person_platform_record', 'person_company_record'}
                     and chapter in f.get('person_chapters', [])):
                 hits += 1
+            if f.get('claim_type') == 'person_team_member_record' and chapter == 6:
+                hits += 4
             if f.get('literal_roster_row') and chapter in {2, 9}:
                 hits += 1
             module_match = compact(title) == compact(f.get("module"))
@@ -1018,7 +1029,13 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                               'source_chapters': [c['inherited_from_chapter'] for c in claims]}
         research_candidates = package.get('research_facts', package['facts']) if chapter not in {1, 13} else []
         analysis_candidates = [f for f in research_candidates if f.get('analysis_allowed')]
-        if research_candidates and chapter != 12:
+        if research_candidates and (not analysis_candidates or chapter == 12):
+            package['material_review'] = {'version': 'complete-material-review-v2', 'status': 'deterministic_attributed_records',
+                'input_evidence_ids': [], 'batches': [], 'omitted_for_input_budget': [],
+                'deterministically_processed_evidence_ids': [f['evidence_id'] for f in research_candidates],
+                'reason': 'attributed_context_or_risk_records_require_no_personal_inference',
+                'boundary': 'source_fields_and_quotes_processed_without_model_or_independent_truth_verification'}
+        if research_candidates and analysis_candidates and chapter != 12:
             # Read every admitted scope, with explicit attribution. Context
             # rows remain ineligible as support for personal interpretations.
             writing_input = {'chapter': chapter, 'title': package['title'], 'task': package['task'],

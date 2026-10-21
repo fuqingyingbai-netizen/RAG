@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from person_commission import requirements, assess, event_years
-from person_evidence import build_packages, generate_person_report, split_sections, validate_model_claims
+from person_evidence import build_packages, generate_person_report, split_sections, validate_model_claims, cited_ids
 from person_retrieval import SearchSession, coverage
 from research_strategies.person import PersonResearchStrategy
 from report_agents.person_report_agent import PERSON_REPORT_OUTLINE
@@ -175,7 +175,9 @@ def test_report_keeps_facts_and_unanswered_questions_when_model_abstains():
     text = generate_person_report(p, json.dumps({'facts': [fact()]}), '{}', PERSON_REPORT_OUTLINE, invoke, lambda *a, **kw: None)
     sections = split_sections(text)
     assert len(sections) == 15 and calls
-    assert '林知远于2021年在恒川软件有限公司任职' in sections[10]
+    assert '林知远于2021年在恒川软件有限公司任职' in sections[2]
+    assert '同一原文已列第2章' in sections[10]
+    assert cited_ids(sections[10]) & cited_ids(sections[2])
     assert '委托问题逐项核查' in sections[10] and '持股及权益' in sections[10]
     assert '委托问题“持股及权益”' in sections[15]
     assert p.person_delivery_diagnostic['section_diagnostics'][10]['accepted_analysis_count'] == 0

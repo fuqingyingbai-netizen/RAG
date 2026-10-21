@@ -89,6 +89,8 @@ def material_matches(fact, chapter, view):
         team = (scope == 'other_person' and (bool(fact.get('team_member_name') and fact.get('team_affiliation_name')) or bool(re.search(r'本公司|本集团|其团队|管理团队|核心团队|共同创办|共同创立|团队成员|同属', text)))) or (scope == 'affiliated_company' and 6 in fact.get('person_chapters', []))
         if not team:
             return False
+        if fact.get('team_role_literal') and view == '成员履历与职责':
+            return True
         if '不得担任' in text and not re.search(r'现任|担任本|任职|共同创办', text):
             return False
     if chapter == 4 and re.search(r'控股股东.{0,15}控制风险|管理风险|重大经营及人事决策', text):
@@ -197,7 +199,7 @@ def select_material(ranked, chapter, commissioned=(), commission_matches=None, l
         if not useful_for_chapter(fact, chapter):
             audit.append({'evidence_id': fact['evidence_id'], 'status': 'not_selected', 'reason': fact.get('source_text_issue') or 'not_chapter_material'})
             continue
-        family = (normalized(fact['fact']), fact.get('subject_scope'), fact.get('comparison_subject', ''))
+        family = (normalized(fact['fact']), fact.get('subject_scope'), fact.get('comparison_subject', ''), fact.get('team_member_name', ''))
         previous = families.get(family)
         if previous is not None:
             winner, duplicate = (fact, previous[1]) if quality_key(fact) > quality_key(previous[1]) else (previous[1], fact)

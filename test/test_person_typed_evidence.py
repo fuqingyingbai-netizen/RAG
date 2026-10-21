@@ -143,7 +143,7 @@ def test_server_builds_support_and_does_not_trust_model_rewritten_quote():
 def test_writer_reads_admitted_scopes_with_personal_inference_permissions():
     p = SimpleNamespace(target_name='林知远', target_type='person', title='合成测试', sources=[],
                         person_research_intake={'person_anchor': {'supplementary_context': '2018年曾任技术负责人'}})
-    rows = [fact('林知远于2021年任职恒川软件董事，负责管理。'),
+    rows = [fact('林知远于2021年任职恒川软件董事，负责研发创新项目管理。'),
             fact('恒川软件有限公司披露2021年研发创新项目已投产，营业收入为100万元，股东为某机构。', person_affiliation={'person_name': '林知远', 'affiliation_name': '恒川软件有限公司'})]
     inputs = []
     def invoke(role, prompt, trace):

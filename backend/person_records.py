@@ -228,6 +228,8 @@ def chapter_relevant(fact, chapter):
     if chapter == 3 and '年度报告' in text and '法律责任' in text and re.search(r'真实.{0,8}准确.{0,8}完整', text):
         return False
     if chapter == 8 and not fact.get('comparison_subject'):
+        if re.search(r'同业竞争|显失公平.{0,8}关联交易', text) and not re.search(r'对标|可比人物|同行评价|竞争对手', text):
+            return False
         return bool(re.search(r'同业|对标|竞争对手|竞争者|同行评价|比较|可比|竞品|benchmark|competitor|comparison', text, re.I))
     if chapter == 12:
         text = text.replace('非执行董事', '').replace('执行董事', '')
