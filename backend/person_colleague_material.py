@@ -86,10 +86,26 @@ def explicit_colleague_roles(sources, intake, audit=None):
                             continue
                         seen.add(key)
                         literal_name = body[offsets[name_start]:offsets[name_end-1]+1]
+                        explicit_events = []
+                        # Only bind a date when the member's own name and role
+                        # change immediately follow it. Publication/URL dates
+                        # and another person's dates never fill a tenure.
+                        dated = re.search(r'(?P<date>(?:19|20)\d{2}年(?:\d{1,2}月(?:\d{1,2}日)?)?)[，,]?'
+                            + re.escape(colleague) + r'(?:升任|担任|出任|接任|辞任|获委任为)' + literal_org + company_role_prefix + role,
+                            text[match.start()-35 if match.start() >= 35 else 0:match.end()+10], re.I)
+                        if dated:
+                            origin = max(0, match.start()-35)
+                            ds, de = origin+dated.start('date'), origin+dated.end('date')
+                            qs, qe = origin+dated.start(), origin+dated.end()
+                            event_quote = body[offsets[qs]:offsets[qe-1]+1]
+                            if event_quote in quote:
+                                explicit_events.append({'kind': 'appointment', 'date_literal': body[offsets[ds]:offsets[de-1]+1],
+                                    'source_quote': event_quote, 'subject': literal_name})
                         result.append({'fact': quote, 'evidence_quote': quote, 'source_url': source.url, 'source_title': source.title,
                             'identity_match': 'confirmed', 'identity_confidence': meta['identity_confidence'],
                             'claim_type': 'person_team_member_record', 'person_chapters': [6], 'team_member_name': literal_name,
                             'team_affiliation_name': org, 'team_role_literal': relation, 'team_source_kind': 'explicit_company_role_in_article',
+                            'team_role_events': explicit_events,
                             'provider': meta.get('provider'), 'source_grade': meta.get('source_grade', ''),
                             'retrieved_at': meta.get('retrieved_at', ''), 'published_at': meta.get('published_at', ''),
                             'extraction_method': 'retained_explicit_company_colleague_role'})

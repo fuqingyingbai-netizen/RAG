@@ -4,6 +4,8 @@ import re
 
 
 LABELS = {
+    'unsupported_date_combination': '年月日组合未逐字对应原文日期，不能把不同日期的年份、月份或日拼接；保留原文时间精度',
+    'broader_material_contains_claimed_missing_fact': '完整研究池另有该机构的持股或权益记录，不能笼统称没有材料；须综合全部相关记录，或仅明确本条片段未说明的字段',
     'threatened_event_as_occurred': '原文是以集体辞职相要挟，不能写成已经集体辞职；保留威胁或提议状态',
     'directed_action_as_completed': '下令或要求开除不等于已执行开除，须保留指令状态及执行结果未知',
     'available_career_material_denied': '所引原文已有任职、加入或职业记录，不能称没有其他履历；只限定尚未提供的具体字段',
@@ -75,6 +77,10 @@ def repair_once(answer, package, writing_input, claims, reasons, invoke, emit, v
     if not bad:
         return claims, reasons, {'status': 'not_repairable', 'initial_rejections': reasons}
     allowed_ids = {eid for b in bad for eid in b['evidence_ids']}
+    if 'broader_material_contains_claimed_missing_fact' in reasons:
+        # Correction needs the contrary material, not just the narrower
+        # subset that caused the unsupported absence claim.
+        allowed_ids.update(f['evidence_id'] for f in package.get('research_facts', package['facts']) if f.get('analysis_allowed'))
     data = {**writing_input, 'facts': [f for f in writing_input['facts'] if f['evidence_id'] in allowed_ids]}
     skeleton = {'claims': [{'evidence_ids': [eid for eid in b['evidence_ids'] if eid in allowed_ids], 'analysis': ''} for b in bad]}
     prompt = (f"人物背景调查第{package['chapter']}章核验修订。只修订下面未获支持的分析，不改原文，不引入新人物或数据。"

@@ -162,9 +162,15 @@ def observation(fact, target, aliases=()):
         gaps.append('本条主要描述其他人员，不能归给目标人物')
     if not period:
         gaps.append('事件或数据基准时期未明确，禁止用采集日期补齐')
+    events = source_events(text)
+    for event in fact.get('team_role_events', []) if fact.get('team_source_kind') == 'explicit_company_role_in_article' else []:
+        if (isinstance(event, dict) and event.get('subject') == team_name and event.get('kind') == 'appointment'
+                and event.get('source_quote') and compact(event['source_quote']) in compact(text)
+                and event.get('date_literal') and compact(event['date_literal']) in compact(event['source_quote'])):
+            events.append(event)
     return {'subject': target if scope == 'person' else named_person or issuer, 'source_named_person': named_person, 'subject_scope': scope,
             'issuer': issuer, 'relations': relations, 'period': period, 'period_basis': period_basis, 'ownership_subject': ownership_subject,
-            'role_date_fields': dates, 'source_events': source_events(text), 'metrics': metrics, 'direct_person_link': bool(direct_link),
+            'role_date_fields': dates, 'source_events': events, 'metrics': metrics, 'direct_person_link': bool(direct_link),
             'source_url': fact.get('source_url', ''), 'evidence_id': fact.get('evidence_id', ''),
             'gaps': gaps, 'verification': 'source_statement_requires_review'}
 

@@ -22,7 +22,7 @@ except ImportError:
     from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
     from person_chapter_selection import select_material, dimension_coverage, team_source_facts, prospective_company_risk
 
-VERSION = "person-template-v15-complete-colleagues-and-context-records"
+VERSION = "person-template-v16-complete-context-and-event-fidelity"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
@@ -599,7 +599,7 @@ def validate_model_claims(answer, package):
             rejected.append('personal_analysis_not_permitted')
         if analysis:
             from person_source_boundaries import source_context_errors
-            comparison_rejections = comparison_errors(analysis, supports) + current_status_errors(analysis, supports) + personal_inference_errors(analysis) + definition_errors(analysis, supports) + source_context_errors(analysis, supports)
+            comparison_rejections = comparison_errors(analysis, supports) + current_status_errors(analysis, supports) + personal_inference_errors(analysis) + definition_errors(analysis, supports) + source_context_errors(analysis, supports, package.get('research_facts', package['facts']))
             if comparison_rejections:
                 rejected.extend(comparison_rejections)
                 analysis = ''
@@ -1065,11 +1065,15 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                 '所有facts都须纳入研读；subject_scope说明材料主体，personal_analysis_allowed为false的只作归属明确的背景或观点，不能引用为对目标个人的分析证据。'
                 '本批若无允许个人分析的材料，返回空claims，团队、候选对标及具名观点由程序按原文另列，不强行推断目标个人。'
                 '每章最多3条分析，每条尽量不超过120字，不必覆盖每个事实编号。'
+                '先简洁回答本章的具体问题；已有履历、职责或持股记录时写清来源所述内容及其边界，不要把每项分析都写成泛泛的“未说明”。'
                 '原文支持由程序根据编号填入，不要返回support_quotes，不要抄写原文。引用仅供回查，不等于结论已获核实。'
                 '本章优先围绕已经提供的具体事件、职责和时点说明资料能回答什么；不要强行做横向比较。'
                 '公司自评与人物自述必须保留来源立场，不能改成你的客观肯定。不要重复已列出的通用核验提醒。'
                 '使用“来源载明/披露/称”，不要把摘录一致写成事实已确认、交叉印证或不存在矛盾。'
                 '来源已记载员工反应、其他人员处置或相反陈述时，不得声称没有反馈或无人介入；分别保留行为主体。'
+                '威胁辞职、宣布方案、下令处置、实际执行分别表述；不把相要挟写成已辞职，不把下令写成已执行。'
+                '作材料缺失判断时考虑本章全部facts，不能只因选中的两条摘录未写，就否认其他材料已有的任职或持股。'
+                '用具体行为、职责和条件写作，避免无原文依据的“价值锚点”等抽象包装；来源观点须保留评价者或报道立场。'
                 '书籍出版年份不能当成制度实施年份；曾担任、历史记录不能省略历史限定。'
                 '媒体预期效果不证明正式职责或任命；未提供具体投资交易和协议，不声称已经处于投后或已有退出权。'
                 '提请授权、取得批准后授权不等于已经生效；授权事项不能推导出能力、信任、诚信或风险偏好。'

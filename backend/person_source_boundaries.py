@@ -11,10 +11,17 @@ except ImportError:
     from person_text import folded
 
 
-def source_context_errors(analysis, supports):
+def source_context_errors(analysis, supports, context_facts=()):
     text = folded(analysis)
     original = folded(' '.join(str(f.get('fact') or '') for f in supports))
     errors = []
+    from person_text import numeric_literals
+    def calendar_dates(value):
+        literal = numeric_literals(value)
+        return {(int(y), int(m), int(d)) for y, m, d in re.findall(
+            r'(?<!\d)((?:19|20)\d{2})\s*(?:年|[-/])\s*(\d{1,2})\s*(?:月|[-/])\s*(\d{1,2})(?:\s*日)?', literal)}
+    if not calendar_dates(analysis) <= calendar_dates(' '.join(str(f.get('fact') or '') for f in supports)):
+        errors.append('unsupported_date_combination')
     reactions = r'员工不接受|员工.{0,10}(?:反对|抵制|不满)|集体辞职|店长推不下去|员工反馈|员工投诉'
     denied_reactions = r'(?:未提及|未见|没有|未说明|未提供)[^。；;]{0,20}(?:员工反应|员工反馈|员工意见|员工抵制|员工回应)'
     if re.search(denied_reactions, text) and re.search(reactions, original):
@@ -75,4 +82,21 @@ def source_context_errors(analysis, supports):
             if (re.search(r'关联|控制|拥有', clause) and any(entity and entity in clause for entity in entities)
                     and not re.search(r'这些公司|该等公司|机构的关联|公司层面|上述机构|这些机构|间接|不能|不等于|未说明', clause)):
                 errors.append('indirect_relationship_flattened')
+    # A conclusion about all available material must consider contrary cards,
+    # even when the writer selected a smaller subset to cite in this sentence.
+    absence = re.search(r'未(?:载明|说明|提供|披露)(?:其|他|她|目标人物)?在(?P<entities>[^。；;，,]{2,70}?)的(?P<fields>[^。；;]{2,35})', text)
+    if (absence and re.search(r'持股|股权|权益', absence['fields'])
+            and not re.search(r'当前|现任|现行|同期|生效|所引片段|本段|本条', absence[0])):
+        entities = re.split(r'[、和及与]', re.sub(r'等.*$', '', absence['entities']))
+        for entity in entities:
+            core = re.sub(r'(?:股份有限公司|控股有限公司|有限公司|国际|控股|集团|公司)$', '', entity)
+            if len(core) < 2:
+                continue
+            for fact in context_facts:
+                material = folded(fact.get('fact') or '')
+                if (fact.get('subject_scope') == 'person' and core in material
+                        and re.search(r'持有|拥有|持股|股权|权益', material)
+                        and re.search(r'\d+(?:\.\d+)?%', material)):
+                    errors.append('broader_material_contains_claimed_missing_fact')
+                    break
     return list(dict.fromkeys(errors))

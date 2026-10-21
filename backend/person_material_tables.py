@@ -57,6 +57,9 @@ def team_table(package):
             if fact.get('team_source_kind') != 'explicit_company_role_in_article':
                 periods += [r['field'] + '：' + r['source_value'] for r in record.get('role_date_fields', [])]
                 periods += ['事件原词：' + r['source_quote'] for r in record.get('source_events', []) if r['kind'] == 'appointment']
+            else:
+                periods += ['事件原词：' + r['source_quote'] for r in record.get('source_events', [])
+                    if r.get('subject') == fact.get('team_member_name') and r['kind'] == 'appointment']
         role = '；'.join(_unique_literals(roles)[:2]) or '完整职责原句见证据台账，职务待核'
         period = '；'.join(_unique_literals(periods)[:3]) or '原段日期与该成员任期尚未逐项对齐，见原文'
         refs = ' '.join('[' + f['evidence_id'] + ']' for f in facts)

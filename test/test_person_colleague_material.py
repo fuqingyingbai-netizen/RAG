@@ -65,3 +65,12 @@ def test_colleague_joining_event_is_not_current_role_start_date():
         'observation': {'source_events': [{'kind': 'appointment', 'date_literal': '1996年', 'source_quote': '1996年加入恒川软件'}]}}
     rendered = '\n'.join(team_table({'facts': [fact], 'research_facts': [fact]}))
     assert '原文事件日期（非现职任期）' in rendered and '1996年加入恒川软件' in rendered
+
+
+def test_explicit_member_role_event_date_is_preserved_without_using_publication_year():
+    text = '在林知远调整组织的2011年，陈雨安升任恒川软件COO，承担门店管理，报道出版于2022年，不代表2022年才任职。'
+    contract = build_packages({'facts': []}, '林知远', PERSON_REPORT_OUTLINE, INTAKE, [source(text)])
+    record = contract['chapters'][6]['research_facts'][0]
+    assert record['team_role_events'][0]['date_literal'] == '2011年'
+    assert record['observation']['source_events'][-1]['subject'] == '陈雨安'
+    assert record['observation']['source_events'][-1]['date_literal'] == '2011年'

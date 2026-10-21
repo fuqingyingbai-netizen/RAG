@@ -133,3 +133,17 @@ def test_collective_resignation_threat_and_dismissal_order_are_not_completed_eve
     rows = [{'fact': '员工以“集体辞职”相要挟，陈雨安当即下令，将这些人全部开除。林知远后来才知道此事。'}]
     assert source_context_errors('改革引发员工集体辞职抗议，陈雨安随即执行开除。', rows) == ['threatened_event_as_occurred', 'directed_action_as_completed']
     assert not source_context_errors('员工以集体辞职相要挟，陈雨安下令开除，实际执行结果尚未载明。', rows)
+
+
+def test_absence_claim_uses_complete_research_context_not_only_selected_quotes():
+    supports = [{'fact': '林知远是云峰投资的间接出资人。', 'subject_scope': 'person'}]
+    context = [*supports, {'fact': '林知远、陈雨安夫妇拥有远山国际47.76%的股权。', 'subject_scope': 'person'}]
+    claim = '材料未载明其在远山国际的任职、持股或实际控制状态。'
+    assert source_context_errors(claim, supports, context) == ['broader_material_contains_claimed_missing_fact']
+    assert not source_context_errors('所引片段未载明其在远山国际的当前持股情况，另有历史记录待核。', supports, context)
+
+
+def test_year_month_day_cannot_be_recombined_from_different_dates():
+    rows = [{'fact': '林知远于2022年3月1日卸任，公司于2026年1月13日披露新安排。'}]
+    assert 'unsupported_date_combination' in source_context_errors('来源载明林知远于2022年1月13日卸任。', rows)
+    assert not source_context_errors('来源载明2022年3月1日卸任，另一安排披露于2026-01-13。', rows)

@@ -35,7 +35,7 @@ def inspect(run):
                 statement = re.sub(r'\s*\[E-[A-Z0-9-]+\]', '', line.split('：', 1)[1]).strip()
                 supports = [by_id[eid] for eid in ids if eid in by_id]
                 analyses.append({'analysis': statement, 'evidence_ids': ids,
-                                 'explicit_source_boundary_issues': source_context_errors(statement, supports)})
+                                 'explicit_source_boundary_issues': source_context_errors(statement, supports, pool)})
                 analysis_uses[statement].append(n)
         for eid in displayed:
             quote_uses[eid].append(n)
