@@ -133,13 +133,33 @@ class ResearchRevisionRequest(BaseModel):
     instructions: str
     base_artifact_id: Optional[int] = None
 
+class ResearchAssistantImport(BaseModel):
+    messages: list[dict[str, Any]] = Field(default_factory=list, max_length=80)
+    summary: str = Field(default='', max_length=8000)
+
+
 class ResearchAssistantRequest(BaseModel):
+    session_id: Optional[str] = Field(default=None, pattern=r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+    request_id: Optional[str] = Field(default=None, pattern=r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
     current_page: str = Field(default="submit", max_length=40)
-    message: str = Field(min_length=1, max_length=6000)
+    message: str = Field(default='', max_length=6000)
+    images: list[str] = Field(default_factory=list, max_length=2)
     project_id: Optional[int] = None
     limit: int = 8
     history_summary: str = ""
     recent_messages: list[dict[str, str]] = Field(default_factory=list)
+
+    @field_validator('images')
+    @classmethod
+    def valid_assistant_images(cls, values):
+        from assistant_images import normalize_image
+        return [normalize_image(value) for value in values]
+
+    @model_validator(mode='after')
+    def assistant_content_required(self):
+        if not self.message and not self.images:
+            raise ValueError('请输入问题或选择截图')
+        return self
 
 class ResearchUploadResponse(BaseModel):
     source: ResearchSourceResponse

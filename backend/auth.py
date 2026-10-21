@@ -4,7 +4,7 @@ import hashlib
 import hmac
 from datetime import datetime, timedelta, timezone
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -18,7 +18,6 @@ load_dotenv()
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-this-secret")
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "1440"))
-ADMIN_INVITE_CODE = os.getenv("ADMIN_INVITE_CODE", "")
 PBKDF2_ROUNDS = int(os.getenv("PASSWORD_PBKDF2_ROUNDS", "310000"))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -81,26 +80,27 @@ def get_password_hash(password: str) -> str:
     return f"pbkdf2_sha256${PBKDF2_ROUNDS}${salt_b64}${digest_b64}"
 
 
-def create_access_token(username: str, role: str) -> str:
+def create_access_token(username: str, role: str, token_version: int = 0) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
         "sub": username,
         "role": role,
         "exp": expire,
+        "ver": token_version,
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def authenticate_user(db: Session, username: str, password: str) -> User | None:
     user = db.query(User).filter(User.username == username).first()
-    if not user:
+    if not user or not user.is_active or user.archived_at:
         return None
     if not verify_password(password, user.password_hash):
         return None
     return user
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+def get_current_user(request: Request, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="无效或过期的认证令牌",
@@ -115,8 +115,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
 
     user = db.query(User).filter(User.username == username).first()
-    if not user:
+    if not user or not user.is_active or user.archived_at or payload.get("ver", 0) != user.token_version:
         raise credentials_exception
+    if user.must_change_password and request.url.path not in {"/auth/me", "/auth/change-password"}:
+        raise HTTPException(status_code=403, detail="请先修改临时密码", headers={"X-Password-Change-Required": "true"})
     return user
 
 
@@ -126,10 +128,8 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
-def resolve_role(requested_role: str | None, admin_code: str | None) -> str:
-    role = (requested_role or "user").strip().lower()
-    if role != "admin":
-        return "user"
-    if ADMIN_INVITE_CODE and admin_code == ADMIN_INVITE_CODE:
-        return "admin"
-    raise HTTPException(status_code=403, detail="管理员邀请码错误")
+def validate_new_password(password: str) -> None:
+    if not 8 <= len(password) <= 128 or password != password.strip():
+        raise HTTPException(400, "密码须为8至128位，且首尾不能有空白")
+    if not any(c.isalpha() for c in password) or not any(c.isdigit() for c in password):
+        raise HTTPException(400, "密码须同时包含字母和数字")

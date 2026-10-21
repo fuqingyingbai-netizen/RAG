@@ -4,34 +4,82 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
 
-function context() {
+function context(options = {}) {
   let definition;
-  const storage = new Map();
+  const storage = new Map(options.storage || []);
   const app = { component() { return this; }, use() { return this; }, mount() {} };
   const localStorage = { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../frontend/script.js'), 'utf8'), {
-    Vue: { createApp(value) { definition = value; return app; } }, ElementPlus: {}, CompanyKnowledge: {}, localStorage, URL,
-    TextDecoder, AbortController, setTimeout, clearTimeout,
+    Vue: { createApp(value) { definition = value; return app; } }, ElementPlus: { ElMessage: {warning: value => options.warnings?.push(value)}, ElMessageBox: { confirm: options.confirm || (async () => true) } }, CompanyKnowledge: {}, AccountManagement: {}, PersonalHome: {}, ReportVersions: {}, localStorage, URL, FileReader: options.FileReader,
+    TextDecoder, AbortController, setTimeout, clearTimeout, window: options.window,
   });
   const state = definition.data();
   for (const [name, method] of Object.entries(definition.methods)) state[name] = method.bind(state);
+  for (const [name, getter] of Object.entries(definition.computed)) Object.defineProperty(state, name, {get: () => getter.call(state)});
   return { state, storage };
 }
 
-test('a newly signed-in account cannot inherit the previous account conversation', () => {
-  const { state, storage } = context();
+function cloudState(session = 'session-1', messages = []) {
+  return { session_id: session, sessions: [{ id: session, title: '新对话' }], messages, summary: '', has_more: false, legacy_imported: true };
+}
+
+test('image selection enforces count and size limits without losing the current draft', async () => {
+  const warnings = [];
+  class Reader { readAsDataURL(file) { this.result = 'data:' + file.type + ';base64,AAAA'; this.onload(); } }
+  const { state } = context({ warnings, FileReader: Reader }); state.applyAssistantState(cloudState());
+  state.assistantInput = '解释这个页面';
+  await state.addAssistantImages([{name:'screen.png', type:'image/png', size:100}]);
+  assert.equal(state.assistantImages.length,1);
+  await state.addAssistantImages([{type:'image/png',size:100},{type:'image/png',size:100}]);
+  assert.equal(state.assistantImages.length,1); assert.match(warnings.at(-1),/最多/);
+  await state.addAssistantImages([{type:'image/png',size:4*1024*1024}]);
+  assert.equal(state.assistantImages.length,1); assert.match(warnings.at(-1),/3 MB/);
+  assert.equal(state.assistantInput,'解释这个页面');
+});
+
+test('an image read finishing after logout cannot populate another account draft', async () => {
+  let reader;
+  class Reader { constructor(){reader=this;} readAsDataURL(){} }
+  const { state } = context({FileReader:Reader}); state.currentUser={username:'alice'}; state.applyAssistantState(cloudState('alice'));
+  const selecting=state.addAssistantImages([{name:'private.png',type:'image/png',size:100}]);
+  state.handleLogout(); state.currentUser={username:'bob'}; state.applyAssistantState(cloudState('bob'));
+  reader.result='data:image/png;base64,AAAA'; reader.onload(); await selecting;
+  assert.equal(state.assistantImages.length,0); assert.equal(state.assistantImageBusy,false);
+});
+
+test('image-only messages include transient attachments and do not write a browser history cache', async () => {
+  const { state, storage }=context(); state.currentUser={username:'alice'};state.applyAssistantState(cloudState());
+  state.assistantImages=[{name:'screen.png',url:'data:image/png;base64,AAAA'}]; let payload;
+  const events='data: '+JSON.stringify({type:'content',content:'操作指引'})+'\n\ndata: '+JSON.stringify({type:'memory',saved:true})+'\n\n';let read=false;
+  state.authFetch=async(url,options)=>{payload=JSON.parse(options.body);return {ok:true,body:{getReader:()=>({read:async()=>read?{done:true}:(read=true,{done:false,value:new TextEncoder().encode(events)})})}}};
+  await state.sendAssistantMessage();
+  assert.equal(payload.message,'');assert.deepEqual(payload.images,['data:image/png;base64,AAAA']);
+  assert.equal(state.assistantImages.length,0);assert.equal(state.assistantMessages[1].images.length,1);
+  assert.equal(state.assistantMessages.at(-1).text,'操作指引');assert.ok(!JSON.stringify([...storage]).includes('base64'));
+});
+
+test('pasting a screenshot handles images while plain text keeps normal paste behavior', () => {
+  const {state}=context();let calls=0,prevented=0;
+  state.addAssistantImages=files=>{calls++;assert.equal(files[0].type,'image/png')};
+  state.pasteAssistantImage({clipboardData:{items:[{kind:'string',type:'text/plain'}]},preventDefault(){prevented++}});
+  assert.equal(calls,0);assert.equal(prevented,0);
+  state.pasteAssistantImage({clipboardData:{items:[{kind:'file',type:'image/png',getAsFile:()=>({type:'image/png'})}]},preventDefault(){prevented++}});
+  assert.equal(calls,1);assert.equal(prevented,1);
+});
+
+test('a newly signed-in account cannot inherit the previous account conversation', async () => {
+  const { state } = context();
   state.currentUser = { username: 'alice' };
-  state.assistantMessages = [{ text: 'Alice private message', isUser: true }];
-  state.assistantContextSummary = 'Alice private summary';
-  state.saveAssistantState();
-  assert.ok(storage.has('systemGuide:v1:alice'));
+  state.applyAssistantState(cloudState('alice', [{ text: 'Alice private message', isUser: true }]));
   state.handleLogout();
   state.currentUser = { username: 'bob' };
-  state.loadAssistantState();
+  state.assistantJson = async () => cloudState('bob');
+  await state.loadAssistantState();
   assert.equal(state.assistantContextSummary, '');
   assert.ok(!JSON.stringify(state.assistantMessages).includes('Alice'));
   state.currentUser = { username: 'alice' };
-  state.loadAssistantState();
+  state.assistantJson = async () => cloudState('alice', [{ text: 'Alice private message', isUser: true }]);
+  await state.loadAssistantState();
   assert.equal(state.assistantMessages[0].text, 'Alice private message');
 });
 
@@ -46,6 +94,7 @@ test('source navigation accepts only public HTTP URLs without embedded credentia
 test('online SSE sources remain with the answer and unsafe source links are rejected', async () => {
   const { state } = context();
   state.currentUser = { username: 'alice' }; state.activeView = 'tasks'; state.assistantInput = '上海天气';
+  state.assistantReady = true; state.assistantSessionId = 'session-1';
   const events = [
     { type: 'status', content: '正在查询天气…' },
     { type: 'sources', sources: [
@@ -53,12 +102,16 @@ test('online SSE sources remain with the answer and unsafe source links are reje
       { title: '危险来源', url: 'javascript:alert(1)' },
     ] },
     { type: 'content', content: '服务返回上海21℃。' },
+    { type: 'memory', saved: true, status: 'ready', summarized: false },
   ];
   const encoded = new TextEncoder().encode(events.map(event => 'data: ' + JSON.stringify(event) + '\n\n').join('') + 'data: [DONE]\n\n');
   let read = false;
   state.authFetch = async (url, options) => {
     assert.equal(url, '/research/assistant/stream');
     assert.equal(JSON.parse(options.body).current_page, 'tasks');
+    assert.equal(JSON.parse(options.body).session_id, 'session-1');
+    assert.equal(JSON.parse(options.body).history_summary, undefined);
+    assert.equal(JSON.parse(options.body).recent_messages, undefined);
     return { ok: true, body: { getReader: () => ({ read: async () => read ? { done: true } : (read = true, { done: false, value: encoded }) }) } };
   };
   await state.sendAssistantMessage();
@@ -67,4 +120,164 @@ test('online SSE sources remain with the answer and unsafe source links are reje
   assert.equal(answer.sources.length, 1);
   assert.equal(answer.sources[0].url, 'https://wttr.in/Shanghai');
   assert.equal(state.assistantLoading, false);
+  assert.equal(state.assistantMemoryStatus, '已保存到账号');
+});
+
+test('legacy cache is removed only after successful migration and failure disables sending', async () => {
+  const { state, storage } = context(); state.currentUser = { username: 'alice' };
+  storage.set('systemGuide:v1:alice', JSON.stringify({ messages: [{ text: '旧消息', isUser: true }], summary: '旧摘要' }));
+  state.assistantJson = async url => { if (url.endsWith('/state')) return { ...cloudState(), legacy_imported: false }; throw new Error('网络中断'); };
+  await state.loadAssistantState();
+  assert.equal(state.assistantReady, false); assert.ok(storage.has('systemGuide:v1:alice'));
+  state.assistantJson = async (url, options) => {
+    if (url.endsWith('/state')) return { ...cloudState(), legacy_imported: false };
+    assert.equal(JSON.parse(options.body).messages[0].text, '旧消息');
+    return cloudState('migrated', [{ text: '旧消息', isUser: true }]);
+  };
+  await state.loadAssistantState();
+  assert.equal(state.assistantReady, true); assert.equal(state.assistantMessages[0].text, '旧消息');
+  assert.equal(storage.has('systemGuide:v1:alice'), false);
+});
+
+test('late history responses cannot apply to the next signed-in account', async () => {
+  const { state } = context(); state.currentUser = { username: 'alice' };
+  let finish;
+  state.assistantJson = () => new Promise(resolve => { finish = resolve; });
+  const loading = state.loadAssistantState();
+  state.handleLogout(); state.currentUser = { username: 'bob' };
+  state.applyAssistantState(cloudState('bob'));
+  finish(cloudState('alice', [{ text: 'Alice private', isUser: true }]));
+  await loading;
+  assert.equal(state.assistantSessionId, 'bob');
+  assert.ok(!JSON.stringify(state.assistantMessages).includes('Alice'));
+});
+
+test('new conversation and clear cancel pending generation and reset displayed context', async () => {
+  const { state } = context(); state.currentUser = { username: 'alice' };
+  state.applyAssistantState({ ...cloudState('old'), summary: '旧摘要' });
+  let aborted = 0; state.assistantController = { abort: () => aborted++ };
+  state.assistantJson = async (url, options) => { assert.equal(options.method, 'POST'); return cloudState('new'); };
+  await state.changeAssistantSession('new');
+  assert.equal(aborted, 1); assert.equal(state.assistantContextSummary, ''); assert.equal(state.assistantSessionId, 'new');
+  state.assistantJson = async (url, options) => { assert.equal(url, '/research/assistant/history'); assert.equal(options.method, 'DELETE'); return cloudState('cleared'); };
+  await state.changeAssistantSession('clear');
+  assert.equal(state.assistantSessionId, 'cleared');
+});
+
+test('late streaming output cannot enter a new conversation or account', async () => {
+  const { state } = context(); state.currentUser = { username: 'alice' }; state.assistantInput = '旧问题';
+  state.applyAssistantState(cloudState('old')); let finish;
+  state.authFetch = () => new Promise(resolve => { finish = resolve; });
+  const sending = state.sendAssistantMessage();
+  state.handleLogout(); state.currentUser = { username: 'bob' }; state.applyAssistantState(cloudState('bob'));
+  finish({ ok: true, body: { getReader: () => { throw new Error('must not consume old account stream'); } } });
+  await sending;
+  assert.equal(state.assistantSessionId, 'bob');
+  assert.ok(!JSON.stringify(state.assistantMessages).includes('旧问题'));
+});
+
+test('a clear confirmation opened by one account cannot clear a later signed-in account', async () => {
+  let confirm;
+  const { state } = context({ confirm: () => new Promise(resolve => { confirm = resolve; }) });
+  state.currentUser = { username: 'alice' }; state.applyAssistantState(cloudState('alice'));
+  state.assistantJson = async () => assert.fail('must not clear after the account changes');
+  const clearing = state.changeAssistantSession('clear');
+  state.handleLogout(); state.currentUser = { username: 'bob' }; state.applyAssistantState(cloudState('bob'));
+  confirm(); await clearing;
+  assert.equal(state.assistantSessionId, 'bob');
+});
+
+test('loading older messages retains the newest ones and stops at the last page', async () => {
+  const { state } = context(); state.applyAssistantState({ ...cloudState('session-1', [{ id: 81, text: '最新消息' }]), has_more: true });
+  state.assistantJson = async url => { assert.ok(url.endsWith('before_id=81')); return { messages: [{ id: 1, text: '最早消息' }], has_more: false }; };
+  await state.loadOlderAssistant();
+  assert.deepEqual(Array.from(state.assistantMessages, row => row.id), [1, 81]); assert.equal(state.assistantHasMore, false);
+});
+
+test('a response arriving after an account change cannot populate the new account guide', async () => {
+  const { state, storage } = context();
+  state.token = 'alice-token'; state.currentUser = { username: 'alice' }; state.assistantInput = 'private question';
+  state.applyAssistantState(cloudState('alice'));
+  let release;
+  const pendingRead = new Promise(resolve => { release = resolve; });
+  let cancelled = false;
+  state.authFetch = async () => ({ ok: true, body: { getReader: () => ({
+    read: () => pendingRead, cancel: async () => { cancelled = true; },
+  }) } });
+  const sending = state.sendAssistantMessage();
+  await new Promise(resolve => setImmediate(resolve));
+  state.handleLogout();
+  state.token = 'bob-token'; state.currentUser = { username: 'bob' }; state.assistantJson = async () => cloudState('bob'); await state.loadAssistantState();
+  const before = JSON.stringify(state.assistantMessages);
+  release({ done: false, value: new TextEncoder().encode('data: ' + JSON.stringify({ type: 'navigation', items: [{ view: 'sources', label: 'Private navigation' }] }) + '\n\n') });
+  await sending;
+  assert.equal(cancelled, true);
+  assert.equal(JSON.stringify(state.assistantMessages), before);
+  assert.equal(state.assistantNavigation.length, 0);
+  assert.equal(storage.has('systemGuide:v1:bob'), false);
+});
+
+test('global assistant navigation includes home and filters admin pages by the signed-in role', async () => {
+  for (const role of ['user', 'admin']) {
+    const {state} = context();
+    state.currentUser = {username: 'guide-only', role}; state.activeView = role === 'admin' ? 'accounts' : 'home';
+    state.applyAssistantState(cloudState('guide-only'));
+    state.assistantInput = '这个页面怎么用？';
+    const views = ['home', 'submit', 'tasks', 'review', 'sources', 'company-knowledge', 'accounts', 'untrusted-page'];
+    const encoded = new TextEncoder().encode('data: ' + JSON.stringify({type: 'navigation', items: views.map(view => ({view, label: view}))}) + '\n\ndata: [DONE]\n\n');
+    let read = false;
+    state.authFetch = async (_, options) => {
+      assert.equal(JSON.parse(options.body).current_page, state.activeView);
+      return {ok: true, body: {getReader: () => ({read: async () => read ? {done: true} : (read = true, {done: false, value: encoded})})}};
+    };
+    await state.sendAssistantMessage();
+    assert.equal(state.assistantNavigation.some(item => item.view === 'home'), true);
+    assert.equal(state.assistantNavigation.some(item => item.view === 'accounts'), role === 'admin');
+    assert.equal(state.assistantNavigation.some(item => item.view === 'untrusted-page'), false);
+  }
+});
+
+test('bad saved positions recover and the panel fits desktop, mobile and keyboard viewports', () => {
+  const broken = context({storage: [['assistantPosition', '{invalid json']]}).state;
+  assert.equal(broken.assistantPosition.right, 22);
+  const browser = {innerWidth: 1024, innerHeight: 768};
+  const {state} = context({window: browser, storage: [['assistantPosition', '{"right":99999,"bottom":99999}']]});
+  let style = state.assistantPanelStyle;
+  assert.ok(parseFloat(style.right) + parseFloat(style.width) <= 1008);
+  assert.ok(parseFloat(style.bottom) + parseFloat(style.height) <= 752);
+  browser.innerWidth = 390; browser.innerHeight = 844; state.updateAssistantViewport();
+  style = state.assistantPanelStyle;
+  assert.equal(style.width, '366px'); assert.equal(style.top, '12px'); assert.equal(style.height, '820px');
+  browser.visualViewport = {height: 320, offsetTop: 10}; state.updateAssistantViewport();
+  assert.equal(state.assistantPanelStyle.height, '296px'); assert.equal(state.assistantPanelStyle.top, '22px');
+});
+
+test('dragging uses panel dimensions and never moves the whole window off screen', () => {
+  const browser = {innerWidth: 1024, innerHeight: 768, addEventListener() {}, removeEventListener() {}};
+  const {state, storage} = context({window: browser});
+  state.startAssistantDrag({button: 0, clientX: 600, clientY: 300, preventDefault() {}}, 'panel');
+  state.onAssistantDrag({clientX: -10000, clientY: -10000}); state.stopAssistantDrag();
+  assert.equal(state.assistantPosition.right, 548); assert.equal(state.assistantPosition.bottom, 112);
+  assert.equal(JSON.parse(storage.get('assistantPosition')).right, 548);
+  state.assistantOpen = true; state.closeAssistant(); state.toggleAssistant();
+  assert.equal(state.assistantOpen, true);
+});
+
+test('Enter respects Chinese composition and Shift newline', () => {
+  const {state} = context(); let sends = 0, prevented = 0;
+  state.sendAssistantMessage = () => sends++;
+  const key = options => ({key: 'Enter', preventDefault() {prevented++;}, ...options});
+  state.onAssistantInputKeydown(key({isComposing: true}));
+  state.onAssistantInputKeydown(key({keyCode: 229}));
+  state.onAssistantInputKeydown(key({shiftKey: true}));
+  assert.equal(sends, 0); assert.equal(prevented, 0);
+  state.onAssistantInputKeydown(key({})); assert.equal(sends, 1); assert.equal(prevented, 1);
+});
+
+test('reading older messages is not interrupted by automatic scrolling', () => {
+  const {state} = context(); const feed = {scrollTop: 80, scrollHeight: 1000, clientHeight: 200};
+  state.$refs = {assistantMessages: feed}; state.$nextTick = done => done();
+  state.onAssistantScroll(); assert.equal(state.assistantFollowLatest, false);
+  feed.scrollHeight = 1200; state.scrollAssistant(); assert.equal(feed.scrollTop, 80);
+  state.scrollAssistant(true); assert.equal(feed.scrollTop, 1200); assert.equal(state.assistantFollowLatest, true);
 });

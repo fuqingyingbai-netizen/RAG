@@ -55,7 +55,7 @@ def test_grounded_model_flag_is_corrected_before_identity_without_mutating_input
     assert annotate_fact(forecast,SCOPE)['numeric_context']['is_forecast'] is True
 
 
-@pytest.mark.parametrize('index',[1,4,5,11,14,16])
+@pytest.mark.parametrize('index',[1,4,11,14])
 def test_every_fallback_keeps_forecast_label_local_and_only_one_authorized_metric(index):
     f=fact(fact='市场规模216.3亿元，同比增长32.5%，未来预计增长。')
     section=IndustryReportAgent()._fallback_section({'facts':[f]},index,'章节')
@@ -63,6 +63,18 @@ def test_every_fallback_keeps_forecast_label_local_and_only_one_authorized_metri
     assert numeric_mentions(section)==['216.3亿元']
     assert not claim_semantic_issues(section,[f])
     if index==1:assert summary_length(section)<=600
+
+
+def test_heat_and_next_steps_do_not_reuse_the_market_summary():
+    f=fact()
+    agent=IndustryReportAgent()
+    heat=agent._fallback_section({'facts':[f]},5,'行业热度形成')
+    outlook=agent._fallback_section({'facts':[f]},11,'前景展望')
+    next_steps=agent._fallback_section({'facts':[f]},16,'后续研究点')
+    assert '热度成因' in heat and '216.3' not in heat
+    assert '情景对照' in outlook and '预测/目标值' in outlook
+    assert '核对市场规模' in next_steps and '216.3' not in next_steps
+    assert f['evidence_id'] in next_steps
 
 
 def test_fallback_rechecks_source_claims_and_keeps_unsafe_prose_out():

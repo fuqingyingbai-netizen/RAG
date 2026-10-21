@@ -7,6 +7,7 @@ import re
 import shutil
 import threading
 import time
+from uuid import uuid4
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
@@ -24,6 +25,7 @@ from models import ResearchArtifact, ResearchProject, ResearchSource, User
 from research_schemas import (
     ResearchArtifactResponse,
     ResearchAssistantRequest,
+    ResearchAssistantImport,
     ResearchProjectCreate,
     ResearchProjectListResponse,
     ResearchProjectResponse,
@@ -696,10 +698,25 @@ def _save_workflow_trace(db: Session, project: ResearchProject, events: list[dic
     )
     artifact = max(artifacts, key=_workflow_trace_sort_key, default=None)
     existing_timestamp = str((artifact.artifact_metadata or {}).get("last_event_timestamp") or "") if artifact else ""
-    if artifact and existing_timestamp and latest_timestamp and latest_timestamp < existing_timestamp:
+    newer_industry_run = False
+    if project.target_type == 'industry':
+        run = next((e for e in events if e.get('run_id') and e.get('run_started_at')), {})
+        prior_start = (artifact.artifact_metadata or {}).get('run_started_at') if artifact else None
+        if prior_start and not run.get('run_started_at'):
+            return
+        if prior_start and run.get('run_started_at') and run['run_started_at'] < prior_start:
+            return
+        newer_industry_run = bool(prior_start and run.get('run_started_at') and run['run_started_at'] > prior_start)
+        industry_trace_metadata.update({k: run[k] for k in ('run_id', 'run_started_at') if k in run})
+    if artifact and existing_timestamp and latest_timestamp and latest_timestamp < existing_timestamp and not newer_industry_run:
         return
+    separate_run = project.target_type == 'industry' and industry_trace_metadata.get('run_id')
+    next_version = max((a.version or 0 for a in artifacts), default=0) + 1
+    if separate_run and artifact and (artifact.artifact_metadata or {}).get('run_id') != separate_run:
+        artifact = None
     object_key = research_store.put_text(
-        f"projects/{project.id}/workflow_trace/workflow_trace.json",
+        (f"projects/{project.id}/workflow_trace/{separate_run}.json" if separate_run
+         else f"projects/{project.id}/workflow_trace/workflow_trace.json"),
         content,
         "application/json; charset=utf-8",
     )
@@ -714,7 +731,7 @@ def _save_workflow_trace(db: Session, project: ResearchProject, events: list[dic
         }
         artifact.created_by = "workflow"
         for duplicate in artifacts:
-            if duplicate.id != artifact.id:
+            if duplicate.id != artifact.id and project.target_type != 'industry':
                 db.delete(duplicate)
     else:
         db.add(
@@ -722,7 +739,7 @@ def _save_workflow_trace(db: Session, project: ResearchProject, events: list[dic
                 project_id=project.id,
                 artifact_type="workflow_trace",
                 title="工作流详细记录",
-                version=1,
+                version=next_version if separate_run else 1,
                 content=content,
                 object_key=object_key,
                 artifact_metadata={
@@ -749,7 +766,7 @@ def _latest_workflow_trace(artifacts: list[ResearchArtifact]) -> list[dict]:
     return []
 
 
-def _workflow_trace_sort_key(artifact: ResearchArtifact) -> tuple[str, int, int]:
+def _workflow_trace_sort_key(artifact: ResearchArtifact) -> tuple[str, str, int, int]:
     metadata = artifact.artifact_metadata or {}
     latest_timestamp = str(metadata.get("last_event_timestamp") or "")
     if not latest_timestamp:
@@ -759,7 +776,8 @@ def _workflow_trace_sort_key(artifact: ResearchArtifact) -> tuple[str, int, int]
                 latest_timestamp = max((str(event.get("timestamp") or "") for event in events if isinstance(event, dict)), default="")
         except Exception:
             pass
-    return (latest_timestamp, int(metadata.get("event_count") or 0), int(artifact.id or 0))
+    return (str(metadata.get('run_started_at') or ''), latest_timestamp,
+            int(metadata.get("event_count") or 0), int(artifact.id or 0))
 
 
 def _compact_workflow_trace(events: list[dict], limit: int = 400) -> list[dict]:
@@ -1405,15 +1423,15 @@ async def get_project_progress(
 ):
     """Return only the state needed by the live task-progress display."""
     project = _get_project(db, project_id, current_user)
-    trace_artifacts = (
+    trace_query = (
         db.query(ResearchArtifact)
         .filter(
             ResearchArtifact.project_id == project.id,
             ResearchArtifact.artifact_type == "workflow_trace",
         )
         .order_by(ResearchArtifact.created_at.desc())
-        .all()
     )
+    trace_artifacts = trace_query.limit(1).all() if project.target_type == 'industry' else trace_query.all()
     return {
         "project": _project_response(project).model_dump(),
         "trace": _latest_workflow_trace(trace_artifacts),
@@ -2070,58 +2088,139 @@ async def reindex_cleaned_facts(
 ):
     raise HTTPException(410, '溯源库已改为来源记录；请在公司知识库管理报告索引。')
 
+@router.get('/assistant/state')
+def assistant_state(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from assistant_memory import snapshot
+    return snapshot(db, current_user.id)
+
+
+@router.post('/assistant/import')
+def assistant_import(request: ResearchAssistantImport, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from assistant_memory import import_legacy
+    return import_legacy(db, current_user.id, request.messages, request.summary)
+
+
+@router.post('/assistant/sessions')
+def assistant_new_session(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from assistant_memory import new_thread, snapshot
+    thread = new_thread(db, current_user.id, legacy_done=True)
+    return snapshot(db, current_user.id, thread.id)
+
+
+@router.get('/assistant/sessions/{session_id}/messages')
+def assistant_history(session_id: str, before_id: int | None = Query(None, gt=0),
+                      db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from assistant_memory import snapshot
+    return snapshot(db, current_user.id, session_id, before_id)
+
+
+@router.post('/assistant/sessions/{session_id}/activate')
+def assistant_activate(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from assistant_memory import activate
+    return activate(db, current_user.id, session_id)
+
+
+@router.delete('/assistant/history')
+def assistant_clear(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from assistant_memory import clear_history
+    return clear_history(db, current_user.id)
+
+
 @router.post("/assistant/stream")
 async def research_assistant_stream(
     request: ResearchAssistantRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from system_guide import PAGES, model_answer, guide_answer, navigation
+    from system_guide import page_for_role, model_answer, guide_answer, navigation
+    from assistant_memory import start_turn, context_plan, prepare_context, finish_turn, interrupt_turn
+    from assistant_images import answer_screenshot, image_question
     question = request.message.strip()
-    if not question:
+    if not question and not request.images:
         raise HTTPException(400, '问题不能为空')
-    page = request.current_page if request.current_page in PAGES else 'submit'
+    page = page_for_role(request.current_page, current_user.role)
+    request_id = request.request_id or str(uuid4())
+    stored_question = image_question(question, len(request.images)) if request.images else question
+    thread_id, lease = start_turn(db, current_user.id, request.session_id, stored_question, request_id)
+    plan = context_plan(db, current_user.id, thread_id)
+    user_id, role = current_user.id, current_user.role
 
     async def event_generator():
-        yield 'data: ' + json.dumps({'type': 'status', 'content': '正在准备回答…'}, ensure_ascii=False) + '\n\n'
-        answer = guide_answer(question, page)
-        if not answer:
-            events = asyncio.Queue()
-            loop = asyncio.get_running_loop()
-            cancelled = threading.Event()
-            def emit(event):
-                if not cancelled.is_set() and not loop.is_closed():
+        events, cancelled = asyncio.Queue(), threading.Event()
+        loop = asyncio.get_running_loop()
+        sources, saved, task = [], False, None
+        memory = {'summary': plan['summary'], 'through': plan['through'], 'status': 'ready'}
+        def emit(event):
+            if not cancelled.is_set() and not loop.is_closed():
+                try:
                     loop.call_soon_threadsafe(events.put_nowait, event)
-            task = asyncio.create_task(asyncio.to_thread(
-                model_answer, research_workflow, request, current_user.role, emit, cancelled))
+                except RuntimeError:
+                    pass  # Event loop closed during a client disconnect.
+        def generate():
+            if request.images:
+                context = prepare_context(research_workflow, plan, emit, cancelled)
+                prompt_request = request.model_copy(update={'history_summary': context['summary'],
+                    'recent_messages': [{'role': row['role'], 'content': row['content']} for row in context['recent']]})
+                answer, observation = answer_screenshot(research_workflow, prompt_request, role, emit, cancelled)
+                return answer, dict(context, image_observation=observation)
+            answer = guide_answer(question, page, role)
+            if answer:
+                # Deterministic operating instructions remain available without
+                # any model call, even when a long chat is due for summarization.
+                return answer, memory
+            context = prepare_context(research_workflow, plan, emit, cancelled)
+            prompt_request = request.model_copy(update={'history_summary': context['summary'],
+                'recent_messages': [{'role': row['role'], 'content': row['content']} for row in context['recent']]})
+            if not cancelled.is_set():
+                answer = model_answer(research_workflow, prompt_request, role, emit, cancelled)
+            return answer, context
+        try:
+            yield 'data: ' + json.dumps({'type': 'session', 'session_id': thread_id}, ensure_ascii=False) + '\n\n'
+            yield 'data: ' + json.dumps({'type': 'status', 'content': '正在准备回答…'}, ensure_ascii=False) + '\n\n'
+            task = asyncio.create_task(asyncio.to_thread(generate))
+            deadline, heartbeat = time.monotonic() + 120, time.monotonic() + 3
+            while not task.done():
+                try:
+                    event = await asyncio.wait_for(events.get(), timeout=1)
+                    if event.get('type') == 'sources':
+                        sources = event.get('sources', [])
+                    yield 'data: ' + json.dumps(event, ensure_ascii=False) + '\n\n'
+                except asyncio.TimeoutError:
+                    pass
+                if time.monotonic() >= deadline:
+                    raise asyncio.TimeoutError()
+                if time.monotonic() >= heartbeat:
+                    yield ': heartbeat\n\n'
+                    heartbeat = time.monotonic() + 3
+            while not events.empty():
+                event = events.get_nowait()
+                if event.get('type') == 'sources':
+                    sources = event.get('sources', [])
+                yield 'data: ' + json.dumps(event, ensure_ascii=False) + '\n\n'
             try:
-                deadline = time.monotonic() + 95
-                next_heartbeat = time.monotonic() + 3
-                while not task.done():
-                    try:
-                        event = await asyncio.wait_for(events.get(), timeout=1)
-                        yield 'data: ' + json.dumps(event, ensure_ascii=False) + '\n\n'
-                    except asyncio.TimeoutError:
-                        pass
-                    if time.monotonic() >= deadline:
-                        raise asyncio.TimeoutError()
-                    if time.monotonic() >= next_heartbeat:
-                        yield ': heartbeat\n\n'
-                        next_heartbeat = time.monotonic() + 3
-                while not events.empty():
-                    yield 'data: ' + json.dumps(events.get_nowait(), ensure_ascii=False) + '\n\n'
-                answer = await task
-                if not answer.strip():
-                    answer = '聊天模型暂时不可用，请稍后重试。系统操作指引仍可使用，例如“新人怎么开始”“如何下载报告”。'
+                answer, memory = await task
             except Exception:
                 answer = '聊天服务暂时不可用，请稍后重试。你仍可以询问系统操作方法。'
-            finally:
-                cancelled.set()
-                if not task.done():
-                    task.cancel()
-        yield 'data: ' + json.dumps({'type': 'content', 'content': answer}, ensure_ascii=False) + '\n\n'
-        yield 'data: ' + json.dumps({'type': 'navigation', 'items': navigation()}, ensure_ascii=False) + '\n\n'
-        yield 'data: [DONE]\n\n'
+            if not (answer or '').strip():
+                answer = '聊天模型暂时不可用，请稍后重试。系统操作指引仍可使用。'
+            saved = finish_turn(db, user_id, thread_id, lease, request_id, answer, sources, memory)
+            if not saved:
+                yield 'data: ' + json.dumps({'type': 'error', 'content': '对话已变更或清空，请重新加载。'}, ensure_ascii=False) + '\n\n'
+                return
+            yield 'data: ' + json.dumps({'type': 'content', 'content': answer}, ensure_ascii=False) + '\n\n'
+            yield 'data: ' + json.dumps({'type': 'memory', 'saved': True, 'summarized': bool(memory['through']),
+                'status': memory['status'], **saved}, ensure_ascii=False) + '\n\n'
+            yield 'data: ' + json.dumps({'type': 'navigation', 'items': navigation(role)}, ensure_ascii=False) + '\n\n'
+            yield 'data: [DONE]\n\n'
+        except asyncio.TimeoutError:
+            yield 'data: ' + json.dumps({'type': 'error', 'content': '本次回答超时，已保留你的消息，请稍后重试。'}, ensure_ascii=False) + '\n\n'
+        finally:
+            cancelled.set()
+            if task and not task.done():
+                task.cancel()
+            if not saved:
+                db.rollback()
+                interrupt_turn(db, user_id, thread_id, lease, request_id)
 
     return StreamingResponse(event_generator(), media_type='text/event-stream',
         headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
@@ -2255,7 +2354,7 @@ async def download_artifact(
         except Exception:
             content = artifact.content
 
-    ext = "json" if artifact.artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger"} else "md"
+    ext = "json" if artifact.artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger", "industry_run"} else "md"
     filename = f"{_safe_download_name(artifact.title, artifact.artifact_type)}_v{artifact.version}.{ext}"
     media_type = "application/json; charset=utf-8" if ext == "json" else "text/markdown; charset=utf-8"
     return Response(
@@ -2279,3 +2378,7 @@ def retry_report_knowledge(artifact_id: int, db: Session = Depends(get_db),
     from report_knowledge import sync_report_safely
     sync_report_safely(db, project, artifact)
     return {'metadata': artifact.artifact_metadata}
+
+
+from report_versions import create_report_versions_router
+router.include_router(create_report_versions_router(_get_project))
