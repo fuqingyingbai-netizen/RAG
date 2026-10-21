@@ -44,6 +44,25 @@ def test_repair_preserves_good_analysis_and_corrects_conditional_event_only():
     assert audit['status'] == 'corrected' and audit['preserved_accepted_claims'] == 1
 
 
+def test_later_semantic_repair_preserves_an_already_blocked_claim_status():
+    rows = [{'fact': '林知远负责公司产品研发管理，项目执行情况未披露。',
+             'source_url': 'https://filing.invalid/a', 'identity_match': 'confirmed'},
+            {'fact': '林知远于2021年参与团队管理与岗位聘任，具体权限尚未列明。',
+             'source_url': 'https://filing.invalid/b', 'identity_match': 'confirmed'}]
+    package = build_packages({'facts': rows}, '林知远', PERSON_REPORT_OUTLINE)['chapters'][5]
+    package['writing_contract'] = 'evidence_selection_v2'
+    a, b = package['facts'][:2]
+    before = [{'evidence_ids': [a['evidence_id']], 'analysis': '', 'analysis_status': 'blocked', 'review_analysis': ''},
+              {'evidence_ids': [b['evidence_id']], 'analysis': '来源提供了具体权限。', 'analysis_status': 'source_bound_draft'}]
+    answer = json.dumps({'claims': [{'evidence_ids': c['evidence_ids'], 'analysis': c['analysis']} for c in before]})
+    def invoke(*args):
+        return json.dumps({'claims': [{'evidence_ids': [b['evidence_id']], 'analysis': '来源未充分列明具体权限，尚需核对原件。'}]})
+    final, _, audit = repair_once(answer, package, {'facts': package['facts']}, before, ['semantic_support_missing'],
+        invoke, None, validate_model_claims, [{'claim_index': 1, 'validation_reason': 'semantic_support_missing', 'issues': ['inference_gap']}])
+    assert final[0]['analysis_status'] == 'blocked' and not final[0]['analysis']
+    assert audit['preserved_scope_blocked_claims'] == 1
+
+
 def test_chinese_variants_match_but_literal_source_is_preserved_and_owner_is_not_subject():
     text = '李書福先生，現任吉利控股董事會主席，曾負責汽車業務，其具體任期仍須核對。'
     peer = {'name': '李书福', 'company': '吉利'}

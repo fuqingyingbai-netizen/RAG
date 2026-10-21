@@ -26,6 +26,14 @@ def test_explicit_company_role_and_name_are_retained_as_colleague_context():
     assert not any(f.get('team_member_name') for f in contract['chapters'][9]['research_facts'])
 
 
+def test_explicit_colleague_role_in_interview_is_not_globally_suppressed():
+    original = '林知远介绍同事履历：陈雨安升任恒川软件COO，负责当地门店运营。报道保留其履历及组织分工，未核实现任期限。'
+    retained = source(original)
+    retained.source_metadata['person_feedback_only'] = True
+    contract = build_packages({'facts': []}, '林知远', PERSON_REPORT_OUTLINE, INTAKE, [retained])
+    assert [r['team_member_name'] for r in contract['chapters'][6]['research_facts']] == ['陈雨安']
+
+
 def test_replacement_object_is_not_the_new_office_holder():
     text = '恒川软件发表公告，林知远接替陈雨安出任公司CEO，即日生效，本文没有披露陈雨安的新职位。'
     assert not explicit_colleague_roles([source(text)], INTAKE)

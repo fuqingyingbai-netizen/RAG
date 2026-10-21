@@ -127,3 +127,9 @@ def test_education_summary_does_not_erase_career_details_in_same_source():
     rows = [{'fact': '林知远于1987年毕业，1995年创办恒川软件，现任公司董事长。'}]
     assert source_context_errors('教育经历仅限1987年毕业，无其他学历或履历信息。', rows) == ['available_career_material_denied']
     assert not source_context_errors('来源载明1987年毕业及后续创办、任职，部分任期起止尚未对齐。', rows)
+
+
+def test_collective_resignation_threat_and_dismissal_order_are_not_completed_events():
+    rows = [{'fact': '员工以“集体辞职”相要挟，陈雨安当即下令，将这些人全部开除。林知远后来才知道此事。'}]
+    assert source_context_errors('改革引发员工集体辞职抗议，陈雨安随即执行开除。', rows) == ['threatened_event_as_occurred', 'directed_action_as_completed']
+    assert not source_context_errors('员工以集体辞职相要挟，陈雨安下令开除，实际执行结果尚未载明。', rows)

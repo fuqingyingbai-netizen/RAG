@@ -28,6 +28,16 @@ def source_context_errors(analysis, supports):
     if (re.search(r'无其他(?:学历或)?履历信息|没有其他任职信息|未提供任何职业履历', text)
             and re.search(r'现任|曾任|历任|担任|董事|总裁|总经理|任职|加入', original)):
         errors.append('available_career_material_denied')
+    if re.search(r'以[“"\']?集体辞职[”"\']?相要挟|威胁.{0,8}集体辞职|扬言.{0,8}集体辞职', original):
+        for clause in re.split(r'[。；;，,]', text):
+            if (re.search(r'员工.{0,8}集体辞职|引发.{0,8}集体辞职|集体辞职抗议|发生.{0,8}集体辞职', clause)
+                    and not re.search(r'要挟|威胁|扬言|声称|提出|拟|是否|未说明', clause)):
+                errors.append('threatened_event_as_occurred')
+    if re.search(r'下令[^。；;]{0,30}开除|要求[^。；;]{0,20}开除', original):
+        for clause in re.split(r'[。；;，,]', text):
+            if (re.search(r'执行.{0,6}开除|已经?开除|全部开除|完成.{0,6}开除', clause)
+                    and not re.search(r'下令|要求|拟|是否|未说明|未载明', clause)):
+                errors.append('directed_action_as_completed')
     platform_rows = [f for f in supports if f.get('claim_type') == 'person_platform_record']
     if platform_rows and len(platform_rows) == len(supports):
         all_historical = all(re.search(r'；历史记录；|曾担任角色|"历史任职"', folded(f['fact'])) for f in platform_rows)

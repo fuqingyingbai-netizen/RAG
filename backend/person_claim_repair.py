@@ -4,6 +4,8 @@ import re
 
 
 LABELS = {
+    'threatened_event_as_occurred': '原文是以集体辞职相要挟，不能写成已经集体辞职；保留威胁或提议状态',
+    'directed_action_as_completed': '下令或要求开除不等于已执行开除，须保留指令状态及执行结果未知',
     'available_career_material_denied': '所引原文已有任职、加入或职业记录，不能称没有其他履历；只限定尚未提供的具体字段',
     'indirect_relationship_flattened': '原文是目标出资机构的关联方，不能直接写成目标个人关联或控制；保留中间机构及关系层级',
     'commentary_as_formal_authority': '媒体对效果的期望或预测不证明正式职责或授权；保留评论立场，不补任命事实',
@@ -48,6 +50,14 @@ def repair_once(answer, package, writing_input, claims, reasons, invoke, emit, v
     good, bad, scope_blocked, scope_reasons = [], [], [], []
     by_index = {r['claim_index']: r for r in review_findings if r.get('validation_reason')}
     for index, row in enumerate(rows if isinstance(rows, list) else []):
+        previous = claims[index] if index < len(claims) else {}
+        if (isinstance(row, dict) and not row.get('analysis') and previous.get('analysis_status') == 'blocked'
+                and row.get('evidence_ids') == previous.get('evidence_ids')):
+            # A later semantic correction serializes only text/IDs. An
+            # already blocked empty interpretation must retain its status;
+            # validating empty text must not erase the earlier rejection.
+            good.append(dict(previous))
+            continue
         validated, failures = validate(json.dumps({'claims': [row]}, ensure_ascii=False), package)
         review = by_index.get(index)
         if failures and set(failures) <= {'personal_analysis_not_permitted', 'non_target_person_analysis', 'indirect_or_conflicting_analysis'}:
@@ -85,6 +95,7 @@ def repair_once(answer, package, writing_input, claims, reasons, invoke, emit, v
         remaining = ['analysis_repair_incomplete']
     return (good + scope_blocked + changed)[:16], list(dict.fromkeys(remaining + scope_reasons)), {'status': 'corrected' if not remaining else 'still_requires_review',
         'initial_rejections': reasons, 'final_rejections': remaining,
-        'preserved_accepted_claims': len(good) + len(scope_blocked), 'preserved_scope_blocked_claims': len(scope_blocked), 'repaired_analysis_count': len(meaningful),
+        'preserved_accepted_claims': len(good) + len(scope_blocked),
+        'preserved_scope_blocked_claims': sum(c.get('analysis_status') == 'blocked' for c in [*good, *scope_blocked]), 'repaired_analysis_count': len(meaningful),
         'proposed_analyses': [{'analysis': c.get('analysis', ''), 'review_analysis': c.get('review_analysis', ''),
                               'evidence_ids': c['evidence_ids'], 'status': c['analysis_status']} for c in changed]}

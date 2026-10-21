@@ -176,7 +176,15 @@ def normalize_facts(payload, target, aliases=(), sources=()):
         if source_meta.get(url, {}).get('person_feedback_only') and not f.get('feedback_record'):
             from person_chapter_selection import management_event
             event_orgs = (f.get('event_identity_context') or {}).get('known_affiliations', [])
-            if f.get('claim_type') != 'person_management_event' or not management_event(text, raw_names, event_orgs):
+            role_link = str(f.get('team_role_literal') or '')
+            explicit_colleague = (f.get('claim_type') == 'person_team_member_record'
+                and f.get('team_source_kind') == 'explicit_company_role_in_article'
+                and bool(f.get('team_member_name') and f.get('team_affiliation_name'))
+                and compact(role_link) in compact(text)
+                and compact(f['team_member_name']) in compact(role_link)
+                and compact(f['team_affiliation_name']) in compact(role_link)
+                and bool(re.search(r'首席|董事|CEO|COO|CFO|经理|总裁', role_link, re.I)))
+            if not explicit_colleague and (f.get('claim_type') != 'person_management_event' or not management_event(text, raw_names, event_orgs)):
                 reason = 'feedback_source_requires_attribution_record'
         if f.get("eligible_for_report") is False or identity in {"ambiguous", "mismatch"} or confidence in {"low", "rejected"} or f.get("usable_as") == "identity_quarantine":
             reason = "identity_quarantine"
