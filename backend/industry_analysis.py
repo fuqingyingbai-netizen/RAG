@@ -10,21 +10,31 @@ from decimal import Decimal, InvalidOperation
 def observed_business(fact):
     c = fact.get('fact_contract') or {}
     text = c.get('statement') or fact.get('evidence_quote') or ''
-    return (c.get('material_kind') not in {'opinion', 'proposal', 'conditional'}
-            and c.get('source_role') not in {'opinion', 'commentary', 'policy_commentary', 'conditional_statement', 'recommendation'}
-            and bool(re.search(r'实际.{0,20}(?:支付|收费|付费|回款)|(?:已|现有).{0,12}(?:付费客户|订阅客户|续约|回款)|披露.{0,20}(?:收入|营收)|客户按.{0,20}支付|用户按实际.{0,20}支付', text)))
+    if (c.get('material_kind') in {'opinion', 'proposal', 'conditional'}
+            or c.get('source_role') in {'opinion', 'commentary', 'policy_commentary', 'conditional_statement', 'recommendation'}):
+        return False
+    signals = r'实际.{0,20}(?:支付|收费|付费|回款)|(?:已|现有).{0,12}(?:付费客户|订阅客户|续约|回款)|(?:已|已经).{0,12}(?:从免费转(?:为)?付费|开始(?:收费|付费))|披露.{0,20}(?:收入|营收)|客户按.{0,20}支付|用户按实际.{0,20}支付'
+    for match in re.finditer(signals, text):
+        prefix = re.split(r'[，,。；;！？]', text[:match.start()])[-1][-30:]
+        if (re.search(r'未|没有|尚无|不曾|计划|预计|有望|应当|必须|需要|(?:将|拟)[^，,。；;]{0,18}$', prefix)
+                or re.search(r'计划|预计|有望|将会|尚未|未曾|未能|未实际|未支付|未收费|未付费|没有|尚无', match[0])
+                or re.match(r'(?:失败|未成功)', text[match.end():])):
+            continue
+        return True
+    return False
 
 
 def complete_plan(package, index, ids):
     """Reserve question coverage before filling with the model's ordered IDs."""
     from industry_fact_contracts import chapter_admitted, chapter_coverage
+    from industry_passages import policy_obligation
     cards = {f['evidence_id']: f for f in package.get('facts', []) if chapter_admitted(f, index)}
     def rank(eid):
         f = cards[eid]; c = f['fact_contract']
         return (not bool(c.get('sample_boundary')),
                 c.get('source_role') not in {'opinion', 'commentary', 'conditional_statement', 'recommendation', 'policy_commentary'},
                 c.get('source_role') == 'policy_primary',
-                bool(re.search(r'应当|不得|必须|禁止', c['statement'])) if index == 3 else False,
+                bool(policy_obligation(c['statement'])) if index == 3 else False,
                 (f.get('numeric_context') or {}).get('is_forecast') is False if index == 4 else False,
                 (f.get('numeric_validation') or {}).get('passed') is True,
                 float(f.get('quality_score') or 0), eid in ids)
@@ -62,7 +72,7 @@ def complete_plan(package, index, ids):
     return result
 
 
-def market_table(cards):
+def market_table(cards, as_of_date=None):
     """Consolidate identical observations, retaining every selected definition.
 
     Equal displayed values are not proof of equal methods or independent sources.
@@ -91,9 +101,21 @@ def market_table(cards):
         for row in group:
             definition = display_text(row['numeric_context'].get('definition')).strip()
             definition = re.sub(r'20\d{2}\s*年?|\s', '', definition).replace('我国', '中国')
+            contract = row['fact_contract']
+            if contract.get('source_role') in {'opinion', 'commentary'}:
+                definition = '来源观点（未作事实认定）：' + definition
+            if contract.get('sample_boundary'):
+                definition = '样本观察（不能外推行业整体）：' + definition
             definitions.setdefault(definition, []).append('[' + row['evidence_id'] + ']')
             included.add(row['evidence_id'])
-        fields = [str(ctx.get('period', '')) + ' ' + labels.get(c.get('value_nature'), '来源报告值'),
+        nature = labels.get(c.get('value_nature'), '来源报告值')
+        # A passed target year is still a forecast, never a realized observation.
+        # Only complete year bounds are compared; no date is guessed for YTD.
+        years = re.findall(r'(?<!\d)20\d{2}(?!\d)', str(ctx.get('period') or ''))
+        cutoff = re.match(r'20\d{2}', str(as_of_date or ''))
+        if c.get('value_nature') == 'forecast' and years and cutoff and max(years) < cutoff[0]:
+            nature = '历史预测（目标期已过且非实际值）'
+        fields = [str(ctx.get('period', '')) + ' ' + nature,
                   str(ctx.get('geography', '')) + ' ' + str(ctx.get('metric', '')) + '：' + symbol + str(ctx.get('value')) + str(ctx.get('unit')),
                   '；'.join(statement_markdown(k) + ' ' + ' '.join(v) for k,v in definitions.items())]
         lines.append('| ' + ' | '.join([statement_markdown(x).replace('|', '/') for x in fields[:2]] + [fields[2]]) + ' |')
@@ -111,7 +133,7 @@ def statement_lineage_present(fact, section, package, index):
     eid = fact['evidence_id']
     if any(statement_markdown(statement) in line and eid in line for line in section.splitlines()):
         return bool(statement)
-    if index != 4:
+    if index not in {4, 11}:
         return False
     by_id = {f['evidence_id']:f for f in package.get('facts', []) if f.get('fact_contract',{}).get('report_admitted')}
     for line in section.splitlines():
@@ -120,7 +142,8 @@ def statement_lineage_present(fact, section, package, index):
         ids = list(dict.fromkeys(re.findall(r'\bE-[A-Z0-9-]{6,}\b', line)))
         if any(i not in by_id for i in ids):
             continue
-        expected, included = market_table([by_id[i] for i in ids])
+        expected, included = market_table([by_id[i] for i in ids],
+            (package.get('industry_scope') or {}).get('as_of_date') if index == 11 else None)
         if eid in included and line in expected.splitlines()[4:]:
             return True
     return False
@@ -141,13 +164,14 @@ def chapter_analysis(package, index, ids):
                 lines.append('分工对照：上游' + parts[1] + '；中游' + parts[2] + '；下游' + parts[3] + '。' + refs(chains[:1]))
             lines.append('所引材料支持按上游供给、中游集成与下游应用梳理分工。不同细分链条分别保留；尚不能据链条列举推断各环节价值份额或供需强弱。' + refs(chains[:2]))
     elif index == 3:
+        from industry_passages import policy_obligation
         primary = [f for f in cards if f['fact_contract']['source_role'] == 'policy_primary']
-        duties = [f for f in primary if re.search(r'应当|不得|必须|禁止', f['fact_contract']['statement'])]
+        duties = [f for f in primary if policy_obligation(f['fact_contract']['statement'])]
         if duties:
             for f in duties[:2]:
-                duty = re.search(r'(?:第[一二三四五六七八九十百\d]+条\s*)?([^。；;]{2,35}?)(应当|不得|必须|禁止)([^。；;]{3,120})', f['fact_contract']['statement'])
+                duty = policy_obligation(f['fact_contract']['statement'])
                 if duty:
-                    lines.append('义务对象及要求：' + duty[1].strip() + duty[2] + duty[3] + '；履行和执行结果另行核对。' + refs([f]))
+                    lines.append('义务对象及要求：' + ''.join(duty) + '；履行和执行结果另行核对。' + refs([f]))
             lines.append('可识别的约束来自上述原文中的具体义务，后续应按义务主体核对履行材料；发布文件本身不证明已发生处罚，也不证明风险较低。' + refs(duties[:2]))
         elif primary:
             lines.append('现有原文可作为政策范围入口，但所选条款尚未提供足够的具体履行或执行结果；不能由立法目的推出监管影响已经兑现。' + refs(primary[:2]))
@@ -185,10 +209,14 @@ def chapter_analysis(package, index, ids):
     elif index == 5:
         lines.append('这些记录只能证明对应主体事件有公开材料。文件发布、施行和媒体转载须按同一事件合并；解释行业热度还需要关注度或传播数据，不能用事件条数替代。' + refs(cards[:2]))
     elif index == 6:
+        layers = [f for f in cards if re.search(r'竞争派系|(?:参与者|玩家|厂商).{0,12}(?:分为|分成|分层)', f['fact_contract']['statement'])
+                  and not f['fact_contract'].get('sample_boundary')]
         mechanism = [f for f in cards if re.search(r'迁移成本|进入壁垒|价格战|竞争压力', f['fact_contract']['statement']) and not f['fact_contract'].get('sample_boundary')]
+        if layers:
+            lines.append('所引材料提供了定性的玩家分层，可作为竞争框架入口；分类的统计期和适用市场仍需核对，不能据此计算份额或认定集中度。' + refs(layers[:2]))
         if mechanism:
             lines.append('现有材料支持讨论上述迁移、进入或价格竞争机制；机制描述不能自动换算为市场集中度。仍须区分行业口径与代表企业观察。' + refs(mechanism[:2]))
-        else:
+        elif not layers:
             lines.append('当前仅有来源判断或企业样本，尚不能构成全行业玩家分层及集中度结论；份额判断应补齐细分市场、期间和分母。' + refs(cards[:2]))
     elif index == 7:
         measurements = next((r for r in chapter_coverage(package, index, ids) if r['question'] == '可核验性能及单位成本'), {})

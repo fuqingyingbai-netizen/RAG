@@ -232,7 +232,7 @@ async def list_documents(_: User = Depends(require_admin)):
 
 
 @router.post("/documents/upload", response_model=DocumentUploadResponse)
-async def upload_document(file: UploadFile = File(...), _: User = Depends(require_admin)):
+def upload_document(file: UploadFile = File(...), _: User = Depends(require_admin)):
     """上传文档并进行 embedding（管理员）"""
     try:
         filename = file.filename or ""
@@ -265,7 +265,7 @@ async def upload_document(file: UploadFile = File(...), _: User = Depends(requir
 
         file_path = UPLOAD_DIR / filename
         with open(file_path, "wb") as f:
-            content = await file.read()
+            content = file.file.read()
             f.write(content)
 
         try:

@@ -4,7 +4,7 @@ from datetime import datetime
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, event
 from sqlalchemy.orm import sessionmaker
 
 import auth
@@ -126,6 +126,36 @@ def test_record_preview_is_exact_bounded_and_read_only(history):
     with factory() as db:
         after = [(row.id, row.content, row.artifact_metadata) for row in db.scalars(select(ResearchArtifact))]
     assert after == before
+
+
+def test_preview_bounds_the_database_read_and_checks_owner_before_text_access(history):
+    client,factory=history
+    with factory() as db:engine=db.get_bind()
+    queries=[]
+    def capture(conn,cursor,statement,parameters,context,executemany):queries.append(statement)
+    event.listen(engine,'before_cursor_execute',capture)
+    try:
+        assert client.get('/research/artifacts/102/preview',headers=headers()).status_code==403
+        assert not any('substr(' in sql for sql in queries)
+        queries.clear()
+        response=client.get('/research/artifacts/104/preview',headers=headers())
+        assert response.status_code==200 and len(response.json()['content'])==PREVIEW_LIMIT
+        assert any('substr(research_artifacts.content' in sql for sql in queries)
+        assert all('research_artifacts.content AS' not in sql for sql in queries)
+    finally:event.remove(engine,'before_cursor_execute',capture)
+
+
+def test_preview_character_limit_preserves_unicode_and_exact_boundary(history):
+    client,factory=history
+    body=('合成😀段落\n'*(PREVIEW_LIMIT//4))[:PREVIEW_LIMIT]
+    with factory() as db:
+        db.get(ResearchArtifact,104).content=body;db.commit()
+    result=client.get('/research/artifacts/104/preview',headers=headers()).json()
+    assert result['content']==body and result['truncated'] is False and result['has_preview'] is True
+    with factory() as db:
+        db.get(ResearchArtifact,104).content=body+'尾';db.commit()
+    result=client.get('/research/artifacts/104/preview',headers=headers()).json()
+    assert result['content']==body and result['truncated'] is True
 
 
 @pytest.mark.parametrize('query', ['page=0', 'page_size=0', 'page_size=51', 'artifact_type=cleaned_facts'])

@@ -99,17 +99,19 @@ def _plain_runs(
     bold_xml: str,
     evidence_bookmarks: dict[str, tuple[int, str]] | None = None,
     suppress_evidence_links: bool = False,
+    monospace_evidence_ids: bool = False,
 ) -> str:
     """Render text runs and link company E-IDs to chapter 13 bookmarks."""
     body: list[str] = []
     cursor = 0
     for match in _EVIDENCE_ID_RE.finditer(text or ""):
         if match.start() > cursor:
-            body.append(f'<w:r><w:rPr>{bold_xml}<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/></w:rPr><w:t xml:space="preserve">{_esc(text[cursor:match.start()])}</w:t></w:r>')
+            body.append(_text_runs(text[cursor:match.start()], bold_xml))
         evidence_id = match.group(0).upper()
         bookmark = (evidence_bookmarks or {}).get(evidence_id)
         run = (
-            f'<w:r><w:rPr>{bold_xml}<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/>'
+            f'<w:r><w:rPr>{bold_xml}<w:rFonts w:ascii="{"Consolas" if monospace_evidence_ids else "Microsoft YaHei"}" w:eastAsia="Microsoft YaHei"/>'
+            + ('<w:sz w:val="20"/>' if monospace_evidence_ids else '')
             + ('<w:color w:val="0563C1"/><w:u w:val="single"/>' if bookmark and not suppress_evidence_links else '')
             + f'</w:rPr><w:t xml:space="preserve">{_esc(match.group(0))}</w:t></w:r>'
         )
@@ -118,8 +120,15 @@ def _plain_runs(
         body.append(run)
         cursor = match.end()
     if cursor < len(text or ""):
-        body.append(f'<w:r><w:rPr>{bold_xml}<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/></w:rPr><w:t xml:space="preserve">{_esc((text or "")[cursor:])}</w:t></w:r>')
+        body.append(_text_runs((text or "")[cursor:], bold_xml))
     return "".join(body)
+
+
+def _text_runs(text: str, properties: str = '') -> str:
+    """A Word line break belongs inside a run, never directly in a paragraph."""
+    return '<w:r><w:br/></w:r>'.join(
+        f'<w:r><w:rPr>{properties}<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/></w:rPr>'
+        f'<w:t xml:space="preserve">{_esc(part)}</w:t></w:r>' for part in text.split('\n'))
 
 
 def _run(
@@ -129,34 +138,36 @@ def _run(
     evidence_bookmarks: dict[str, tuple[int, str]] | None = None,
     suppress_evidence_links: bool = False,
     compact_url_labels: bool = False,
+    monospace_evidence_ids: bool = False,
 ) -> str:
     bold_xml = "<w:b/>" if bold else ""
     body = []
-    for index, part in enumerate(str(text or "").split("\n")):
-        if index:
-            body.append("<w:br/>")
-        cursor = 0
-        for match in _LINK_OR_URL_RE.finditer(part):
-            markdown_link = match.group(1) is not None
-            url = _normalize_url(match.group(2) if markdown_link else match.group(0))
-            label = re.sub(r'\\([\[\]\\])', r'\1', match.group(1)) if markdown_link else url
-            if match.start() > cursor:
-                body.append(_plain_runs(part[cursor:match.start()], bold_xml, evidence_bookmarks, suppress_evidence_links))
-            if url:
-                if hyperlink_id:
-                    rid = hyperlink_id(url)
-                    bookmark = (evidence_bookmarks or {}).get(label.upper()) if markdown_link and not suppress_evidence_links else None
-                    target = f'w:anchor="{bookmark[1]}"' if bookmark else f'r:id="{rid}"'
-                    body.append(
-                        f'<w:hyperlink {target}><w:r><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/>'
-                        f'<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/></w:rPr>'
-                        f'<w:t xml:space="preserve">{_esc("打开原件" if compact_url_labels else label)}</w:t></w:r></w:hyperlink>'
-                    )
-                else:
-                    body.append(f'<w:r><w:rPr>{bold_xml}<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/></w:rPr><w:t xml:space="preserve">{_esc(url)}</w:t></w:r>')
-            cursor = match.end() if markdown_link else match.start() + len(url)
-        if cursor < len(part):
-            body.append(_plain_runs(part[cursor:], bold_xml, evidence_bookmarks, suppress_evidence_links))
+    text = str(text or '')
+    cursor = 0
+    # Match links before emitting line breaks: an old source title can contain
+    # a normalized <br>, but that must not split its Markdown link token.
+    for match in _LINK_OR_URL_RE.finditer(text):
+        markdown_link = match.group(1) is not None
+        url = _normalize_url(match.group(2) if markdown_link else match.group(0))
+        label = re.sub(r'\\([\[\]\\])', r'\1', match.group(1)) if markdown_link else url
+        label = re.sub(r'\s+', ' ', label).strip()
+        if match.start() > cursor:
+            body.append(_plain_runs(text[cursor:match.start()], bold_xml, evidence_bookmarks, suppress_evidence_links, monospace_evidence_ids))
+        if url:
+            if hyperlink_id:
+                rid = hyperlink_id(url)
+                bookmark = (evidence_bookmarks or {}).get(label.upper()) if markdown_link and not suppress_evidence_links else None
+                target = f'w:anchor="{bookmark[1]}"' if bookmark else f'r:id="{rid}"'
+                body.append(
+                    f'<w:hyperlink {target}><w:r><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/>'
+                    f'<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/></w:rPr>'
+                    f'<w:t xml:space="preserve">{_esc("打开原件" if compact_url_labels else label)}</w:t></w:r></w:hyperlink>'
+                )
+            else:
+                body.append(_text_runs(url, bold_xml))
+        cursor = match.end() if markdown_link else match.start() + len(url)
+    if cursor < len(text):
+        body.append(_plain_runs(text[cursor:], bold_xml, evidence_bookmarks, suppress_evidence_links, monospace_evidence_ids))
     return "".join(body) or f'<w:r><w:rPr>{bold_xml}</w:rPr><w:t/></w:r>'
 
 
@@ -221,6 +232,7 @@ def _table(
     table_width = 9026
     col_width = table_width // max(1, width)
     compact_source=company and rows[0]==['证据编号','支持章节','来源与关键摘要','台账定位']
+    industry_source = not company and rows[0] == ['证据编号及支持章节', '原始来源与发布日期', '定位识别']
     widths=[col_width]*width
     if not company and not person:
         headers = rows[0]
@@ -230,6 +242,8 @@ def _table(
             weights = [14, 16, 17, 25, 7, 21]
         elif headers == ['风险维度', '评估状态', '模型分值', '风险等级', '判断依据或未评分原因', '证据编号']:
             weights = [17, 12, 10, 10, 34, 17]
+        elif industry_source:
+            weights = [26, 44, 30]
         elif width == 3 and any('定位' in h for h in headers):
             weights = [23, 49, 28]
         else:
@@ -259,14 +273,15 @@ def _table(
     grid = "".join(f'<w:gridCol w:w="{value}"/>' for value in widths)
     xml = [
         f'<w:tbl><w:tblPr><w:tblW w:w="{table_width}" w:type="dxa"/>'
-        '<w:tblLayout w:type="fixed"/>'
-        '<w:tblCellMar><w:top w:w="90" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="90" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar>'
+        '<w:tblInd w:w="0" w:type="dxa"/>'
         '<w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>'
         '<w:left w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>'
         '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>'
         '<w:right w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>'
         '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>'
-        '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/></w:tblBorders></w:tblPr>'
+        '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/></w:tblBorders>'
+        '<w:tblLayout w:type="fixed"/>'
+        '<w:tblCellMar><w:top w:w="90" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="90" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar></w:tblPr>'
         f'<w:tblGrid>{grid}</w:tblGrid>',
     ]
     for ridx, row in enumerate(rows):
@@ -294,7 +309,7 @@ def _table(
             bookmark = (evidence_bookmarks or {}).get(evidence_id) if ridx > 0 and cidx == 0 else None
             xml.append(
                 f"<w:tc><w:tcPr><w:tcW w:w=\"{widths[cidx]}\" w:type=\"dxa\"/>{shade}{v_align}</w:tcPr>"
-                f"{_paragraph(cell, style='CompanyTable' if company else 'PersonTable' if person else 'TableText', hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, bookmark=bookmark, suppress_evidence_links=bool(bookmark), compact_url_labels=bool(compact_source and ridx>0 and cidx==3 or person and ridx>0 and rows[0][cidx]=='原始定位'), bold=ridx == 0)}</w:tc>"
+                f"{_paragraph(cell, style='CompanyTable' if company else 'PersonTable' if person else 'TableText', hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, bookmark=bookmark, suppress_evidence_links=bool(bookmark), compact_url_labels=bool(compact_source and ridx>0 and cidx==3 or person and ridx>0 and rows[0][cidx]=='原始定位'), monospace_evidence_ids=bool(industry_source and ridx>0), bold=ridx == 0)}</w:tc>"
             )
         xml.append("</w:tr>")
     xml.append("</w:tbl>")
@@ -310,6 +325,7 @@ def _paragraph(
     bookmark: tuple[int, str] | None = None,
     suppress_evidence_links: bool = False,
     compact_url_labels: bool = False,
+    monospace_evidence_ids: bool = False,
     keep_next: bool = False,
     keep_lines: bool = False,
     bold: bool = False,
@@ -325,6 +341,7 @@ def _paragraph(
         evidence_bookmarks=evidence_bookmarks,
         suppress_evidence_links=suppress_evidence_links,
         compact_url_labels=compact_url_labels,
+        monospace_evidence_ids=monospace_evidence_ids,
         bold=bold,
     )
     after='60' if style in {'CompanyTable', 'TableText', 'PersonTable', 'PersonQuote'} else '120'

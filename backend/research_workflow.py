@@ -72,8 +72,8 @@ FIXED_MAX_SEARCH_ROUNDS = 3
 FIXED_AI_SEARCH_ENABLED = True
 FIXED_GENERATE_PROPOSAL = True
 PERSON_IDENTITY_POLICY_VERSION = "person-identity-v4-context"
-INDUSTRY_CLEANING_VERSION = "industry-evidence-v16-subject-grounding"
-INDUSTRY_REPORT_VERSION = "industry-report-evidence-v25-question-led"
+INDUSTRY_CLEANING_VERSION = "industry-evidence-v21-observed-inputs"
+INDUSTRY_REPORT_VERSION = "industry-report-evidence-v32-observed-inputs"
 
 DEFAULT_RESEARCH_MODULES = [
     "公司背景",
@@ -5636,6 +5636,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             dimension_schema = json.dumps([{'name': name, 'evidence_ids': [], 'score': None,
                 'level': 'unknown|low|medium|high|critical', 'reason': '...', 'evidence_sources': []}
                 for name in applicable], ensure_ascii=False)
+            from industry_risk_input import model_evidence
+            risk_evidence_for_model = model_evidence(json.loads(risk_evidence))
             prompt = f"""
 研究边界：{json.dumps(getattr(project, "industry_scope", {}), ensure_ascii=False)}
 仅评估以下启用维度：{json.dumps(applicable, ensure_ascii=False)}。忽略下方结构示例中未启用的维度，不列为 unknown，不提出其补采建议。
@@ -5645,10 +5647,12 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
 行业：{project.industry}
 
 清洗事实：
-{_clip(risk_evidence, 30000)}
+{_clip(risk_evidence_for_model, 30000)}
 
 评分口径必须统一：overall_score 和各维度 score 均为“风险分”，0 表示风险最低，100 表示风险最高。信息缺失必须列为 unknown/待核验，不能仅因“未搜索到、未提供、无法排除”就判为高风险。代表企业材料只能作为行业样本或竞争格局信号，不能写成目标公司经营风险。
 评分参考：{json.dumps(scoring_rubric(getattr(project, 'industry_scope', {})), ensure_ascii=False)}
+Do not infer controllable impact or low risk from absence of penalties. A single growth rate, a different market size and a future forecast do not prove realized persistent growth. Distinct publishers must still refer to comparable metrics, definitions, periods, regions and value natures before claiming corroboration.
+缺少行业盈利披露只说明材料不足，不能推断实际盈利能力差或经营恶化。内部数值、字段或引用检查通过只表示格式规则通过，不能作为行业观察、可靠性证明或风险分依据。
 各维度只能使用 dimension_evidence_ids 中列出的编号；reason 中的编号必须同时列入 evidence_ids。理由每维120字以内，只写支撑该评分的判断，数值只可使用对应事实allowed_numbers中的值；禁止使用来源标题、URL或统计定义中的其他数字补结论。完整原文保留在事实库供审计，评分输入只授权fact中的单个指标。预测值须在同一分句明确预计/预测，不同事实编号不等于独立来源；同一发布方的卡片不能声称多源一致。政策目标不能写成已经实现的市场集中度。没有已核验数值时可以用适用定性证据作克制判断，禁止新增定量结论；证据不足仍返回unknown。
 
 请只输出 JSON，结构为：
@@ -5744,15 +5748,17 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         requested = {row['name'] for row in package['dimensions_to_repair']}
         if not requested:
             return result
+        from industry_risk_input import model_evidence
         prompt = ('仅修复下列失败风险维度，返回完整JSON {"dimensions":[{"name":"...","score":null,'
                   '"level":"unknown|low|medium|high|critical","reason":"...","evidence_ids":[]}]}。'
                   '每维理由120字以内，只用该维dimension_evidence_ids中的编号；理由引用必须同时列入evidence_ids。'
                   '数字只可用对应证据allowed_numbers，禁止从先前失败理由补数据；没有定量证据可作有依据的定性判断。'
                   '预测数字必须在同一分句明确预计/预测；同一发布方的多张卡片不能写成多源印证。'
                   '保留政策目标、预测与实际统计的区别，企业样本不能评分行业整体。证据不足返回score=null、level=unknown，'
+                  '缺少盈利披露不能推断实际经营恶化；内部格式或引用检查结果不能当作行业事实或风险依据。'
                   '不能为了修复凑分。无需返回其他维度、总分或额外章节。\n'
                   + json.dumps(normalized.get('scoring_methodology') or {}, ensure_ascii=False)
-                  + '\n' + json.dumps(package, ensure_ascii=False))
+                  + '\n' + model_evidence(package))
         repair_diagnostic = {'attempted': True, 'attempts': 1, 'requested_dimensions': sorted(requested),
                              'input_chars': len(prompt), 'repaired_dimensions': [], 'remaining_dimensions': sorted(requested)}
         diagnostic['repair'] = repair_diagnostic
@@ -7079,9 +7085,10 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         if project.industry_risk_transparency:
             report = ('> **风险评分说明**：' + project.industry_risk_transparency['notice'] + '\n\n' + report)
         if warning:
+            from industry_delivery import review_reason_summary
             report = ('> **待人工复核稿**：报告已生成，部分证据核验、章节综合写作或风险评估仍需复核。'
                       '请完成下列事项后再作为正式交付稿使用。\n>\n> 复核原因（摘要）：'
-                      + warning[:600] + ('……完整原因见报告质量诊断。' if len(warning) > 600 else '') + '\n\n' + report)
+                      + review_reason_summary(reasons) + '\n\n' + report)
             _emit(emit, 'report', 'desktop_report_agent', '行业报告保存为待复核稿', warning,
                   review_reason_count=len(reasons), status='fallback')
         return report, {'delivery_status': 'review_draft' if reasons else 'final_candidate',

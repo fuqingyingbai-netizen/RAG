@@ -20,6 +20,13 @@ def sample_boundary(fact):
     # The subject of this passage matters more than an industry collection's
     # title. Keep generic statements about firms and aggregate statistics usable.
     quote = re.sub(r'\s+', ' ', str(fact.get('evidence_quote') or fact.get('fact') or ''))
+    # Rankings in a report/industry collection can still describe one company.
+    # Resolve the subject in the passage, including after a cited report title.
+    if (re.search(r'(?:彰显|展现|凸显).{0,8}(?:其|公司|企业).{0,30}(?:实力|领先|优势|地位)', quote)
+            or re.search(r'(?:唯一上榜的|唯一入选的).{0,12}(?:央企|企业|公司|厂商)', quote)
+            or re.search(r'(?:^|[，,。；;])\s*(?!行业|产业|市场|研究|报告)[\u4e00-\u9fffA-Za-z0-9]{2,30}'
+                         r'在(?:此|该|上述|这)[^。；;]{0,30}(?:位列|排名|上榜)', quote)):
+        return '企业排名或宣传样本，不能外推行业整体'
     if (re.search(r'[\u4e00-\u9fffA-Za-z]{2,40}(?:股份有限公司|有限责任公司|有限公司|股份公司|集团)(?:则|在|已|将|拥有|提供|推出|位居|收入|业务|产品|面临|采用|实现)', quote)
             or re.search(r'旗下|本公司|我司|自家|成立以来.{0,40}(?:公司|科技创新|品牌|发展)', quote)):
         return '企业经营或产品宣传样本，不能外推行业整体'
@@ -28,7 +35,7 @@ def sample_boundary(fact):
     named = re.match(r'^([A-Za-z][A-Za-z0-9.+-]{1,30})(?:因|已|在|宣布|推出|暂停|计划|发布)', quote)
     if named and named[1].upper() not in {'AI', 'GPU', 'CPU', 'API', 'SAAS', 'MOE', 'FDE'}:
         return '具名产品或企业个案，仅作为样本，不外推行业整体'
-    actor = re.search(r'(?:^|[，,：:])\s*([\u4e00-\u9fffA-Za-z0-9]{2,24})(?:宣布|推出|暂停|入选|荣获)', quote)
+    actor = re.search(r'(?:^|[，,。；;：:])\s*([\u4e00-\u9fffA-Za-z0-9]{2,24})(?:宣布|推出|暂停|入选|荣获)', quote)
     if actor and not re.search(r'行业|产业|市场|人工智能|机器人|国家|国务院|政府|委员会|部门|研究院|报告|办法|条例|指南', actor[1]):
         return '具名主体行为样本，不能外推行业整体'
     if re.search(r'^(?:[一二三四五]是)?其(?:过往|自研|产品|营收|利润|年报|模型|业务)|(?:一家|某家|该家).{0,15}(?:企业|公司|厂商)', quote):
@@ -73,6 +80,10 @@ def display_text(text):
 
 
 def display_source_title(title, limit=80):
+    import html
+    # Strip page markup before it is escaped into a Markdown link label.
+    # Keep the stored title unchanged for audit and source matching.
+    title = re.sub(r'<[^>]+>', ' ', html.unescape(str(title or '')))
     title = re.sub(r'\s+', ' ', display_text(title)).strip()
     if re.search(r'全产业链梳理\s*[:：]', title) and len(re.findall(r'[、,，]', title)) >= 4:
         title = re.split(r'[:：]', title, maxsplit=1)[0].strip()
@@ -139,6 +150,30 @@ def source_metadata(source):
             'date': published, 'source_object_key': getattr(source, 'object_key', '') or ''}
 
 
+def metric_endpoint_period(quote, metric, value, unit):
+    """Align two explicit years with two amounts of the same named metric.
+
+    An interval attached to a rate remains an interval. No endpoint is inferred
+    when the values, units or transition are not both explicit in this clause.
+    """
+    from industry_research import NUMBER_PATTERN, number_key
+    text = re.sub(r'\s+', '', str(quote or ''))
+    anchor = re.escape(re.sub(r'\s+', '', str(metric or '')))
+    if not anchor or not unit:
+        return ''
+    pattern = (r'(20\d{2})年?(?:至|到|—|–|-)(20\d{2})年?[^。；;]{0,65}?' + anchor
+               + r'(?:预计|预测|将|会|为|由|从){1,5}(' + NUMBER_PATTERN + r')'
+               + r'(?:增长|增加|上升|提高|下降|减少|降|升)(?:至|到)(' + NUMBER_PATTERN + r')')
+    for match in re.finditer(pattern, text):
+        first, last = match[3], match[4]
+        expected = number_key(str(value)+unit)
+        years = {year for year, amount in ((match[1],first),(match[2],last))
+                 if number_key(amount) == expected and amount.endswith(unit)}
+        if len(years) == 1:
+            return years.pop()
+    return ''
+
+
 def metric_period_region(quote, metric, value, unit):
     """Use the local metric/value block; a later global ambition is not geography."""
     text = re.sub(r'\s+', '', quote)
@@ -150,7 +185,8 @@ def metric_period_region(quote, metric, value, unit):
         if not number:
             continue
         earlier = list(re.finditer(NUMBER_PATTERN, tail[:number.start()]))
-        if earlier and not re.fullmatch(r'(?:增长|增|升|提高|下降|减少)(?:至|到)20\d{2}年(?:的)?', tail[earlier[-1].end():number.start()]):
+        endpoint = metric_endpoint_period(quote, metric, value, unit)
+        if earlier and not endpoint and not re.fullmatch(r'(?:增长|增|升|提高|下降|减少)(?:至|到)20\d{2}年(?:的)?', tail[earlier[-1].end():number.start()]):
             continue
         # A numbered roadmap stage such as "第一步到2020年" is part of this block.
         start = max(text.rfind('。', 0, anchor.start()), text.rfind(';', 0, anchor.start()), text.rfind('；', 0, anchor.start())) + 1
@@ -163,7 +199,7 @@ def metric_period_region(quote, metric, value, unit):
         # Reject a region token merely describing companies ("全球领先企业").
         if matches and re.match(r'(?:领先|骨干|头部|一流).{0,8}(?:企业|公司)', prefix[matches[-1].end():]):
             region = ''
-        return (years[-1] if years else '', region)
+        return (endpoint or (years[-1] if years else ''), region)
     return '', ''
 
 

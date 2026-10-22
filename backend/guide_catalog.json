@@ -792,7 +792,7 @@
       "code_refs": [
         {
           "path": "frontend/script.js",
-          "anchor": "/research/repository?limit=50"
+          "anchor": "readRepository(query)"
         }
       ]
     },

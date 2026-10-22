@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import urlsplit, parse_qsl, urlencode
 
 INDUSTRY_POLICY_VERSION = 'industry-scope-v3'
-INDUSTRY_RISK_VERSION = 'industry-risk-v13-subject-boundaries'
+INDUSTRY_RISK_VERSION = 'industry-risk-v19-observed-inputs'
 INDUSTRY_RISK_DIMENSIONS = (
     '政策与监管风险', '市场增长与需求风险', '竞争格局与集中度风险',
     '商业化与盈利模式风险', '技术迭代与替代风险', '资本热度与估值风险', '数据口径与证据可靠性风险',
@@ -195,9 +195,9 @@ def normalize_risk(parsed: Any, facts: list[dict], scope: dict | None = None) ->
                 'model_abstained':'模型认为现有证据不足，保留unknown',
                 'reassessment_required':'适用资料发生变化，需重新评估，不能自动恢复原分值',
                 'forecast_presented_as_actual':'评分理由未保留对应数值的预测属性',
-                'source_corroboration_overstated':'评分理由声称多源印证，但引用来源不足或来自同一发布方'}
+                'source_corroboration_overstated':'评分引用未满足独立原始来源要求，不能据此认定相互印证'}
             explanation = explanations.get(cause, next((i['message'] for i in semantic_issues if i['code'] == cause), '评分证据不符合适用边界'))
-            row = {'name': name, 'score': None, 'level': 'unknown', 'reason': explanation + '，暂不评分。',
+            row = {'name': name, 'score': None, 'level': 'unknown', 'reason': explanation.rstrip('，。；; ') + '，暂不评分。',
                    'evidence_ids': [], 'evidence_sources': [], 'unknown_cause': cause,
                    'candidate_evidence_count': len(candidates),
                    'validation_diagnostic': audit}
@@ -267,7 +267,9 @@ def risk_repair_package(payload: dict, normalized: dict, limit: int = 18000) -> 
                 'unverified_reason_numbers', 'invalid_score', 'forecast_presented_as_actual', 'source_corroboration_overstated',
                 'growth_rate_kind_conflict', 'growth_benchmark_missing', 'business_screening_rule_unsupported',
                 'allocation_inference_unsupported', 'integration_inference_unsupported', 'commercial_certainty_unsupported',
-                'statistic_asof_rebased', 'rate_unit_conflict', 'publisher_attribution_unsupported', 'roadmap_as_current_state'}
+                'statistic_asof_rebased', 'rate_unit_conflict', 'publisher_attribution_unsupported', 'roadmap_as_current_state',
+                'absence_as_low_risk', 'numeric_corroboration_not_comparable', 'growth_trend_not_comparable',
+                'evidence_gap_as_business_risk', 'internal_diagnostic_as_evidence', 'ranking_source_missing'}
     requests = []
     mapping = payload.get('dimension_evidence_ids') or {}
     for row in normalized.get('dimensions', []):
@@ -760,7 +762,10 @@ def numeric_scan_text(text: str) -> str:
 
 def numeric_mentions(text: str) -> list[str]:
     """Find claim numbers, never hexadecimal IDs or URL/link destinations."""
-    return re.findall(NUMBER_PATTERN, numeric_scan_text(text))
+    # Written-out ratios are still quantities. Until explicitly normalized and
+    # bound to a metric they must not bypass the untyped-number gate.
+    written_ratio = r'百分之[零〇一二三四五六七八九十百两点]+|[一二三四五六七八九十两]成(?!不变|不易)(?:[零一二三四五六七八九]?半?)'
+    return [m[0] for m in re.finditer('(?:' + NUMBER_PATTERN + ')|(?:' + written_ratio + ')', numeric_scan_text(text))]
 
 
 def number_key(value: str) -> tuple | None:
@@ -830,27 +835,33 @@ def claim_semantic_issues(text: str, facts: list[dict]) -> list[dict]:
                         'evidence_ids':[f['evidence_id'] for f in supporting],
                         'message':f'预测值{number}未在同一分句保留预测、预估或目标标记。'})
         claims = list(re.finditer(r'多源(?:预测|数据|信息|证据)?(?:一致|印证|验证)|多(?:家机构|个来源|个独立来源|方)(?:预测|数据|信息)?(?:一致|印证|验证)|\d+\s*(?:源|家机构|个独立来源)(?:数据|预测)?一致|交叉(?:验证|印证)|相互印证', line))
-        claims = [m for m in claims if not re.search(r'未|无|不能|尚不|缺少|缺乏|不足|待|不构成|不代表|不等于|并非', line[max(0,m.start()-10):m.start()])]
+        claims = [m for m in claims if not re.search(r'未|无|不能|尚不|缺少|缺乏|不足|待|不构成|不代表|不等于|并非',
+            re.split(r'[。！？；;|]', line[:m.start()])[-1][-10:])]
         claims = [m for m in claims if not re.match(r'性?(?:尚待|待|需)(?:核验|验证|确认)', line[m.end():])]
+        # A rejected-claim diagnosis is not a fresh corroboration assertion.
+        # Scope this to the reported mention so a later positive claim is still checked.
+        claims = [m for m in claims if not (
+            re.search(r'评分理由(?:声称|使用|含有?)$', line[max(0,m.start()-14):m.start()])
+            and re.match(r'[^。；;]{0,90}(?:但引用来源不足|但.{0,20}同一发布方|未通过|暂不评分)', line[m.end():]))]
         if claims:
             keys = {source_document_key(f.get('source_url', '')) for f in rows} - {''}
             # Conservative publisher grouping, including portal/mobile subdomains.
             # This is not a full public-suffix or original-research identity resolver.
-            publishers = set()
-            for key in keys:
-                host = key.split('/')[0].split(':')[0]
-                labels = host.split('.')
-                suffix = '.'.join(labels[-2:])
-                depth = 3 if suffix in {'com.cn','gov.cn','org.cn','net.cn','edu.cn','ac.cn','co.uk','org.uk','com.au','co.jp'} else 2
-                publishers.add(host if all(x.isdecimal() for x in labels) else '.'.join(labels[-depth:]))
-            from industry_assertions import independent_origin_keys
+            from industry_assertions import independent_origin_keys, publisher_keys, required_source_count
+            publishers = publisher_keys(rows)
             origins = independent_origin_keys(rows)
-            required = max([2] + [int(m[1]) for m in re.finditer(r'(\d+)\s*(?:源|家机构|个独立来源)(?:数据|预测)?一致', line)])
+            required = required_source_count(line)
             if len(publishers) < required or len(origins) < required:
                 issues.append({'code':'source_corroboration_overstated', 'document_count':len(keys),
                     'publisher_count':len(publishers), 'origin_count':len(origins), 'required_count':required,
                     'evidence_ids':[f['evidence_id'] for f in rows],
                     'message':'多源印证声明未满足所称数量的不同发布方及原始出处；同文转载、多卡片或同站不同网页不足以证明来源独立。'})
+            else:
+                from industry_assertions import comparable_corroboration
+                if not comparable_corroboration(rows, required, line):
+                    issues.append({'code':'numeric_corroboration_not_comparable',
+                        'evidence_ids':[f['evidence_id'] for f in rows],
+                        'message':'不同发布方并不足以证明数值相互印证；所引指标须对应相同定义、地域、期间、单位、数值性质及列示值。'})
     from industry_claims import claim_contract_issues
     issues.extend(claim_contract_issues(text, facts))
     return list({json.dumps(issue, sort_keys=True, ensure_ascii=False): issue for issue in issues}.values())
@@ -1093,13 +1104,14 @@ def append_evidence_index(report: str, payload: dict, outline: list, packages: d
             source = source_markdown_link(fact.get('source_title'), record['url']) + '<br>发布：' + publication
             short_hash = str(locator.get('body_sha256') or '')[:12] or '待核验'
             chapters = '、'.join(map(str,sorted(support_chapters)))
-            compact_groups.setdefault((record['url'],source),[]).append((f'{eid}（第{chapters}章）',f'{eid}：{location}；指纹前缀：{short_hash}'))
+            compact_groups.setdefault((record['url'],source),[]).append((f'{eid}<br>第{chapters}章',f'{location}<br>指纹前缀：<br>{short_hash}'))
         else:
             rows.append(f'| {eid}（第{chapters}章） | {source} | {cell(excerpt or "完整原文见定位；本摘录不足以单独形成判断，待核验。")} | {cell(fact.get("publisher") or fact.get("provider") or urlsplit(record["url"]).hostname or fact.get("source_type") or "保存来源正文")} / {cell(fact.get("source_grade"))} |')
     for (_, source), entries in compact_groups.items():
-        for start in range(0,len(entries),4):
-            batch=entries[start:start+4]
-            rows.append('| '+'<br>'.join(e[0] for e in batch)+' | '+source+' | '+'<br>'.join(e[1] for e in batch)+' |')
+        for evidence, location in entries:
+            # One fact per row keeps each locator paired with its E-ID, even
+            # when several cards share the same linked source document.
+            rows.append('| '+evidence+' | '+source+' | '+location+' |')
     lines = ['## 15. 信息来源（自动生成审计索引）', '',
              '本索引列出章节正文实际引用且属于对应证据包的事实编号；同一来源的不同事实可支持多个章节。', '',
              '第16章的候选原文链接用于安排核验，不表示其已支持风险评分或事实结论。', '',

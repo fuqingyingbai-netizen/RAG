@@ -317,7 +317,8 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     assert report.artifact_metadata['claim_ledger_artifact_id']==ledger_artifact.id
     assert all(c['entailment_status']=='not_evaluated' for c in ledger['claims'])
     cleaned_contract=json.loads(next(a.content for a in artifacts if a.artifact_type=='cleaned_facts'))
-    assert cleaned_contract['evidence_coverage']['version']=='industry-evidence-contract-v2-atomic-passages'
+    from industry_evidence import VERSION as evidence_contract_version
+    assert cleaned_contract['evidence_coverage']['version']==evidence_contract_version
 
     # A newer review draft must survive resume even if an older candidate exists.
     older = SimpleNamespace(id=999, artifact_type='desktop_report', title='旧候选稿', version=1,

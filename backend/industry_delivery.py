@@ -2,7 +2,7 @@
 import hashlib
 import re
 
-VERIFICATION_TASK_VERSION = 'industry-verification-v4-proposal-appendix'
+VERIFICATION_TASK_VERSION = 'industry-verification-v7-claim-specific'
 
 # These are follow-up destinations, not permission to score a dimension.
 RISK_TASK_SCOPE = {
@@ -20,6 +20,54 @@ def _cell(value):
     return re.sub(r'\s+', ' ', str(value or '—')).replace('|', '/')
 
 
+def review_reason_summary(reasons):
+    """Group reader notices without truncating a reason or changing audit data."""
+    chapters = sorted({r['chapter'] for r in reasons if r.get('code') == 'chapter_analysis_pending_review'
+                       and isinstance(r.get('chapter'), int)})
+    risks = list(dict.fromkeys(str(r['dimension']) for r in reasons
+                              if r.get('code') == 'risk_assessment_incomplete' and r.get('dimension')))
+    parts = []
+    if chapters:
+        parts.append('第' + '、'.join(map(str, chapters)) + '章分析结论待语义复核')
+    if risks:
+        parts.append('未完成风险评估：' + '、'.join(risks))
+    other = sum(r.get('code') not in {'chapter_analysis_pending_review', 'risk_assessment_incomplete'} for r in reasons)
+    if other:
+        parts.append(f'另有{other}项证据或生成校验问题')
+    return '；'.join(parts) + ('。完整原因及核验任务见报告质量诊断和第16章。' if parts else '')
+
+
+def assessment_review_plan(cause):
+    """Match the correction task to the rejected claim instead of buying more data."""
+    if cause == 'ranking_source_missing':
+        return ('回到排名正文或原始表，逐项核对主体、细分市场、统计期间、指标和名次；报告标题、发布消息和选样名单不能替代排名结果。',
+                '原始排名表或完整正文、排序方法、统计期间和市场边界；本轮引用及评分诊断。',
+                '排名结论有对应的授权原文后再独立评估；仍缺材料则删除排名判断并保留未知。')
+    if cause in {'source_corroboration_overstated', 'numeric_corroboration_not_comparable'}:
+        return (
+            '逐项核对原始报告、发布方及转载关系；同一原始报告或同文转载合并计数。'
+            '再对照指标定义、地域、期间、单位、数值性质及列示值；不同口径不能因数值相同而相互印证。',
+            '原始报告署名和链接、转载链、逐项指标对照表、本轮评分输入和校验诊断。',
+            '记录独立原始出处及指标可比性；未满足多源声明时删除该声明并重新评估，仍不足则保留未知。')
+    if cause == 'absence_as_low_risk':
+        return ('先核对具体监管义务、适用主体和执行材料；未见处罚只表示本轮没有取得相应材料，不能推出影响可控或风险较低。',
+                '适用政策原文、履行记录、检查或处罚决定及检索范围。',
+                '删除由未见处罚推导低风险的理由；取得直接影响证据后独立评估，否则保持未知。')
+    if cause == 'growth_trend_not_comparable':
+        return ('按同一指标、统计定义、地域、单位和历史期间建立时间序列；预测和估计单独列示，不用未来算力市场代替已实现的行业增长。',
+                '历史统计原表、逐期定义与方法、预测假设及本轮评分输入。',
+                '历史序列的可比性逐项通过后再评价增长趋势；否则删除持续增长判断并保留未知。')
+    if cause == 'evidence_gap_as_business_risk':
+        return ('先区分本轮缺少经营材料与已经发生的经营结果；核对真实收费、行业盈利统计或边界清楚的企业样本，不由未披露推导盈利恶化。',
+                '原始收费与收入成本披露、统计期间、样本覆盖及盈利口径；本轮评分诊断单独保留。',
+                '只有实际经营结果有直接证据时再独立评估；仍缺资料则保持未知，不把样本外推行业。')
+    if cause == 'internal_diagnostic_as_evidence':
+        return ('移除内部字段和校验通过状态构成的评分理由；回到保存原文、统计方法及具体口径冲突实例，区分格式核验与研究真实性。',
+                '原始报告和统计方法、逐项冲突或不可比记录、原文定位；内部诊断仅用于审计。',
+                '评分理由不再依赖内部状态，只引用适用原始材料；没有实质可靠性证据时保留未知。')
+    return None
+
+
 def replace_chapter(report, number, title, body):
     section = f'## {number}. {title}\n\n{body.strip()}\n\n'
     pattern = rf'(?ms)^##\s*{number}[.、．][^\n]*\n.*?(?=^##\s*(?:\d+[.、．]|集中式待核验清单|报告编制说明)|\Z)'
@@ -30,6 +78,12 @@ def replace_chapter(report, number, title, body):
     return (report[:pos].rstrip()+'\n\n' if report[:pos].strip() else '') + section + report[pos:]
 
 
+def _assessed_dimension(row):
+    score = row.get('score')
+    return (isinstance(score, (int, float)) and not isinstance(score, bool) and 0 <= score <= 100
+            and row.get('level') in {'low', 'medium', 'high', 'critical'} and bool(row.get('evidence_ids')))
+
+
 def risk_status_section(risk, scope, title='综合评估'):
     from industry_research import active_risk_dimensions
     dimensions = {d.get('name'):d for d in (risk.get('dimensions') or []) if isinstance(d,dict)}
@@ -37,14 +91,12 @@ def risk_status_section(risk, scope, title='综合评估'):
     for name in active_risk_dimensions(scope):
         row = dimensions.get(name) or {}
         score = row.get('score')
-        valid = (isinstance(score,(int,float)) and not isinstance(score,bool) and 0<=score<=100
-                 and row.get('level') in {'low','medium','high','critical'} and bool(row.get('evidence_ids')))
+        valid = _assessed_dimension(row)
         assessed += int(valid)
         refs = ' '.join(f'[{eid}]' for eid in row.get('evidence_ids',[])) if valid else '—'
         reason = row.get('reason') or '本轮尚未形成有效评估，保留未知。'
-        cause = '' if valid else f'；原因代码：{row.get("unknown_cause") or "assessment_unavailable"}'
         label = {'low':'低','medium':'中','high':'高','critical':'严重'}.get(row.get('level'),'未知') if valid else '未知'
-        rows.append('| '+' | '.join(map(_cell,(name,'已评估' if valid else '未完成评估',str(score) if valid else '未评分',label,reason+cause,refs)))+' |')
+        rows.append('| '+' | '.join(map(_cell,(name,'已评估' if valid else '未完成评估',str(score) if valid else '未评分',label,reason,refs)))+' |')
     total = len(active_risk_dimensions(scope))
     overall = risk.get('overall_score') if assessed == total else None
     return (f'## 14. {title}\n\n本轮{total}个启用风险维度中，{assessed}项已评估，{total-assessed}项未完成评估。'
@@ -72,7 +124,7 @@ def verification_tasks(payload, risk, degradations, scope):
                        and not (scope.get('capital_market') == 'none' and facts[eid].get('evidence_scope') == 'capital_market')
                        and (facts[eid].get('provenance') or {}).get('locator', {}).get('status') == 'verified'))
 
-    def add(key,topic,reason,kind=None,chapter=None,task_type='evidence_gap',ids=(),chapters=(),requirements=(),candidate_count=None,reference_limit=6):
+    def add(key,topic,reason,kind=None,chapter=None,task_type='evidence_gap',ids=(),chapters=(),requirements=(),candidate_count=None,reference_limit=6,validation_cause=''):
         if key in keys:return
         keys.add(key)
         _,action,priority,materials = industry_gap_plan(kind or topic)
@@ -82,6 +134,9 @@ def verification_tasks(payload, risk, degradations, scope):
             action='先对照已保存原文和授权指标，修正证据归属、数值及预测属性，再独立复核；确有资料缺口时再确认补采。'
             materials='本轮评分输入、已保存原文、授权指标与校验诊断；失败理由仅用于纠错，不作为事实。'
             completion='引用归属、单项指标和预测属性复核通过后再评估；未通过继续保留未知，不强行补分。'
+            specific = assessment_review_plan(validation_cause)
+            if specific:
+                action, materials, completion = specific
         elif task_type == 'assessment_abstained':
             reason='模型未给出有效评估；已有候选不等于指标已核验，须先区分可用材料与实际缺口。'
             action='先核对现有候选是否满足本维度指标；不足时再按下述要求补证。'+action
@@ -114,7 +169,7 @@ def verification_tasks(payload, risk, degradations, scope):
             if len(refs)>=reference_limit:break
             if eid not in refs:refs.append(eid)
         tasks.append({'key':key,'task_id':'V-'+hashlib.sha256(key.encode()).hexdigest()[:8].upper(),
-                      'version':VERIFICATION_TASK_VERSION,'task_type':task_type,
+                      'version':VERIFICATION_TASK_VERSION,'task_type':task_type,'validation_cause':validation_cause,
                       'topic':topic,'reason':reason,'action':action,'priority':'高' if key.startswith('risk:') else priority,
                       'materials':materials,'chapter':chapter,'chapters':sorted(set(chapters or ([chapter] if chapter else []))),
                       'requirement_ids':sorted(set(requirements)), 'review_evidence_ids':refs,
@@ -154,7 +209,7 @@ def verification_tasks(payload, risk, degradations, scope):
         if task_type == 'evidence_gap' and re.search(r'[\u4e00-\u9fff]', str(row.get('reason') or cause)):
             reason=str(row.get('reason') or cause)
         add('risk:'+row['name'],row['name'],reason,
-            task_type=task_type,ids=ids,chapters=chapters,requirements=reqs,candidate_count=row.get('candidate_evidence_count'))
+            task_type=task_type,ids=ids,chapters=chapters,requirements=reqs,candidate_count=row.get('candidate_evidence_count'),validation_cause=cause)
         covered_requirements.update(reqs)
     for row in coverage:
         if row.get('status')=='verified':continue
@@ -193,6 +248,9 @@ def evaluation_inputs(payload):
     from industry_grounding import sample_boundary, complete_excerpt
     from industry_research import risk_fact_text, numeric_mentions, claim_semantic_issues
     from industry_fact_contracts import risk_admitted
+    from industry_analysis import observed_business
+    from industry_passages import policy_obligation
+    from industry_grounding import passage_tasks
     groups=[('增长与需求','市场规模与增长'),('盈利与变现','商业模式与盈利逻辑'),
             ('政策支持与约束','政策与监管'),('技术与替代条件','技术路线对比')]
     lines=['### 行业评价输入与局限','',
@@ -207,11 +265,28 @@ def evaluation_inputs(payload):
                and (not numeric_mentions(str(f.get('fact') or '')) or (f.get('numeric_validation') or {}).get('passed') is True)
                and not claim_semantic_issues(risk_fact_text(f), [f])
                and not claim_semantic_issues(str(f.get('fact') or ''), [f])]
-        cards.sort(key=lambda f:((f.get('numeric_validation') or {}).get('passed') is True,f.get('claim_type')!='source_excerpt'),reverse=True)
+        if module == '技术路线对比':
+            # A headline about a "breakthrough" is not an input about testing,
+            # performance or cost. Keep it in its source chapter if admissible.
+            cards = [f for f in cards if passage_tasks(f) & {'技术测试条件','技术性能','技术成本'}]
+        def input_rank(fact):
+            statement = (fact.get('fact_contract') or {}).get('statement') or risk_fact_text(fact)
+            fit = (observed_business(fact) if module == '商业模式与盈利逻辑' else
+                   bool(policy_obligation(statement)) if module == '政策与监管' else
+                   '技术测试条件' in passage_tasks(fact) if module == '技术路线对比' else False)
+            return (fit, (fact.get('numeric_validation') or {}).get('passed') is True,
+                    (fact.get('numeric_context') or {}).get('is_forecast') is not True,
+                    fact.get('claim_type') != 'source_excerpt')
+        cards.sort(key=input_rank, reverse=True)
         if cards:
             card=cards[0]
             text=risk_fact_text(card)
             if len(text)>230:text=complete_excerpt(text,230)
+            published = str(card.get('published_date') or '')
+            if text and re.match(r'^20\d{2}-\d{2}-\d{2}(?:\b|T)', published):
+                # "Currently" belongs to the dated source, not the report's
+                # cutoff. Do not fill a missing publication date from scope.
+                text = '来源发布：' + published[:10] + '；' + text
             value=(text+' ['+card['evidence_id']+']') if text else '较长原文需核对后再转述。'
             limit='来源表述及适用边界仍需复核；单项输入不能单独证明行业吸引力。'
         else:
@@ -331,6 +406,40 @@ def reader_cleanup(report):
     return '\n'.join(lines)
 
 
+def refresh_summary_readiness(report, risk, degradations, scope):
+    """Expose current decision limits in the summary, reserving whole prose units.
+
+    This is generated status, not a model-authored conclusion. Reexports replace
+    it using current artifacts; no old score or rejected reason is carried over.
+    """
+    from industry_research import active_risk_dimensions, summary_length
+    match = re.search(r'(?ms)^##\s*1[.、．]\s*([^\n]+)\n(.*?)(?=^##\s*2[.、．]|\Z)', report)
+    if not match:
+        return report
+    marker = '评估与使用边界：'
+    paragraphs = [p for p in re.split(r'\n\s*\n', match[2].strip()) if p.strip()
+                  and not p.lstrip().startswith(marker)]
+    dimensions = {d.get('name'): d for d in (risk.get('dimensions') or []) if isinstance(d, dict)}
+    unknown = [name for name in active_risk_dimensions(scope) if not _assessed_dimension(dimensions.get(name) or {})]
+    pending = [n for n in degradations if isinstance(n.get('chapter'), int) and 1 <= n['chapter'] <= 14
+               and not (n['chapter'] in {8, 9} and scope.get('capital_market') == 'none')
+               and not (n['chapter'] == 12 and not scope.get('named_companies'))]
+    parts = []
+    if unknown:
+        parts.append('未完成评估：' + '、'.join(unknown) + '；总分暂不计算')
+    if pending:
+        parts.append('部分章节分析或生成结果待复核，具体原因及任务见第16章')
+    notice = marker + '；'.join(parts) + '。' if parts else ''
+    heading = f'## 1. {match[1].strip()}\n\n'
+    kept = []
+    for paragraph in paragraphs:
+        candidate = '\n\n'.join(([notice] if notice else []) + kept + [paragraph])
+        if summary_length(heading + candidate) <= 600:
+            kept.append(paragraph)
+    body = '\n\n'.join(([notice] if notice else []) + kept)
+    return report[:match.start()] + heading + body + '\n\n' + report[match.end():]
+
+
 def finalize_synthesis(report, payload, risk, degradations, scope):
     titles={int(m[1]):m[2].strip() for m in re.finditer(r'^##\s*(\d+)[.、．]\s*([^\n]+)',report,re.M)}
     section=risk_status_section(risk,scope,titles.get(14,'综合评估'))
@@ -347,6 +456,7 @@ def finalize_synthesis(report, payload, risk, degradations, scope):
     report=re.sub(r'(?ms)^## 集中式待核验清单\s*$.*\Z','',report).rstrip()
     section=tasks_section(tasks,titles.get(16,'后续研究点'))
     report=replace_chapter(report,16,titles.get(16,'后续研究点'),section.split('\n',1)[1])
+    report=refresh_summary_readiness(report,risk,degradations,scope)
     return reader_cleanup(report),tasks
 
 
