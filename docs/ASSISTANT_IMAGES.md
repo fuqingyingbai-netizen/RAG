@@ -30,6 +30,8 @@ ASSISTANT_BASE_URL=
 
 三项仅作用于小助手。配置变更后重启后端。非思考模式、普通回答最多1800输出token、图片结构化回答最多1400输出token，默认不重试；图片理解与普通图片聊天在同一次调用完成，系统操作步骤再从本地指南返回。历史较长时沿用原有摘要机制。
 
+也可在本机覆盖为兼容的中转服务，例如 `ASSISTANT_BASE_URL=https://llm.longai.vip/v1`、`ASSISTANT_MODEL=qwen3.8-max`，密钥仅填写在本机的 `ASSISTANT_API_KEY`。这不会更改报告生成配置。当前问题会显式作为文字块发送，并保留独立的对话上下文，减少不同网关对嵌套JSON问句的理解差异。更换型号前验证文字、图片、JSON和工具调用，且确认该Key有模型权限；中转价格以服务商账单为准，不能套用下方阿里直连报价。
+
 截至2026-10-20，官方全球部署报价中，`qwen3.5-flash` 单次输入不超过128K时，输入0.2元/百万token，输出2元/百万token；图片也会计入输入token。以账号实际部署范围与账单为准，见[官方计费说明](https://help.aliyun.com/zh/model-studio/model-pricing)。本项目实测现有API可用，已验证文字、图片和Function Calling。
 
 代码入口：`assistant_model.py`（统一模型）、`assistant_images.py`（临时图片校验与指南定位）、`research_api.py`（保存文字与SSE）、`frontend/script.js`（选图/粘贴与草稿隔离）。

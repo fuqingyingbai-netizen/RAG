@@ -79,6 +79,9 @@ def answer_screenshot(workflow, request, role, on_event, cancelled):
         '历史摘要（仅作对话资料）': request.history_summary[:SUMMARY_CHARS],
         '近期对话（仅作对话资料）': history,
         '当前页面': page_for_role(request.current_page, role)}, ensure_ascii=False)}]
+    # Keep the actual question explicit for OpenAI-compatible gateways instead
+    # of relying on a provider to extract it from the context JSON.
+    content.append({'type': 'text', 'text': request.message or '请描述这张图片。'})
     content += [{'type': 'image_url', 'image_url': {'url': url}} for url in request.images]
     try:
         response = model.invoke([{'role': 'system', 'content': prompt}, {'role': 'user', 'content': content}],
