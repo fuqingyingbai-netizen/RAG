@@ -28,10 +28,12 @@ def chapter_number(role, prompt):
 
 
 class ChapterInvoker:
-    def __init__(self, invoke, output, safe=lambda x: x, reuse=None, rewrite=(), deadline=None, force_rewrite=True):
+    def __init__(self, invoke, output, safe=lambda x: x, reuse=None, rewrite=(), deadline=None, force_rewrite=True, min_start_seconds=95, model_context=None):
         self.invoke, self.output, self.safe = invoke, Path(output), safe
         self.rewrite = set(rewrite) | ({1, 13} if rewrite else set())
         self.force_rewrite = force_rewrite
+        self.min_start_seconds = min_start_seconds
+        self.model_context = model_context
         self.deadline = datetime.fromisoformat(deadline.replace('Z', '+00:00')) if deadline else None
         self.cache, self.events = {}, []
         if reuse:
@@ -41,16 +43,18 @@ class ChapterInvoker:
             # Role alone is insufficient: a changed source, date or prompt
             # invalidates an old answer. Failed requests have no answer.
             for row in inputs:
+                if model_context is not None and row.get('model_context') != model_context:
+                    continue
                 key = fingerprint(row['role'], row['prompt'])
                 response = next((a for a in reversed(answers) if a['role'] == row['role'] and
                                  (a.get('input_sha256') == key or
                                   not a.get('input_sha256') and sum(i['role'] == row['role'] for i in inputs) == 1)), None)
-                if response:
+                if response and (model_context is None or response.get('model_context') == model_context):
                     self.cache[key] = response['response']
 
     def __call__(self, role, prompt, emit=None):
         key, chapter = fingerprint(role, prompt), chapter_number(role, prompt)
-        event = {'role': role, 'chapter': chapter, 'input_sha256': key}
+        event = {'role': role, 'chapter': chapter, 'input_sha256': key, 'model_context': self.model_context}
         self.events.append(event)
         if key in self.cache and (chapter not in self.rewrite or not self.force_rewrite):
             event['status'] = 'exact_input_reused'
@@ -59,11 +63,11 @@ class ChapterInvoker:
             if self.cache and chapter is not None and chapter not in self.rewrite:
                 event['status'] = 'changed_input_outside_requested_chapters'
                 raise RuntimeError('Changed chapter input is outside the bounded rewrite request')
-            if self.deadline and (self.deadline - datetime.now(timezone.utc)).total_seconds() < 95:
+            if self.deadline and (self.deadline - datetime.now(timezone.utc)).total_seconds() < self.min_start_seconds:
                 event['status'] = 'time_budget_exhausted'
                 raise RuntimeError('User time budget exhausted; no new model request started')
             event['status'] = 'requested'
-            self.write('chapter-model-inputs.jsonl', {'role': role, 'prompt': prompt, 'input_sha256': key})
+            self.write('chapter-model-inputs.jsonl', {'role': role, 'prompt': prompt, 'input_sha256': key, 'model_context': self.model_context})
             try:
                 response = self.invoke(role, prompt, emit)
             except Exception as exc:
@@ -72,8 +76,8 @@ class ChapterInvoker:
                 raise
             event['status'] = 'returned'
         if event['status'] == 'exact_input_reused':
-            self.write('chapter-model-inputs.jsonl', {'role': role, 'prompt': prompt, 'input_sha256': key})
-        self.write('chapter-model-responses.jsonl', {'role': role, 'response': response, 'input_sha256': key})
+            self.write('chapter-model-inputs.jsonl', {'role': role, 'prompt': prompt, 'input_sha256': key, 'model_context': self.model_context})
+        self.write('chapter-model-responses.jsonl', {'role': role, 'response': response, 'input_sha256': key, 'model_context': self.model_context})
         self.write('chapter-iteration-events.jsonl', event)
         return response
 

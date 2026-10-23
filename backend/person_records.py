@@ -39,9 +39,9 @@ def source_events(text):
         characters.extend(value)
         offsets.extend([index] * len(value))
     clean = ''.join(characters)
-    year = r'(?:(?:19|20)\d{2}|[一二][零〇一二三四五六七八九]{3})年'
+    year = r'(?:(?:19|20)\d{2}|[一二][零〇一二三四五六七八九]{3}|[零〇一二三四五六七八九]{2})年'
     date = year + r'(?:(?:\d{1,2}|[一二三四五六七八九十]{1,3})月(?:(?:\d{1,2}|[一二三四五六七八九十]{1,3})日)?)?'
-    specs = [('education', r'(?P<date>' + date + r')\s*(?:本科|研究生|硕士|博士|大学|技校|高中|初中|小学)?(?:毕业|入学|就读|获.{0,35}学位)'),
+    specs = [('education', r'(?P<date>' + date + r')[，,]?\s*(?:本科|研究生|硕士|博士|大学|技校|高中|初中|小学)?(?:毕业|入学|就读|获.{0,35}学位)'),
              ('appointment', r'(?P<date>' + date + r'(?:至' + date + r')?)\s*(?:起)?(?:被聘任|获委任|出任|加入|担任|任我们|任本公司)'),
              ('founding', r'(?P<date>' + date + r')(?:(?!' + year + r'|出生|毕业)[^。；;]){0,20}?(?:共同创办|联合创办|创办|创立)(?!人|者)'),
              ('contract', r'(?P<date>' + date + r')(?:(?!' + year + r'|成立|出生)[^。；;]){0,30}?(?:签署|签订|转让|赠与|出具承诺)'),
@@ -148,12 +148,20 @@ def observation(fact, target, aliases=()):
     for match in re.finditer(r'(?<![\d,，.])((?:\d{1,3}(?:[,，]\d{3})+|\d+)(?:\.\d+)?)\s*(%|％|(?:万|亿)?股|(?:万|亿)?元)', text):
         context_before = text[max(0, match.start()-35):match.start()]
         unit = match[2].replace('％', '%')
-        metric = ('holding_ratio' if unit == '%' and re.search(r'持股|股东|股权|持有|股份|股本|ownership|shareholding', context_before, re.I) else
+        metric = ('holding_ratio' if unit == '%' and re.search(r'持股|股东|股权|持有|股份|股本|拥有公司|ownership|shareholding', context_before, re.I) else
                   'share_count' if unit.endswith('股') else
                   'revenue' if unit.endswith('元') and re.search(r'营收|营业收入|revenue', context_before, re.I) else '')
         if metric:
+            # Several ownership subjects can occur in a single paragraph.
+            # A couple's later stake must not relabel the person's earlier
+            # individual stake or another founder's percentage.
+            before = folded(text[:match.start()])
+            boundary = max([0, *[m.end() for m in re.finditer(r'[。；;]|\d+(?:\.\d+)?%', before)]])
+            local = before[boundary:]
+            local_group = re.search(r'([\u4e00-\u9fff]{2,4}(?:夫妇|夫妻))', local)
+            local_owner = local_group[1] if local_group else ''
             metrics.append({'metric': metric, 'value': match[1].replace(',', '').replace('，', ''), 'unit': unit,
-                            'source_literal': match[0], 'period': period, 'subject': ownership_subject or named_person or (target if scope == 'person' else issuer), 'issuer': issuer})
+                            'source_literal': match[0], 'period': period, 'subject': local_owner or named_person or (target if scope == 'person' else issuer), 'issuer': issuer})
     relations = []
     if any(data.get(k) for k in ('角色', '曾担任角色', '职位', '职务', '任职起止时间')) or re.search(r'任职|担任|appointed|joined', text, re.I):
         relations.append('appointment')

@@ -13,7 +13,7 @@ def explicit_colleague_roles(sources, intake, audit=None):
     orgs = [str(x) for x in anchor.get('known_affiliations', []) if len(str(x)) >= 3]
     forms = {folded(x) for x in [target, *anchor.get('aliases', [])] if x}
     result, seen = [], set()
-    role = r'(?:首席执行官|首席运营官|首席财务官|执行董事|董事长|总经理|副总裁|总裁|ceo|coo|cfo)'
+    role = r'(?:首席执行官|首席运营官|首席财务官|执行董事|董事长|监事|总经理|副总裁|总裁|ceo|coo|cfo)'
     stop = r'(?=[，,。；;：:“”"（(\s]|在|于|则|曾|已|将|也|还|后|并|对|均|都|分别|称|说|表示|指出|接受|接任|辞任|加入|接棒|负责|统筹|从|做|的|和|与|、|及|也是|$)'
     surname = '赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜戚谢邹喻窦章云苏潘葛范彭郎鲁韦马苗方俞任袁柳唐罗薛雷贺倪汤滕殷毕郝邬安常乐于傅卞齐康伍余元卜顾孟黄穆萧尹姚邵汪祁毛狄米贝明臧计伏成戴宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季贾路娄危江童颜郭梅盛林钟徐邱骆高夏蔡田樊胡凌霍虞万支柯管卢莫房裘缪解应宗丁宣邓杭洪包诸左石崔龚程邢裴陆荣翁荀羊甄曲封芮储靳焦侯仲秋宫宁仇栾甘戎厉戎符刘景詹束龙叶黎耿满弘匡国文寇广禄阙东欧利师巩聂晁勾苟敖冷辛简饶曾毋沙养鞠丰巢关蒯相查后荆红游竺权盖益桓公仉司上官诸葛欧阳夏侯'
     name = '[' + surname + r'][\u4e00-\u9fff]{1,3}?'
@@ -39,7 +39,12 @@ def explicit_colleague_roles(sources, intake, audit=None):
             patterns = [literal_org + company_role_prefix + role + r'(?:[：:]|的)?(?P<name>' + name + ')' + stop,
                 r'(?<![\u4e00-\u9fff])(?P<name>' + name + r')(?:先生|女士)?(?:担任|出任|接任|辞任|升任|获委任为)' + literal_org + company_role_prefix + role,
                 literal_org + r'(?:[，,：:](?:' + name + r'[和与、及])?|(?:发布|发表|公告称|宣布)[^。；;]{0,100}?)'
-                + r'(?P<name>' + name + r')(?:已|将|已经)?(?:辞任|担任|出任|接任|获委任为)(?:本公司|公司)?(?:执行董事及|执行董事、)?' + role]
+                + r'(?P<name>' + name + r')(?:已|将|已经)?(?:辞任|担任|出任|接任|获委任为)(?:本公司|公司)?(?:执行董事及|执行董事、)?' + role,
+                # A second explicitly named role in the same company clause
+                # inherits that company, not an unrelated later sentence.
+                literal_org + r'[，,](?:' + name + r'[和与及、])*' + name
+                + r'(?:担任|出任)(?:本公司|公司)?' + role + r'[，,](?P<name>' + name
+                + r')(?:担任|出任)(?:本公司|公司)?' + role]
             for pattern in patterns:
                 for match in re.finditer(pattern, text, re.I):
                     person = match['name']

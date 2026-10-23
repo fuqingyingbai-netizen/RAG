@@ -4,6 +4,9 @@ import re
 
 
 LABELS = {
+    'document_issuer_missing_for_relative_role': '原文中本公司指文件封面发行公司，不是人物的主要任职公司；引用本公司非执行董事任命时写明source_document_issuer所列公司，不能笼统写成海底捞或另一机构的任职',
+    'holding_period_not_in_metric_context': '持股比例括号中的年份、年后、近期或最新没有在同一持股原句中出现，不能拿卸任年份或无日期文章中的目前补齐，删除新增时点并明确基准日未明',
+    'formal_authority_inferred_from_role': '董事长、总裁或委员会主席职务本身不能证明直接主导权、最终决策权或单独控制权；保留明确职务及来源职责，不补正式授权',
     'source_statement_promoted_to_verified_fact': '现有来源陈述尚未独立真实性核验，只能写来源记载或披露，不能称属实、已独立核实或一致证实',
     'historical_snapshot_qualifier_missing': '原文限定截至招股文件签署日的历史持股、控制及任职状态，分析须保留该限定，不能省略成研究截止日的状态',
     'available_relative_baseline_denied': '原文已给出签署日这一相对数据基准，不能称完全没有基准日；若缺具体年月日，只说明签署日具体日历日期未明',

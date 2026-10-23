@@ -16,6 +16,32 @@ def source_context_errors(analysis, supports, context_facts=()):
     original = folded(' '.join(str(f.get('fact') or '') for f in supports))
     errors = []
     from person_text import numeric_literals
+    # Parenthetical periods must belong to the same metric, rather than a
+    # retirement year elsewhere in the biography. Relative words are also
+    # assertions about time; an undated article's "目前" is not "近期".
+    ratio_pattern = r'\d+(?:\.\d+)?%'
+    for match in re.finditer(r'('+ratio_pattern+r')[（(]((?:19|20)\d{2}年(?:后|以来)?|近期|最新)[）)]', text):
+        ratio, qualifier = match[1], match[2]
+        aligned = False
+        for fact in supports:
+            for sentence in re.split(r'[。；;]', folded(fact.get('fact') or '')):
+                if ratio in sentence and qualifier in sentence and re.search(r'持有|持股|股份|股权', sentence):
+                    aligned = True
+        if not aligned:
+            errors.append('holding_period_not_in_metric_context')
+    for authority in re.finditer(r'直接主导权|最终决策权|单独控制权', text):
+        prefix = text[max(0, authority.start()-18):authority.start()]
+        if authority[0] not in original and not re.search(r'不能|不代表|未说明|未披露|无法|不足以|是否', prefix):
+            errors.append('formal_authority_inferred_from_role')
+    for fact in supports:
+        issuer = folded(fact.get('source_document_issuer') or '')
+        material = folded(fact.get('fact') or '')
+        # A named person's outside directorship remains usable, but the
+        # annual report's "本公司" cannot silently become their main business.
+        if issuer and '本公司非执行董事' in material and '非执行董事' in text:
+            core = re.sub(r'(?:国际)?(?:控股|股份|集团)?有限公司$', '', issuer)
+            if core and core not in text and core[:2] not in text:
+                errors.append('document_issuer_missing_for_relative_role')
     # A union of support cards cannot prove that EACH source contains the
     # same date, quantity or legal subject. Same-URL excerpts also remain one
     # source when the prose counts documents rather than individual snippets.
@@ -65,13 +91,22 @@ def source_context_errors(analysis, supports, context_facts=()):
             and re.search(r'董事会同意聘任|经审议[，,]?同意选举|表决情况[：:]\d+票同意[，,]0票反对',original)
             and re.search(r'自本次董事会审议通过之日起',original)):
         errors.append('adopted_resolution_as_unapproved_proposal')
+    month_names = {name.lower(): index for index,name in enumerate(
+        ['January','February','March','April','May','June','July','August','September','October','November','December'],1)}
+    english_month = '('+'|'.join(month_names)+')'
     def calendar_dates(value):
         literal = numeric_literals(value)
-        return {(int(y), int(m), int(d)) for y, m, d in re.findall(
+        dates = {(int(y), int(m), int(d)) for y, m, d in re.findall(
             r'(?<!\d)((?:19|20)\d{2})\s*(?:年|[-/])\s*(\d{1,2})\s*(?:月|[-/])\s*(\d{1,2})(?:\s*日)?', literal)}
+        dates.update((int(year),month_names[month.lower()],int(day)) for day,month,year in re.findall(
+            r'(?<!\d)(\d{1,2})\s*'+english_month+r'\s*((?:19|20)\d{2})(?!\d)',literal,re.I))
+        return dates
     def calendar_months(value):
-        return {(int(y),int(month or iso_month)) for y,month,iso_month in re.findall(
+        months = {(int(y),int(month or iso_month)) for y,month,iso_month in re.findall(
             r'(?<!\d)((?:19|20)\d{2})\s*(?:年\s*(\d{1,2})\s*月|[-/]\s*(\d{1,2})(?!\d))',numeric_literals(value))}
+        months.update((int(year),month_names[month.lower()]) for month,year in re.findall(
+            english_month+r'\s*((?:19|20)\d{2})(?!\d)',numeric_literals(value),re.I))
+        return months
     if not calendar_dates(analysis) <= calendar_dates(' '.join(str(f.get('fact') or '') for f in supports)):
         errors.append('unsupported_date_combination')
     if not calendar_months(analysis) <= calendar_months(' '.join(str(f.get('fact') or '') for f in supports)):
@@ -180,8 +215,8 @@ def source_context_errors(analysis, supports, context_facts=()):
     # A book's publication year is evidence about publication, not the
     # implementation date of every practice it describes.
     for year in set(re.findall(r'((?:19|20)\d{2})年[^。；;]{0,8}出版', original)):
-        event_date = re.search(year + r'年[^。；;]{0,14}(?:实施|建立|启动|设立|推行)', text)
-        source_event_date = re.search(year + r'年[^。；;]{0,14}(?:实施|建立|启动|设立|推行)', original)
+        event_date = re.search(year + r'年(?:后|之后|以后|及此前)?[^。；;]{0,14}(?:实施|建立|启动|设立|推行|给店长|松绑)', text)
+        source_event_date = re.search(year + r'年(?:后|之后|以后|及此前)?[^。；;]{0,14}(?:实施|建立|启动|设立|推行|给店长|松绑)', original)
         if event_date and not source_event_date:
             errors.append('publication_year_as_event_date')
     if (re.search(r'被赋予.{0,15}(?:职责|权限)|获得.{0,12}决策权', text)
@@ -195,7 +230,17 @@ def source_context_errors(analysis, supports, context_facts=()):
         if not record.get('ownership_subject'):
             continue
         name = folded(record.get('subject') or fact.get('subject') or '')
-        ratios = set(re.findall(r'\d+(?:\.\d+)?%', folded(fact['fact'])))
+        # A paragraph can disclose an individual stake, the couple's stake,
+        # and a partner's stake. Only the ratio in the couple's own clause
+        # carries the joint-holder restriction.
+        material = folded(fact['fact'])
+        ratios = set()
+        for metric in re.finditer(r'\d+(?:\.\d+)?%', material):
+            before = material[:metric.start()]
+            start = max([0, *[m.end() for m in re.finditer(r'[。；;]|\d+(?:\.\d+)?%', before)]])
+            local = before[start:]
+            if name and re.search(re.escape(name)+r'(?:(?:与|和|及|、)[\u4e00-\u9fff]{2,4})?(?:夫妇|夫妻|及其配偶)', local):
+                ratios.add(metric[0])
         for clause in re.split(r'[，,。；;]', text):
             if (name and name in clause and ratios & set(re.findall(r'\d+(?:\.\d+)?%', clause))
                     and re.search(r'股东|持股|持有|拥有', clause)

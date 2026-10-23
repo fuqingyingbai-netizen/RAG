@@ -147,6 +147,10 @@ def question_priority(fact, chapter, view):
     text = folded(fact['fact'])
     if chapter == 2 and view == '教育与早年经历':
         return 3 * bool(re.search(r'毕业|就读|学位|graduat|degree', text, re.I)) + bool(fact.get('observation', {}).get('source_events'))
+    if chapter == 2 and view in {'职业时间线与职责', '履历断点与矛盾'}:
+        record = fact.get('observation') or {}
+        return (4 * bool(record.get('role_date_fields') or any(e.get('kind') in {'appointment','founding'} for e in record.get('source_events', [])))
+                + 2 * bool(re.search(r'任职|任期|担任|历任|聘任|总经理|董事长|总裁', text)))
     if chapter in {5, 11}:
         return (6 * (fact.get('claim_type') == 'person_management_event')
                 + 4 * bool(re.search(r'授权|委派|delegat', text, re.I))
@@ -369,7 +373,8 @@ def retained_management_events(sources, intake):
 def dimension_coverage(chapter, facts, queries=()):
     rows = []
     for view, _ in SPECS.get(chapter, []):
-        matches = [f for f in facts if material_matches(f, chapter, view)]
+        matches = sorted([f for f in facts if material_matches(f, chapter, view)],
+                         key=lambda fact: question_priority(fact, chapter, view), reverse=True)
         state = 'partial' if matches else 'missing'
         if chapter == 2 and view == '家庭健康等公开信息边界':
             state, status = 'scope_limited', '仅使用与委托有关且明确公开的信息；未披露不作为风险，不扩张检索私密信息。'

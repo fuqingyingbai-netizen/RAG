@@ -22,7 +22,7 @@ except ImportError:
     from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
     from person_chapter_selection import select_material, dimension_coverage, team_source_facts, prospective_company_risk
 
-VERSION = "person-template-v25-preserve-originals-after-batch-rejection"
+VERSION = "person-template-v26-issuer-and-local-ownership-context"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
@@ -145,6 +145,27 @@ def split_sections(report):
             for i, m in enumerate(matches)}
 
 
+def compact_dimension_gaps(gaps):
+    """Group identical review boundaries while preserving every dimension."""
+    groups, result = {}, []
+    pattern = r'^研究维度“([^”]+)”(已有材料但未完成核验)?[：:](.+)$'
+    for gap in gaps:
+        match = re.match(pattern, gap)
+        if not match:
+            result.append(gap)
+            continue
+        view, state, reason = match[1], match[2] or '', match[3]
+        key = state, reason
+        if key not in groups:
+            groups[key] = {'position':len(result), 'views':[], 'original':gap}
+            result.append(gap)
+        groups[key]['views'].append(view)
+    for (state, reason), item in groups.items():
+        if len(item['views']) > 1:
+            result[item['position']] = '研究维度'+'、'.join('“'+v+'”' for v in item['views'])+state+'：'+reason
+    return result
+
+
 def normalize_facts(payload, target, aliases=(), sources=()):
     """Keep rejected facts auditable; create fact-level, stable citation identities."""
     facts, rejected, seen = [], [], set()
@@ -183,7 +204,7 @@ def normalize_facts(payload, target, aliases=(), sources=()):
                 and compact(role_link) in compact(text)
                 and compact(f['team_member_name']) in compact(role_link)
                 and compact(f['team_affiliation_name']) in compact(role_link)
-                and bool(re.search(r'首席|董事|CEO|COO|CFO|经理|总裁', role_link, re.I)))
+                and bool(re.search(r'首席|董事|监事|CEO|COO|CFO|经理|总裁', role_link, re.I)))
             retained_context = (f.get('retained_attributed_context') and f.get('opinion_only')
                 and f.get('eligible_for_risk_scoring') is False
                 and f.get('extraction_method') == 'retained_original_full_scan'
@@ -241,6 +262,8 @@ def normalize_facts(payload, target, aliases=(), sources=()):
             if not f.get('source_physical_pages'):
                 f['source_physical_pages'] = context_fields['source_physical_pages']
             f['source_reporting_period_literal'] = context_fields['source_reporting_period_literal']
+            f['source_document_issuer'] = context_fields['source_document_issuer']
+            f['source_document_kind'] = context_fields['source_document_kind']
         f["source_url"] = url
         f["evidence_quote"] = str(f.get("evidence_quote") or text)
         f["event_date"] = str(f.get("event_date") or f.get("fact_date") or "未披露")
@@ -775,12 +798,20 @@ def render_section(package, claims=()):
     # Template-specific review questions remain explicit even for sparse
     # profiles. They are questions/coverage, never invented findings.
     if chapter in VIEWS and not (chapter == 10 and package.get('commission_coverage')):
-        lines += ["", "### 本章研究覆盖与核验问题", "", "| 研究维度 | 当前证据边界 |", "| --- | --- |"]
+        status_counts = Counter(r['status'] for r in package.get('material_coverage', []) if r['view'] in VIEWS[chapter])
+        shared_statuses = {status for status,count in status_counts.items() if count > 1}
+        lines += ["", "### 本章研究覆盖与核验问题", ""]
+        if shared_statuses:
+            lines += ['共同核验边界：'+' '.join(dict.fromkeys(r['status'] for r in package.get('material_coverage', []) if r['status'] in shared_statuses)), '']
+        lines += ["| 研究维度 | 当前证据边界 |", "| --- | --- |"]
         for view in VIEWS[chapter]:
             material = next((r for r in package.get('material_coverage', []) if r['view'] == view), None)
             if material:
                 refs = ' '.join('[' + eid + ']' for eid in material['evidence_ids'][:3])
-                lines.append(f"| {view} | {cell(material['status'])} {refs} |")
+                status = material['status']
+                if status in shared_statuses:
+                    status = '已有材料，待核验（边界见上）' if material['evidence_ids'] else '共同边界见上'
+                lines.append(f"| {view} | {cell(status)} {refs} |")
                 continue
             if chapter in {7, 8}:
                 try:
@@ -993,7 +1024,7 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                 if re.search(r'quota_exceeded|credit_balance_insufficient|余额不足|积分不足', gap, re.I):
                     action = "核对账户与Key的额度状态；恢复后仅补查明确失败项，并核验返回原件。"
                 lines += [f"### {'第' + str(index) + '章' if index else '全流程'}（优先级：{priority}）", '']
-                lines.extend('- ' + cell(item) for item in chapter_gaps)
+                lines.extend('- ' + cell(item) for item in compact_dimension_gaps(chapter_gaps))
                 lines += ['', '建议来源与完成条件：' + action, '']
             if not gaps:
                 lines.append("优先级：中。公开资料尚未经人工复核，需逐项核对原件、日期、归属和判断边界。")
@@ -1061,6 +1092,11 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                              'identity_clues_not_facts': {k: package['identity_clues_not_facts'].get(k, [])
                                  for k in ('aliases', 'known_affiliations', 'identity_anchors', 'roles', 'supplementary_context')},
                              'facts': [{'evidence_id': f['evidence_id'], 'fact': f['fact'],
+                                        'source_url': f['source_url'], 'source_title': f.get('source_title'),
+                                        'source_document_issuer': f.get('source_document_issuer', ''),
+                                        'source_document_kind': f.get('source_document_kind', ''),
+                                        'source_reporting_period_literal': f.get('source_reporting_period_literal', ''),
+                                        'attribution_boundary': f.get('attribution_boundary', ''),
                                         'subject': f['subject'],
                                         'subject_scope': f['subject_scope'],
                                         'personal_analysis_allowed': bool(f.get('analysis_allowed')),
@@ -1073,6 +1109,9 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                 '仅返回JSON，不输出Markdown：{"claims":[{"evidence_ids":["输入中存在的证据编号"],'
                 '"analysis":"有边界的简短分析，证据不足留空"}]}。\n'
                 '事实表由程序直接填入，不要返回statement，不要重写事实。可以返回空claims；没有可靠分析时留空。'
+                'source_document_issuer是文件封面明确的发行公司；文件中的本公司指该发行公司，不得把关联公司年报中的非执行董事职务改成目标主业公司的职务。来源标题含研究、证券分析等时保留研究报告立场，不称招股书或公司公告。'
+                '来源的专业、院校或职务有不同表述时并列说明差异，不选一项覆盖其他来源；持股日期只能对应同一持股原句，不把离任年份或“目前”补成2022年后、近期或最新。'
+                '董事长、总裁或委员会主席职务本身不证明具有直接主导权、最终决策权或单独控制权；仅陈述来源明确的职务和职责。'
                 '所有facts都须纳入研读；subject_scope说明材料主体，personal_analysis_allowed为false的只作归属明确的背景或观点，不能引用为对目标个人的分析证据。'
                 '本批若无允许个人分析的材料，返回空claims，团队、候选对标及具名观点由程序按原文另列，不强行推断目标个人。'
                 '每章最多3条分析，每条尽量不超过120字，不必覆盖每个事实编号。'

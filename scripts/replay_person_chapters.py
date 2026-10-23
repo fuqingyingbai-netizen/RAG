@@ -50,11 +50,14 @@ def main():
     parser.add_argument('--chapters', nargs='+', type=int, required=True)
     parser.add_argument('--live-model', action='store_true')
     parser.add_argument('--max-model-calls', type=int, default=12)
+    parser.add_argument('--timeout-seconds', type=int, default=90)
     parser.add_argument('--deadline-utc')
     parser.add_argument('--previous-replay', type=Path, help='Freeze the preceding partial replay body and audit')
     parser.add_argument('--feedback-records', type=Path, help='Validated extraction from the same retained originals')
     parser.add_argument('--reuse-model-run', type=Path, help='Reuse only complete exact-input responses')
     args = parser.parse_args()
+    if not 30 <= args.timeout_seconds <= 600:
+        parser.error('Timeout must be between 30 and 600 seconds')
     if not set(args.chapters) <= set(range(2,13)):
         parser.error('Only chapters 2 through 12 may be rewritten')
     start = time.monotonic()
@@ -99,7 +102,8 @@ def main():
             'admitted_sources':len({f['source_url'] for f in contract['chapters'][n].get('research_facts',[])}),
             'personal_analysis_candidates':sum(f.get('analysis_allowed',False) for f in contract['chapters'][n].get('research_facts',[]))}
             for n in args.chapters},
-        'new_search_calls': 0, 'new_fetch_calls': 0, 'new_professional_calls': 0}
+        'new_search_calls': 0, 'new_fetch_calls': 0, 'new_professional_calls': 0,
+        'model_request_timeout_seconds':args.timeout_seconds}
     (output/'plan.json').write_text(json.dumps(plan,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(plan,ensure_ascii=False), flush=True)
     if outside:
@@ -115,7 +119,9 @@ def main():
                 'gaps':next(r for r in ledger['diagnostic']['chapters'] if r['chapter']==n).get('gaps',[])}
     from dotenv import load_dotenv
     load_dotenv(ROOT/'.env')
-    os.environ.update(PERSON_REPORT_SECTION_TIMEOUT_SECONDS='90', PERSON_REPORT_SECTION_MAX_RETRIES='0',
+    model_context = {'model':os.getenv('MODEL'), 'endpoint_sha256':hashlib.sha256((os.getenv('BASE_URL') or '').rstrip('/').encode()).hexdigest()}
+    plan['model_context'] = model_context
+    os.environ.update(PERSON_REPORT_SECTION_TIMEOUT_SECONDS=str(args.timeout_seconds), PERSON_REPORT_SECTION_MAX_RETRIES='0',
         LLM_MAX_RETRIES='0', PERSON_REPORT_REPAIR_REJECTED='true', PERSON_REPORT_SEMANTIC_REVIEW_ENABLED='true')
     from research_workflow import ResearchWorkflow
     workflow = ResearchWorkflow.__new__(ResearchWorkflow)
@@ -144,7 +150,7 @@ def main():
             event['elapsed_seconds']=round(time.monotonic()-started,3)
             (output/'request-status.json').write_text(json.dumps(calls,ensure_ascii=False,indent=2),encoding='utf-8')
     invoke=ChapterInvoker(bounded,output,safe,reuse=args.reuse_model_run,rewrite=args.chapters,
-        deadline=args.deadline_utc,force_rewrite=False)
+        deadline=args.deadline_utc,force_rewrite=False,min_start_seconds=args.timeout_seconds+5,model_context=model_context)
     def emit(trace,*a,**kw):
         if isinstance(trace,dict):
             with (output/'trace.jsonl').open('a',encoding='utf-8') as handle:

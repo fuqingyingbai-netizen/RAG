@@ -47,6 +47,29 @@ def test_response_with_different_input_hash_is_never_reused(tmp_path):
     assert writer('r', '人物背景调查第2章：版本甲') == 'new answer'
 
 
+@pytest.mark.parametrize('new_context', [{'model':'new','endpoint_sha256':'a'}, {'model':'old','endpoint_sha256':'b'}, None])
+def test_explicit_service_context_prevents_cross_provider_response_reuse(tmp_path, new_context):
+    old, new = tmp_path/'old', tmp_path/'new'
+    old.mkdir(); new.mkdir()
+    previous_context = {'model':'old','endpoint_sha256':'a'}
+    writer = module.ChapterInvoker(lambda *a: 'old answer', old, model_context=new_context)
+    writer('r', '相同输入')
+    calls = []
+    writer = module.ChapterInvoker(lambda *a: calls.append(a) or 'new answer', new,
+        reuse=old, model_context=previous_context)
+    assert writer('r', '相同输入') == 'new answer'
+    assert len(calls) == 1
+
+
+def test_matching_service_context_can_reuse_successful_exact_input(tmp_path):
+    old, new = tmp_path/'old', tmp_path/'new'
+    old.mkdir(); new.mkdir()
+    context = {'model':'same','endpoint_sha256':'same'}
+    module.ChapterInvoker(lambda *a: 'answer',old,model_context=context)('r','相同输入')
+    writer = module.ChapterInvoker(lambda *a: pytest.fail('Should reuse'),new,reuse=old,model_context=context)
+    assert writer('r','相同输入') == 'answer'
+
+
 def test_original_object_tree_copy_preserves_bytes_and_existing_archive(tmp_path):
     source, destination = tmp_path/'originals', tmp_path/'archive'
     nested = source/'projects'/'1'/('a'*90)/('b'*90)
