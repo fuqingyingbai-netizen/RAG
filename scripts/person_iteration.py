@@ -36,25 +36,38 @@ class ChapterInvoker:
         self.model_context = model_context
         self.deadline = datetime.fromisoformat(deadline.replace('Z', '+00:00')) if deadline else None
         self.cache, self.events = {}, []
+        self.retry_invalid_chapters = set()
         if reuse:
             root = Path(reuse)
+            audit_path = root / 'audit.json'
+            if audit_path.exists():
+                previous_audit = json.loads(audit_path.read_text(encoding='utf-8'))
+                self.retry_invalid_chapters = {int(row['chapter']) for row in previous_audit.get('degradations', [])
+                    if row.get('chapter') and any(not str(reason).startswith('api_') for reason in row.get('reasons', []))}
             inputs = [json.loads(x) for x in (root / 'chapter-model-inputs.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
             answers = [json.loads(x) for x in (root / 'chapter-model-responses.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
             # Role alone is insufficient: a changed source, date or prompt
             # invalidates an old answer. Failed requests have no answer.
             for row in inputs:
+                # A completed HTTP/JSON response can still have produced an
+                # unresolved interpretation. Do not make that bad chapter
+                # permanent by replaying its same rejected repair forever.
+                if chapter_number(row['role'], row['prompt']) in self.retry_invalid_chapters:
+                    continue
                 if model_context is not None and row.get('model_context') != model_context:
                     continue
                 key = fingerprint(row['role'], row['prompt'])
                 response = next((a for a in reversed(answers) if a['role'] == row['role'] and
                                  (a.get('input_sha256') == key or
                                   not a.get('input_sha256') and sum(i['role'] == row['role'] for i in inputs) == 1)), None)
-                if response and (model_context is None or response.get('model_context') == model_context):
+                if response and str(response.get('response') or '').strip() and (model_context is None or response.get('model_context') == model_context):
                     self.cache[key] = response['response']
 
     def __call__(self, role, prompt, emit=None):
         key, chapter = fingerprint(role, prompt), chapter_number(role, prompt)
         event = {'role': role, 'chapter': chapter, 'input_sha256': key, 'model_context': self.model_context}
+        if chapter in self.retry_invalid_chapters:
+            event['retry_after_unresolved_validation'] = True
         self.events.append(event)
         if key in self.cache and (chapter not in self.rewrite or not self.force_rewrite):
             event['status'] = 'exact_input_reused'

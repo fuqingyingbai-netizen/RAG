@@ -70,6 +70,24 @@ def test_matching_service_context_can_reuse_successful_exact_input(tmp_path):
     assert writer('r','相同输入') == 'answer'
 
 
+def test_unresolved_interpretation_is_retried_without_discarding_successful_api_steps(tmp_path):
+    old, new = tmp_path/'old', tmp_path/'new'
+    old.mkdir(); new.mkdir()
+    writer = module.ChapterInvoker(lambda *a: 'old answer',old)
+    for chapter in [2,9,11]:
+        writer(str(chapter),f'人物背景调查第{chapter}章：相同输入')
+    (old/'audit.json').write_text(json.dumps({'degradations':[
+        {'chapter':9,'reasons':['api_failed:request_failed']},
+        {'chapter':11,'reasons':['analysis_repair_incomplete']}]}),encoding='utf-8')
+    calls = []
+    writer = module.ChapterInvoker(lambda *a: calls.append(a) or 'new answer',new,reuse=old,rewrite=[9,11],force_rewrite=False)
+    assert writer('2','人物背景调查第2章：相同输入') == 'old answer'
+    assert writer('9','人物背景调查第9章：相同输入') == 'old answer'
+    assert writer('11','人物背景调查第11章：相同输入') == 'new answer'
+    assert len(calls) == 1
+    assert writer.events[-1]['retry_after_unresolved_validation']
+
+
 def test_original_object_tree_copy_preserves_bytes_and_existing_archive(tmp_path):
     source, destination = tmp_path/'originals', tmp_path/'archive'
     nested = source/'projects'/'1'/('a'*90)/('b'*90)
@@ -85,3 +103,13 @@ def test_original_object_tree_copy_preserves_bytes_and_existing_archive(tmp_path
     actual = Path('\\\\?\\' + str(output.resolve())) if os.name == 'nt' else output
     assert actual.read_bytes() == b'{"original":true}'
     assert (destination/'older.txt').read_text(encoding='utf-8') == 'keep'
+
+
+def test_empty_provider_response_is_never_reused_as_a_complete_answer(tmp_path):
+    old, new = tmp_path/'old', tmp_path/'new'
+    old.mkdir(); new.mkdir()
+    module.ChapterInvoker(lambda *a: '',old)('review','identical input')
+    calls = []
+    writer = module.ChapterInvoker(lambda *a: calls.append(a) or '{"issues":[]}',new,reuse=old)
+    assert writer('review','identical input') == '{"issues":[]}'
+    assert len(calls) == 1

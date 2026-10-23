@@ -189,3 +189,171 @@ def test_biographical_debt_is_labelled_as_a_lead_not_a_judicial_record():
     row = {'evidence_id':'E-PA','fact':'林知远曾创业失败，后来为了偿还3000元债务经营小店。','subject_scope':'person'}
     result = assess([row],requirement)
     assert any('不构成已发现司法事项' in gap for gap in result['gaps'])
+
+
+def test_chairman_election_reaches_management_chapter_and_retains_term():
+    from person_evidence import build_packages
+    from report_agents.person_report_agent import PERSON_REPORT_OUTLINE
+    row = {'fact':'经审议，董事会同意选举林知远先生为公司第九届董事会董事长，任期三年。',
+           'source_url':'https://example.invalid/board','identity_match':'confirmed'}
+    contract = build_packages({'facts':[row]},'林知远',PERSON_REPORT_OUTLINE)
+    assert any(f['fact']==row['fact'] for f in contract['chapters'][5]['research_facts'])
+
+
+def test_role_term_in_another_part_of_same_announcement_is_not_denied():
+    short = {'fact':'同意聘任林知远为公司总裁，任期三年，同时担任董事长。',
+             'source_url':'https://example.invalid/board','subject':'林知远','subject_scope':'person'}
+    full = {'fact':'经审议，同意选举林知远先生为第九届董事会董事长，任期三年。',
+            'source_url':short['source_url'],'subject':'林知远','subject_scope':'person'}
+    assert 'available_same_document_role_tenure_denied' in source_context_errors('总裁任期三年，董事长任期未载明。',[short],[short,full])
+    assert not source_context_errors('本段摘录董事长任期未载明，须结合其他议案。',[short],[short,full])
+    assert not source_context_errors('董事长任期未载明。',[short],[{**full,'source_url':'https://example.invalid/other'}])
+
+
+def test_listed_abs_mandate_is_not_reported_as_missing_scope():
+    row = {'fact':'批准后授权林知远全权处理本次资产支持证券发行上市的全部事宜，包括规模、期限及发行时机。'}
+    assert 'available_authorization_scope_denied' in source_context_errors('原文未载明授权边界。',[row])
+    assert not source_context_errors('已列ABS发行事项，后续批准及实施情况未披露。',[row])
+
+
+def test_company_holding_outside_parentheses_is_separate_from_couple_interest():
+    row = {'fact':'林知远个人拥有公司44.01%的权益。林知远夫妇通过甲公司直接持股34.61%。陈雨安夫妇持股16.40%。NP United Holding Ltd.（林知远夫妇持有该公司67.85%权益）持股34.00%。',
+           'subject':'林知远','subject_scope':'person'}
+    row['observation'] = observation(row,'林知远')
+    assert [m['subject'] for m in row['observation']['metrics']] == ['林知远','林知远夫妇','陈雨安夫妇','林知远夫妇','NP United Holding Ltd.']
+    assert 'holding_metric_subject_misattributed' in source_context_errors('林知远个人持股34.00%。',[row])
+    assert 'holding_metric_subject_misattributed' in source_context_errors('林知远持股16.40%。',[row])
+    assert not source_context_errors('林知远个人拥有44.01%权益，NP United Holding Ltd.持股34.00%。',[row])
+
+
+def test_appended_ocr_uses_its_own_physical_page_not_last_native_page():
+    quote = '林知远先生获委任为本公司非执行董事，参与公司重要决策。'
+    source = SimpleNamespace(title='目录',url='https://example.invalid/a.pdf',
+        content='--- PDF page 245 ---\n财务报表附注。\n--- PDF page 37 local OCR transcription pending visual review ---\n'+quote,
+        source_metadata={'document_pages':[{'page':37,'ocr_text':quote},{'page':245,'text':'财务报表附注。'}]})
+    assert literal_document_context(source,quote)['source_physical_pages'] == [37]
+    source.source_metadata = {}
+    assert literal_document_context(source,quote)['source_physical_pages'] == [37]
+
+
+def test_cofounder_coordination_does_not_duplicate_the_target():
+    row = {'fact':'1994年3月，林知远夫妇和陈雨安何明月夫妇四人共同创办公司。',
+           'subject':'林知远','subject_scope':'person'}
+    assert 'target_coordination_self_repeated' in source_context_errors('其1994年3月与林知远夫妇、陈雨安何明月夫妇创办公司。',[row])
+    assert 'target_coordination_self_repeated' in source_context_errors('林知远与林知远夫妇创办公司。',[row])
+    assert not source_context_errors('1994年3月，林知远夫妇与陈雨安何明月夫妇四人创办公司。',[row])
+    assert not source_context_errors('其与陈雨安夫妇共同创办公司。',[row])
+    assert not source_context_errors('其配偶与林知远共同创办公司。',[row])
+    assert not source_context_errors('陈雨安说其与林知远共同创办公司。',[row])
+
+
+def test_mixed_ownership_paragraph_is_not_labelled_wholly_as_a_couple_stake():
+    from person_evidence import build_packages, render_section
+    from report_agents.person_report_agent import PERSON_REPORT_OUTLINE
+    row = {'fact':'林知远个人拥有公司44.01%的权益。林知远夫妇直接持股34.61%。陈雨安夫妇持股16.40%。',
+           'source_url':'https://example.invalid/stakes','identity_match':'confirmed'}
+    package = build_packages({'facts':[row]},'林知远',PERSON_REPORT_OUTLINE)['chapters'][9]
+    text = render_section(package)
+    assert '权益归属：本段涉及多个持有主体' in text
+    assert '权益披露主体：林知远夫妇' not in text
+    assert row['fact'] in text
+
+
+def test_existing_commission_questions_are_sent_and_not_denied(monkeypatch):
+    import json
+    from person_evidence import build_packages, validate_model_claims, generate_person_report
+    from report_agents.person_report_agent import PERSON_REPORT_OUTLINE
+    row = {'fact':'林知远曾任远山科技有限公司董事，负责公司战略。',
+           'source_url':'https://example.invalid/career','identity_match':'confirmed'}
+    intake = {'target_name':'林知远','special_requirements':'核查历史任职变化'}
+    package = build_packages({'facts':[row]},'林知远',PERSON_REPORT_OUTLINE,intake)['chapters'][10]
+    package['writing_contract'] = 'evidence_selection_v2'
+    eid = package['research_facts'][0]['evidence_id']
+    claims,reasons = validate_model_claims(json.dumps({'claims':[{'evidence_ids':[eid],'analysis':'本章未列明具体专项问题，专项范围待确认。'}]},ensure_ascii=False),package)
+    assert 'commission_scope_denied' in reasons
+    assert not any(c['analysis'] for c in claims)
+    project = SimpleNamespace(title='委托范围回归',target_name='林知远',person_research_intake=intake,sources=[])
+    received = []
+    def invoke(role,prompt,emit):
+        if '人物背景调查第10章：' in prompt:
+            received.append(json.loads(prompt.splitlines()[-1]))
+        return '{"claims":[]}'
+    generate_person_report(project,json.dumps({'facts':[row]},ensure_ascii=False),'{}',PERSON_REPORT_OUTLINE,invoke,lambda *a,**k:None)
+    assert received
+    assert all(any('核查历史任职变化' in q['questions'] for q in r['commission_questions']) for r in received)
+
+
+def test_different_board_terms_are_not_claimed_as_one_source():
+    rows = [
+        {'fact':'董事会同意提请股东大会授权林知远办理ABS发行事项。','source_title':'第六届董事会会议决议', 'source_url':'https://example.invalid/six'},
+        {'fact':'第九届董事会同意选举林知远为董事长。','source_url':'https://example.invalid/nine'}]
+    assert 'different_board_documents_as_same_source' in source_context_errors('董事会提请授权，同一来源称其当选董事长。',rows)
+    assert not source_context_errors('第六届董事会提请授权，另一公告载第九届董事会选举其为董事长。',rows)
+    assert not source_context_errors('董事会提请授权，同一来源称其当选董事长。',[{**r,'source_url':'https://example.invalid/one'} for r in rows])
+    assert not source_context_errors('同一来源称其当选董事长。',[rows[1],{**rows[1],'source_url':'https://example.invalid/reprint'}])
+
+
+def test_traditional_biography_reaches_commission_without_rewriting_quote():
+    from person_commission import requirements, matches
+    from person_evidence import build_packages
+    from report_agents.person_report_agent import PERSON_REPORT_OUTLINE
+    quote = '林知遠先生，於2016年獲委任為本公司非執行董事，並於2011年完成長江商學院工商管理課程。'
+    row = {'fact':quote,'source_url':'https://example.invalid/traditional','identity_match':'confirmed'}
+    intake = {'target_name':'林知远','focus_questions':['核对教育及职业履历']}
+    qs = requirements(intake)
+    assert all(matches(row,q) for q in qs)
+    package = build_packages({'facts':[row]},'林知远',PERSON_REPORT_OUTLINE,intake)['chapters'][10]
+    assert any(f['fact']==quote for f in package['research_facts'])
+    other = {**row,'fact':quote.replace('林知遠','陳雨安')}
+    assert not any(matches(other,q) for q in qs)
+
+
+def test_completed_course_record_is_not_denied_or_promoted_to_a_degree():
+    support = {'fact':'林知远1988年技校毕业。','subject_scope':'person','subject':'林知远'}
+    program = {'fact':'林知远于2011年完成长江商学院工商管理课程。','subject_scope':'person','subject':'林知远'}
+    assert 'available_education_program_denied' in source_context_errors('来源载技校毕业，未载其他学历资格。',[support],[support,program])
+    assert not source_context_errors('另有商学院课程完成记录，尚未提供学位证明。',[support,program],[support,program])
+    assert not source_context_errors('未载其他学历资格。',[support],[support])
+
+
+def test_host_exchange_does_not_prove_prospectus_share_class():
+    row = {'fact':'林知远承诺自公司股票上市之日起三十六个月内不转让所持股份。',
+           'source_title':'公司招股意向书','source_url':'https://www.hkexnews.hk/prospectus.pdf'}
+    assert 'unsupported_share_class_document_label' in source_context_errors('H股招股文件载其作出锁定承诺。',[row])
+    assert 'unsupported_share_class_document_label' in source_context_errors('A股招股说明书载其作出锁定承诺。',[row])
+    assert not source_context_errors('招股文件载其作出锁定承诺。',[row])
+    assert not source_context_errors('H股招股说明书载其作出锁定承诺。',[{**row,'source_title':'首次公开发行H股股票招股说明书'}])
+    assert not source_context_errors('来源载其持有H股。',[row])
+
+
+def test_multi_person_roster_dates_are_not_rendered_as_the_target_education():
+    from person_evidence import build_packages, render_section
+    from report_agents.person_report_agent import PERSON_REPORT_OUTLINE
+    from person_records import mixed_biographical_context
+    quote = '高级管理人员：林知远先生任本公司总裁。陈雨安女士1992年毕业，1996年加入公司。何明月先生1998年毕业，1999年加入公司。周青女士2005年毕业，2006年加入公司。'
+    row = {'fact':quote,'source_url':'https://example.invalid/roster','identity_match':'confirmed'}
+    package = build_packages({'facts':[row]},'林知远',PERSON_REPORT_OUTLINE)['chapters'][5]
+    assert package['research_facts'] and mixed_biographical_context(package['research_facts'][0])
+    text = render_section(package)
+    assert '未逐人对齐，不作为目标个人教育或任期日期' in text
+    assert quote in text
+    assert '原文事件时间：教育事件原文日期：1992年' not in text
+
+
+def test_multi_person_roster_requires_a_target_specific_date_support():
+    mixed = {'fact':'林知远先生任总裁。陈雨安女士1992年毕业，1996年加入。何明月先生1998年毕业，1999年加入。周青女士2005年毕业，2006年加入。', 'subject':'林知远','subject_scope':'person'}
+    assert 'mixed_roster_date_as_target' in source_context_errors('林知远1992年毕业。',[mixed])
+    assert not source_context_errors('年报列示多名高管1996年后加入公司。',[mixed])
+    assert not source_context_errors('林知远1987年毕业。',[mixed,{'fact':'林知远于1987年毕业。','subject':'林知远','subject_scope':'person'}])
+
+
+def test_editor_and_media_promotion_do_not_supply_dimension_evidence():
+    from person_chapter_selection import dimension_coverage
+    rows = [{'evidence_id':'E-PBIO','fact':'（编辑：李青 供稿：现代管理与技术创新基地） 林知远董事长简介，1988年毕业后进入工厂。','subject':'林知远'},
+            {'evidence_id':'E-PMEDIA','fact':'证券时报网由人民日报社主管主办，是中国资本市场的重要信息披露媒体。提供7*24小时财经资讯，为用户提供全方位、最新鲜的财经信息。林知远谈内部管理。','subject':'林知远'},
+            {'evidence_id':'E-PFUND','fact':'林知远负责融资，筹集公司研发资金。','subject':'林知远'}]
+    result = {r['view']:r for r in dimension_coverage(4,rows)}
+    assert 'E-PBIO' not in result['创新迭代与阶段匹配']['evidence_ids']
+    assert 'E-PMEDIA' not in result['资本资源与个人职责']['evidence_ids']
+    assert 'E-PFUND' in result['资本资源与个人职责']['evidence_ids']
+    assert len(rows)==3 and '技术创新' in rows[0]['fact']

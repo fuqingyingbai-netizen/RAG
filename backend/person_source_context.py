@@ -21,7 +21,8 @@ def document_issuer(source):
 @lru_cache(maxsize=48)
 def _document(text, title):
     flat = re.sub(r'\s+', '', text)
-    markers = [(m.start(), int(m[1])) for m in re.finditer(r'---PDFpage(\d+)---', flat)]
+    markers = [(m.start(), int(m[1])) for m in re.finditer(
+        r'---PDFpage(\d+)(?:localOCRtranscriptionpendingvisualreview)?---', flat)]
     header = title + '\n' + text[:4000]
     period = re.search(r'(?:19|20)\d{2}\s*年?\s*(?:年度报告|年度報告|年报|年報|annual\s*report)', header, re.I)
     return flat, markers, period[0] if period else ''
@@ -53,5 +54,16 @@ def literal_document_context(source, quote):
         if preceding:
             pages.append(preceding[-1])
         pages.extend(p for start,p in markers if offset < start < offset+len(needle))
+    # Appended OCR blocks can follow the last native-text page in the body.
+    # Prefer the original per-page material so they do not inherit that last
+    # native page's number merely because of their append position.
+    page_matches = []
+    if needle:
+        for page in metadata.get('document_pages') or []:
+            if isinstance(page.get('page'), int) and any(needle in re.sub(r'\s+','',str(page.get(field) or ''))
+                    for field in ['ocr_text','text'] if page.get(field)):
+                page_matches.append(page['page'])
+    if page_matches:
+        pages = page_matches
     return {'source_physical_pages': sorted(set(pages)), 'source_reporting_period_literal': period,
             'source_document_issuer': document_issuer(source), 'source_document_kind': document_kind}

@@ -9,7 +9,7 @@ import re
 TOPICS = (
     ('ownership', '持股及权益', ('持股', '股权', '股东', '持有股份', '股份变动', '增持', '减持', 'shareholding', 'shareholder', 'ownership'), '持股 变动 公告', (9,)),
     ('career', '任职及职责', ('任职', '履历', '职务', '职位', '董事', '总经理', '角色', '高管', 'career', 'appointed', 'position', 'director'), '任职 历史 职务 公告', (2, 6, 9)),
-    ('education', '教育与资格', ('教育', '学历', '毕业', '学校', '学位', '大学', 'education', 'degree', 'university'), '教育 毕业 官方 简介', (2,)),
+    ('education', '教育与资格', ('教育', '学历', '毕业', '学校', '学位', '大学', 'education', 'degree', 'university', '课程', '商学院', 'course', 'mba'), '教育 毕业 官方 简介', (2,)),
     ('relations', '关联关系', ('关联', '代持', '实控', '实际控制', '控制权', '表决权', 'related party', 'control'), '关联 关系 交易 披露', (9,)),
     ('legal', '司法及契约事项', ('司法', '诉讼', '裁判', '案号', '被执行', '执行案号', '执行法院', '强制执行', '处罚', '冻结', '欠薪', '债务', '违约', '契约', '履约', '承诺', '偿还', 'litigation', 'lawsuit', 'penalty', 'debt', 'contract'), '案件 当事人 案号 裁判 履约 承诺 原文', (7, 9, 12)),
     ('ipr', '知识产权', ('知识产权', '专利', '商标', '著作权', 'patent', 'intellectual property'), '知识产权 申请人 原始记录', (9,)),
@@ -20,7 +20,11 @@ TOPICS = (
 
 
 def compact(text):
-    return re.sub(r'\s+', '', str(text or '')).lower()
+    try:
+        from .person_text import folded
+    except ImportError:
+        from person_text import folded
+    return folded(text)
 
 
 def requirements(intake):
@@ -67,7 +71,7 @@ def requirements(intake):
 
 def matches(value, requirement):
     row = value if isinstance(value, dict) else {}
-    text = str(row.get('fact', '') if row else value)
+    text = compact(row.get('fact', '') if row else value)
     target = compact(requirement.get('target_name'))
     # A team row about another member must not enter the target's commission,
     # even when its biography mentions working with the target.
@@ -84,7 +88,7 @@ def matches(value, requirement):
     context = row.get('person_affiliation') or {}
     for key in ('affiliation_name', 'canonical_company_name'):
         if context.get(key):
-            text = text.replace(str(context[key]), '')
+            text = text.replace(compact(context[key]), '')
     if requirement['topic'] == 'legal':
         try:
             from .person_text import folded

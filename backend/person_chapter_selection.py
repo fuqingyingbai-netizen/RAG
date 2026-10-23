@@ -26,8 +26,8 @@ SPECS = {
         ('执行与项目结果', r'交付|投产|量产|项目|产品|发布|研发|execution|product'),
         ('资本资源与个人职责', r'融资|筹资|资本|资产支持证券|financing|capital'),
         ('创新迭代与阶段匹配', r'研发|技术|专利|迭代|创新|innovation|technology')],
-    5: [('权责与授权', r'授权|签字权|提名|聘任|任免|分工|委派|批准|delegat|appoint'),
-        ('用人与关键岗位', r'人事|提名|聘任|任免|离任|离职|接班|选聘|继任|recruit|succession'),
+    5: [('权责与授权', r'授权|签字权|提名|聘任|选举|任免|分工|委派|批准|delegat|appoint'),
+        ('用人与关键岗位', r'人事|提名|聘任|选举|任免|离任|离职|辞任|卸任|出任|接班|选聘|继任|recruit|succession'),
         ('文化与冲突处理', r'文化|冲突|裁员|激励|薪酬|员工|争议|culture|conflict'),
         ('经营管控与稳定性', r'管控|内控|管理|授权|审批|审议|董事会|control|management')],
     6: [('成员履历与职责', r'任职|任期|担任|历任|董事|高管|总裁|履历|团队|executive|director|team'),
@@ -373,10 +373,23 @@ def retained_management_events(sources, intake):
     return rows
 
 
+def coverage_statement(fact):
+    """Ignore editor credits and media promotion only for dimension matching.
+
+    The original card and complete research pool remain intact.
+    """
+    text = re.sub(r'[（(](?:编辑|责编|供稿)[^）)]*[）)]', '', fact.get('fact') or '')
+    name = folded(fact.get('subject') or '')
+    parts = re.split(r'(?<=[。；;])', text)
+    return ''.join(part for part in parts if not (
+        re.search(r'主管主办|信息披露媒体|24小时财经|全方位.{0,12}财经信息',part)
+        and (not name or name not in folded(part))))
+
+
 def dimension_coverage(chapter, facts, queries=()):
     rows = []
     for view, _ in SPECS.get(chapter, []):
-        matches = sorted([f for f in facts if material_matches(f, chapter, view)],
+        matches = sorted([f for f in facts if material_matches({**f,'fact':coverage_statement(f)}, chapter, view)],
                          key=lambda fact: question_priority(fact, chapter, view), reverse=True)
         state = 'partial' if matches else 'missing'
         if chapter == 2 and view == '家庭健康等公开信息边界':

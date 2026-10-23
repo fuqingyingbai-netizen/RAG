@@ -160,6 +160,15 @@ def observation(fact, target, aliases=()):
             local = before[boundary:]
             local_group = re.search(r'([\u4e00-\u9fff]{2,4}(?:夫妇|夫妻))', local)
             local_owner = local_group[1] if local_group else ''
+            if not local_owner:
+                # An entity outside parentheses can own the next percentage,
+                # while the parentheses describe the couple's stake in that
+                # entity. Do not assign both percentages to the person.
+                outside = re.sub(r'[（(][^（）()]*[）)]', '', text[:match.start()])
+                clause = re.split(r'[。；;]', outside)[-1]
+                company = re.search(r'([A-Za-z][A-Za-z0-9&.\s-]{1,70}(?:Ltd\.?|Limited|Inc\.?|LLC))\s*(?:直接|间接)?持股\s*$',clause,re.I)
+                if company:
+                    local_owner = re.sub(r'\s+',' ',company[1]).strip()
             metrics.append({'metric': metric, 'value': match[1].replace(',', '').replace('，', ''), 'unit': unit,
                             'source_literal': match[0], 'period': period, 'subject': local_owner or named_person or (target if scope == 'person' else issuer), 'issuer': issuer})
     relations = []
@@ -375,3 +384,10 @@ def definition_errors(analysis, supports):
         if not re.search(r'不能|不等于|不代表|不是|无法|不应', prefix + segment):
             errors.append('company_founding_date_used_as_role_date')
     return list(dict.fromkeys(errors))
+
+
+def mixed_biographical_context(fact):
+    """Dates in a multi-person roster need individual attribution."""
+    text = folded(fact.get('fact') or '')
+    people = set(re.findall(r'([\u4e00-\u9fff]{2,4})(?:先生|女士)', text))
+    return len(people) >= 3 and len(re.findall(r'毕业|加入|获[^。；;]{0,16}学位',text)) >= 3

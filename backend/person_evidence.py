@@ -22,14 +22,14 @@ except ImportError:
     from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
     from person_chapter_selection import select_material, dimension_coverage, team_source_facts, prospective_company_risk
 
-VERSION = "person-template-v27-explicit-document-year"
+VERSION = "person-template-v32-attributed-date-and-view-context"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
     2: ("身份", "出生", "教育", "学校", "学历", "毕业", "履历", "任职", "职业", "创办", "创始", "委任", "聘任", "出任", "卸任", "辞任", "升任", "接任", "家庭", "健康", "婚姻", "社会关系", "biography", "education", "career"),
     3: ("人格", "责任", "诚信", "事业心", "表达", "风险偏好", "压力", "利益取舍", "行为", "采访", "公开表达", "价值观", "leadership"),
     4: ("经营", "战略", "执行", "创新", "迭代", "融资", "资本", "业绩", "营收", "产品", "技术", "资源", "转型", "growth"),
-    5: ("识人", "用人", "管理", "管控", "授权", "文化", "组织", "冲突", "团队", "激励", "离职", "接班"),
+    5: ("识人", "用人", "管理", "管控", "授权", "文化", "组织", "冲突", "团队", "激励", "离职", "接班", "选举", "任免", "聘任", "提名", "辞任", "卸任", "出任"),
     6: ("核心管理", "团队", "高管", "董事", "履历", "产业资源", "派系", "人事", "CEO", "CFO", "CTO", "COO"),
     7: ("操守", "信用", "口碑", "诚信", "契约", "履约", "履行", "承诺", "签署", "员工评价", "合作伙伴", "客户评价", "访谈", "司法", "处罚"),
     8: ("同业", "对标", "竞争", "比较", "竞品", "能力短板", "可比", "同行", "benchmark"),
@@ -600,6 +600,10 @@ def validate_model_claims(answer, package):
         if analysis and process_text(analysis):
             rejected.append('process_control_in_analysis')
             analysis = ''
+        if (analysis and package.get('chapter') == 10 and package.get('commission_coverage')
+                and re.search(r'未(?:列明|指定|提供|明确|给出)(?:具体)?专项(?:问题|范围|方向)|专项范围待确认', analysis)):
+            rejected.append('commission_scope_denied')
+            analysis = ''
         forbidden = r"无(?:任何|历史)?(?:诉讼|处罚|失信)|不存在.*风险|诚信优秀|人格.*(?:优秀|恶劣)|确诊|确认.*(?:代持|贪腐)|已完成.*访谈|评分\s*[A-D][+-]?"
         allowed = " ".join(f["fact"] for f in supports)
         numeric_analysis = analysis
@@ -733,13 +737,21 @@ def render_section(package, claims=()):
             literals = list(dict.fromkeys(re.findall(r'(?:19|20)\d{2}年(?:\d{1,2}月(?:\d{1,2}日)?)?|(?<!\d)\d{1,2}月\d{1,2}日', f['fact'])))
             if literals:
                 period = '原文日期词：' + '、'.join(literals[:6]) + '（日期归属及适用事项待核实）'
+        from person_records import mixed_biographical_context
+        if mixed_biographical_context(f):
+            period = '原段含多名人员毕业和加入日期，未逐人对齐，不作为目标个人教育或任期日期'
+            boundary += ' 本段为多名人员履历，其他成员的毕业、加入及任期日期不归给目标本人。'
         lines += [f"**来源记录 {number}　{cell(f['subject'])} [{f['evidence_id']}]**", '']
         lines.extend('> ' + paragraph for paragraph in f['fact'].splitlines())
         lines += ['', f"来源归属：{cell(f['subject'])}；原文事件时间：{cell(period)}。"]
         if f.get('source_reporting_period_literal'):
             lines.append('资料所属报告期：' + cell(f['source_reporting_period_literal']) + '（不代替个人任期或事件日期）。')
         if record.get('ownership_subject'):
-            lines.append('权益披露主体：' + cell(record['ownership_subject']) + '；不等同目标人物单独持有。')
+            holders = {m.get('subject') for m in record.get('metrics', []) if m.get('metric') == 'holding_ratio' and m.get('subject')}
+            if len(holders) > 1:
+                lines.append('权益归属：本段涉及多个持有主体，各比例对应主体及持股层级分别见原句，不能整体归为夫妇或个人持股。')
+            else:
+                lines.append('权益披露主体：' + cell(record['ownership_subject']) + '；不等同目标人物单独持有。')
         if boundary != '来源陈述，尚未经人工独立核验；观点不等于事实。':
             lines.append('使用边界：' + cell(boundary))
         lines.append('')
@@ -1110,6 +1122,10 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                                         'role_dates': f['observation'].get('role_date_fields', []),
                                         'source_events': f['observation'].get('source_events', [])}
                                        for f in research_candidates]}
+            if chapter == 10 and package.get('commission_coverage'):
+                writing_input['commission_questions'] = [
+                    {'topic': row['question'], 'questions': row['questions']}
+                    for row in package['commission_coverage']]
             prompt_prefix = (
                 f"人物背景调查第{chapter}章：{package['title']}。研究对象：{project.target_name}。\n"
                 '仅返回JSON，不输出Markdown：{"claims":[{"evidence_ids":["输入中存在的证据编号"],'

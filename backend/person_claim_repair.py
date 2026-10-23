@@ -4,6 +4,15 @@ import re
 
 
 LABELS = {
+    'mixed_roster_date_as_target': '所引原段是多人履历名册，不能把其他人员毕业或加入日期赋给目标；如需给出目标个人日期，须引用其本人明确简介，否则保留归属待核',
+    'unsupported_share_class_document_label': '所引摘录或文件标题没有明确所称A股/H股招股文件类别，不能根据港交所域名、股票代码或文中另有H股数量推定；去掉无支持的发行类别，保留招股文件、招股说明书或上市公告书等已有中性名称，不猜另一类别',
+    'available_education_program_denied': '完整研究材料已有课程完成或培训记录，不能笼统称没有其他教育资料；可说明课程完成记录及其来源，课程完成不等于取得学位或学历资格证明',
+    'different_board_documents_as_same_source': '所引文件分别涉及不同届次董事会，不能笼统称同一来源或同一公告；按原文件分开说明各项决议与时期，历史ABS授权不与后届任职议案混成同一份决议',
+    'commission_scope_denied': '委托专项问题已经在material.commission_questions列明，应按所列持股、任职等具体问题组织原文；不能称未指定专项范围，也不能把范围本身当作来源事实',
+    'target_coordination_self_repeated': '共同创办的参与主体被重复改写：目标人物不能再与目标本人或本人夫妇并列为额外参与方；按原文保留两对夫妇或具体合伙人，不能改写参与人集合',
+    'holding_metric_subject_misattributed': '该比例的持有人是另一主体或持股实体，不是目标个人；分别保留个人、夫妇及持股实体的比例和关系，不能把实体持股直接归个人或自行乘算',
+    'available_same_document_role_tenure_denied': '同一公告的完整研究材料已写明该人物该职务的任期，应综合前后议案，不因所选片段只含总裁或委员会任期就称董事长任期未披露',
+    'available_authorization_scope_denied': '原文已列授权处理ABS发行上市及发行方案、条款等事项，不能笼统称授权范围未载明；区分已列事项与尚缺的后续批准、执行结果或具体限制',
     'annual_report_year_not_supported': '年报年份以source_reporting_period_literal所列封面或页眉年度为准，不能把任命年份写成年报年度；年龄不能据此换算成出生年份矛盾',
     'document_issuer_missing_for_relative_role': '原文中本公司指文件封面发行公司，不是人物的主要任职公司；引用本公司非执行董事任命时写明source_document_issuer所列公司，不能笼统写成海底捞或另一机构的任职',
     'holding_period_not_in_metric_context': '持股比例括号中的年份、年后、近期或最新没有在同一持股原句中出现，不能拿卸任年份或无日期文章中的目前补齐，删除新增时点并明确基准日未明',

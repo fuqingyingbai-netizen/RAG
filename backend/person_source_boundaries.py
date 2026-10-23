@@ -16,6 +16,78 @@ def source_context_errors(analysis, supports, context_facts=()):
     original = folded(' '.join(str(f.get('fact') or '') for f in supports))
     errors = []
     from person_text import numeric_literals
+    for fact in supports:
+        name = folded(fact.get('subject') or (fact.get('observation') or {}).get('subject') or '')
+        if not name or fact.get('subject_scope') != 'person':
+            continue
+        # The target cannot also be their own additional co-founder. Keep
+        # spouse/partner coordination explicit rather than changing the
+        # membership of a group when replacing the name with a pronoun.
+        date = r'(?:(?:于)?(?:19|20)\d{2}年(?:\d{1,2}月)?(?:\d{1,2}日)?)?'
+        if re.search(r'(?:^|[。；;])(?:其|他|她|'+re.escape(name)+r')'+date+r'(?:与|和|同)'+re.escape(name)+r'(?:夫妇|夫妻)?[^。；;]{0,35}(?:共同)?创办',text):
+            errors.append('target_coordination_self_repeated')
+        for metric in (fact.get('observation') or {}).get('metrics', []):
+            holder = folded(metric.get('subject') or '')
+            if (metric.get('metric') != 'holding_ratio' or not holder or holder == name
+                    or re.search(re.escape(name)+r'.{0,8}(?:夫妇|夫妻|及其配偶)',holder)):
+                continue
+            ratio = folded(metric.get('source_literal') or '')
+            for clause in re.split(r'[。；;，,]', text):
+                if (ratio and re.search(r'(?<![\d.])'+re.escape(ratio),clause)
+                        and re.search(r'(?:'+re.escape(name)+r'|其|他|她)(?:个人|直接)?(?:持股|持有|拥有)',clause)
+                        and holder not in clause and not re.search(r'不能|不代表|未说明|不等同|是否',clause)):
+                    errors.append('holding_metric_subject_misattributed')
+    if (re.search(r'未(?:载|披露|提供)(?:明)?其他(?:学历资格|教育经历|学习经历)|没有其他教育经历', text)
+            and not re.search(r'课程|培训|学位证明|资格证明', text)):
+        for fact in [*supports, *context_facts]:
+            material = folded(fact.get('fact') or '')
+            if (fact.get('subject_scope') == 'person' and re.search(r'商学院|学院|university|school', material)
+                    and re.search(r'完成[^。；;]{0,200}(?:课程|program)|completed[^。；;]{0,200}program', material)):
+                errors.append('available_education_program_denied')
+                break
+    from person_records import mixed_biographical_context
+    if any(mixed_biographical_context(f) for f in supports):
+        for fact in supports:
+            name = folded(fact.get('subject') or '')
+            if not name:
+                continue
+            for claim_date in re.finditer(r'(?:'+re.escape(name)+r'|其)(?:于|在)?((?:19|20)\d{2}年(?:\d{1,2}月)?)[^。；;]{0,10}(?:毕业|加入|获[^。；;]{0,8}学位)', numeric_literals(text)):
+                if not any(not mixed_biographical_context(other) and claim_date[1] in numeric_literals(folded(other.get('fact') or ''))
+                           and folded(other.get('subject') or '') == name for other in supports):
+                    errors.append('mixed_roster_date_as_target')
+    denied_tenure = re.search(r'(董事长|总裁|总经理)(?:的)?任期(?:未(?:载明|说明|披露|提供)|不详|未知)',text)
+    if denied_tenure and not re.search(r'所引片段|本段|本条摘录',text):
+        source_urls = {f.get('source_url') for f in supports if f.get('source_url')}
+        names = {folded(f.get('subject') or (f.get('observation') or {}).get('subject') or '') for f in supports} - {''}
+        for fact in context_facts:
+            if fact.get('source_url') not in source_urls or fact.get('subject_scope') != 'person':
+                continue
+            material = folded(fact.get('fact') or '')
+            if any(re.search(r'(?:选举|聘任)[^。；;]{0,15}'+re.escape(name)+r'[^。；;]{0,25}'+denied_tenure[1]+r'[，,]?任期(?:为)?[一二三四五六七八九十\d]+年',material) for name in names):
+                errors.append('available_same_document_role_tenure_denied')
+                break
+    if (re.search(r'未(?:载明|说明|披露|提供)(?:具体)?授权(?:范围|事项|边界)(?!之外|以外)',text)
+            and re.search(r'全权(?:处理|办理)[^。；;]{0,40}(?:资产支持证券|abs)[^。；;]{0,20}(?:全部事宜|相关事宜)',original)):
+        errors.append('available_authorization_scope_denied')
+    if re.search(r'同一(?:来源|公告|文件)(?:称|载|记载|表明|显示)', text):
+        board_terms = {}
+        for fact in supports:
+            if fact.get('source_url'):
+                board_terms.setdefault(fact['source_url'], set()).update(re.findall(
+                    r'第[一二三四五六七八九十0-9]{1,3}届董事会',
+                    folded((fact.get('source_title') or '')+' '+fact.get('fact',''))))
+        terms = {next(iter(value)) for value in board_terms.values() if len(value) == 1}
+        if len(terms) > 1 and not re.search(r'另一(?:来源|公告|文件)|另有(?:来源|公告|文件)|分别来自', text):
+            errors.append('different_board_documents_as_same_source')
+    # A hosting exchange's domain does not identify the share class of an
+    # attached prospectus. Require the claimed class in the cited text/title;
+    # otherwise retain the neutral document label rather than guessing it.
+    document_support = folded(' '.join((f.get('source_title') or '')+' '+f.get('fact','') for f in supports))
+    for label in re.finditer(r'[ah]股(?:股票)?(?:招股(?:说明书|意向书|书|文件)?|发行文件)', text):
+        share_class = label[0][:2]
+        if not re.search(re.escape(share_class)+r'(?:股票)?(?:招股|发行文件)', document_support):
+            errors.append('unsupported_share_class_document_label')
+            break
     report_years = {m[0] for f in supports for m in re.finditer(r'(?:19|20)\d{2}', f.get('source_reporting_period_literal') or '')}
     for period in re.finditer(r'((?:19|20)\d{2})年?(?:年报|年度报告)', text):
         if report_years and period[1] not in report_years and period[0] not in original:
