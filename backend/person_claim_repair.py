@@ -4,6 +4,7 @@ import re
 
 
 LABELS = {
+    'annual_report_year_not_supported': '年报年份以source_reporting_period_literal所列封面或页眉年度为准，不能把任命年份写成年报年度；年龄不能据此换算成出生年份矛盾',
     'document_issuer_missing_for_relative_role': '原文中本公司指文件封面发行公司，不是人物的主要任职公司；引用本公司非执行董事任命时写明source_document_issuer所列公司，不能笼统写成海底捞或另一机构的任职',
     'holding_period_not_in_metric_context': '持股比例括号中的年份、年后、近期或最新没有在同一持股原句中出现，不能拿卸任年份或无日期文章中的目前补齐，删除新增时点并明确基准日未明',
     'formal_authority_inferred_from_role': '董事长、总裁或委员会主席职务本身不能证明直接主导权、最终决策权或单独控制权；保留明确职务及来源职责，不补正式授权',
@@ -94,6 +95,13 @@ def repair_once(answer, package, writing_input, claims, reasons, invoke, emit, v
     if not bad:
         return claims, reasons, {'status': 'not_repairable', 'initial_rejections': reasons}
     allowed_ids = {eid for b in bad for eid in b['evidence_ids']}
+    research = package.get('research_facts', package['facts'])
+    source_urls = {f['source_url'] for f in research if f['evidence_id'] in allowed_ids}
+    # Selecting the wrong short excerpt need not erase a real event already
+    # present in a longer admitted card from the same original. Correction
+    # may choose that card; all scope, numeric and semantic checks still run.
+    allowed_ids.update(f['evidence_id'] for f in research
+        if f.get('analysis_allowed') and f['source_url'] in source_urls)
     if {'broader_material_contains_claimed_missing_fact','broader_material_contains_role_dates'} & set(reasons):
         # Correction needs the contrary material, not just the narrower
         # subset that caused the unsupported absence claim.
@@ -109,7 +117,7 @@ def repair_once(answer, package, writing_input, claims, reasons, invoke, emit, v
               '数字和日期只能逐字对应原文，不换算、不拼接；原文有月日则保留月日，缺年份仅说明年份未明。'
               '已经列出姓名时，不再附加原文未写的人数；保留来源名单即可。'
               '直接提交可放入报告正文的替代分析，不输出对旧句的纠错评语；旧句中原文没有的实体也不要再写进替代句。'
-              '可以删去未实际用于支撑替代分析的引用，只保留需要的编号；不得添加材料外的编号。'
+              '可以删去未实际用于支撑替代分析的引用，只保留需要的编号；同一原文已有更完整摘录时可改用对应编号，不因初选片段太短丢弃已提供的事实，不得添加材料外的编号。'
               '不要把证据编号写进analysis；不作横向排名。无法形成可靠解释则留空，不强行给判断。\n'
               'accepted_analyses已保留，不要在修订句中重复同一事项；只有不同的实质信息才另写。'
               + json.dumps({'material': data, 'corrections': bad, 'accepted_analyses':good,'response_schema': skeleton}, ensure_ascii=False))

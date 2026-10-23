@@ -15,8 +15,8 @@ except ImportError:
 
 SPECS = {
     2: [('教育与早年经历', r'毕业|学历|学位|大学|就读|学士|硕士|博士|education|university|degree'),
-        ('职业时间线与职责', r'任职|任期|担任|创办|创立|历任|聘任|appointed|career|joined'),
-        ('履历断点与矛盾', r'任职|任期|担任|创办|创立|历任|聘任|appointed|career|joined'),
+        ('职业时间线与职责', r'任职|任期|担任|创办|创立|历任|聘任|获委任|出任|升任|接任|辞任|卸任|appointed|career|joined'),
+        ('履历断点与矛盾', r'任职|任期|担任|创办|创立|历任|聘任|获委任|出任|升任|接任|辞任|卸任|appointed|career|joined'),
         ('家庭健康等公开信息边界', r'(?!)')],
     3: [('责任心与事业心', r'负责|(?<!有限)责任(?!公司)|创业|辞职|放弃|承担|responsib'),
         ('诚信与利益取舍', r'诚信|利益|承诺|违约|契约|integrity|contract'),
@@ -41,7 +41,7 @@ SPECS = {
     11: [('人物实际决策角色', r'授权|签字权|决策|控股|控制人|表决权|董事长|delegat|control'),
          ('投资方沟通与重大事项', r'投资方|重大事项|股东大会|资产支持证券|审议|批准|审批|investor|approval'),
          ('关键岗位与制度承接', r'聘任|任免|继任|接班|董事会秘书|总裁|总经理|succession|appoint'),
-         ('退出路径及适用条件', r'锁定|不转让|限售|回购|退出|上市|exit|buyback|lock.up')],
+         ('退出路径及适用条件', r'锁定|不转让|限售|回购|退出|exit|buyback|lock.up')],
     12: [('已发现的直接信号', r'风险|诉讼|处罚|失信|被执行|争议|risk|lawsuit|penalty'),
          ('关联主体间接信号', r'风险|诉讼|处罚|失信|被执行|争议|risk|lawsuit|penalty'),
          ('尚未核验及未查询事项', r'(?!)'), ('风险核查覆盖清单', r'(?!)')],
@@ -134,9 +134,12 @@ def useful_for_chapter(fact, chapter):
         return False
     # Date/title feeds are discovery leads, not the body of any one article.
     structured = fact.get('claim_type') in {'person_platform_record','person_company_record'}
-    if not structured and len(re.findall(r'(?:19|20)\d{2}-\d{2}-\d{2}', text)) >= 3 and not re.search(r'[。！？]', text):
+    feed_dates = re.findall(r'(?:19|20)\d{2}[-./]\d{2}[-./]\d{2}', text)
+    if not structured and len(feed_dates) >= 3 and not re.search(r'[。！？]', text):
         return False
-    if not structured and len(text) < 260 and len(re.findall(r'(?:19|20)\d{2}-\d{2}-\d{2}', text)) >= 2 and '。' not in text:
+    if not structured and len(text) < 260 and len(feed_dates) >= 2 and '。' not in text:
+        return False
+    if not structured and len(text) < 260 and feed_dates and '。' not in text and re.search(r'[？?]|相关阅读|更多>>', text):
         return False
     if (len(text) < 300 and re.search(r'详细简历.{0,20}请参见|简历具体情况请参见|具体情况请参见|具体内容请参见|相关简历请参见|^人物\s+冲突积怨|^.*?欢迎访问.*?官网[！!]$', text)):
         return False

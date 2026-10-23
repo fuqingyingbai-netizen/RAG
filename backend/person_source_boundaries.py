@@ -16,6 +16,10 @@ def source_context_errors(analysis, supports, context_facts=()):
     original = folded(' '.join(str(f.get('fact') or '') for f in supports))
     errors = []
     from person_text import numeric_literals
+    report_years = {m[0] for f in supports for m in re.finditer(r'(?:19|20)\d{2}', f.get('source_reporting_period_literal') or '')}
+    for period in re.finditer(r'((?:19|20)\d{2})年?(?:年报|年度报告)', text):
+        if report_years and period[1] not in report_years and period[0] not in original:
+            errors.append('annual_report_year_not_supported')
     # Parenthetical periods must belong to the same metric, rather than a
     # retirement year elsewhere in the biography. Relative words are also
     # assertions about time; an undated article's "目前" is not "近期".
@@ -217,7 +221,12 @@ def source_context_errors(analysis, supports, context_facts=()):
     for year in set(re.findall(r'((?:19|20)\d{2})年[^。；;]{0,8}出版', original)):
         event_date = re.search(year + r'年(?:后|之后|以后|及此前)?[^。；;]{0,14}(?:实施|建立|启动|设立|推行|给店长|松绑)', text)
         source_event_date = re.search(year + r'年(?:后|之后|以后|及此前)?[^。；;]{0,14}(?:实施|建立|启动|设立|推行|给店长|松绑)', original)
-        if event_date and not source_event_date:
+        relative_intent = (re.search(year+r'年(?:后|之后|以后)', text)
+            and re.search(year+r'年.{0,12}出版.{0,18}(?:在那之后|在此之后|在这之后)', original)
+            and re.search(r'意向|拟|希望|很想|计划', text)
+            and re.search(r'心心念念|很想|希望|计划|拟', original)
+            and not re.search(r'已实施|已完成|已经推行', text))
+        if event_date and not source_event_date and not relative_intent:
             errors.append('publication_year_as_event_date')
     if (re.search(r'被赋予.{0,15}(?:职责|权限)|获得.{0,12}决策权', text)
             and re.search(r'能够|期望|有望|可望|预期', original)

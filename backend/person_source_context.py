@@ -23,7 +23,7 @@ def _document(text, title):
     flat = re.sub(r'\s+', '', text)
     markers = [(m.start(), int(m[1])) for m in re.finditer(r'---PDFpage(\d+)---', flat)]
     header = title + '\n' + text[:4000]
-    period = re.search(r'(?:19|20)\d{2}\s*年?\s*(?:年度报告|年度報告|年报|年報)', header)
+    period = re.search(r'(?:19|20)\d{2}\s*年?\s*(?:年度报告|年度報告|年报|年報|annual\s*report)', header, re.I)
     return flat, markers, period[0] if period else ''
 
 
@@ -34,6 +34,9 @@ def literal_document_context(source, quote):
     cover_pages = (metadata.get('document_pages') or [])[:2]
     cover = '\n'.join(p.get('ocr_text') or p.get('text') or '' for p in cover_pages)
     header = str(getattr(source, 'title', '') or '') + '\n' + cover + '\n' + text[:4000]
+    if not period:
+        cover_period = re.search(r'(?:19|20)\d{2}\s*年?\s*(?:年度报告|年度報告|年报|年報|annual\s*report)', header, re.I)
+        period = cover_period[0] if cover_period else ''
     document_kind = ('annual_report' if re.search(r'年度報告|年度报告|annual\s*report', header, re.I) else
                      'prospectus' if re.search(r'招股说明书|招股意向书|招股章程|招股說明書|招股意向書', header) else
                      'research_report' if re.search(r'证券研究报告|證券研究報告', header) else '')

@@ -147,6 +147,10 @@ def assess(facts, requirement):
         gaps.append('需逐条核对变动前后记录及生效时点；多个年份不能自行证明任职或持股变化')
     if candidates and requirement['topic'] == 'comparison':
         gaps.append('可比人物的赛道、阶段、职责和时期尚需对齐，不能因出现“比较”字样完成对标')
+    if candidates and requirement['topic'] == 'legal':
+        explicit = r'案号|案件编号|执行法院|处罚决定|判决书|裁定书|原告|被告|签署|签订|协议|合同|承诺函|出具.{0,12}承诺'
+        if not any(re.search(explicit, f.get('fact') or '') for f in candidates):
+            gaps.append('目前仅有债务等经历线索，未取得司法或契约原件，不构成已发现司法事项')
     return {'id': requirement['id'], 'question': requirement['question'], 'questions': requirement['questions'],
             'state': 'missing' if not candidates else 'partial' if gaps else 'ready_for_review',
             'matched_evidence_ids': [f['evidence_id'] for f in candidates if f.get('evidence_id')],

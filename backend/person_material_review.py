@@ -131,6 +131,10 @@ def read_then_write(role, prefix, writing_input, package, invoke, emit, validate
 
 def presentation_facts(package, claims, max_records=4, max_chars=1600):
     """Budget illustrative original quotations after complete research."""
+    def quote_key(fact):
+        # Ignore only edge quotation punctuation for duplicate detection;
+        # displayed originals and their literal validation remain unchanged.
+        return re.sub(r'\s+','',fact['fact']).strip('“”"‘’\'。')
     by_id={f['evidence_id']:f for f in package.get('research_facts', package['facts'])}
     ordered=[]
     # Prefer one support per distinct finding before filling with additional
@@ -152,17 +156,18 @@ def presentation_facts(package, claims, max_records=4, max_chars=1600):
     # research/claim ledger and keep their own citations, but do not consume a
     # second illustrative quotation slot merely for one extra closing mark.
     ordered = [fact for fact in ordered if not any(
-        other is not fact and other['source_url']==fact['source_url']
+        other is not fact and (other['source_url']==fact['source_url'] or len(quote_key(fact))>=80)
         and len(other['fact'])<=max_chars
-        and len(re.sub(r'\s+','',other['fact']))>len(re.sub(r'\s+','',fact['fact']))
-        and re.sub(r'\s+','',fact['fact']) in re.sub(r'\s+','',other['fact'])
+        and len(quote_key(other))>len(quote_key(fact))
+        and quote_key(fact) in quote_key(other)
         for other in ordered)]
     chosen,used,originals=[],0,set()
     for fact in ordered:
         if len(chosen)>=max_records:
             break
         size=len(fact['fact'])
-        key = fact['source_url'], re.sub(r'\s+', '', fact['fact'])
+        canonical = quote_key(fact)
+        key = canonical if len(canonical)>=80 else (fact['source_url'], canonical)
         if key in originals:
             continue
         if chosen and used+size>max_chars:

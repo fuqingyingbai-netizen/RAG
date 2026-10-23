@@ -22,11 +22,11 @@ except ImportError:
     from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
     from person_chapter_selection import select_material, dimension_coverage, team_source_facts, prospective_company_risk
 
-VERSION = "person-template-v26-issuer-and-local-ownership-context"
+VERSION = "person-template-v27-explicit-document-year"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
-    2: ("身份", "出生", "教育", "学校", "学历", "毕业", "履历", "任职", "职业", "创办", "创始", "家庭", "健康", "婚姻", "社会关系", "biography", "education", "career"),
+    2: ("身份", "出生", "教育", "学校", "学历", "毕业", "履历", "任职", "职业", "创办", "创始", "委任", "聘任", "出任", "卸任", "辞任", "升任", "接任", "家庭", "健康", "婚姻", "社会关系", "biography", "education", "career"),
     3: ("人格", "责任", "诚信", "事业心", "表达", "风险偏好", "压力", "利益取舍", "行为", "采访", "公开表达", "价值观", "leadership"),
     4: ("经营", "战略", "执行", "创新", "迭代", "融资", "资本", "业绩", "营收", "产品", "技术", "资源", "转型", "growth"),
     5: ("识人", "用人", "管理", "管控", "授权", "文化", "组织", "冲突", "团队", "激励", "离职", "接班"),
@@ -602,7 +602,13 @@ def validate_model_claims(answer, package):
             analysis = ''
         forbidden = r"无(?:任何|历史)?(?:诉讼|处罚|失信)|不存在.*风险|诚信优秀|人格.*(?:优秀|恶劣)|确诊|确认.*(?:代持|贪腐)|已完成.*访谈|评分\s*[A-D][+-]?"
         allowed = " ".join(f["fact"] for f in supports)
-        if analysis and (re.search(forbidden, analysis) or not numbers(analysis) <= numbers(allowed)):
+        numeric_analysis = analysis
+        for fact in supports:
+            for year in re.findall(r'(?:19|20)\d{2}', fact.get('source_reporting_period_literal') or ''):
+                # A proven cover year may label the document. Removing only
+                # that label does not license reusing it as an event year.
+                numeric_analysis = re.sub(r'(?<!\d)'+year+r'年?(?=年报|年度报告)', '', numeric_analysis)
+        if analysis and (re.search(forbidden, analysis) or not numbers(numeric_analysis) <= numbers(allowed)):
             rejected.append("unsupported_analysis")
             analysis = ""
         if analysis:
