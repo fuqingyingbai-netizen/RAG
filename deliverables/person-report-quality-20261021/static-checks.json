@@ -1,0 +1,64 @@
+{
+  "method": "static_parse_and_javascript_syntax_only",
+  "visual_qa_performed": false,
+  "checks": [
+    {
+      "html": "index.html",
+      "links": 1,
+      "scripts": 1
+    },
+    {
+      "html": "wang-evidence.html",
+      "links": 300,
+      "scripts": 1
+    },
+    {
+      "html": "wang-report.html",
+      "links": 587,
+      "scripts": 0
+    },
+    {
+      "html": "wang-resume-comparison.html",
+      "links": 1027,
+      "scripts": 0
+    },
+    {
+      "html": "wang-source-use.html",
+      "links": 90,
+      "scripts": 0
+    },
+    {
+      "html": "zhang-evidence.html",
+      "links": 164,
+      "scripts": 1
+    },
+    {
+      "html": "zhang-report.html",
+      "links": 409,
+      "scripts": 0
+    },
+    {
+      "html": "zhang-resume-comparison.html",
+      "links": 684,
+      "scripts": 0
+    },
+    {
+      "html": "zhang-source-use.html",
+      "links": 54,
+      "scripts": 0
+    },
+    {
+      "subject": "wang",
+      "source_rows": 95,
+      "evidence_records": 517,
+      "chapters": 15
+    },
+    {
+      "subject": "zhang",
+      "source_rows": 53,
+      "evidence_records": 162,
+      "chapters": 15
+    }
+  ],
+  "failures": []
+}

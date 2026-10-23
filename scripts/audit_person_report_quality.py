@@ -9,7 +9,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / 'backend')]
-from person_evidence import split_sections, cited_ids
+from person_evidence import split_sections, cited_ids, validate_model_claims
 from person_source_boundaries import source_context_errors
 
 
@@ -20,6 +20,7 @@ def inspect(run):
     by_id = {f['evidence_id']: f for f in contract['facts']}
     sections = split_sections(report)
     rows, quote_uses, analysis_uses = [], defaultdict(list), defaultdict(list)
+    displayed_passages=[]
     for n in range(1, 16):
         body = sections.get(n, '')
         package = contract['chapters'][str(n)]
@@ -28,14 +29,27 @@ def inspect(run):
         records = list(re.finditer(r'\*\*来源记录 \d+.*?\[(E-[A-Z0-9-]+)\]', body))
         displayed = [m[1] for i, m in enumerate(records)
             if re.search(r'(?m)^> ', body[m.end():records[i+1].start() if i+1 < len(records) else len(body)])]
+        for index,match in enumerate(records):
+            segment=body[match.end():records[index+1].start() if index+1<len(records) else len(body)]
+            quote='\n'.join(line[2:] for line in segment.splitlines() if line.startswith('> '))
+            if quote:
+                displayed_passages.append({'chapter':n,'evidence_id':match[1],
+                    'source_url':by_id.get(match[1],{}).get('source_url',''),
+                    'text':re.sub(r'\s+','',quote),
+                    'literal_matches_fact':match[1] in by_id and re.sub(r'\s+','',quote)==re.sub(r'\s+','',by_id[match[1]]['fact'])})
         analyses = []
         for line in body.splitlines():
             if line.startswith('- 研究判断（待人工复核）：'):
                 ids = sorted(cited_ids(line))
                 statement = re.sub(r'\s*\[E-[A-Z0-9-]+\]', '', line.split('：', 1)[1]).strip()
                 supports = [by_id[eid] for eid in ids if eid in by_id]
+                guard_rejections=[]
+                if 2 <= n <= 12:
+                    _,guard_rejections=validate_model_claims(json.dumps({'claims':[{'analysis':statement,'evidence_ids':ids}]},ensure_ascii=False),
+                        {**package,'facts':pool,'writing_contract':'evidence_selection_v2'})
                 analyses.append({'analysis': statement, 'evidence_ids': ids,
-                                 'explicit_source_boundary_issues': source_context_errors(statement, supports, pool)})
+                                 'explicit_source_boundary_issues': source_context_errors(statement, supports, pool),
+                                 'complete_guard_rejections':guard_rejections})
                 analysis_uses[statement].append(n)
         for eid in displayed:
             quote_uses[eid].append(n)
@@ -69,10 +83,21 @@ def inspect(run):
                   for eid, uses in quote_uses.items() if len(uses) > 1]
     repeated_body_analyses = [{'analysis': statement, 'chapters': uses}
         for statement, uses in analysis_uses.items() if len([n for n in uses if 2 <= n <= 12]) > 1]
+    contained=[]
+    for index,first in enumerate(displayed_passages):
+        for second in displayed_passages[index+1:]:
+            first_text,second_text=[row['text'].strip('“”"‘’\'。') for row in [first,second]]
+            minimum=40 if first['source_url'] and first['source_url']==second['source_url'] else 80
+            if min(len(first_text),len(second_text))>=minimum and (first_text in second_text or second_text in first_text):
+                contained.append({'first_chapter':first['chapter'],'second_chapter':second['chapter'],
+                    'first_evidence_id':first['evidence_id'],'second_evidence_id':second['evidence_id'],
+                    'contained_chars':min(len(first['text']),len(second['text']))})
     return {'run': str(run), 'report_sha256': hashlib.sha256(report.encode()).hexdigest(),
         'chapter_count': len(sections), 'chapters': rows,
         'repeated_originals_across_body_chapters': duplicates,
         'repeated_original_character_excess': sum((len(r['body_chapters'])-1)*r['original_chars'] for r in duplicates),
+        'contained_original_review_targets':contained,
+        'displayed_original_literal_mismatches':[{k:v for k,v in r.items() if k!='text'} for r in displayed_passages if not r['literal_matches_fact']],
         'repeated_analyses_across_body_chapters': repeated_body_analyses,
         'boundary': 'Flags identify review targets; counts do not measure independent accuracy or research completeness.'}
 
@@ -88,7 +113,9 @@ def main():
     print(json.dumps({'output': str(output), 'chapter_count': result['chapter_count'],
         'repeat_chars': result['repeated_original_character_excess'],
         'boundary_issues': [{'chapter': c['chapter'], 'analysis': a['analysis'], 'issues': a['explicit_source_boundary_issues']}
-            for c in result['chapters'] for a in c['analyses'] if a['explicit_source_boundary_issues']]}, ensure_ascii=False))
+            for c in result['chapters'] for a in c['analyses'] if a['explicit_source_boundary_issues']],
+        'guard_rejections':[{'chapter':c['chapter'],'analysis':a['analysis'],'issues':a['complete_guard_rejections']}
+            for c in result['chapters'] for a in c['analyses'] if a['complete_guard_rejections']]}, ensure_ascii=False))
 
 
 if __name__ == '__main__':
