@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import mimetypes
+import os
 import re
 import threading
 import unicodedata
@@ -654,15 +655,24 @@ async def grounded_answer(cfg, question):
             yield {'type': 'answer_delta', 'text': (portfolio_text + '\n\n' if portfolio_text else '') + '当前资料中未找到依据。请调整问题或选择其他资料后重试。'}
             yield {'type': 'done', 'usage': {}}
             return
-        # Resolve the model from the published service rather than silently changing it.
-        info = await kb.cloud_rpc(client, cfg, '/api/v1/indices/rag/app/get', {'agent_id': cfg['agent_id']})
-        versions = [row for row in info.get('agent_details', []) if str(row.get('agent_version', '')).isdigit()]
-        if not versions:
-            raise kb.KnowledgeError('未找到已发布的问答模型配置，请管理员检查应用。')
-        config = max(versions, key=lambda row: int(row['agent_version'])).get('agent_config') or {}
-        model = config.get('agent_model')
-        if not model:
-            raise kb.KnowledgeError('已发布应用没有模型配置。')
+        # Keep retrieval on Bailian while sharing the project's configured answer model.
+        model = os.getenv('MODEL', '').strip()
+        model_base = os.getenv('BASE_URL', '').strip().rstrip('/')
+        model_key = os.getenv('ARK_API_KEY', '').strip()
+        if model and model_base and model_key:
+            answer_url = model_base + '/chat/completions'
+            answer_headers = kb.headers({'api_key': model_key})
+        else:
+            info = await kb.cloud_rpc(client, cfg, '/api/v1/indices/rag/app/get', {'agent_id': cfg['agent_id']})
+            versions = [row for row in info.get('agent_details', []) if str(row.get('agent_version', '')).isdigit()]
+            if not versions:
+                raise kb.KnowledgeError('未找到已发布的问答模型配置，请管理员检查应用。')
+            config = max(versions, key=lambda row: int(row['agent_version'])).get('agent_config') or {}
+            model = config.get('agent_model')
+            if not model:
+                raise kb.KnowledgeError('已发布应用没有模型配置。')
+            answer_url = cfg['base_url'] + '/compatible-mode/v1/chat/completions'
+            answer_headers = kb.headers(cfg)
         evidence = '\n\n'.join(f'[id_{ref["id"]}] {ref["title"]} | V{ref["version"]} | {ref["review"]}'
             f' | 目录项目={ref["project"]} | 目录行业={ref["industry"]}\n{ref["text"]}' for ref in refs)
         system = ('你是公司内部知识库助手。可以自然回复问候。业务问题仅依据本轮提供的资料片段回答，每个关键结论标注[id_编号]。'
@@ -679,8 +689,8 @@ async def grounded_answer(cfg, question):
         messages.append({'role': 'user', 'content': question.message})
         yield {'type': 'progress', 'stage': 'answering', 'label': '正在生成回答', 'detail': '正在依据检索片段整理答案与引用。'}
         received, ended = False, False
-        async with client.stream('POST', cfg['base_url'] + '/compatible-mode/v1/chat/completions',
-            headers=kb.headers(cfg), json={'model': model, 'messages': messages, 'stream': True,
+        async with client.stream('POST', answer_url,
+            headers=answer_headers, json={'model': model, 'messages': messages, 'stream': True,
                 'enable_thinking': False, 'stream_options': {'include_usage': True}}) as response:
             if response.status_code != 200:
                 raise kb.provider_error(response.status_code)
