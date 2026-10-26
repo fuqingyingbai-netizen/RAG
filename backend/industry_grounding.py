@@ -3,7 +3,7 @@ import re
 from datetime import date
 
 
-def sample_boundary(fact):
+def sample_boundary(fact, source_text=''):
     text = ' '.join(str(fact.get(k) or '') for k in ('source_title', 'evidence_quote', 'fact'))
     if fact.get('evidence_scope') == 'representative_company':
         return str(fact.get('sample_boundary_reason') or '企业样本')
@@ -17,6 +17,30 @@ def sample_boundary(fact):
         return '供应商自述测试样本，测试方法及独立性待核验'
     if fact.get('claim_type') == 'benchmark_sample':
         return '技术测试样本，仅适用于对应测试条件，不能外推行业整体'
+    if (fact.get('fact_contract') or {}).get('sample_boundary'):
+        return fact['fact_contract']['sample_boundary']
+    # A sentence can omit a population declared earlier in its document. Only
+    # inherit context from the exact located body, never from an unbound page.
+    from industry_passages import source_prefix
+    prefix = source_prefix(fact, source_text)
+    locator = (fact.get('provenance') or {}).get('locator') or {}
+    bound = bool(prefix)
+    if not bound and source_text and locator.get('status') == 'verified' and locator.get('start') == 0:
+        import hashlib
+        bound = (source_text[:locator.get('end', 0)] == locator.get('quote')
+                 and hashlib.sha256(source_text.encode()).hexdigest() == locator.get('body_sha256'))
+    if bound:
+        header = re.sub(r'\s+', '', source_text[:2400])
+        local = re.sub(r'\s+', '', prefix)
+        sample = r'(?:本文|本报告|本研究|本次分析)[^。！？]{0,220}(?:作为分析样本|作为研究样本|选取[^。！？]{0,60}(?:企业|公司)[^。！？]{0,40}样本|分析样本[^。！？]{0,30}家(?:企业|公司))'
+        if re.search(sample, header) or re.search(sample, local):
+            return '研究选定企业样本，财务与经营比较仅适用于该样本，不能外推行业整体'
+    title = str(fact.get('source_title') or '')
+    # A named-company comparison remains a sample even when its individual
+    # sentence is written as generic methodological advice.
+    pair = re.search(r'^([^，,：:？?]{2,24}?)(?:和|与|\s+vs\.?\s+)([^，,：:？?]{2,24})[，,：:].{0,12}(?:谁|哪家|对比|比较)', title, re.I)
+    if pair and not any(re.search(r'行业|产业|市场|技术|路线|算法|架构|政策|成本|云端|端侧|边缘|开源|闭源|硬件|软件|订阅', part) for part in pair.groups()):
+        return '具名企业比较样本，不能作为行业整体评分依据'
     # The subject of this passage matters more than an industry collection's
     # title. Keep generic statements about firms and aggregate statistics usable.
     quote = re.sub(r'\s+', ' ', str(fact.get('evidence_quote') or fact.get('fact') or ''))
@@ -92,6 +116,26 @@ def display_source_title(title, limit=80):
         cut = max(prefix.rfind('；'), prefix.rfind('。'), prefix.rfind(' - '))
         title = (prefix[:cut] if cut >= limit//2 else prefix).rstrip(' ，、:：（([') + '…'
     return title or '保存来源'
+
+
+def resolved_source_title(fact, body=''):
+    """Repair a broken display label from a bound first-page title, not a citation."""
+    title = str(fact.get('source_title') or '')
+    if not re.match(r'^\s*\d+[.、]\s*[^《]{0,8}[》」]', title):
+        return title
+    from industry_passages import source_prefix
+    if not source_prefix(fact, body):
+        return title
+    header = body[:1800].split('相关研究报告', 1)[0]
+    match = re.search(r'作\s*者[：:]\s*\S+\s+([^\n]{4,80}?)\s+邮\s*箱[：:]', header)
+    if match:
+        return display_text(match[1]).strip()
+    for line in header.splitlines():
+        candidate = re.sub(r'^#+\s*', '', line).strip()
+        if (4 <= len(candidate) <= 70 and re.search(r'(?:研究报告|状况分析|发展白皮书)$', candidate)
+                and not re.search(r'作者|邮箱|来源|https?://|相关研究', candidate)):
+            return display_text(candidate)
+    return title
 
 
 def source_markdown_link(title, url):

@@ -24,11 +24,12 @@ def observed_business(fact):
     return False
 
 
-def complete_plan(package, index, ids):
+def complete_plan(package, index, ids, analyses=()):
     """Reserve question coverage before filling with the model's ordered IDs."""
     from industry_fact_contracts import chapter_admitted, chapter_coverage
     from industry_passages import policy_obligation
     cards = {f['evidence_id']: f for f in package.get('facts', []) if chapter_admitted(f, index)}
+    supported = set(eid for claim in analyses for eid in claim.get('evidence_ids', []))
     def rank(eid):
         f = cards[eid]; c = f['fact_contract']
         return (not bool(c.get('sample_boundary')),
@@ -37,7 +38,7 @@ def complete_plan(package, index, ids):
                 bool(policy_obligation(c['statement'])) if index == 3 else False,
                 (f.get('numeric_context') or {}).get('is_forecast') is False if index == 4 else False,
                 (f.get('numeric_validation') or {}).get('passed') is True,
-                float(f.get('quality_score') or 0), eid in ids)
+                eid in supported, float(f.get('quality_score') or 0), eid in ids)
     chosen = []
     for question in chapter_coverage(package, index, list(cards)):
         candidates = question['evidence_ids']
@@ -46,7 +47,11 @@ def complete_plan(package, index, ids):
             chosen.append(eid)
     seen_events = set()
     result = []
-    ordered = chosen + list(ids)
+    # Question coverage stays reserved. Reuse already rule-checked premises when
+    # there is room, instead of evicting them for equivalent unused cards and
+    # subsequently reporting a valid analysis as a foreign citation.
+    premises = [eid for claim in analyses for eid in claim.get('evidence_ids', []) if eid in cards]
+    ordered = chosen + premises + list(ids)
     if index == 5:
         ordered = sorted(dict.fromkeys(ordered), key=lambda eid: rank(eid) if eid in cards else (), reverse=True)
     for eid in ordered:
@@ -133,6 +138,10 @@ def statement_lineage_present(fact, section, package, index):
     eid = fact['evidence_id']
     if any(statement_markdown(statement) in line and eid in line for line in section.splitlines()):
         return bool(statement)
+    if index == 7:
+        from industry_briefing import route_comparison
+        table, included = route_comparison([fact])
+        return eid in included and bool(table) and table in section
     if index not in {4, 11}:
         return False
     by_id = {f['evidence_id']:f for f in package.get('facts', []) if f.get('fact_contract',{}).get('report_admitted')}
@@ -209,7 +218,8 @@ def chapter_analysis(package, index, ids):
     elif index == 5:
         lines.append('这些记录只能证明对应主体事件有公开材料。文件发布、施行和媒体转载须按同一事件合并；解释行业热度还需要关注度或传播数据，不能用事件条数替代。' + refs(cards[:2]))
     elif index == 6:
-        layers = [f for f in cards if re.search(r'竞争派系|(?:参与者|玩家|厂商).{0,12}(?:分为|分成|分层)', f['fact_contract']['statement'])
+        from industry_fact_contracts import PLAYER_LAYER_PATTERN
+        layers = [f for f in cards if re.search(PLAYER_LAYER_PATTERN, f['fact_contract']['statement'])
                   and not f['fact_contract'].get('sample_boundary')]
         mechanism = [f for f in cards if re.search(r'迁移成本|进入壁垒|价格战|竞争压力', f['fact_contract']['statement']) and not f['fact_contract'].get('sample_boundary')]
         if layers:

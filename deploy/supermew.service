@@ -1,0 +1,25 @@
+[Unit]
+Description=SuperMew research application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=supermew
+Group=supermew
+WorkingDirectory=/opt/supermew/current
+EnvironmentFile=/etc/supermew/app.env
+Environment=PYTHONUNBUFFERED=1
+ExecStartPre=/opt/supermew/current/.venv/bin/python /opt/supermew/current/scripts/check-production-config.py --env-file /etc/supermew/app.env --check-paths
+ExecStart=/opt/supermew/current/.venv/bin/python -m uvicorn backend.app:app --host 127.0.0.1 --port 8010 --workers 1 --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=120
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

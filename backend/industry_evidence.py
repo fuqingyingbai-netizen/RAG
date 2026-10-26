@@ -272,7 +272,7 @@ def diverse_evidence(candidates: list[dict], requirements: list[dict], limit: in
     return selected
 
 
-def claim_ledger(report: str, facts: list[dict], diagnostic: dict, coverage: dict, dependencies: dict) -> dict:
+def claim_ledger(report: str, facts: list[dict], diagnostic: dict, coverage: dict, dependencies: dict, reasoning: dict | None = None) -> dict:
     """Record citations, raw locators and checks, without claiming semantic entailment."""
     from industry_research import numeric_mentions, numeric_supported, claim_semantic_issues
     by_id={f.get('evidence_id'):f for f in facts if f.get('evidence_id')}
@@ -300,6 +300,7 @@ def claim_ledger(report: str, facts: list[dict], diagnostic: dict, coverage: dic
             'entailment_status':'not_evaluated','issues':list(dict.fromkeys(issues)),
             'source_locators':[{'evidence_id':f['evidence_id'],**(f.get('provenance') or {}).get('locator',{})} for f in cards]})
     return {'version':VERSION,'dependencies':dependencies,'coverage':coverage,'claims':claims,
+        **({'research_reasoning': reasoning} if reasoning else {}),
         'summary':{'claim_count':len(claims),'requires_review_count':sum(c['reference_status']=='requires_review' for c in claims),
                    'entailment_review_required':True},
         'limitations':['references_verified confirms traceability and deterministic checks only, not full semantic support.',

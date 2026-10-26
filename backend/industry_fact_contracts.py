@@ -9,8 +9,10 @@ import hashlib
 import json
 import re
 
-VERSION = 'industry-fact-contract-v9-observed-inputs'
-PLAN_VERSION = 'industry-statement-plan-v10-observed-inputs'
+VERSION = 'industry-fact-contract-v11-analysis-boundaries'
+PLAN_VERSION = 'industry-statement-plan-v16-evidence-proportional-body'
+
+PLAYER_LAYER_PATTERN = r'竞争派系|(?:参与者|玩家|厂商).{0,18}(?:分为|分成|分层)|头部.{0,30}(?:腰部|初创|海外)'
 
 QUANTITY_TYPES = (
     ('growth', r'增速|增长速度|增长率|增幅|同比|环比|CAGR|复合.*增长'),
@@ -22,7 +24,7 @@ QUANTITY_TYPES = (
 )
 TASK_PATTERNS = {
     'chain': r'上游.{0,180}中游.{0,180}下游',
-    'competition': r'市场份额|市占率|集中度|CR\d|HHI|竞争对手|竞争压力|进入壁垒|迁移成本|替代竞争|价格战|厂商排名|前[三四五十]厂商|市场第一阵营|市场前[三四五十]',
+    'competition': r'市场份额|市占率|集中度|CR\d|HHI|竞争对手|竞争压力|进入壁垒|迁移成本|替代竞争|价格战|厂商排名|前[三四五十]厂商|市场第一阵营|市场前[三四五十]|' + PLAYER_LAYER_PATTERN,
     'technology': r'测试条件|测试环境|统一硬件|量化精度|吞吐量|token/s|推理延迟|响应延迟|首\s*token|推理成本|单位推理成本|技术替代|技术路线',
     'business': r'订阅|按量计费|付费客户|免费转(?:为)?付费|开始付费|续费|续约|回款|收费|收入结构|毛利率|净利率|盈利模式',
     'event': r'发布|推出|开源|签署|收购|施行|生效',
@@ -61,11 +63,11 @@ def _role(fact, source_text):
     title = str(fact.get('source_title') or '')
     header = title + '\n' + str(source_text or '')[:1400]
     declared = str(fact.get('claim_type') or '')
-    if declared in {'opinion', 'commentary', 'viewpoint'} or re.search(r'个人观点|不作为投资依据|仅代表作者观点|行情复盘', header) or re.search(r'业绩确定性最高|弹性最大|笔者认为|我认为|比.{0,25}更能决定|成为.{0,40}核心指标|验证了.{0,20}可行性|如果说.{0,60}那么|细读财报不难发现|未来.{0,25}(?:企业|用户)可以|多数.{0,30}企业.{0,30}共同.{0,10}特征', _quote(fact)):
+    if declared in {'opinion', 'commentary', 'viewpoint'} or re.search(r'个人观点|不作为投资依据|仅代表作者观点|行情复盘', header) or re.search(r'业绩确定性最高|弹性最大|笔者认为|我认为|比.{0,25}更能决定|比.{0,25}更有意义|成为.{0,40}核心指标|验证了.{0,20}可行性|如果说.{0,60}那么|细读财报不难发现|未来.{0,25}(?:企业|用户)可以|多数.{0,30}企业.{0,30}共同.{0,10}特征', _quote(fact)):
         return 'opinion'
     if re.search(r'解读|评论|访谈|红旗文稿|立法规范', header):
         return 'policy_commentary' if fact.get('module') == '政策与监管' else 'commentary'
-    if (re.search(r'吞吐量.{0,10}(?:数倍|大幅)|(?:保持|不损失|不牺牲|不降低).{0,12}精度|普及率大幅', _quote(fact))
+    if (re.search(r'吞吐量.{0,10}(?:数倍|大幅)|(?:保持|不损失|不牺牲|不降低).{0,12}精度|普及率大幅|(?:延迟|时延).{0,8}(?:降低|缩短|降至|降到).{0,8}(?:毫秒级|微秒级)', re.sub(r'\s+', '', _quote(fact)))
             and not all(re.search(p, _quote(fact), re.I) for p in (r'测试|实测', r'硬件|GPU|芯片|配置', r'模型|版本|负载'))):
         return 'performance_claim'
     from industry_claims import public_source_type
@@ -212,7 +214,9 @@ def build_contract(fact, scope=None, source_text=''):
     if context and kind != 'other' and 'event' in tasks:
         tasks.discard('event')
     from industry_grounding import sample_boundary
-    boundary = sample_boundary(fact)
+    boundary = sample_boundary(fact, source_text)
+    if not boundary and re.match(r'^(?:相关)?上市(?:公司|企业).{0,12}(?:回款|现金流|毛利|营收|净利)', quote):
+        boundary = '上市企业经营样本，不能外推行业整体'
     # An anaphoric passage can refer to a named installation on the preceding
     # PDF page. Its industry-report headline does not make the case universal.
     if not boundary and re.match(r'^(?:该|其|这一|算集群)', quote):
@@ -240,6 +244,10 @@ def build_contract(fact, scope=None, source_text=''):
             statement = display_text(reader_proposition(re.sub(r'\s+', ' ', quote)))
             if not re.search(r'[。！？][”」"]?$', statement):
                 statement += '。'
+            historical = re.search(r'(?:根据|据)《[^》]{2,100}?[（(](20\d{2})[）)][^》]*》', quote)
+            if historical and str(scope.get('as_of_date') or '')[:4] > historical[1]:
+                period = historical[1]
+                statement = f'历史来源观察（{period}年口径）：' + statement
         from industry_grounding import display_text
         statement = display_text(statement)
         if role in {'opinion', 'commentary'}: statement = '来源观点（未作事实认定）：' + statement
@@ -290,6 +298,10 @@ def build_contract(fact, scope=None, source_text=''):
 def attach_contract(fact, scope=None, source_text=''):
     item = deepcopy(fact)
     item['fact_contract'] = build_contract(item, scope, source_text)
+    from industry_grounding import resolved_source_title
+    display_title = resolved_source_title(item, source_text)
+    if display_title != item.get('source_title'):
+        item['source_display_title'] = display_title
     if item.get('numeric_context'):
         item['numeric_context'].update(period=item['fact_contract']['period'], comparator=item['fact_contract']['comparator'])
         if item['fact_contract'].get('value_nature'):
@@ -324,33 +336,66 @@ def chapter_admitted(fact, index):
 
 
 CHAPTER_QUESTIONS = {
-    2: [('产业链主体和分层关系', r'上游.{0,180}中游.{0,180}下游')],
-    3: [('适用政策原文', 'primary'), ('义务主体及具体要求', r'应当|不得|必须|禁止'), ('发布与施行日期', r'(?:发布|施行|生效).{0,8}20\d{2}|20\d{2}.{0,12}(?:发布|施行|生效)'), ('实际执行材料', r'处罚决定|检查结果|已.{0,8}(?:处罚|查处)')],
-    4: [('规模、期间和统计口径', 'amount'), ('同口径增长趋势', 'growth')],
-    5: [('有日期的主体事件', r'20\d{2}\s*年\s*\d{1,2}\s*月'), ('传播或关注度数据', r'搜索指数|讨论量|曝光量|传播量')],
-    6: [('竞争机制与玩家分层', r'迁移成本|进入壁垒|价格战|竞争压力|竞争派系|厂商排名|前[三四五十]厂商|市场第一阵营|市场前[三四五十]'), ('份额及集中度', r'市场份额|市占率|CR\d|HHI|集中度')],
-    7: [('同条件测试配置', r'测试环境|统一硬件|量化精度|测试条件'), ('可核验性能及单位成本', 'technical_measurement')],
-    10: [('实际收费与付费客户', r'订阅|按量计费|付费客户|续约|回款'), ('盈利及收入成本材料', r'毛利率|净利率|营业收入|收入结构|成本定义')],
-    11: [('来源预测与目标期间', 'forecast'), ('来源假设和情景条件', r'假设|基准情景|情景假设'), ('可跟踪触发条件', r'触发条件|阈值|前提条件')],
-    13: [('风险机制及作用对象', r'风险|漏洞|攻击|欺诈|成本压力|价格战|技术替代'), ('监管义务或执行材料', r'应当|不得|处罚决定|检查结果')],
+    2: [('行业定义、产品及应用', r'定义|是指|行业分类|应用领域|应用场景|代表产品'), ('产业链主体和分层关系', r'上游.{0,180}中游.{0,180}下游'), ('各环节价值分配及毛利率', r'价值分配|价值份额|毛利率|利润分配'), ('核心瓶颈', r'瓶颈|受制于|供应短缺|核心部件依赖')],
+    3: [('适用政策原文', 'primary'), ('国家规划与地方支持', r'规划|专项行动|地方|省市|园区|产业基金'), ('标准、补贴与准入', r'行业标准|国家标准|补贴|资质|准入|进出口管制'), ('义务主体及具体要求', r'应当|不得|必须|禁止'), ('发布与施行日期', r'(?:发布|施行|生效).{0,8}20\d{2}|20\d{2}.{0,12}(?:发布|施行|生效)'), ('实际执行材料', r'处罚决定|检查结果|已.{0,8}(?:处罚|查处)')],
+    4: [('规模、期间和统计口径', 'amount'), ('同口径增长趋势', 'growth'), ('近三至五年历史序列与CAGR', 'historical_series'), ('未来五至十年来源预测', 'long_forecast'), ('情景假设和约束因素', r'情景假设|基准情景|乐观情景|悲观情景|制约因素|天花板'), ('增长驱动与商业化阶段', r'驱动因素|原型验证|小批量|规模化商用|增长动力')],
+    5: [('有日期的主体事件', r'20\d{2}\s*年\s*\d{1,2}\s*月'), ('商业化里程碑与终端需求', r'开始收费|付费客户|订单交付|终端需求|量产|商业化落地'), ('传播或关注度数据', r'搜索指数|讨论量|曝光量|传播量')],
+    6: [('竞争机制与玩家分层', r'迁移成本|进入壁垒|价格战|竞争压力|厂商排名|前[三四五十]厂商|市场第一阵营|市场前[三四五十]|' + PLAYER_LAYER_PATTERN), ('份额及集中度', r'市场份额|市占率|CR\d|HHI|集中度'), ('五力机制与护城河', r'议价|新进入者|替代品|供应商|迁移成本|护城河|专利壁垒')],
+    7: [('路线及适用场景', r'技术路线|架构|云端|端侧|边缘侧|适用场景'), ('同条件测试配置', r'测试环境|统一硬件|量化精度|测试条件'), ('可核验性能及单位成本', 'technical_measurement'), ('落地难度与迭代成熟度', r'落地难度|迭代|成熟度|部署条件|量产验证')],
+    10: [('实际收费与付费客户', r'订阅|按量计费|付费客户|续约|回款'), ('盈利及收入成本材料', r'毛利率|净利率|营业收入|收入结构|成本定义'), ('细分赛道与筛选标准', r'细分赛道|筛选标准|客户认证|单位经济|投资机会|产业整合')],
+    11: [('来源预测与目标期间', 'forecast'), ('未来三至五年趋势与关键变量', r'未来.{0,15}趋势|关键变量|发展趋势|趋势判断'), ('来源假设和情景条件', r'假设|基准情景|情景假设'), ('可跟踪触发条件', r'触发条件|阈值|前提条件')],
+    13: [('风险机制及作用对象', r'风险|漏洞|攻击|欺诈|成本压力|价格战|技术替代'), ('行业经营与技术研发风险', r'客户集中|产能不足|商业化慢|供应链依赖|技术迭代|研发失败|核心部件外购'), ('监管义务或执行材料', r'应当|不得|处罚决定|检查结果')],
+    14: [('市场信号与发展判断', r'规模|增长|需求|市场'),
+         ('竞争与商业化判断', r'玩家|竞争|订阅|计费|收费|盈利|商业模式'),
+         ('技术及落地条件', r'技术|架构|云端|端侧|边缘|部署|性能|成本'),
+         ('政策与经营约束', r'应当|不得|监管|义务|风险'),
+         ('总体判断及成立条件', 'synthesis')],
 }
 
 
 def chapter_coverage(package, index, ids):
     """Presence of relevant material is distinct from a verified answer."""
+    ids = set(ids)
     cards = [f for f in package.get('facts', []) if f.get('evidence_id') in ids and chapter_admitted(f, index)]
+    historical_ids, compound_ids, series_exists = set(), set(), False
+    if index == 4:
+        from industry_assertions import observation_key
+        groups = {}
+        for fact in cards:
+            ctx = fact.get('numeric_context') or {}
+            if ctx.get('is_forecast') is False and fact['fact_contract'].get('quantity_type') == 'amount':
+                historical_ids.add(fact['evidence_id'])
+                key = observation_key(fact)
+                if key and re.fullmatch(r'20\d{2}', str(ctx.get('period') or '')):
+                    groups.setdefault(key[:5], set()).add(str(ctx['period']))
+            if (fact['fact_contract'].get('quantity_type') == 'growth'
+                    and re.search(r'CAGR|复合.*增长', str(ctx.get('metric') or ''), re.I)):
+                compound_ids.add(fact['evidence_id'])
+        series_exists = any(len(years) >= 3 for years in groups.values()) and bool(compound_ids)
     rows = []
     for question, pattern in CHAPTER_QUESTIONS.get(index, []):
         matched, background = [], []
         for fact in cards:
             c = fact['fact_contract']; ctx = fact.get('numeric_context') or {}
-            if pattern == 'primary': ok = c['source_role'] == 'policy_primary'
+            if pattern == 'synthesis': ok = True
+            elif pattern == 'primary': ok = c['source_role'] == 'policy_primary'
             elif question in {'义务主体及具体要求', '监管义务或执行材料'}:
                 from industry_passages import policy_obligation
                 ok = c['source_role'] == 'policy_primary' and bool(policy_obligation(_quote(fact)) or re.search(r'处罚决定|检查结果', _quote(fact)))
             elif pattern == 'amount': ok = c['quantity_type'] == 'amount'
             elif pattern == 'growth': ok = c['quantity_type'] == 'growth'
             elif pattern == 'forecast': ok = ctx.get('is_forecast') is True
+            elif pattern == 'historical_series':
+                ok = series_exists and fact['evidence_id'] in historical_ids | compound_ids
+                if not ok and (fact['evidence_id'] in historical_ids or c['quantity_type'] == 'growth'):
+                    background.append(fact['evidence_id'])
+            elif pattern == 'long_forecast':
+                cutoff = str((package.get('industry_scope') or {}).get('as_of_date') or '')[:4]
+                period = str(ctx.get('period') or '')
+                ok = (ctx.get('is_forecast') is True and cutoff.isdigit() and re.fullmatch(r'20\d{2}', period)
+                      and 5 <= int(period)-int(cutoff) <= 10)
+                if not ok and ctx.get('is_forecast') is True:
+                    background.append(fact['evidence_id'])
             elif pattern == 'technical_measurement':
                 ok = (c['quantity_type'] in {'throughput', 'latency', 'amount'} and 'technology' in c['tasks']
                       and all(re.search(p, _quote(fact), re.I) for p in (r'实测|测试', r'GPU|硬件|配置', r'模型|版本|负载')))
@@ -365,6 +410,10 @@ def chapter_coverage(package, index, ids):
                       and bool(ctx.get('period') and ctx.get('geography') and ctx.get('definition'))
                       and not c.get('sample_boundary') and c.get('risk_admitted') is True)
                 if not ok and re.search(pattern, re.sub(r'《[^》]+》', '', _quote(fact)), re.I):
+                    background.append(fact['evidence_id'])
+            elif question == '竞争机制与玩家分层':
+                ok = not c.get('sample_boundary') and bool(re.search(pattern, c['statement'], re.I))
+                if not ok and c.get('sample_boundary') and re.search(pattern, c['statement'], re.I):
                     background.append(fact['evidence_id'])
             else: ok = bool(re.search(pattern, _quote(fact), re.I))
             if ok:
@@ -386,12 +435,40 @@ def risk_admitted(fact, dimension):
 
 
 def plan_prompt(package, index):
+    from report_agents.industry_template import chapter_template_contract
+    from industry_reasoning import question_ledger
+    from industry_reader import writing_profile, writing_instruction
+    profile = writing_profile(package, index)
+    depth = writing_instruction(profile) if index in {2, 3, 4, 5, 6, 7, 10, 11, 13} else ''
     cards = [{'id': f['evidence_id'], 'statement': f['fact_contract']['statement'],
-              'tasks': f['fact_contract']['tasks']} for f in package.get('facts', []) if chapter_admitted(f, index)]
-    return ('你仅编排不可改写的来源陈述。返回严格JSON：{"evidence_ids":["E-..."]}，最多8项；'
-            '只选本章任务适用、互不重复的项。不要返回标题、正文、数值或新增结论。'
-            '无适用项返回空列表。模型不负责重述指标、替换口径或确认法律。\n'
-            + json.dumps({'chapter': index, 'task': GAPS.get(CHAPTER_TASK.get(index), '可引用来源陈述'), 'cards': cards}, ensure_ascii=False))
+              'tasks': f['fact_contract']['tasks'], 'sample_boundary': f['fact_contract'].get('sample_boundary'),
+              'material_kind': f['fact_contract'].get('material_kind')} for f in package.get('facts', []) if chapter_admitted(f, index)]
+    synthesis = ('本章是阶段性综合评估：围绕已完成章节的已知信息，给出3至4项可供人工深化的初步判断。'
+        '每项先用一句话说明已知材料支持什么判断，再解释跨材料的联系和成立条件；不能整段只列缺口或照抄摘录。'
+        '可写有边界的比较、推论和条件判断，不能据规模直接认定需求、盈利、低风险或投资吸引力。'
+        '优先综合不同章节的适用材料，只有同一主题时也可给局部判断，不为了凑跨章引用加入无关材料。'
+        '每项只写一个可独立复核的判断：规模单点可写规模信号，不称持续扩张；技术侧重不同可写方案分化，不补造落地协同的必要性。'
+        '先把原文支持的观察完整说清，再单独标出有条件推论；不要把可保留事实和较强推论捆成一大段。'
+        '研究角度不要求每项各写一段；总体判断可以体现在前述观察的联系中。'
+        '每段60至160字，最多4项，每项引用1至2条材料，推理说明40至80字；不输出总分、评级、概率、投资建议或新事实。\n' if index == 14 else '')
+    count_rule = ('最多8条来源、4段分析；每段60至160字。' if index == 14 else '最多8条来源、6段分析；每段60至360字。')
+    return (synthesis + depth + '严格按固定模板逐项研究。来源陈述不可改写；另写受证据约束的分析，不能只给编号或复述摘录。'
+            '返回严格JSON：{"evidence_ids":["E-..."],"analyses":[{"question":"本章研究问题原名",'
+            '"text":"解释材料与问题的关系、可支持的判断及仍缺的条件", "evidence_ids":["E-..."],'
+            '"claim_kind":"observation|comparison|inference|conditional|limitation",'
+            '"reasoning":"简述从前提到判断的推理及其他可能解释，不新增事实"}]}。'
+            + count_rule + '只引用选中且适用于该问题的材料。'
+            '原文前提由程序按每段evidence_ids逐字绑定，不必返回premises或反复抄写statement；reasoning简述推理，不能替代正文展开。'
+            '分析不得新增数值、法律日期或义务，不得把预测写成实际、观点写成事实、样本写成行业结论。'
+            '缺证的要求保留缺口；模板不能提供事实。不要输出标题、Markdown、网址或引用标记，引用另填编号。'
+            '描述所引材料未覆盖的问题时用limitation，明确限定本章所引材料，不得声称整个行业或所有公开资料均无。'
+            '样本可作有明确边界的比较或背景，不得据此形成行业评分或行业总体结论。\n'
+            + json.dumps({'chapter': index, 'template_contract': chapter_template_contract(index, package.get('industry_scope')),
+                'writing_profile': profile,
+                'required_questions': [q for q, _ in CHAPTER_QUESTIONS.get(index, [])],
+                'question_coverage': chapter_coverage(package, index, [c['id'] for c in cards]),
+                'research_questions': question_ledger(package, index, [c['id'] for c in cards])['questions'],
+                'task': GAPS.get(CHAPTER_TASK.get(index), '可引用来源陈述'), 'cards': cards}, ensure_ascii=False))
 
 
 def statement_markdown(statement):
@@ -414,16 +491,191 @@ def parse_plan(text, package, index):
     return ids
 
 
-def render_plan(package, index, title, ids):
+def parse_chapter_response(text, package, index):
+    """Keep old ID-only responses usable; validate analysis independently."""
+    raw = re.sub(r'^```(?:json)?\s*|\s*```$', '', text.strip(), flags=re.I)
+    response = json.loads(raw)
+    if not isinstance(response, dict) or set(response) - {'evidence_ids', 'analyses'}:
+        raise ValueError('invalid_statement_plan')
+    ids = parse_plan(json.dumps({'evidence_ids': response.get('evidence_ids')}, ensure_ascii=False), package, index)
+    analyses = response.get('analyses', [])
+    if not isinstance(analyses, list) or len(analyses) > 6:
+        raise ValueError('invalid_analysis_plan')
+    return ids, analyses
+
+
+def normalize_analysis(claim, allowed_ids):
+    """Repair presentation only; never truncate prose, change a value or add evidence."""
+    result, changes = deepcopy(claim), []
+    if not isinstance(result, dict):
+        return result, changes
+    refs = result.get('evidence_ids')
+    if isinstance(refs, list) and all(isinstance(eid, str) for eid in refs):
+        unique = list(dict.fromkeys(refs))
+        if unique != refs:
+            result['evidence_ids'] = unique
+            changes.append('duplicate_reference_removed')
+    body = result.get('text')
+    if isinstance(body, str):
+        normalized = re.sub(r'\s+', ' ', body).strip()
+        if normalized != body:
+            changes.append('whitespace_normalized')
+        authorized = set(result.get('evidence_ids') or []) & set(allowed_ids) if isinstance(refs, list) and all(isinstance(eid, str) for eid in refs) else set()
+        token = r'E-[A-F0-9]{12}'
+        citation_list = token + r'(?:\s*[、,，;；]\s*' + token + r')*'
+        def remove_marker(match):
+            cited = set(re.findall(token, match.group(0)))
+            if cited and cited <= authorized:
+                following = normalized[match.end():].lstrip()
+                before = normalized[:match.start()].rstrip()
+                predicate = r'的|则|以|指出|显示|表明|说明|披露|描述|记载|提出|认为|提供|反映|将|把|只'
+                preposition = bool(re.search(r'(?:根据|依据|参照|结合|对照|来自|据|从)\s*$', before))
+                wrapped = match.group(0).lstrip().startswith(('[', '【', '(', '（', '`'))
+                embedded_marker = wrapped and bool(re.search(r'[\u4e00-\u9fffA-Za-z0-9]$', before)) and not preposition
+                if preposition or (re.match(predicate, following) and not embedded_marker):
+                    changes.append('authorized_reference_subject_labelled')
+                    return '所引材料'
+                changes.append('authorized_inline_citation_removed')
+                return ''
+            return match.group(0)
+        # Remove only citation-shaped tokens already authorized in the separate
+        # references field. Keep unknown IDs, URLs, identifier fragments and
+        # every prose/numeric character for the ordinary validator to inspect.
+        for left, right in (('[', ']'), ('【', '】'), ('(', ')'), ('（', '）'), ('`', '`')):
+            normalized = re.sub(re.escape(left) + r'\s*' + citation_list + r'\s*' + re.escape(right), remove_marker, normalized)
+        normalized = re.sub(r'(?<![A-Za-z0-9_/.=:-])' + citation_list + r'(?![A-Za-z0-9_/-])', remove_marker, normalized)
+        def alias_subject(match):
+            alias = match.group(0)
+            matches = [eid for eid in authorized if eid.startswith(alias)]
+            if len(matches) != 1:
+                return alias
+            if isinstance(allowed_ids, dict) and any(alias in str((f.get('fact_contract') or {}).get('statement') or '')
+                                                    for f in allowed_ids.values() if isinstance(f, dict)):
+                return alias  # A real product/code in the original is not a citation alias.
+            following = normalized[match.end():].lstrip()
+            before = normalized[:match.start()].rstrip()
+            if re.match(r'的|则|以|指出|显示|表明|说明|披露|描述|记载|提出|认为|提供|反映|将|把|只', following) or re.search(r'(?:根据|依据|参照|结合|对照|来自|据|从)\s*$', before):
+                changes.append('authorized_reference_alias_labelled')
+                return '所引材料'
+            return alias
+        normalized = re.sub(r'(?<![A-Za-z0-9_/.=:-])E-[A-F0-9]{2,11}(?![A-Za-z0-9_-])', alias_subject, normalized)
+        result['text'] = re.sub(r'\s+', ' ', normalized).strip()
+    return result, list(dict.fromkeys(changes))
+
+
+def validate_analyses(analyses, package, index, ids):
+    """Rule checks permit a draft claim, never certify semantic entailment."""
+    from industry_research import numeric_mentions, numeric_supported, claim_semantic_issues
+    from industry_passages import passage_issues
+    by_id = {f['evidence_id']: f for f in package.get('facts', []) if chapter_admitted(f, index) and f.get('evidence_id') in ids}
+    questions = {r['question']: r for r in chapter_coverage(package, index, ids)}
+    accepted, rejected = [], []
+    for ordinal, original in enumerate(analyses):
+        claim, formatting = normalize_analysis(original, by_id)
+        errors, details = [], []
+        def reject():
+            rejected.append({'index': ordinal, 'question': claim.get('question') if isinstance(claim, dict) else None,
+                'issues': list(dict.fromkeys(errors)), 'details': details,
+                'original_analysis': deepcopy(original), 'normalized_analysis': deepcopy(claim),
+                'format_normalization': formatting})
+        if (not isinstance(claim, dict) or not {'question', 'text', 'evidence_ids'} <= set(claim)
+                or set(claim) - {'question', 'text', 'evidence_ids', 'premises', 'claim_kind', 'reasoning'}):
+            errors.append('invalid_analysis_schema')
+            details.append({'code': 'invalid_schema', 'expected': ['question', 'text', 'evidence_ids']})
+            reject()
+            continue
+        question, body, refs = claim['question'], claim['text'], claim['evidence_ids']
+        if not isinstance(body, str):
+            errors.append('invalid_analysis_text')
+            details.append({'code': 'text_not_string'})
+        else:
+            if not 40 <= len(body) <= 420:
+                details.append({'code': 'text_length_out_of_range', 'actual': len(body), 'min': 40, 'max': 420})
+            for code, pattern in [('text_contains_url', r'https?://'), ('text_contains_inline_evidence_id', r'E-[A-F0-9]{12}'),
+                                  ('text_contains_markup', r'[<>#|]')]:
+                if re.search(pattern, body):
+                    details.append({'code': code})
+            if details:
+                errors.append('invalid_analysis_text')
+        if (not isinstance(refs, list) or not refs or len(refs) > 4
+                or any(not isinstance(eid, str) or eid not in by_id for eid in refs)
+                or len(set(refs)) != len(refs)):
+            errors.append('invalid_analysis_citations')
+            details.append({'code': 'invalid_references', 'supplied': refs, 'allowed_ids': list(by_id), 'max_count': 4})
+        if not isinstance(question, str) or question not in questions:
+            errors.append('unknown_template_question')
+        if errors:
+            reject()
+            continue
+        rows = [by_id[eid] for eid in refs]
+        from industry_reasoning import premise_issues
+        exact_claim = dict(claim)
+        if 'premises' not in claim:
+            exact_claim['premises'] = [{'evidence_id': f['evidence_id'], 'quote': f['fact_contract']['statement']} for f in rows]
+        errors.extend(premise_issues(exact_claim, rows))
+        if 'claim_kind' in claim and (not isinstance(claim['claim_kind'], str) or claim['claim_kind'] not in {'observation', 'comparison', 'inference', 'conditional', 'limitation'}):
+            errors.append('invalid_claim_kind')
+        if 'reasoning' in claim and (not isinstance(claim['reasoning'], str) or not 8 <= len(claim['reasoning']) <= 600):
+            errors.append('invalid_claim_reasoning')
+        coverage = questions[question]
+        relevant = set(coverage['evidence_ids']) | set(coverage.get('background_evidence_ids', []))
+        # A scoped explanation of a material gap is useful analysis, not an
+        # answer or an admission upgrade. Only an explicit limitation can use
+        # other selected, chapter-admitted cards to describe that limitation.
+        limitation = (claim.get('claim_kind') == 'limitation'
+            and re.search(r'所引|本章|本次|现有|这些|上述|当前|所列', body)
+            and re.search(r'尚缺|尚无|缺少|未提供|未说明|未给出|不能|不足|无法', body)
+            and not re.search(r'(?:全行业|所有公开|全部公开|整个行业).{0,8}(?:没有|不存在|均无|缺乏)', body))
+        if claim.get('claim_kind') == 'limitation' and not limitation:
+            errors.append('unscoped_material_limitation')
+        if not set(refs) <= relevant and not limitation:
+            errors.append('analysis_question_evidence_mismatch')
+            details.append({'code': 'question_reference_mismatch', 'question': question,
+                'supplied': refs, 'direct_ids': coverage['evidence_ids'],
+                'background_ids': coverage.get('background_evidence_ids', [])})
+        if not limitation and not set(refs) & set(coverage['evidence_ids']) and not re.search(r'尚缺|尚无|不能|不足|仅.*(?:模式|观点|样本|背景)', body):
+            errors.append('background_presented_as_answer')
+        if any(f['fact_contract'].get('sample_boundary') for f in rows) and not re.search(r'样本|所引企业|特定企业|特定测试', body):
+            errors.append('analysis_sample_boundary_missing')
+        numeric = {f['evidence_id']: {'context': f.get('numeric_context') or {}, 'validation': f.get('numeric_validation') or {}} for f in rows}
+        if any(not any(numeric_supported(n, eid, numeric) for eid in refs) for n in numeric_mentions(body)):
+            errors.append('analysis_unauthorized_number')
+        canonical = re.sub(r'\s+', '', ' '.join(f['fact_contract']['statement'] for f in rows))
+        legal_fields = re.findall(r'20\d{2}年\d{1,2}月\d{1,2}日|第[一二三四五六七八九十百\d]+条', body)
+        if index in {3, 13} or re.search(r'法律|法规|条例|办法|监管|规定|许可证', body):
+            legal_fields += re.findall(r'(?:企业|提供者|运营者|开发者|服务商|机构)[^。；;]{0,15}(?:应当|不得|必须|禁止)[^。；;]{1,80}', body)
+        for legal in legal_fields:
+            if re.sub(r'\s+', '', legal) not in canonical:
+                errors.append('analysis_unauthorized_legal_statement')
+        errors.extend(passage_issues(body, analysis=True))
+        errors.extend(r['code'] for r in claim_semantic_issues(body+' '+ ' '.join(refs), rows))
+        if errors:
+            reject()
+        else:
+            accepted.append({**exact_claim, 'premise_binding': 'model_exact' if 'premises' in claim else 'program_exact',
+                'analysis_index': ordinal, 'format_normalization': formatting,
+                'analysis_role': 'material_limitation' if limitation else 'draft_claim',
+                'validation_status': 'rule_checked', 'entailment_status': 'not_evaluated'})
+    return accepted, rejected
+
+
+def render_plan(package, index, title, ids, analyses=None, ledger=None):
     cards = {f['evidence_id']: f for f in package.get('facts', []) if chapter_admitted(f, index)
              and (index != 1 or f.get('summary_lineage'))}
-    lines, seen = [], set()
+    if index == 14:
+        from industry_briefing import conclusion_section
+        return f'## 14. {title}\n\n' + conclusion_section([
+            c for c in analyses or [] if c.get('claim_kind') != 'limitation'
+            and c.get('analysis_role') != 'material_limitation'])
+    lines, seen = [], {}
     for eid in ids:
         if eid not in cards: raise ValueError('unauthorized_statement_plan')
         fact = cards[eid]
         statement = fact['fact_contract']['statement']
-        if statement in seen: continue
-        seen.add(statement)
+        if statement in seen:
+            lines[seen[statement]] += f' [{eid}]({fact.get("source_url", "")})'
+            continue
+        seen[statement] = len(lines)
         lines.append('- ' + statement_markdown(statement) + f' [{eid}]({fact.get("source_url", "")})')
     if index in {4, 11}:
         from industry_analysis import market_table
@@ -442,13 +694,14 @@ def render_plan(package, index, title, ids):
         for line in lines:
             if summary_length(header + body + line) <= 600: body += line + '\n\n'
         return header + body.strip()
-    coverage = chapter_coverage(package, index, ids)
+    from industry_reasoning import question_ledger, STATE_LABELS
+    coverage = (ledger or question_ledger(package, index, ids, analyses or []))['questions']
     matrix = ''
     if coverage:
         matrix = '\n\n### 材料覆盖与研究缺口\n\n| 本章研究问题 | 当前材料 | 研究状态 |\n| --- | --- | --- |\n'
         for row in coverage:
-            matched = ' '.join('['+eid+']' for eid in row['evidence_ids'])
-            background = ' '.join('['+eid+']' for eid in row.get('background_evidence_ids', []))
+            matched = ' '.join('['+eid+']' for eid in row['evidence_ids'][:1])
+            background = ' '.join('['+eid+']' for eid in row.get('background_evidence_ids', [])[:1])
             refs = ('对应材料：' + matched if matched else '')
             if background:
                 refs += ('；' if refs else '') + '背景材料（未回答本问题）：' + background
@@ -456,6 +709,26 @@ def render_plan(package, index, title, ids):
             state = ('有来源材料，适用性与结论支持仍需复核' if row['evidence_ids'] else
                      ('仅有模式或观点背景，实际经营指标仍缺证' if index == 10 else
                       '仅有定性描述或观点背景，尚无已核验的可比指标') if row.get('background_evidence_ids') else '本轮未回答，需补证或缩减研究范围')
+            if row['evidence_state'] == 'selection_gap':
+                state = '已有适用候选未进入本章选材，先复核选材，不据此判外部缺证'
+            if row['claim_support_states']:
+                if row.get('analysis_status') == 'limitations_only':
+                    state += '；仅缺口说明接受复核，研究问题仍未解决'
+                else:
+                    state += '；' + '、'.join(dict.fromkeys(STATE_LABELS[s] for s in row['claim_support_states']))
             matrix += f'| {row["question"]} | {refs} | {state} |\n'
     from industry_analysis import chapter_analysis
-    return f'## {index}. {title}\n\n' + note + '\n\n' + ('\n\n'.join(lines) or '本章尚无满足准入条件的完整陈述，相关核验事项见第16章。') + chapter_analysis(package, index, ids) + matrix
+    analysis = chapter_analysis(package, index, ids)
+    if analyses:
+        analysis = '\n\n### 研究分析\n\n' + '\n\n'.join(
+            '**' + statement_markdown(c['question']) + '**：' + statement_markdown(c['text']) + ' '
+            + ' '.join('['+eid+']' for eid in c['evidence_ids']) for c in analyses)
+    from industry_briefing import comparison_table
+    table, table_ids = comparison_table([cards[eid] for eid in ids if eid in cards], index)
+    if table:
+        lines = [line for line in lines if not any(' ['+eid+'](' in line for eid in table_ids)]
+    evidence = '\n\n'.join(([table] if table else []) + lines)
+    # Findings come before the audit material. Canonical source text and links
+    # remain available below, rather than being replaced by model paraphrases.
+    return (f'## {index}. {title}\n\n' + note + analysis + '\n\n### 关键依据\n\n'
+            + (evidence or '本章尚无满足准入条件的完整陈述，相关核验事项见第16章。') + matrix)

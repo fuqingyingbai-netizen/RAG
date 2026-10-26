@@ -23,7 +23,7 @@ def reader_proposition(text):
     return candidate if has_predicate(candidate) else text
 
 
-def passage_issues(text):
+def passage_issues(text, *, analysis=False):
     """Reject page furniture and clipped propositions, not their whole source."""
     text = str(text or '').strip()
     from text_integrity import text_issues
@@ -61,7 +61,11 @@ def passage_issues(text):
         issues.append('incomplete_proposition')
     if re.match(r'^[，,。；;：:）)"”]|^[-+−]?\d+(?:\.\d+)?\s*[%％]', text):
         issues.append('incomplete_proposition')
-    if re.search(r'用户提问|如何|为什么|怎样|是否|[?？]',text):
+    # Source questions are not evidence. Authored analysis may legitimately say
+    # "未说明是否可比"; interrogative words inside that statement are not a question.
+    if (re.search(r'用户提问|[?？]', text)
+            or (not analysis and re.search(r'如何|为什么|怎样|是否', text))
+            or (analysis and re.match(r'^(?:请问|如何|为什么|怎样|是否)', text))):
         issues.append('question_not_assertion')
     return list(dict.fromkeys(issues))
 

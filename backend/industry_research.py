@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import urlsplit, parse_qsl, urlencode
 
 INDUSTRY_POLICY_VERSION = 'industry-scope-v3'
-INDUSTRY_RISK_VERSION = 'industry-risk-v19-observed-inputs'
+INDUSTRY_RISK_VERSION = 'industry-risk-v21-claim-support'
 INDUSTRY_RISK_DIMENSIONS = (
     '政策与监管风险', '市场增长与需求风险', '竞争格局与集中度风险',
     '商业化与盈利模式风险', '技术迭代与替代风险', '资本热度与估值风险', '数据口径与证据可靠性风险',
@@ -342,6 +342,9 @@ def delivery_review_reasons(scope: dict, risk: dict, degradations: list) -> list
             reasons.append({'code': 'risk_assessment_incomplete', 'chapter': 14, 'dimension': name,
                             'unknown_cause': row.get('unknown_cause') or 'assessment_unavailable',
                             'message': f'{name}尚未完成有效评估：{reason}'})
+        elif 'claim_support_review' in row and (row.get('claim_support_review') or {}).get('status') != 'supported':
+            reasons.append({'code': 'risk_claim_support_pending', 'chapter': 14, 'dimension': name,
+                            'message': f'{name}已有模型初评，但判断支持关系尚未通过复核；保留初评分，不作为已确认结论。'})
     distinct = {}
     for reason in reasons:
         key = (reason['code'], reason.get('chapter'), reason.get('dimension'), reason['message'])
@@ -429,7 +432,13 @@ def select_chapter_evidence(payload: dict, title: str, requirements: list[str], 
     # Policy purpose clauses must not displace duties, nor amounts their rates.
     from industry_analysis import complete_plan
     contracted = [f for f in focused if f.get('fact_contract')]
+    question_material_candidates = []
     if contracted:
+        from industry_fact_contracts import chapter_coverage
+        question_material_candidates = [{'question': q['question'], 'evidence_count': len(q['evidence_ids']),
+            'evidence_ids': q['evidence_ids'][:4], 'background_count': len(q.get('background_evidence_ids', []))}
+            for q in chapter_coverage({'facts': contracted, 'industry_scope': payload.get('industry_scope') or {}}, chapter_index,
+                                      [f['evidence_id'] for f in contracted])]
         question_ids = complete_plan({'facts':contracted}, chapter_index, [])
         question_cards = [next(f for f in contracted if f['evidence_id']==eid) for eid in question_ids]
         reserved = question_cards + [f for f in reserved if f not in question_cards]
@@ -446,6 +455,7 @@ def select_chapter_evidence(payload: dict, title: str, requirements: list[str], 
                 'task_selected': {name:sum(name in passage_tasks(f) for f in focused) for name in sorted(task_names)},
                 'absence_scope':'仅反映本章保留的证据，不代表全部来源或公开资料不存在该信息'},
             'research_questions_status':questions,
+            'question_material_candidates':question_material_candidates,
             'information_gaps': (payload.get('information_gaps') or [])[:20]}
 
 
@@ -475,7 +485,7 @@ def bounded_package(package: dict, limit: int = 20000) -> str:
     """Keep JSON intact under a prompt budget, prioritizing concise fact cards."""
     result = {**package, 'facts': []}
     for original in package.get('facts', []):
-        fields = {'evidence_id','fact','source_url','source_title','source_type','source_grade','provider','publisher',
+        fields = {'evidence_id','fact','source_url','source_title','source_display_title','source_type','source_grade','provider','publisher',
             'date','published_date','original_source_url','original_publisher','module','category','claim_type','evidence_scope','scope_match','company_role',
             'industry_name','segment_name','attribution_boundary','sample_boundary_reason','cleaning_method',
             'is_structured_evidence','evidence_quote','evidence_quote_verified','numeric_context','numeric_validation',
@@ -495,7 +505,7 @@ def bounded_package(package: dict, limit: int = 20000) -> str:
         fact['evidence_quote'] = (fact['fact'] if fact.get('fact_contract') else str(fact.get('evidence_quote') or '')[:650])
         result['facts'].append(fact)
         if len(json.dumps(result, ensure_ascii=False)) > limit:
-            result['facts'].pop(); break
+              result['facts'].pop(); continue
     return json.dumps(result, ensure_ascii=False)
 
 
@@ -1092,7 +1102,7 @@ def append_evidence_index(report: str, payload: dict, outline: list, packages: d
         version = str(locator.get('body_version_id') or ('sha256:'+locator['body_sha256'] if locator.get('body_sha256') else '正文版本待核验'))
         publication = cell(fact.get('published_date') or fact.get('date') or fact.get('fact_date') or '日期待核验')
         from industry_grounding import display_source_title, source_markdown_link
-        source = cell(display_source_title(fact.get('source_title'))) + '<br>' + record['url'] + '<br>发布：' + publication + '<br>' + location + ' / ' + version
+        source = cell(display_source_title(fact.get('source_display_title') or fact.get('source_title'))) + '<br>' + record['url'] + '<br>发布：' + publication + '<br>' + location + ' / ' + version
         chapters = '、'.join(str(n) for n in sorted(record['chapters']))
         from industry_assertions import reader_evidence_excerpt
         from urllib.parse import urlsplit
@@ -1101,7 +1111,7 @@ def append_evidence_index(report: str, payload: dict, outline: list, packages: d
             support_chapters = record['chapters'] - {16}
             if not support_chapters:
                 continue  # Candidate titles/links/locators already live in task references.
-            source = source_markdown_link(fact.get('source_title'), record['url']) + '<br>发布：' + publication
+            source = source_markdown_link(fact.get('source_display_title') or fact.get('source_title'), record['url']) + '<br>发布：' + publication
             short_hash = str(locator.get('body_sha256') or '')[:12] or '待核验'
             chapters = '、'.join(map(str,sorted(support_chapters)))
             compact_groups.setdefault((record['url'],source),[]).append((f'{eid}<br>第{chapters}章',f'{location}<br>指纹前缀：<br>{short_hash}'))

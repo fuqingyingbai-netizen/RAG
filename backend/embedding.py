@@ -32,7 +32,7 @@ _DEFAULT_STATE_PATH = Path(__file__).resolve().parent.parent / "data" / "bm25_st
 
 
 # ==================== 【工具函数】创建本地密集向量模型 ====================
-def _create_dense_embedder() -> HuggingFaceEmbeddings:
+def _create_dense_embedder(*, local_files_only: bool = False) -> HuggingFaceEmbeddings:
     """
     创建本地密集向量生成器（语义向量）
     从环境变量读取：
@@ -48,7 +48,7 @@ def _create_dense_embedder() -> HuggingFaceEmbeddings:
 
     return HuggingFaceEmbeddings(
         model_name=model_name,
-        model_kwargs={"device": device},          # 使用 CPU 或 GPU
+        model_kwargs={"device": device, **({'local_files_only': True} if local_files_only else {})},
         encode_kwargs={"normalize_embeddings": True},  # 向量归一化（提高搜索精度）
     )
 
@@ -251,6 +251,16 @@ class EmbeddingService:
             return self._get_embedder().embed_documents(texts)
         except Exception as e:
             raise Exception(f"向量模型调用失败: {str(e)}") from e
+
+    def get_local_embeddings(self, texts: list[str]) -> list[list[float]]:
+        """Cleaning may reuse a cached model but must never download one."""
+        if not texts:
+            return []
+        with self._embedder_lock:
+            if self._embedder is None:
+                self._embedder = _create_dense_embedder(local_files_only=True)
+            model = self._embedder
+        return model.embed_documents(texts)
 
     # ==================== 【核心分词】中英文 ====================
     def tokenize(self, text: str) -> list[str]:

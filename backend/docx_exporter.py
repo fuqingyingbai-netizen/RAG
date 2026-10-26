@@ -51,6 +51,7 @@ STYLES_XML = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <w:style w:type="paragraph" w:styleId="PersonQuote"><w:name w:val="Person Source Quote"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="60" w:line="260" w:lineRule="auto"/></w:pPr></w:style>
   <w:style w:type="paragraph" w:styleId="PersonEvidenceLabel"><w:name w:val="Person Evidence Label"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="160" w:after="60"/></w:pPr><w:rPr><w:b/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="TableText"><w:name w:val="Table Text"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="0" w:after="60" w:line="276" w:lineRule="auto"/></w:pPr></w:style>
+  <w:style w:type="paragraph" w:styleId="IndustryFinding"><w:name w:val="Industry Finding"/><w:basedOn w:val="Normal"/><w:pPr><w:shd w:fill="EFF5FA"/><w:pBdr><w:left w:val="single" w:sz="18" w:space="10" w:color="365F7C"/></w:pBdr><w:ind w:left="180" w:right="120"/><w:spacing w:before="120" w:after="140" w:line="300" w:lineRule="auto"/></w:pPr><w:rPr><w:color w:val="17364D"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:before="240" w:after="240"/></w:pPr><w:rPr><w:b/><w:color w:val="111827"/><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="34"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr><w:rPr><w:color w:val="64748B"/><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="20"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="ReportTitle"><w:name w:val="Report Title"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:before="240" w:after="240"/></w:pPr><w:rPr><w:b/><w:color w:val="111827"/><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="34"/></w:rPr></w:style>
@@ -225,6 +226,7 @@ def _table(
     evidence_bookmarks: dict[str, tuple[int, str]] | None = None,
     company: bool = False,
     person: bool = False,
+    industry: bool = False,
 ) -> str:
     if not rows:
         return ""
@@ -242,6 +244,12 @@ def _table(
             weights = [14, 16, 17, 25, 7, 21]
         elif headers == ['风险维度', '评估状态', '模型分值', '风险等级', '判断依据或未评分原因', '证据编号']:
             weights = [17, 12, 10, 10, 34, 17]
+        elif headers == ['比较方向', '原文信息', '适用边界']:
+            weights = [17, 58, 25]
+        elif headers == ['上游', '中游', '下游']:
+            weights = [1, 1, 1]
+        elif headers == ['期间与数值性质', '来源列示值', '分别保留的统计口径与出处']:
+            weights = [20, 30, 50]
         elif industry_source:
             weights = [26, 44, 30]
         elif width == 3 and any('定位' in h for h in headers):
@@ -302,7 +310,8 @@ def _table(
                 if damaged:
                     cell = '原文存在乱码、缺字或残句，暂不转述；请核对原始来源。'
             if compact_source and ridx>0:cell=_company_source_cell(cell,cidx)
-            shade = '<w:shd w:fill="EAF1F8"/>' if ridx == 0 else ""
+            shade = '<w:shd w:fill="EAF1F8"/>' if ridx == 0 else (
+                '<w:shd w:fill="F7FAFC"/>' if industry and ridx % 2 == 0 else '')
             long_row = max((len(str(value)) for value in row), default=0) > 80
             v_align = '<w:vAlign w:val="top"/>' if company or person or long_row else '<w:vAlign w:val="center"/>'
             evidence_id = str(cell or "").strip().upper()
@@ -361,6 +370,7 @@ def _parse_table(
     evidence_bookmarks: dict[str, tuple[int, str]] | None = None,
     company: bool = False,
     person: bool = False,
+    industry: bool = False,
 ) -> tuple[str, int]:
     rows: list[list[str]] = []
     i = start
@@ -373,7 +383,7 @@ def _parse_table(
                 cells = cells[:width-1] + [' / '.join(c for c in cells[width-1:] if c)]
             rows.append(cells)
         i += 1
-    return _table(rows, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, company=company, person=person), i
+    return _table(rows, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, company=company, person=person, industry=industry), i
 
 
 def _image_payload(target: str) -> tuple[bytes, str] | None:
@@ -652,7 +662,7 @@ def markdown_to_docx_bytes(
             i += 1
             continue
         if "|" in line and i + 1 < len(lines) and _is_separator_row(lines[i + 1]):
-            table_xml, i = _parse_table(lines, i, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, company=company_claim_index, person=person_claim_index)
+            table_xml, i = _parse_table(lines, i, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, company=company_claim_index, person=person_claim_index, industry=document_kind.startswith('industry_'))
             body.append(table_xml)
             continue
         heading = re.match(r"^(#{1,6})\s*(.*)$", line)
@@ -680,12 +690,14 @@ def markdown_to_docx_bytes(
                         style = "SectionHeading"
             body.append(_paragraph(text, style=style, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks,
                                    bookmark=chapter_bookmarks.get(text) if chapter_bookmarks and level==2 else None,
-                                   keep_next=company_claim_index or person_claim_index))
+                                   keep_next=company_claim_index or person_claim_index or document_kind.startswith('industry_')))
             i += 1
             continue
         quote = re.match(r"^>\s*(.*)$", line)
         if quote:
-            body.append(_paragraph(quote.group(1), style='PersonQuote' if person_claim_index else None, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, keep_lines=company_claim_index))
+            finding = document_kind == 'industry_report' and current_chapter == 14 and bool(quote.group(1))
+            body.append(_paragraph(quote.group(1), style='IndustryFinding' if finding else 'PersonQuote' if person_claim_index else None,
+                hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, keep_lines=company_claim_index or finding))
             i += 1
             continue
         if person_claim_index and line.startswith('**来源记录 '):

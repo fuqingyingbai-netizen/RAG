@@ -307,7 +307,10 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     from industry_delivery import verification_task_table
     proposal = next(a for a in artifacts if a.artifact_type == 'proposal')
     task_table = verification_task_table(report.artifact_metadata['verification_tasks'])
-    assert task_table in report.content
+    from industry_reader import task_brief
+    assert task_brief(report.artifact_metadata['verification_tasks']) in report.content
+    diagnostic = next(a for a in artifacts if a.artifact_type == 'report_quality_diagnostic')
+    assert task_table in diagnostic.content
     assert verification_task_table(report.artifact_metadata['verification_tasks'], include_reference_index=False,
                                    reference_location='附录B候选来源索引') in proposal.content
     assert verification_task_table(report.artifact_metadata['verification_tasks'], reference_index_only=True) in proposal.content
