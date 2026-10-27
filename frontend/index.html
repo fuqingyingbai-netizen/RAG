@@ -70,7 +70,7 @@
           <el-menu-item index="review"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><span>复核与一手资料</span></el-menu-item>
           <el-menu-item index="sources"><i class="fa-solid fa-database" aria-hidden="true"></i><span>溯源库</span></el-menu-item>
         </el-sub-menu>
-        <el-menu-item index="company-knowledge" class="company-knowledge-nav"><i class="fa-solid fa-book-open"></i><span>公司知识库</span></el-menu-item>
+        <el-menu-item index="company-knowledge" class="company-knowledge-nav"><i class="fa-solid fa-book-open" aria-hidden="true"></i><span>公司知识库</span></el-menu-item>
         <el-menu-item v-if="currentUser?.role === 'admin'" index="accounts"><i class="fa-solid fa-users-gear"></i><span>账号管理</span></el-menu-item>
       </el-menu>
     </el-aside>
@@ -84,9 +84,13 @@
         </section>
       </el-header>
       <el-main>
+        <section v-if="visibleActions.length || visibleActionErrors.length" class="operation-feedback" aria-label="操作进度">
+          <div v-for="action in visibleActions" :key="action.id" class="operation-pending" role="status" aria-live="polite"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i><span>{{actionWaitText(action)}}</span></div>
+          <div v-for="[key, error] in visibleActionErrors" :key="key" class="operation-error" role="alert"><div><strong>{{error.label.replace('正在', '')}}未完成</strong><p>{{error.message}}</p><small>{{error.advice}}</small></div><el-button text size="small" @click="delete actionErrors[key]" aria-label="关闭操作提示">关闭</el-button></div>
+        </section>
         <section v-if="!['home','company-knowledge','accounts'].includes(activeView)" class="summary-band"><div><span>任务总数</span><strong>{{ projects.length }}</strong></div><div><span>生成中</span><strong>{{ generatingCount }}</strong></div><div><span>可下载</span><strong>{{ readyCount }}</strong></div><div><span>溯源条目</span><strong>{{ sourceCount }}</strong></div></section>
-        <personal-home v-if="activeView === 'home'" :request="authFetch" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @open-project="openHomeProject" @view-versions="report => openReportVersions({id:report.project_id, title:report.project_title}, report.artifact_type)"></personal-home>
-        <company-knowledge v-if="activeView === 'company-knowledge'" :projects="projects"></company-knowledge>
+        <personal-home v-if="activeView === 'home'" :request="authFetch" :read="readJSON" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @open-project="openHomeProject" @view-versions="report => openReportVersions({id:report.project_id, title:report.project_title}, report.artifact_type)"></personal-home>
+        <company-knowledge v-if="activeView === 'company-knowledge'" :projects="projects" :feedback="runAction" :operation-state="pendingActions"></company-knowledge>
 
         <account-management v-if="activeView === 'accounts' && currentUser?.role === 'admin'" :request="authFetch" @session-invalidated="handleLogout"></account-management>
         <section v-if="activeView === 'submit'">
@@ -139,6 +143,19 @@
             <p class="table-scroll-hint">表格可左右滑动，查看全部信息和操作。</p>
             <el-table ref="taskTable" :data="pagedProjects" row-key="id" class="task-table" :empty-text="hasTaskFilters ? '暂无符合筛选条件的任务，请调整或清空筛选' : '暂无任务'" @expand-change="onTaskExpand">
               <el-table-column type="expand"><template #default="{ row }"><div class="task-expand">
+                <el-alert v-if="actionPending('detail:' + row.id)" title="正在读取任务详情，请稍候…" type="info" :closable="false" show-icon></el-alert>
+                <el-alert v-if="actionErrors['detail:' + row.id]" :title="actionErrors['detail:' + row.id].message" type="error" :closable="false" show-icon><el-button plain size="small" @click="loadProjectDetail(row, {force:true}).catch(() => null)">重新读取详情</el-button></el-alert>
+                <section v-if="recoveryFor(row)?.issues?.length" class="task-recovery" aria-label="任务处理指引">
+                  <header><div><h3>处理指引</h3><p>区分研究执行、文件解析、Word 导出和知识库入库的问题。</p></div><el-button size="small" plain @click="loadProjectDetail(row)">刷新指引</el-button></header>
+                  <p class="recovery-saved">系统已保存：{{recoveryFor(row).saved.source_records}} 条来源记录、{{recoveryFor(row).saved.report_text_records}} 条研究报告正文记录、{{recoveryFor(row).saved.proposal_text_records}} 条建议书正文记录。</p>
+                  <p class="recovery-note">{{recoveryFor(row).retention_notice}}</p>
+                  <p v-if="recoveryFor(row).running" class="recovery-note">该任务当前仍在执行，请查看实时进度；完成前不重复启动研究。</p>
+                  <article v-for="(issue, index) in recoveryFor(row).issues" :key="issue.kind + ':' + (issue.artifact_id || index)" class="recovery-issue" :data-kind="issue.kind">
+                    <h4>{{issue.title}}</h4><dl><div><dt>最近记录阶段</dt><dd>{{issue.stage}}</dd></div><div><dt>情况说明</dt><dd>{{issue.reason}}</dd></div><div><dt>下一步</dt><dd>{{issue.advice}}</dd></div></dl>
+                    <div v-if="issue.actions?.length" class="recovery-actions"><el-button v-for="action in issue.actions" :key="action.kind" size="small" plain :type="action.kind === 'run' ? 'warning' : 'primary'" :disabled="!!recoveryBusy[row.id] || !!startingProjects[row.id]" @click="runRecoveryAction(row, action)">{{action.label}}</el-button></div>
+                  </article>
+                  <details class="recovery-run-notice"><summary>继续、重跑与重试入库的区别</summary><p>{{recoveryFor(row).run_notice}}</p><p>重试入库只提交已有报告进入知识库处理，不重跑研究；Word 导出失败不等于报告正文丢失。只有已保存的正文才提供指引中的下载入口。</p></details>
+                </section>
                 <div class="detail-grid primary-result-grid">
                   <section class="detail-panel result-panel">
                     <div class="workflow-head"><strong>成果下载</strong><el-space wrap><el-button plain size="small" @click="openReportVersions(row)">历史版本</el-button><el-tag size="small" type="success">{{ downloadableArtifacts(row).length }} 个产物</el-tag></el-space></div>
@@ -201,7 +218,7 @@
                         </div>
                         <div class="artifact-actions">
                           <el-button v-if="row.target_type === 'industry' && artifact.artifact_type === 'cleaned_facts' && ['failed', 'error', 'background_timeout', 'disabled'].includes(artifact.metadata?.vector_index_status)" plain @click="retryArtifactIndex(row, artifact)">重试索引</el-button>
-                          <el-button type="primary" plain @click="downloadArtifact(artifact)">下载</el-button>
+                          <el-button type="primary" plain :loading="actionPending('download-artifact:' + artifact.id)" @click="downloadArtifact(artifact)">下载</el-button>
                           <el-button type="danger" plain @click="deleteArtifact(row, artifact)">删除</el-button>
                         </div>
                       </div>
@@ -242,7 +259,7 @@
               <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)" effect="light">{{ taskStatusLabel(row.status) }}</el-tag></template></el-table-column>
               <el-table-column label="进度" min-width="180"><template #default="{ row }"><el-progress :percentage="progressFor(row)" ></el-progress></template></el-table-column>
               <el-table-column label="更新" width="190"><template #default="{ row }"><div>{{ formatTime(row.updated_at) }}</div><div class="table-subtext">创建 {{ formatTime(row.created_at) }}</div></template></el-table-column>
-              <el-table-column label="操作" width="184" fixed="right" align="center"><template #default="{ row }"><div class="task-row-actions"><el-button link type="primary" @click="viewProject(row)">查看</el-button><el-button link type="primary" :disabled="!latestDownloadable(row)" @click="downloadArtifact(latestDownloadable(row))">下载</el-button><el-button v-if="canPauseProject(row)" link type="warning" @click="pauseProject(row)">暂停</el-button><el-button v-else link type="warning" @click="rerunProject(row)">{{ row.status === 'completed' ? '重跑' : '继续' }}</el-button><el-button link type="danger" @click="deleteProject(row)">删除</el-button></div></template></el-table-column>
+              <el-table-column label="操作" width="248" fixed="right" align="center"><template #default="{ row }"><div class="task-row-actions"><el-button link type="primary" :loading="actionPending('detail:' + row.id)" @click="viewProject(row)">查看</el-button><el-button link type="primary" :loading="actionPending('download-artifact:' + latestDownloadable(row)?.id)" :disabled="!latestDownloadable(row)" @click="downloadArtifact(latestDownloadable(row))">下载</el-button><el-button v-if="canPauseProject(row)" link type="warning" :loading="actionPending('pause:' + row.id)" @click="pauseProject(row)">暂停</el-button><el-button v-else link type="warning" :loading="!!startingProjects[row.id]" :disabled="!!startingProjects[row.id]" @click="rerunProject(row)">{{ startingProjects[row.id] ? '处理中' : row.status === 'completed' ? '重跑' : '继续' }}</el-button><el-button link type="danger" :loading="actionPending('delete-project:' + row.id)" @click="deleteProject(row)">删除</el-button></div></template></el-table-column>
             </el-table>
             <div class="pagination-bar"><el-pagination background layout="prev, pager, next, sizes, total" :total="filteredProjects.length" v-model:current-page="taskPage" v-model:page-size="taskPageSize" :page-sizes="[10,12,20,50]" ></el-pagination></div>
           </el-card>
@@ -250,7 +267,7 @@
 
         <section v-if="activeView === 'review'">
           <el-card shadow="never" class="panel-card">
-            <template #header><div class="card-header"><div><p class="eyebrow">Human Review</p><h2>复核与一手资料</h2></div><el-button type="primary" :loading="secondStageRunning" :disabled="!reviewProjectId" @click="runSecondStage">二阶段再生成</el-button></div></template>
+            <template #header><div class="card-header"><div><p class="eyebrow">Human Review</p><h2>复核与一手资料</h2></div><el-button type="primary" :loading="secondStageRunning" :disabled="!reviewProjectId || !reviewIntakes[reviewProjectId] || actionPending('review:' + reviewProjectId) || reviewWriteBusy" @click="runSecondStage">{{secondStageRunning ? (secondStageProjectId === reviewProjectId ? '二阶段处理中' : '其他项目生成中') : '二阶段再生成'}}</el-button></div></template>
             <el-form label-position="top">
               <div class="table-toolbar task-filter-toolbar" role="search" aria-label="复核任务筛选">
                 <div class="table-meta">先选择要复核的项目 · {{ filteredProjects.length }} / {{ projects.length }} 个任务</div>
@@ -264,21 +281,25 @@
               <el-table ref="reviewTable" :data="pagedProjects" row-key="id" class="review-project-table" :empty-text="hasTaskFilters ? '暂无符合筛选条件的任务，请调整或清空筛选' : '暂无任务'" highlight-current-row>
                 <el-table-column type="expand"><template #default="{ row }">
                   <div v-if="reviewProjectId === row.id" class="review-inline">
-                    <el-alert :title="'当前复核项目：' + (row.title || row.id)" type="success" show-icon :closable="false" class="review-current" ></el-alert>
-                    <div class="review-grid">
+                    <el-alert v-if="actionPending('review:' + row.id)" title="正在准备复核资料，已选中此项目" :description="actionWaitText(pendingActions['review:' + row.id])" type="info" show-icon :closable="false" class="review-current"></el-alert>
+                    <el-alert v-else-if="actionErrors['review:' + row.id]" :title="actionErrors['review:' + row.id].message" type="error" show-icon :closable="false" class="review-current"><el-button plain size="small" @click="selectReviewProject(row)">重新读取复核资料</el-button></el-alert>
+                    <el-alert v-else-if="reviewIntakes[row.id]" :title="'当前复核项目：' + (row.title || row.id)" description="复核资料已就绪，可以上传修订稿或一手资料。" type="success" show-icon :closable="false" class="review-current" ></el-alert>
+                    <el-alert v-if="taskUploadIssues[row.id]" :title="taskUploadIssues[row.id].title" :description="taskUploadIssues[row.id].advice" type="error" show-icon :closable="false" class="review-current"></el-alert>
+                    <el-skeleton v-if="actionPending('review:' + row.id)" :rows="3" animated></el-skeleton>
+                    <div v-if="reviewIntakes[row.id] && !actionPending('review:' + row.id)" class="review-grid" :aria-busy="reviewWriteBusy">
                       <section class="review-panel">
                         <h3>人工修订产物覆盖</h3>
-                        <el-form-item label="人工修订后的桌面研究报告"><el-upload drag :auto-upload="false" :limit="1" :on-change="handleReviewReportChange"><div class="upload-title">上传 Word / PDF / Markdown</div><div class="upload-text">作为最新桌面研究报告版本，并入库供二阶段使用</div></el-upload></el-form-item>
-                        <el-button type="primary" plain @click="uploadReviewArtifact('desktop_report')">覆盖桌面研究报告</el-button>
+                        <el-form-item label="人工修订后的桌面研究报告"><el-upload drag :auto-upload="false" :limit="1" :disabled="reviewInputsLocked" :file-list="uploadDisplayFiles(reviewReportFiles)" :on-change="handleReviewReportChange" :on-remove="handleReviewReportChange"><div class="upload-title">上传 Word / PDF / Markdown</div><div class="upload-text">作为最新桌面研究报告版本，并入库供二阶段使用</div></el-upload></el-form-item>
+                        <el-button type="primary" plain :loading="actionPending('review-upload:desktop_report:' + row.id)" :disabled="reviewInputsLocked" @click="uploadReviewArtifact('desktop_report')">覆盖桌面研究报告</el-button>
                         <el-divider ></el-divider>
-                        <el-form-item label="人工修订后的项目建议书"><el-upload drag :auto-upload="false" :limit="1" :on-change="handleReviewProposalChange"><div class="upload-title">上传 Word / PDF / Markdown</div><div class="upload-text">作为最新建议书版本，并入库供二阶段使用</div></el-upload></el-form-item>
-                        <el-button type="primary" plain @click="uploadReviewArtifact('proposal')">覆盖项目建议书</el-button>
+                        <el-form-item label="人工修订后的项目建议书"><el-upload drag :auto-upload="false" :limit="1" :disabled="reviewInputsLocked" :file-list="uploadDisplayFiles(reviewProposalFiles)" :on-change="handleReviewProposalChange" :on-remove="handleReviewProposalChange"><div class="upload-title">上传 Word / PDF / Markdown</div><div class="upload-text">作为最新建议书版本，并入库供二阶段使用</div></el-upload></el-form-item>
+                        <el-button type="primary" plain :loading="actionPending('review-upload:proposal:' + row.id)" :disabled="reviewInputsLocked" @click="uploadReviewArtifact('proposal')">覆盖项目建议书</el-button>
                       </section>
                       <section class="review-panel">
                         <h3>专家访谈 / 走访一手资料</h3>
                         <el-form-item label="资料类型"><el-select v-model="fieldSourceModule" class="full"><el-option label="专家访谈" value="专家访谈" ></el-option><el-option label="实地走访" value="实地走访" ></el-option><el-option label="客户访谈" value="客户访谈" ></el-option><el-option label="供应商访谈" value="供应商访谈" ></el-option><el-option label="渠道访谈" value="渠道访谈" ></el-option><el-option label="管理层访谈" value="管理层访谈" ></el-option></el-select></el-form-item>
-                        <el-form-item label="上传笔录、录音转写、照片或书面材料"><el-upload drag multiple :auto-upload="false" :on-change="handleFieldSourceChange"><div class="upload-title">上传一手资料</div><div class="upload-text">文件会进入对象存储，图片会标记 OCR/视觉处理，文本会尝试写入向量库</div></el-upload></el-form-item>
-                        <el-button type="primary" @click="uploadFieldSources">上传并入库</el-button>
+                        <el-form-item label="上传笔录、录音转写、照片或书面材料"><el-upload drag multiple :auto-upload="false" :disabled="reviewInputsLocked" :file-list="uploadDisplayFiles(fieldSourceFiles)" :on-change="handleFieldSourceChange" :on-remove="handleFieldSourceChange"><div class="upload-title">上传一手资料</div><div class="upload-text">文件会进入对象存储，图片会标记 OCR/视觉处理，文本会尝试写入向量库</div></el-upload></el-form-item>
+                        <el-button type="primary" :loading="actionPending('field-upload:' + row.id)" :disabled="reviewInputsLocked" @click="uploadFieldSources">上传并入库</el-button>
                       </section>
                     </div>
                   </div>
@@ -287,7 +308,7 @@
                 <el-table-column label="研究对象" min-width="200"><template #default="{ row }">{{ row.target_name || '-' }}</template></el-table-column>
                 <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)" effect="light">{{ taskStatusLabel(row.status) }}</el-tag></template></el-table-column>
                 <el-table-column label="更新" width="190"><template #default="{ row }">{{ formatTime(row.updated_at) }}</template></el-table-column>
-                <el-table-column label="操作" width="110" align="right"><template #default="{ row }"><el-button link type="primary" @click="selectReviewProject(row)">复核</el-button></template></el-table-column>
+                <el-table-column label="操作" width="136" align="right"><template #default="{ row }"><el-button link type="primary" :loading="actionPending('review:' + row.id)" :disabled="reviewWriteBusy" @click="selectReviewProject(row)">{{actionPending('review:' + row.id) ? '准备中' : '复核'}}</el-button></template></el-table-column>
               </el-table>
               <div class="pagination-bar"><el-pagination background layout="prev, pager, next, sizes, total" :total="filteredProjects.length" v-model:current-page="taskPage" v-model:page-size="taskPageSize" :page-sizes="[10,12,20,50]" ></el-pagination></div>
               <el-empty v-if="!reviewProjectId" description="请选择项目后上传复核资料" :image-size="80" ></el-empty>
@@ -297,17 +318,17 @@
 
         <section v-if="activeView === 'sources'">
           <el-card shadow="never" class="panel-card">
-            <template #header><div class="card-header"><div><p class="eyebrow">Source Repository</p><h2>溯源库</h2></div><el-button plain @click="loadRepository">刷新记录</el-button></div></template>
+            <template #header><div class="card-header"><div><p class="eyebrow">Source Repository</p><h2>溯源库</h2></div><el-button plain :loading="repositoryLoading" @click="loadRepository">刷新记录</el-button></div></template>
             <el-alert title="来源记录用于核对报告依据。公开网页点击查看原始来源；专业平台可能需要登录。网页正文仅临时处理，报告问答请前往公司知识库。" type="info" show-icon :closable="false" class="source-alert" ></el-alert>
-            <div class="table-toolbar"><div class="table-meta">显示 {{ knowledgeResults.length }} 条来源、上传资料和产物</div><el-input v-model="knowledgeQuery" clearable placeholder="搜索来源标题、链接或关键词" class="table-search" @clear="loadRepository" @keyup.enter="searchKnowledge"><template #append><el-button @click="searchKnowledge"><i class="fa-solid fa-search"></i></el-button></template></el-input></div>
-            <el-table :data="pagedKnowledgeResults" class="source-table" empty-text="暂无溯源库条目">
+            <div class="table-toolbar"><div class="table-meta">显示 {{ knowledgeResults.length }} 条来源、上传资料和产物</div><el-input v-model="knowledgeQuery" clearable placeholder="搜索来源标题、链接或关键词" class="table-search" @clear="loadRepository" @keyup.enter="searchKnowledge"><template #append><el-button :loading="repositoryLoading" @click="searchKnowledge"><i class="fa-solid fa-search"></i></el-button></template></el-input></div>
+            <el-table v-loading="repositoryLoading" :data="pagedKnowledgeResults" class="source-table" empty-text="暂无溯源库条目">
               <el-table-column prop="title" label="标题" min-width="220" ></el-table-column>
-              <el-table-column label="链接" min-width="260"><template #default="{ row }"><el-link v-if="isExternalUrl(row.original_url || row.url)" :href="row.original_url || row.url" target="_blank" type="primary">查看原始来源</el-link><el-button v-else-if="row.kind === 'artifact'" link type="primary" @click="downloadArtifact(row)">下载产物</el-button><el-button v-else-if="row.has_download" link type="primary" @click="downloadSource(row)">下载资料</el-button><span v-else class="table-subtext">-</span></template></el-table-column>
+              <el-table-column label="链接" min-width="260"><template #default="{ row }"><el-link v-if="isExternalUrl(row.original_url || row.url)" :href="row.original_url || row.url" target="_blank" type="primary">查看原始来源</el-link><el-button v-else-if="row.kind === 'artifact'" link type="primary" :loading="actionPending('download-artifact:' + row.id)" @click="downloadArtifact(row)">下载产物</el-button><el-button v-else-if="row.has_download" link type="primary" :loading="actionPending('download-source:' + row.id)" @click="downloadSource(row)">下载资料</el-button><span v-else class="table-subtext">-</span></template></el-table-column>
               <el-table-column label="类型" width="150"><template #default="{ row }">{{ row.kind === 'artifact' ? artifactTypeLabel(row.artifact_type) : row.source_type }}</template></el-table-column>
               <el-table-column label="平台" width="150"><template #default="{ row }">{{ row.platform || row.source_type || '系统产物' }}</template></el-table-column>
               <el-table-column label="项目" width="180"><template #default="{ row }">{{ row.project_title || row.project_id }}</template></el-table-column>
               <el-table-column label="记录 / 引用摘录" min-width="300"><template #default="{ row }"><span class="snippet">{{ row.snippet }}</span></template></el-table-column>
-              <el-table-column label="记录时间" width="180"><template #default="{ row }">{{ formatTime(row.created_at) }}</template></el-table-column><el-table-column label="操作" width="120"><template #default="{ row }"><el-button v-if="row.kind === 'artifact'" link type="primary" @click="downloadArtifact(row)">下载</el-button><el-button v-else-if="row.has_download" link type="primary" @click="downloadSource(row)">下载</el-button><el-link v-else-if="isExternalUrl(row.original_url || row.url)" :href="row.original_url || row.url" target="_blank" rel="noopener noreferrer" type="primary">打开原站</el-link><span v-else class="table-subtext">平台查询记录</span></template></el-table-column>
+              <el-table-column label="记录时间" width="180"><template #default="{ row }">{{ formatTime(row.created_at) }}</template></el-table-column><el-table-column label="操作" width="120"><template #default="{ row }"><el-button v-if="row.kind === 'artifact'" link type="primary" :loading="actionPending('download-artifact:' + row.id)" @click="downloadArtifact(row)">下载</el-button><el-button v-else-if="row.has_download" link type="primary" :loading="actionPending('download-source:' + row.id)" @click="downloadSource(row)">下载</el-button><el-link v-else-if="isExternalUrl(row.original_url || row.url)" :href="row.original_url || row.url" target="_blank" rel="noopener noreferrer" type="primary">打开原站</el-link><span v-else class="table-subtext">平台查询记录</span></template></el-table-column>
             </el-table>
             <div class="pagination-bar"><el-pagination background layout="prev, pager, next, sizes, total" :total="knowledgeResults.length" v-model:current-page="sourcePage" v-model:page-size="sourcePageSize" :page-sizes="[20,50,100,300]" ></el-pagination></div>
           </el-card>
@@ -346,7 +367,7 @@
       </footer>
     </section>
   </el-container>
-  <report-versions v-if="isAuthenticated && reportVersionsOpen" :key="token" :project="reportVersionsProject" :initial-type="reportVersionsType" :request="authFetch" :download="downloadArtifact" @close="closeReportVersions"></report-versions>
+  <report-versions v-if="isAuthenticated && reportVersionsOpen" :key="token" :project="reportVersionsProject" :initial-type="reportVersionsType" :request="authFetch" :read="readJSON" :download="downloadArtifact" @close="closeReportVersions"></report-versions>
   <el-dialog v-model="passwordOpen" title="修改密码" width="min(520px, 94vw)" :close-on-click-modal="false" @closed="passwordForm={current_password:'',new_password:'',confirm_password:''}">
     <el-form class="password-form" label-position="top" @submit.prevent="changePassword">
       <el-form-item label="原密码"><el-input v-model="passwordForm.current_password" aria-label="原密码" type="password" show-password autocomplete="current-password" maxlength="128"></el-input></el-form-item>

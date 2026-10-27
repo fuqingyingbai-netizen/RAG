@@ -80,6 +80,41 @@ def test_summary_rejects_related_company_even_when_target_is_in_title():
     assert [f['evidence_id'] for f in package['facts']]==[direct['evidence_id']]
 
 
+def test_competitor_share_in_target_filing_cannot_become_a_target_summary_card():
+    fact = card()
+    fact.update(claim_type='source_excerpt', fact='目标科技股份有限公司年度报告原件。')
+    competitor = '比亚迪在2025年度新能源汽车市场中的市场份额达到20%，相关数据覆盖境内乘用车市场。'
+    raw = '目标科技股份有限公司2025年年度报告\n\n' + competitor
+    package = build_company_summary_package({'facts': [fact]}, project().target_name, [source(fact, raw)])
+    assert not any(competitor in row['fact'] for row in package['facts'])
+
+
+def test_generic_product_and_service_descriptions_are_business_summary_cards():
+    from report_agents.company_summary import _topic
+    for text in ('主要产品为食品调味配料，供给餐饮及家庭渠道。',
+                 '公司主要从事办公协同软件的开发与订阅服务。',
+                 '核心产品为工业传感设备及配套运维服务。'):
+        assert _topic(text) == 'business'
+
+
+def test_market_share_accepts_the_targets_actual_disclosed_alias():
+    fact = card()
+    fact.update(claim_type='source_excerpt', fact='目标科技股份有限公司年度报告原件。')
+    claim = '目科软件2025年在相关工业控制软件市场的市场份额为20%，统计范围为境内同类软件。'
+    raw = ('目标科技股份有限公司2025年年度报告\n\n'
+           '目标科技股份有限公司（以下简称“目科软件”）\n\n' + claim)
+    package = build_company_summary_package({'facts': [fact]}, project().target_name, [source(fact, raw)])
+    assert any(claim in row['fact'] for row in package['facts'])
+
+
+def test_unbound_company_pronoun_in_other_publication_cannot_supply_target_share():
+    fact = card()
+    fact.update(claim_type='source_excerpt', fact='目标科技股份有限公司相关市场材料。', source_title='行业市场概况')
+    claim = '本公司2025年在相关工业控制软件市场的市场份额为20%，统计范围为境内同类软件。'
+    package = build_company_summary_package({'facts': [fact]}, project().target_name, [source(fact, claim)])
+    assert not any(claim in row['fact'] for row in package['facts'])
+
+
 def test_current_structured_shareholders_survive_long_web_excerpts():
     web=card(1,"目标科技股份有限公司。"+'网页摘要。'*500)
     web['claim_type']='source_excerpt'

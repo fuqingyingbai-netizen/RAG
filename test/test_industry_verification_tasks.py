@@ -104,7 +104,7 @@ def test_metric_tasks_link_to_unresolved_risk_and_do_not_duplicate_its_requireme
     assert tasks[1]['task_id'] == next(t['task_id'] for t in another if t['key'] == 'metric:technology_cost')
 
 
-def test_shared_table_keeps_completion_and_all_tasks_in_report_and_proposal():
+def test_compact_report_keeps_tasks_and_proposal_keeps_full_completion_details():
     tasks = verification_tasks({'facts': [fact()]}, {'dimensions': [unknown()]},
                                [{'chapter': 7, 'message': '技术章节失败'}], SCOPE)
     project = SimpleNamespace(title='机器人研究', target_name='机器人', industry_scope=SCOPE,
@@ -112,7 +112,9 @@ def test_shared_table_keeps_completion_and_all_tasks_in_report_and_proposal():
     table = verification_task_table(tasks)
     report = tasks_section(tasks)
     proposal = build_industry_proposal(project)
-    assert table in report
+    from industry_reader import task_brief
+    assert task_brief(tasks) in report and table not in report
+    assert all(task['task_id'] in report for task in tasks)
     assert verification_task_table(tasks, include_reference_index=False, reference_location='附录B候选来源索引') in proposal
     assert verification_task_table(tasks, reference_index_only=True) in proposal
     for task in tasks:

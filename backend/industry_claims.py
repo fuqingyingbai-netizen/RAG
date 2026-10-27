@@ -71,7 +71,7 @@ def claim_contract_issues(text, facts):
         if re.search(r'(?:所有|全部)(?:清洗)?(?:事实|证据|来源|公开资料).{0,18}(?:均无|均未|没有|不存在)|完全没有(?:技术路线|测试条件|实测)',line):
             add('evidence_absence_overstated','本章选证不能证明全库或全部公开资料不存在信息，应说明本章覆盖及待核验范围。')
         from industry_grounding import sample_boundary
-        if any(sample_boundary(f) for f in rows) and re.search(r'行业(?:整体|级|平均)|全行业|唯一可验证',line):
+        if any(sample_boundary(f) for f in rows) and re.search(r'行业(?:整体|级|平均|普遍|所有|全部)|(?:全|整个)行业|(?:所有|全部).{0,8}技术路线|普遍(?:部署|适用|成熟|投入|商用|生产)|唯一可验证',line):
             if not re.search(r'不得|不能|不可|不代表|不外推|仅限.{0,6}样本',line):
                 add('sample_extrapolation_unsupported','代表企业或上市公司样本不能改写为行业平均或行业级指标，须保留样本边界。')
         if re.search(r'高于|低于|超过.*均值', line) and re.search(r'增速|增长|同比', line) and not re.search(r'不可比|不能比较|假设', line):

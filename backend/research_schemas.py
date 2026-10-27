@@ -100,9 +100,18 @@ class ResearchRunRequest(BaseModel):
     research_purpose: str = ""
     include_capital_markets: Optional[StrictBool] = None
     as_of_date: str = ""
+    required_chapters: list[int] = Field(default_factory=list)
+    scoring_required: Optional[StrictBool] = None
     industry_scope: dict[str, Any] = Field(default_factory=dict)
     min_sources_per_module: int = 5
     max_search_rounds: int = 3
+
+    @field_validator('required_chapters')
+    @classmethod
+    def valid_company_required_chapters(cls,value):
+        if any(n<2 or n>12 for n in value):
+            raise ValueError('必答实质章节只能为第2至12章')
+        return list(dict.fromkeys(value))
 
     @field_validator("as_of_date")
     @classmethod

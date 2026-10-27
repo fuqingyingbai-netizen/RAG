@@ -57,6 +57,103 @@ def test_weights_are_explicit_company_performance_not_evidence_coverage():
     assert all('覆盖' not in d['name'] and '信用等级' not in d['name'] for d in RUBRIC)
 
 
+def platform_source_record(text):
+    return {'title':ROOT+'专业平台记录','url':'structured://qcc_company/financial/'+ROOT,
+            'content':text,'source_metadata':{'provider':'qcc_company','content_kind':'structured_data'}}
+
+
+def platform_metrics():
+    return (f'| 字段 | 值 |\n| --- | --- |\n| 企业名称 | {ROOT} |\n\n'
+        '| 指标 | 本期 | 上年同期 | 单位 | 币种 | 统计范围 | 报告期 | 报告截至日 |\n'
+        '| --- | --- | --- | --- | --- | --- | --- | --- |\n'+''.join(
+        f'| {m} | {a} | {b} | 万元 | 人民币 | 合并 | 2025年度 | 2025-12-31 |\n'
+        for m,a,b in zip(METRICS,[120,12,24],[100,10,20])))
+
+
+def test_original_platform_fields_can_score_revenue_profit_and_cash_without_exchange():
+    p=build(platform_source_record(platform_metrics()))
+    assert len(p['financial_observations'])==3
+    assert [d['score'] for d in p['dimensions'][:2]]==[4,4]
+    assert p['platform_source_review'][0]['admitted']
+    assert p['platform_source_review'][0]['financial_records']==3
+    assert '专业平台所载' in render_assessment(p)
+
+
+@pytest.mark.parametrize('old,new',[
+    (ROOT,CHILD),('2025-12-31','待查'),('万元','待查'),('合并','子公司口径'),
+    ('人民币','待查'),('2025年度','2025年单季')])
+def test_platform_class_is_admitted_but_missing_or_incompatible_fields_do_not_score(old,new):
+    s=platform_source_record(platform_metrics().replace(old,new));p=build(s)
+    assert not p['financial_observations']
+    assert all(d['score'] is None for d in p['dimensions'])
+
+
+def test_platform_estimated_revenue_does_not_erase_other_actual_metrics():
+    p=build(platform_source_record(platform_metrics().replace('120','预计120')))
+    assert len(p['financial_observations'])==2
+    assert p['dimensions'][0]['score'] is None
+    assert p['dimensions'][1]['score']==4
+
+
+@pytest.mark.parametrize('state',['rejected','ambiguous','related_entity_context'])
+def test_explicit_subject_quarantine_cannot_reenter_target_financial_scoring(state):
+    s=platform_source_record(platform_metrics());s['source_metadata']['entity_validation']=state
+    p=build(s)
+    assert p['financial_observations']==[]
+    assert all(d['score'] is None for d in p['dimensions'][:2])
+    assert not p['platform_source_review'][0]['admitted']
+    assert p['platform_source_review'][0]['reason']=='entity_validation:'+state
+
+
+def test_platform_copy_of_actual_outcomes_and_audit_is_not_rejected_by_domain():
+    s=src(extra=[outcome_page(),control_page()])
+    s['url']='https://pilu.tianyancha.com/announcement/source.pdf'
+    p=build(s);scores={d['id']:d['score'] for d in p['dimensions']}
+    assert scores['revenue']==5 and scores['earnings_cash']==5
+    assert scores['technology']==4 and scores['control']==3 and scores['team']==3.6
+
+
+def test_platform_funding_amount_is_visible_without_inventing_completion_or_receipt():
+    text=(f'| 字段 | 值 |\n| --- | --- |\n| 公司名称 | {ROOT} |\n\n'
+          '| 融资日期 | 融资金额 | 融资轮次 | 投资方 |\n| --- | --- | --- | --- |\n'
+          '| 2025-05-01 | 1000万元人民币 | A轮 | 甲基金 |\n')
+    p=build(platform_source_record(text))
+    assert len(p['platform_observations'])==1
+    assert next(d for d in p['dimensions'] if d['id']=='funding')['score'] is None
+    assert '1000万元人民币' in render_assessment(p)
+
+
+def test_platform_explicit_completed_receipt_can_score_and_is_literal_revalidated():
+    text=(f'| 字段 | 值 |\n| --- | --- |\n| 公司名称 | {ROOT} |\n\n'
+          '| 融资日期 | 融资金额 | 完成状态 | 收款主体 | 实际募集净额 |\n'
+          '| --- | --- | --- | --- | --- |\n'
+          f'| 2025-05-01 | 1100万元人民币 | 已完成 | {ROOT} | 1000万元人民币 |\n')
+    p=build(platform_source_record(text));d=next(d for d in p['dimensions'] if d['id']=='funding')
+    assert d['score']==3 and d['records'][0]['original_quote_verified']
+    for old,new in [('已完成','拟完成'),('2025-05-01','2020-05-01'),('1000万元人民币','待查')]:
+        p=build(platform_source_record(text.replace(old,new)))
+        assert next(d for d in p['dimensions'] if d['id']=='funding')['score'] is None
+
+
+def test_platform_native_json_financial_rows_preserve_quote_and_decimal_precision():
+    text='{"company_name": "'+ROOT+'", "financials": [{"metric":"营业收入","current_value":120.00,"previous_value":100.00,"unit":"万元","currency":"人民币","scope":"合并","report_period":"2025年度报告","report_end_date":"2025-12-31"}]}'
+    package=build(platform_source_record(text))
+    row=package['financial_observations'][0]
+    assert row['value']=='120.00' and row['previous_value']=='100.00'
+    assert row['evidence_quote'] in text and row['original_offset']==text.find(row['evidence_quote'])
+    assert package['dimensions'][0]['score']==4
+
+
+def test_mixed_company_platform_table_admits_only_target_rows_without_rejecting_comparison():
+    text=platform_metrics().replace('| 指标 |','| 公司名称 | 指标 |').replace('| --- | --- | --- | --- | --- | --- | --- | --- |','| --- | --- | --- | --- | --- | --- | --- | --- | --- |')
+    for metric_name in METRICS:text=text.replace('| '+metric_name+' |','| '+ROOT+' | '+metric_name+' |')
+    text+='| '+CHILD+' | 营业收入 | 999 | 1 | 万元 | 人民币 | 合并 | 2025年度 | 2025-12-31 |\n'
+    package=build(platform_source_record(text))
+    assert len(package['financial_observations'])==3
+    assert package['platform_source_review'][0]['admitted']
+    assert not any(row['value']=='999' for row in package['financial_observations'])
+
+
 @pytest.mark.parametrize('integers',[False,True])
 def test_read_current_prior_and_third_values_from_actual_header_and_local_units(integers):
     s=src(integers=integers);rows=financial_observations(s,base(s))

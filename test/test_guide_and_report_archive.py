@@ -1,5 +1,6 @@
 import asyncio
 import json
+import hashlib
 from types import SimpleNamespace
 
 import pytest
@@ -48,6 +49,45 @@ def report(db, project, version=1, body='报告证据正文'):
     return artifact
 
 
+@pytest.mark.parametrize('metadata',[
+    {},
+    {'delivery_status':'review_draft','company_delivery_contract':{'delivery_ready':True}},
+    {'delivery_status':'final_candidate','company_delivery_contract':{'delivery_ready':False}},
+    {'delivery_status':'final_candidate','company_delivery_contract':{'delivery_ready':'true'}},
+    {'delivery_status':'final_candidate','quality_warning':'正文尚有待复核项','company_delivery_contract':{'delivery_ready':True}},
+])
+def test_company_review_draft_retains_native_body_and_revision_for_normal_retry(archive_db,monkeypatch,metadata):
+    import research_workflow as workflow
+    db,project,_=archive_db;artifact=report(db,project);artifact.artifact_metadata=metadata
+    raw=f'projects/{project.id}/raw_web/new.txt';revision=f'projects/{project.id}/source_revisions/1_old.json'
+    source=ResearchSource(project_id=project.id,source_type='official',title='原件',url='https://issuer.test/report',
+        content='完整原文与业务字段，后续复核不得丢失。',object_key=raw,
+        source_metadata={'retention_policy':'transient_web_body','previous_document_revision':{'object_key':revision}})
+    db.add(source);db.commit();db.expire(project,['sources']);deleted=[]
+    monkeypatch.setattr(workflow,'research_store',SimpleNamespace(delete_object=deleted.append))
+    workflow.ResearchWorkflow()._finalize_source_records(db,project)
+    assert source.content=='完整原文与业务字段，后续复核不得丢失。' and source.object_key==raw
+    assert source.source_metadata['previous_document_revision']['object_key']==revision and not deleted
+    assert source.source_metadata['retention_policy']=='transient_web_body'
+
+
+@pytest.mark.parametrize('target_type',['company','person','industry'])
+def test_verified_company_and_other_completed_research_keep_existing_retention_policy(archive_db,monkeypatch,target_type):
+    import research_workflow as workflow
+    db,project,_=archive_db;project.target_type=target_type;artifact=report(db,project)
+    artifact.artifact_metadata={'delivery_status':'final_candidate','company_delivery_contract':{'delivery_ready':True}} if target_type=='company' else {}
+    # A stale in-memory pre-export contract must not override the persisted
+    # actual final artifact after its Word checks passed.
+    project.company_delivery_contract={'delivery_ready':False}
+    raw=f'projects/{project.id}/raw_web/new.txt';source=ResearchSource(project_id=project.id,source_type='official',
+        title='原件',content='完整原文',summary='已交付引用摘要',object_key=raw,source_metadata={'retention_policy':'transient_web_body'})
+    db.add(source);db.commit();db.expire(project,['sources']);deleted=[]
+    monkeypatch.setattr(workflow,'research_store',SimpleNamespace(delete_object=deleted.append))
+    workflow.ResearchWorkflow()._finalize_source_records(db,project)
+    assert source.content=='' and source.object_key=='' and deleted==[raw]
+    assert source.source_metadata['retention_policy']=='record_only'
+
+
 def test_report_archives_under_creator_id_is_private_and_retries_are_idempotent(archive_db):
     db, project, owner = archive_db
     artifact = report(db, project)
@@ -63,6 +103,51 @@ def test_report_archives_under_creator_id_is_private_and_retries_are_idempotent(
     assert len(list(db.scalars(select(CompanyDocument)))) == 1
     doc.state = 'failed'; db.commit()
     assert archive_report(db, project, artifact).state == 'queued'
+
+
+def annex_archive_fixture(project):
+    from test_company_editorial import record
+    from report_agents.company_editorial import fingerprint,record_payload
+    from report_agents.company_presentation import render_annex
+    rows=[record('I-parent',text='目标公司实缴资本为0万元，数据期未知。',entity=project.target_name,scope='target',period='未知'),
+          record('I-child',text='子公司实缴资本为5000万元。',entity='子公司',scope='subsidiary',period='2025年度'),
+          record('I-nav',text='仅供排除清单保留的网页导航。')]
+    rows[2]['decision']={'status':'exclude','reason':'纯网页导航，非公司事实。'}
+    content=render_annex({'records':rows},{},project.target_name)
+    metadata={'company_delivery_contract':{'reading_format':'analysis_with_annex'},
+        'evidence_annex_object_key':'annex.html','evidence_annex_sha256':hashlib.sha256(content.encode()).hexdigest(),
+        'evidence_native_input_sha256':fingerprint([record_payload(r) for r in rows])}
+    return rows,content,metadata
+
+
+def test_main_report_archive_retains_verified_native_evidence_for_future_rag_and_stays_idempotent(archive_db,monkeypatch):
+    from company_catalog import document_store
+    from research_store import research_store
+    db,project,owner=archive_db;rows,content,metadata=annex_archive_fixture(project)
+    artifact=report(db,project,body='主报告的分析结论。');artifact.artifact_metadata=metadata;db.commit();reads=[]
+    def get_text(key):reads.append(key);assert key=='annex.html';return content
+    monkeypatch.setattr(research_store,'get_text',get_text)
+    doc=archive_report(db,project,artifact);payload=document_store().get_bytes(doc.object_key).decode()
+    assert '主报告的分析结论。' in payload and all(r['text'] in payload for r in rows[:2])
+    assert rows[2]['text'] not in payload and 'subsidiary' in payload and '未知' in payload
+    assert 'https://foods.test/report' in payload and '并非本报告已独立核实' in payload
+    assert doc.owner_user_id==owner.id and doc.visibility=='restricted'
+    assert archive_report(db,project,artifact).id==doc.id and reads==['annex.html']
+
+
+@pytest.mark.parametrize('failure',['missing_attachment','changed_native_metadata'])
+def test_missing_or_changed_evidence_does_not_silently_archive_main_text_only(archive_db,monkeypatch,failure):
+    from research_store import research_store
+    db,project,_=archive_db;rows,content,metadata=annex_archive_fixture(project)
+    if failure=='missing_attachment':metadata.pop('evidence_annex_object_key')
+    else:
+        content=content.replace('2025年度','2026年度')
+        metadata['evidence_annex_sha256']=hashlib.sha256(content.encode()).hexdigest()
+    artifact=report(db,project);artifact.artifact_metadata=metadata;db.commit()
+    monkeypatch.setattr(research_store,'get_text',lambda key:content)
+    assert sync_report_safely(db,project,artifact) is None
+    assert artifact.artifact_metadata['knowledge_sync_status']=='failed' and artifact.content=='报告证据正文'
+    assert not list(db.scalars(select(CompanyDocument)))
 
 
 def test_version_replacement_excludes_history_from_default_rag_but_allows_explicit_selection(archive_db, monkeypatch):

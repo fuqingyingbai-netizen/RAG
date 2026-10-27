@@ -226,7 +226,7 @@ class WebSearchProvider:
         status = getattr(getattr(exc, 'response', None), 'status_code', None)
         try:body = str(exc.response.json()).lower()
         except (AttributeError, ValueError):body = ''
-        if status in {402,432,433} or any(s in body for s in ('insufficient_quota','quota_exceeded','credit_balance_insufficient','insufficient balance','余额不足','配额不足','quota exceeded')):
+        if status in {402,432,433} or any(s in body for s in ('insufficient_quota','quota_exceeded','credit_balance_insufficient','insufficient balance','not enough credits','not enough money','package quota','余额不足','配额不足','quota exceeded')):
             return 'quota_exceeded'
         if status == 401 or any(s in body for s in ('unauthorized','invalid_api_key','invalid api key','invalid_token')):return 'unauthorized'
         if status == 429:return 'rate_limited'

@@ -178,6 +178,9 @@ def test_failed_pdf_body_does_not_promote_search_summary_to_original():
     '数据库默认查询不能证明全历史无处罚、无失信或无重大风险。',
     '平台未命中不代表无行政处罚。',
     '不得表述为无历史行政处罚。',
+    '该接口本次未检出，不能等同于无诉讼、无处罚的确定结论。',
+    '栏目链接不能作为存在或不存在诉讼的证据。',
+    '现阶段不能据此认定存在或不存在行政处罚。',
 ])
 def test_delivery_allows_explicit_evidence_boundaries(line):
     assert company_overclaims(line) == []
@@ -188,6 +191,10 @@ def test_delivery_allows_explicit_evidence_boundaries(line):
     '不能证明无失信，但公司无行政处罚。',
     '不能证明没有风险。该公司无失信。',
     '待核验：企业无行政处罚。',
+    '不能等同于无诉讼；公司无行政处罚。',
+    '链接不能作为存在或不存在诉讼的证据，但公司不存在诉讼。',
+    '链接不能作为存在或不存在诉讼的证据，公司不存在诉讼。',
+    '不能等同于零风险，公司无行政处罚。',
 ])
 def test_delivery_still_rejects_unbacked_clean_conclusions(line):
     assert company_overclaims(line)

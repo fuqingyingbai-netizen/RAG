@@ -80,17 +80,18 @@ def scoped_government_pages(source,target):
 def issuer_heading(pages,name):
     from .company_financial_statements import quarter_report_period
     if quarter_report_period('\n'.join(p['text'] for p in pages[:8]),name):return True
+    wanted=folded(name)
     for p in pages[:8]:
         for line in p['text'].splitlines():
             value=folded(line)
-            if value==folded(name):return True
+            if value==wanted:return True
             stripped=re.sub(r'20\d{2}|年度报告|年报|annualreport|[•·|:：]','',value)
-            if stripped==folded(name):return True
-            if re.match(r'^'+re.escape(folded(name))+r'20\d{2}年(?:年度|半年度)报告',value):return True
+            if stripped==wanted:return True
+            if re.match(r'^'+re.escape(wanted)+r'20\d{2}年(?:年度|半年度)报告',value):return True
             # Another issuer's own heading takes precedence over a target
             # mentioned later in a shareholder/customer table or appendix.
             owner=re.fullmatch(r'([\u4e00-\u9fffA-Za-z0-9()·]{2,70}(?:股份有限公司|有限责任公司|有限公司))[^\u4e00-\u9fffA-Za-z0-9]{0,3}',stripped)
-            if owner:return owner[1]==folded(name)
+            if owner:return owner[1]==wanted
     return False
 
 
@@ -491,7 +492,9 @@ def build_diligence_package(cleaned,target,sources=None,*,prior_packages=None,in
     if counts['omitted_pages']:gaps.append('部分原件未提取全文，未选取到事项不能表述为全文未披露。')
     if counts['budget_excluded']:gaps.append('部分已识别原文超出本章证据预算，任务触发和展示样例均不代表完整尽调覆盖。')
     if counts['older_or_undated_document_not_expanded']:gaps.append('较旧或文件期未绑定的原件未在本章全面展开，仅保留已支持的主体关系/原章节线索；不因此认定不存在其他历史事项。')
+    from .company_selection_audit import selection_audit
     return {'version':VERSION,'target_name':target,'facts':delivered,'tasks':tasks,'client_specified_checks':requested,'research_requests':research_requests,
+            'selection_audit':selection_audit(unique,delivered),
             'cash_reconciliations':cash_checks,'information_gaps':gaps,
             'diagnostic':{'admitted_documents':len(admitted),'linked_entities':[e['name'] for e in registry.values() if e['links']],
                           'candidate_claims':len(unique),'delivered_claims':len(delivered),'by_kind':dict(Counter(r['kind'] for r in delivered)),

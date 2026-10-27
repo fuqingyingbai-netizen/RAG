@@ -6,6 +6,17 @@ from company_catalog import CompanyDocument, document_store
 from models import User
 
 
+def _native_evidence_for_archive(artifact):
+    metadata=artifact.artifact_metadata or {}
+    if (metadata.get('company_delivery_contract') or {}).get('reading_format')!='analysis_with_annex':return ''
+    from research_store import research_store
+    from report_agents.company_presentation import knowledge_annex_text
+    key=metadata.get('evidence_annex_object_key')
+    if not key:raise ValueError('完整证据附件尚未保存，不能只归档主报告而丢失检索内容。')
+    return knowledge_annex_text(research_store.get_text(key),metadata.get('evidence_annex_sha256'),
+                                metadata.get('evidence_native_input_sha256'))
+
+
 def archive_report(db, project, artifact):
     import company_knowledge as kb
     cfg = kb.settings()
@@ -30,8 +41,9 @@ def archive_report(db, project, artifact):
                 level = candidate
         # The version header also prevents repeated report bodies colliding with
         # the catalogue's content-identity constraint across report versions.
+        evidence=_native_evidence_for_archive(artifact)
         payload = (f'# {artifact.title}\n\n第一阶段报告 · v{artifact.version} · AI 生成，复核状态以资料目录为准\n\n'
-                   + artifact.content).encode('utf-8')
+                   + artifact.content+('\n\n'+evidence if evidence else '')).encode('utf-8')
         key = 'originals/research-' + doc_id + '.md'
         document_store().put_bytes(key, payload, 'text/markdown; charset=utf-8')
         doc = CompanyDocument(id=doc_id, index_id=cfg['index_id'],

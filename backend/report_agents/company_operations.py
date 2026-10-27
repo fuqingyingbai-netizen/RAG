@@ -217,7 +217,9 @@ def build_operations_package(cleaned,target,sources=None,*,governance=None,limit
             if len(json.dumps(selected+[row],ensure_ascii=False))<max(0,limit-3000):selected.append(row)
             else:counts['budget_excluded']+=1
     gaps=[GAPS[h] for h in HEADINGS]
+    from .company_selection_audit import selection_audit
     return {'version':VERSION,'target_name':target,'facts':selected,'information_gaps':gaps,
+            'selection_audit':selection_audit(records,selected),
             'diagnostic':{'candidate_claims':len(records),'delivered_claims':len(selected),
                           'by_aspect':dict(Counter(r['aspect'] for r in selected)),'filters':dict(counts)}}
 

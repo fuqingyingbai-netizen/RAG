@@ -273,7 +273,9 @@ def build_judicial_package(cleaned,target,sources=None,*,limit=240000,query_atte
     if any(r['kind']=='pledge' and '解除' in r['fields'].get('状态','') for r in selected):gaps.append('质押工具虽以当前生效为默认语义，返回明细包含已解除状态；需按原公告核对各笔最新状态，不能把全部计数视为仍在押。')
     if any(r['kind']=='guarantee' and r['fields'].get('履行状态')=='待查' for r in selected):gaps.append('已得担保明细仍有履行状态待查，未形成可核对的当前担保余额、到期、代偿及反担保有效性，不据此判为持续存续或无实质风险。')
     if not any(r['kind']=='case' for r in selected):gaps.append('尚无绑定完整当事人和案号的母公司具体裁判记录；风险扫描不能替代案件明细。')
+    from .company_selection_audit import selection_audit
     return {'version':VERSION,'target_name':target,'facts':selected,'source_notes':notes,'coverage':coverage,'query_attempts':query_attempts or [],
+            'selection_audit':selection_audit(unique,selected),
             'information_gaps':gaps,'diagnostic':{'candidate_claims':len(unique),'delivered_claims':len(selected),
             'by_kind':dict(Counter(r['kind'] for r in selected)),'filters':dict(counts)}}
 

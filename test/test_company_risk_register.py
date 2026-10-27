@@ -243,6 +243,16 @@ def test_unknown_sector_not_clearance_and_verified_related_events_still_admitted
     assert not consumer['entry_ids']
 
 
+@pytest.mark.parametrize('industry', ['办公协同软件', '调味原料', '精密运动控制', '海洋工程服务'])
+def test_unmapped_declared_industry_cannot_exclude_sector_checks(industry):
+    package = build_risk_register({'facts': []}, '远山实业有限公司', industry=industry)
+    assert not package['active_template_sectors']
+    states = package['diagnostic']['checklist_states']
+    assert states.get('requires_sector_confirmation', 0) > 0
+    assert not states.get('outside_declared_sector_scope')
+    assert sum(states.values()) == 75
+
+
 def test_consumer_quality_question_links_event_but_not_parameter_fraud():
     p = build(notice(owner=ROOT), industry='消费品家电')
     assert next(i for i in p['checklist'] if i['id'] == 'CON-07')['entry_ids']
@@ -268,7 +278,8 @@ def test_company_workflow_uses_originals_without_model_or_old_normalizers():
     s = notice(owner=ROOT)
     project = SimpleNamespace(target_type='company', target_name=ROOT, industry='制造', sources=[s])
     r = json.loads(w.assess_risk(project, json.dumps({'facts': []})))
-    assert r['version'] == 'company-risk-register-v4-publication-variants' and len(r['entries']) == 1
+    from report_agents.company_risk_register import VERSION
+    assert r['version'] == VERSION and len(r['entries']) == 1
 
 
 def test_person_and_industry_risk_paths_keep_their_own_model_dispatch():

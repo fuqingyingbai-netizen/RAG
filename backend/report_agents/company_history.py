@@ -477,7 +477,9 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
         gaps.append('相同报告期的经营数据存在来源差异，冲突指标仅并存待核验，不用于成长趋势判断。')
     if time_conflicts:
         gaps.append('部分发布节点在官网沿革与其他披露中的年份不同；需核对原版文件、发布地区及技术版本，不任选一个日期覆盖。')
+    from .company_selection_audit import selection_audit
     return {'version':VERSION,'target_name':target,'facts':selected,'information_gaps':gaps,'time_conflicts':time_conflicts,
+            'selection_audit':selection_audit(records,selected),
             'diagnostic':{'candidate_claims':len(records),'delivered_claims':len(selected),
                           'by_kind':dict(Counter(r['kind'] for r in selected)),'filters':dict(counts)}}
 

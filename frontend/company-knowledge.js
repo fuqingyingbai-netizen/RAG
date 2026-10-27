@@ -1,6 +1,7 @@
 /* Company knowledge uses the authenticated backend; cloud credentials stay on the server. */
 const CompanyKnowledge = {
-  props: { projects: { type: Array, default: () => [] } },
+  props: { projects: { type: Array, default: () => [] },
+    feedback: {type:Function, default:null}, operationState:{type:Object, default:() => ({})} },
   data() {
     return {
       viewRestored: false, restoringView: false, libraryPage: 1, libraryPageSize: 10, homeQuestion: '', sortOrder: 'updated', readingHistory: [], recentUploadIds: [], mode: 'home', projectFilter: '', industryFilter: '', statusFilter: '', reviewFilter: '', selectedIds: [], pollClock: null, readerUrl: '', readerLoading: false, readerError: '', readerTotal: 0, previewPage: 1, readerPDFPage: 1, readerPDFPages: 0, uploadBusy: false, uploadError: '', uploadResults: [], editingDoc: null, metadataOpen: false, uploadForm: { project: '', industry: '', category: '项目原件', review: '待复核', confidentiality: 'internal', visibility: 'members', readersText: '' }, query: '', category: '全部资料', space: 'all', favoritesOnly: false, mineOnly: false,
@@ -12,6 +13,7 @@ const CompanyKnowledge = {
       service: { configured: false, access_allowed: false, is_admin: false }, serviceError: '',
       myProjects: { project_count: 0, document_count: 0, projects: [] }, accessRequests: [], requestCenterOpen: false, accessLoading: false,
       busy: false, answerStatus: '', controller: null, activityClock: null,
+      requestsActive: true, pendingReads: new Set(), readerSequence: 0,
       categories: ['全部资料', '项目原件', '研究成果', '方法与模板'],
       suggestions: ['查找与新能源汽车竞争格局有关的历史研究，并标注来源', '根据资料梳理访谈提纲，区分已有依据和待确认问题', '比较资料中的主要结论，指出差异与待复核事项'],
     };
@@ -72,15 +74,53 @@ const CompanyKnowledge = {
     libraryView: { deep: true, handler() { this.saveLibraryView(); } },
     libraryFilterKey() { if (!this.restoringView) { this.libraryPage = 1; this.scrollLibraryTop(); } },
     libraryPageCount(count) { if (!this.loading && this.libraryPage > count) this.libraryPage = count; },
+    readerOpen(open) { if (!open) { this.readerSequence++; this.readerLoading = false; this.releaseReader(); } },
   },
   mounted() { this.loadService(); this.pollClock = setInterval(() => { if (this.canAsk && !document.hidden) { this.loadDocuments(false, false); this.loadAccessRequests(); this.loadMyProjects(); } }, 6000); },
-  beforeUnmount() { this.chatDisposed = true; this.chatGeneration++; this.controller?.abort(); clearInterval(this.activityClock); clearInterval(this.pollClock); this.releaseReader(); },
+  beforeUnmount() { this.chatDisposed = true; this.chatGeneration++; this.requestsActive = false; this.cancelPendingReads(); this.controller?.abort(); clearInterval(this.activityClock); clearInterval(this.pollClock); this.releaseReader(); },
   methods: {
+    withFeedback(key, label, work, options = {}) { return this.feedback ? this.feedback('knowledge:' + key, label, work, options) : work(() => {}); },
+    operationPending(key) { return !!this.operationState?.['knowledge:' + key]; },
+    cancelPendingReads() { for (const cancel of this.pendingReads || []) cancel(); },
     async apiFetch(url, options = {}) {
       const token = localStorage.getItem('accessToken');
-      const response = await fetch(url, { ...options, headers: { ...options.headers, Authorization: 'Bearer ' + (token || '') } });
-      if (response.status === 401) throw new Error('登录已过期，请重新登录。');
-      return response;
+      const readOnly = ['GET', 'HEAD'].includes((options.method || 'GET').toUpperCase());
+      const backgroundDownload = readOnly && /\/original\?download=true(?:&|$)/.test(url);
+      if (this.requestsActive === false) throw new Error('已离开知识库页面，请重新打开后再试。');
+      const assertCurrent = () => {
+        if (readOnly && !backgroundDownload && this.requestsActive === false) throw new Error('已离开知识库页面，请重新打开后再试。');
+        if (token !== localStorage.getItem('accessToken')) throw new Error('登录账号已变更，请重新打开资料。');
+      };
+      assertCurrent();
+      // Only reads have a deadline. A timed-out mutation may already be saved;
+      // never abort/retry an upload, approval or chat as if it had not happened.
+      const controller = readOnly ? new AbortController() : null;
+      let timer, cancel;
+      const cleanup = () => { clearTimeout(timer); this.pendingReads?.delete(cancel); if (cancel) options.signal?.removeEventListener('abort', cancel); };
+      const deadline = readOnly ? new Promise((_, reject) => {
+        cancel = () => { cleanup(); controller.abort(); reject(new Error('读取已停止，请重新打开资料。')); };
+        if (!backgroundDownload) this.pendingReads?.add(cancel);
+        timer = setTimeout(() => { cleanup(); controller.abort(); reject(new Error('读取超时，请重试；未重复提交任何操作。')); }, url.includes('/original') ? 120000 : 30000);
+        if (options.signal?.aborted) cancel(); else options.signal?.addEventListener('abort', cancel, {once:true});
+      }) : null;
+      const wait = promise => deadline ? Promise.race([promise, deadline]) : promise;
+      try {
+        const response = await wait(fetch(url, { ...options, ...(controller ? {signal:controller.signal} : {}), headers: { ...options.headers, Authorization: 'Bearer ' + (token || '') } }));
+        assertCurrent();
+        if (response.status === 401) throw new Error('登录已过期，请重新登录。');
+        // Check again after body parsing, not just when the headers arrive.
+        // Slow JSON/blob responses must never restore data or download a file
+        // after the user signs into another account or leaves this component.
+        for (const method of ['json', 'blob', 'text', 'arrayBuffer']) {
+          if (typeof response[method] !== 'function') continue;
+          const parse = response[method].bind(response);
+          response[method] = async (...args) => {
+            try { assertCurrent(); const value = await wait(parse(...args)); assertCurrent(); return value; }
+            finally { cleanup(); }
+          };
+        }
+        return response;
+      } catch (error) { cleanup(); throw error; }
     },
     async loadService() {
       try {
@@ -177,49 +217,53 @@ const CompanyKnowledge = {
       try { localStorage.setItem('companyKnowledgeReading:' + this.service.username, JSON.stringify(this.readingHistory)); } catch {}
       this.releaseReader(); this.selectedDoc = { ...doc, references: this.allReferences.filter(ref => ref.document_id === doc.cloud_id) };
       this.readerOpen = true; this.readerPDFPage = 1; this.readerPDFPages = 0; this.previewPage = 1; this.readerTotal = 0; this.readerError = '';
-      const id = doc.id; this.readerLoading = true;
+      const id = doc.id, sequence = ++this.readerSequence;
+      const current = () => this.selectedDoc?.id === id && this.readerOpen && this.readerSequence === sequence;
+      this.readerLoading = true;
       try {
         const response = await this.apiFetch('/company-knowledge/documents/' + encodeURIComponent(id) + '/preview');
         const result = await response.json();
         if (!response.ok) throw new Error(result.detail || '文字预览加载失败。');
-        if (this.selectedDoc?.id !== id) return;
+        if (!current()) return;
         this.selectedDoc.references = result.references; this.readerTotal = result.total; this.readerError = result.message || '';
         if (doc.has_original && ['PDF', 'PNG', 'JPG', 'JPEG'].includes(doc.format)) {
           const original = await this.apiFetch('/company-knowledge/documents/' + encodeURIComponent(id) + (doc.format === 'PDF' ? '/page?page=1' : '/original'));
-          if (doc.format === 'PDF') this.readerPDFPages = Number(original.headers.get('X-Document-Pages') || 1);
           if (!original.ok) throw new Error('原件预览暂不可用，可尝试下载。');
           const blob = await original.blob();
-          if (this.selectedDoc?.id === id && this.readerOpen) this.readerUrl = URL.createObjectURL(blob);
+          if (current()) { if (doc.format === 'PDF') this.readerPDFPages = Number(original.headers.get('X-Document-Pages') || 1); this.readerUrl = URL.createObjectURL(blob); }
         }
-      } catch (error) { if (this.selectedDoc?.id === id) this.readerError = error.message; }
-      finally { if (this.selectedDoc?.id === id) this.readerLoading = false; }
+      } catch (error) { if (current()) this.readerError = error.message; }
+      finally { if (current()) this.readerLoading = false; }
     },
     async changePDFPage(page) {
       if (this.readerLoading || page < 1 || page > this.readerPDFPages) return;
-      this.readerLoading = true; const id = this.selectedDoc.id;
+      this.readerLoading = true; const id = this.selectedDoc.id, sequence = ++this.readerSequence;
+      const current = () => this.selectedDoc?.id === id && this.readerOpen && this.readerSequence === sequence;
       try {
         const response = await this.apiFetch('/company-knowledge/documents/' + encodeURIComponent(id) + '/page?page=' + page);
         if (!response.ok) throw new Error('PDF 页面加载失败，请下载原件核对。');
         const blob = await response.blob();
-        if (this.selectedDoc?.id === id && this.readerOpen) { this.releaseReader(); this.readerUrl = URL.createObjectURL(blob); this.readerPDFPage = page; }
-      } catch (error) { this.readerError = error.message; } finally { this.readerLoading = false; }
+        if (current()) { this.releaseReader(); this.readerUrl = URL.createObjectURL(blob); this.readerPDFPage = page; }
+      } catch (error) { if (current()) this.readerError = error.message; } finally { if (current()) this.readerLoading = false; }
     },
     releaseReader() { if (this.readerUrl) URL.revokeObjectURL(this.readerUrl); this.readerUrl = ''; },
     async morePreview() {
       if (this.readerLoading || !this.selectedDoc?.id) return;
-      this.readerLoading = true; const id = this.selectedDoc.id;
+      this.readerLoading = true; const id = this.selectedDoc.id, sequence = ++this.readerSequence;
+      const current = () => this.selectedDoc?.id === id && this.readerOpen && this.readerSequence === sequence;
       try {
         const response = await this.apiFetch('/company-knowledge/documents/' + encodeURIComponent(id) + '/preview?page=' + (this.previewPage + 1));
         const result = await response.json(); if (!response.ok) throw new Error(result.detail || '片段加载失败。');
-        if (this.selectedDoc?.id === id) { this.selectedDoc.references.push(...result.references); this.previewPage++; }
-      } catch (error) { this.readerError = error.message; } finally { this.readerLoading = false; }
+        if (current()) { this.selectedDoc.references.push(...result.references); this.previewPage++; }
+      } catch (error) { if (current()) this.readerError = error.message; } finally { if (current()) this.readerLoading = false; }
     },
     async downloadOriginal(doc) {
-      try {
+      try { await this.withFeedback('download:' + doc.id, '正在下载知识库原件', async () => {
         const response = await this.apiFetch('/company-knowledge/documents/' + encodeURIComponent(doc.id) + '/original?download=true');
         if (!response.ok) { const result = await response.json(); throw new Error(result.detail || '下载失败。'); }
         const url = URL.createObjectURL(await response.blob()); const a = document.createElement('a'); a.href = url; a.download = doc.title; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-      } catch (error) { ElementPlus.ElMessage.error(error.message); }
+        ElementPlus.ElMessage.success('原件已交给浏览器下载，请查看下载列表');
+      }, {readOnly:true}); } catch (error) { ElementPlus.ElMessage.error(error.message); }
     },
     changeScope(ids) { if (this.busy) return; if (ids.length > 20) { ElementPlus.ElMessage.warning('一次最多选择 20 份资料。'); return; } this.selectedIds = ids; this.chatScope = 'accessible'; this.newConversation(); },
     toggleSelection(doc) { if (!doc.can_read || doc.state !== 'ready') return; this.changeScope(this.selectedIds.includes(doc.id) ? this.selectedIds.filter(id => id !== doc.id) : [...this.selectedIds, doc.id]); },
@@ -244,14 +288,14 @@ const CompanyKnowledge = {
       }
       this.stagedFiles = failed; this.uploadBusy = false; await Promise.all([this.loadDocuments(), this.loadMyProjects()]);
     },
-    async retryDocument(doc) { try { const response = await this.apiFetch('/company-knowledge/documents/' + doc.id + '/retry', { method: 'POST' }); const result = await response.json(); if (!response.ok) throw new Error(result.detail || '重试失败'); await this.loadDocuments(); } catch (error) { ElementPlus.ElMessage.error(error.message); } },
+    async retryDocument(doc) { try { await this.withFeedback('retry:' + doc.id, '正在重试知识库资料处理', async () => { const response = await this.apiFetch('/company-knowledge/documents/' + doc.id + '/retry', { method: 'POST' }); const result = await response.json(); if (!response.ok) throw new Error(result.detail || '重试失败'); ElementPlus.ElMessage.success('处理请求已提交，请查看资料状态'); await this.loadDocuments(); }); } catch (error) { ElementPlus.ElMessage.error(error.message); } },
     editDocument(doc) { this.editingDoc = doc; this.uploadForm = { project: doc.project || '', industry: doc.industry || '', category: doc.category, review: doc.review, confidentiality: doc.confidentiality || 'internal', visibility: doc.visibility, readersText: (doc.readers || []).join(', ') }; this.metadataOpen = true; },
     async saveMetadata() {
-      try {
+      try { await this.withFeedback('save:' + this.editingDoc.id, '正在保存资料信息', async () => {
         const response = await this.apiFetch('/company-knowledge/documents/' + this.editingDoc.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...this.uploadForm, readers: this.uploadForm.readersText.split(/[,，\n]/).map(name => name.trim()).filter(Boolean) }) });
         const result = await response.json(); if (!response.ok) throw new Error(result.detail || '保存失败');
         this.metadataOpen = false; this.newConversation(); await Promise.all([this.loadDocuments(), this.loadMyProjects()]);
-      } catch (error) { ElementPlus.ElMessage.error(error.message); }
+      }); } catch (error) { ElementPlus.ElMessage.error(error.message); }
     },
     startUpload() { this.uploadForm = { project: this.projectFilter, industry: this.industryFilter, category: '项目原件', review: '待复核', confidentiality: 'internal', visibility: 'members', readersText: '' }; this.stagedFiles = []; this.uploadResults = []; this.uploadError = ''; this.uploadOpen = true; },
     syncConfidentiality() { if (this.uploadForm.confidentiality !== 'internal') this.uploadForm.visibility = 'restricted'; },
@@ -260,23 +304,27 @@ const CompanyKnowledge = {
       if (!doc.can_request && doc.request_status === 'pending') { ElementPlus.ElMessage.info('该资料的权限申请正在审批中。'); return; }
       try {
         const prompt = await ElementPlus.ElMessageBox.prompt('请说明需要阅读《' + doc.title + '》的原因，管理员将根据项目和保密等级审批。', '申请访问权限', { confirmButtonText: '提交申请', cancelButtonText: '取消', inputPlaceholder: '例如：新员工培训，需要学习项目方法', inputValidator: value => Boolean(value && value.trim()) || '请填写申请原因' });
+        await this.withFeedback('access:' + doc.id, '正在提交访问权限申请', async () => {
         const response = await this.apiFetch('/company-knowledge/documents/' + encodeURIComponent(doc.id) + '/access-requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: prompt.value.trim() }) });
         const result = await response.json(); if (!response.ok) throw new Error(result.detail || '申请提交失败。');
         ElementPlus.ElMessage.success('权限申请已提交。'); await Promise.all([this.loadDocuments(), this.loadAccessRequests()]);
+        });
       } catch (error) { if (error !== 'cancel' && error !== 'close') ElementPlus.ElMessage.error(error.message || '申请提交失败。'); }
     },
     async decideAccess(request, decision) {
       try {
         let note = '';
         if (decision === 'rejected') { const prompt = await ElementPlus.ElMessageBox.prompt('请填写拒绝原因。', '拒绝访问申请', { confirmButtonText: '确认拒绝', cancelButtonText: '取消', inputValidator: value => Boolean(value && value.trim()) || '请填写拒绝原因' }); note = prompt.value.trim(); }
+        await this.withFeedback('decision:' + request.id, '正在保存权限审批结果', async () => {
         const response = await this.apiFetch('/company-knowledge/access-requests/' + request.id + '/decision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision, note }) });
         const result = await response.json(); if (!response.ok) throw new Error(result.detail || '审批失败。');
         ElementPlus.ElMessage.success(decision === 'approved' ? '已批准访问。' : '已拒绝申请。'); await Promise.all([this.loadAccessRequests(), this.loadDocuments()]);
+        });
       } catch (error) { if (error !== 'cancel' && error !== 'close') ElementPlus.ElMessage.error(error.message || '审批失败。'); }
     },
     async deleteDocument(doc) {
       try { await ElementPlus.ElMessageBox.confirm('从资料库和问答索引移除《' + doc.title + '》？', '删除资料', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }); } catch { return; }
-      try { const response = await this.apiFetch('/company-knowledge/documents/' + doc.id, { method: 'DELETE' }); const result = await response.json(); if (!response.ok) throw new Error(result.detail || '删除失败'); this.readerOpen = false; this.newConversation(); await Promise.all([this.loadDocuments(), this.loadMyProjects()]); } catch (error) { ElementPlus.ElMessage.error(error.message); }
+      try { await this.withFeedback('delete:' + doc.id, '正在删除知识库资料', async () => { const response = await this.apiFetch('/company-knowledge/documents/' + doc.id, { method: 'DELETE' }); const result = await response.json(); if (!response.ok) throw new Error(result.detail || '删除失败'); this.readerOpen = false; this.metadataOpen = false; this.newConversation(); await Promise.all([this.loadDocuments(), this.loadMyProjects()]); }); } catch (error) { ElementPlus.ElMessage.error(error.message); }
     },
     referenceGroups(references) {
       const groups = new Map();
@@ -379,6 +427,7 @@ const CompanyKnowledge = {
       const answer = this.messages[this.messages.length - 1];
       this.busy = true; this.answerStatus = '正在连接云端知识库…'; this.draft = '';
       this.controller = new AbortController(); this.scrollChat();
+      const sentToken = localStorage.getItem('accessToken');
       const started = Date.now();
       this.updateProgress(answer, { stage: 'connecting', label: '正在连接知识库', detail: '问题已提交，正在等待云端响应。' });
       this.activityClock = setInterval(() => { answer.elapsedSeconds = Math.max(answer.elapsedSeconds, Math.floor((Date.now() - started) / 1000)); }, 1000);
@@ -390,6 +439,7 @@ const CompanyKnowledge = {
         if (!response.body) throw new Error('浏览器未收到流式回答。');
         reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '';
         const consume = block => {
+          if (this.requestsActive === false || sentToken !== localStorage.getItem('accessToken')) throw new Error('登录或页面已变更，请重新打开知识库。');
           const data = block.split('\n').filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n');
           if (!data) return;
           const event = JSON.parse(data);
@@ -466,7 +516,7 @@ const CompanyKnowledge = {
               <td><span>{{ doc.project || '未归档项目' }}</span><small>{{ doc.industry || '未标记行业' }}</small></td>
               <td><span :class="['ckb-state', 'ckb-state-' + (doc.can_read ? doc.state : 'locked')]" :title="doc.status_message">{{ doc.label }}</span><small :class="{ 'ckb-review-pending': doc.review === '待复核' }">{{ doc.review }}</small></td>
               <td><span>{{ doc.date }}</span><small>V{{ doc.version }} · {{ doc.owner || '云端导入' }}</small></td>
-              <td class="ckb-table-actions"><template v-if="doc.can_read"><button :aria-label="favorites.includes(doc.id) ? '取消收藏' : '收藏资料'" @click="toggleFavorite(doc.id)"><i :class="favorites.includes(doc.id) ? 'fa-solid fa-bookmark' : 'fa-regular fa-bookmark'"></i> {{ favorites.includes(doc.id) ? '已收藏' : '收藏' }}</button><button @click="openDocument(doc)">阅读</button></template><button v-else-if="doc.request_status === 'pending'" disabled>审批中</button><button v-else class="ckb-access-request" @click="requestAccess(doc)">{{ doc.request_status === 'rejected' ? '重新申请' : '申请权限' }}</button><button v-if="doc.can_manage" @click="editDocument(doc)">管理</button><button v-if="doc.can_manage && doc.state === 'failed' && doc.has_original" @click="retryDocument(doc)">重试</button></td>
+              <td class="ckb-table-actions"><template v-if="doc.can_read"><button :aria-label="favorites.includes(doc.id) ? '取消收藏' : '收藏资料'" @click="toggleFavorite(doc.id)"><i :class="favorites.includes(doc.id) ? 'fa-solid fa-bookmark' : 'fa-regular fa-bookmark'"></i> {{ favorites.includes(doc.id) ? '已收藏' : '收藏' }}</button><button @click="openDocument(doc)">阅读</button></template><button v-else-if="doc.request_status === 'pending'" disabled>审批中</button><button v-else class="ckb-access-request" :disabled="operationPending('access:' + doc.id)" @click="requestAccess(doc)">{{ doc.request_status === 'rejected' ? '重新申请' : '申请权限' }}</button><button v-if="doc.can_manage" @click="editDocument(doc)">管理</button><button v-if="doc.can_manage && doc.state === 'failed' && doc.has_original" @click="retryDocument(doc)">重试</button></td>
             </tr>
             <tr v-if="!filteredDocuments.length"><td colspan="6" class="ckb-table-empty">{{ loading ? '正在加载资料…' : '当前筛选下没有资料，可调整筛选或上传文件。' }}</td></tr>
           </tbody></table></div>
@@ -518,7 +568,7 @@ const CompanyKnowledge = {
 
 
       <el-dialog v-model="readerOpen" width="94vw" class="ckb-dialog ckb-reader-dialog ckb-workbench-reader" append-to-body :title="selectedDoc?.title || '资料阅读'" @closed="releaseReader">
-        <template v-if="selectedDoc"><div class="ckb-reader-toolbar"><span>{{ selectedDoc.format || '引用资料' }} · {{ selectedDoc.review || '请核对来源' }} · V{{ selectedDoc.version || 1 }}</span><div><button v-if="selectedDoc.has_original" class="ckb-button ckb-button-outline" @click="downloadOriginal(selectedDoc)">下载原件</button><button class="ckb-button ckb-button-primary" :disabled="busy || !canAsk || selectedDoc.state !== 'ready'" @click="askDocument">单独向这份资料提问</button></div></div>
+        <template v-if="selectedDoc"><div class="ckb-reader-toolbar"><span>{{ selectedDoc.format || '引用资料' }} · {{ selectedDoc.review || '请核对来源' }} · V{{ selectedDoc.version || 1 }}</span><div><button v-if="selectedDoc.has_original" class="ckb-button ckb-button-outline" :disabled="operationPending('download:' + selectedDoc.id)" @click="downloadOriginal(selectedDoc)">{{operationPending('download:' + selectedDoc.id) ? '准备下载中…' : '下载原件'}}</button><button class="ckb-button ckb-button-primary" :disabled="busy || !canAsk || selectedDoc.state !== 'ready'" @click="askDocument">单独向这份资料提问</button></div></div>
         <div class="ckb-reader-columns"><div class="ckb-original-pane">
           <div v-if="readerUrl && selectedDoc.format === 'PDF'" class="ckb-pdf-pages"><div class="ckb-pdf-controls"><button :disabled="readerLoading || readerPDFPage <= 1" @click="changePDFPage(readerPDFPage - 1)">上一页</button><span>{{ readerPDFPage }} / {{ readerPDFPages }}</span><button :disabled="readerLoading || readerPDFPage >= readerPDFPages" @click="changePDFPage(readerPDFPage + 1)">下一页</button></div><img :src="readerUrl" alt="PDF 原件页面预览"></div>
           <img v-else-if="readerUrl" :src="readerUrl" alt="扫描资料原件">
@@ -553,11 +603,11 @@ const CompanyKnowledge = {
 <label>可见范围<select aria-label="可见范围" v-model="uploadForm.visibility" :disabled="uploadForm.confidentiality !== 'internal'"><option value="members">全部知识库授权成员</option><option value="restricted">仅上传者、管理员及指定成员</option></select></label>
 <label v-if="uploadForm.visibility === 'restricted'" class="ckb-form-wide">指定成员账号<input aria-label="指定成员账号" v-model="uploadForm.readersText" maxlength="10000" placeholder="系统登录账号，多个账号用逗号分隔；留空则仅自己和管理员可见"><small>指定成员仍需先获得知识库访问权限。</small></label>
 </div><p>更新可见范围后，后续检索与原件访问使用新权限。旧版本保留，可分别管理。</p>
-        <template #footer><button class="ckb-button ckb-button-outline ckb-delete-button" @click="deleteDocument(editingDoc); metadataOpen = false">删除资料</button><button class="ckb-button ckb-button-primary" @click="saveMetadata">保存修改</button></template>
+        <template #footer><button class="ckb-button ckb-button-outline ckb-delete-button" :disabled="operationPending('delete:' + editingDoc?.id)" @click="deleteDocument(editingDoc)">{{operationPending('delete:' + editingDoc?.id) ? '删除中…' : '删除资料'}}</button><button class="ckb-button ckb-button-primary" :disabled="operationPending('save:' + editingDoc?.id)" @click="saveMetadata">{{operationPending('save:' + editingDoc?.id) ? '保存中…' : '保存修改'}}</button></template>
       </el-dialog>
       <el-dialog v-model="requestCenterOpen" :title="service.is_admin ? '权限审批' : '我的权限申请'" width="760px" class="ckb-dialog ckb-request-dialog" append-to-body>
         <p class="ckb-dialog-intro">{{ service.is_admin ? '审批后，阅读、下载和 AI 问答权限会同时生效。' : '可在这里查看受限资料的申请进度。' }}</p>
-        <div class="ckb-request-list"><article v-for="request in accessRequests" :key="request.id"><div><strong>{{ request.document_title }}</strong><span>{{ request.confidentiality_label || '内部' }} · {{ request.requester_username }}</span><p>{{ request.reason }}</p><small>{{ request.created_at ? new Date(request.created_at).toLocaleString('zh-CN') : '' }}<template v-if="request.decision_note"> · 处理说明：{{ request.decision_note }}</template></small></div><aside><b :data-status="request.status">{{ requestStatusLabel(request.status) }}</b><template v-if="service.is_admin && request.status === 'pending'"><button class="ckb-button ckb-button-primary" @click="decideAccess(request, 'approved')">批准</button><button class="ckb-button ckb-button-outline" @click="decideAccess(request, 'rejected')">拒绝</button></template></aside></article><p v-if="!accessRequests.length" class="ckb-home-empty">{{ accessLoading ? '正在加载…' : '暂无权限申请。' }}</p></div>
+        <div class="ckb-request-list"><article v-for="request in accessRequests" :key="request.id"><div><strong>{{ request.document_title }}</strong><span>{{ request.confidentiality_label || '内部' }} · {{ request.requester_username }}</span><p>{{ request.reason }}</p><small>{{ request.created_at ? new Date(request.created_at).toLocaleString('zh-CN') : '' }}<template v-if="request.decision_note"> · 处理说明：{{ request.decision_note }}</template></small></div><aside><b :data-status="request.status">{{ requestStatusLabel(request.status) }}</b><template v-if="service.is_admin && request.status === 'pending'"><button class="ckb-button ckb-button-primary" :disabled="operationPending('decision:' + request.id)" @click="decideAccess(request, 'approved')">批准</button><button class="ckb-button ckb-button-outline" :disabled="operationPending('decision:' + request.id)" @click="decideAccess(request, 'rejected')">拒绝</button></template></aside></article><p v-if="!accessRequests.length" class="ckb-home-empty">{{ accessLoading ? '正在加载…' : '暂无权限申请。' }}</p></div>
         <template #footer><button class="ckb-button ckb-button-primary" @click="requestCenterOpen = false">关闭</button></template>
       </el-dialog>
     </div>`

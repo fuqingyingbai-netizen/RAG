@@ -72,16 +72,23 @@ def create_report_versions_router(get_project):
 
     @router.get('/artifacts/{artifact_id}/preview')
     def preview(artifact_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-        row = db.get(ResearchArtifact, artifact_id)
-        if not row:
+        project_id = db.scalar(select(ResearchArtifact.project_id).where(ResearchArtifact.id == artifact_id))
+        if project_id is None:
             raise HTTPException(404, '报告记录不存在')
-        get_project(db, row.project_id, user)
-        if row.artifact_type not in REPORT_TYPES:
+        get_project(db, project_id, user)
+        # Authorization precedes text access. Bound the actual DB transfer,
+        # not merely the JSON response after loading an entire report.
+        row = db.execute(select(ResearchArtifact.id, ResearchArtifact.project_id,
+            ResearchArtifact.title, ResearchArtifact.version,
+            func.substr(ResearchArtifact.content, 1, PREVIEW_LIMIT).label('preview_text'),
+            func.length(ResearchArtifact.content).label('text_length'))
+            .where(ResearchArtifact.id == artifact_id, ResearchArtifact.artifact_type.in_(REPORT_TYPES))).first()
+        if row is None:
             raise HTTPException(404, '该成果不提供报告预览')
-        content = row.content or ''
+        content = row.preview_text or ''
         return JSONResponse({'id': row.id, 'project_id': row.project_id, 'title': row.title,
                              'record_label': record_label(row.version), 'content': content[:PREVIEW_LIMIT],
-                             'truncated': len(content) > PREVIEW_LIMIT, 'has_preview': bool(content)},
+                             'truncated': (row.text_length or 0) > PREVIEW_LIMIT, 'has_preview': bool(row.text_length)},
                             headers={'Cache-Control': 'no-store'})
 
     return router

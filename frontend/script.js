@@ -44,13 +44,16 @@ createApp({
       passwordOpen: false, passwordLoading: false, passwordForm: { current_password: '', new_password: '', confirm_password: '' },
       activeView: 'home', mobileNavOpen: false, projects: [], projectMeta: {}, projectDetails: {}, artifactsByProject: {}, sourcesByProject: {}, traceByProject: {},
       taskSearch: '', taskStatusFilter: '', taskTargetFilter: '', selectedFiles: [], submitting: false, reindexing: false,
+      startingProjects: {}, recoveryBusy: {}, taskUploadIssues: {},
+      pendingActions: {}, actionPromises: {}, actionErrors: {}, actionSequence: 0,
+      reviewIntakes: {}, reviewSelectionSeq: 0, detailLoadedAt: {}, repositoryRequestId: 0,
       taskStatusOptions: [{value: '', label: '全部状态'}, {value: 'draft', label: '未开始'},
         {value: 'active', label: '进行中'}, {value: 'paused', label: '已暂停'}, {value: 'completed', label: '已完成'},
         {value: 'failed', label: '执行失败'}, {value: 'diagnostic', label: '待检查'}, {value: 'other', label: '其他状态'}],
       reportVersionsOpen: false, reportVersionsProject: null, reportVersionsType: 'desktop_report',
       taskPage: 1, taskPageSize: 12, sourcePage: 1, sourcePageSize: 50,
       nowTick: Date.now(), nowTimer: null, taskRefreshTimer: null, taskRefreshBusy: false, taskRefreshTicks: 0,
-      reviewProjectId: '', reviewReportFiles: [], reviewProposalFiles: [], fieldSourceFiles: [], fieldSourceModule: '专家访谈/走访', secondStageRunning: false,
+      reviewProjectId: '', reviewReportFiles: [], reviewProposalFiles: [], fieldSourceFiles: [], fieldSourceModule: '专家访谈/走访', secondStageRunning: false, secondStageProjectId: '',
       knowledgeQuery: '', knowledgeResults: [],
       assistantOpen: false, assistantInput: '', assistantLoading: false,
       assistantImages: [], assistantImageBusy: false, assistantDraftEpoch: 0,
@@ -73,6 +76,11 @@ createApp({
     };
   },
   computed: {
+    visibleActions() { return Object.values(this.pendingActions).slice(0, 4); },
+    visibleActionErrors() { return Object.entries(this.actionErrors).slice(-3); },
+    reviewWriteBusy() { return Object.keys(this.pendingActions).some(key => key.startsWith('review-upload:') || key.startsWith('field-upload:')); },
+    reviewInputsLocked() { return this.reviewWriteBusy || (this.secondStageRunning && this.secondStageProjectId === this.reviewProjectId); },
+    repositoryLoading() { return Object.keys(this.pendingActions).some(key => key.startsWith('repository:')); },
     isAuthenticated() { return !!this.token && !!this.currentUser; },
     authRoleLabel() { return this.authRole === 'admin' ? '管理员' : '普通用户'; },
     pageTitle() { if (this.activeView === 'home') return '个人首页'; if (this.activeView === 'accounts') return '账号管理'; return this.activeView === 'company-knowledge' ? '公司知识库' : this.activeView === 'tasks' ? '任务管理' : this.activeView === 'sources' ? '溯源库' : this.activeView === 'review' ? '复核与一手资料' : '提交尽调任务'; },
@@ -143,7 +151,12 @@ createApp({
       this.nowTimer = setInterval(() => { this.nowTick = Date.now(); }, 1000);
       this.taskRefreshTimer = setInterval(() => this.refreshVisibleTaskProgress(), 5000);
       this.readInvitationFromUrl();
-      if (this.token) { try { await this.fetchMe(); if (!this.currentUser.must_change_password) { this.ensureAllowedView(); await this.loadAssistantState(); await this.loadProjects(); } } catch (_) { this.handleLogout(); } }
+      if (this.token) {
+        try { await this.fetchMe(); } catch (_) { this.handleLogout(); return; }
+        if (!this.currentUser.must_change_password) {
+          this.ensureAllowedView(); this.loadAssistantState(); await this.loadProjects().catch(() => null);
+        }
+      }
     },
   beforeUnmount() {
     if (this.nowTimer) clearInterval(this.nowTimer);
@@ -154,15 +167,106 @@ createApp({
     this.stopAssistantDrag();
   },
   methods: {
+    actionPending(key) { return !!this.pendingActions[key]; },
+    actionWaitText(action) {
+      const seconds = Math.max(0, Math.floor((this.nowTick - action.startedAt) / 1000));
+      return `${action.phase || action.label} · 已等待 ${seconds} 秒` + (seconds >= 10
+        ? (action.readOnly ? '，仍在读取，请稍候；可以继续浏览其他页面。' : '，尚未确认完成，请勿重复提交。') : '');
+    },
+    runAction(key, label, work, {readOnly = false, silent = false, retryAdvice = ''} = {}) {
+      if (this.actionPromises[key]) return this.actionPromises[key];
+      const sentToken = this.token, id = ++this.actionSequence;
+      delete this.actionErrors[key];
+      if (!silent) this.pendingActions[key] = {id, label, phase: label, startedAt: Date.now(), readOnly, retryAdvice};
+      const phase = (text, options = {}) => {
+        if (sentToken === this.token && this.pendingActions[key]?.id === id) {
+          this.pendingActions[key].phase = text;
+          if (typeof options?.readOnly === 'boolean') this.pendingActions[key].readOnly = options.readOnly;
+          if (typeof options?.retryAdvice === 'string') this.pendingActions[key].retryAdvice = options.retryAdvice;
+        }
+      };
+      const promise = (async () => {
+        await Promise.resolve();
+        try { return await work(phase); }
+        catch (error) {
+          const uploadIssue = /^(?:review-upload|field-upload):/.test(key) ? this.taskUploadIssues[key.split(':').at(-1)] : null;
+          const failedReadOnly = this.pendingActions[key]?.readOnly ?? readOnly;
+          if (!silent && sentToken === this.token) this.actionErrors[key] = {label,
+            message: uploadIssue ? uploadIssue.title + '。' + uploadIssue.advice : error.message || '操作未完成，请检查网络后重试',
+            advice: this.pendingActions[key]?.retryAdvice || (failedReadOnly ? '可重新点击按钮读取；不会启动研究。' : '请先核对任务或资料的保存状态，再决定是否重试，避免重复提交。')};
+          throw error;
+        } finally {
+          if (sentToken === this.token) {
+            if (this.pendingActions[key]?.id === id) delete this.pendingActions[key];
+            if (this.actionPromises[key] === promise) delete this.actionPromises[key];
+          }
+        }
+      })();
+      this.actionPromises[key] = promise;
+      return promise;
+    },
+    readJSON(url, failureMessage, timeoutMs = 30000, options = {}) {
+      return this.readWithTimeout(url, response => response.json(), failureMessage, timeoutMs, options);
+    },
+    readDownload(url, failureMessage) {
+      return this.readWithTimeout(url, async response => response.ok
+        ? {blob:await response.blob(), disposition:response.headers.get('Content-Disposition') || ''}
+        : response.json().catch(() => ({})), failureMessage, 120000);
+    },
+    async readWithTimeout(url, parse, failureMessage, timeoutMs, {signal} = {}) {
+      const sentToken = this.token;
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      const stopped = () => { const error = new Error('已停止读取'); error.name = 'AbortError'; return error; };
+      if (signal?.aborted) throw stopped();
+      let timer, onAbort;
+      const cancelled = signal ? new Promise((_, reject) => {
+        onAbort = () => { controller?.abort(); reject(stopped()); };
+        signal.addEventListener('abort', onAbort, {once:true});
+      }) : null;
+      const request = (async () => {
+        let response, data;
+        try { response = await this.authFetch(url, controller ? {signal: controller.signal} : {}); }
+        catch (error) {
+          if (error.name === 'TypeError' && sentToken === this.token && !controller?.signal.aborted)
+            throw new Error(`${failureMessage}：网络连接失败，请检查服务后重试。`);
+          throw error;
+        }
+        try { data = await parse(response); }
+        catch (error) {
+          if (sentToken !== this.token) throw new Error('登录账号已变更，请重试');
+          if (error.name === 'AbortError' || controller?.signal.aborted) throw error;
+          throw new Error(`${failureMessage}：${response.ok ? '响应内容暂时无法读取' : '服务暂时不可用'}，请稍后重试。`);
+        }
+        if (sentToken !== this.token) throw new Error('登录账号已变更，请重试');
+        if (!response.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : failureMessage);
+        return data;
+      })();
+      try {
+        const waiting = [request];
+        if (cancelled) waiting.push(cancelled);
+        if (typeof setTimeout === 'function') waiting.push(new Promise((_, reject) => {
+          timer = setTimeout(() => { controller?.abort(); reject(new Error(`${failureMessage}：读取超时，请重试；未启动任何研究任务。`)); }, timeoutMs);
+        }));
+        return await Promise.race(waiting);
+      } finally { if (timer) clearTimeout(timer); if (onAbort) signal.removeEventListener('abort', onAbort); }
+    },
     authHeaders(extra = {}) { return this.token ? { ...extra, Authorization: `Bearer ${this.token}` } : extra; },
     async authFetch(url, options = {}) {
       const sentToken = this.token;
+      const assertCurrent = () => { if (sentToken !== this.token) throw new Error('登录账号已变更，请重试'); };
       const opts = { ...options, headers: this.authHeaders(options.headers || {}) };
       const response = await fetch(url, opts);
-      if (sentToken !== this.token) throw new Error('登录账号已变更，请重试');
+      assertCurrent();
       if (response.headers.get('X-Password-Change-Required') === 'true' && this.currentUser) { this.currentUser.must_change_password = true; }
       if (response.status === 401) { this.handleLogout(); throw new Error('登录已过期，请重新登录'); }
-      return response;
+      return new Proxy(response, {get(target, key) {
+        assertCurrent();
+        const value = Reflect.get(target, key, target);
+        if (['json','blob','text','arrayBuffer'].includes(key) && typeof value === 'function') return async (...args) => {
+          assertCurrent(); const body = await value.apply(target, args); assertCurrent(); return body;
+        };
+        return typeof value === 'function' ? value.bind(target) : value;
+      }});
     },
     async fetchMe() { const r = await this.authFetch('/auth/me'); if (!r.ok) throw new Error('认证失败'); this.currentUser = await r.json(); },
     ensureAllowedView() { if (!['home', 'submit', 'tasks', 'review', 'sources', 'company-knowledge', 'accounts'].includes(this.activeView) || (this.activeView === 'accounts' && this.currentUser?.role !== 'admin')) { this.activeView = 'home'; localStorage.setItem('activeView', 'home'); } },
@@ -236,7 +340,9 @@ createApp({
       this.authForm = {username:'',password:'',confirm_password:'',invitation:''}; this.inviteStatus = ''; this.inviteValid = false; this.inviteRequestId++;
       this.passwordOpen = false; this.passwordForm = {current_password:'',new_password:'',confirm_password:''};
       this.projects = []; this.knowledgeResults = []; this.assistantOpen = false; localStorage.removeItem('accessToken');
-      this.projectMeta = {}; this.projectDetails = {}; this.artifactsByProject = {}; this.sourcesByProject = {}; this.traceByProject = {};
+      this.projectMeta = {}; this.projectDetails = {}; this.artifactsByProject = {}; this.sourcesByProject = {}; this.traceByProject = {}; this.recoveryBusy = {}; this.taskUploadIssues = {};
+      this.pendingActions = {}; this.actionPromises = {}; this.actionErrors = {}; this.reviewIntakes = {}; this.detailLoadedAt = {};
+      this.startingProjects = {}; this.secondStageRunning = false; this.secondStageProjectId = '';
       this.assistantMessages = []; this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantLoading = false; this.assistantNavigation = []; this.selectedFiles = [];
       this.form = newResearchForm(); this.resetTaskFilters();
       this.clearReviewSelection();
@@ -261,8 +367,8 @@ createApp({
       if (!['home', 'submit', 'tasks', 'review', 'sources', 'company-knowledge', 'accounts'].includes(view)) return;
       if (view === 'accounts' && this.currentUser?.role !== 'admin') return;
       this.activeView = view; this.mobileNavOpen = false; localStorage.setItem('activeView', view);
-      if (view === 'tasks' || view === 'review') { this.loadProjects(); this.refreshVisibleTaskProgress(); }
-      if (view === 'sources') this.loadRepository();
+      if (view === 'tasks' || view === 'review') { this.loadProjects().catch(() => null); this.refreshVisibleTaskProgress(); }
+      if (view === 'sources') this.loadRepository().catch(() => null);
     },
     async openHomeProject(project) {
       const sentToken = this.token;
@@ -304,10 +410,10 @@ createApp({
     handleFileChange(file, fileList) { this.selectedFiles = fileList.map(item => item.raw || item).filter(Boolean); },
     handleFileRemove(file, fileList) { this.selectedFiles = fileList.map(item => item.raw || item).filter(Boolean); },
     async loadProjects() {
-      const sentToken = this.token;
-      const r = await this.authFetch('/research/projects'); const data = await r.json().catch(() => ({}));
-      if (sentToken !== this.token) throw new Error('登录账号已变更，请重试');
-      if (!r.ok) throw new Error(data.detail || '加载任务失败'); this.projects = data.projects || [];
+      return this.runAction('projects', '正在读取任务列表', async () => {
+        const data = await this.readJSON('/research/projects', '加载任务失败');
+        this.projects = data.projects || [];
+      }, {readOnly: true});
     },
     async submitTask() {
       if (!this.form.projectName.trim()) return ElementPlus.ElMessage.warning('请填写项目名称');
@@ -348,10 +454,68 @@ createApp({
     },
     async uploadProjectFile(projectId, file) {
       const formData = new FormData(); formData.append('file', file);
-      const r = await this.authFetch(`/research/projects/${projectId}/upload`, { method: 'POST', body: formData });
-      if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || `上传 ${file.name} 失败`); }
+      await this.postTaskUpload(projectId, `/research/projects/${projectId}/upload`, formData);
+    },
+    async postTaskUpload(projectId, url, formData) {
+      const sentToken = this.token;
+      try {
+        const response = await this.authFetch(url, {method: 'POST', body: formData});
+        const data = await response.json().catch(() => ({}));
+        if (sentToken !== this.token) throw new Error('登录账号已变更，请重试');
+        if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : '资料上传未完成');
+        delete this.taskUploadIssues[projectId];
+        return data;
+      } catch (error) {
+        if (sentToken === this.token) {
+          const parsing = /解析|提取文本|extract|parse/i.test(error.message || '');
+          this.taskUploadIssues[projectId] = {
+            kind: 'upload', title: parsing ? '本次文件解析未完成' : '本次上传尚未确认成功', stage: parsing ? '文件解析' : '资料上传',
+            reason: '本次请求未获成功确认，保存情况以刷新后的系统记录为准。',
+            advice: parsing ? '请检查文件能否正常打开、文字是否清晰，可换用文字版后上传。先核对已保存记录，再决定是否补传。'
+              : '请先刷新并核对已有资料，避免重复上传；再检查文件格式和网络状态，决定是否重试。',
+            actions: [{kind: 'review', label: '检查或补充资料'}],
+          };
+          if (this.projectDetails[projectId]) {
+            try { await this.loadProjectDetail({id: Number(projectId)}); } catch (_) { /* Never claim an unconfirmed upload was saved. */ }
+          }
+        }
+        throw error;
+      }
+    },
+    async readWorkflowEvents(response, sentToken, onEvent) {
+      if (!response.body) throw new Error('浏览器未收到进度连接，请在任务管理核对状态，不要重复启动。');
+      const reader = response.body.getReader(), decoder = new TextDecoder();
+      let buffer = '';
+      const consume = block => {
+        const data = block.split('\n').filter(line => line.startsWith('data:')).map(line => line.slice(5).replace(/^ /, '')).join('\n');
+        if (!data) return '';
+        let event;
+        try { event = JSON.parse(data); }
+        catch (_) { throw new Error('收到的进度消息不完整，请在任务管理核对状态，不要重复启动。'); }
+        onEvent(event);
+        return ['result','paused'].includes(event.type) ? event.type : '';
+      };
+      try {
+        while (true) {
+          const {done, value} = await reader.read();
+          if (sentToken !== this.token) return 'account_changed';
+          buffer += decoder.decode(value || new Uint8Array(), {stream:!done});
+          buffer = buffer.replace(/\r\n/g, '\n');
+          let boundary;
+          while ((boundary = buffer.indexOf('\n\n')) >= 0) {
+            const block = buffer.slice(0, boundary); buffer = buffer.slice(boundary + 2);
+            const terminal = consume(block); if (terminal) return terminal;
+          }
+          if (done) break;
+        }
+        return buffer.trim() ? consume(buffer) || 'closed' : 'closed';
+      } finally {
+        try { await reader.cancel?.(); } catch (_) { /* The backend job continues independently of this connection. */ }
+        reader.releaseLock?.();
+      }
     },
     async runWorkflow(project) {
+      const sentToken = this.token;
       this.traceByProject[project.id] = this.traceByProject[project.id] || [];
       const payload = {
         ...this.industryRunFields(this.form.targetType),
@@ -366,46 +530,52 @@ createApp({
       };
       const r = await this.authFetch(`/research/projects/${project.id}/run/stream`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || '工作流启动失败'); }
-      const reader = r.body.getReader(), decoder = new TextDecoder(); let buffer = '';
-      const pollInterval = setInterval(() => this.refreshProjectProgress(project), 5000);
+      const pollInterval = setInterval(() => { if (sentToken === this.token) this.refreshProjectProgress(project).catch(() => null); }, 5000);
       try {
-        while (true) {
-          const { done, value } = await reader.read(); if (done) break;
-          buffer += decoder.decode(value, { stream: true }); let idx;
-          while ((idx = buffer.indexOf('\n\n')) !== -1) {
-            const eventStr = buffer.slice(0, idx); buffer = buffer.slice(idx + 2); if (!eventStr.startsWith('data: ')) continue;
-            const event = JSON.parse(eventStr.slice(6));
+        const outcome = await this.readWorkflowEvents(r, sentToken, event => {
             if (event.type === 'trace_step') this.mergeTraceEvent(project.id, event);
             if (event.type === 'result') { this.replaceProject(event.project); this.artifactsByProject[project.id] = event.artifacts || []; }
             if (event.type === 'paused') { project.status = 'paused'; ElementPlus.ElMessage.info(event.content || '任务已暂停'); }
             if (event.type === 'error') throw new Error(event.content || '工作流失败');
-          }
-        }
-      } finally { clearInterval(pollInterval); }
-      await this.loadProjects();
+        });
+        if (outcome === 'closed') throw new Error('进度连接已结束，尚未确认任务完成。请在任务管理核对状态，不要重复启动。');
+      } finally { clearInterval(pollInterval); await this.refreshAfterWorkflow(project, sentToken); }
     },
     async rerunProject(project) {
+      if (this.startingProjects[project.id]) return;
+      const sentToken = this.token;
+      this.startingProjects[project.id] = true;
       try {
-        const r = await this.authFetch(`/research/projects/${project.id}/run-intake`);
-        const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.detail || '加载重跑参数失败');
-        await this.runExistingWorkflow(project, data.intake || {});
+        await this.runAction(`rerun:${project.id}`, '正在读取重跑参数', async phase => {
+          const data = await this.readJSON(`/research/projects/${project.id}/run-intake`, '加载重跑参数失败');
+          phase('正在提交重跑请求，请勿重复点击', {readOnly:false, retryAdvice:''});
+          await this.runExistingWorkflow(project, data.intake || {}, () => {
+            phase('重跑已在后台执行，可在任务管理查看进度');
+            ElementPlus.ElMessage.success('重跑请求已接收，正在更新任务进度');
+            this.refreshProjectProgress(project).catch(() => null);
+          });
+        }, {readOnly:true, retryAdvice:'参数未读成功，本次未启动研究；重新点击“重跑”将在参数读取成功后提交研究请求。'});
       } catch (e) {
-        ElementPlus.ElMessage.error(e.message);
+        if (sentToken === this.token) ElementPlus.ElMessage.error(e.message);
+      } finally {
+        if (sentToken === this.token) delete this.startingProjects[project.id];
       }
     },
     canPauseProject(project) {
       return !['draft', 'paused', 'completed', 'failed'].includes(project.status);
     },
     async pauseProject(project) {
+      try { await this.runAction(`pause:${project.id}`, '正在提交暂停请求', async () => {
       const r = await this.authFetch(`/research/projects/${project.id}/pause`, { method: 'POST' });
       const data = await r.json().catch(() => ({}));
-      if (!r.ok) return ElementPlus.ElMessage.error(data.detail || '暂停失败');
+      if (!r.ok) throw new Error(data.detail || '暂停失败');
       project.status = data.status || 'pausing';
       ElementPlus.ElMessage.success(data.message || '已提交暂停请求');
-      await this.loadProjects();
+      this.loadProjects().catch(() => null);
+      }); } catch (error) { ElementPlus.ElMessage.error(error.message); }
     },
-    async runExistingWorkflow(project, savedIntake = null) {
+    async runExistingWorkflow(project, savedIntake = null, onConnected = null) {
+      const sentToken = this.token;
       this.traceByProject[project.id] = this.traceByProject[project.id] || [];
       const intake = savedIntake || this.intakeFor(project);
       const payload = {
@@ -431,35 +601,81 @@ createApp({
       };
       const r = await this.authFetch(`/research/projects/${project.id}/run/stream`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || '工作流启动失败'); }
-      const reader = r.body.getReader(), decoder = new TextDecoder(); let buffer = '';
-      const pollInterval = setInterval(() => this.refreshProjectProgress(project), 5000);
+      if (onConnected) onConnected();
+      const pollInterval = setInterval(() => { if (sentToken === this.token) this.refreshProjectProgress(project).catch(() => null); }, 5000);
       try {
-        while (true) {
-          const { done, value } = await reader.read(); if (done) break;
-          buffer += decoder.decode(value, { stream: true }); let idx;
-          while ((idx = buffer.indexOf('\n\n')) !== -1) {
-            const eventStr = buffer.slice(0, idx); buffer = buffer.slice(idx + 2); if (!eventStr.startsWith('data: ')) continue;
-            const event = JSON.parse(eventStr.slice(6));
+        const outcome = await this.readWorkflowEvents(r, sentToken, event => {
             if (event.type === 'trace_step') this.mergeTraceEvent(project.id, event);
             if (event.type === 'result') { this.replaceProject(event.project); this.artifactsByProject[project.id] = event.artifacts || []; }
             if (event.type === 'paused') { project.status = 'paused'; ElementPlus.ElMessage.info(event.content || '任务已暂停'); }
             if (event.type === 'error') throw new Error(event.content || '工作流失败');
-          }
+        });
+        if (outcome === 'closed') throw new Error('进度连接已结束，尚未确认任务完成。请在任务管理核对状态，不要重复启动。');
+      } finally { clearInterval(pollInterval); await this.refreshAfterWorkflow(project, sentToken); }
+    },
+    async refreshAfterWorkflow(project, sentToken) {
+      if (sentToken !== this.token) return;
+      try { await this.loadProjects(); } catch (_) { /* A refresh must not replace the original failure reason. */ }
+      if (sentToken !== this.token || !this.projectDetails[project.id]) return;
+      try { await this.loadProjectDetail(project, {force: true}); } catch (_) { /* The panel retains its last confirmed snapshot. */ }
+    },
+    recoveryFor(project) {
+      const detail = this.projectDetails[project.id];
+      if (detail?.project?.status !== project.status || !detail.recovery) return null;
+      const upload = this.taskUploadIssues[project.id];
+      return upload ? {...detail.recovery, issues: [upload, ...(detail.recovery.issues || [])]} : detail.recovery;
+    },
+    async runRecoveryAction(project, action) {
+      if (this.recoveryBusy[project.id] || this.startingProjects[project.id]) return;
+      const sentToken = this.token;
+      this.recoveryBusy[project.id] = true;
+      try {
+        if (action.kind === 'run') {
+          if (this.recoveryFor(project)?.running) return;
+          try {
+            await ElementPlus.ElMessageBox.confirm(action.description || this.recoveryFor(project)?.run_notice,
+              `确认${action.label || '继续任务'}`, {type: 'warning', confirmButtonText: action.label || '继续任务', cancelButtonText: '取消'});
+          } catch (_) { return; }
+          if (sentToken === this.token) await this.rerunProject(project);
+        } else if (action.kind === 'history') {
+          this.openReportVersions(project, action.artifact_type);
+        } else if (action.kind === 'review') {
+          this.resetTaskFilters();
+          await this.loadProjects();
+          if (sentToken !== this.token) return;
+          const index = this.projects.findIndex(row => row.id === project.id);
+          if (index < 0) throw new Error('该任务已不存在或当前账号无法访问');
+          this.switchView('review');
+          await this.$nextTick();
+          if (sentToken !== this.token) return;
+          this.taskPage = Math.floor(index / this.taskPageSize) + 1;
+          await this.$nextTick();
+          if (sentToken === this.token) await this.selectReviewProject(this.projects[index]);
+        } else if (['download', 'retry_knowledge'].includes(action.kind)) {
+          const artifact = (this.artifactsByProject[project.id] || []).find(row => row.id === action.artifact_id);
+          if (!artifact) throw new Error('成果记录已变化，请刷新详情后重试');
+          if (action.kind === 'download') await this.downloadArtifact(artifact);
+          else await this.retryKnowledge(artifact);
         }
-      } finally { clearInterval(pollInterval); }
-      await this.loadProjects();
+      } catch (error) { if (sentToken === this.token) ElementPlus.ElMessage.error(error.message || '操作未完成，请刷新详情后重试'); }
+      finally { if (sentToken === this.token) delete this.recoveryBusy[project.id]; }
     },
     replaceProject(project) { const i = this.projects.findIndex(p => p.id === project.id); if (i >= 0) this.projects.splice(i, 1, project); else this.projects.unshift(project); },
-    async onTaskExpand(row, expandedRows) { if (expandedRows.some(item => item.id === row.id)) await this.loadProjectDetail(row); },
-    async viewProject(project) {
-      await this.loadProjectDetail(project);
-      this.$nextTick(() => this.$refs.taskTable?.toggleRowExpansion(this.projects.find(item => item.id === project.id) || project, true));
+    async onTaskExpand(row, expandedRows) {
+      if (!expandedRows.some(item => item.id === row.id)) return;
+      try { await this.loadProjectDetail(row); } catch (_) { /* The inline error keeps the retry action available. */ }
     },
-    async loadProjectDetail(project) {
+    async viewProject(project) {
+      this.$nextTick(() => this.$refs.taskTable?.toggleRowExpansion(this.projects.find(item => item.id === project.id) || project, true));
+      try { await this.loadProjectDetail(project); } catch (_) { /* Loading/error feedback is visible in the expanded row. */ }
+    },
+    async loadProjectDetail(project, {force = false} = {}) {
+      if (!force && this.projectDetails[project.id]?.project?.status === project.status
+          && Date.now() - (this.detailLoadedAt[project.id] || 0) < 5000) return this.projectDetails[project.id];
+      return this.runAction(`detail:${project.id}`, '正在读取任务详情', async () => {
       const sentToken = this.token;
-      const r = await this.authFetch(`/research/projects/${project.id}/detail`); const data = await r.json().catch(() => ({}));
+      const data = await this.readJSON(`/research/projects/${project.id}/detail`, '加载项目详情失败');
       if (sentToken !== this.token) throw new Error('登录账号已变更，请重试');
-      if (!r.ok) throw new Error(data.detail || '加载项目详情失败');
       if (data.project) this.replaceProject(data.project);
       this.projectDetails[project.id] = data;
       this.artifactsByProject[project.id] = data.artifacts || [];
@@ -470,12 +686,19 @@ createApp({
         startDate: intake.start_date || this.projectMeta[project.id]?.startDate || '',
         endDate: intake.deadline || this.projectMeta[project.id]?.endDate || ''
       };
+      this.detailLoadedAt[project.id] = Date.now();
+      return data;
+      }, {readOnly: true});
     },
-    async refreshProjectProgress(project) {
-      const r = await this.authFetch(`/research/projects/${project.id}/progress`); const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(data.detail || '加载任务进度失败');
-      if (data.project) this.replaceProject(data.project);
-      if (data.trace?.length) this.mergeTraceList(project.id, data.trace);
+    refreshProjectProgress(project) {
+      return this.runAction(`progress:${project.id}`, '正在更新任务进度', async () => {
+        const previousStatus = project.status;
+        const data = await this.readJSON(`/research/projects/${project.id}/progress`, '加载任务进度失败');
+        if (data.project) this.replaceProject(data.project);
+        if (data.trace?.length) this.mergeTraceList(project.id, data.trace);
+        if (data.project && previousStatus !== data.project.status && ['failed', 'paused', 'completed'].includes(data.project.status)
+            && this.projectDetails[project.id]) await this.loadProjectDetail(data.project, {force: true});
+      }, {readOnly:true, silent:true});
     },
     async refreshVisibleTaskProgress() {
       if (!this.token || !this.currentUser || this.currentUser.must_change_password || !['tasks', 'review'].includes(this.activeView) || this.taskRefreshBusy) return;
@@ -495,18 +718,26 @@ createApp({
       }
     },
     mergeTraceEvent(projectId, event) {
-      const list = this.traceByProject[projectId] || [];
-      const key = [event.timestamp || '', event.stage || '', event.agent || '', event.label || '', event.detail || '', event.status || '', event.section || ''].join('|');
-      if (!list.some(item => [item.timestamp || '', item.stage || '', item.agent || '', item.label || '', item.detail || '', item.status || '', item.section || ''].join('|') === key)) {
-        list.push(event);
-      }
-      this.traceByProject[projectId] = list.slice(-500);
+      this.mergeTraceList(projectId, [event]);
     },
     mergeTraceList(projectId, events) {
-      (events || []).forEach(event => this.mergeTraceEvent(projectId, event));
+      if (!events?.length) return;
+      const keyFor = event => [event.timestamp || '', event.stage || '', event.agent || '', event.label || '', event.detail || '', event.status || '', event.section || ''].join('|');
+      const list = [...(this.traceByProject[projectId] || [])], keys = list.map(keyFor), counts = new Map();
+      for (const key of keys) counts.set(key, (counts.get(key) || 0) + 1);
+      let first = 0;
+      for (const event of events) {
+        const key = keyFor(event);
+        if (!counts.has(key)) { list.push(event); keys.push(key); counts.set(key, 1); }
+        while (list.length - first > 500) {
+          const removed = keys[first++], remaining = counts.get(removed) - 1;
+          if (remaining) counts.set(removed, remaining); else counts.delete(removed);
+        }
+      }
+      this.traceByProject[projectId] = list.slice(first);
     },
     async loadProjectArtifacts(project) {
-      const r = await this.authFetch(`/research/projects/${project.id}/artifacts`); const data = await r.json().catch(() => []);
+      const r = await this.authFetch(`/research/projects/${project.id}/artifacts?include_content=false`); const data = await r.json().catch(() => []);
       if (r.ok) this.artifactsByProject[project.id] = data;
     },
     intakeFor(project) { return this.projectDetails[project.id]?.intake || {}; },
@@ -640,63 +871,84 @@ createApp({
     handleReviewReportChange(file, fileList) { this.reviewReportFiles = fileList.map(item => item.raw || item).filter(Boolean); },
     handleReviewProposalChange(file, fileList) { this.reviewProposalFiles = fileList.map(item => item.raw || item).filter(Boolean); },
     handleFieldSourceChange(file, fileList) { this.fieldSourceFiles = fileList.map(item => item.raw || item).filter(Boolean); },
-    clearReviewSelection() { this.reviewProjectId = ''; this.reviewReportFiles = []; this.reviewProposalFiles = []; this.fieldSourceFiles = []; },
+    uploadDisplayFiles(files) { return files.map((file, index) => ({name:file.name, raw:file, uid:file.uid || index + 1, status:'ready'})); },
+    clearReviewSelection() { ++this.reviewSelectionSeq; this.reviewProjectId = ''; this.reviewReportFiles = []; this.reviewProposalFiles = []; this.fieldSourceFiles = []; },
     async selectReviewProject(project) {
+      if (this.reviewWriteBusy) return;
+      if (this.reviewProjectId !== project.id) this.clearReviewSelection();
+      const sentToken = this.token, selection = ++this.reviewSelectionSeq;
       this.reviewProjectId = project.id;
-      await this.loadProjectDetail(project);
+      delete this.reviewIntakes[project.id];
       this.$nextTick(() => {
-        (this.pagedProjects || []).forEach(row => this.$refs.reviewTable?.toggleRowExpansion(row, row.id === project.id));
+        if (selection === this.reviewSelectionSeq && sentToken === this.token)
+          (this.pagedProjects || []).forEach(row => this.$refs.reviewTable?.toggleRowExpansion(row, row.id === project.id));
       });
+      try {
+        const data = await this.runAction(`review:${project.id}`, '正在准备复核资料',
+          () => this.readJSON(`/research/projects/${project.id}/run-intake`, '加载复核参数失败'), {readOnly: true});
+        if (sentToken === this.token && selection === this.reviewSelectionSeq && this.reviewProjectId === project.id)
+          this.reviewIntakes[project.id] = data.intake || {};
+      } catch (_) { /* The expanded panel contains the failure and retry action. */ }
     },
     async uploadReviewArtifact(type) {
       const projectId = this.reviewProjectId;
       if (!projectId) return ElementPlus.ElMessage.warning('请先选择项目');
       const files = type === 'desktop_report' ? this.reviewReportFiles : this.reviewProposalFiles;
       if (!files.length) return ElementPlus.ElMessage.warning('请选择要上传的文件');
-      try {
-        for (const file of files) {
+      if (this.reviewInputsLocked) return;
+      const sentToken = this.token, selectedFiles = [...files];
+      try { await this.runAction(`review-upload:${type}:${projectId}`, '正在保存人工修订成果', async phase => {
+        for (const [index, file] of selectedFiles.entries()) {
+          phase(`正在上传并解析修订文件 ${index + 1}/${selectedFiles.length}`);
           const formData = new FormData();
           formData.append('artifact_type', type);
           formData.append('file', file);
-          const r = await this.authFetch(`/research/projects/${projectId}/artifacts/replace`, { method: 'POST', body: formData });
-          const data = await r.json().catch(() => ({}));
-          if (!r.ok) throw new Error(data.detail || '上传人工修订产物失败');
+          await this.postTaskUpload(projectId, `/research/projects/${projectId}/artifacts/replace`, formData);
+          if (sentToken !== this.token) return;
         }
+        delete this.detailLoadedAt[projectId];
         ElementPlus.ElMessage.success('人工修订产物已覆盖为最新版本');
-        const project = this.projects.find(p => p.id === Number(projectId));
-        if (project) await this.loadProjectDetail(project);
-        await this.loadRepository();
-      } catch (e) { ElementPlus.ElMessage.error(e.message); }
+        if (this.reviewProjectId === projectId) {
+          if (type === 'desktop_report') this.reviewReportFiles = [];
+          else this.reviewProposalFiles = [];
+        }
+      });
+      } catch (e) { ElementPlus.ElMessage.error(this.taskUploadIssues[projectId]?.title || e.message); }
     },
     async uploadFieldSources() {
       const projectId = this.reviewProjectId;
       if (!projectId) return ElementPlus.ElMessage.warning('请先选择项目');
       if (!this.fieldSourceFiles.length) return ElementPlus.ElMessage.warning('请选择一手资料文件');
-      try {
-        for (const file of this.fieldSourceFiles) {
+      if (this.reviewInputsLocked) return;
+      const sentToken = this.token, files = [...this.fieldSourceFiles], module = this.fieldSourceModule;
+      try { await this.runAction(`field-upload:${projectId}`, '正在保存一手资料', async phase => {
+        for (const [index, file] of files.entries()) {
+          phase(`正在上传、解析并入库 ${index + 1}/${files.length} 个文件`);
           const formData = new FormData();
-          formData.append('module', this.fieldSourceModule || '专家访谈/走访');
+          formData.append('module', module || '专家访谈/走访');
           formData.append('file', file);
-          const r = await this.authFetch(`/research/projects/${projectId}/field-sources`, { method: 'POST', body: formData });
-          const data = await r.json().catch(() => ({}));
-          if (!r.ok) throw new Error(data.detail || `上传 ${file.name} 失败`);
+          await this.postTaskUpload(projectId, `/research/projects/${projectId}/field-sources`, formData);
+          if (sentToken !== this.token) return;
+          if (this.reviewProjectId === projectId) this.fieldSourceFiles = this.fieldSourceFiles.filter(item => item !== file);
         }
-        ElementPlus.ElMessage.success('一手资料已入库');
-        const project = this.projects.find(p => p.id === Number(projectId));
-        if (project) await this.loadProjectDetail(project);
-        await this.loadRepository();
-      } catch (e) { ElementPlus.ElMessage.error(e.message); }
+        delete this.detailLoadedAt[projectId];
+        ElementPlus.ElMessage.success('一手资料处理完成，可在任务详情核对保存及入库状态');
+      });
+      } catch (e) { ElementPlus.ElMessage.error(this.taskUploadIssues[projectId]?.title || e.message); }
     },
     async runSecondStage() {
+      if (this.secondStageRunning || this.reviewWriteBusy || this.actionPending(`review:${this.reviewProjectId}`)) return;
+      const sentToken = this.token;
       const projectId = this.reviewProjectId;
       if (!projectId) return ElementPlus.ElMessage.warning('请先选择项目');
       const project = this.projects.find(p => p.id === Number(projectId));
       if (!project) return ElementPlus.ElMessage.warning('项目不存在');
       this.secondStageRunning = true;
+      this.secondStageProjectId = project.id;
       this.traceByProject[project.id] = this.traceByProject[project.id] || [];
       let pollInterval = null;
-      try {
-        const intake = this.projectDetails[project.id]?.intake || {};
+      try { await this.runAction(`second-stage:${project.id}`, '正在提交二阶段生成请求：' + (project.title || project.id), async phase => {
+        const intake = this.reviewIntakes[project.id] || this.projectDetails[project.id]?.intake || {};
         const payload = {
           ...this.industryRunFields(project.target_type, intake),
           search_queries: [], focus_questions: [...(intake.focus_questions || []), '基于人工复核报告、专家访谈、走访纪要和一手资料更新核心事实、风险和建议'],
@@ -712,26 +964,30 @@ createApp({
         };
         const r = await this.authFetch(`/research/projects/${project.id}/second-stage/run/stream`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || '二阶段生成启动失败'); }
-        const reader = r.body.getReader(), decoder = new TextDecoder(); let buffer = '';
-        pollInterval = setInterval(() => this.loadProjectDetail(project), 5000);
-        while (true) {
-          const { done, value } = await reader.read(); if (done) break;
-          buffer += decoder.decode(value, { stream: true }); let idx;
-          while ((idx = buffer.indexOf('\n\n')) !== -1) {
-            const eventStr = buffer.slice(0, idx); buffer = buffer.slice(idx + 2); if (!eventStr.startsWith('data: ')) continue;
-            const event = JSON.parse(eventStr.slice(6));
-            if (event.type === 'trace_step') this.mergeTraceEvent(project.id, event);
+        phase('二阶段正在处理：' + (project.title || project.id) + '，可在任务管理查看进度');
+        ElementPlus.ElMessage.success('二阶段请求已接收，正在处理；进度会持续更新');
+        pollInterval = setInterval(() => { if (sentToken === this.token) this.refreshProjectProgress(project).catch(() => null); }, 5000);
+        const outcome = await this.readWorkflowEvents(r, sentToken, event => {
+            if (event.type === 'trace_step') { this.mergeTraceEvent(project.id, event); phase(event.label || '二阶段正在处理'); }
             if (event.type === 'result') { this.replaceProject(event.project); this.artifactsByProject[project.id] = event.artifacts || []; }
+            if (event.type === 'paused') { project.status = 'paused'; ElementPlus.ElMessage.info(event.content || '任务已暂停'); }
             if (event.type === 'error') throw new Error(event.content || '二阶段生成失败');
-          }
-        }
-        await this.loadProjects(); await this.loadProjectDetail(project); await this.loadRepository();
+        });
+        if (sentToken !== this.token) return;
+        if (outcome === 'paused') return;
+        if (outcome !== 'result') throw new Error('连接已结束，但尚未确认生成完成。请在任务管理核对状态，不要重复启动。');
+        delete this.detailLoadedAt[project.id];
         ElementPlus.ElMessage.success('二阶段报告和建议书已生成');
+        this.refreshAfterWorkflow(project, sentToken).catch(() => null);
+      });
       } catch (e) {
-        ElementPlus.ElMessage.error(e.message);
+        if (sentToken === this.token) {
+          ElementPlus.ElMessage.error(e.message);
+          await this.refreshAfterWorkflow(project, sentToken);
+        }
       } finally {
         if (pollInterval) clearInterval(pollInterval);
-        this.secondStageRunning = false;
+        if (sentToken === this.token) { this.secondStageRunning = false; this.secondStageProjectId = ''; }
       }
     },
     recordLabel(version) { return Number.isInteger(version) && version > 0 ? `记录 ${String(version).padStart(3, '0')}` : '历史记录'; },
@@ -744,71 +1000,98 @@ createApp({
     latestDownloadable(project) { return this.downloadableArtifacts(project).find(a => ['desktop_report', 'proposal'].includes(a.artifact_type)) || this.downloadableArtifacts(project)[0]; },
     async deleteProject(project) {
       try { await ElementPlus.ElMessageBox.confirm(`确认删除任务“${project.title}”？`, '删除任务', { type: 'warning' }); } catch (_) { return; }
+      try { await this.runAction(`delete-project:${project.id}`, '正在删除任务', async () => {
       const r = await this.authFetch(`/research/projects/${project.id}`, { method: 'DELETE' });
-      if (!r.ok) { const data = await r.json().catch(() => ({})); return ElementPlus.ElMessage.error(data.detail || '删除失败'); }
+      if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || '删除失败'); }
       this.projects = this.projects.filter(p => p.id !== project.id);
       delete this.projectDetails[project.id]; delete this.artifactsByProject[project.id]; delete this.sourcesByProject[project.id]; delete this.traceByProject[project.id];
-      await this.loadRepository();
+      delete this.detailLoadedAt[project.id]; delete this.reviewIntakes[project.id];
+      if (this.reviewProjectId === project.id) this.clearReviewSelection();
+      this.loadRepository().catch(() => null);
       ElementPlus.ElMessage.success('项目已删除');
+      }); } catch (error) { ElementPlus.ElMessage.error(error.message); }
     },
     async deleteArtifact(project, artifact) {
       if (!artifact) return;
       try { await ElementPlus.ElMessageBox.confirm(`确认删除成果“${artifact.title || this.artifactTypeLabel(artifact.artifact_type)}”？`, '删除成果', { type: 'warning' }); } catch (_) { return; }
+      try { await this.runAction(`delete-artifact:${artifact.id}`, '正在删除成果', async () => {
       const r = await this.authFetch(`/research/artifacts/${artifact.id}`, { method: 'DELETE' });
       const data = await r.json().catch(() => ({}));
-      if (!r.ok) return ElementPlus.ElMessage.error(data.detail || '删除成果失败');
+      if (!r.ok) throw new Error(data.detail || '删除成果失败');
       this.artifactsByProject[project.id] = (this.artifactsByProject[project.id] || []).filter(item => item.id !== artifact.id);
-      await this.loadRepository();
+      delete this.detailLoadedAt[project.id];
+      this.loadRepository().catch(() => null);
       ElementPlus.ElMessage.success('成果已删除');
+      }); } catch (error) { ElementPlus.ElMessage.error(error.message); }
     },
     async searchKnowledge() {
-      const q = this.knowledgeQuery.trim();
-      this.sourcePage = 1;
-      const r = await this.authFetch(`/research/repository?q=${encodeURIComponent(q)}&limit=50`); const data = await r.json().catch(() => ({}));
-      if (!r.ok) return ElementPlus.ElMessage.error(data.detail || '搜索失败'); this.knowledgeResults = data.results || [];
+      return this.readRepository(this.knowledgeQuery.trim()).catch(() => null);
     },
     async loadRepository() {
+      return this.readRepository('').catch(() => null);
+    },
+    readRepository(query) {
+      const key = `repository:${query}`;
+      if (this.actionPromises[key]) return this.actionPromises[key];
+      const requestId = ++this.repositoryRequestId;
       this.sourcePage = 1;
-      const r = await this.authFetch('/research/repository?limit=50'); const data = await r.json().catch(() => ({}));
-      if (!r.ok) return ElementPlus.ElMessage.error(data.detail || '加载溯源库失败'); this.knowledgeResults = data.results || [];
+      return this.runAction(key, query ? '正在搜索溯源记录' : '正在读取溯源记录', async () => {
+        const data = await this.readJSON(`/research/repository?${query ? 'q=' + encodeURIComponent(query) + '&' : ''}limit=50`, '加载溯源库失败');
+        if (requestId === this.repositoryRequestId) this.knowledgeResults = data.results || [];
+      }, {readOnly:true});
     },
     async reindexVectors() {
+      if (this.reindexing) return;
       this.reindexing = true;
-      try {
+      try { await this.runAction('reindex-vectors', '正在重建向量索引', async () => {
         const r = await this.authFetch('/research/vector/reindex', { method: 'POST' });
         const data = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(data.detail || '重建向量索引失败');
         const suffix = data.errors?.length ? `，失败 ${data.errors.length} 个` : '';
         ElementPlus.ElMessage.success(`已写入 ${data.indexed || 0} 条向量${suffix}`);
-      } catch (e) {
+      }); } catch (e) {
         ElementPlus.ElMessage.error(e.message);
       } finally {
         this.reindexing = false;
       }
     },
     async retryArtifactIndex(project, artifact) {
+      try { await this.runAction(`index:${artifact.id}`, '正在提交事实索引请求', async () => {
       const response = await this.authFetch(`/research/artifacts/${artifact.id}/reindex`, { method: 'POST' });
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
-        return ElementPlus.ElMessage.error(result.detail || '索引重试失败');
+        throw new Error(result.detail || '索引重试失败');
       }
       const result = await response.json();
       Object.assign(artifact, result);
       ElementPlus.ElMessage.success('已单独启动事实索引，报告不会重跑');
+      }); } catch (error) { ElementPlus.ElMessage.error(error.message); }
     },
     async downloadArtifact(artifact) {
       if (!artifact) return;
-      const r = await this.authFetch(`/research/artifacts/${artifact.id}/download`); if (!r.ok) return ElementPlus.ElMessage.error('下载失败');
-      const blob = await r.blob(), disposition = r.headers.get('Content-Disposition') || '';
+      const sentToken = this.token;
+      try { return await this.runAction(`download-artifact:${artifact.id}`, '正在准备成果下载', async phase => {
+      phase('正在准备并接收成果文件');
+      const {blob, disposition} = await this.readDownload(`/research/artifacts/${artifact.id}/download`, '下载成果失败');
+      if (sentToken !== this.token) return;
       const url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url; link.download = this.filenameFromDisposition(disposition, `artifact_${artifact.id}.md`);
       document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+      ElementPlus.ElMessage.success('文件已交给浏览器下载，请查看下载列表');
+      return true;
+      }, {readOnly:true}); } catch (error) { ElementPlus.ElMessage.error(error.message); return false; }
     },
     async downloadSource(source) {
       if (!source) return;
-      const r = await this.authFetch(`/research/sources/${source.id}/download`); if (!r.ok) return ElementPlus.ElMessage.error('下载失败');
-      const blob = await r.blob(), disposition = r.headers.get('Content-Disposition') || '';
+      const sentToken = this.token;
+      try { return await this.runAction(`download-source:${source.id}`, '正在准备资料下载', async phase => {
+      phase('正在准备并接收资料文件');
+      const {blob, disposition} = await this.readDownload(`/research/sources/${source.id}/download`, '下载资料失败');
+      if (sentToken !== this.token) return;
       const url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url; link.download = this.filenameFromDisposition(disposition, `source_${source.id}`);
       document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+      ElementPlus.ElMessage.success('文件已交给浏览器下载，请查看下载列表');
+      return true;
+      }, {readOnly:true}); } catch (error) { ElementPlus.ElMessage.error(error.message); return false; }
     },
     filenameFromDisposition(disposition, fallback) {
       const star = disposition.match(/filename\*=UTF-8''([^;]+)/i);
@@ -1009,14 +1292,20 @@ createApp({
     },
     askGuide(question) { this.assistantInput = question; return this.sendAssistantMessage(); },
     async retryKnowledge(artifact) {
-      try {
+      const sentToken = this.token;
+      try { await this.runAction(`knowledge:${artifact.id}`, '正在提交知识库入库请求', async () => {
         const response = await this.authFetch('/research/artifacts/' + artifact.id + '/knowledge/retry', { method: 'POST' });
         const result = await response.json();
+        if (sentToken !== this.token) return;
         if (!response.ok) throw new Error(result.detail || '重试失败');
         artifact.metadata = result.metadata;
         ElementPlus.ElMessage[result.metadata.knowledge_sync_status === 'failed' ? 'warning' : 'success'](
           result.metadata.knowledge_sync_status === 'failed' ? '归档暂未完成，请联系管理员检查配置。' : '报告已加入知识库处理队列');
-      } catch (error) { ElementPlus.ElMessage.error(error.message); }
+        if (this.projectDetails[artifact.project_id]) {
+          delete this.detailLoadedAt[artifact.project_id];
+          this.loadProjectDetail({id: artifact.project_id}, {force:true}).catch(() => null);
+        }
+      }); } catch (error) { ElementPlus.ElMessage.error(error.message); }
     },
     openMyKnowledgeProjects() { sessionStorage.setItem("companyKnowledgeOpenMyProjects", "1"); this.switchView("company-knowledge"); },
     knowledgeStatus(artifact) {

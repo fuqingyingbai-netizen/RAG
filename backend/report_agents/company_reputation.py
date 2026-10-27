@@ -370,7 +370,9 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000,as_of='')
         if r['kind']=='benchmark' and r['target_row'] and r.get('previous_value'):
             delta=Decimal(r['value'].rstrip('%'))-Decimal(r['previous_value'].rstrip('%'))
             findings.append({'aspect':'行业地位','fact':'同一统计发布记载，'+r['entity']+'份额由上年同期'+r['previous_value']+'变为'+r['value']+'，变化'+str(delta)+'个百分点；这是细分统计口径内的份额变化，不是整体产品质量结论。','evidence_ids':r['evidence_ids']})
+    from .company_selection_audit import selection_audit
     return {'version':VERSION,'target_name':target,'facts':delivered,'findings':findings,'information_gaps':gaps,
+            'selection_audit':selection_audit(records,delivered),
             'diagnostic':{'candidate_claims':len(records),'delivered_claims':len(delivered),
                           'by_kind':dict(Counter(r['kind'] for r in delivered)),'filters':dict(counts)}}
 

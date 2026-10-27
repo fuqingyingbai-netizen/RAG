@@ -10,12 +10,7 @@ import os
 # 类型注解语法：告诉编辑器变量是什么类型（List=列表，Dict=字典）
 # 小白知识点：这不是运行必须的，只是让代码更清晰、不容易报错
 from typing import Dict, List
-
-# LangChain 文本分片工具：按段落、句子、空格把长文本切成小段
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-# 文档加载器：分别用来读 PDF、Word、Excel 文件的工具
-from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, UnstructuredExcelLoader
+from threading import Lock
 
 
 # 【类】class = 把一堆功能打包成一个工具箱
@@ -61,24 +56,30 @@ class DocumentLoader:
         # separators：按优先级切割 → 段落 → 换行 → 中文句子 → 逗号 → 空格 → 单字
         # 中文必须这样写，才能保证语义不被乱切
         # ---------------------------------------------------------------------------
-        self._splitter_level_1 = RecursiveCharacterTextSplitter(
-            chunk_size=level_1_size,
-            chunk_overlap=level_1_overlap,
-            add_start_index=True,  # 记录切块开始位置
-            separators=["\n\n", "\n", "。", "！", "？", "，", "、", " ", ""],
-        )
-        self._splitter_level_2 = RecursiveCharacterTextSplitter(
-            chunk_size=level_2_size,
-            chunk_overlap=level_2_overlap,
-            add_start_index=True,
-            separators=["\n\n", "\n", "。", "！", "？", "，", "、", " ", ""],
-        )
-        self._splitter_level_3 = RecursiveCharacterTextSplitter(
-            chunk_size=level_3_size,
-            chunk_overlap=level_3_overlap,
-            add_start_index=True,
-            separators=["\n\n", "\n", "。", "！", "？", "，", "、", " ", ""],
-        )
+        self._splitter_settings = ((level_1_size, level_1_overlap),
+                                   (level_2_size, level_2_overlap),
+                                   (level_3_size, level_3_overlap))
+        for size, overlap in self._splitter_settings:
+            if overlap > size:
+                raise ValueError(f"Got a larger chunk overlap ({overlap}) than chunk size ({size}), should be smaller.")
+        self._splitters = None
+        self._splitters_lock = Lock()
+
+    def _get_splitters(self):
+        # Importing text splitters also loads optional ML dependencies. Neither
+        # a simple website visit nor creating a loader needs that work. Publish
+        # all three only after successful creation; concurrent first uploads
+        # share initialization and a failed attempt can be retried safely.
+        if self._splitters is None:
+            with self._splitters_lock:
+                if self._splitters is None:
+                    from langchain_text_splitters import RecursiveCharacterTextSplitter
+                    splitters = tuple(RecursiveCharacterTextSplitter(
+                        chunk_size=size, chunk_overlap=overlap, add_start_index=True,
+                        separators=["\n\n", "\n", "。", "！", "？", "，", "、", " ", ""],
+                    ) for size, overlap in self._splitter_settings)
+                    self._splitters = splitters
+        return self._splitters
 
     # -------------------------- 知识点：@staticmethod --------------------------
     # 静态方法：不需要实例就能用，纯工具函数，不访问类里的变量
@@ -117,6 +118,7 @@ class DocumentLoader:
         # 如果是空文本，直接返回空列表
         if not text:
             return []
+        splitter_level_1, splitter_level_2, splitter_level_3 = self._get_splitters()
 
         # 准备一个空列表，用来装所有切好的块
         root_chunks: List[Dict] = []
@@ -126,7 +128,7 @@ class DocumentLoader:
         filename = base_doc["filename"]
 
         # -------------------- 第一层分片（最大块）--------------------
-        level_1_docs = self._splitter_level_1.create_documents([text], [base_doc])
+        level_1_docs = splitter_level_1.create_documents([text], [base_doc])
 
         # 计数器：每一层内部编号
         level_1_counter = 0
@@ -163,7 +165,7 @@ class DocumentLoader:
             root_chunks.append(level_1_chunk)  # 放进结果列表
 
             # -------------------- 第二层分片（从第一层里切） --------------------
-            level_2_docs = self._splitter_level_2.create_documents([level_1_text], [base_doc])
+            level_2_docs = splitter_level_2.create_documents([level_1_text], [base_doc])
             for level_2_doc in level_2_docs:
                 level_2_text = (level_2_doc.page_content or "").strip()
                 if not level_2_text:
@@ -185,7 +187,7 @@ class DocumentLoader:
                 root_chunks.append(level_2_chunk)
 
                 # -------------------- 第三层分片（从第二层里切） --------------------
-                level_3_docs = self._splitter_level_3.create_documents([level_2_text], [base_doc])
+                level_3_docs = splitter_level_3.create_documents([level_2_text], [base_doc])
                 for level_3_doc in level_3_docs:
                     level_3_text = (level_3_doc.page_content or "").strip()
                     if not level_3_text:
@@ -222,12 +224,15 @@ class DocumentLoader:
 
         # 根据后缀名选择不同的读取工具
         if file_lower.endswith(".pdf"):
+            from langchain_community.document_loaders import PyPDFLoader
             doc_type = "PDF"
             loader = PyPDFLoader(file_path)
         elif file_lower.endswith((".docx", ".doc")):
+            from langchain_community.document_loaders import Docx2txtLoader
             doc_type = "Word"
             loader = Docx2txtLoader(file_path)
         elif file_lower.endswith((".xlsx", ".xls")):
+            from langchain_community.document_loaders import UnstructuredExcelLoader
             doc_type = "Excel"
             loader = UnstructuredExcelLoader(file_path)
         else:

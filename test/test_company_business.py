@@ -60,6 +60,46 @@ def test_vector_merged_sliver_cells_and_unit_not_misread_as_yuan():
     assert len(rows)==1 and rows[0]['unit']=='千元' and rows[0]['value']=='120.00'
 
 
+def test_main_business_table_uses_header_percent_units_and_literal_point_changes():
+    text = '''主营业务分行业、分产品、分地区、分销售模式情况
+单位：元 币种：人民币
+主营业务分产品情况
+分产品 营业收入 营业成本 毛利率（%）
+营业收入比上年增减（%） 营业成本比上年增减（%） 毛利率比上年增减（%）
+工业设备 120,000,000.00 90,000,000.00 25.00 20.00 25.00 减少 3.00 个百分点
+服务 80,000,000.00 40,000,000.00 50.00 -10.00 -20.00 增加 5.00 个百分点
+主营业务分地区情况的说明'''
+    for name in ('远山设备股份有限公司', '青禾服务股份有限公司'):
+        packet = package(name, business_source(name, pages=[{'page': 10, 'text': text}]))
+        rows = [r for r in packet['facts'] if r['kind'] == 'margin']
+        assert len(rows) == 2
+        assert rows[0]['entity'] == '工业设备'
+        assert rows[0]['margin'] == '25.00%' and rows[0]['currency'] == '人民币'
+        assert rows[0]['revenue_yoy'] == '20.00%'
+        assert rows[0]['margin_change_source'] == '减少3.00个百分点'
+        assert rows[1]['cost_yoy'] == '-20.00%'
+        assert rows[0]['evidence_quote'] in text
+        assert rows[0]['context_quote'] in text
+        assert '毛利率（%）' in rows[0]['context_quote']
+        assert business_errors(render_business(packet), packet) == []
+    wrapped=text.replace('毛利率比上年增减（%）', '毛利率比上年增减\n（%）').replace('工业设备 ', '工业设\n备 ')
+    from report_agents.company_business import main_business_margin_rows
+    rows=main_business_margin_rows([{'page':10,'text':wrapped}], '2025年年度报告')
+    assert rows[0]['entity']=='工业设备' and rows[0]['evidence_quote'] in wrapped
+
+
+def test_main_business_table_does_not_guess_a_percent_unit_or_parse_plans():
+    from report_agents.company_business import main_business_margin_rows
+    raw = '''主营业务分产品情况
+单位：元 币种：人民币
+分产品 营业收入 营业成本 毛利率
+营业收入比上年增减 营业成本比上年增减 毛利率比上年增减
+工业设备 120,000,000.00 90,000,000.00 25.00 20.00 25.00 减少 3.00 个百分点'''
+    assert main_business_margin_rows([{'page': 10, 'text': raw}], '2025年年度报告') == []
+    plan = raw.replace('主营业务分产品情况', '预计主营业务分产品情况').replace('毛利率\n', '毛利率（%）\n')
+    assert main_business_margin_rows([{'page': 10, 'text': plan}], '2025年年度报告') == []
+
+
 def test_reversed_year_columns_keep_current_and_comparison():
     p=financial_page();p['tables'][0][0]=['','2024年','','2025年','','同比增减']
     r=vector_financial_rows([p],'2025年年度报告')[0]

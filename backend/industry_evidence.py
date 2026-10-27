@@ -8,7 +8,7 @@ import re
 from array import array
 from collections import OrderedDict
 
-VERSION = 'industry-evidence-contract-v2-atomic-passages'
+VERSION = 'industry-evidence-contract-v3-licensed-candidates'
 
 # Requirements describe research questions, not an obligation to manufacture data.
 REQUIREMENTS = (
@@ -200,16 +200,20 @@ def attach_provenance(facts: list[dict], sources: list, body_snapshots: dict | N
     return result
 
 
-def fact_requirement_ids(fact: dict, requirements: list[dict], verified_only: bool = False) -> list[str]:
+def _matching_requirement_indices(fact: dict, requirements: list[dict], verified_only: bool = False) -> list[int]:
     from industry_grounding import sample_boundary
-    if sample_boundary(fact):return []
     if fact.get('scope_match')!='in_scope' or fact.get('eligible_for_report') is False:
         return []
+    relevant = [(index,req) for index,req in enumerate(requirements)
+                if fact.get('module')==req['module'] and fact.get('evidence_scope') in req['accepted_scopes']]
+    if not relevant or sample_boundary(fact):return []
     locator_ok = (fact.get('provenance') or {}).get('locator',{}).get('status')=='verified'
     matched = []
-    for req in requirements:
-        if fact.get('module')!=req['module'] or fact.get('evidence_scope') not in req['accepted_scopes']:
-            continue
+    for index,req in relevant:
+        context = fact.get('numeric_context') or {}
+        if (context and req['kind']!='qualitative' and (verified_only or (fact.get('fact_contract') or {}).get('report_admitted'))
+                and not re.search(req['metric_pattern'],str(context.get('metric') or ''),re.I)):
+            continue  # Another number in this card's quote is not this licensed metric.
         if not _metric_present(str(fact.get('fact') or ''),req): continue
         if verified_only:
             contract = fact.get('fact_contract') or {}
@@ -220,18 +224,31 @@ def fact_requirement_ids(fact: dict, requirements: list[dict], verified_only: bo
             if req['kind']!='qualitative' and ((fact.get('numeric_validation') or {}).get('passed') is not True
                     or not re.search(req['metric_pattern'],str(context.get('metric') or ''),re.I)):
                 continue
-        matched.append(req['id'])
+        matched.append(index)
     return matched
 
 
+def fact_requirement_ids(fact: dict, requirements: list[dict], verified_only: bool = False) -> list[str]:
+    requirements = list(requirements)
+    return [requirements[index]['id'] for index in _matching_requirement_indices(fact,requirements,verified_only)]
+
+
 def fact_coverage(facts: list[dict], requirements: list[dict]) -> dict:
+    # Classify once per fact and mode. Position-based buckets preserve separate
+    # predicates even if external requirements repeat an ID.
+    candidates = [[] for _ in requirements]
+    verified = [[] for _ in requirements]
+    for fact in facts:
+        if not fact.get('evidence_id'):continue
+        for index in _matching_requirement_indices(fact,requirements):
+            candidates[index].append(fact['evidence_id'])
+        for index in _matching_requirement_indices(fact,requirements,True):
+            verified[index].append(fact['evidence_id'])
     rows = []
-    for req in requirements:
-        candidates = [f['evidence_id'] for f in facts if f.get('evidence_id') and req['id'] in fact_requirement_ids(f,[req])]
-        verified = [f['evidence_id'] for f in facts if f.get('evidence_id') and req['id'] in fact_requirement_ids(f,[req],True)]
+    for index,req in enumerate(requirements):
         rows.append({'requirement_id':req['id'],'module':req['module'],'question':req['question'],
-            'status':'verified' if verified else 'candidate' if candidates else 'missing',
-            'candidate_evidence_ids':candidates,'verified_evidence_ids':verified})
+            'status':'verified' if verified[index] else 'candidate' if candidates[index] else 'missing',
+            'candidate_evidence_ids':candidates[index],'verified_evidence_ids':verified[index]})
     return {'version':VERSION,'phase':'cleaned_facts','requirements':rows,
         'information_gaps':[f"{r['module']}：{r['question']}尚未形成口径和原文定位完整的事实 [需求:{r['requirement_id']}]"
                             for r in rows if r['status']!='verified']}
@@ -255,7 +272,7 @@ def diverse_evidence(candidates: list[dict], requirements: list[dict], limit: in
     return selected
 
 
-def claim_ledger(report: str, facts: list[dict], diagnostic: dict, coverage: dict, dependencies: dict) -> dict:
+def claim_ledger(report: str, facts: list[dict], diagnostic: dict, coverage: dict, dependencies: dict, reasoning: dict | None = None) -> dict:
     """Record citations, raw locators and checks, without claiming semantic entailment."""
     from industry_research import numeric_mentions, numeric_supported, claim_semantic_issues
     by_id={f.get('evidence_id'):f for f in facts if f.get('evidence_id')}
@@ -283,6 +300,7 @@ def claim_ledger(report: str, facts: list[dict], diagnostic: dict, coverage: dic
             'entailment_status':'not_evaluated','issues':list(dict.fromkeys(issues)),
             'source_locators':[{'evidence_id':f['evidence_id'],**(f.get('provenance') or {}).get('locator',{})} for f in cards]})
     return {'version':VERSION,'dependencies':dependencies,'coverage':coverage,'claims':claims,
+        **({'research_reasoning': reasoning} if reasoning else {}),
         'summary':{'claim_count':len(claims),'requires_review_count':sum(c['reference_status']=='requires_review' for c in claims),
                    'entailment_review_required':True},
         'limitations':['references_verified confirms traceability and deterministic checks only, not full semantic support.',

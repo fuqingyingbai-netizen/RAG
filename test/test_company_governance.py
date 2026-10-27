@@ -93,6 +93,67 @@ def test_raw_entity_has_to_match_even_if_platform_metadata_is_verified():
     assert p['facts']==[]
 
 
+@pytest.mark.parametrize('name,child',[('远帆设备有限公司','远帆精密零件有限公司'),
+    ('Northstar Ltd','Northstar Ltd Services Ltd')])
+def test_subsidiary_fields_cannot_fill_missing_parent_fields_even_with_repeated_page_headers(name,child):
+    raw='公司名称：'+name+'\n注册资本：71100万元\n\n公司控股子公司\n名称：'+child+'\n'+name+' 招股说明书\n注册资本：5000万元\n实收资本：5000万元'
+    fields,_=read_fields(raw,name)
+    assert fields['企业名称']==name and fields['注册资本']=='71100万元'
+    assert '实缴资本' not in fields
+    p=package(name,evidence(name,raw))
+    assert not any(r['field']=='实缴资本' for r in p['facts'])
+
+
+def test_registration_subject_cannot_be_recovered_from_a_shareholder_name():
+    target='远帆设备有限公司'
+    raw='企业名称：其他主体有限公司\n股东名称：'+target+'\n注册资本：5000万元\n实收资本：5000万元'
+    fields,_=read_fields(raw,target)
+    assert fields=={}
+    assert package(target,evidence(target,raw))['facts']==[]
+
+
+def test_data_date_before_company_name_and_following_shareholder_table_are_kept():
+    target='远帆设备有限公司'
+    raw='| 字段 | 值 |\n| --- | --- |\n| 数据日期 | 2025-12-31 |\n| 企业名称 | '+target+' |\n| 注册资本 | 100万元 |\n\n| 股东名称 | 持股比例 |\n| --- | --- |\n| 刘某 | 70% |'
+    fields,rows=read_fields(raw,target)
+    assert fields['数据日期']=='2025-12-31' and fields['注册资本']=='100万元'
+    assert rows[0]['股东名称']=='刘某'
+
+
+def test_leading_profile_summary_cannot_concatenate_into_a_later_named_scalar_record():
+    target='远帆设备有限公司'
+    raw=target+'，成立时间：2000-04-08，注册资本：585104.504400万人民币 '+target+'，法人：钱某，\n\n公司名称：'+target+'\n成立日期：2000-04-08\n注册资本：585104.504400万人民币'
+    fields,_=read_fields(raw,target)
+    assert fields['注册资本']=='585104.504400万人民币'
+    assert fields['成立日期']=='2000-04-08'
+
+
+def test_profile_registration_block_before_later_named_modules_is_not_lost():
+    target='远帆设备有限公司'
+    raw=target+'，成立时间：2000-04-08，注册资本：100万元 '+target+'，其他介绍。\n\n'+target+'\n\n工商信息 以上数据来源于互联网\n\n成立时间：2000-04-08\n\n注册资本：100万元\n\n经营信息 以上数据来源于互联网\n\n主体名称：'+target+'\n行业：专用设备制造'
+    fields,_=read_fields(raw,target)
+    assert fields['注册资本']=='100万元' and fields['成立日期']=='2000-04-08'
+
+
+def test_wrapped_prospectus_fields_keep_all_native_continuation_without_swallowing_other_fields():
+    target='远帆设备有限公司'
+    raw='中文名称：'+target+'\n成立日期：1995 年改制设立有限责任公司， \n 2010 年整体改制为股份公司\n住所：某市科技路\n邮政编码：100000\n经营范围：设备生产；农副 \n 产品的加工；货物进出口；\n （依法须经批准的项目，经批准后开展经营活动）\n\n（二）公司控股子公司\n名称：远帆零件有限公司\n实收资本：5000万元'
+    fields,_=read_fields(raw,target)
+    assert fields['成立日期']=='1995 年改制设立有限责任公司， \n 2010 年整体改制为股份公司'
+    assert fields['注册地址']=='某市科技路'
+    assert fields['经营范围']=='设备生产；农副 \n 产品的加工；货物进出口；\n （依法须经批准的项目，经批准后开展经营活动）'
+    assert '实缴资本' not in fields
+
+
+def test_unwrapped_field_does_not_absorb_the_next_profile_heading_or_page_number():
+    target='远帆设备有限公司'
+    raw='企业名称：'+target+'\n成立日期：2000-04-08\n1-1-13\n经营范围：设备制造。\n\n相关产品\n其他资料'
+    fields,_=read_fields(raw,target)
+    assert fields['成立日期']=='2000-04-08' and fields['经营范围']=='设备制造。'
+    fields,_=read_fields('企业名称：'+target+'\n成立日期：2000-04-08\n公司介绍\n从事设备生产。',target)
+    assert fields['成立日期']=='2000-04-08'
+
+
 def test_rejected_fact_cannot_be_reinstated_from_raw_source():
     name='青禾食品有限公司'
     p=package(name,evidence(name,table(name,'| 注册资本 | 999万元 |'),eligible_for_report=False))

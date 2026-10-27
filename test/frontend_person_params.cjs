@@ -18,7 +18,12 @@ const project = { id: 1, title: '人物定位测试', target_name: '林知远', 
 state.authFetch = async (url, options) => {
   calls.push({ url, payload: options?.body ? JSON.parse(options.body) : null });
   return { ok: true, json: async () => project,
-    body: { getReader() { return { async read() { return { done: true }; } }; } } };
+    // Successful generation has a confirmed result event, not merely EOF.
+    body: { getReader() { let finished = false; return { async read() {
+      if (finished) return {done:true};
+      finished = true;
+      return {done:false, value:Buffer.from('data: ' + JSON.stringify({type:'result',project,artifacts:[]}) + '\n\n')};
+    } }; } } };
 };
 state.loadProjects = state.loadProjectDetail = async () => {};
 state.switchView = () => {};
