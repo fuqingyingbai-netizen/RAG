@@ -20,7 +20,7 @@ SUFFIXES = {
     'backend': {'.py', '.json', '.txt', '.yaml', '.yml', '.toml', '.md'},
     'frontend': {'.html', '.css', '.js', '.mjs', '.json', '.png', '.jpg', '.jpeg',
                  '.svg', '.ico', '.webp', '.woff', '.woff2', '.ttf', '.otf', '.txt'},
-    'deploy': {'.service', '.conf', '.sh', '.py', '.json', '.md', '.example', '.yaml', '.yml'},
+    'deploy': {'.service', '.timer', '.conf', '.sh', '.py', '.json', '.md', '.example', '.yaml', '.yml'},
 }
 PRIVATE_PARTS = {'work', 'data', 'volumes', 'outputs', 'deliverables', 'log', 'logs',
                  'secrets', 'private', '.ssh', '.git', '.venv', '__pycache__'}

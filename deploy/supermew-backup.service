@@ -1,0 +1,14 @@
+[Unit]
+Description=Consistent idle-time backup for SuperMew
+After=supermew.service postgresql.service docker.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/opt/supermew/current/.venv/bin/python /opt/supermew/current/deploy/backup-production.py --run --retain 7
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+TimeoutStartSec=900
+TimeoutStopSec=180

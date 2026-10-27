@@ -92,6 +92,8 @@ def test_legacy_knowledge_upload_parses_and_indexes_in_a_worker(monkeypatch, tmp
     monkeypatch.setattr(api, 'UPLOAD_DIR', tmp_path/'upload')
     monkeypatch.setattr(api, '_remove_bm25_stats_for_filename', lambda _: None)
     monkeypatch.setattr(api.milvus_manager, 'init_collection', lambda: None)
+    monkeypatch.setattr(api.milvus_manager, 'query', lambda **kwargs: [])
+    monkeypatch.setattr(api.parent_chunk_store, 'contains_filename', lambda _: False)
     monkeypatch.setattr(api.milvus_manager, 'delete', lambda _: None)
     monkeypatch.setattr(api.parent_chunk_store, 'delete_by_filename', lambda _: None)
     monkeypatch.setattr(api.parent_chunk_store, 'upsert_documents', lambda docs: writes.append(('parent',docs)))

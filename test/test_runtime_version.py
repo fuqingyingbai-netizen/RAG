@@ -82,6 +82,14 @@ def test_real_app_registers_version_before_static_without_business_calls(monkeyp
     app = namespace['app']
     response = TestClient(app).get('/version')
     assert response.status_code == 200 and response.json()['industry'] == VERSIONS
+    assert response.headers['x-frame-options']=='DENY'
+    assert response.headers['x-content-type-options']=='nosniff'
+    untrusted=TestClient(app).options('/version',headers={'Origin':'https://untrusted.invalid',
+        'Access-Control-Request-Method':'GET','Access-Control-Request-Headers':'authorization'})
+    assert untrusted.status_code==400 and 'access-control-allow-origin' not in untrusted.headers
+    trusted=TestClient(app).options('/version',headers={'Origin':'http://127.0.0.1:18010',
+        'Access-Control-Request-Method':'GET','Access-Control-Request-Headers':'authorization'})
+    assert trusted.status_code==200 and trusted.headers['access-control-allow-origin']=='http://127.0.0.1:18010'
     paths = [getattr(r, 'path', None) for r in app.routes]
     assert paths.index('/version') < paths.index('')  # Root static mount cannot swallow it.
     assert paths.index('/company-knowledge-test') < paths.index('')
