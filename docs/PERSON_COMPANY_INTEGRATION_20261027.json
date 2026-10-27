@@ -1,0 +1,35 @@
+{
+  "saved_utc": "2026-10-27T07:25:29.018775+00:00",
+  "status": "company_branch_compatible_main_full_regression_running",
+  "person_source_commit": "66c1e28",
+  "company_handoff_commit": "420a4d1",
+  "runtime_merge_commit": "f3251a5",
+  "company_progress_merge_commit": "1530e0c",
+  "main_reference": "441b975",
+  "conflict_resolution": {
+    "file": "backend/research_workflow.py",
+    "behavior": "Person mode retains admitted same-host sources under its explicit fetch budget; company primary-source reserves and already-supplied provider originals remain intact; other target host caps remain active."
+  },
+  "validation": {
+    "person_source_passed": 902,
+    "joint_shared_workflow_passed": 143,
+    "joint_frontend_passed": 118,
+    "company_handoff_specialized_passed": 2054,
+    "full_joint_backend": {
+      "status": "running",
+      "log": "work/git-integration-20261027/full-integrated-regression.log",
+      "note": "Not yet claimed as passed.",
+      "plugin_autoload_disabled": true,
+      "explicit_plugins": [
+        "anyio.pytest_plugin"
+      ],
+      "external_network_forbidden": true
+    }
+  },
+  "reports": {
+    "person_delivery": "pending",
+    "company_delivery": "pending",
+    "originals_receipts_and_generated_reports_preserved_locally": true
+  },
+  "git_policy": "Normal merge/fast-forward and non-forced pushes only; original company local commits and latest main retained; main awaits complete verification."
+}
