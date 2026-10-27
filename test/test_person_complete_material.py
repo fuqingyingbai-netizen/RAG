@@ -114,7 +114,8 @@ def test_rejecting_an_initial_interpretation_does_not_erase_its_original(monkeyp
     answer,calls=read_then_write('章节Agent','仅使用原文。\n',{'facts':rows},package,invoke,None,validate_model_claims)
     assert final_packets and len(final_packets)==1
     packet=final_packets[0]
-    assert set(proposed)=={f['evidence_id'] for f in packet['facts']}
+    assert {r['evidence_id'] for r in rows}=={f['evidence_id'] for f in packet['facts']}
+    assert set(proposed)<{f['evidence_id'] for f in packet['facts']}
     assert not packet['research_findings']
     assert len(packet['material_with_rejected_interpretations'])==len(proposed)
     assert '99999' not in json.dumps(packet,ensure_ascii=False)

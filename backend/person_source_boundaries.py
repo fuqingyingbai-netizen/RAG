@@ -11,10 +11,126 @@ except ImportError:
     from person_text import folded
 
 
+def conditional_contribution_errors(analysis, supports):
+    """A dated contribution indemnity does not establish an unpaid event.
+
+    This narrow check uses the cited originals, their explicit multi-year
+    period and contribution type. Separate direct evidence of an actual
+    event remains usable; no original record is removed or reclassified.
+    """
+    year=r'(?<!\d)(?:19|20)\d{2}(?!\d)'
+    conditional=r'(?:如果|若|如(?!下|实|期|数|何|此|愿|同|今))'
+    # Negating disclosure, receipt of records, or penalties is not a
+    # nonpayment assertion. Keep ordinary object-before-payment wording.
+    other_actions=r'披露|说明|记载|载明|提供|公布|公开|列明|记录|列|见|载|明确|核验|核实|确认|认定|查明|查到|查询|获悉|获知|获取|收到|收集|出具|证明|处罚|受罚|被罚'
+    negative=(r'欠缴|漏缴|少缴|未(?:(?!(?:'+other_actions+
+        r'))[^。；;，,]){0,35}(?:缴|交)')
+    families=(r'社会保险(?:金|费)?|社保',r'住房公积金|公积金')
+    records=[(f,folded(f.get('fact') or '')) for f in supports]
+    text=folded(analysis)
+    def same_actor(left,right):
+        subject=lambda f: f.get('subject') or (f.get('observation') or {}).get('subject')
+        return (left is right or bool(left.get('source_url') and left.get('source_url')==right.get('source_url'))
+            or bool(subject(left) and subject(left)==subject(right)))
+    for fact,original in records:
+        for match in re.finditer(r'承诺[^。；;]{0,80}?'+conditional+r'[^。；;]{1,600}',original):
+            condition=match[0]
+            years=set(re.findall(year,condition))
+            if len(years)!=2 or not re.search(negative,condition):continue
+            for family in families:
+                if not re.search(family,condition):continue
+                # Another cited passage can independently establish this
+                # same type of nonpayment in the same explicit period.
+                direct=any(years<=set(re.findall(year,clause)) and re.search(family,clause)
+                    and re.search(negative,clause)
+                    and not re.search(conditional+r'|承诺|可能|假设|预计|风险',clause)
+                    for other,material in records if same_actor(fact,other)
+                    for clause in re.split(r'[。；;]',material))
+                if direct:continue
+                for clause in re.split(r'[。；;，,]',text):
+                    event=re.search(negative,clause)
+                    draft_years=set(re.findall(year,clause))
+                    if not event or not re.search(family,clause) or (draft_years and not years<=draft_years):continue
+                    prefix=clause[:event.start()]
+                    if re.search(conditional+r'|不能|不代表|不等于|并非|未认定|未确认|假设|可能',prefix):continue
+                    return ['conditional_contribution_commitment_as_event']
+    return []
+
+
+def annual_meeting_year_errors(analysis, supports):
+    """An annual meeting's reporting year is not its occurrence year."""
+    year=r'(?:19|20)\d{2}'
+    events=(r'股东(?:大)?会',r'董事会',r'业绩(?:发布|说明)会',r'年会')
+    text=folded(analysis)
+    for fact in supports:
+        original=folded(fact.get('fact') or '')
+        for event in events:
+            for period in re.finditer('('+year+r')年度'+event,original):
+                y=period[1]
+                # Require this meeting's calendar year in the same source;
+                # another annual label is not a dated event.
+                pattern=y+r'年(?!度)(?:(?!'+year+r'年(?!度))[^。；;！？]){0,35}?'+event
+                for claim in re.finditer(pattern,text):
+                    prefix=text[max(0,claim.start()-20):claim.start()]
+                    if re.search(r'不能|不代表|不等于|并非|未确认|未核实|是否',prefix):continue
+                    subject=fact.get('subject') or (fact.get('observation') or {}).get('subject')
+                    related=[f for f in supports if f is fact or (fact.get('source_url') and f.get('source_url')==fact.get('source_url'))
+                        or (subject and subject==(f.get('subject') or (f.get('observation') or {}).get('subject'))
+                            and period[0] in folded(f.get('fact') or ''))]
+                    calendar=y+r'年(?!度)(?:\d{1,2}月(?:\d{1,2}日)?)?'
+                    action=r'(?:[，,]?(?:(?!'+year+r'年(?!度))[^，,。；;！？]){0,20}(?:召开|举行|举办|参加|出席))?'
+                    direct=calendar+action+r'(?:了|的)?(?:'+y+r'年度)?'+event
+                    reverse=event+r'[^，,。；;！？]{0,15}'+calendar+r'[^，,。；;！？]{0,15}(?:召开|举行|举办)'
+                    if not any(re.search(direct+'|'+reverse,folded(f.get('fact') or '')) for f in related):
+                        return ['annual_meeting_reporting_year_as_event_year']
+    return []
+
+
+def joint_participant_duplicate_errors(analysis, supports):
+    """An explicitly named spouse is already part of the same couple."""
+    name=r'(?:[\u4e00-\u9fff]{2,4}?|[a-z][a-z.\-]{1,60}?)'
+    pair=(r'(?:^|[，,。；;：:])('+name+r')(?:协同|携同|偕同|与|及|和|的)'
+          r'(?:其)?(?:妻子|丈夫|配偶)('+name+r')(?=以及|共同|[，,。；;]|和|与|及)')
+    text=folded(analysis)
+    for fact in supports:
+        for match in re.finditer(pair,folded(fact.get('fact') or '')):
+            a,b=map(re.escape,match.groups())
+            if re.search(a+r'(?:夫妇|夫妻)[、与及和]'+b+r'|'+b+r'[、与及和]'+a+r'(?:夫妇|夫妻)',text):
+                return ['joint_participant_repeated']
+    return []
+
+
+def collective_retirement_scope_errors(analysis, supports):
+    """Reject an explicit singular retirement decision expanded to a group.
+
+    Only a textual contradiction in cited originals is checked. This does
+    not infer any person's actual retirement status.
+    """
+    group=r'(?:等[一二三四五六七八九十两\d]+人|[一二三四五六七八九十两\d]+(?:个)?人|(?:我们|他们|她们)[一二三四五六七八九十两\d]*(?:个)?|(?:其|他|她)与[^。；;]{2,35}[、和与][^。；;]{2,15})'
+    def collective(text):
+        for sentence in re.split(r'[。；;]',folded(text)):
+            if re.search(r'不能|不代表|不等于|并非|未说明|未披露|是否',sentence):continue
+            for action in re.finditer(r'退休',sentence):
+                prefix=sentence[max(0,action.start()-100):action.start()]
+                groups=list(re.finditer(group,prefix))
+                if not groups:continue
+                tail=prefix[groups[-1].start():]
+                if (re.search(r'(?:[，,]|所以|因此|但|而)(?:他|她|其)(?!们|与)',tail)
+                        or re.search(r'(?:他|她|其)(?!们|与)(?:决定|计划|打算|拟|将)',tail)):continue
+                yield prefix+action[0]
+    if not list(collective(analysis)):return []
+    originals=[folded(f.get('fact') or '') for f in supports]
+    if any(list(collective(text)) for text in originals):return []
+    singular=r'(?:他|她|其)(?!们|与)(?:决定|计划|打算|拟)[^。；;]{0,35}退休'
+    if any(re.search(singular,text) for text in originals):
+        return ['collective_retirement_scope_expanded']
+    return []
+
+
 def source_context_errors(analysis, supports, context_facts=()):
     text = folded(analysis)
     original = folded(' '.join(str(f.get('fact') or '') for f in supports))
-    errors = []
+    errors = conditional_contribution_errors(analysis,supports)+annual_meeting_year_errors(analysis,supports)+joint_participant_duplicate_errors(analysis,supports)
     from person_text import numeric_literals
     for fact in supports:
         name = folded(fact.get('subject') or (fact.get('observation') or {}).get('subject') or '')
@@ -171,13 +287,16 @@ def source_context_errors(analysis, supports, context_facts=()):
         ['January','February','March','April','May','June','July','August','September','October','November','December'],1)}
     english_month = '('+'|'.join(month_names)+')'
     def calendar_dates(value):
-        literal = numeric_literals(value)
+        from person_text import calendar_layout
+        literal = calendar_layout(value)
         dates = {(int(y), int(m), int(d)) for y, m, d in re.findall(
-            r'(?<!\d)((?:19|20)\d{2})\s*(?:年|[-/])\s*(\d{1,2})\s*(?:月|[-/])\s*(\d{1,2})(?:\s*日)?', literal)}
+            r'(?<!\d)((?:19|20)\d{2})\s*(?:年|[-/])\s*(\d{1,2})\s*(?:月|[-/])\s*(\d{1,2})(?:\s*日|(?!\s*[\d.%％元股人名位家项笔条次份件个点倍万亿千百]))', literal)}
         dates.update((int(year),month_names[month.lower()],int(day)) for day,month,year in re.findall(
             r'(?<!\d)(\d{1,2})\s*'+english_month+r'\s*((?:19|20)\d{2})(?!\d)',literal,re.I))
         return dates
     def calendar_months(value):
+        from person_text import calendar_layout
+        value=calendar_layout(value)
         months = {(int(y),int(month or iso_month)) for y,month,iso_month in re.findall(
             r'(?<!\d)((?:19|20)\d{2})\s*(?:年\s*(\d{1,2})\s*月|[-/]\s*(\d{1,2})(?!\d))',numeric_literals(value))}
         months.update((int(year),month_names[month.lower()]) for month,year in re.findall(
@@ -280,7 +399,7 @@ def source_context_errors(analysis, supports, context_facts=()):
     if re.search(r'下令[^。；;]{0,30}开除|要求[^。；;]{0,20}开除', original):
         for clause in re.split(r'[。；;，,]', text):
             if (re.search(r'执行.{0,6}开除|已经?开除|全部开除|完成.{0,6}开除', clause)
-                    and not re.search(r'下令|要求|拟|是否|未说明|未载明', clause)):
+                    and not re.search(r'下令|要求|命令|责令|[\u4e00-\u9fff]{2,4}令|拟|是否|未说明|未载明', clause)):
                 errors.append('directed_action_as_completed')
     platform_rows = [f for f in supports if f.get('claim_type') == 'person_platform_record']
     if platform_rows and len(platform_rows) == len(supports):
@@ -351,4 +470,5 @@ def source_context_errors(analysis, supports, context_facts=()):
                         and re.search(r'\d+(?:\.\d+)?%', material)):
                     errors.append('broader_material_contains_claimed_missing_fact')
                     break
+    errors.extend(collective_retirement_scope_errors(analysis,supports))
     return list(dict.fromkeys(errors))

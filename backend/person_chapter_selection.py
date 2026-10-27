@@ -78,6 +78,9 @@ def prospective_company_risk(fact):
 def material_matches(fact, chapter, view):
     text = folded(str(fact.get('fact') or ''))
     scope = fact.get('subject_scope')
+    if chapter==9 and scope=='person' and view in {'任职持股及控制关系','关系时间与透明度缺口'}:
+        if set((fact.get('observation') or {}).get('relations',[])) & {'holding','appointment'}:return True
+        if re.search(r'个人.{0,8}借款|现金增资|资金来源|出资款|认购股份',text):return True
     if chapter == 5 and is_lockup(text):
         return False
     if chapter == 5 and re.search(r'管理风险|控股股东.{0,15}控制风险', text) and not re.search(r'授权|聘任|提名|任免|审批', text):
@@ -85,6 +88,9 @@ def material_matches(fact, chapter, view):
     if chapter == 5 and re.search(r'丰富.{0,10}管理经验|充足时间和精力|资格|不得担任', text) and not re.search(r'授权|聘任|提名|任免|审批', text):
         return False
     if chapter == 6:
+        if (re.search(r'(?:老师|教授|律师)$', fact.get('observation', {}).get('source_named_person', ''))
+                and not fact.get('team_member_name')):
+            return False
         # A news item mentioning an external CEO is not a management-team bio.
         team = (scope == 'other_person' and (bool(fact.get('team_member_name') and fact.get('team_affiliation_name')) or bool(re.search(r'本公司|本集团|其团队|管理团队|核心团队|共同创办|共同创立|团队成员|同属', text)))) or (scope == 'affiliated_company' and 6 in fact.get('person_chapters', []))
         if not team:
@@ -143,6 +149,10 @@ def useful_for_chapter(fact, chapter):
         return False
     if (len(text) < 300 and re.search(r'详细简历.{0,20}请参见|简历具体情况请参见|具体情况请参见|具体内容请参见|相关简历请参见|^人物\s+冲突积怨|^.*?欢迎访问.*?官网[！!]$', text)):
         return False
+    if fact.get('claim_type')=='person_company_record' and chapter==4:
+        return True
+    if fact.get('claim_type')=='person_platform_record' and chapter in {9,12} and chapter in fact.get('person_chapters',[]):
+        return True
     return chapter not in SPECS or any(material_matches(fact, chapter, view) for view, _ in SPECS[chapter])
 
 

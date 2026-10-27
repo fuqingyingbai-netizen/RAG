@@ -1,0 +1,32 @@
+{
+  "saved_utc": "2026-10-27T06:49:46.399883+00:00",
+  "branch": "codex/person-evidence-audit",
+  "base_commit": "9c97296199ededdcbca1c6312e35a248004b795e",
+  "implementation_version": "person-template-v96-bounded-source-question-batches",
+  "state": "Implementation checkpoint saved; latest full person report delivery is still pending, not certified complete.",
+  "features": [
+    "Account for every admitted source and its writing placement or concrete exclusion reason.",
+    "Conserve source-bound facts across material reviews, repairs, structured tables and chapter prose budgets.",
+    "Bind resumable model receipts to exact source input and runtime options; preserve pending failures honestly.",
+    "Support per-section model options without truncating admitted source records."
+  ],
+  "previous_canonical_tests": {
+    "passed": 909,
+    "log": "work/person-delivery-cycle-20261023/v96-ssl30-canonical-tests.log",
+    "fresh_compatibility_validation": "Required before main merge."
+  },
+  "live_report_progress_kept_locally": "work/person-delivery-cycle-20261023/full-delivery-current.json",
+  "raw_reports_and_receipts": "Preserved locally; generated reports and raw source receipts are not promoted as production acceptance.",
+  "local_backup": "work/git-save-20261027-person/progress-snapshot.zip",
+  "source_files_to_commit": 126,
+  "secret_scan_actual_configured_credentials": {
+    "files_scanned": 126,
+    "matches": 0
+  },
+  "integration_order": [
+    "Commit and push person source branch.",
+    "Company task preserves and integrates company changes into codex/company.",
+    "Merge person branch into compatible company branch, preserving both workflows.",
+    "Merge newest origin/main, run cross-workflow checks, then fast-forward main and push without force."
+  ]
+}

@@ -18,7 +18,7 @@ except ImportError:
     from person_evidence import TOPICS, VIEWS, TASKS, compact
     from person_commission import requirements as commission_requirements, event_years, matches as commission_matches
 
-VERSION = 'person-retrieval-v6-primary-identity-reserve'
+VERSION = 'person-retrieval-v7-complete-candidate-flow'
 DIMENSIONS = {
     2: [('education', '教育时间与院校', ('教育', '毕业', '大学', '学历', 'education', 'university', 'degree')),
         ('career', '机构、职位与任职时间', ('任职', '担任', '履历', '创立', 'appointed', 'joined', 'career'))],

@@ -21,6 +21,24 @@ from person_iteration import ChapterInvoker, compare_sections
 from report_agents.person_report_agent import PERSON_REPORT_OUTLINE
 
 
+def compatible_retention(text, package, diagnostic):
+    """Allow narrowed unused candidates only when actual body and processing still fit."""
+    from person_evidence import validate_model_claims
+    research=package.get('research_facts',package['facts'])
+    ids={f['evidence_id'] for f in research}
+    if not cited_ids(text)<=ids:
+        return False
+    stage=diagnostic.get('material_review',{})
+    processed={eid for b in stage.get('batches',[]) if b.get('status')=='returned' for eid in b['evidence_ids']}
+    processed.update(stage.get('deterministically_processed_evidence_ids',[]))
+    if not ids<=processed:
+        return False
+    claims=retained_claims(text)
+    _,errors=validate_model_claims(json.dumps({'claims':claims},ensure_ascii=False),
+        {**package,'facts':research,'writing_contract':'evidence_selection_v2'}) if claims else ([],[])
+    return not errors
+
+
 def read(root, name):
     return json.loads((root/name).read_text(encoding='utf-8'))
 
@@ -28,7 +46,7 @@ def read(root, name):
 def generation_code_snapshot():
     files=[*ROOT.joinpath('backend').glob('person*.py'),
         ROOT/'backend/research_workflow.py',ROOT/'backend/report_agents/person_report_agent.py',
-        ROOT/'backend/company_ocr.py',ROOT/'scripts/replay_person_chapters.py',ROOT/'scripts/person_iteration.py']
+        ROOT/'backend/company_ocr.py',ROOT/'backend/company_platform.py',ROOT/'scripts/replay_person_chapters.py',ROOT/'scripts/person_iteration.py']
     return {str(path.relative_to(ROOT)).replace('\\','/'):hashlib.sha256(path.read_bytes()).hexdigest()
             for path in sorted(files) if path.is_file()}
 
@@ -53,8 +71,11 @@ def main():
     parser.add_argument('--timeout-seconds', type=int, default=90)
     parser.add_argument('--deadline-utc')
     parser.add_argument('--previous-replay', type=Path, help='Freeze the preceding partial replay body and audit')
+    parser.add_argument('--allow-supplemented-corpus', action='store_true', help='Explicitly compare a newly retrieved corpus to a fixed earlier report')
+    parser.add_argument('--retain-compatible-sections', action='store_true', help='Retain unchanged body after unused material is narrowed, with citation, guard and complete-processing checks')
     parser.add_argument('--feedback-records', type=Path, help='Validated extraction from the same retained originals')
     parser.add_argument('--reuse-model-run', type=Path, help='Reuse only complete exact-input responses')
+    parser.add_argument('--preserve-prior-analyses', action='store_true', help='Supply preceding draft analyses as coverage reminders, never as source evidence')
     args = parser.parse_args()
     if not 30 <= args.timeout_seconds <= 600:
         parser.error('Timeout must be between 30 and 600 seconds')
@@ -84,20 +105,32 @@ def main():
     before_text = ((args.previous_replay or baseline)/'desktop_report.md').read_text(encoding='utf-8')
     if args.previous_replay:
         prior_summary = read(args.previous_replay,'summary.json')
-        if prior_summary['sources_sha256'] != hashlib.sha256(source_bytes).hexdigest():
+        if prior_summary['sources_sha256'] != hashlib.sha256(source_bytes).hexdigest() and not args.allow_supplemented_corpus:
             raise ValueError('Previous replay used another source corpus')
         prior_contract = read(args.previous_replay,'contract.json')
         selection = {n:{'selected_ids':[f['evidence_id'] for f in p['facts']]} for n,p in prior_contract['chapters'].items()}
         ledger = {'diagnostic':read(args.previous_replay,'audit.json')}
     before = split_sections(before_text)
+    if args.preserve_prior_analyses:
+        project.person_prior_analyses = {n:retained_claims(before[n]) for n in args.chapters}
     changed = [n for n in range(2,13) if set(selection[str(n)]['selected_ids']) != {f['evidence_id'] for f in contract['chapters'][n]['facts']}]
     outside = set(changed) - set(args.chapters)
+    compatible=[]
+    if args.retain_compatible_sections and args.previous_replay:
+        prior_diagnostics=ledger['diagnostic'].get('section_diagnostics',{})
+        compatible=[n for n in sorted(outside) if compatible_retention(before[n],contract['chapters'][n],prior_diagnostics.get(str(n),{}))]
+        outside-=set(compatible)
     plan = {'baseline': str(baseline), 'sources_sha256': hashlib.sha256(source_bytes).hexdigest(),
         'generation_code_sha256':hashlib.sha256(json.dumps(code_snapshot,sort_keys=True).encode()).hexdigest(),
         'previous_replay': str(args.previous_replay) if args.previous_replay else None,
+        'comparison_scope': 'supplemented_corpus_not_same_material' if args.allow_supplemented_corpus else 'same_retained_corpus',
+        'prior_sources_sha256': prior_summary['sources_sha256'] if args.previous_replay else hashlib.sha256(source_bytes).hexdigest(),
+        'prior_supplement_calls': {k:previous.get(k,0) for k in ('new_search_calls','new_fetch_calls','new_professional_calls')},
         'feedback_records': str(args.feedback_records) if args.feedback_records else None,
+        'prior_analysis_coverage_reminders':bool(args.preserve_prior_analyses),
         'intake_sha256': hashlib.sha256((baseline/'intake.json').read_bytes()).hexdigest(),
         'material_changed_chapters': changed, 'rewrite_requested': args.chapters, 'outside_request': sorted(outside),
+        'retained_after_compatible_narrowing':compatible,
         'research_scope': {str(n):{'admitted_facts':len(contract['chapters'][n].get('research_facts',[])),
             'admitted_sources':len({f['source_url'] for f in contract['chapters'][n].get('research_facts',[])}),
             'personal_analysis_candidates':sum(f.get('analysis_allowed',False) for f in contract['chapters'][n].get('research_facts',[]))}
@@ -114,12 +147,17 @@ def main():
     old_diagnostics = ledger['diagnostic'].get('section_diagnostics', {})
     for n in range(2,13):
         if n not in args.chapters:
-            retained[n] = {'text':before[n], 'selected_ids':selection[str(n)]['selected_ids'],
-                'diagnostic':old_diagnostics.get(str(n), {}), 'claims':retained_claims(before[n]),
+            retained_diagnostic=dict(old_diagnostics.get(str(n), {}))
+            if n in compatible:
+                retained_diagnostic['compatible_narrowing']={'previous_selected_ids':selection[str(n)]['selected_ids'],
+                    'checks':['all_body_ids_remain_admitted','all_current_research_ids_have_processing_receipts','all_retained_analyses_pass_current_guards']}
+            retained[n] = {'text':before[n], 'selected_ids':([f['evidence_id'] for f in contract['chapters'][n]['facts']] if n in compatible else selection[str(n)]['selected_ids']),
+                'diagnostic':retained_diagnostic, 'claims':retained_claims(before[n]),
                 'gaps':next(r for r in ledger['diagnostic']['chapters'] if r['chapter']==n).get('gaps',[])}
     from dotenv import load_dotenv
     load_dotenv(ROOT/'.env')
-    model_context = {'model':os.getenv('MODEL'), 'endpoint_sha256':hashlib.sha256((os.getenv('BASE_URL') or '').rstrip('/').encode()).hexdigest()}
+    from person_model_transport import section_model_context
+    model_context = section_model_context()
     plan['model_context'] = model_context
     os.environ.update(PERSON_REPORT_SECTION_TIMEOUT_SECONDS=str(args.timeout_seconds), PERSON_REPORT_SECTION_MAX_RETRIES='0',
         LLM_MAX_RETRIES='0', PERSON_REPORT_REPAIR_REJECTED='true', PERSON_REPORT_SEMANTIC_REVIEW_ENABLED='true')

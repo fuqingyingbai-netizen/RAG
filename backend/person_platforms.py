@@ -77,7 +77,7 @@ def validated_records(payload, person, company, tool):
         for value in doc.values():
             if not isinstance(value, list):
                 continue
-            for row in value[:100]:
+            for row in value:
                 if not isinstance(row, dict):
                     continue
                 # Only actual record rows, never provider-authored summaries
@@ -127,7 +127,7 @@ def xiniu_plan(intake, company):
         cutoff = date.fromisoformat(intake.get('as_of_date') or date.today().isoformat())
         tasks.append(('get_project_events', {'company_names': [company], 'start_date': (cutoff-timedelta(days=365)).isoformat(),
                      'end_date': cutoff.isoformat(), 'limit': 20}, '关联机构事件'))
-    return tasks[:3]
+    return tasks
 
 
 def coverage_rows(attempts):
@@ -237,7 +237,7 @@ def primary_affiliation_basis(project, intake, company):
             if any(org and org in window for org in forms) and re.search(r'董事|主席|创始|创办|任职|担任|总裁|founder|chairman|director', window, re.I):
                 references.append({'source_id':source.id,'url':source.url})
                 break
-    return references[:3]
+    return references
 
 
 def reassess_retained_outcomes(project):
@@ -278,7 +278,8 @@ def reassess_retained_outcomes(project):
 def collect_group(workflow, db, project, jobs, emit=None):
     """Verify all direct affiliations, then core checks, then company background."""
     added = 0
-    budget = integer('PERSON_PLATFORM_CALL_BUDGET', 18, 0, 100)
+    from person_source_flow import configured_budget
+    budget = configured_budget('PERSON_PLATFORM_CALL_BUDGET')
     project.person_platform_core_pending = set()
     verified = []
     for company, intake in jobs:
@@ -286,9 +287,9 @@ def collect_group(workflow, db, project, jobs, emit=None):
         query_person = ''.join(re.findall(r'[\u4e00-\u9fff·]', person)) or person
         args = {'searchKey': company, 'personName': query_person}
         used = len(getattr(project, 'person_platform_query_keys', set()))
-        remaining = budget - used - len(project.person_platform_core_pending)
+        remaining = budget - used - len(project.person_platform_core_pending) if budget is not None else None
         reason = ''
-        if remaining < len(IDENTITY + CRITICAL):
+        if remaining is not None and remaining < len(IDENTITY + CRITICAL):
             reason = 'person_platform_budget_exhausted'
         else:
             added += collect(workflow, db, project, company, intake, emit, phase='identity')
@@ -323,7 +324,8 @@ def collect(workflow, db, project, company, intake, emit=None, phase='all'):
         return 0
     if not hasattr(project, 'person_platform_query_keys'):
         project.person_platform_query_keys = set()
-    budget = integer('PERSON_PLATFORM_CALL_BUDGET', 18, 0, 100)
+    from person_source_flow import configured_budget
+    budget = configured_budget('PERSON_PLATFORM_CALL_BUDGET')
     added = 0
     explicit = ' '.join([*intake.get('focus_questions', []), str(intake.get('special_requirements') or '')])
     query_person = ''.join(re.findall(r'[\u4e00-\u9fff·]', person)) or person
@@ -359,16 +361,16 @@ def collect(workflow, db, project, company, intake, emit=None, phase='all'):
             pending.discard(key)
             active_audit.record(label, args, 'reused', 'same_run_query_deduplicated')
             return False
-        if phase != 'all' and key not in pending and len(project.person_platform_query_keys) + len(pending) >= budget:
+        if budget is not None and phase != 'all' and key not in pending and len(project.person_platform_query_keys) + len(pending) >= budget:
             active_audit.record(label, args, 'not_queried', 'critical_budget_reserved')
             return False
-        if len(project.person_platform_query_keys) >= budget:
+        if budget is not None and len(project.person_platform_query_keys) >= budget:
             active_audit.record(label, args, 'not_queried', 'person_platform_budget_exhausted')
             return False
         # The initial company pass precedes web-discovered affiliations. Keep
         # part of the same total budget for their identity and core checks.
-        reserve_count = min(integer('PERSON_PLATFORM_AFFILIATION_RESERVE', 8, 0, 30), max(0, budget - len(IDENTITY + CRITICAL)))
-        if phase == 'all' and len(project.person_platform_query_keys) >= budget - reserve_count:
+        reserve_count = min(integer('PERSON_PLATFORM_AFFILIATION_RESERVE', 8, 0, 30), max(0, budget - len(IDENTITY + CRITICAL))) if budget is not None else 0
+        if budget is not None and phase == 'all' and len(project.person_platform_query_keys) >= budget - reserve_count:
             active_audit.record(label, args, 'not_queried', 'affiliation_budget_reserved')
             return False
         project.person_platform_query_keys.add(key)

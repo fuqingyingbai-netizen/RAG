@@ -1105,7 +1105,7 @@ createApp({
     resetTaskFilters() { this.taskSearch = ''; this.taskStatusFilter = ''; this.taskTargetFilter = ''; this.taskPage = 1; },
     statusType(status) { if (status === 'completed') return 'success'; if (status === 'failed') return 'danger'; return this.taskStatusGroup(status) === 'active' ? 'warning' : 'info'; },
     timelineType(status) { if (status === 'done') return 'success'; if (status === 'error') return 'danger'; if (status === 'fallback' || status === 'warning') return 'warning'; return 'primary'; },
-    artifactTypeLabel(type) { return ({ project_intake: '项目参数', research_plan: '研究计划', source_quality: '来源质量', cleaned_facts: '清洗事实库', risk_assessment: '风险研判', desktop_report: '桌面研究报告', report_quality_diagnostic: '报告质量诊断', industry_claim_ledger: '结论证据台账', industry_run: '运行记录', proposal: '项目建议书' })[type] || type; },
+    artifactTypeLabel(type) { return ({ project_intake: '项目参数', research_plan: '研究计划', source_quality: '来源质量', cleaned_facts: '清洗事实库', risk_assessment: '风险研判', desktop_report: '桌面研究报告', report_quality_diagnostic: '报告质量诊断', person_claim_ledger: '人物证据与验收台账', person_evidence_appendix: '完整证据附录与采用去向', industry_claim_ledger: '结论证据台账', industry_run: '运行记录', proposal: '项目建议书' })[type] || type; },
     targetTypeLabel(type) { return ({ person: '目标人', company: '目标公司', industry: '目标行业' })[type] || type || '-'; },
     formatTime(value) {
       const timestamp = this.eventTimestampMs({ timestamp: value });

@@ -1,0 +1,116 @@
+{
+  "at": "2026-10-27T05:34:25.504291+00:00",
+  "status": "completed",
+  "model": "deepseek-v4-pro",
+  "calls": 120,
+  "failed": 47,
+  "returned": 73,
+  "returned_json_unparseable": 2,
+  "root_errors": {
+    "RemoteProtocolError": 47
+  },
+  "http_error_statuses": {},
+  "comparisons_to_serial": {
+    "2": {
+      "fisher_two_sided_p": 0.5959098408345821,
+      "bonferroni_adjusted_p": 1,
+      "failure_rate_difference": -0.10000000000000003
+    },
+    "6": {
+      "fisher_two_sided_p": 1,
+      "bonferroni_adjusted_p": 1,
+      "failure_rate_difference": -0.033333333333333326
+    },
+    "15": {
+      "fisher_two_sided_p": 1,
+      "bonferroni_adjusted_p": 1,
+      "failure_rate_difference": -0.033333333333333326
+    }
+  },
+  "maximum_sampled_cpu_percent": 23.57,
+  "minimum_available_memory_gib": 5.14,
+  "conclusion": "failures_also_occur_serially_no_statistically_demonstrated_concurrency_effect",
+  "production_code_unchanged": true,
+  "company_resume_notification": "company-resume-notification.json",
+  "scope": "One coordinated window, 15 genuine archived prompts, two rounds; other devices or unidentified applications using the credential remain unobservable.",
+  "levels": {
+    "1": {
+      "requests": 30,
+      "failed": 13,
+      "failure_rate": 0.43333333333333335,
+      "failure_rate_wilson95": [
+        0.27377,
+        0.60803
+      ],
+      "by_round": {
+        "1": {
+          "requests": 15,
+          "failed": 7
+        },
+        "2": {
+          "requests": 15,
+          "failed": 6
+        }
+      }
+    },
+    "2": {
+      "requests": 30,
+      "failed": 10,
+      "failure_rate": 0.3333333333333333,
+      "failure_rate_wilson95": [
+        0.1923,
+        0.5122
+      ],
+      "by_round": {
+        "1": {
+          "requests": 15,
+          "failed": 4
+        },
+        "2": {
+          "requests": 15,
+          "failed": 6
+        }
+      }
+    },
+    "6": {
+      "requests": 30,
+      "failed": 12,
+      "failure_rate": 0.4,
+      "failure_rate_wilson95": [
+        0.24591,
+        0.5768
+      ],
+      "by_round": {
+        "1": {
+          "requests": 15,
+          "failed": 5
+        },
+        "2": {
+          "requests": 15,
+          "failed": 7
+        }
+      }
+    },
+    "15": {
+      "requests": 30,
+      "failed": 12,
+      "failure_rate": 0.4,
+      "failure_rate_wilson95": [
+        0.24591,
+        0.5768
+      ],
+      "by_round": {
+        "1": {
+          "requests": 15,
+          "failed": 8
+        },
+        "2": {
+          "requests": 15,
+          "failed": 4
+        }
+      }
+    }
+  },
+  "company_resume_acknowledged": true,
+  "original_interrupted_experiment_excluded": true
+}

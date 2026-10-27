@@ -154,6 +154,9 @@ def test_partial_replay_freezes_body_and_preserves_unresolved_review_gate():
     project=SimpleNamespace(title='研究',target_name='林知远',sources=[],person_research_intake={},person_platform_attempts=[])
     calls=[]
     def invoke(role,*args):
+        if '材料采用诊断' in role:
+            from person_model_fixture import material_response
+            return material_response(json.loads(args[0].splitlines()[-1]))
         calls.append(role)
         return '{"claims":[]}'
     before=generate_person_report(project,payload,'{}',PERSON_REPORT_OUTLINE,invoke,lambda *a,**k:None)

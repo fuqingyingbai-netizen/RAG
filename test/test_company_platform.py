@@ -182,3 +182,11 @@ def test_transport_timeout_keeps_attempt_and_unqueried_tools_in_durable_audit(mo
     assert attempted['error_code'] == 'transport_error'
     risk = next(r for r in rows if r['tool'] == 'get_company_risk_scan')
     assert risk['status'] == 'not_queried' and risk['reason'] == 'transport_failed'
+
+
+@pytest.mark.parametrize('error', [
+    {'message':'HTTP 403 当前可用额度不足。'},
+    {'code':'insufficient_user_quota','message':'HTTP 403'},
+])
+def test_relay_quota_failure_takes_priority_over_generic_403(error):
+    assert failure_kind({'error':error}) == 'quota_exceeded'

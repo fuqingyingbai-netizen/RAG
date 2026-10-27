@@ -60,16 +60,16 @@ def team_table(package):
             else:
                 periods += ['事件原词：' + r['source_quote'] for r in record.get('source_events', [])
                     if r.get('subject') == fact.get('team_member_name') and r['kind'] == 'appointment']
-        role = '；'.join(_unique_literals(roles)[:2]) or '完整职责原句见证据台账，职务待核'
-        period = '；'.join(_unique_literals(periods)[:3]) or '原段日期与该成员任期尚未逐项对齐，见原文'
+        role = '；'.join(_unique_literals(roles)) or '完整职责原句见证据台账，职务待核'
+        period = '；'.join(_unique_literals(periods)) or '原段日期与该成员任期尚未逐项对齐，见原文'
         refs = ' '.join('[' + f['evidence_id'] + ']' for f in facts)
         lines.append(f'| {cell(name)} / {cell(company)} | {cell(role)} | {cell(period)} | {refs} |')
     return lines
 
 
-def distinct_inherited_analyses(section_claims, chapters, limit=None):
+def distinct_inherited_analyses(section_claims, chapters, limit=None, max_chars=None):
     """Preserve accepted text, avoiding a second summary of the same support."""
-    chosen, covered = [], set()
+    chosen, covered, used = [], set(), 0
     for chapter in chapters:
         for claim in section_claims.get(chapter, []):
             if not claim.get('analysis'):
@@ -77,9 +77,11 @@ def distinct_inherited_analyses(section_claims, chapters, limit=None):
             ids = set(claim['evidence_ids'])
             if ids <= covered:
                 continue
+            if max_chars is not None and used + len(claim['analysis']) > max_chars:
+                continue
             chosen.append({**claim, 'inherited_from_chapter': chapter})
+            used += len(claim['analysis'])
             covered.update(ids)
-            break
-        if limit is not None and len(chosen) >= limit:
-            break
+            if limit is not None and len(chosen) >= limit:
+                return chosen
     return chosen

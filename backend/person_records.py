@@ -81,7 +81,7 @@ def observation(fact, target, aliases=()):
         return bool(len(parts) == 2 and all(re.fullmatch(r"[A-Za-z'-]+", p) for p in parts)
                     and re.fullmatch(re.escape(parts[0]) + r'\s+(?:[A-Z]\.\s*|[A-Z]\s+){0,2}' + re.escape(parts[1]), plain, re.I))
     other = bool(named_person and not same_person(named_person))
-    honorific = re.match(r'^([\u4e00-\u9fff]{1,3})(?:先生|女士)', text)
+    honorific = re.match(r'^([\u4e00-\u9fff]{1,3})(?:先生|女士|老师|教授|律师)', folded(text))
     if honorific and not folded(target).startswith(folded(honorific[1])):
         other = True
         named_person = named_person or honorific[0]
@@ -98,7 +98,11 @@ def observation(fact, target, aliases=()):
         if contextual_actor:
             other, named_person = True, contextual_actor[1]
             break
-    scope = 'other_person' if other else 'affiliated_company' if fact.get('subject_scope') == 'affiliated_company' or context else 'person'
+    company_field=(fact.get('claim_type')=='person_company_record'
+        and fact.get('subject_scope')=='affiliated_company')
+    # A named manager/shareholder is a field inside an admitted company record,
+    # not a reason to lose the entire company-level source observation.
+    scope = 'affiliated_company' if company_field else 'other_person' if other else 'affiliated_company' if fact.get('subject_scope') == 'affiliated_company' or context else 'person'
     # Only source event fields and explicitly labelled source snapshots count
     # as periods. Birthday, company founding, page publication and collection
     # timestamps cannot complete this field.
@@ -196,11 +200,51 @@ def observation(fact, target, aliases=()):
                 and event.get('source_quote') and compact(event['source_quote']) in compact(text)
                 and event.get('date_literal') and compact(event['date_literal']) in compact(event['source_quote'])):
             events.append(event)
-    return {'subject': target if scope == 'person' else named_person or issuer, 'source_named_person': named_person, 'subject_scope': scope,
+    return {'subject': issuer if company_field else target if scope == 'person' else named_person or issuer, 'source_named_person': named_person, 'subject_scope': scope,
             'issuer': issuer, 'relations': relations, 'period': period, 'period_basis': period_basis, 'ownership_subject': ownership_subject,
             'role_date_fields': dates, 'source_events': events, 'metrics': metrics, 'direct_person_link': bool(direct_link),
             'source_url': fact.get('source_url', ''), 'evidence_id': fact.get('evidence_id', ''),
             'gaps': gaps, 'verification': 'source_statement_requires_review'}
+
+
+def attributed_forecast(analysis,sentence,match,supports):
+    """A matched source forecast is a reported view, not new arithmetic.
+
+    All numeric, date, subject, personal-inference and semantic guards still
+    apply. A source's forecast is never evidence of an achieved outcome.
+    """
+    from person_text import numeric_literals
+    if match[0] not in {'高于','低于','多于','少于','增加','减少','提升','下降','增长','领先','落后','发生变化','发生变动'}:return False
+    prefix=sentence[:match.start()]
+    if (re.search(r'本报告|据此|由此|因此可|这表明|可见|已经实现|已实现|事实证明',sentence)
+            or re.match(r'\s*我们(?:预计|预期|认为|判断)',sentence)):return False
+    names={str(f.get('subject') or (f.get('observation') or {}).get('subject') or '') for f in supports}-{''}
+    speakers=r'其|他|她|股东会|会上|采访|演讲|报道|来源|原文|公告|财报|年报'+''.join('|'+re.escape(n) for n in sorted(names))
+    attributed=re.search(r'(?:'+speakers+r')[^。；;]{0,25}(?:称|说|表示|预计|预期|认为|指出|希望)',prefix)
+    framed=re.match(r'^[^。；;]{0,80}?(?:报道[：:]|来源(?:称|记载|表示)|原文(?:称|载)|公告(?:称|披露)|年报(?:载|称)|财报(?:载|称)|书中(?:称|记载))',analysis)
+    if not (attributed or framed) or not re.search(r'预期|预计|未来|今后|展望|有望|目标|将|以后|年后',prefix):return False
+    digits=r'[零〇一二两三四五六七八九十百千万\d]+'
+    time=re.compile(r'(?:(?:未来|今后|接下来|到))?'+digits+r'(?:(?:到|至|—|-|～|~)'+digits+r')?(?:年(?!度)|月|季)(?:之后|以后|之内|后|内)?')
+    def anchors(text):
+        return [re.sub(r'^(?:未来|今后|接下来|到)','',numeric_literals(m[0])).replace('至','到').replace('—','到').replace('-','到').replace('～','到').replace('~','到').replace('以后','后').replace('之后','后') for m in time.finditer(text)]
+    wanted=anchors(prefix)
+    dimensions={v for v in ('营收','收入','利润','市值','销量','销售额','员工','持股','薪酬','规模') if v in prefix[-35:]}
+    polarity=lambda s:bool(re.search(r'(?:不(?:会|再|能)?|未(?:能)?|没有)[^，,。；;、]{0,5}$',s))
+    for fact in supports:
+        for original in re.split(r'[。！？；;\n]',folded(fact.get('fact') or '')):
+            for event in re.finditer(re.escape(match[0]),original):
+                before=original[:event.start()]
+                if (not re.search(r'预期|预计|展望|有望|目标|将',before)
+                        or re.search(r'是否|会否|否认|无法判断|没有预测|未作预测',before[-60:])
+                        or polarity(prefix)!=polarity(before)
+                        or not all(d in before[-50:] for d in dimensions)):continue
+                existing=anchors(before)
+                if wanted:
+                    if existing and wanted[-1]==existing[-1]:return True
+                elif not existing:
+                    phrase=folded(sentence[max(0,match.start()-4):match.end()+6])
+                    if len(phrase)>=6 and phrase in original:return True
+    return False
 
 
 def comparison_errors(analysis, supports):
@@ -211,6 +255,8 @@ def comparison_errors(analysis, supports):
     allowed_literals = re.sub(r'\s+', '', numeric_literals(' '.join(f['fact'] for f in supports)))
     for sentence in re.split(r'[。！？；;\n]', analysis):
         for match in re.finditer(comparative, sentence):
+            if attributed_forecast(analysis,sentence,match,supports):
+                continue
             # A source's exact lower/upper monetary bound is an event
             # condition, not a new cross-source numerical comparison.
             if match[0] in {'高于', '低于', '多于', '少于'} and sentence[max(0, match.start()-1):match.start()] == '不':
@@ -257,6 +303,8 @@ def process_text(text):
 
 def chapter_relevant(fact, chapter):
     text = folded(fact.get('fact', ''))
+    if chapter==12 and fact.get('claim_type')=='person_platform_record' and 12 in fact.get('person_chapters',[]):
+        return True
     if chapter == 7:
         if fact.get('feedback_record'):
             return True
@@ -270,6 +318,8 @@ def chapter_relevant(fact, chapter):
     if chapter == 3 and '年度报告' in text and '法律责任' in text and re.search(r'真实.{0,8}准确.{0,8}完整', text):
         return False
     if chapter == 8 and not fact.get('comparison_subject'):
+        # A loan's interbank reference rate is not a peer-comparison claim.
+        text = re.sub(r'同业拆息|同业拆借(?:利率)?', '', text)
         if re.search(r'同业竞争|显失公平.{0,8}关联交易', text) and not re.search(r'对标|可比人物|同行评价|竞争对手', text):
             return False
         return bool(re.search(r'同业|对标|竞争对手|竞争者|同行评价|横向比较|比较对象|可比人物|可比企业|竞品|benchmark|competitor|comparison', text, re.I))
@@ -315,12 +365,22 @@ def definition_errors(analysis, supports):
             if not re.search(r'不能|不代表|未说明|不足以|未载明',analysis[max(0,position-18):position]):
                 errors.append('legal_obligation_definition_not_supported')
     executive_tenure = re.search(r'(总裁|总经理)[，,\s]*任期[一二三四五六七八九十\d]+年',allowed)
-    if (executive_tenure and re.search(r'董事长[^。；;]{0,18}(?:总裁|总经理)[^。；;]{0,8}任期',analysis)
-            and not re.search(r'(?:其中|该)?(?:总裁|总经理)(?:职务)?(?:的)?任期',analysis)):
+    # A nominating chairman is not a second office whose term is asserted.
+    tenure_analysis=analysis.replace('董事长提名','提名')
+    from person_role_checks import role_tenures
+    doc_terms={}
+    for i,fact in enumerate(supports):
+        key=fact.get('source_url') or ('single_record',i)
+        doc_terms.setdefault(key,set()).update(role_tenures(fact['fact']))
+    explicit_shared=any(('董事长',term) in pairs and ('总裁',term) in pairs
+        and re.search(r'任期(?:均为|均|为)?'+re.escape(term),numeric_literals(analysis))
+        for pairs in doc_terms.values() for role,term in pairs if role=='总裁')
+    if (executive_tenure and re.search(r'董事长[^。；;]{0,18}(?:总裁|总经理)[^。；;]{0,8}任期',tenure_analysis)
+            and not re.search(r'(?:其中|该)?(?:总裁|总经理)(?:职务)?(?:的)?任期',tenure_analysis) and not explicit_shared):
         errors.append('mixed_role_tenure_not_supported')
     separate_role_dates = re.search(r'董事长[^。；;]{0,15}任期[^。；;]{0,100}总\s*裁任期自', allowed)
-    if (separate_role_dates and re.search(r'董事长[^。；;]{0,18}总裁[^。；;]{0,18}任期', analysis)
-            and not re.search(r'其中.{0,10}(?:董事长|执行董事)|总裁任期自|董事长、执行董事的任期', analysis)):
+    if (separate_role_dates and re.search(r'董事长[^。；;]{0,18}总裁[^。；;]{0,18}任期', tenure_analysis)
+            and not re.search(r'其中.{0,10}(?:董事长|执行董事)|总裁任期自|董事长、执行董事的任期', tenure_analysis)):
         errors.append('mixed_role_tenure_not_supported')
     for match in re.finditer(r'属(?:于)?常规|为常规|符合惯例|属(?:于)?正常交易',analysis):
         if match[0] not in allowed and not re.search(r'不能|未说明|不代表|不足以',analysis[max(0,match.start()-14):match.start()]):
@@ -391,3 +451,9 @@ def mixed_biographical_context(fact):
     text = folded(fact.get('fact') or '')
     people = set(re.findall(r'([\u4e00-\u9fff]{2,4})(?:先生|女士)', text))
     return len(people) >= 3 and len(re.findall(r'毕业|加入|获[^。；;]{0,16}学位',text)) >= 3
+
+
+def personal_analysis_allowed(fact, conflicting=()):
+    """Topic routing never changes the original source permission checks."""
+    return (fact.get("subject_scope")=="person" and not fact.get("opinion_only")
+            and not fact.get("source_text_issue") and fact.get("evidence_id") not in conflicting)

@@ -50,6 +50,7 @@ def affiliations(value):
     for part in pieces(value):
         part = re.sub(r'^(?:机构|公司|任职机构|曾任机构|关联机构)\s*[:：]\s*', '', part)
         part = re.sub(r'^(?:现任|曾任|前任|原任|目前)\s*', '', part)
+        part = re.sub(r'^(?:(?:并|兼|还|亦)\s*)?(?:担任|任职于|任职为)\s*', '', part)
         part = re.sub(r'\b(?:19|20)\d{2}(?:\s*[-—至]\s*(?:(?:19|20)\d{2}|至今))?年?', '', part).strip()
         if SCHOOL.search(part) or re.match(r'^(?:学历|教育|毕业|地区|所在地|出生|年龄|职责|备注|身份)\s*[:：]', part):
             continue

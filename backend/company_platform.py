@@ -13,7 +13,7 @@ def failure_kind(payload):
         return ''
     text = json.dumps(error, ensure_ascii=False).lower()
     if any(x in text for x in ('credit_balance_insufficient', '余额不足', '积分不足', 'quota_exceeded',
-                                '配额已用完', '配额不足', 'insufficient_quota', 'quota exceeded',
+                                '配额已用完', '配额不足', 'insufficient_quota', 'insufficient_user_quota', '可用额度不足', 'quota exceeded',
                                 'quota exhausted', 'insufficient balance')):
         return 'quota_exceeded'
     if re.search(r'\b401\b|unauthorized|invalid[_ -]?(?:token|api[_ -]?key)|鉴权失败|无效.{0,5}(?:密钥|令牌)', text):

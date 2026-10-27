@@ -356,9 +356,10 @@ def test_actual_web_pipeline_retains_context_budget_and_all_15_diagnostics(monke
     queries, packs = [], []
     def search(provider, query, **kw):
         queries.append((provider, query, kw['limit']))
-        return [{'title': '林知远在恒川软件有限公司的公开履历', 'url': f'https://fixture.invalid/record/{len(queries)}',
+        rows = [{'title': '林知远在恒川软件有限公司的公开履历', 'url': f'https://fixture.invalid/record/{len(queries)}/{i}',
                  'summary': '林知远在恒川软件有限公司任职。', 'content': '',
-                 'metadata': {'provider': provider}, 'credibility_score': 90}]
+                 'metadata': {'provider': provider}, 'credibility_score': 90} for i in range(4)]
+        return rows + [rows[0]]
     monkeypatch.setattr(module.web_search_provider, 'search_single', search)
     w = ResearchWorkflow()
     monkeypatch.setattr(w, 'resolve_business_entity', lambda p, value, **kw: value)
@@ -367,6 +368,9 @@ def test_actual_web_pipeline_retains_context_budget_and_all_15_diagnostics(monke
     monkeypatch.setattr(w, '_fetch_web_url_with_timeout', lambda *a, **kw: {'status': 'done', 'content': original})
     def write(role, prompt, **kw):
         pack = json.loads(prompt[prompt.index('{"chapter":'):])
+        if '材料采用诊断' in role:
+            from person_model_fixture import material_response
+            return material_response(pack)
         packs.append(pack)
         return json.dumps({'claims': [{'statement': f['fact'], 'evidence_ids': [f['evidence_id']], 'analysis': ''}
                                      for f in pack['facts']]}, ensure_ascii=False)
@@ -389,6 +393,11 @@ def test_actual_web_pipeline_retains_context_budget_and_all_15_diagnostics(monke
         assert audit['calls_planned'] == 5 and audit['page_fetch_attempts'] <= 5
         assert audit['budget_exhausted']
         assert len(audit['coverage']['chapters']) == 15
+        assert audit['candidate_flow_summary']['returned_candidate_rows'] == 25
+        assert audit['candidate_flow_summary']['unique_returned_urls'] == 20
+        assert audit['candidate_flow_summary']['dispositions'] == {'retained':20,'duplicate_url':5}
+        assert not audit['candidate_flow_summary']['unresolved_candidate_rows']
+        assert sum(r['fetch_disposition']=='explicit_budget_exhausted' for r in audit['candidate_flow']) == 15
         report = next(a for a in artifacts if a.artifact_type == 'desktop_report')
         assert '人物检索已达到本轮请求预算' in report.content
         assert report.artifact_metadata['requires_human_review']

@@ -302,6 +302,9 @@ def test_rejected_interpretation_is_removed_without_losing_sources_or_failure_au
     p = SimpleNamespace(target_name='林知远',target_type='person',title='合成来源验收',sources=[],person_research_intake={})
     def invoke(role,prompt,*args):
         pack=json.loads(prompt.split('\n')[-1]);eid=pack['facts'][0]['evidence_id']
+        if '材料采用诊断' in role:
+            from person_model_fixture import material_response
+            return material_response(pack)
         return json.dumps({'claims':[{'evidence_ids':[eid],'analysis':'来源提供教育记录，其他履历仍须核对。'},
                                      {'evidence_ids':[eid],'analysis':'2049年已融资900亿元。'}]},ensure_ascii=False)
     report=generate_person_report(p,json.dumps({'facts':[row('林知远于2009年毕业于远山大学，获得硕士学位。')]}),'{}',PERSON_REPORT_OUTLINE,invoke,lambda *a,**kw:None)

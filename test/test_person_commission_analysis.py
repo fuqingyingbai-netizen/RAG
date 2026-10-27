@@ -169,6 +169,9 @@ def test_report_keeps_facts_and_unanswered_questions_when_model_abstains():
     p = SimpleNamespace(target_name='林知远', target_type='person', title='合成人物核验', sources=[], person_research_intake=value)
     calls = []
     def invoke(role, prompt, trace):
+        if '材料采用诊断' in role:
+            from person_model_fixture import material_response
+            return material_response(json.loads(prompt.splitlines()[-1]))
         calls.append(prompt)
         assert '不要返回statement' in prompt
         return '{"claims":[]}'

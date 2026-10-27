@@ -148,6 +148,9 @@ def test_writer_reads_admitted_scopes_with_personal_inference_permissions():
     inputs = []
     def invoke(role, prompt, trace):
         pack = json.loads(prompt[prompt.index('{"chapter":'):])
+        if '材料采用诊断' in role:
+            from person_model_fixture import material_response
+            return material_response(pack)
         inputs.append(pack)
         return '{"claims":[]}'
     report = generate_person_report(p, json.dumps({'facts': rows}), '{}', PERSON_REPORT_OUTLINE, invoke, lambda *a, **kw: None)

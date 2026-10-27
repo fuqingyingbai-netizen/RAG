@@ -9,6 +9,19 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 
+def test_compatible_retention_requires_current_admission_and_complete_processing():
+    replay_spec=importlib.util.spec_from_file_location('replay_person_chapters',Path(__file__).resolve().parents[1]/'scripts/replay_person_chapters.py')
+    replay=importlib.util.module_from_spec(replay_spec)
+    replay_spec.loader.exec_module(replay)
+    package={'facts':[],'research_facts':[{'evidence_id':'E-PKEEP'}]}
+    body='## 3. 测试\n\n来源记录 [E-PKEEP]'
+    processed={'material_review':{'batches':[{'status':'returned','evidence_ids':['E-PKEEP','E-PUNUSED']} ]}}
+    assert replay.compatible_retention(body,package,processed)
+    assert not replay.compatible_retention(body,package,{})
+    assert not replay.compatible_retention(body+' [E-PREMOVED]',package,processed)
+    assert not replay.compatible_retention(body,{**package,'research_facts':[{'evidence_id':'E-PNEW'}]},processed)
+
+
 def test_exact_input_reuse_prevents_unrelated_paid_rewrites(tmp_path):
     old, new = tmp_path / 'old', tmp_path / 'new'
     old.mkdir(); new.mkdir()

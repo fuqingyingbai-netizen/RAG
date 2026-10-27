@@ -470,10 +470,14 @@ class ResearchWorkflow:
         if self._person_report_section_model is not None:
             return self._person_report_section_model
         api_key = os.getenv("ARK_API_KEY")
-        model_name = os.getenv("MODEL")
+        model_name = os.getenv("PERSON_REPORT_SECTION_MODEL") or os.getenv("MODEL")
         base_url = os.getenv("BASE_URL")
         if not api_key or not model_name:
             return None
+        try:
+            from .person_model_transport import section_model_options
+        except ImportError:
+            from person_model_transport import section_model_options
         self._person_report_section_model = init_chat_model(
             model=model_name,
             model_provider="openai",
@@ -483,6 +487,7 @@ class ResearchWorkflow:
             stream_usage=True,
             timeout=_env_int("PERSON_REPORT_SECTION_TIMEOUT_SECONDS", 150, 30, 600),
             max_retries=_env_int("PERSON_REPORT_SECTION_MAX_RETRIES", 1, 0, 1),
+            **section_model_options(model_name),
         )
         return self._person_report_section_model
 
@@ -511,6 +516,16 @@ class ResearchWorkflow:
             duration_ms = int((time.monotonic() - started_at) * 1000)
             usage = getattr(result, 'usage_metadata', None) or {}
             token_usage = {k: usage[k] for k in ('input_tokens', 'output_tokens', 'total_tokens') if isinstance(usage.get(k), int)}
+            metadata=getattr(result,'response_metadata',None) or {}
+            finish_reason=metadata.get('finish_reason') or metadata.get('stop_reason')
+            if not content.strip():
+                try:
+                    from .person_model_transport import EmptyPersonModelResponse
+                except ImportError:
+                    from person_model_transport import EmptyPersonModelResponse
+                _emit(emit,'llm',role,'模型未返回可供校验的正文',
+                    'empty_final_content',finish_reason=finish_reason,**token_usage,status='fallback')
+                raise EmptyPersonModelResponse('empty_model_final_content:'+str(finish_reason or 'unknown'))
             output_url_count = len(set(re.findall(r"https?://[^\s)\]|>]+", content)))
             _emit(
                 emit,
@@ -522,6 +537,7 @@ class ResearchWorkflow:
                 output_chars=len(content),
                 output_url_count=output_url_count,
                 duration_ms=duration_ms,
+                finish_reason=finish_reason,
                 **token_usage,
                 status="done",
             )
@@ -1415,11 +1431,21 @@ class ResearchWorkflow:
                 dependencies)
             report_artifact.artifact_metadata = {**(report_artifact.artifact_metadata or {}),
                 "person_claim_ledger_artifact_id": claim_artifact.id, "person_delivery_diagnostic": diagnostic}
+            appendix=getattr(project,'person_evidence_appendix','')
+            if appendix:
+                appendix_artifact=self.save_artifact(db,project,'person_evidence_appendix',
+                    _project_doc_title(project,'人物报告完整证据附录与采用去向'),appendix,
+                    {**dependencies,'material_accounting':diagnostic.get('material_accounting',{}),
+                     'automatic_delivery_status':diagnostic.get('automatic_delivery_status','pending')})
+                report_artifact.artifact_metadata={**(report_artifact.artifact_metadata or {}),
+                    'person_evidence_appendix_artifact_id':appendix_artifact.id}
         checkpoint("report")
 
         artifacts = [plan_artifact, quality_artifact, cleaned_artifact, risk_artifact, report_artifact]
         if claim_artifact is not None:
             artifacts.append(claim_artifact)
+        if standardized_type=='person' and getattr(project,'person_evidence_appendix',''):
+            artifacts.append(appendix_artifact)
         if quality_diagnostic_artifact is not None:
             artifacts.append(quality_diagnostic_artifact)
         if generate_proposal:
@@ -1774,9 +1800,8 @@ class ResearchWorkflow:
             # user entered was silently discarded before structured collection.
             affiliation_anchors = self._person_affiliation_anchors(affiliation)
             associated_company = (
-                company_match.group(0).strip()
-                if company_match
-                else (affiliation_anchors[0] if affiliation_anchors else "")
+                affiliation_anchors[0] if affiliation_anchors
+                else (company_match.group(0).strip() if company_match else "")
             )
             role_only_terms = {"创始人", "董事长", "董事", "总经理", "高管", "员工", "合伙人", "CEO", "COO", "CTO", "CFO"}
             if len(associated_company) < 2 or associated_company in role_only_terms:
@@ -2424,7 +2449,7 @@ class ResearchWorkflow:
             if target and target not in compact:
                 continue
             host = urlparse(source.url or "").netloc.lower().replace("www.", "") or f"source:{source.id}"
-            for match in relation_pattern.finditer(text[:12000]):
+            for match in relation_pattern.finditer(text):
                 from person_identity import relation_actor_is_target
                 if not relation_actor_is_target(text, match.start(), str(intake.get('target_name') or '')):
                     continue
@@ -2433,6 +2458,8 @@ class ResearchWorkflow:
                 # Xiniu lookup to query the verb instead of the company name.
                 candidate = match.group(2).strip("：:，,。；;（）()[]【】\"'“”")
                 candidate = re.sub(r"^(?:其|了|的|在|与|和)", "", candidate).strip()
+                candidate_anchors = self._person_affiliation_anchors(candidate)
+                candidate = candidate_anchors[0] if len(candidate_anchors) == 1 else ''
                 compact_candidate = re.sub(r"\s+", "", candidate)
                 if (
                     len(compact_candidate) < 3
@@ -2493,7 +2520,9 @@ class ResearchWorkflow:
             )
         ]
         confirmed.sort(key=lambda item: (item["host_count"], item["source_count"], item["max_score"]), reverse=True)
-        return confirmed[:_env_int("PERSON_DISCOVERED_AFFILIATION_LIMIT", 6, 0, 20)]
+        from person_source_flow import configured_budget
+        affiliation_limit = configured_budget('PERSON_DISCOVERED_AFFILIATION_LIMIT')
+        return confirmed[:affiliation_limit] if affiliation_limit is not None else confirmed
 
     def _person_affiliation_discovery_queries(self, target: str, affiliations: list[str]) -> list[dict[str, str]]:
         return get_research_strategy("person").affiliation_discovery_queries(target, affiliations)
@@ -4188,9 +4217,9 @@ class ResearchWorkflow:
         browser_fetch_budget = _env_int("WEB_RENDER_FETCH_BUDGET_PER_RUN", 3, 0, 500)
         browser_fetch_used = 0
         person_fetch_used = 0
-        person_fetch_per_chapter = Counter()
-        person_fetch_budget = _env_int("PERSON_WEB_FETCH_BUDGET", 44, 0, 200)
-        person_initial_fetch_budget = person_fetch_budget - (min(6, person_fetch_budget // 3) if person_fetch_budget >= 18 else 0)
+        from person_source_flow import fetch_budget, can_fetch, summarize as summarize_person_flow
+        person_fetch_budget = fetch_budget() if person_mode else None
+        person_candidates = []
 
         added = 0
         discovered_affiliations: set[str] = set()
@@ -4286,6 +4315,15 @@ class ResearchWorkflow:
                 search_tier = query_item.get("search_tier", "open_web")
                 include_domains = list(query_item.get("include_domains") or [])
                 for item in results:
+                    flow = None
+                    if person_mode:
+                        flow = {'candidate_id': len(person_candidates) + 1, 'query': query,
+                                'round': round_index, 'url': item.get('url', ''),
+                                'canonical_url': canonical_source_url(item.get('url', '')),
+                                'title': item.get('title', ''),
+                                'provider': (item.get('metadata') or {}).get('provider', 'unknown'),
+                                'disposition': 'pending', 'fetch_disposition': 'not_needed'}
+                        person_candidates.append(flow)
                     try:
                         url = item.get("url", "")
                         item_metadata = item.get("metadata") or {}
@@ -4304,6 +4342,7 @@ class ResearchWorkflow:
                                 module=module,
                             )
                             if low_quality:
+                                flow.update(disposition='quality_rejected', reason=low_quality_reason)
                                 if url:
                                     seen_urls.add(canonical_source_url(url))
                                 _emit(
@@ -4322,6 +4361,8 @@ class ResearchWorkflow:
                                 )
                                 continue
                         if url and canonical_source_url(url) in seen_urls:
+                            if flow is not None:
+                                flow.update(disposition='duplicate_url')
                             _emit(
                                 emit,
                                 "web_search",
@@ -4351,6 +4392,8 @@ class ResearchWorkflow:
                                 intake,
                             )
                             if identity["confidence"] == "rejected":
+                                if flow is not None:
+                                    flow.update(disposition='identity_rejected', reason=identity['reason'])
                                 seen_urls.add(canonical_source_url(url))
                                 _emit(
                                     emit,
@@ -4394,6 +4437,8 @@ class ResearchWorkflow:
                                 "extraction_status": "reused_archive",
                             }
                             stored_title, metadata = self._source_title_for_storage(title or reused_source.title, metadata)
+                            if flow is not None:
+                                flow.update(disposition='reused_archive', source_url=url)
                             source = ResearchSource(
                                 project_id=project.id,
                                 source_type=reused_source.source_type,
@@ -4433,7 +4478,7 @@ class ResearchWorkflow:
                         host = urlparse(url or "").netloc.lower().replace("www.", "")
                         active_host_limit = max_authority_per_host if search_tier == "authority_first" else max_per_host
                         active_host_count = authority_host_counts[host] if search_tier == "authority_first" else host_counts[host]
-                        if host and active_host_count >= active_host_limit:
+                        if not person_mode and host and active_host_count >= active_host_limit:
                             if url:
                                 seen_urls.add(canonical_source_url(url))
                             _emit(
@@ -4469,13 +4514,13 @@ class ResearchWorkflow:
                             from company_publishers import statistics_release_candidate
                             should_refetch=should_refetch or statistics_release_candidate(url)
                         if person_mode and should_refetch:
-                            chapter_key = next(iter(query_item.get("person_chapters") or [2]))
-                            round_limit = 2 if round_index == 1 else 1
-                            should_refetch = (person_fetch_used < person_initial_fetch_budget
-                                              and person_fetch_per_chapter[(chapter_key, round_index)] < round_limit)
+                            should_refetch = can_fetch(person_fetch_used, person_fetch_budget)
+                            flow['fetch_disposition'] = 'requested' if should_refetch else 'explicit_budget_exhausted'
                             if should_refetch:
                                 person_fetch_used += 1
-                                person_fetch_per_chapter[(chapter_key, round_index)] += 1
+                            else:
+                                item_metadata['skip_fulltext_reason'] = 'explicit_person_fetch_budget_exhausted'
+                                item_metadata['person_discovery_only'] = True
                         if should_refetch:
                             allow_browser = browser_fetch_used < browser_fetch_budget
                             _emit(
@@ -4513,6 +4558,8 @@ class ResearchWorkflow:
                             if fetched.get("fetch_attempt") == "browser":
                                 browser_fetch_used += 1
                             fetched_text = fetched.get("content") or ""
+                            if flow is not None:
+                                flow.update(fetch_disposition=fetched.get('status', 'empty'), fetched_chars=len(fetched_text))
                             if person_mode and fetched.get("status") == "done" and fetched_text:
                                 item_metadata["person_discovery_only"] = False
                             fetched_clean = self._clean_source_text(fetched_text)
@@ -4543,6 +4590,8 @@ class ResearchWorkflow:
                         item["metadata"] = item_metadata
                         identity = self._person_source_identity_confidence(title, content or summary, intake)
                         if identity["confidence"] == "rejected":
+                            if flow is not None:
+                                flow.update(disposition='identity_rejected', reason=identity['reason'])
                             if url:
                                 seen_urls.add(canonical_source_url(url))
                             _emit(
@@ -4561,7 +4610,7 @@ class ResearchWorkflow:
                             continue
                         quality = self.score_source(item, module=module, query=query, target=intake.get("target_name", project.target_name))
                         is_tech_source = self._is_technical_content_source(host, title, content or summary, query)
-                        if is_tech_source and tech_content_saved >= max_tech_sources:
+                        if not person_mode and is_tech_source and tech_content_saved >= max_tech_sources:
                             if url:
                                 seen_urls.add(canonical_source_url(url))
                             _emit(
@@ -4670,6 +4719,8 @@ class ResearchWorkflow:
                             min_summary_chars = _env_int("ONLINE_SOURCE_MIN_SUMMARY_CHARS", 80, 20, 1000)
                         if fetch_status in {"empty", "empty_pdf", "browser_empty", "reader_empty"} and len(stored_clean) < min_store_chars:
                             if len(summary_clean) < min_summary_chars:
+                                if flow is not None:
+                                    flow.update(disposition='unavailable_original', reason='empty_body_and_insufficient_summary')
                                 if url:
                                     seen_urls.add(canonical_source_url(url))
                                 _emit(
@@ -4707,6 +4758,9 @@ class ResearchWorkflow:
                         title, summary, stored_text, metadata = strip_nul([str(title or ''), str(summary or ''), stored_text, metadata])
                         title, metadata = self._source_title_for_storage(title, metadata)
                         metadata["retention_policy"] = "transient_web_body"
+                        if flow is not None:
+                            flow.update(disposition='retained', content_kind=metadata['content_kind'], identity_confidence=identity['confidence'])
+                            metadata['person_candidate_id'] = flow['candidate_id']
                         object_key = research_store.put_text(
                             f"projects/{project.id}/raw_web/{_now_key()}_{added}.txt",
                             stored_text,
@@ -4749,6 +4803,8 @@ class ResearchWorkflow:
                             status="done",
                         )
                     except Exception as exc:
+                        if flow is not None:
+                            flow.update(disposition='archive_failed', error_type=type(exc).__name__)
                         db.rollback()
                         _emit(
                             emit,
@@ -4766,7 +4822,8 @@ class ResearchWorkflow:
             coverage = self.evaluate_source_quality(project, plan)
             if person_search:
                 retrieval_audit = person_search.audit(list(project.sources or []))
-                retrieval_audit.update(page_fetch_budget=person_fetch_budget, page_fetch_attempts=person_fetch_used)
+                retrieval_audit.update(page_fetch_budget=person_fetch_budget, page_fetch_attempts=person_fetch_used,
+                    candidate_flow=list(person_candidates), candidate_flow_summary=summarize_person_flow(person_candidates))
                 project.person_retrieval_audit = retrieval_audit
                 self.save_artifact(db, project, "person_retrieval_audit", "人物逐章检索与预算记录",
                                    json.dumps(retrieval_audit, ensure_ascii=False), {"retrieval_version": retrieval_audit["version"], "intake_fingerprint": self._intake_evidence_fingerprint(intake)})
@@ -4846,7 +4903,8 @@ class ResearchWorkflow:
         db.commit()
         if person_search:
             project.person_retrieval_audit = person_search.audit(list(project.sources or []))
-            project.person_retrieval_audit.update(page_fetch_budget=person_fetch_budget, page_fetch_attempts=person_fetch_used)
+            project.person_retrieval_audit.update(page_fetch_budget=person_fetch_budget, page_fetch_attempts=person_fetch_used,
+                    candidate_flow=list(person_candidates), candidate_flow_summary=summarize_person_flow(person_candidates))
             self.save_artifact(db, project, "person_retrieval_audit", "人物逐章检索与预算记录",
                                json.dumps(project.person_retrieval_audit, ensure_ascii=False), {"retrieval_version": project.person_retrieval_audit["version"], "intake_fingerprint": self._intake_evidence_fingerprint(intake)})
         _emit(emit, "web_search", "online_search_agent", "在线来源采集结束", "", status="done")
@@ -6003,6 +6061,12 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             writer_project.person_research_intake = dict(getattr(project, "person_research_intake", {}) or {})
             writer_project.person_platform_attempts = list(getattr(project, "person_platform_attempts", []) or [])
             writer_project.person_retrieval_audit = dict(getattr(project, "person_retrieval_audit", {}) or {})
+            writer_project.person_prior_analyses = dict(getattr(project, 'person_prior_analyses', {}) or {})
+            if not writer_project.person_prior_analyses and getattr(project,'artifacts',None):
+                previous_report=self._latest_artifact(project,'desktop_report')
+                if previous_report and getattr(previous_report,'content',None):
+                    from person_content_acceptance import previous_analyses
+                    writer_project.person_prior_analyses=previous_analyses(previous_report.content)
 
         def target() -> None:
             try:
@@ -6061,7 +6125,7 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 )
         active_trace["enabled"] = False
         if target_type == "person":
-            for key in ("person_evidence_contract", "person_delivery_diagnostic", "person_section_packages"):
+            for key in ("person_evidence_contract", "person_delivery_diagnostic", "person_section_packages", "person_evidence_appendix"):
                 if hasattr(writer_project, key):
                     setattr(project, key, getattr(writer_project, key))
         if status == "error":
@@ -6317,6 +6381,13 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             project.person_evidence_contract = contract
             diagnostic = audit_person_report(result, contract, previous.get("degradations", []))
             diagnostic.update({k: previous[k] for k in ("section_diagnostics", "api_attempts", "platform_attempts", "platform_query_coverage", "retrieval_audit", "generation_order") if k in previous})
+            from person_material_accounting import build_accounting,delivery_gate
+            accounting,appendix=build_accounting(result,contract,diagnostic.get('section_diagnostics',{}))
+            diagnostic['material_accounting']=accounting
+            diagnostic['delivery_gate']=delivery_gate(result,contract,diagnostic.get('section_diagnostics',{}),accounting,diagnostic['errors'])
+            diagnostic['automatic_delivery_status']=diagnostic['delivery_gate']['status']
+            project.person_evidence_appendix=appendix
+            result=append_person_index(result,contract['facts'],accounting)
             project.person_delivery_diagnostic = diagnostic
             return result
         if target_type == "industry" and report.strip():
@@ -6792,6 +6863,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         if target_type == "person" and hasattr(project, "person_evidence_contract"):
             previous = getattr(project, "person_delivery_diagnostic", {}) or {}
             diagnostic = audit_person_report(report, project.person_evidence_contract, previous.get("degradations", []))
+            if previous.get('delivery_gate',{}).get('status')=='pending':
+                diagnostic['errors'].append('完整材料采用、内容或篇幅验收尚未全部通过')
             if diagnostic["errors"]:
                 raise RuntimeError("人物报告交付质量闸门未通过：" + "；".join(diagnostic["errors"]))
             return

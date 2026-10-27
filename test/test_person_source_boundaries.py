@@ -254,6 +254,18 @@ def test_collective_resignation_threat_and_dismissal_order_are_not_completed_eve
     rows = [{'fact': '员工以“集体辞职”相要挟，陈雨安当即下令，将这些人全部开除。林知远后来才知道此事。'}]
     assert source_context_errors('改革引发员工集体辞职抗议，陈雨安随即执行开除。', rows) == ['threatened_event_as_occurred', 'directed_action_as_completed']
     assert not source_context_errors('员工以集体辞职相要挟，陈雨安下令开除，实际执行结果尚未载明。', rows)
+    assert not source_context_errors('员工以集体辞职相要挟，陈雨安令当天下午3点前全部开除，林知远事后才知。', rows)
+
+
+def test_pdf_day_layout_is_restored_without_recombining_unrelated_numbers():
+    from person_evidence import numbers
+    assert numbers('2009年5月13日')<=numbers('原件载2009年5月1 3 日方履行承诺。')
+    assert not numbers('13日')<=numbers('1个项目、3个员工分别有记录。')
+    assert not numbers('2009年5月13日')<=numbers('2009年5月1日；另有3个项目。')
+    assert 'unsupported_date_combination' not in source_context_errors('2009年5月13日出售全部H股。',
+        [{'fact':'2009年5月1 3 日出售全部H股。'}])
+    assert 'unsupported_date_combination' in source_context_errors('2009年5月13日出售全部H股。',
+        [{'fact':'2009年5月1日有3个项目。'}])
 
 
 def test_absence_claim_uses_complete_research_context_not_only_selected_quotes():

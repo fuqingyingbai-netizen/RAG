@@ -15,14 +15,14 @@ from urllib.parse import urlparse
 
 try:
     from .person_commission import requirements as commission_requirements, matches as commission_matches, assess as assess_commission
-    from .person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
+    from .person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors, personal_analysis_allowed
     from .person_chapter_selection import select_material, dimension_coverage, team_source_facts, prospective_company_risk
 except ImportError:
     from person_commission import requirements as commission_requirements, matches as commission_matches, assess as assess_commission
-    from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors
+    from person_records import observation, comparison_errors, process_text, current_status_errors, chapter_relevant, personal_inference_errors, definition_errors, personal_analysis_allowed
     from person_chapter_selection import select_material, dimension_coverage, team_source_facts, prospective_company_risk
 
-VERSION = "person-template-v32-attributed-date-and-view-context"
+VERSION = "person-template-v96-bounded-source-question-batches"
 ORDER = tuple(range(2, 13)) + (13, 1, 14, 15)
 SENSITIVE = {7, 9, 10, 12}
 TOPICS = {
@@ -212,7 +212,8 @@ def normalize_facts(payload, target, aliases=(), sources=()):
                 and compact(text) in compact(originals[url]))
             if not explicit_colleague and not retained_context and (f.get('claim_type') != 'person_management_event' or not management_event(text, raw_names, event_orgs)):
                 reason = 'feedback_source_requires_attribution_record'
-        if f.get("eligible_for_report") is False or identity in {"ambiguous", "mismatch"} or confidence in {"low", "rejected"} or f.get("usable_as") == "identity_quarantine":
+        rejected_company_source = (f.get("claim_type")=="person_company_record" and (source_meta.get(url,{}).get("entity_validation")=="rejected" or source_meta.get(url,{}).get("identity_confidence") in {"low","rejected"}))
+        if rejected_company_source or f.get("eligible_for_report") is False or identity in {"ambiguous", "mismatch"} or confidence in {"low", "rejected"} or f.get("usable_as") == "identity_quarantine":
             reason = "identity_quarantine"
         elif not text or not url.startswith(("https://", "http://", "structured://")):
             reason = "missing_source_or_statement"
@@ -325,7 +326,17 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
     teams += explicit_colleague_roles(sources, {**intake, 'target_name': target}, audit=team_material_audit)
     from person_retained_material import retained_source_statements
     source_material_audit = []
-    collected = [*payload.get('facts', []), *teams, *events]
+    # A report rerun may use an older cleaning artifact. Recover complete raw
+    # fields only from company sources already admitted by the same guards.
+    from person_company_records import company_records
+    admitted_company,_=normalize_facts({'facts':[f for f in payload.get('facts',[])
+        if f.get('claim_type')=='person_company_record']},target,aliases,sources)
+    approved_company_urls={f['source_url'] for f in admitted_company}
+    company_material=[]
+    for source in sources:
+        if source.url in approved_company_urls:
+            company_material.extend(company_records(source,source_material_audit))
+    collected = [*payload.get('facts', []), *company_material, *teams, *events]
     retained = retained_source_statements(sources, {**intake, 'target_name': target}, collected, audit=source_material_audit)
     facts, rejected = normalize_facts({**payload, 'facts': [*collected, *retained]}, target, aliases, sources)
     try:
@@ -402,7 +413,8 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
             commission_hits = sum(commission_matches(f, r) for r in commissioned) if chapter == 10 else 0
             if (f.get("claim_type") in {"person_platform_record", "person_company_record"} and chapter not in {1, 13}
                     and not (chapter == 10 and commission_hits)
-                    and chapter not in f.get("person_chapters", [])):
+                    and chapter not in f.get("person_chapters", [])
+                    and not (chapter==4 and f.get('claim_type')=='person_company_record')):
                 not_candidate(f, 'structured_record_chapter_scope')
                 continue
             try:
@@ -411,6 +423,14 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
                 from person_text import folded
             blob = folded(f.get("fact"))
             hits = sum(compact(term) in blob for term in terms)
+            from person_chapter_selection import SPECS,material_matches
+            if chapter in SPECS and any(material_matches(f,chapter,view) for view,_ in SPECS[chapter]):hits+=1
+            relations=set((f.get('observation') or {}).get('relations',[]))
+            if f['subject_scope']=='person' and (
+                    chapter==9 and bool(relations & {'holding','appointment'}) or chapter==2 and 'appointment' in relations):
+                hits+=1
+            if chapter==4 and f.get('claim_type')=='person_company_record':hits+=1
+            if chapter==9 and f['subject_scope']=='person' and re.search(r'个人.{0,8}借款|现金增资|资金来源|出资款|认购股份',blob):hits+=1
             if f.get('claim_type') == 'person_management_event':
                 from person_chapter_selection import useful_for_chapter
                 hits += int(useful_for_chapter(f, chapter))
@@ -449,10 +469,10 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
         research, research_audit = select_material(ranked, chapter, commissioned, commission_matches, limit=None)
         selected, selection_audit = select_material(ranked, chapter, commissioned, commission_matches)
         research = [{**f, "temporal_conflict": f["evidence_id"] in conflicting,
-                     "analysis_allowed": f['subject_scope'] == 'person' and not f.get('opinion_only') and not f.get('source_text_issue') and f['evidence_id'] not in conflicting}
+                     "analysis_allowed": personal_analysis_allowed(f, conflicting)}
                     for f in research]
         selected = [{**f, "temporal_conflict": f["evidence_id"] in conflicting,
-                     "analysis_allowed": f['subject_scope'] == 'person' and not f.get('opinion_only') and not f.get('source_text_issue') and f['evidence_id'] not in conflicting}
+                     "analysis_allowed": personal_analysis_allowed(f, conflicting)}
                     for f in selected]
         try:
             from .person_platforms import coverage_rows
@@ -538,9 +558,29 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
 
 def numbers(text):
     from decimal import Decimal
-    from person_text import numeric_literals
-    values = re.findall(r"(?<![A-Za-z])\d+(?:\.\d+)?%?", re.sub(r"E-[A-Z0-9-]+", "", numeric_literals(text)))
+    from person_text import calendar_layout
+    text=calendar_layout(text)
+    values = re.findall(r"(?<![A-Za-z])\d+(?:\.\d+)?%?", re.sub(r"E-[A-Z0-9-]+", "", text))
     return {str(Decimal(value.rstrip('%')).normalize()) + ('%' if value.endswith('%') else '') for value in values}
+
+
+def preserve_cited_aliases(package,admitted,evidence_ids,conflicting_evidence_ids=None):
+    """Keep a cited original when dedup picked another identical source card."""
+    from person_text import folded
+    research=package.get('research_facts',package['facts'])
+    ids={f['evidence_id'] for f in research}
+    conflicting=set(conflicting_evidence_ids or ())|{eid for row in package.get('conflicts',[]) for eid in row.get('evidence_ids',[])}
+    conflicting.update(f['evidence_id'] for f in admitted if f.get('temporal_conflict'))
+    def key(f):return (folded(f['fact']),f.get('subject'),f['subject_scope'],f.get('comparison_subject',''),f.get('team_member_name',''))
+    families={key(f):f for f in research}
+    for f in admitted:
+        if f['evidence_id'] not in evidence_ids or f['evidence_id'] in ids:continue
+        match=families.get(key(f))
+        if match:
+            research.append({**f,'analysis_allowed':personal_analysis_allowed(f,conflicting),
+                'same_wording_as':match['evidence_id'],'temporal_conflict':f['evidence_id'] in conflicting})
+            ids.add(f['evidence_id'])
+    package['research_facts']=research
 
 
 def validate_model_claims(answer, package):
@@ -557,7 +597,7 @@ def validate_model_claims(answer, package):
         return [], ["missing_claims"]
     by_id = {f["evidence_id"]: f for f in package["facts"]}
     accepted, rejected = [], []
-    for row in parsed["claims"][:16]:
+    for row in parsed["claims"]:
         if not isinstance(row, dict):
             rejected.append("invalid_claim")
             continue
@@ -606,12 +646,15 @@ def validate_model_claims(answer, package):
             analysis = ''
         forbidden = r"无(?:任何|历史)?(?:诉讼|处罚|失信)|不存在.*风险|诚信优秀|人格.*(?:优秀|恶劣)|确诊|确认.*(?:代持|贪腐)|已完成.*访谈|评分\s*[A-D][+-]?"
         allowed = " ".join(f["fact"] for f in supports)
-        numeric_analysis = analysis
+        from person_text import without_verified_numeric_source_names
+        numeric_analysis = without_verified_numeric_source_names(analysis,supports)
         for fact in supports:
             for year in re.findall(r'(?:19|20)\d{2}', fact.get('source_reporting_period_literal') or ''):
                 # A proven cover year may label the document. Removing only
                 # that label does not license reusing it as an event year.
                 numeric_analysis = re.sub(r'(?<!\d)'+year+r'年?(?=年报|年度报告)', '', numeric_analysis)
+        from person_text import source_bound_calendar_notation
+        numeric_analysis=source_bound_calendar_notation(numeric_analysis,[f['fact'] for f in supports])
         if analysis and (re.search(forbidden, analysis) or not numbers(numeric_analysis) <= numbers(allowed)):
             rejected.append("unsupported_analysis")
             analysis = ""
@@ -642,7 +685,8 @@ def validate_model_claims(answer, package):
             rejected.append('personal_analysis_not_permitted')
         if analysis:
             from person_source_boundaries import source_context_errors
-            comparison_rejections = comparison_errors(analysis, supports) + current_status_errors(analysis, supports) + personal_inference_errors(analysis) + definition_errors(analysis, supports) + source_context_errors(analysis, supports, package.get('research_facts', package['facts']))
+            from person_role_checks import role_errors
+            comparison_rejections = comparison_errors(analysis, supports) + current_status_errors(analysis, supports) + personal_inference_errors(analysis) + definition_errors(analysis, supports) + source_context_errors(analysis, supports, package.get('research_facts', package['facts'])) + role_errors(analysis,supports)
             if comparison_rejections:
                 rejected.extend(comparison_rejections)
                 analysis = ''
@@ -712,7 +756,9 @@ def render_section(package, claims=()):
                 status += f"；研究池保留{len(row['matched_evidence_ids'])}条候选，以下列代表性回查编号，完整匹配表见证据台账。"
             lines.append(f"| {cell(row['question'])}：{cell('；'.join(row['questions']))} | {cell(status)} {refs} |")
         lines.append('')
-    if not facts:
+    if not facts and package.get('research_facts'):
+        lines += ['本章完整研究材料及原文保留在证据台账中；原文展示受字符预算约束，分析引用可独立回查。', '']
+    elif not facts:
         lines += ["本章证据状态：待核验。", "具体缺口和核查动作见第15章。"]
     elif chapter not in {1, 13}:
         lines += ["### 已检索事实与来源边界", "", '以下均为来源陈述，尚未经独立真实性核验；评价不等于事实，承诺不等于已履行。', '']
@@ -758,6 +804,10 @@ def render_section(package, claims=()):
     if chapter == 6:
         from person_material_tables import team_table
         lines += team_table(package)
+    from person_structured_tables import structured_tables
+    lines += structured_tables(package)
+    from person_cross_chapter_tables import reference_lines
+    lines += reference_lines(package)
     scoped_facts = package.get('research_facts', facts)
     if chapter == 7 and any(f.get('feedback_record') for f in scoped_facts):
         lines += ['', '### 具名评价与具体事件', '', '| 资料性质 | 评价者及原文身份或关系 | 对应时期 | 证据与边界 |', '| --- | --- | --- | --- |']
@@ -796,6 +846,7 @@ def render_section(package, claims=()):
     pending = [c for c in claims if c.get('review_analysis')]
     if pending:
         labels = {'comparison_basis_insufficient': '比较依据尚不完整',
+                  'semantic_review_incomplete': '引用逐项复核尚未完整返回',
                   'semantic_inference_requires_review': '原文线索存在，推理依据仍需复核',
                   'semantic_review_unavailable': '语义复核调用未完成',
                   'direction_or_change_not_verified': '变化方向及因果联系尚未核实',
@@ -853,7 +904,7 @@ def render_section(package, claims=()):
     return "\n".join(lines)
 
 
-def append_index(report, facts):
+def append_index(report, facts, accounting=None):
     sections = split_sections(report)
     first_heading = re.search(r"(?m)^##\s*\d{1,2}\s*[.、．]\s*[^\n]+", report or "")
     preamble = report[:first_heading.start()] if first_heading else report
@@ -875,6 +926,13 @@ def append_index(report, facts):
         lines.append(f"| {eid} | {cell(f.get('source_title'))} | {cell(locator)} | {cell(f.get('provider') or f.get('platform') or '公开资料')} / {cell(f.get('source_grade'))} | {cell(f['event_date'])} / {cell(collected)} | {', '.join(map(str, sorted(chapters)))} |")
     if not uses:
         lines += ["", "正文未形成有效引用，不能据此生成已核验结论。"]
+    if accounting:
+        counts=accounting['dispositions']
+        lines += ['', '### 完整材料采用去向', '',
+            f"本报告另附《人物报告完整证据附录与采用去向》，保留全部{accounting['admitted_records']}条合格记录的原文、来源、主体及处理说明。"
+            f"按主要去向计：分析支撑{counts.get('analysis_support',0)}条、结构化表格{counts.get('structured_table',0)}条、"
+            f"代表性原文{counts.get('original_excerpt',0)}条、补充附录{counts.get('supporting_appendix',0)}条。附录保留不计为分析采用。",
+            f"专业平台合格记录{accounting['professional_records']}条，其中{accounting['professional_records_in_body']}条进入正文分析、表格或原文展示；全部原文同时保留在附录。"]
     sections[14] = "\n".join(lines)
     body = "\n\n".join(sections[i] for i in sorted(sections))
     return (preamble.rstrip() + "\n\n" if str(preamble or "").strip() else "") + body
@@ -956,6 +1014,19 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
     retrieval = payload.get("person_retrieval_audit") or getattr(project, "person_retrieval_audit", {}) or {}
     contract = build_packages(payload, str(project.target_name or ""), outline, intake, getattr(project, "sources", []) or [],
                               getattr(project, 'person_platform_attempts', []) or [])
+    from person_material_routing import review_unassigned,apply_routing
+    routing=review_unassigned(contract,str(project.target_name or ''),invoke,trace_emit,
+        previous=getattr(project,'person_material_routing_audit',None),allow_model=not bool(retained_sections))
+    apply_routing(contract,routing)
+    project.person_material_routing_audit=routing
+    # Restore all authentic research before planning typed-table references.
+    for number,retained in (retained_sections or {}).items():
+        if 'research_facts' in retained:
+            from person_replay_state import restore_research_pool
+            restore_research_pool(contract['chapters'][number],retained['research_facts'],contract['facts'],
+                {eid for row in contract.get('conflicts',[]) for eid in row.get('evidence_ids',[])})
+    from person_cross_chapter_tables import attach_professional_table_references
+    attach_professional_table_references(contract)
     contract['cleaned_payload_sha256'] = hashlib.sha256((cleaned_json or '').encode()).hexdigest()
     collection_stage_gaps = [g for g in payload.get('information_gaps', []) if isinstance(g, str)]
     # Collector counts precede identity refresh and chapter selection. Preserve
@@ -979,6 +1050,10 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
             retained = retained_sections[chapter]
             if set(retained['selected_ids']) != {f['evidence_id'] for f in package['facts']}:
                 raise ValueError('Retained chapter material changed; explicit rewrite required')
+            if 'research_facts' in retained:
+                from person_replay_state import restore_research_pool
+                restore_research_pool(package,retained['research_facts'],contract['facts'],
+                    {eid for row in contract.get('conflicts',[]) for eid in row.get('evidence_ids',[])})
             sections[chapter] = retained['text']
             quoted = '\n'.join(line[2:] for line in retained['text'].splitlines() if line.startswith('> '))
             for fact in contract['facts']:
@@ -990,6 +1065,8 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                 degradations.append({'chapter': chapter, 'reasons': list(unresolved)})
             section_claims[chapter] = retained['claims']
             package['information_gaps'] = list(retained['gaps'])
+            package['required_source_displays']=list(retained.get('required_source_displays',[]))
+            package['literal_material_display_proposed']=retained.get('literal_material_display_proposed',bool(package['required_source_displays']))
             continue
         if chapter == 14:
             sections[14] = "## 14. 信息来源\n\n由正文实际引用生成。"
@@ -1061,7 +1138,7 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
             by_id = {f["evidence_id"]: f for f in contract["facts"]}
             selected = []
             for index in range(2, 13):
-                for source_fact in contract['chapters'][index]['facts']:
+                for source_fact in contract['chapters'][index].get('research_facts',contract['chapters'][index]['facts']):
                     eid = source_fact['evidence_id']
                     if eid in used and eid in by_id and by_id[eid]['subject_scope'] != 'comparison_person' and not by_id[eid].get('opinion_only') and by_id[eid] not in selected:
                         selected.append(by_id[eid])
@@ -1085,17 +1162,38 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                                             for view, status in zip(VIEWS[chapter], statuses)]
         emit(trace_emit, "report", "person_report_agent", "人物章节证据核对与写作", package["title"], section=package["title"], status="running")
         claims, reasons, calls, repair_audit, semantic_audit = [], [], 0, {}, {}
+        def research_invoke(role, prompt, emitter=None):
+            nonlocal calls
+            calls += 1
+            return invoke(role, prompt, emitter)
         excluded_rejections, excluded_claim_count = [], 0
         if chapter in {1, 13}:
             # Summaries inherit accepted body prose verbatim. A fresh model
             # must not invent a second interpretation of the same evidence.
             from person_material_tables import distinct_inherited_analyses
             summary_order = (9, 5, 4, 2, 11, 7, 12) if chapter == 1 else (2, 4, 5, 7, 9, 11, 12)
-            claims = distinct_inherited_analyses(section_claims, summary_order, limit=3 if chapter == 1 else None)
+            from person_prose_budget import analysis_budget
+            claims = distinct_inherited_analyses(section_claims, summary_order, max_chars=analysis_budget(chapter))
             semantic_audit = {'status': 'inherited_body_analyses_no_new_inference',
                               'source_chapters': [c['inherited_from_chapter'] for c in claims]}
+        if chapter not in {1,13}:
+            prior_ids={eid for c in getattr(project,'person_prior_analyses',{}).get(chapter,[]) for eid in c.get('evidence_ids',[])}
+            preserve_cited_aliases(package,contract['facts'],prior_ids,{eid for row in contract.get('conflicts',[]) for eid in row.get('evidence_ids',[])})
         research_candidates = package.get('research_facts', package['facts']) if chapter not in {1, 13} else []
         analysis_candidates = [f for f in research_candidates if f.get('analysis_allowed')]
+        if research_candidates:
+            from person_material_review import writing_input_for
+            writing_input=writing_input_for(package,research_candidates)
+            package['require_material_dispositions']=True
+            prior=getattr(project,'person_prior_analyses',{}).get(chapter,[])
+            if prior:
+                validated_prior,prior_rejections=validate_model_claims(json.dumps({'claims':prior},ensure_ascii=False),
+                    {**package,'facts':research_candidates})
+                from person_content_acceptance import draft_rows
+                writing_input['prior_draft_analyses_not_evidence']=draft_rows(validated_prior)
+                package['prior_analysis_coverage']={'guard_rejections':prior_rejections,
+                    'admitted_prior_drafts':writing_input['prior_draft_analyses_not_evidence'],
+                    'boundary':'shared_citation_is_a_review_clue_not_proof_that_all_previous_information_is_preserved'}
         if research_candidates and (not analysis_candidates or chapter == 12):
             package['material_review'] = {'version': 'complete-material-review-v2', 'status': 'deterministic_attributed_records',
                 'input_evidence_ids': [], 'batches': [], 'omitted_for_input_budget': [],
@@ -1105,23 +1203,6 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
         if research_candidates and analysis_candidates and chapter != 12:
             # Read every admitted scope, with explicit attribution. Context
             # rows remain ineligible as support for personal interpretations.
-            writing_input = {'chapter': chapter, 'title': package['title'], 'task': package['task'],
-                             'research_questions':[row['view'] for row in package.get('material_coverage',[])],
-                             'identity_clues_not_facts': {k: package['identity_clues_not_facts'].get(k, [])
-                                 for k in ('aliases', 'known_affiliations', 'identity_anchors', 'roles', 'supplementary_context')},
-                             'facts': [{'evidence_id': f['evidence_id'], 'fact': f['fact'],
-                                        'source_url': f['source_url'], 'source_title': f.get('source_title'),
-                                        'source_document_issuer': f.get('source_document_issuer', ''),
-                                        'source_document_kind': f.get('source_document_kind', ''),
-                                        'source_reporting_period_literal': f.get('source_reporting_period_literal', ''),
-                                        'attribution_boundary': f.get('attribution_boundary', ''),
-                                        'subject': f['subject'],
-                                        'subject_scope': f['subject_scope'],
-                                        'personal_analysis_allowed': bool(f.get('analysis_allowed')),
-                                        'period': f['observation']['period'], 'metrics': f['observation']['metrics'],
-                                        'role_dates': f['observation'].get('role_date_fields', []),
-                                        'source_events': f['observation'].get('source_events', [])}
-                                       for f in research_candidates]}
             if chapter == 10 and package.get('commission_coverage'):
                 writing_input['commission_questions'] = [
                     {'topic': row['question'], 'questions': row['questions']}
@@ -1136,8 +1217,10 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                 '董事长、总裁或委员会主席职务本身不证明具有直接主导权、最终决策权或单独控制权；仅陈述来源明确的职务和职责。'
                 '所有facts都须纳入研读；subject_scope说明材料主体，personal_analysis_allowed为false的只作归属明确的背景或观点，不能引用为对目标个人的分析证据。'
                 '本批若无允许个人分析的材料，返回空claims，团队、候选对标及具名观点由程序按原文另列，不强行推断目标个人。'
-                '每章最多3条分析，每条尽量不超过120字，不必覆盖每个事实编号。'
+                '分析不按固定条数限制；正文总字符预算在成文阶段单独给出，研读阶段不按正文篇幅截减材料。'
                 '同一事件、任职、教育或承诺只说明一次，不要先总括几件事再分别复述；各条优先回答不同的实质问题。合并同义内容时保留所用来源编号。'
+                'prior_draft_analyses_not_evidence若存在，仅是历史草稿事项提醒，不是证据或应直接沿用的结论。'
+                '逐项回到facts检查，保留有依据的原有实质事项，可合并表达；不能为加入新主题或压缩而漏掉已能回答的问题，也不能继承旧稿错误。'
                 'research_questions列明本章需要回答的具体问题；有多类实际事件时分别保留其要点，不让一项重复叙述挤掉其他已有材料的问题。'
                 '先简洁回答本章的具体问题；已有履历、职责或持股记录时写清来源所述内容及其边界，不要把每项分析都写成泛泛的“未说明”。'
                 '原文支持由程序根据编号填入，不要返回support_quotes，不要抄写原文。引用仅供回查，不等于结论已获核实。'
@@ -1171,10 +1254,6 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
             else:
                 try:
                     from person_material_review import read_then_write
-                    def research_invoke(role, prompt, emitter=None):
-                        nonlocal calls
-                        calls += 1
-                        return invoke(role, prompt, emitter)
                     answer, _ = read_then_write(f"BDD目标人物章节 Agent - {package['title']}",
                         prompt_prefix, writing_input, package, research_invoke, trace_emit, validate_model_claims)
                     # All delivered IDs are known, but their server-side
@@ -1184,42 +1263,37 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                     attempts.append({"chapter": chapter, "status": "returned", "validation_rejections": reasons})
                     if reasons and os.getenv('PERSON_REPORT_REPAIR_REJECTED', 'true').lower() == 'true':
                         try:
-                            from .person_claim_repair import repair_once
+                            from .person_claim_repair import repair_source_findings
                         except ImportError:
-                            from person_claim_repair import repair_once
-                        calls += 1
-                        claims, reasons, repair_audit = repair_once(answer, {**package, 'facts': research_candidates},
-                            writing_input, claims, reasons, invoke, trace_emit, validate_model_claims)
+                            from person_claim_repair import repair_source_findings
+                        claims, reasons, repair_audit = repair_source_findings(answer, {**package, 'facts': research_candidates},
+                            writing_input, claims, reasons, research_invoke, trace_emit, validate_model_claims)
                         attempts.append({'chapter': chapter, 'status': 'repair_returned', 'validation_rejections': reasons})
                     if any(c.get('analysis') for c in claims) and os.getenv('PERSON_REPORT_SEMANTIC_REVIEW_ENABLED', 'true').lower() == 'true':
                         try:
                             from .person_semantic_review import review_analyses
                         except ImportError:
                             from person_semantic_review import review_analyses
-                        calls += 1
                         semantic_audit = {'status': 'request_started'}
+                        from person_conservation import remember_source_validated_candidate
+                        remember_source_validated_candidate(package,claims)
                         before_review = [dict(c) for c in claims]
-                        claims, semantic_reasons, semantic_audit = review_analyses(chapter, package['title'], analysis_candidates, claims, invoke, trace_emit, as_of_date=contract.get('as_of_date'))
+                        claims, semantic_reasons, semantic_audit = review_analyses(chapter, package['title'], analysis_candidates, claims, research_invoke, trace_emit, as_of_date=contract.get('as_of_date'))
                         reasons = list(dict.fromkeys([*reasons, *semantic_reasons]))
                         attempts.append({'chapter': chapter, 'status': 'semantic_review_returned', 'validation_rejections': semantic_reasons})
-                        if semantic_reasons and os.getenv('PERSON_REPORT_REPAIR_REJECTED', 'true').lower() == 'true':
-                            from person_claim_repair import repair_once
-                            writer_answer = json.dumps({'claims': [{'evidence_ids': c['evidence_ids'], 'analysis': c.get('analysis', '')} for c in before_review]}, ensure_ascii=False)
-                            calls += 1
-                            revised, repair_reasons, correction = repair_once(writer_answer, {**package, 'facts': research_candidates},
-                                writing_input, before_review, semantic_reasons, invoke, trace_emit, validate_model_claims, semantic_audit.get('claims', []))
-                            preserved = correction.get('preserved_accepted_claims', 0)
-                            fixed = revised[preserved:]
-                            final_review = {'status': 'no_corrected_analysis'}
-                            final_reasons = []
-                            if any(c.get('analysis') for c in fixed):
-                                calls += 1
-                                fixed, final_reasons, final_review = review_analyses(chapter, package['title'], analysis_candidates, fixed, invoke, trace_emit, '修订后语义复核', as_of_date=contract.get('as_of_date'))
-                            claims = revised[:preserved] + fixed
-                            reasons = list(dict.fromkeys([r for r in reasons if r not in semantic_reasons] + repair_reasons + final_reasons))
-                            semantic_audit = {'status': 'corrected_and_rechecked' if not repair_reasons and not final_reasons else 'still_requires_review',
-                                              'initial_review': semantic_audit, 'repair': correction, 'final_review': final_review}
-                            attempts.append({'chapter': chapter, 'status': 'semantic_repair_rechecked', 'validation_rejections': repair_reasons + final_reasons})
+                        from person_semantic_review import citation_edit_plans
+                        if (set(semantic_reasons) & {'semantic_support_missing', 'semantic_inference_requires_review'} or citation_edit_plans(semantic_audit,before_review,analysis_candidates)) and os.getenv('PERSON_REPORT_REPAIR_REJECTED', 'true').lower() == 'true':
+                            from person_semantic_review import repair_semantic_findings
+                            claims, semantic_reasons, semantic_audit = repair_semantic_findings(
+                                chapter, package['title'], analysis_candidates, before_review,
+                                claims, semantic_reasons, semantic_audit,
+                                {**package, 'facts':research_candidates}, writing_input,
+                                research_invoke, trace_emit, validate_model_claims,
+                                as_of_date=contract.get('as_of_date'))
+                            reasons = list(dict.fromkeys([r for r in reasons if r not in {
+                                'semantic_support_missing','semantic_inference_requires_review'}] + semantic_reasons))
+                            attempts.append({'chapter':chapter, 'status':'semantic_repair_rechecked',
+                                             'validation_rejections':semantic_reasons})
                 except Exception as exc:
                     if semantic_audit.get('status') == 'request_started':
                         semantic_audit = {'status': 'request_failed', 'exception_type': type(exc).__name__}
@@ -1250,9 +1324,42 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                     reasons = []
                 else:
                     degradations.append({"chapter": chapter, "reasons": reasons})
+        content_audit = {'status':'not_applicable','requests':0}
+        if chapter in range(2,13) and research_candidates:
+            if circuit or any(r.startswith('api_failed:') for r in reasons):
+                content_audit = {'status':'pending_generation','requests':0,'issues':['content_acceptance_pending_generation']}
+            else:
+                from person_content_acceptance import accept_content
+                package['as_of_date']=contract.get('as_of_date')
+                claims,content_reasons,content_audit=accept_content(package,claims,
+                    package.get('prior_analysis_coverage',{}).get('admitted_prior_drafts',[]),
+                    writing_input,research_invoke,trace_emit,validate_model_claims)
+                if content_reasons:
+                    reasons=list(dict.fromkeys([*reasons,*content_reasons]))
+                    degradations.append({'chapter':chapter,'reasons':content_reasons})
+                    package['information_gaps'].append('本章事项覆盖验收尚待复核：原有内容的保留、合并或不采用原因未全部完成逐项原文核对；不能仅据引用编号或来源数量认定研究完整。')
+        package['content_acceptance']=content_audit
+        from person_prose_budget import enforce_budget
+        claims, prose_audit = enforce_budget(claims, chapter)
+        package['prose_budget'] = prose_audit
+        if package.get('prior_analysis_coverage'):
+            for prior in package['prior_analysis_coverage']['admitted_prior_drafts']:
+                matches = [i for i,c in enumerate(claims) if c.get('analysis')
+                           and set(prior['evidence_ids']) & set(c['evidence_ids'])]
+                prior['final_analysis_indices_with_shared_citations'] = matches
+                prior['status'] = 'shared_citations_require_content_review' if matches else 'no_shared_citation_requires_omission_review'
+        if prose_audit['status'] != 'within_budget':
+            reason = 'analysis_length_budget_exceeded'
+            reasons = list(dict.fromkeys([*reasons, reason]))
+            degradations.append({'chapter': chapter, 'reasons': [reason]})
+            package['information_gaps'].append('本章分析草稿超出篇幅预算，完整草稿及引用已保留在证据台账中待压缩复核，未按条数截断或直接删去句中限定。')
         if chapter not in {1, 13}:
             from person_material_review import presentation_facts
             package['display_facts'] = presentation_facts(package, claims)
+            if package['quotation_budget'].get('required_undisplayed_evidence_ids'):
+                reasons=list(dict.fromkeys([*reasons,'required_source_display_over_budget']))
+                degradations.append({'chapter':chapter,'reasons':['required_source_display_over_budget']})
+                content_audit.update(status='pending_source_display_budget',issues=reasons)
             package['prior_originals'] = {}
             for fact in package['display_facts']:
                 prior = next((record for (url,quote),record in seen_originals.items()
@@ -1281,6 +1388,10 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                                 'display_fact_count': len(package.get('display_facts', package['facts'])),
                                 'reused_original_reference_count': len(package.get('prior_originals', {})),
                                 'material_review': package.get('material_review', {}),
+                                'prose_budget': prose_audit,
+                                'content_acceptance':content_audit,
+                                'prior_analysis_coverage':package.get('prior_analysis_coverage',{}),
+                                'quotation_budget': package.get('quotation_budget', {}),
                                 'repair': repair_audit,
                                 'semantic_review': semantic_audit,
                                 "validation_rejections": list(dict.fromkeys([*reasons,*excluded_rejections])),
@@ -1288,11 +1399,23 @@ def generate_person_report(project, cleaned_json, risk_json, outline, invoke, em
                                 "cited_evidence_ids": sorted(cited_ids(sections[chapter]))}
         emit(trace_emit, "report", "person_report_agent", "人物章节已记录核验结果", package["title"], section=package["title"], status="fallback" if reasons else "done")
     header = f"# {cell(project.title)}\n\n- 研究对象：{cell(project.target_name)}\n- 报告性质：公开来源研究底稿，尚未经人工复核。\n- 研究截止日：{cell(intake.get('as_of_date') or '未指定，具体事实以来源所披露时期为准')}\n\n"
+    supplements = [(s.source_metadata or {}).get('supplement_retrieved_at') for s in getattr(project, 'sources', [])
+                   if (s.source_metadata or {}).get('supplement_retrieved_at')]
+    if supplements:
+        header += (f"- 补取原文：{len(supplements)}个留存来源于{min(supplements)[:10]}至{max(supplements)[:10]}重新获取；"
+                   "网页内容可能更新，未确认与原截止日相同。补取属于新增材料，不作为同材料实验；具体事件时期以原文为准。\n\n")
     report = append_index(header + "\n\n".join(sections[i] for i in range(1, 16)), contract["facts"])
+    from person_material_accounting import build_accounting,delivery_gate
+    accounting,appendix=build_accounting(report,contract,diagnostics)
+    project.person_evidence_appendix=appendix
+    report=append_index(report,contract['facts'],accounting)
     audit = report_audit(report, contract, degradations)
     audit.update(section_diagnostics=diagnostics, api_attempts=attempts,
                  upstream_collection_diagnostics=historical_gaps,
                  platform_attempts=getattr(project, "person_platform_attempts", []), retrieval_audit=retrieval, generation_order=list(ORDER))
+    audit['material_accounting']=accounting
+    audit['delivery_gate']=delivery_gate(report,contract,diagnostics,accounting,audit['errors'])
+    audit['automatic_delivery_status']=audit['delivery_gate']['status']
     try:
         from .person_platforms import coverage_rows
     except ImportError:

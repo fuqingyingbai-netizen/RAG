@@ -42,6 +42,9 @@ def test_collector_snapshot_counts_remain_auditable_without_false_current_gaps()
 
 def echo(role, prompt, trace):
     pack = json.loads(prompt[prompt.index('{"chapter":'):])
+    if '材料采用诊断' in role:
+        return json.dumps({'material_reviews':[{'evidence_id':f['evidence_id'],'disposition':'appendix',
+            'reason':'该条职责原文保留在证据附录，未据此增加个人能力判断。'} for f in pack['facts']]},ensure_ascii=False)
     return json.dumps({"claims": [{"statement": f["fact"], "evidence_ids": [f["evidence_id"]], "analysis": ""}
                                    for f in pack["facts"]]}, ensure_ascii=False)
 
@@ -289,13 +292,23 @@ def test_real_workflow_persists_all_chapters_ledger_and_review_status_on_resume(
         db.add(p)
         db.flush()
         db.add(ResearchSource(project_id=p.id, source_type="official", title="合成机构履历记录", url="https://fixture.invalid/profile",
-            content=fact()["fact"], summary="", source_metadata={"identity_confidence": "high", "module": "教育与履历", "person_chapters": [2]}, credibility_score=90))
+            content=('林知远于2021年在恒川软件有限公司任职，参与产品战略和团队管理工作。'
+                     '林知远于2010年毕业于远山大学，获得软件工程硕士学位。'
+                     '林知远在恒川软件有限公司负责研发团队建设及产品项目交付，原文仅陈述职责和任职经历。')*3,
+            summary="", source_metadata={"identity_confidence": "high", "module": "教育与履历", "person_chapters": [2]}, credibility_score=90))
         db.commit()
         for expected in (1, 2):
-            artifacts, _ = w.run_project(db, p, [], [], intake={"target_type": "person", "target_name": "林知远"})
+            artifacts, _ = w.run_project(db, p, [], [], intake={"target_type": "person", "target_name": "林知远",
+                'affiliation':'恒川软件有限公司','person_anchor':{'aliases':['林知远'],'known_affiliations':['恒川软件有限公司']}})
             report = next(a for a in artifacts if a.artifact_type == "desktop_report")
             ledger = next(a for a in artifacts if a.artifact_type == "person_claim_ledger")
+            appendix = next(a for a in artifacts if a.artifact_type == 'person_evidence_appendix')
             assert report.version == expected and ledger.version == expected
+            assert appendix.version == expected
+            assert report.artifact_metadata['person_evidence_appendix_artifact_id']==appendix.id
+            assert appendix.artifact_metadata['report_artifact_id']==report.id
+            assert '林知远于2021年在恒川软件有限公司任职' in appendix.content
+            assert appendix.artifact_metadata['material_accounting']['appendix_record_count']>=1
             assert report.artifact_metadata["requires_human_review"]
             assert report.artifact_metadata["delivery_status"] == "review_draft"
             assert report.artifact_metadata.get("docx_object_key")

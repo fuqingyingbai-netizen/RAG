@@ -6,17 +6,17 @@ from report_agents.person_report_agent import PERSON_REPORT_OUTLINE
 from research_workflow import ResearchWorkflow
 
 
-def test_company_table_rows_are_short_scoped_quotes_without_whole_profile_padding():
+def test_company_table_rows_keep_full_values_with_company_scope():
     source = SimpleNamespace(content='### 公司基本信息\n| 字段 | 值 |\n| --- | --- |\n'
         '| 公司简介 | ' + '很长的公司背景介绍' * 100 + ' |\n'
         '| 法定代表 | 林知远 |\n| 主营产品 | 工业软件 |\n| 诉讼记录 | 一起合同争议 |',
         url='structured://xiniu/profile', title='公司资料', source_type='business_database',
         source_metadata={'provider': 'xiniu', 'person_affiliation': {'person_name': '林知远', 'affiliation_name': '恒川软件有限公司'}})
     rows = company_records(source)
-    assert len(rows) == 3
+    assert len(rows) == 4
     assert all(r['evidence_quote'] in source.content for r in rows)
-    assert max(len(r['fact']) for r in rows) < 250
-    assert not any('很长的公司' in r['fact'] for r in rows)
+    assert max(len(r['fact']) for r in rows) > 700
+    assert any('很长的公司背景介绍' * 100 in r['fact'] for r in rows)
     package = build_packages({'facts': rows}, '林知远', PERSON_REPORT_OUTLINE)
     assert not package['chapters'][2]['facts']
     assert not package['chapters'][3]['facts']

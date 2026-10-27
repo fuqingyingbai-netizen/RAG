@@ -69,6 +69,16 @@ def test_group_preserves_core_budget_before_company_history_and_background(monke
     assert all(r['status'] == 'empty_result' for r in coverage_rows(project.person_platform_attempts) if r['tool'] in CRITICAL)
 
 
+def test_group_default_does_not_stop_after_eighteen_requests(monkeypatch):
+    workflow, project, calls = setup(monkeypatch)
+    monkeypatch.delenv('PERSON_PLATFORM_CALL_BUDGET')
+    intake={'target_type':'person','target_name':'林知远'}
+    companies=[f'测试机构{i}有限公司' for i in range(4)]
+    collect_group(workflow,None,project,[(company,intake) for company in companies])
+    assert len(calls)==32
+    assert all((tool,company) in calls for tool in IDENTITY+CRITICAL for company in companies)
+
+
 def test_initial_company_cannot_exhaust_affiliation_reserve(monkeypatch):
     workflow, project, calls = setup(monkeypatch)
     intake = {'target_type': 'person', 'target_name': '林知远'}
