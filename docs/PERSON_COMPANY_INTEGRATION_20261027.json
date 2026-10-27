@@ -1,6 +1,6 @@
 {
-  "saved_utc": "2026-10-27T07:25:29.018775+00:00",
-  "status": "company_branch_compatible_main_full_regression_running",
+  "saved_utc": "2026-10-27T07:41:38.321832+00:00",
+  "status": "validated_combined_ready_for_main_update",
   "person_source_commit": "66c1e28",
   "company_handoff_commit": "420a4d1",
   "runtime_merge_commit": "f3251a5",
@@ -16,20 +16,37 @@
     "joint_frontend_passed": 118,
     "company_handoff_specialized_passed": 2054,
     "full_joint_backend": {
-      "status": "running",
+      "status": "passed",
       "log": "work/git-integration-20261027/full-integrated-regression.log",
-      "note": "Not yet claimed as passed.",
       "plugin_autoload_disabled": true,
       "explicit_plugins": [
         "anyio.pytest_plugin"
       ],
-      "external_network_forbidden": true
-    }
+      "external_network_forbidden": true,
+      "passed": 4085,
+      "skipped": 1,
+      "failed": 0,
+      "warnings": 2334,
+      "duration_seconds": 1818.38,
+      "exit_code": 0,
+      "summary": "4085 passed, 1 skipped, 2334 warnings in 1818.38s (0:30:18)",
+      "log_sha256": "b54233bf13f3813c2e08d824bce04eb2e674638c618392e8c89f6b437f452915",
+      "pytest_arguments": [
+        "-q",
+        "--tb=short",
+        "-p",
+        "anyio.pytest_plugin"
+      ],
+      "runtime_tested_commit": "f3251a5",
+      "runtime_unchanged_after_test_start": true,
+      "skip_reason": "Linux-specific path check is skipped on Windows."
+    },
+    "joint_frontend_failed": 0
   },
   "reports": {
     "person_delivery": "pending",
     "company_delivery": "pending",
     "originals_receipts_and_generated_reports_preserved_locally": true
   },
-  "git_policy": "Normal merge/fast-forward and non-forced pushes only; original company local commits and latest main retained; main awaits complete verification."
+  "git_policy": "Normal merge/fast-forward and non-forced pushes only; original company local commits and latest main retained. Complete combined validation passed; main publication is authorized and follows this record."
 }
