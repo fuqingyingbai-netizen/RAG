@@ -28,5 +28,15 @@
     "Company task preserves and integrates company changes into codex/company.",
     "Merge person branch into compatible company branch, preserving both workflows.",
     "Merge newest origin/main, run cross-workflow checks, then fast-forward main and push without force."
-  ]
+  ],
+  "fresh_person_source_validation": {
+    "passed": 902,
+    "failed": 0,
+    "scope": "All test/test_person_*.py plus test/test_company_platform.py",
+    "pytest_plugins": "Automatic plugin loading disabled; anyio.pytest_plugin explicitly loaded.",
+    "log_sha256": "fe603b68168fd1945a3b227d1171a7367fb9977c5984fcd6b2f296d0f25395e4",
+    "log": "work/git-save-20261027-person/person-source-regression-explicit-plugins.log",
+    "duration_seconds": 62.05,
+    "production_configuration_changed": false
+  }
 }
