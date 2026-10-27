@@ -194,6 +194,10 @@ def actor_obligation_errors(selection, raw):
             # a later affirmative claim in another clause still gets checked.
             prefix=clause[max(0,match.start()-16):match.start()]
             if re.search(r'(?:未判令|未判决|未判決|未责令|未責令|没有判令|沒有判令)[^，。；;]{0,4}$',prefix):continue
+            # A negated classification of this duty is not an assertion of
+            # that duty. Check every later match separately, including an
+            # affirmative "而是股东承担赔偿" in the same clause.
+            if re.search(r'(?:并|並)?不是$',prefix):continue
             if re.search(payment,clause):claimed=True;break
         if not claimed:continue
         supported=False

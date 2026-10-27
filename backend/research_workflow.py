@@ -74,7 +74,7 @@ FIXED_GENERATE_PROPOSAL = True
 PERSON_IDENTITY_POLICY_VERSION = "person-identity-v4-context"
 INDUSTRY_CLEANING_VERSION = "industry-evidence-v24-performance-boundaries"
 INDUSTRY_REPORT_VERSION = "industry-report-evidence-v38-evidence-proportional-body"
-COMPANY_REPORT_VERSION = 'company-report-evidence-v145-readable-source-boundaries'
+COMPANY_REPORT_VERSION = 'company-report-evidence-v147-scoped-duty-negation'
 
 
 def company_source_fingerprint(sources):
