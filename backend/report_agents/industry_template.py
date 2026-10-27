@@ -1,5 +1,7 @@
 'Industry outline adapted from the supplied report reference workbook.'
 
+TEMPLATE_VERSION = 'industry-content-template-v2-required-questions'
+
 INDUSTRY_REPORT_OUTLINE = [('摘要', ['整篇报告的完整摘要，涵盖报告概述、核心研究发现、需关注信号、标的所属赛道竞争格局速览及总体评估等要点']),
  ('行业基础定义与产业链全景', ['涵盖行业分类、行业定义内涵、代表产品及应用领域，完整产业链上下游结构图谱，产业链各环节代表企业、价值分配与平均毛利率水平，以及产业链核心瓶颈环节研判']),
  ('政策环境分析与近期政策摘录',
@@ -29,3 +31,63 @@ INDUSTRY_REPORT_OUTLINE = [('摘要', ['整篇报告的完整摘要，涵盖报�
  ('综合评估', ['对目标行业进行综合评估；明确风险分与行业吸引力等评价的区别，无有效证据时写待核验。指定核心企业时，另列企业评价与局限，不与行业评分混合。']),
  ('信息来源', ['注明检索的信息来源，包括信息点、网址等，以及检索用的数据获取工具']),
  ('后续研究点', ['给出有待确认的信息点和进行下一步更加深度的研究所需要关注的研究方向'])]
+
+INDUSTRY_PROPOSAL_OUTLINE = [
+ ('项目基本情况', ['调研目的、目标行业、核心动因、研究范围与关注方向']),
+ ('项目调研分析', ['一般分析方法、行业特殊问题、本轮优先核验任务与完成条件']),
+ ('项目调研框架与主要研究范围', ['行业市场、产品技术、商业化和风险；资本及企业专项按用户范围启用']),
+ ('项目调研方法与渠道资源', ['公开资料、授权数据库、拟开展访谈及交叉验证；区分拟使用与已完成']),
+ ('项目工作方法与周期安排', ['工作阶段、中期简报可选、最终交付与验收条件；实际周期由双方确认']),
+ ('项目团队安排', ['角色、职责、所需经验；姓名、履历与投入由业务确认，不得编造']),
+ ('项目报价与保密条款', ['费用明细、币种税费、付款节点、保密与数据管理；金额和合同条款待双方确认']),
+]
+
+
+def chapter_template_contract(index, scope=None):
+    """The reader's template is an input requirement, never a source of facts."""
+    scope = scope or {}
+    title, requirements = INDUSTRY_REPORT_OUTLINE[index-1]
+    return {
+        'version': TEMPLATE_VERSION, 'report_chapter_count': 16,
+        'chapter': index, 'title': title, 'required_content': list(requirements),
+        'scope_rules': {
+            'capital_enabled': scope.get('capital_market') != 'none',
+            'company_diligence_enabled': bool(scope.get('named_companies')),
+            'geography': scope.get('geography') or '', 'as_of_date': scope.get('as_of_date') or '',
+        },
+        'requirements': [
+            '标题、顺序和必答内容固定，不以几条摘录替代本章研究任务。',
+            '逐项区分有来源支持、仅有样本或观点、缺少资料；未回答的内容进入核验任务。',
+            '分析须说明引用材料能支持什么、与本章问题有什么关系，以及尚缺的验证条件。',
+            '模板要求不授权补造数据、市场预测、企业事实、评分或已完成的工作。',
+            '资本关闭时不补资本指标；未指定企业时不生成企业尽调；样本不评分行业整体。',
+        ],
+    }
+
+
+def validate_report_template(report, plans=None, scope=None):
+    """Check structure and expose unanswered content; no semantic certification."""
+    import re
+    scope = scope or {}
+    headings = re.findall(r'^##\s+(\d+)\.\s+([^\n]+)', report, re.M)
+    errors = []
+    if [int(n) for n, _ in headings] != list(range(1, 17)):
+        errors.append('report_template_chapter_order')
+    for number, heading in headings:
+        index = int(number)
+        if 1 <= index <= 16:
+            expected = INDUSTRY_REPORT_OUTLINE[index-1][0]
+            if heading != expected and not (index == 15 and heading.startswith(expected+'（')):
+                errors.append('report_template_title_'+number)
+    gaps = []
+    for number, plan in (plans or {}).items():
+        index = int(number)
+        if ((index in {8,9} and scope.get('capital_market') == 'none')
+                or (index == 12 and not scope.get('named_companies'))):
+            continue
+        for row in plan.get('content_coverage') or []:
+            if row.get('status') != 'source_material_pending_review' or row.get('analysis_status') != 'draft_analysis_present':
+                gaps.append({'chapter':index, 'question':row['question'], 'material_status':row.get('status'),
+                             'analysis_status':row.get('analysis_status')})
+    return {'version': TEMPLATE_VERSION, 'structure_passed': not errors, 'errors': errors,
+            'content_gaps': gaps, 'entailment_status': 'not_evaluated'}

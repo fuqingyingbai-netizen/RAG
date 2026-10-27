@@ -11,10 +11,21 @@ def _task_overview(tasks, risk):
     if unknown:
         lines += ['本轮尚未完成有效评估的事项：' + '、'.join(unknown) + '。先区分评分校验问题与真实资料缺口，再决定复核、补采或缩减范围。', '']
     lines += ['| 优先级 | 本轮待解决问题 | 完成条件 |', '| --- | --- | --- |']
+    chapter_topics = {}
     for t in tasks:
         lines.append('| ' + ' | '.join(map(_cell, (t.get('priority', '高'),
             str(t.get('task_id') or t.get('key') or '') + ' ' + str(t.get('topic') or '待确认问题'),
             t.get('completion') or '核对原始材料后复核；缺证继续保留未知。'))) + ' |')
+        # All individual questions and full completion criteria remain in
+        # appendix A; the main proposal must not duplicate that entire appendix.
+        for sub in t.get('subtasks') or []:
+            if sub.get('status') in {'missing', 'background_only'}:
+                chapter_topics.setdefault(sub['chapter'], [])
+                if sub['topic'] not in chapter_topics[sub['chapter']]:
+                    chapter_topics[sub['chapter']].append(sub['topic'])
+    if chapter_topics:
+        lines += ['', '优先复核方向（完整动作见附录A）：' + '；'.join(
+            '第'+str(chapter)+'章：'+'、'.join(topics) for chapter, topics in chapter_topics.items())+'。']
     return '\n'.join(lines) if tasks else '本轮尚未登记专项任务，实施前先核对报告及实际研究缺口。'
 
 
@@ -56,7 +67,7 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
         conditional_rows += '| 核心企业 | 仅对已指定企业核对注册、股权、经营和风险 | 独立企业证据清单及核验边界 |\n'
     if scope.get('capital_market') == 'summary':
         conditional_rows += '| 资本市场 | 核对融资、IPO、并购、估值与交易情绪 | 数据期间一致的资本事件表 |\n'
-    return f'''# {project.title}：行业研究项目建议书
+    proposal = f'''# {project.title}：行业研究项目建议书
 
 状态：待确认稿。范围、排期、投入人员、费用及验收条件须双方确认后实施；本稿不构成已确认报价。
 
@@ -145,3 +156,8 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
 
 {task_sources}
 '''
+    from .industry_template import INDUSTRY_PROPOSAL_OUTLINE
+    headings = re.findall(r'^## (\d+)\. (.+)$', proposal, re.M)
+    if headings != [(str(i), title) for i, (title, _) in enumerate(INDUSTRY_PROPOSAL_OUTLINE, 1)]:
+        raise ValueError('industry_proposal_template_mismatch')
+    return proposal

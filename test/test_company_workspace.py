@@ -22,6 +22,8 @@ real_sync_catalog = ws.sync_catalog
 
 @pytest.fixture
 def setup(monkeypatch, tmp_path):
+    for key in ('MODEL', 'BASE_URL', 'ARK_API_KEY'):
+        monkeypatch.delenv(key, raising=False)
     for key, value in {'API_KEY': 'test-secret', 'BASE_URL': 'https://test.cn-beijing.maas.aliyuncs.com',
                        'AGENT_ID': 'aid-test', 'INDEX_ID': 'test-index'}.items():
         monkeypatch.setenv('BAILIAN_KNOWLEDGE_' + key, value)
@@ -156,7 +158,12 @@ def test_registered_file_is_reused_after_import_failure(setup, monkeypatch):
     assert setup.client.post(f'/company-knowledge/documents/{doc_id}/retry').status_code == 202
 
 
-def test_retrieval_filters_and_postfilter_before_generation(setup, monkeypatch):
+@pytest.mark.parametrize('local_model', [False, True])
+def test_retrieval_filters_and_postfilter_before_generation(setup, monkeypatch, local_model):
+    if local_model:
+        monkeypatch.setenv('MODEL', 'qwen3.8-max')
+        monkeypatch.setenv('BASE_URL', 'https://relay.example.test/v1/')
+        monkeypatch.setenv('ARK_API_KEY', 'relay-test-key')
     doc_id = upload(setup, visibility='restricted').json()['id']
     ready(setup, doc_id)
     with setup.db() as db:
@@ -166,13 +173,22 @@ def test_retrieval_filters_and_postfilter_before_generation(setup, monkeypatch):
     def handler(request):
         body = json.loads(request.content)
         if request.url.path.endswith('/retrieve'):
+            assert request.url.host == 'test.cn-beijing.maas.aliyuncs.com'
+            assert request.headers['Authorization'] == 'Bearer test-secret'
             assert body['search_filters'] == [{'doc_id': ['cloud-a']}]
             return httpx.Response(200, json={'success': True, 'data': {'nodes': [
                 {'metadata': {'doc_id': 'cloud-a', 'content': 'Authorized evidence', 'doc_name': 'proof'}},
                 {'metadata': {'doc_id': 'cloud-b', 'content': 'SECRET-CONTENT', 'doc_name': 'SECRET-TITLE'}}]}})
         if request.url.path.endswith('/app/get'):
+            assert not local_model
             return httpx.Response(200, json={'data': {'agent_details': [{'agent_version': '1', 'agent_config': {'agent_model': 'test-model'}}]}})
         assert request.url.path.endswith('/chat/completions')
+        if local_model:
+            assert str(request.url) == 'https://relay.example.test/v1/chat/completions'
+            assert request.headers['Authorization'] == 'Bearer relay-test-key'
+            assert body['model'] == 'qwen3.8-max'
+        else:
+            assert body['model'] == 'test-model'
         assert 'SECRET' not in request.content.decode() and 'stale assistant' not in request.content.decode()
         assert '待复核' in body['messages'][0]['content']
         frames = [{'choices': [{'delta': {'content': 'Answer [id_1]'}, 'finish_reason': None}]},

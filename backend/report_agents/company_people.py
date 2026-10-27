@@ -291,7 +291,9 @@ def build_people_package(cleaned,target,sources=None,*,limit=60000):
     if counts['budget_excluded']:gaps.append('部分已识别记录超出本章展示预算，不代表该信息不存在或未披露。')
     missing=[m for m in ('销售人员流失率','研发人员流失率','技术人员流失率') if not any(r.get('metric')==m for r in delivered)]
     if missing:gaps.append('本章尚未形成可绑定原表的'+ '、'.join(missing)+'；不能改写成企业全文未披露。')
+    from .company_selection_audit import selection_audit
     return {'version':VERSION,'target_name':target,'facts':delivered,'source_notes':notes,'information_gaps':gaps,
+            'selection_audit':selection_audit(records,delivered),
             'diagnostic':{'candidate_claims':len(records),'delivered_claims':len(delivered),'by_kind':dict(Counter(r['kind'] for r in delivered)),'filters':dict(counts)}}
 
 

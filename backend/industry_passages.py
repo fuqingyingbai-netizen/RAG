@@ -2,7 +2,28 @@
 import re
 
 
-def passage_issues(text):
+def reader_proposition(text):
+    """Drop an attached numbered heading only before an attributed proposition.
+
+    The returned view is a substring. Stored source text, locator and quote are
+    never rewritten, and no qualification after the attribution is removed.
+    """
+    text = str(text or '')
+    # PDF letterheads may repeat every issuing body. Only discard the header
+    # before a complete, titled promulgation statement; never edit the archive.
+    title = text.find('《')
+    header = text[:title] if title > 0 else ''
+    if (re.search(r'([\u4e00-\u9fff]{3,35}(?:委员会|办公室|总局|部))\1', header)
+            and re.search(r'第\s*\d+\s*号\s*$', header)
+            and re.search(r'通过|公布|施行', text[title:])):
+        text = text[title:]
+    prefix = re.match(r'^[\u4e00-\u9fff]{2,25}(?:\d{1,2}[、.．]|[一二三四五六七八九十]+、)'
+                      r'[\u4e00-\u9fff]{2,35}?(?=根据《|据《|报告显示|数据显示)', text)
+    candidate = text[prefix.end():] if prefix else text
+    return candidate if has_predicate(candidate) else text
+
+
+def passage_issues(text, *, analysis=False):
     """Reject page furniture and clipped propositions, not their whole source."""
     text = str(text or '').strip()
     from text_integrity import text_issues
@@ -19,8 +40,14 @@ def passage_issues(text):
         issues.append('unclosed_quotation')
     if re.search(r'全产业链梳理\s*[:：]', text) and len(re.findall(r'[、,，]', text)) >= 4:
         issues.append('title_stock_list')
+    if re.search(r'\.{3,}|…{1,}', text):
+        issues.append('elided_source_passage')
+    if re.search(r'(?:行业主要|主要)(?:上市公司|上市企业)\s*[:：]', text):
+        issues.append('title_stock_list')
     if re.search(r'(?:占据|占有).{0,12}(?:约|大约)\s*[%％]', text):
         issues.append('missing_quantity_placeholder')
+    if re.search(r'Contents\s*Page|目录页', text, re.I):
+        issues.append('table_of_contents')
     if re.search(r'---\s*PDF\s+page\s+\d+\s*---|目录\s*\d|文档简介|(?:^|\s)(?:Contact|For more information|Phone number|Email:)\b', text, re.I):
         issues.append('page_furniture')
     if re.search(r'\.(?:docx?|pdf)\s*[-—]|报告服务热线|浏览次数\s*[:：]|文章字号|\[.*?\]\(https?://[^)]*$', text, re.I):
@@ -34,9 +61,74 @@ def passage_issues(text):
         issues.append('incomplete_proposition')
     if re.match(r'^[，,。；;：:）)"”]|^[-+−]?\d+(?:\.\d+)?\s*[%％]', text):
         issues.append('incomplete_proposition')
-    if re.search(r'用户提问|如何|为什么|怎样|是否|[?？]',text):
+    # Source questions are not evidence. Authored analysis may legitimately say
+    # "未说明是否可比"; interrogative words inside that statement are not a question.
+    if (re.search(r'用户提问|[?？]', text)
+            or (not analysis and re.search(r'如何|为什么|怎样|是否', text))
+            or (analysis and re.match(r'^(?:请问|如何|为什么|怎样|是否)', text))):
         issues.append('question_not_assertion')
     return list(dict.fromkeys(issues))
+
+
+def source_prefix(fact, body, limit=650):
+    """Read a bounded prefix only when it belongs to the located quotation.
+
+    The prefix supplies qualifications, never extra metrics or writing facts.
+    A headline or an unbound page must not change a statement's local role.
+    """
+    locator = (fact.get('provenance') or {}).get('locator') or {}
+    start, end = locator.get('start'), locator.get('end')
+    if not (locator.get('status') == 'verified' and isinstance(start, int) and isinstance(end, int)
+            and 0 <= start < end <= len(body or '')):
+        return ''
+    quote = str(locator.get('quote') or fact.get('evidence_quote') or '')
+    if re.sub(r'\s+', '', body[start:end]).casefold() != re.sub(r'\s+', '', quote).casefold():
+        return ''
+    if locator.get('body_sha256'):
+        import hashlib
+        if hashlib.sha256(body.encode()).hexdigest() != locator['body_sha256']:
+            return ''
+    return body[max(0, start-limit):start]
+
+
+def recommendation_context(fact, body):
+    """An action item inherits its nearby advice/next-step heading, not success."""
+    prefix = source_prefix(fact, body)
+    quote = str(fact.get('evidence_quote') or '')
+    if not prefix or not re.search(r'依托|通过|推行|优化|打造|建立|探索|降低|提升', quote):
+        return False
+    # A new completed result or speaker resets an earlier proposal section.
+    reset = list(re.finditer(r'记者[：:]|(?:调查|结果|数据)显示|(?:已经|已于|已实现|已完成|已取得|试运行以来)', prefix))
+    if reset:
+        prefix = prefix[reset[-1].end():]
+    if re.search(r'已经|已于|已实现|已完成|已取得|实际(?:支付|收费|回款)|调查显示', quote):
+        return False
+    return bool(re.search(r'为此建议[：:]|(?:下一步|未来)[，,：:]|需要[^。！？\n]{0,70}(?:商业模式|建立|完善|探索)', prefix))
+
+
+def policy_obligation(text):
+    """Return an explicit actor/action pair; a development principle is not one.
+
+    This is a conservative display/coverage rule, not a full legal opinion.
+    """
+    text = re.sub(r'^第[一二三四五六七八九十百\d]+条\s*', '', str(text).strip())
+    match = re.search(r'^([^。；;]{2,35}?)(应当|不得|必须|禁止)([^。；;]{3,160})', text)
+    if not match:
+        return None
+    actor, modal, action = match.groups()
+    if (re.search(r'产业发展|行业发展|产业体系', actor)
+            or re.match(r'坚持.{0,60}原则', action)):
+        return None
+    return actor.strip(), modal, action
+
+
+def policy_purpose_or_principle(text):
+    """Recognize a complete purpose clause without a short-distance loophole."""
+    text = re.sub(r'^第[一二三四五六七八九十百\d]+条\s*', '', str(text).strip())
+    if policy_obligation(text):
+        return False
+    return bool(re.fullmatch(r'(?:为了|为)[^。！？；;]+制定(?:本|该)(?:条例|办法|规定|细则)[。]?', text)
+                or re.search(r'坚持[^。！？；;]*原则|建成[^。！？；;]*高地', text))
 
 
 def has_predicate(text):
@@ -83,13 +175,15 @@ def numeric_temporal_attribute(quote, metric, value, unit):
     if not anchor or expected is None:
         return None
     results = []
+    from industry_grounding import metric_endpoint_period
+    endpoint = metric_endpoint_period(quote, metric, value, unit)
     for occurrence in re.finditer(re.escape(anchor), text):
         for number in re.finditer(NUMBER_PATTERN, text[occurrence.end():]):
             if number.start() > 100 or number_key(number[0]) != expected:
                 continue
             between = text[occurrence.end():occurrence.end()+number.start()]
             earlier = list(re.finditer(NUMBER_PATTERN, between))
-            if earlier and not re.fullmatch(r'(?:增长|增|升|提高|下降|减少)(?:至|到)20\d{2}年(?:的)?', between[earlier[-1].end():]):
+            if earlier and not endpoint and not re.fullmatch(r'(?:增长|增|升|提高|下降|减少)(?:至|到)20\d{2}年(?:的)?', between[earlier[-1].end():]):
                 continue
             end = occurrence.end() + number.end()
             prefix = text[:occurrence.end() + number.start()]

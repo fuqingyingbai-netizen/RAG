@@ -233,7 +233,8 @@ def grade_documents_node(state: RAGState) -> RAGState:
     prompt = GRADE_PROMPT.format(question=question, context=context)
     # 45. 结构化输出调用：with_structured_output 强制模型返回 GradeDocuments 格式
     #     知识点：LangChain 结构化输出——避免解析自然语言的繁琐和错误
-    response = grader.with_structured_output(GradeDocuments).invoke(
+    # OpenAI-compatible relays may support tools without native JSON Schema output.
+    response = grader.with_structured_output(GradeDocuments, method="function_calling").invoke(
         [{"role": "user", "content": prompt}]  # 标准 OpenAI 消息格式
     )
     # 46. 标准化评分结果：小写 + 去空格，避免大小写/空格导致的判断错误
@@ -277,7 +278,7 @@ def rewrite_question_node(state: RAGState) -> RAGState:
         )
         try:
             # 58. 结构化输出调用：强制返回 RewriteStrategy 格式
-            decision = router.with_structured_output(RewriteStrategy).invoke(
+            decision = router.with_structured_output(RewriteStrategy, method="function_calling").invoke(
                 [{"role": "user", "content": prompt}]
             )
             strategy = decision.strategy

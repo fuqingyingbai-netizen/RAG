@@ -8,7 +8,7 @@ OVERCLAIMS = (
     r'法律合规风险\s*[：:]?\s*0(?:\s|$)',
     r'企业无历史遗留违规',
 )
-BOUNDARY = re.compile(r'不能(?:直接)?(?:证明|认定|推定|得出|视为)|不(?:代表|等于|足以证明|意味着|构成)|不得(?:写成|表述为|据此认定)|未能证明')
+BOUNDARY = re.compile(r'不能(?:直接|据此)?(?:证明|认定|推定|得出|视为|等同于|作为存在或)|不(?:代表|等于|足以证明|意味着|构成)|不得(?:写成|表述为|据此认定)|未能证明')
 
 
 def company_overclaims(report):
@@ -22,7 +22,7 @@ def company_overclaims(report):
     for pattern in OVERCLAIMS:
         for match in re.finditer(pattern, report or '', re.I):
             prefix = (report or '')[max(0, match.start() - 100):match.start()]
-            prefix = re.split(r'[。！？\n|；]|但是|然而|不过|实际上|但', prefix)[-1]
+            prefix = re.split(r'[。！？\n|；，,]|但是|然而|不过|实际上|但', prefix)[-1]
             boundary = list(BOUNDARY.finditer(prefix))
             if boundary and len(prefix) - boundary[-1].end() <= 55:
                 continue

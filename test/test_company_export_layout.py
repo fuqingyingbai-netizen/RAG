@@ -27,6 +27,17 @@ def test_company_index_short_link_keeps_exact_original_relationship_and_eid_jump
     assert any(r.get(W+'name')=='evidence_E_ABC123DEF456' for r in doc.iter(W+'bookmarkStart'))
 
 
+def test_compact_source_title_index_preserves_links_and_evidence_bookmarks():
+    index=INDEX.replace('来源与关键摘要','来源标题').replace('第 7 章','7')
+    doc,rels=exported('## 7. 团队\n公司聘任披露。[E-ABC123DEF456]\n\n'+index)
+    labels=''.join(x.text or '' for x in doc.iter(W+'t'))
+    assert '打开原件' in labels and URL not in labels
+    assert URL in {r.get('Target') for r in rels}
+    assert any(r.get(W+'name')=='evidence_E_ABC123DEF456' for r in doc.iter(W+'bookmarkStart'))
+    assert any(r.get(W+'val')=='CompanySource' for r in doc.iter(W+'pStyle'))
+    assert any(r.get(W+'w')=='40' for r in doc.iter(W+'top'))
+
+
 def test_company_table_repeats_header_and_keeps_short_rows_together():
     table='| 人员 | 职务 |\n| --- | --- |\n| 王甲 | 董事 |\n| 乙 | '+'长文本'*200+' |\n'
     doc,_=exported('## 7. 团队\n'+table+'\n'+INDEX)

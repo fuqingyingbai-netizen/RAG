@@ -2,6 +2,25 @@
 import json
 
 
+def model_evidence(payload):
+    """Expose observations and licensed numbers, never validator success flags.
+
+    The bounded audit package remains unchanged for selection diagnostics and
+    backend validation against the original retained facts.
+    """
+    visible = {k:v for k,v in payload.items() if k not in {'input_selection', 'facts'}}
+    visible['facts'] = []
+    for original in payload.get('facts', []):
+        row = {k:v for k,v in original.items() if k in {
+            'evidence_id','fact','module','claim_type','evidence_scope','source_url','source_title',
+            'source_document_key','numeric_context','allowed_numbers'}}
+        if original.get('fact_contract'):
+            row['source_boundaries'] = {k:v for k,v in original['fact_contract'].items()
+                                        if k in {'source_role','sample_boundary','quantity_type'}}
+        visible['facts'].append(row)
+    return json.dumps(visible, ensure_ascii=False)
+
+
 def risk_input(facts, scope, limit=28000):
     from industry_research import active_risk_dimensions, risk_fact_applicable, risk_fact_text, source_document_key
     from industry_evidence import evidence_requirements, fact_requirement_ids
@@ -10,13 +29,18 @@ def risk_input(facts, scope, limit=28000):
     unique = {f['evidence_id']: f for f in facts if isinstance(f, dict) and f.get('evidence_id')}
     unique = {eid: f for eid, f in unique.items() if f.get('module') != '竞争格局与代表企业'
               or risk_fact_applicable(f, '竞争格局与集中度风险')}
-    pools = {name: [f for f in unique.values() if risk_fact_applicable(f, name)] for name in dimensions}
+    # Facts and dimensions are immutable during this selection. Reuse their
+    # applicability while trying budget combinations, not across runs/users.
+    applicable = {eid: {name for name in dimensions if risk_fact_applicable(f, name)}
+                  for eid, f in unique.items()}
+    document_keys = {eid: source_document_key(f.get('source_url', '')) for eid, f in unique.items()}
+    pools = {name: [f for eid, f in unique.items() if name in applicable[eid]] for name in dimensions}
     requirements = evidence_requirements(sorted({f.get('module', '') for f in unique.values()}))
     metrics = {eid: set(fact_requirement_ids(f, requirements, True)) for eid, f in unique.items()}
     selected, rows, covered, documents = {}, [], set(), set()
 
     def package():
-        ids = {name: [eid for eid, f in selected.items() if risk_fact_applicable(f, name)] for name in dimensions}
+        ids = {name: [eid for eid in selected if name in applicable[eid]] for name in dimensions}
         return {'facts': rows, 'dimension_evidence_ids': ids,
                 'input_selection': {name: {'available_applicable_count': len(pools[name]),
                     'retained_applicable_count': len(ids[name]),
@@ -27,7 +51,7 @@ def risk_input(facts, scope, limit=28000):
     def rank(f):
         c = f.get('fact_contract') or {}
         return (f.get('claim_type') != 'source_excerpt', bool(metrics[f['evidence_id']] - covered),
-                source_document_key(f.get('source_url', '')) not in documents,
+                document_keys[f['evidence_id']] not in documents,
                 c.get('source_role') == 'policy_primary', (f.get('numeric_validation') or {}).get('passed') is True,
                 float(f.get('quality_score') or 0))
 
@@ -44,7 +68,7 @@ def risk_input(facts, scope, limit=28000):
                     'metric', 'value', 'unit', 'period', 'geography', 'definition', 'is_forecast', 'value_nature', 'comparator'}}
                 row = {k: f.get(k) for k in ('evidence_id', 'module', 'claim_type', 'evidence_scope', 'source_url')}
                 row.update(fact=risk_fact_text(f), source_title=str(f.get('source_title') or '')[:120],
-                           source_document_key=source_document_key(f.get('source_url', '')),
+                           source_document_key=document_keys[eid],
                            fact_contract={k: c[k] for k in ('version', 'tasks', 'source_role', 'quantity_type', 'sample_boundary', 'risk_admitted') if k in c},
                            numeric_context=ctx, numeric_validation={'passed': (f.get('numeric_validation') or {}).get('passed') is True},
                            allowed_numbers=[str(ctx.get('value')) + str(ctx.get('unit'))] if (f.get('numeric_validation') or {}).get('passed') is True else [])
@@ -52,7 +76,7 @@ def risk_input(facts, scope, limit=28000):
                 rows.append(row)
                 if len(json.dumps(package(), ensure_ascii=False)) <= limit:
                     covered.update(metrics[eid])
-                    documents.add(source_document_key(f.get('source_url', '')))
+                    documents.add(document_keys[eid])
                     added = True
                     break
                 rows.pop()

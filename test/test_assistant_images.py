@@ -75,7 +75,9 @@ def test_screenshot_uses_real_guide_not_model_generated_steps():
     assert '向选中资料提问' in answer and '1500' in answer
     assert '立即恢复' not in answer
     assert '截图识别' in observation and len(calls) == 1
-    assert calls[0][0][1]['content'][1]['type'] == 'image_url'
+    blocks = calls[0][0][1]['content']
+    assert blocks[1] == {'type': 'text', 'text': '图里这个问答怎么用？'}
+    assert blocks[2]['type'] == 'image_url'
     assert calls[0][1]['response_format'] == {'type': 'json_object'}
 
 
@@ -91,6 +93,7 @@ def test_image_only_default_asks_for_description_instead_of_forcing_product_help
     answer, _, calls = invoke_image(vision_reply(kind='chat', answer='图片中有一个人。', observation='可见一个人。'), question='')
     current = json.loads(calls[0][0][1]['content'][0]['text'])
     assert current['用户问题'] == '请描述这张图片。' and '一个人' in answer
+    assert calls[0][0][1]['content'][1]['text'] == '请描述这张图片。'
     assert '请描述这张图片。' in images.image_question('', 1)
 
 

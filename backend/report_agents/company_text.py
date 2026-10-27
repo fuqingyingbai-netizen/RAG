@@ -1,14 +1,57 @@
 """Chinese-script matching views; source names and original quotes stay intact."""
 import re
 from difflib import SequenceMatcher
+from collections import OrderedDict
+from contextlib import contextmanager
+from contextvars import ContextVar
+from threading import RLock
 
 from opencc import OpenCC
 
 _CC = OpenCC('t2s')
+_MATCHING_CACHE=ContextVar('company_matching_cache',default=None)
+
+
+class _MatchingCache:
+    """Bound temporary string storage; keys contain the entire native input."""
+    def __init__(self,max_chars,max_entries):
+        self.max_chars=max_chars;self.max_entries=max_entries
+        self.entries=OrderedDict();self.chars=0;self.lock=RLock()
+
+    def convert(self,text):
+        converter=_CC;key=(converter,text)
+        with self.lock:
+            if key in self.entries:
+                result=self.entries.pop(key);self.entries[key]=result;return result
+        result=converter.convert(text);weight=len(text)+len(result)
+        with self.lock:
+            if key in self.entries:return self.entries[key]
+            if self.max_entries<1 or weight>self.max_chars:return result
+            while self.entries and (self.chars+weight>self.max_chars or len(self.entries)>=self.max_entries):
+                old_key,old_result=self.entries.popitem(last=False)
+                self.chars-=len(old_key[1])+len(old_result)
+            self.entries[key]=result;self.chars+=weight
+        return result
+
+
+@contextmanager
+def company_matching_cache(*,max_chars=8_000_000,max_entries=4096):
+    """Reuse pure matching views during one generation; retain no text after it.
+
+    A nested scope shares its parent. New threads and independent report calls
+    receive their own scope. Source storage and quote offsets stay unchanged.
+    """
+    if _MATCHING_CACHE.get() is not None:
+        yield;return
+    cache=_MatchingCache(max_chars,max_entries);token=_MATCHING_CACHE.set(cache)
+    try:yield
+    finally:
+        cache.entries.clear();cache.chars=0;_MATCHING_CACHE.reset(token)
 
 
 def match_text(value):
-    return _CC.convert(str(value or ''))
+    text=str(value or '');cache=_MATCHING_CACHE.get()
+    return cache.convert(text) if cache is not None else _CC.convert(text)
 
 
 def match_compact(value):
@@ -42,6 +85,14 @@ class OriginalTextView:
             else:
                 spans.append((a, b))
         return self.original[spans[0][0]:spans[-1][1]] if spans else ''
+
+
+def issuer_response_title(title):
+    """An issuer's feedback submission is not the hosting agency's opinion."""
+    title=re.sub(r'\s+','',str(title or ''))
+    title=re.sub(r'\.pdf$','',title,flags=re.I)
+    return bool(re.search(r'(?:首次公开发行|发行注册|发行人|保荐|上市).{0,180}'
+                          r'(?:反馈意见|审核问询|问询函|问询).{0,100}(?:回复|答复)[》）)]*$',title))
 
 
 def issuer_anchor(raw, target):

@@ -1,0 +1,1177 @@
+{
+  "schema_version": 1,
+  "suite_id": "industry-acceptance-candidates-v1",
+  "created_on": "2026-10-23",
+  "label_status": "candidate",
+  "label_author": "assistant-proposed, not business-reviewed",
+  "source_policy": "All excerpts, quantities and legal clauses are fictional fixtures; URLs identify parser roles only and are never fetched.",
+  "split_policy": "22 development + 8 fixed challenge rewrites; challenge examples were visible at creation and are not an unseen statistical holdout.",
+  "review_protocol": "Expected decisions and rationales were authored before running the baseline. Do not relabel failures to match the current implementation. Business review must use an independent review record.",
+  "cases": [
+    {
+      "id": "IA-001",
+      "category": "指标与单位",
+      "split": "development",
+      "kind": "fact",
+      "target": "report",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "规模金额不能使用增长百分比作值。",
+      "expected": {
+        "allowed": false
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "2024年中国机器人产业规模增长速度达到12%。",
+        "module": "市场规模与增长",
+        "source": {
+          "url": "https://research.example/fictional",
+          "title": "合成行业观察资料",
+          "body": "2024年中国机器人产业规模增长速度达到12%。"
+        },
+        "numeric_context": {
+          "metric": "产业规模",
+          "value": "12",
+          "unit": "%",
+          "period": "2024",
+          "geography": "中国大陆",
+          "definition": "机器人产业规模",
+          "is_forecast": false
+        },
+        "numeric_validation": {
+          "passed": true
+        }
+      }
+    },
+    {
+      "id": "IA-002",
+      "category": "指标与单位",
+      "split": "development",
+      "kind": "fact",
+      "target": "report",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "原文明确的规模金额应保留，不能因同组错误而全部拒绝。",
+      "expected": {
+        "allowed": true,
+        "period": "2024"
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "2024年中国机器人市场规模达到120亿元。",
+        "module": "市场规模与增长",
+        "source": {
+          "url": "https://research.example/fictional",
+          "title": "合成行业观察资料",
+          "body": "2024年中国机器人市场规模达到120亿元。"
+        },
+        "numeric_context": {
+          "metric": "市场规模",
+          "value": "120",
+          "unit": "亿元",
+          "period": "2024",
+          "geography": "中国大陆",
+          "definition": "机器人市场规模",
+          "is_forecast": false
+        },
+        "numeric_validation": {
+          "passed": true
+        }
+      }
+    },
+    {
+      "id": "IA-003",
+      "category": "预测与实际",
+      "split": "development",
+      "kind": "claim",
+      "target": "claim",
+      "scope": {
+        "industry_name": "人工智能",
+        "segments": [
+          "人工智能"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "未来预测不能去掉预测标记后变成实际规模。",
+      "expected": {
+        "allowed": false,
+        "required_issue_codes": [
+          "forecast_presented_as_actual"
+        ]
+      },
+      "text": "中国人工智能市场规模达到680亿元 [E-A00000000001]。",
+      "facts": [
+        {
+          "evidence_id": "E-A00000000001",
+          "quote": "来源预计2030年中国人工智能市场规模达到680亿元。",
+          "module": "市场规模与增长",
+          "source": {
+            "url": "https://research.example/fictional",
+            "title": "合成行业观察资料",
+            "body": "来源预计2030年中国人工智能市场规模达到680亿元。"
+          },
+          "numeric_context": {
+            "metric": "市场规模",
+            "value": "680",
+            "unit": "亿元",
+            "period": "2030",
+            "geography": "中国大陆",
+            "definition": "人工智能市场规模",
+            "is_forecast": true
+          },
+          "numeric_validation": {
+            "passed": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "IA-004",
+      "category": "预测与实际",
+      "split": "development",
+      "kind": "claim",
+      "target": "claim",
+      "scope": {
+        "industry_name": "人工智能",
+        "segments": [
+          "人工智能"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "同一分句保留预测属性的转述应通过。",
+      "expected": {
+        "allowed": true
+      },
+      "text": "来源预计2030年中国人工智能市场规模达到680亿元 [E-A00000000001]。",
+      "facts": [
+        {
+          "evidence_id": "E-A00000000001",
+          "quote": "来源预计2030年中国人工智能市场规模达到680亿元。",
+          "module": "市场规模与增长",
+          "source": {
+            "url": "https://research.example/fictional",
+            "title": "合成行业观察资料",
+            "body": "来源预计2030年中国人工智能市场规模达到680亿元。"
+          },
+          "numeric_context": {
+            "metric": "市场规模",
+            "value": "680",
+            "unit": "亿元",
+            "period": "2030",
+            "geography": "中国大陆",
+            "definition": "人工智能市场规模",
+            "is_forecast": true
+          },
+          "numeric_validation": {
+            "passed": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "IA-005",
+      "category": "企业样本边界",
+      "split": "development",
+      "kind": "fact",
+      "target": "risk",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "公司付费案例可供阅读，但不能支撑行业整体商业化评分。",
+      "expected": {
+        "allowed": false
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "示例机器人股份有限公司已取得付费客户，客户按调用量支付费用。",
+        "module": "商业模式与盈利逻辑",
+        "source": {
+          "url": "https://research.example/fictional",
+          "title": "合成行业观察资料",
+          "body": "示例机器人股份有限公司已取得付费客户，客户按调用量支付费用。"
+        }
+      },
+      "dimension": "商业化与盈利模式风险"
+    },
+    {
+      "id": "IA-006",
+      "category": "企业样本边界",
+      "split": "development",
+      "kind": "fact",
+      "target": "risk",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "无具名企业外推的适用行业收费机制不能被全部拒绝。",
+      "expected": {
+        "allowed": true
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "机器人软件服务采用按量计费模式，用户按实际调用量支付费用。",
+        "module": "商业模式与盈利逻辑",
+        "source": {
+          "url": "https://research.example/fictional",
+          "title": "合成行业观察资料",
+          "body": "机器人软件服务采用按量计费模式，用户按实际调用量支付费用。"
+        }
+      },
+      "dimension": "商业化与盈利模式风险"
+    },
+    {
+      "id": "IA-007",
+      "category": "政策目的与义务",
+      "split": "development",
+      "kind": "fact",
+      "target": "risk",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "立法目的不是具体义务，不能填补风险评分依据。",
+      "expected": {
+        "allowed": false
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "第一条 为了促进机器人产业发展，结合本市实际，制定本条例。",
+        "module": "政策与监管",
+        "source": {
+          "url": "https://www.gov.cn/acceptance/fictional",
+          "title": "合成机器人服务条例",
+          "body": "第一条 为了促进机器人产业发展，结合本市实际，制定本条例。"
+        }
+      },
+      "dimension": "政策与监管风险"
+    },
+    {
+      "id": "IA-008",
+      "category": "政策目的与义务",
+      "split": "development",
+      "kind": "fact",
+      "target": "risk",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "有明确提供者和动作的合成政策义务应保留。",
+      "expected": {
+        "allowed": true
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "第三条 机器人服务提供者应当建立安全管理制度，并保存标注记录。",
+        "module": "政策与监管",
+        "source": {
+          "url": "https://www.gov.cn/acceptance/fictional",
+          "title": "合成机器人服务条例",
+          "body": "第三条 机器人服务提供者应当建立安全管理制度，并保存标注记录。"
+        }
+      },
+      "dimension": "政策与监管风险"
+    },
+    {
+      "id": "IA-009",
+      "category": "经营建议与兑现",
+      "split": "development",
+      "kind": "fact",
+      "target": "risk",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "行动建议不能成为已经实现的行业经营结果。",
+      "expected": {
+        "allowed": false
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "依托机器人即服务模式，通过订阅制和按量计费降低企业使用门槛。",
+        "module": "商业模式与盈利逻辑",
+        "source": {
+          "url": "https://research.example/fictional",
+          "title": "合成行业观察资料",
+          "body": "下一步，计划完善商业模式。\n\n依托机器人即服务模式，通过订阅制和按量计费降低企业使用门槛。"
+        }
+      },
+      "dimension": "商业化与盈利模式风险"
+    },
+    {
+      "id": "IA-010",
+      "category": "经营建议与兑现",
+      "split": "development",
+      "kind": "fact",
+      "target": "risk",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "明确从免费转为付费的已发生经营材料不能误删。",
+      "expected": {
+        "allowed": true
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "机器人软件服务已经从免费转为付费，客户按实际调用量支付费用。",
+        "module": "商业模式与盈利逻辑",
+        "source": {
+          "url": "https://research.example/fictional",
+          "title": "合成行业观察资料",
+          "body": "机器人软件服务已经从免费转为付费，客户按实际调用量支付费用。"
+        }
+      },
+      "dimension": "商业化与盈利模式风险"
+    },
+    {
+      "id": "IA-011",
+      "category": "保存正文定位",
+      "split": "development",
+      "kind": "fact",
+      "target": "report",
+      "scope": {
+        "industry_name": "新能源汽车",
+        "segments": [
+          "新能源汽车"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "只在搜索摘要出现而不在保存正文的句子不能进入写作。",
+      "expected": {
+        "allowed": false
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "新能源汽车产业链上游提供动力电池，中游完成整车集成，下游服务出行场景。",
+        "module": "细分赛道与产业链",
+        "source": {
+          "url": "https://research.example/fictional",
+          "title": "合成行业观察资料",
+          "body": "保存正文只有目录和索引。",
+          "content_kind": "summary_only"
+        }
+      }
+    },
+    {
+      "id": "IA-012",
+      "category": "保存正文定位",
+      "split": "development",
+      "kind": "fact",
+      "target": "report",
+      "scope": {
+        "industry_name": "新能源汽车",
+        "segments": [
+          "新能源汽车"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "可在保存正文定位的完整产业链陈述应保留。",
+      "expected": {
+        "allowed": true
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "新能源汽车产业链上游提供动力电池，中游完成整车集成，下游服务出行场景。",
+        "module": "细分赛道与产业链",
+        "source": {
+          "url": "https://research.example/fictional",
+          "title": "合成行业观察资料",
+          "body": "新能源汽车产业链上游提供动力电池，中游完成整车集成，下游服务出行场景。"
+        }
+      }
+    },
+    {
+      "id": "IA-013",
+      "category": "同句多指标",
+      "split": "development",
+      "kind": "fact",
+      "target": "report",
+      "scope": {
+        "industry_name": "人工智能",
+        "segments": [
+          "人工智能"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "总量的增长率没有明确归属于推理量，不能借用。",
+      "expected": {
+        "allowed": false
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "2024年中国人工智能数据总量199.48EB，同比增长42.86%；推理量101.34EB。",
+        "module": "市场规模与增长",
+        "source": {
+          "url": "https://research.example/fictional",
+          "title": "合成行业观察资料",
+          "body": "2024年中国人工智能数据总量199.48EB，同比增长42.86%；推理量101.34EB。"
+        },
+        "numeric_context": {
+          "metric": "推理量同比增长率",
+          "value": "42.86",
+          "unit": "%",
+          "period": "2024",
+          "geography": "中国大陆",
+          "definition": "人工智能推理量同比增长率",
+          "is_forecast": false
+        },
+        "numeric_validation": {
+          "passed": true
+        }
+      }
+    },
+    {
+      "id": "IA-014",
+      "category": "同句多指标",
+      "split": "development",
+      "kind": "fact",
+      "target": "report",
+      "scope": {
+        "industry_name": "人工智能",
+        "segments": [
+          "人工智能"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "明确归属于该指标的增长率应保留。",
+      "expected": {
+        "allowed": true
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "2024年中国人工智能数据总量同比增长率达到42.86%。",
+        "module": "市场规模与增长",
+        "source": {
+          "url": "https://research.example/fictional",
+          "title": "合成行业观察资料",
+          "body": "2024年中国人工智能数据总量同比增长率达到42.86%。"
+        },
+        "numeric_context": {
+          "metric": "同比增长率",
+          "value": "42.86",
+          "unit": "%",
+          "period": "2024",
+          "geography": "中国大陆",
+          "definition": "人工智能同比增长率",
+          "is_forecast": false
+        },
+        "numeric_validation": {
+          "passed": true
+        }
+      }
+    },
+    {
+      "id": "IA-015",
+      "category": "独立来源",
+      "split": "development",
+      "kind": "claim",
+      "target": "claim",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "同一发布方的两页不是两个独立来源。",
+      "expected": {
+        "allowed": false,
+        "required_issue_codes": [
+          "source_corroboration_overstated"
+        ]
+      },
+      "text": "多源数据一致，机器人市场规模为120亿元 [E-A00000000001] [E-A00000000002]。",
+      "facts": [
+        {
+          "evidence_id": "E-A00000000001",
+          "quote": "2024年中国机器人市场规模达到120亿元。",
+          "module": "市场规模与增长",
+          "source": {
+            "url": "https://research.example/fictional",
+            "title": "合成行业观察资料",
+            "body": "2024年中国机器人市场规模达到120亿元。"
+          },
+          "numeric_context": {
+            "metric": "市场规模",
+            "value": "120",
+            "unit": "亿元",
+            "period": "2024",
+            "geography": "中国大陆",
+            "definition": "机器人市场规模",
+            "is_forecast": false
+          },
+          "numeric_validation": {
+            "passed": true
+          }
+        },
+        {
+          "evidence_id": "E-A00000000002",
+          "quote": "2024年中国机器人市场规模达到120亿元。",
+          "module": "市场规模与增长",
+          "source": {
+            "url": "https://news.research.example/second-page",
+            "title": "合成行业观察资料",
+            "body": "2024年中国机器人市场规模达到120亿元。"
+          },
+          "numeric_context": {
+            "metric": "市场规模",
+            "value": "120",
+            "unit": "亿元",
+            "period": "2024",
+            "geography": "中国大陆",
+            "definition": "机器人市场规模",
+            "is_forecast": false
+          },
+          "numeric_validation": {
+            "passed": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "IA-016",
+      "category": "独立来源",
+      "split": "development",
+      "kind": "claim",
+      "target": "claim",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "来源独立性尚待核验是限制说明，不是多源成立的断言。",
+      "expected": {
+        "allowed": true
+      },
+      "text": "现有来源仍需核对独立性，不能声称多源一致 [E-A00000000001] [E-A00000000002]。",
+      "facts": [
+        {
+          "evidence_id": "E-A00000000001",
+          "quote": "2024年中国机器人市场规模达到120亿元。",
+          "module": "市场规模与增长",
+          "source": {
+            "url": "https://research.example/fictional",
+            "title": "合成行业观察资料",
+            "body": "2024年中国机器人市场规模达到120亿元。"
+          },
+          "numeric_context": {
+            "metric": "市场规模",
+            "value": "120",
+            "unit": "亿元",
+            "period": "2024",
+            "geography": "中国大陆",
+            "definition": "机器人市场规模",
+            "is_forecast": false
+          },
+          "numeric_validation": {
+            "passed": true
+          }
+        },
+        {
+          "evidence_id": "E-A00000000002",
+          "quote": "2024年中国机器人市场规模达到120亿元。",
+          "module": "市场规模与增长",
+          "source": {
+            "url": "https://news.research.example/second-page",
+            "title": "合成行业观察资料",
+            "body": "2024年中国机器人市场规模达到120亿元。"
+          },
+          "numeric_context": {
+            "metric": "市场规模",
+            "value": "120",
+            "unit": "亿元",
+            "period": "2024",
+            "geography": "中国大陆",
+            "definition": "机器人市场规模",
+            "is_forecast": false
+          },
+          "numeric_validation": {
+            "passed": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "IA-017",
+      "category": "缺证与风险",
+      "split": "development",
+      "kind": "claim",
+      "target": "claim",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "未取得处罚资料不能推导监管风险较低。",
+      "expected": {
+        "allowed": false,
+        "required_issue_codes": [
+          "absence_as_low_risk"
+        ]
+      },
+      "text": "未取得处罚记录，因此监管压力有限。",
+      "facts": []
+    },
+    {
+      "id": "IA-018",
+      "category": "缺证与风险",
+      "split": "development",
+      "kind": "claim",
+      "target": "claim",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "明确否定由缺证推低风险的说明应保留。",
+      "expected": {
+        "allowed": true
+      },
+      "text": "未取得处罚材料，不能据此认定政策影响有限，仍需核对适用义务。",
+      "facts": []
+    },
+    {
+      "id": "IA-019",
+      "category": "企业数与集中度",
+      "split": "development",
+      "kind": "claim",
+      "target": "claim",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "企业数不能代替市场份额和集中度指标。",
+      "expected": {
+        "allowed": false,
+        "required_issue_codes": [
+          "concentration_inference_unsupported"
+        ]
+      },
+      "text": "机器人市场高度碎片化，集中度较低 [E-A00000000001]。",
+      "facts": [
+        {
+          "evidence_id": "E-A00000000001",
+          "quote": "2024年中国机器人企业数量达到120家。",
+          "module": "市场规模与增长",
+          "source": {
+            "url": "https://research.example/fictional",
+            "title": "合成行业观察资料",
+            "body": "2024年中国机器人企业数量达到120家。"
+          },
+          "numeric_context": {
+            "metric": "企业数量",
+            "value": "120",
+            "unit": "家",
+            "period": "2024",
+            "geography": "中国大陆",
+            "definition": "机器人企业数量",
+            "is_forecast": false
+          },
+          "numeric_validation": {
+            "passed": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "IA-020",
+      "category": "企业数与集中度",
+      "split": "development",
+      "kind": "claim",
+      "target": "claim",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "中性列示企业数而不推导集中度应保留。",
+      "expected": {
+        "allowed": true
+      },
+      "text": "来源报告机器人企业数量为120家，集中度仍需另外核验 [E-A00000000001]。",
+      "facts": [
+        {
+          "evidence_id": "E-A00000000001",
+          "quote": "2024年中国机器人企业数量达到120家。",
+          "module": "市场规模与增长",
+          "source": {
+            "url": "https://research.example/fictional",
+            "title": "合成行业观察资料",
+            "body": "2024年中国机器人企业数量达到120家。"
+          },
+          "numeric_context": {
+            "metric": "企业数量",
+            "value": "120",
+            "unit": "家",
+            "period": "2024",
+            "geography": "中国大陆",
+            "definition": "机器人企业数量",
+            "is_forecast": false
+          },
+          "numeric_validation": {
+            "passed": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "IA-021",
+      "category": "增速类型",
+      "split": "development",
+      "kind": "claim",
+      "target": "claim",
+      "scope": {
+        "industry_name": "光伏",
+        "segments": [
+          "光伏"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "单年同比不能被改称复合增长率。",
+      "expected": {
+        "allowed": false,
+        "required_issue_codes": [
+          "growth_rate_kind_conflict"
+        ]
+      },
+      "text": "光伏产业CAGR达到18% [E-A00000000001]。",
+      "facts": [
+        {
+          "evidence_id": "E-A00000000001",
+          "quote": "2024年中国光伏产业同比增长率为18%。",
+          "module": "市场规模与增长",
+          "source": {
+            "url": "https://research.example/fictional",
+            "title": "合成行业观察资料",
+            "body": "2024年中国光伏产业同比增长率为18%。"
+          },
+          "numeric_context": {
+            "metric": "同比增长率",
+            "value": "18",
+            "unit": "%",
+            "period": "2024",
+            "geography": "中国大陆",
+            "definition": "光伏同比增长率",
+            "is_forecast": false
+          },
+          "numeric_validation": {
+            "passed": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "IA-022",
+      "category": "增速类型",
+      "split": "development",
+      "kind": "claim",
+      "target": "claim",
+      "scope": {
+        "industry_name": "光伏",
+        "segments": [
+          "光伏"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "保留同比口径的原文转述应通过。",
+      "expected": {
+        "allowed": true
+      },
+      "text": "来源报告光伏产业同比增长率为18% [E-A00000000001]。",
+      "facts": [
+        {
+          "evidence_id": "E-A00000000001",
+          "quote": "2024年中国光伏产业同比增长率为18%。",
+          "module": "市场规模与增长",
+          "source": {
+            "url": "https://research.example/fictional",
+            "title": "合成行业观察资料",
+            "body": "2024年中国光伏产业同比增长率为18%。"
+          },
+          "numeric_context": {
+            "metric": "同比增长率",
+            "value": "18",
+            "unit": "%",
+            "period": "2024",
+            "geography": "中国大陆",
+            "definition": "光伏同比增长率",
+            "is_forecast": false
+          },
+          "numeric_validation": {
+            "passed": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "IA-023",
+      "category": "负增长与符号",
+      "split": "challenge",
+      "kind": "fact",
+      "target": "report",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "负号属于原始数值，不应被丢弃。",
+      "expected": {
+        "allowed": true,
+        "period": "2024"
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "2024年中国机器人同比增长率为-3%。",
+        "module": "市场规模与增长",
+        "source": {
+          "url": "https://research.example/fictional",
+          "title": "合成行业观察资料",
+          "body": "2024年中国机器人同比增长率为-3%。"
+        },
+        "numeric_context": {
+          "metric": "同比增长率",
+          "value": "-3",
+          "unit": "%",
+          "period": "2024",
+          "geography": "中国大陆",
+          "definition": "机器人同比增长率",
+          "is_forecast": false
+        },
+        "numeric_validation": {
+          "passed": true
+        }
+      }
+    },
+    {
+      "id": "IA-024",
+      "category": "负增长与符号",
+      "split": "challenge",
+      "kind": "fact",
+      "target": "report",
+      "scope": {
+        "industry_name": "机器人",
+        "segments": [
+          "机器人"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "把原文负增长抽为正增长属于数值错误，即使其他字段齐全也不能放行。",
+      "expected": {
+        "allowed": false
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "2024年中国机器人同比增长率为-3%。",
+        "module": "市场规模与增长",
+        "source": {
+          "url": "https://research.example/fictional",
+          "title": "合成行业观察资料",
+          "body": "2024年中国机器人同比增长率为-3%。"
+        },
+        "numeric_context": {
+          "metric": "同比增长率",
+          "value": "3",
+          "unit": "%",
+          "period": "2024",
+          "geography": "中国大陆",
+          "definition": "机器人同比增长率",
+          "is_forecast": false
+        },
+        "numeric_validation": {
+          "passed": true
+        }
+      }
+    },
+    {
+      "id": "IA-025",
+      "category": "发布时间与统计期",
+      "split": "challenge",
+      "kind": "claim",
+      "target": "claim",
+      "scope": {
+        "industry_name": "人工智能",
+        "segments": [
+          "人工智能"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "来源的历史当前状态不能改成研究截止日状态。",
+      "expected": {
+        "allowed": false,
+        "required_issue_codes": [
+          "statistic_asof_rebased"
+        ]
+      },
+      "text": "截至2026年10月23日已发布人工智能标准30项 [E-A00000000001]。",
+      "facts": [
+        {
+          "evidence_id": "E-A00000000001",
+          "quote": "人工智能国家标准已发布30项，另有84项在编。",
+          "module": "市场规模与增长",
+          "source": {
+            "url": "https://research.example/fictional",
+            "title": "合成行业观察资料",
+            "body": "人工智能国家标准已发布30项，另有84项在编。",
+            "published_date": "2025-09-18"
+          }
+        }
+      ]
+    },
+    {
+      "id": "IA-026",
+      "category": "发布时间与统计期",
+      "split": "challenge",
+      "kind": "claim",
+      "target": "claim",
+      "scope": {
+        "industry_name": "人工智能",
+        "segments": [
+          "人工智能"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "保留来源发布日期的定性转述不应被误判为截止日状态。",
+      "expected": {
+        "allowed": true
+      },
+      "text": "该报道列示人工智能已发布及在编标准，实际变化仍应向原始发布方核对 [E-A00000000001]。",
+      "facts": [
+        {
+          "evidence_id": "E-A00000000001",
+          "quote": "人工智能国家标准已发布30项，另有84项在编。",
+          "module": "市场规模与增长",
+          "source": {
+            "url": "https://research.example/fictional",
+            "title": "合成行业观察资料",
+            "body": "人工智能国家标准已发布30项，另有84项在编。",
+            "published_date": "2025-09-18"
+          }
+        }
+      ]
+    },
+    {
+      "id": "IA-027",
+      "category": "技术主张与实测",
+      "split": "challenge",
+      "kind": "fact",
+      "target": "risk",
+      "scope": {
+        "industry_name": "半导体",
+        "segments": [
+          "半导体"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "没有测试配置和测量结果的性能主张不能支撑行业技术风险评分。",
+      "expected": {
+        "allowed": false
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "半导体推理平台可以保持精度并显著提升吞吐量。",
+        "module": "技术路线与替代风险",
+        "source": {
+          "url": "https://research.example/fictional",
+          "title": "合成行业观察资料",
+          "body": "半导体推理平台可以保持精度并显著提升吞吐量。"
+        }
+      },
+      "dimension": "技术迭代与替代风险"
+    },
+    {
+      "id": "IA-028",
+      "category": "技术主张与实测",
+      "split": "challenge",
+      "kind": "fact",
+      "target": "risk",
+      "scope": {
+        "industry_name": "半导体",
+        "segments": [
+          "半导体"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "完整测试条件材料可以作为有边界的技术输入，不能因同组宣传主张被拒而全部删除。",
+      "expected": {
+        "allowed": true
+      },
+      "fact": {
+        "evidence_id": "E-A00000000001",
+        "quote": "半导体推理平台采用统一硬件进行实测，测试条件为相同模型版本和量化精度，记录吞吐量及单位推理成本。",
+        "module": "技术路线与替代风险",
+        "source": {
+          "url": "https://research.example/fictional",
+          "title": "合成行业观察资料",
+          "body": "半导体推理平台采用统一硬件进行实测，测试条件为相同模型版本和量化精度，记录吞吐量及单位推理成本。"
+        }
+      },
+      "dimension": "技术迭代与替代风险"
+    },
+    {
+      "id": "IA-029",
+      "category": "局部测试外推",
+      "split": "challenge",
+      "kind": "claim",
+      "target": "claim",
+      "scope": {
+        "industry_name": "半导体",
+        "segments": [
+          "半导体"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "单一厂商单配置测试不能证明行业所有技术路线成熟；用于暴露现有关键词闸门未覆盖的语义缺口。",
+      "expected": {
+        "allowed": false
+      },
+      "text": "因此半导体行业所有技术路线均已成熟，可以普遍投入生产 [E-A00000000001]。",
+      "facts": [
+        {
+          "evidence_id": "E-A00000000001",
+          "quote": "某半导体厂商在固定模型与硬件配置下完成推理延迟测试，结果仅适用于该配置。",
+          "module": "技术路线与替代风险",
+          "source": {
+            "url": "https://research.example/fictional",
+            "title": "合成行业观察资料",
+            "body": "某半导体厂商在固定模型与硬件配置下完成推理延迟测试，结果仅适用于该配置。"
+          },
+          "evidence_scope": "representative_company"
+        }
+      ]
+    },
+    {
+      "id": "IA-030",
+      "category": "局部测试外推",
+      "split": "challenge",
+      "kind": "claim",
+      "target": "claim",
+      "scope": {
+        "industry_name": "半导体",
+        "segments": [
+          "半导体"
+        ],
+        "geography": "中国大陆",
+        "capital_market": "none",
+        "as_of_date": "2026-10-23"
+      },
+      "rationale": "保留单配置适用范围，不将局部结果推向行业整体。",
+      "expected": {
+        "allowed": true
+      },
+      "text": "该厂商的测试只适用于所列模型与硬件配置，其他技术路线仍需单独验证 [E-A00000000001]。",
+      "facts": [
+        {
+          "evidence_id": "E-A00000000001",
+          "quote": "某半导体厂商在固定模型与硬件配置下完成推理延迟测试，结果仅适用于该配置。",
+          "module": "技术路线与替代风险",
+          "source": {
+            "url": "https://research.example/fictional",
+            "title": "合成行业观察资料",
+            "body": "某半导体厂商在固定模型与硬件配置下完成推理延迟测试，结果仅适用于该配置。"
+          },
+          "evidence_scope": "representative_company"
+        }
+      ]
+    }
+  ]
+}

@@ -21,6 +21,7 @@ from database import init_db
 from runtime_version import create_version_router
 from account_lifecycle import invitation_cleanup_loop
 from personal_home import create_home_router
+from http_delivery import ResearchReadCompression
 
 BASE_DIR = BACKEND_DIR.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
             with suppress(asyncio.CancelledError):
                 await task
 
+    app.add_middleware(ResearchReadCompression)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],

@@ -95,7 +95,7 @@ def test_completed_run_survives_session_restart_and_downloads_current_database_j
     assert json.loads(record.content)['stages'][1]['outputs'][0]['usage']=='created'
     import research_api
     monkeypatch.setattr(research_api,'_get_project',lambda *a:project)
-    response=asyncio.run(research_api.download_artifact(record_id,db,SimpleNamespace()))
+    response=research_api.download_artifact(record_id,db,SimpleNamespace())
     assert json.loads(response.body)['status']=='completed'
     assert response.media_type.startswith('application/json')
     with Session(engine) as new_db:

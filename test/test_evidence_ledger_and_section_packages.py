@@ -585,7 +585,7 @@ def test_company_ledger_uses_actual_body_citations_and_allows_cross_chapter_reus
 
     result = workflow._append_report_evidence_index(project, report, json.dumps({"facts": facts}))
 
-    assert "目标主体匹配可用来源：90" in result
+    assert "目标主体初筛匹配来源：90" in result
     assert "https://noise.example.com" not in result
     assert result.count(f"| {cited_id} |") == 1
     assert "第 2 章" in result
@@ -737,6 +737,34 @@ def test_company_quality_gate_accepts_sparse_but_fully_traceable_fourteen_chapte
     workflow._validate_delivery_report(project, _sparse_traceable_company_report("https://registry.test/company"))
 
 
+def test_compact_company_index_keeps_every_citation_url_and_full_audit_without_repeating_prose():
+    workflow=ResearchWorkflow.__new__(ResearchWorkflow)
+    project=_project([],target_type='company');project.target_name='TargetCo'
+    project.company_corpus_digest_package={'groups':[{'group_id':'G1','statement_ids':[], 'evidence_ids':['E-ABC123DEF456']}]}
+    original='工商登记原文详细字段和上下文。'*20
+    facts={'facts':[{'evidence_id':'E-ABC123DEF456','fact':original,'evidence_quote':original,
+        'source_url':'https://registry.test/company','source_title':'TargetCo原始登记记录','entity_match':'confirmed'}]}
+    report=workflow._append_report_evidence_index(project,_sparse_traceable_company_report('https://registry.test/company'),json.dumps(facts))
+    index=re.search(r'(?ms)^##\s*13[.、．].*?(?=^##\s*14[.、．])',report)[0]
+    assert '| 证据编号 | 支持章节 | 来源标题 | 台账定位 |' in index
+    assert '| E-ABC123DEF456 | 2 |' in index and 'https://registry.test/company' in index
+    assert original not in index
+    workflow._validate_delivery_report(project,report)
+
+
+def test_non_scoring_assessment_context_is_indexed_in_each_actual_citing_chapter():
+    workflow=ResearchWorkflow.__new__(ResearchWorkflow)
+    project=_project([],target_type='company');project.target_name='TargetCo'
+    project.company_corpus_digest_package={'groups':[{'group_id':'G1','statement_ids':[],'evidence_ids':['E-ABC123DEF456']}]}
+    project.company_assessment_context_references=[{'evidence_ids':['E-ABC123DEF456']}]
+    report=_sparse_traceable_company_report('https://registry.test/company')
+    report=re.sub(r'(?ms)(^##\s*12[.、．][^\n]*\n).*?(?=^##\s*13[.、．])',lambda m:m[1]+'第三方认购核查仅用于评价边界，不用于计分。[E-ABC123DEF456]\n\n',report)
+    facts={'facts':[{'evidence_id':'E-ABC123DEF456','fact':'TargetCo第三方认购文件','evidence_scope':'related_background',
+        'source_url':'https://registry.test/company','source_title':'第三方核查文件'}]}
+    indexed=workflow._append_report_evidence_index(project,report,json.dumps(facts))
+    assert '| E-ABC123DEF456 | 2、12 |' in indexed
+
+
 @pytest.mark.parametrize("source_url", [
     "https://example.com/company", "https://www.example.org/company", "https://example.net/company",
 ])
@@ -875,7 +903,8 @@ def test_company_agent_does_not_call_model_for_empty_evidence_chapters():
 
     assert calls == []
     assert sum(1 for index in range(1, 15) if f"## {index}." in report) == 14
-    assert "本次已检索公开来源未形成可引用记录" in report
+    assert "本章尚未取得满足以下评分锚点的公司指标" in report
+    assert "不能据此补造分数" in report
 
 
 # ---------------------------------------------------------------------------

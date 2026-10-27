@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "suite_id": "industry-acceptance-candidates-v1",
+  "suite_sha256": "d99771193fb5995accb82967c5b2ec7bf11e5b1cdbf1a6bc727b2b4c4ef9d608",
+  "label_status": "candidate",
+  "business_review_status": "pending",
+  "case_count": 30,
+  "expected_allows": 15,
+  "expected_rejects": 15,
+  "policy": "Revise fixed labels only with an independent review record and a new dataset version; never generate labels from production outputs."
+}

@@ -18,6 +18,7 @@ from .company_governance import (
 )
 from .report_prompts import _company_fact_has_trusted_target_anchor
 from .company_text import match_text
+from .company_evidence import source_body
 
 TITLE = '历史沿革与成长质量'
 HEADINGS = ('关键沿革与业务发展时间线', '成长质量核对', '历史遗留事项', '核验重点')
@@ -45,7 +46,7 @@ def non_issuer_event_context(text):
     value=match_text(text)
     publication=re.search(r'(?:年度|半年度|季度|社会责任|可持续发展)报告(?:全文|摘要)?(?:的)?(?:发布|披露)日期|(?:发布|披露)(?:了|的)?[《“"]?(?:20\d{2}年)?(?:年度|半年度|季度|社会责任|可持续发展)报告',value)
     return bool(NON_EVENT.search(value) or accounting_background(value) or publication
-                or re.search(r'引用日期|参考资料|参考文献|\[\s*引用|本版第\d+版|星期[一二三四五六日天].{0,20}(?:版|天气)|自本公司成立以来实施|都可能被授予|(?:现任|时任)[^。；]{0,35}(?:董事|首席|总裁)',value)
+                or re.search(r'引用日期|参考资料|参考文献|\[\s*引用|常见问题|成立于哪|成立年份[：:]|[?？]|(?:行为|主张|事实|罪名)[^。；]{0,30}成立|法院[^。；]{0,180}(?:认定|判决)|本版第\d+版|星期[一二三四五六日天].{0,20}(?:版|天气)|自本公司成立以来实施|都可能被授予|(?:现任|时任)[^。；]{0,35}(?:董事|首席|总裁)',value)
                 or re.search(r'子公司|附属公司|参股公司|联营公司|(?:本公司|本集团)(?:的)?下属',value))
 
 
@@ -156,14 +157,8 @@ def financial_rows(raw, period):
 
 
 def _issuer_hosts(sources, target):
-    hosts=set()
-    for source in sources or []:
-        if not _primary_filing(source,target):continue
-        head=str(get(source,'content'))[:2600]
-        for match in re.finditer(r'(?:網站|网站|网址|網址|Website)\s*[:：]\s*(https?://[^\s|<>）)]+)',head,re.I):
-            host=urlparse(match[1]).hostname
-            if host:hosts.add(host.lower().removeprefix('www.'))
-    return hosts
+    from .company_issuer_identity import issuer_hosts
+    return issuer_hosts(sources,target)
 
 
 def _heading_events(raw):
@@ -280,9 +275,11 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
         return 0 if _primary_filing(src,target) or get(src,'source_type') in {'official','filing'} or (meta.get('quality') or {}).get('source_type') in {'official','filing'} else 1
 
     for url,cards in sorted(by_source.items(),key=source_priority):
-        src=by_url.get(url);raw=str(get(src,'content') or '')
+        src=by_url.get(url);raw,origin=source_body(src)
         if not raw:
             continue
+        if origin=='discovery_summary':
+            counts['discovery_summary_excluded']+=1;continue
         meta=get(src,'source_metadata',{}) or {}
         if meta.get('entity_validation') in {'rejected','related_entity_context','ambiguous'}:
             counts['rejected_source']+=1;continue
@@ -372,7 +369,7 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
             if compact(target) not in compact(sentence) and not (authority and anchor):
                 counts['no_local_issuer_subject']+=1
                 continue
-            action=re.search(r'(?:'+re.escape(target)+r'|'+ISSUER_PRONOUN+r').{0,180}(?:整体改制|变更设立|收购|并购|增资|减资|回购|注销|增发|发行(?!在外)|发售|配售|转增|送红股|上市(?!公司|规则|管理)|投产|量产|停止生产|成立|设立|签署|发布|推出|上线)',sentence)
+            action=re.search(r'(?:'+re.escape(target)+r'|'+ISSUER_PRONOUN+r').{0,180}(?:整体改制|变更设立|更名|收购|并购|增资|减资|回购|注销|增发|发行(?!在外)|发售|配售|转增|送红股|上市(?!公司|规则|管理)|投产|量产|停止生产|成立|设立|签署|发布|推出|上线)',sentence)
             if not action:
                 continue
             if re.search(r'(?:主办方|主办单位|承办方|协办方|出版方|发布单位)[：:\s]*$',
@@ -480,7 +477,9 @@ def build_history_package(cleaned, target, sources=None, *, governance=None, lim
         gaps.append('相同报告期的经营数据存在来源差异，冲突指标仅并存待核验，不用于成长趋势判断。')
     if time_conflicts:
         gaps.append('部分发布节点在官网沿革与其他披露中的年份不同；需核对原版文件、发布地区及技术版本，不任选一个日期覆盖。')
+    from .company_selection_audit import selection_audit
     return {'version':VERSION,'target_name':target,'facts':selected,'information_gaps':gaps,'time_conflicts':time_conflicts,
+            'selection_audit':selection_audit(records,selected),
             'diagnostic':{'candidate_claims':len(records),'delivered_claims':len(selected),
                           'by_kind':dict(Counter(r['kind'] for r in selected)),'filters':dict(counts)}}
 

@@ -13,16 +13,17 @@ from .company_governance import cited_evidence_ids
 from .company_governance import EID, _filing_period, _period_rank, _primary_filing, _table, compact, get, refs
 from .company_history import _issuer_hosts
 from .report_prompts import _company_fact_has_trusted_target_anchor
-from .company_evidence import document_pages,annotate_page_notes
+from .company_evidence import document_pages,annotate_page_notes,source_body
+from .company_text import match_text,match_compact
 
 TITLE='组织治理与运营管理评估'
 HEADINGS=('组织架构合理性','决策机制','权责划分','执行流程','内部激励','企业应变能力','组织创新能力')
-VERSION='company-operations-v1'
+VERSION='company-operations-v2-original-script-boundaries'
 PATTERNS={
  HEADINGS[0]:r'组织架构|管理层级设置|汇报关系|设立.{0,12}(?:事业部|研究院)|划分.{0,12}事业部|出于管理目的.{0,20}划分业务单元|报告分部',
  HEADINGS[1]:r'董事会.{0,24}(?:召开|会议|表决)|董事.{0,14}出席|(?:审核|审计|提名|薪酬|战略)委员会.{0,30}(?:召开|审议|组成|成员)',
  HEADINGS[2]:r'(?:总经理|总裁).{0,12}对董事会负责|董事会.{0,12}授权.{0,20}(?:管理层|总经理|总裁)|(?:审核|审计)委员会负责|(?:总裁|总经理)行使下列职权',
- HEADINGS[3]:r'内部控制体系建设委员会|内部控制.{0,14}(?:重大缺陷|重要缺陷|有效性)|(?:采购|供应商|生产).{0,12}(?:准入制度|审批流程|质量管理制度)|(?:整改|审计).{0,16}(?:完成|落实)',
+ HEADINGS[3]:r'内部控制体系建设委员会|内部控制.{0,14}(?:重大缺陷|重要缺陷|有效性)|(?:采购|供应商|生产).{0,12}(?:准入制度|审批流程|质量管理制度)|(?:整改|审计).{0,16}(?:完成|落实)|审计委员会.{0,12}政策是.{0,15}批准.{0,30}审计.*服务',
  HEADINGS[4]:r'员工持股计划.{0,50}(?:涉及|不超过|资金总额|买入|解锁|考核|完成)|(?:股票期权|限制性股票).{0,25}(?:授予|归属|行权)|绩效考核.{0,15}(?:办法|制度|指标)',
  HEADINGS[5]:r'(?:公司|本集团|本公司).{0,55}(?:应急预案|应急演练|危机响应|产线切换|业务连续性|供应链中断|供应链风险).{0,50}(?:建立|制定|开展|执行|调整|采取|应对)|(?:建立|制定|开展).{0,20}(?:应急预案|应急演练|业务连续性)',
  HEADINGS[6]:r'(?:公司|本集团|本公司).{0,30}(?:设立|建立|成立).{0,25}(?:研究院|研发中心|创新平台)|(?:研发立项|成果归属|专利转化|技术共享).{0,20}(?:机制|制度|流程|协议)',
@@ -63,7 +64,7 @@ def _sentences(raw,target):
         # Avoid navigation/table lists, broken checkboxes, personal biographies
         # and subsidiary cases being turned into parent operating evidence.
         if not 8<=len(sentence)<=460 or '|' in sentence or 'http' in sentence:continue
-        if re.search(r'子公司|附属公司|先生|女士|任职经历|□||☑|(?:先生|女士)简历',sentence):continue
+        if re.search(r'子公司|附属公司|先生|女士|任职经历|□||☑|(?:先生|女士)简历',match_text(sentence)):continue
         if sentence.count('《')>3:continue
         yield sentence
 
@@ -93,15 +94,15 @@ def build_operations_package(cleaned,target,sources=None,*,governance=None,limit
     independent=[r for r in personnel if re.search(r'(?<!非)独立董事',r.get('role',''))]
     if independent:
         r=independent[0]
-        add(r,HEADINGS[1],'主要人员记录载有独立董事：'+'、'.join(x['entity'] for x in independent),r['period'],'任职字段')
+        add(r,HEADINGS[1],'主要人员记录载有独立董事：'+'、'.join(dict.fromkeys(x['entity'] for x in independent)),r['period'],'任职字段')
     for src in sources or []:
-        raw=str(get(src,'content') or '');url=str(get(src,'url') or '');meta=get(src,'source_metadata',{}) or {}
-        if not raw or meta.get('entity_validation') in {'rejected','ambiguous','related_entity_context'}:continue
+        raw,origin=source_body(src);url=str(get(src,'url') or '');meta=get(src,'source_metadata',{}) or {}
+        if not raw or origin=='discovery_summary' or meta.get('entity_validation') in {'rejected','ambiguous','related_entity_context'}:continue
         primary=_primary_filing(src,target)
         official=(urlparse(url).hostname or '').lower().removeprefix('www.') in hosts
         host=(urlparse(url).hostname or '').lower()
         exchange=any(host==d or host.endswith('.'+d) for d in ('szse.cn','sse.com.cn','cninfo.com.cn','hkexnews.hk'))
-        charter=(exchange or official) and bool(re.search(re.escape(compact(target))+r'章程',compact(raw[:400])))
+        charter=(exchange or official) and bool(re.search(re.escape(match_compact(target))+r'章程',match_compact(raw[:400])))
         primary=primary or charter
         cards=[f for f in by_source[url] if f.get('eligible_for_report') is not False
                and f.get('entity_match') not in {'mismatch','ambiguous','out_of_scope'} and f.get('source_entity_validation')!='rejected'
@@ -149,27 +150,40 @@ def build_operations_package(cleaned,target,sources=None,*,governance=None,limit
                         add(card,HEADINGS[6],f"{label}：{h[1]}年{m['current']}{m['unit']}，{h[2]}年{m['prior']}{m['unit']}；源表变动比例{m['change']}",period,'研发资源披露',metric=label)
                         break
         for sentence in _sentences(raw,target):
+            # Match a script-normalized view; source quotations stay verbatim.
+            # References, generic legal duties, accounting rules and possible
+            # future impacts are not evidence of this issuer's operations.
+            normal=match_text(sentence)
+            if re.search(r'请参见|具体请见|以下简称|指\s*[「“\"]?\s*第\d+项|可能.{0,80}(?:不利影响|控制不足)|^当本公司|当.*报告分部.*变化|本公司有权委任或罢免',normal):continue
+            if re.search(r'网络运营者负有|上市公司.{0,12}(?:须|必须)|法规.{0,30}(?:规定|协议)|会计.{0,12}(?:政策|准则)|分部报告披露的改进',normal):continue
+            if normal.startswith(('•','-','及 •')) and not re.search(r'我们|本公司|本集团',normal):continue
             for aspect,pattern in PATTERNS.items():
-                if not re.search(pattern,sentence):continue
-                if aspect==HEADINGS[0] and re.search(r'报告分部|出于管理目的',sentence):continue
-                if aspect==HEADINGS[1] and '员工持股计划' in sentence:continue
-                if re.search(r'应聘|招聘|免责声明|若您|例如|假设',sentence):continue
-                if not charter and re.search(r'^\d+[）)]|出现以下|存在以下|包括以下|下列情形|根据.*(?:法规|指引).*应当',sentence):continue
+                if not re.search(pattern,normal):continue
+                reporting_change=(aspect==HEADINGS[0] and bool(re.search(r'本公司(?:实施|采用)新的组织架构.{0,30}首席经营决策者',normal)))
+                if aspect==HEADINGS[0] and re.search(r'报告分部|出于管理目的',normal) and not reporting_change:continue
+                if aspect==HEADINGS[1] and '员工持股计划' in normal:continue
+                if re.search(r'应聘|招聘|免责声明|若您|例如|假设',normal):continue
+                if not charter and re.search(r'^\d+[）)]|出现以下|存在以下|包括以下|下列情形|根据.*(?:法规|指引).*应当',normal):continue
                 # Normative claims from charters are design; plans in an
                 # annual report remain plans, even in an official document.
-                mode='制度条款' if charter else '计划／执行待核验' if re.search(r'拟|尚待|计划将|将于',sentence) else '公司运行披露'
+                mode='制度条款' if charter else '计划／执行待核验' if re.search(r'拟|尚待|计划将|将于',normal) else '公司运行披露'
+                if reporting_change:mode='报告架构调整／非完整组织架构'
+                if not charter and re.search(r'(?:我们(?:的)?|本公司|本集团).{0,25}(?:政策是|规定|负责)|政策规定|均须|必须经|须经',normal):mode='制度条款'
+                if aspect==HEADINGS[1] and re.search(r'委员会.{0,30}(?:所有成员|由.{0,12}成员组成|全体成员)',normal):mode='委员会组成披露'
                 if aspect==HEADINGS[4] and charter:continue
-                if aspect==HEADINGS[3] and not charter and re.search(r'有效性进行评价|不存在.{0,18}缺陷|无.{0,5}缺陷|自我评价报告',sentence):mode='公司内控自述'
-                if aspect==HEADINGS[3] and '我们在审计过程中' in sentence:mode='外部审计程序／非全面有效结论'
+                if aspect==HEADINGS[3] and not charter and re.search(r'有效性进行评价|不存在.{0,18}缺陷|无.{0,5}缺陷|自我评价报告',normal):mode='公司内控自述'
+                if aspect==HEADINGS[3] and re.search(r'我们在审计过程中|我们的审计包括|我们对.{0,30}的审计包括',normal):mode='外部审计程序／非全面有效结论'
+                elif aspect==HEADINGS[3] and re.search(r'会计师事务所.{0,90}已对.{0,90}进行了审计',normal):mode='公司披露的外部审计范围'
+                elif aspect==HEADINGS[3] and re.search(r'管理层对.{0,60}负责|管理层年度内部控制报告',normal):mode='内控责任及评估安排'
                 if aspect==HEADINGS[4]:
-                    if re.search(r'未达成|不会解锁|未达到|取消|终止',sentence):mode='执行结果／未达成'
-                    elif re.search(r'完成.{0,6}购买|累计买入',sentence):mode='购买执行披露'
-                    elif re.search(r'不超过|涉及不超过',sentence):mode='计划额度／非实际人数'
-                    elif re.search(r'分三期解锁|解锁时点|考核要求',sentence):mode='解锁及考核条件'
+                    if re.search(r'未达成|不会解锁|未达到|取消|终止',normal):mode='执行结果／未达成'
+                    elif re.search(r'完成.{0,6}购买|累计买入',normal):mode='购买执行披露'
+                    elif re.search(r'不超过|涉及不超过',normal):mode='计划额度／非实际人数'
+                    elif re.search(r'分三期解锁|解锁时点|考核要求',normal):mode='解锁及考核条件'
                 # Assign an identical statement to its most specific aspect.
                 # An authorization should not be repeated as a second meeting
                 # record, nor an incentive plan as generic governance praise.
-                matches=[h for h,p in PATTERNS.items() if re.search(p,sentence)]
+                matches=[h for h,p in PATTERNS.items() if re.search(p,normal)]
                 priority=[HEADINGS[4],HEADINGS[2],HEADINGS[5],HEADINGS[6],HEADINGS[3],HEADINGS[1],HEADINGS[0]]
                 if aspect!=next(h for h in priority if h in matches):continue
                 if aspect==HEADINGS[3] and '供应商准入制度' in sentence:
@@ -192,8 +206,8 @@ def build_operations_package(cleaned,target,sources=None,*,governance=None,limit
         chosen=[]
         # Include role, institutional design and concrete running evidence
         # where present instead of filling all slots with charter clauses.
-        for mode in ('人员统计口径','财务报告分部／非组织架构','任职字段','执行结果／未达成','购买执行披露','解锁及考核条件','计划额度／非实际人数',
-                     '公司内控自述','外部审计程序／非全面有效结论','供应商制度自述','公司运行披露','制度条款','研发资源披露','计划／执行待核验'):
+        for mode in ('人员统计口径','财务报告分部／非组织架构','报告架构调整／非完整组织架构','任职字段','执行结果／未达成','购买执行披露','解锁及考核条件','计划额度／非实际人数',
+                     '公司内控自述','外部审计程序／非全面有效结论','公司披露的外部审计范围','内控责任及评估安排','供应商制度自述','委员会组成披露','公司运行披露','制度条款','研发资源披露','计划／执行待核验'):
             row=next((r for r in unique if r['mode']==mode),None)
             if row and len(chosen)<quota:chosen.append(row)
         for row in unique:
@@ -203,7 +217,9 @@ def build_operations_package(cleaned,target,sources=None,*,governance=None,limit
             if len(json.dumps(selected+[row],ensure_ascii=False))<max(0,limit-3000):selected.append(row)
             else:counts['budget_excluded']+=1
     gaps=[GAPS[h] for h in HEADINGS]
+    from .company_selection_audit import selection_audit
     return {'version':VERSION,'target_name':target,'facts':selected,'information_gaps':gaps,
+            'selection_audit':selection_audit(records,selected),
             'diagnostic':{'candidate_claims':len(records),'delivered_claims':len(selected),
                           'by_aspect':dict(Counter(r['aspect'] for r in selected)),'filters':dict(counts)}}
 

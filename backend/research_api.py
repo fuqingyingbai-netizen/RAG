@@ -15,8 +15,10 @@ from urllib.parse import quote
 import requests
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response, StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy import func
+from sqlalchemy.orm import Session, defer, object_session
 
 from auth import get_current_user, get_db
 from database import SessionLocal
@@ -975,7 +977,7 @@ async def _store_uploaded_research_source(
     )
     is_image = filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"))
     try:
-        text = _lightweight_upload_text(file_path, filename, is_image)
+        text = await run_in_threadpool(_lightweight_upload_text, file_path, filename, is_image)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"文档解析失败: {exc}") from exc
     if not text.strip():
@@ -1035,7 +1037,13 @@ async def _store_uploaded_research_source(
 
 
 def _project_intake(project: ResearchProject) -> dict:
-    for artifact in project.artifacts or []:
+    # Accessing project.artifacts loads every historical fact body. A project
+    # with repeated research runs can have hundreds of MB unrelated to intake.
+    session = object_session(project) if isinstance(project, ResearchProject) else None
+    candidates = (session.query(ResearchArtifact)
+        .filter(ResearchArtifact.project_id == project.id, ResearchArtifact.artifact_type == 'project_intake')
+        .order_by(ResearchArtifact.id.asc()).limit(1).all()) if session is not None else (project.artifacts or [])
+    for artifact in candidates:
         if artifact.artifact_type == "project_intake":
             if artifact.artifact_metadata:
                 return artifact.artifact_metadata
@@ -1086,7 +1094,7 @@ def _repository_source_item(source: ResearchSource, project_title: str) -> dict:
     }
 
 
-def _repository_artifact_item(artifact: ResearchArtifact, project_title: str) -> dict:
+def _repository_artifact_item(artifact: ResearchArtifact, project_title: str, content_excerpt: str | None = None) -> dict:
     metadata = artifact.artifact_metadata or {}
     source_key = metadata.get("markdown_object_key") if artifact.artifact_type == "cleaned_facts" else artifact.object_key
     return {
@@ -1099,7 +1107,7 @@ def _repository_artifact_item(artifact: ResearchArtifact, project_title: str) ->
         "version": artifact.version,
         "source_type": artifact.artifact_type,
         "url": source_key,
-        "snippet": (artifact.content or "")[:500],
+        "snippet": (content_excerpt if content_excerpt is not None else artifact.content or "")[:500],
         "download_url": f"/research/artifacts/{artifact.id}/download",
         "created_at": artifact.created_at.isoformat(),
     }
@@ -1351,7 +1359,7 @@ async def create_project(
 
 
 @router.get("/projects", response_model=ResearchProjectListResponse)
-async def list_projects(
+def list_projects(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -1372,7 +1380,7 @@ async def get_project(
 
 
 @router.get("/projects/{project_id}/detail")
-async def get_project_detail(
+def get_project_detail(
     project_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -1380,29 +1388,45 @@ async def get_project_detail(
     project = _get_project(db, project_id, current_user)
     sources = (
         db.query(ResearchSource)
+        .options(defer(ResearchSource.content))
         .filter(ResearchSource.project_id == project.id)
         .order_by(ResearchSource.created_at.desc())
         .all()
     )
     artifacts = (
         db.query(ResearchArtifact)
+        .options(defer(ResearchArtifact.content))
         .filter(ResearchArtifact.project_id == project.id)
         .order_by(ResearchArtifact.created_at.desc())
         .all()
     )
+    from research_recovery import build_recovery
+    trace = _latest_workflow_trace(artifacts)
+    artifact_rows = [_artifact_response(item, include_content=False).model_dump() for item in artifacts]
+    # Determine whether saved report text exists in SQL, without transporting
+    # whole historical reports merely to test content.strip().
+    whitespace = ''.join(chr(value) for value in range(0x3001) if chr(value).isspace())
+    text_present = dict(db.query(ResearchArtifact.id,
+        func.length(func.trim(ResearchArtifact.content, whitespace)) > 0)
+        .filter(ResearchArtifact.project_id == project.id,
+                ResearchArtifact.artifact_type.in_(['desktop_report', 'proposal'])).all())
+    recovery = build_recovery(project, sources, artifacts, trace, running=_is_project_running(project.id),
+                              artifact_metadata={item['id']: item['metadata'] for item in artifact_rows},
+                              artifact_text_present=text_present)
     return {
         "project": _project_response(project).model_dump(),
         "intake": _project_intake(project),
         "source_count": len(sources),
         "artifact_count": len(artifacts),
-        "artifacts": [_artifact_response(item, include_content=False).model_dump() for item in artifacts],
+        "artifacts": artifact_rows,
         "sources": [_source_response(item).model_dump() for item in sources],
-        "trace": _latest_workflow_trace(artifacts),
+        "trace": trace,
+        "recovery": recovery,
     }
 
 
 @router.get("/projects/{project_id}/run-intake")
-async def get_project_run_intake(
+def get_project_run_intake(
     project_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -1416,7 +1440,7 @@ async def get_project_run_intake(
 
 
 @router.get("/projects/{project_id}/progress")
-async def get_project_progress(
+def get_project_progress(
     project_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -1512,7 +1536,7 @@ async def add_manual_source(
 
 
 @router.get("/projects/{project_id}/sources", response_model=list[ResearchSourceResponse])
-async def list_sources(
+def list_sources(
     project_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -1520,6 +1544,7 @@ async def list_sources(
     project = _get_project(db, project_id, current_user)
     sources = (
         db.query(ResearchSource)
+        .options(defer(ResearchSource.content))
         .filter(ResearchSource.project_id == project.id)
         .order_by(ResearchSource.created_at.desc())
         .all()
@@ -1528,12 +1553,13 @@ async def list_sources(
 
 
 @router.get("/sources/{source_id}/download")
-async def download_source(
+def download_source(
     source_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    source = db.query(ResearchSource).filter(ResearchSource.id == source_id).first()
+    source = (db.query(ResearchSource).options(defer(ResearchSource.content))
+              .filter(ResearchSource.id == source_id).first())
     if not source:
         raise HTTPException(status_code=404, detail="资料来源不存在")
     _get_project(db, source.project_id, current_user)
@@ -2016,19 +2042,21 @@ async def run_second_stage_stream(
 
 
 @router.get("/projects/{project_id}/artifacts", response_model=list[ResearchArtifactResponse])
-async def list_artifacts(
+def list_artifacts(
     project_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    include_content: bool = True,
 ):
     project = _get_project(db, project_id, current_user)
     artifacts = (
         db.query(ResearchArtifact)
+        .options(*([] if include_content else [defer(ResearchArtifact.content)]))
         .filter(ResearchArtifact.project_id == project.id)
         .order_by(ResearchArtifact.created_at.desc())
         .all()
     )
-    return [_artifact_response(item) for item in artifacts]
+    return [_artifact_response(item, include_content=include_content) for item in artifacts]
 
 
 @router.post("/artifacts/{artifact_id}/reindex", response_model=ResearchArtifactResponse)
@@ -2227,7 +2255,7 @@ async def research_assistant_stream(
 
 
 @router.get("/repository")
-async def list_research_repository(
+def list_research_repository(
     q: str = "",
     limit: int = Query(100, ge=1, le=300),
     db: Session = Depends(get_db),
@@ -2243,7 +2271,7 @@ async def list_research_repository(
     if not project_ids:
         return {"results": []}
 
-    source_query = db.query(ResearchSource).filter(ResearchSource.project_id.in_(project_ids))
+    source_query = db.query(ResearchSource).options(defer(ResearchSource.content)).filter(ResearchSource.project_id.in_(project_ids))
     artifact_query = db.query(ResearchArtifact).filter(
         ResearchArtifact.project_id.in_(project_ids),
         ResearchArtifact.artifact_type.notin_(["project_intake", "workflow_trace"]),
@@ -2262,21 +2290,23 @@ async def list_research_repository(
         )
 
     source_rows = source_query.order_by(ResearchSource.created_at.desc()).limit(limit).all()
-    artifact_rows = artifact_query.order_by(ResearchArtifact.created_at.desc()).limit(limit).all()
+    artifact_rows = (artifact_query.options(defer(ResearchArtifact.content))
+        .add_columns(func.substr(ResearchArtifact.content, 1, 500))
+        .order_by(ResearchArtifact.created_at.desc()).limit(limit).all())
     results = [_repository_source_item(item, project_titles.get(item.project_id, "")) for item in source_rows]
-    results.extend(_repository_artifact_item(item, project_titles.get(item.project_id, "")) for item in artifact_rows)
+    results.extend(_repository_artifact_item(item, project_titles.get(item.project_id, ""), excerpt or "") for item, excerpt in artifact_rows)
     results.sort(key=lambda item: item.get("created_at", ""), reverse=True)
     return {"results": results[:limit]}
 
 
 @router.get("/search")
-async def search_research_knowledge(
+def search_research_knowledge(
     q: str = Query(..., min_length=1),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return await list_research_repository(q=q, limit=limit, db=db, current_user=current_user)
+    return list_research_repository(q=q, limit=limit, db=db, current_user=current_user)
 
 
 @router.post("/projects/{project_id}/revise", response_model=ResearchArtifactResponse)
@@ -2312,12 +2342,15 @@ async def revise_artifact(
 
 
 @router.get("/artifacts/{artifact_id}/download")
-async def download_artifact(
+def download_artifact(
     artifact_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    artifact = db.query(ResearchArtifact).filter(ResearchArtifact.id == artifact_id).first()
+    # File/object-store reads are blocking. FastAPI runs this synchronous route
+    # in its worker pool; a slow download must not freeze progress and review.
+    artifact = (db.query(ResearchArtifact).options(defer(ResearchArtifact.content))
+                .filter(ResearchArtifact.id == artifact_id).first())
     if not artifact:
         raise HTTPException(status_code=404, detail="文档不存在")
     _get_project(db, artifact.project_id, current_user)
@@ -2334,6 +2367,13 @@ async def download_artifact(
             )
         except Exception:
             pass
+    if artifact.artifact_type=='desktop_report' and metadata.get('default_download_format')=='zip':
+        bundle_key=metadata.get('delivery_bundle_object_key')
+        if not bundle_key:raise HTTPException(status_code=409,detail='完整交付包尚未生成')
+        try:payload=research_store.get_bytes(bundle_key)
+        except Exception as exc:raise HTTPException(status_code=503,detail='完整交付包暂不可读取') from exc
+        return Response(content=payload,media_type='application/zip',
+            headers=_download_headers(f'{_safe_download_name(artifact.title,artifact.artifact_type)}_v{artifact.version}.zip'))
     docx_key = metadata.get("docx_object_key")
     if docx_key and artifact.artifact_type in {"desktop_report", "proposal"}:
         try:
@@ -2354,9 +2394,9 @@ async def download_artifact(
         except Exception:
             content = artifact.content
 
-    ext = "json" if artifact.artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger", "industry_run"} else "md"
+    ext = "html" if artifact.artifact_type=='company_evidence_annex' else "json" if artifact.artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger", "industry_run", "company_editorial", "company_information_usage", "company_corpus_digest", "company_source_coverage", "company_collection_audit", "company_presentation"} else "md"
     filename = f"{_safe_download_name(artifact.title, artifact.artifact_type)}_v{artifact.version}.{ext}"
-    media_type = "application/json; charset=utf-8" if ext == "json" else "text/markdown; charset=utf-8"
+    media_type = "application/json; charset=utf-8" if ext == "json" else "text/html; charset=utf-8" if ext=='html' else "text/markdown; charset=utf-8"
     return Response(
         content=content,
         media_type=media_type,

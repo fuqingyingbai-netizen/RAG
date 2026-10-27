@@ -38,7 +38,7 @@ ROOT = Path(__file__).resolve().parents[1]
     ('关闭AI搜索为什么还联网？', 'research-inputs', ['固定策略', '专业平台', '人物/行业']),
     ('邀请有效期多长？', 'admin-invitations', ['六小时', '只能注册一个', '展示一次']),
     ('专业平台余额不足是不是对象没有风险？', 'professional-platforms', ['采集缺口', '不代表', '管理员']),
-    ('知识库聊天记录会像小助手一样保存吗？', 'knowledge-chat-history', ['当前页面组件', '服务器', '不保证恢复']),
+    ('知识库聊天记录会像小助手一样保存吗？', 'knowledge-chat-history', ['服务器', '资料范围', '研究历史', '已保存']),
     ('小助手的新对话和清空记录分别是什么？', 'assistant-conversations', ['旧会话', '全部', '不影响公司知识库']),
 ])
 def test_real_usage_questions_find_specific_operational_answers(question, expected, words):

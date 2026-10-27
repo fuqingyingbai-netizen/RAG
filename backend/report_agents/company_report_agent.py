@@ -31,6 +31,10 @@ from .company_judicial import build_judicial_package, render_judicial, judicial_
 from .company_diligence import build_diligence_package, render_diligence, diligence_errors
 from .company_risk_register import build_risk_register, dictionary as risk_dictionary, render_risk_register, risk_register_errors
 from .company_assessment import build_assessment_package, render_assessment, assessment_errors
+from .company_source_review import build_source_review, render_reviewed_statements
+from .company_corpus import build_corpus_review,build_corpus_review_with_recovery
+from .company_corpus_writer import corpus_cache_matches,build_compact_digest,render_compact_chapters,update_evidence_diagnostics,collect_statements
+from .company_text import company_matching_cache
 
 
 COMPANY_REPORT_OUTLINE = [
@@ -190,6 +194,7 @@ class CompanyReportAgent:
     trace_agent = "company_report_agent"
     outline = COMPANY_REPORT_OUTLINE
 
+    @company_matching_cache()
     def generate(
         self,
         project: Any,
@@ -201,6 +206,22 @@ class CompanyReportAgent:
         trace_emit: Any = None,
     ) -> str:
         sections_by_index: dict[int, str] = {}
+        project.company_corpus_digest_package={}
+        project.company_information_usage_package={}
+        project.company_editorial_package={}
+        project.company_document_review={}
+        project.company_delivery_contract={}
+        project.company_delivery_contract_required=True
+        from .company_presentation import reading_mode
+        project.company_reading_mode=reading_mode(project)
+        project.company_presentation_package={}
+        project.company_main_focus_package={}
+        project._company_main_focus_journal_index=None
+        project.company_evidence_annex_html=''
+        project.company_evidence_annex_manifest={}
+        project.company_source_captions={}
+        project._company_presentation_journal_index=None
+        project.company_summary_editorial_feedback=[]
         emit(trace_emit, "report", self.trace_agent, "目标公司报告团队启动", f"sections={len(self.outline)}", status="running")
         # Company reports keep the fixed 14-chapter delivery outline, but their
         # content density follows the evidence.  A source may support several
@@ -224,6 +245,7 @@ class CompanyReportAgent:
                 package_payload = build_governance_package(
                     parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
                     list(getattr(project, "sources", []) or []),
+                    as_of_date=str((getattr(project,"company_research_intake",{}) or {}).get('as_of_date') or ''),
                 )
                 project.company_governance_package = package_payload
                 chapter = self._write_governance(project, package_payload, emit, trace_emit)
@@ -265,6 +287,7 @@ class CompanyReportAgent:
                 package_payload = build_reputation_package(
                     parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
                     list(getattr(project, "sources", []) or []),
+                    as_of=str((getattr(project, "company_research_intake", {}) or {}).get('as_of_date') or ''),
                 )
                 project.company_reputation_package = package_payload
                 chapter = self._write_reputation(project, package_payload, emit, trace_emit)
@@ -346,6 +369,13 @@ class CompanyReportAgent:
                     parsed = json.loads(cleaned_json or "{}")
                 except (ValueError, TypeError):
                     parsed = {}
+                from .company_event_evidence import review_primary_events
+                project.company_event_review_package = review_primary_events(
+                    list(getattr(project, 'sources', []) or []), str(project.target_name or ''),
+                    str((getattr(project, 'company_research_intake', {}) or {}).get('as_of_date') or ''),
+                    invoke, cache=getattr(project, 'company_event_review_cache', None), trace_emit=trace_emit)
+                from .company_checkpoint import checkpoint_generation_stage
+                checkpoint_generation_stage(project, emit, trace_emit)
                 package_payload = build_risk_register(
                     parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
                     list(getattr(project, "sources", []) or []),
@@ -353,6 +383,7 @@ class CompanyReportAgent:
                     intake=getattr(project, "company_research_intake", {}),
                     query_attempts=getattr(project, "company_judicial_query_attempts", []),
                     displayed_judicial=getattr(project,"company_judicial_package",{}),
+                    event_reviews=project.company_event_review_package,
                 )
                 project.company_risk_register_package = package_payload
                 chapter = self._write_risk_register(project, package_payload, emit, trace_emit)
@@ -368,6 +399,7 @@ class CompanyReportAgent:
                     list(getattr(project, "sources", []) or []),
                     industry=str(getattr(project, "industry", "") or ""),
                     intake=getattr(project, "company_research_intake", {}),
+                    event_reviews=getattr(project, 'company_event_review_package', None),
                 )
                 project.company_assessment_package = package_payload
                 chapter = self._write_assessment(project, package_payload, emit, trace_emit)
@@ -490,6 +522,100 @@ class CompanyReportAgent:
                     section = f"## {index}. {section_title}\n\n待核验。本章节需要后续补充核验：{'; '.join(requirements)}。"
                 if section.strip():
                     sections_by_index[index] = section
+        # Specialized parsers deliberately recognize narrow schemas. A missing
+        # schema match is not an unusable original: review subject-bound native
+        # statements and retain every source's actual disposition separately.
+        try:
+            review_cleaned = json.loads(cleaned_json or '{}')
+        except (ValueError, TypeError):
+            review_cleaned = {}
+        full_corpus=os.getenv('COMPANY_CORPUS_REVIEW_ENABLED','true').strip().lower() in {'1','true','yes','on'}
+        cached=getattr(project,'company_corpus_analysis_cache',{}) or {}
+        if full_corpus and corpus_cache_matches(project,cached):
+            review=cached
+            emit(trace_emit,'report','company_corpus','复用同一语料已完成的全量分析',
+                 '逐来源原文哈希、研究主体、截至日及完整性核对通过；本次仅重新归纳写作。',status='done')
+        elif full_corpus:
+            review=build_corpus_review_with_recovery(project,review_cleaned,sections_by_index,invoke,emit,trace_emit,
+                builder=build_corpus_review)
+        else:
+            review=build_source_review(project,review_cleaned,sections_by_index,invoke,emit,trace_emit)
+        project.company_source_review_package = review
+        if full_corpus:project.company_corpus_analysis_cache=review
+        from .company_checkpoint import checkpoint_generation_stage,checkpoint_editorial_batch
+        checkpoint_generation_stage(project,emit,trace_emit)
+        if full_corpus and os.getenv('COMPANY_CORPUS_COMPACT_WRITE_ENABLED','true').strip().lower() in {'1','true','yes','on'}:
+            from .company_information_usage import build_information_usage, append_information_markdown, source_information_map, routing_scope
+            editorial_enabled=os.getenv('COMPANY_DELIVERY_EDITORIAL_ENABLED','true').strip().lower() in {'1','true','yes','on'}
+            if editorial_enabled:
+                # Route all native information before writing. A short digest
+                # and raw quotations no longer masquerade as a finished report.
+                statements=collect_statements(project,review)
+                digest={'version':'company-delivery-native-input-v1','target_name':str(project.target_name),
+                    'statements':statements,'groups':[],'appendix_statements':[],
+                    'diagnostic':{'native_statements':len(statements),'narrative_input_statements':len(statements),
+                                  'unaccounted_statement_ids':[]}}
+            else:
+                digest=build_compact_digest(project,review,self.outline,invoke,emit,trace_emit)
+            project.company_corpus_digest_package=digest
+            usage=build_information_usage(digest,sections_by_index,self.outline,str(project.target_name),invoke,
+                previous=getattr(project,'company_information_usage_cache',{}),review_scope=routing_scope(project),
+                emit=emit,trace_emit=trace_emit)
+            usage['source_map']=source_information_map(list(project.sources or []),review,usage)
+            project.company_information_usage_package=usage
+            checkpoint_generation_stage(project,emit,trace_emit)
+            if editorial_enabled:
+                from .company_editorial import build_editorial_package,digest_groups,apply_narrative_uses,render_conflicts,fingerprint,record_payload
+                editorial_usage=usage
+                if project.company_reading_mode=='analysis_with_annex':
+                    from .company_presentation import build_presentation,presentation_scope,main_usage,render_annex,checkpoint_batch,source_captions
+                    presentation=build_presentation(usage,str(project.target_name),presentation_scope(project),invoke,
+                        previous=getattr(project,'company_presentation_cache',{}),emit=emit,trace_emit=trace_emit,
+                        receipt_callback=lambda batch:checkpoint_batch(project,batch,emit,trace_emit))
+                    project.company_presentation_package=presentation
+                    from .company_main_focus import build_main_focus,checkpoint_batch as checkpoint_focus
+                    focus=build_main_focus(usage,presentation,str(project.target_name),presentation_scope(project),invoke,
+                        previous=getattr(project,'company_main_focus_cache',{}),emit=emit,trace_emit=trace_emit,
+                        receipt_callback=lambda batch:checkpoint_focus(project,batch,emit,trace_emit))
+                    project.company_main_focus_package=focus
+                    editorial_usage=main_usage(usage,presentation,focus)
+                    project.company_source_captions=source_captions(project,usage)
+                    project.company_evidence_annex_html=render_annex(usage,presentation,str(project.target_name),project.company_source_captions)
+                    import hashlib
+                    project.company_evidence_annex_manifest={
+                        'sha256':hashlib.sha256(project.company_evidence_annex_html.encode('utf-8')).hexdigest(),
+                        'native_input_sha256':fingerprint([record_payload(r) for r in usage.get('records',[])]),
+                        'information_records':len(usage.get('records',[]))}
+                    checkpoint_generation_stage(project,emit,trace_emit)
+                editorial=build_editorial_package(editorial_usage,self.outline,str(project.target_name),invoke,
+                    previous=getattr(project,'company_editorial_cache',{}),emit=emit,trace_emit=trace_emit,
+                    receipt_callback=lambda batch:checkpoint_editorial_batch(project,batch,emit,trace_emit))
+                project.company_editorial_package=editorial
+                checkpoint_generation_stage(project,emit,trace_emit)
+                digest['groups']=digest_groups(editorial)
+                digest['diagnostic'].update(editorial['diagnostic'])
+                apply_narrative_uses(usage,editorial)
+                sections_by_index=render_compact_chapters(project,digest,self.outline,sections_by_index)
+                update_evidence_diagnostics(project,digest,sections_by_index)
+                # Preserve the deterministic scoring calculation, while adding
+                # checked non-scoring observations in the assessment chapter.
+                for group in digest['groups']:
+                    if group['chapter']==12:
+                        sections_by_index[12]+='\n\n'+group['summary']
+                sections_by_index=render_conflicts(editorial,sections_by_index)
+                from .company_delivery_contract import fill_evidence_gaps
+                sections_by_index=fill_evidence_gaps(sections_by_index,editorial,self.outline,usage=usage)
+                project.company_information_details=append_information_markdown(usage,{},self.outline)
+            else:
+                sections_by_index=render_compact_chapters(project,digest,self.outline,sections_by_index)
+                update_evidence_diagnostics(project,digest,sections_by_index)
+                sections_by_index=append_information_markdown(usage,sections_by_index,self.outline)
+        else:
+            for chapter in range(2,12):
+                rows=[r for r in review['facts'] if r['chapter']==chapter]
+                sections_by_index[chapter]+=render_reviewed_statements(rows)
+        for chapter in range(2,12):
+            section_evidence_ids[chapter]=sorted(set(cited_evidence_ids(sections_by_index[chapter])))
         summary = self._write_summary(project, cleaned_json, sections_by_index, invoke, emit, trace_emit)
         sections_by_index[1] = summary
         # Only IDs actually cited in the checked summary count as its usage.
@@ -689,10 +815,14 @@ class CompanyReportAgent:
             cleaned = {}
         if not isinstance(cleaned, dict):
             cleaned = {}
+        if (getattr(project,'company_editorial_package',{}) or {}).get('findings'):
+            # The reader summary must follow the final checked body, not a
+            # cleaner card that never survived source/semantic review.
+            cleaned={'facts':[]}
         package = build_company_summary_package(
             cleaned, str(project.target_name or ""), list(getattr(project, "sources", []) or []),
             chapter_packages={key: getattr(project, 'company_' + key + '_package', {})
-                              for key in ('assessment', 'reputation', 'business', 'governance', 'management')},
+                              for key in ('assessment', 'reputation', 'business', 'governance', 'management','editorial')},
         )
         project.company_summary_package = package
         diagnostic = {
@@ -710,6 +840,8 @@ class CompanyReportAgent:
             diagnostic.update(degraded=True, errors=["没有主体匹配的摘要证据"])
             return fallback_company_summary(project, package)
         prompt = build_company_summary_prompt(project, package, completed_sections)
+        feedback=getattr(project,'company_summary_editorial_feedback',[]) or []
+        if feedback:prompt+='\n请修复最终审稿指出的摘要问题；只依据以上事实卡，原有来源范围和归因不能扩大：'+json.dumps(feedback,ensure_ascii=False)
         answer = ""
         try:
             answer = normalize_company_summary(invoke(f"{self.report_kind}摘要 Agent", prompt, trace_emit))

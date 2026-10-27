@@ -103,19 +103,35 @@ def main(argv=None):
     parser.add_argument('--replay', type=Path, help='Saved run folder with facts, risk, report and optional original diagnostics.')
     parser.add_argument('--replay-only', action='store_true', help='Audit only; requires --replay.')
     parser.add_argument('--output', type=Path, help='Save the local replay audit JSON; never alters source artifacts.')
+    parser.add_argument('--acceptance', action='store_true', help='Also evaluate the frozen candidate acceptance set.')
+    parser.add_argument('--acceptance-only', action='store_true', help='Evaluate candidate labels without running pytest or historical replay.')
+    parser.add_argument('--acceptance-output', type=Path, help='New private JSON result for candidate acceptance.')
     args = parser.parse_args(argv)
     if args.replay_only and not args.replay:
         parser.error('--replay-only requires --replay')
     if args.output and not args.replay:
         parser.error('--output requires --replay')
+    if args.acceptance_only and (args.full or args.replay or args.replay_only):
+        parser.error('--acceptance-only cannot combine with --full or historical replay')
+    if args.acceptance_output and not (args.acceptance or args.acceptance_only):
+        parser.error('--acceptance-output requires --acceptance or --acceptance-only')
     if args.output and args.output.resolve() in {args.replay.resolve() / name for name in
             ['cleaned_facts.json', 'risk_assessment.json', 'desktop_report.md', 'proposal.md', 'monitor-evidence-summary.json','industry_claim_ledger.json']}:
         parser.error('--output must not overwrite saved source artifacts')
-    if not args.replay_only:
+    if not args.replay_only and not args.acceptance_only:
         files = (sorted((ROOT / 'test').glob('test_industry_*.py')) + [ROOT / 'test/test_runtime_version.py'] if args.full else
-                 [ROOT / 'test' / name for name in ['test_runtime_version.py','test_industry_fact_contracts.py','test_industry_v12_acceptance.py','test_industry_v13_acceptance.py','test_industry_v14_acceptance.py','test_industry_evidence_contract.py','test_industry_runs.py','test_industry_delivery_contracts.py','test_industry_synthesis_contracts.py','test_industry_verification_tasks.py','test_industry_assertion_boundaries.py','test_industry_fallback.py','test_industry_risk_support.py','test_industry_claim_semantics.py', 'test_industry_risk_repair.py']])
+                 [ROOT / 'test' / name for name in ['test_runtime_version.py','test_industry_template_analysis.py','test_industry_fact_contracts.py','test_industry_decision_readiness.py','test_industry_observed_inputs.py','test_industry_v12_acceptance.py','test_industry_v13_acceptance.py','test_industry_v14_acceptance.py','test_industry_evidence_contract.py','test_industry_runs.py','test_industry_delivery_contracts.py','test_industry_synthesis_contracts.py','test_industry_verification_tasks.py','test_industry_assertion_boundaries.py','test_industry_fallback.py','test_industry_risk_support.py','test_industry_claim_semantics.py', 'test_industry_risk_repair.py']])
+        if not args.full:
+            files += [ROOT / 'test' / name for name in ['test_industry_reasoning.py', 'test_industry_cleaning_retrieval.py', 'test_industry_analysis_repair.py', 'test_industry_briefing.py', 'test_industry_analysis_selection.py', 'test_industry_reader.py']]
         env = {**os.environ, 'PYTHONUTF8':'1', 'PYTHONPATH':str(ROOT / 'backend')}
         code = subprocess.run([sys.executable, '-m', 'pytest', *map(str, files), '-q', '--tb=short'], cwd=ROOT, env=env).returncode
+        if code:
+            return code
+    if args.acceptance or args.acceptance_only:
+        command = [sys.executable, str(ROOT / 'scripts/industry_acceptance.py')]
+        if args.acceptance_output:
+            command += ['--output', str(args.acceptance_output)]
+        code = subprocess.run(command, cwd=ROOT, env={**os.environ, 'PYTHONUTF8':'1'}).returncode
         if code:
             return code
     if args.replay:

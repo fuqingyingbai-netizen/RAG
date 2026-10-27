@@ -55,6 +55,8 @@ def test_unrelated_http_errors_do_not_trigger_serper_cap_retry(monkeypatch,statu
 @pytest.mark.parametrize('status,body,expected',[
     (401,{'error':'invalid api key'},'unauthorized'),
     (402,{'message':'Payment required'},'quota_exceeded'),
+    (400,{'message':'Not enough credits'},'quota_exceeded'),
+    (403,{'code':'403','message':'You do not have enough money or package quota'},'quota_exceeded'),
     (432,{'detail':{'error':'Plan credit limit'}},'quota_exceeded'),
     (433,{'detail':{'error':'Account usage cap'}},'quota_exceeded'),
     (429,{'message':'Too many requests'},'rate_limited'),
@@ -68,15 +70,20 @@ def test_search_failure_reasons_do_not_conflate_account_and_network(status,body,
     assert WebSearchProvider._search_failure_reason(requests.ReadTimeout())=='temporary_network_failure'
 
 
-def test_terminal_failure_is_retained_in_following_query_audit(monkeypatch):
+@pytest.mark.parametrize('status,body',[(402,{}),(400,{'message':'Not enough credits'})])
+def test_terminal_failure_is_retained_in_following_query_audit(monkeypatch,status,body):
     provider=WebSearchProvider()
-    def fail(*a,**kw):raise requests.HTTPError(response=response(402,{}))
+    calls=[]
+    def fail(*a,**kw):
+        calls.append(1)
+        raise requests.HTTPError(response=response(status,body))
     provider.engines=[('serper',fail)]
     monkeypatch.setenv('SERPER_API_KEY','offline-account')
     first=provider.multi_engine_search('first',30,candidate_limit=30)
     second=provider.multi_engine_search('second',30,candidate_limit=30)
     assert first.audit['engine_states']['serper']['reason']=='quota_exceeded'
     assert second.audit['engine_states']['serper']=={'status':'not_queried','reason':'quota_exceeded'}
+    assert calls==[1]
 
 
 def test_admission_interleaves_modules_and_questions_without_dropping_candidates():

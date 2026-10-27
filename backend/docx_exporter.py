@@ -47,10 +47,12 @@ STYLES_XML = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:pPr><w:spacing w:after="120" w:line="300" w:lineRule="auto"/></w:pPr><w:rPr><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="21"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="CompanyTable"><w:name w:val="Company Table"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="60" w:line="240" w:lineRule="auto"/></w:pPr></w:style>
+  <w:style w:type="paragraph" w:styleId="CompanySource"><w:name w:val="Company Source Index"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr><w:sz w:val="18"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="PersonTable"><w:name w:val="Person Table"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="40" w:line="240" w:lineRule="auto"/></w:pPr></w:style>
   <w:style w:type="paragraph" w:styleId="PersonQuote"><w:name w:val="Person Source Quote"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="60" w:line="260" w:lineRule="auto"/></w:pPr></w:style>
   <w:style w:type="paragraph" w:styleId="PersonEvidenceLabel"><w:name w:val="Person Evidence Label"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="160" w:after="60"/></w:pPr><w:rPr><w:b/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="TableText"><w:name w:val="Table Text"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="0" w:after="60" w:line="276" w:lineRule="auto"/></w:pPr></w:style>
+  <w:style w:type="paragraph" w:styleId="IndustryFinding"><w:name w:val="Industry Finding"/><w:basedOn w:val="Normal"/><w:pPr><w:shd w:fill="EFF5FA"/><w:pBdr><w:left w:val="single" w:sz="18" w:space="10" w:color="365F7C"/></w:pBdr><w:ind w:left="180" w:right="120"/><w:spacing w:before="120" w:after="140" w:line="300" w:lineRule="auto"/></w:pPr><w:rPr><w:color w:val="17364D"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:before="240" w:after="240"/></w:pPr><w:rPr><w:b/><w:color w:val="111827"/><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="34"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr><w:rPr><w:color w:val="64748B"/><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="20"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="ReportTitle"><w:name w:val="Report Title"/><w:basedOn w:val="Normal"/><w:pPr><w:jc w:val="center"/><w:spacing w:before="240" w:after="240"/></w:pPr><w:rPr><w:b/><w:color w:val="111827"/><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="34"/></w:rPr></w:style>
@@ -99,17 +101,19 @@ def _plain_runs(
     bold_xml: str,
     evidence_bookmarks: dict[str, tuple[int, str]] | None = None,
     suppress_evidence_links: bool = False,
+    monospace_evidence_ids: bool = False,
 ) -> str:
     """Render text runs and link company E-IDs to chapter 13 bookmarks."""
     body: list[str] = []
     cursor = 0
     for match in _EVIDENCE_ID_RE.finditer(text or ""):
         if match.start() > cursor:
-            body.append(f'<w:r><w:rPr>{bold_xml}<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/></w:rPr><w:t xml:space="preserve">{_esc(text[cursor:match.start()])}</w:t></w:r>')
+            body.append(_text_runs(text[cursor:match.start()], bold_xml))
         evidence_id = match.group(0).upper()
         bookmark = (evidence_bookmarks or {}).get(evidence_id)
         run = (
-            f'<w:r><w:rPr>{bold_xml}<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/>'
+            f'<w:r><w:rPr>{bold_xml}<w:rFonts w:ascii="{"Consolas" if monospace_evidence_ids else "Microsoft YaHei"}" w:eastAsia="Microsoft YaHei"/>'
+            + ('<w:sz w:val="20"/>' if monospace_evidence_ids else '')
             + ('<w:color w:val="0563C1"/><w:u w:val="single"/>' if bookmark and not suppress_evidence_links else '')
             + f'</w:rPr><w:t xml:space="preserve">{_esc(match.group(0))}</w:t></w:r>'
         )
@@ -118,8 +122,15 @@ def _plain_runs(
         body.append(run)
         cursor = match.end()
     if cursor < len(text or ""):
-        body.append(f'<w:r><w:rPr>{bold_xml}<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/></w:rPr><w:t xml:space="preserve">{_esc((text or "")[cursor:])}</w:t></w:r>')
+        body.append(_text_runs((text or "")[cursor:], bold_xml))
     return "".join(body)
+
+
+def _text_runs(text: str, properties: str = '') -> str:
+    """A Word line break belongs inside a run, never directly in a paragraph."""
+    return '<w:r><w:br/></w:r>'.join(
+        f'<w:r><w:rPr>{properties}<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/></w:rPr>'
+        f'<w:t xml:space="preserve">{_esc(part)}</w:t></w:r>' for part in text.split('\n'))
 
 
 def _run(
@@ -129,34 +140,36 @@ def _run(
     evidence_bookmarks: dict[str, tuple[int, str]] | None = None,
     suppress_evidence_links: bool = False,
     compact_url_labels: bool = False,
+    monospace_evidence_ids: bool = False,
 ) -> str:
     bold_xml = "<w:b/>" if bold else ""
     body = []
-    for index, part in enumerate(str(text or "").split("\n")):
-        if index:
-            body.append("<w:br/>")
-        cursor = 0
-        for match in _LINK_OR_URL_RE.finditer(part):
-            markdown_link = match.group(1) is not None
-            url = _normalize_url(match.group(2) if markdown_link else match.group(0))
-            label = re.sub(r'\\([\[\]\\])', r'\1', match.group(1)) if markdown_link else url
-            if match.start() > cursor:
-                body.append(_plain_runs(part[cursor:match.start()], bold_xml, evidence_bookmarks, suppress_evidence_links))
-            if url:
-                if hyperlink_id:
-                    rid = hyperlink_id(url)
-                    bookmark = (evidence_bookmarks or {}).get(label.upper()) if markdown_link and not suppress_evidence_links else None
-                    target = f'w:anchor="{bookmark[1]}"' if bookmark else f'r:id="{rid}"'
-                    body.append(
-                        f'<w:hyperlink {target}><w:r><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/>'
-                        f'<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/></w:rPr>'
-                        f'<w:t xml:space="preserve">{_esc("打开原件" if compact_url_labels else label)}</w:t></w:r></w:hyperlink>'
-                    )
-                else:
-                    body.append(f'<w:r><w:rPr>{bold_xml}<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/></w:rPr><w:t xml:space="preserve">{_esc(url)}</w:t></w:r>')
-            cursor = match.end() if markdown_link else match.start() + len(url)
-        if cursor < len(part):
-            body.append(_plain_runs(part[cursor:], bold_xml, evidence_bookmarks, suppress_evidence_links))
+    text = str(text or '')
+    cursor = 0
+    # Match links before emitting line breaks: an old source title can contain
+    # a normalized <br>, but that must not split its Markdown link token.
+    for match in _LINK_OR_URL_RE.finditer(text):
+        markdown_link = match.group(1) is not None
+        url = _normalize_url(match.group(2) if markdown_link else match.group(0))
+        label = re.sub(r'\\([\[\]\\])', r'\1', match.group(1)) if markdown_link else url
+        label = re.sub(r'\s+', ' ', label).strip()
+        if match.start() > cursor:
+            body.append(_plain_runs(text[cursor:match.start()], bold_xml, evidence_bookmarks, suppress_evidence_links, monospace_evidence_ids))
+        if url:
+            if hyperlink_id:
+                rid = hyperlink_id(url)
+                bookmark = (evidence_bookmarks or {}).get(label.upper()) if markdown_link and not suppress_evidence_links else None
+                target = f'w:anchor="{bookmark[1]}"' if bookmark else f'r:id="{rid}"'
+                body.append(
+                    f'<w:hyperlink {target}><w:r><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/>'
+                    f'<w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/></w:rPr>'
+                    f'<w:t xml:space="preserve">{_esc("打开原件" if compact_url_labels else label)}</w:t></w:r></w:hyperlink>'
+                )
+            else:
+                body.append(_text_runs(url, bold_xml))
+        cursor = match.end() if markdown_link else match.start() + len(url)
+    if cursor < len(text):
+        body.append(_plain_runs(text[cursor:], bold_xml, evidence_bookmarks, suppress_evidence_links, monospace_evidence_ids))
     return "".join(body) or f'<w:r><w:rPr>{bold_xml}</w:rPr><w:t/></w:r>'
 
 
@@ -214,13 +227,19 @@ def _table(
     evidence_bookmarks: dict[str, tuple[int, str]] | None = None,
     company: bool = False,
     person: bool = False,
+    industry: bool = False,
 ) -> str:
     if not rows:
         return ""
     width = max(len(row) for row in rows)
     table_width = 9026
     col_width = table_width // max(1, width)
-    compact_source=company and rows[0]==['证据编号','支持章节','来源与关键摘要','台账定位']
+    compact_source=company and rows[0] in [
+        ['证据编号','支持章节','来源与关键摘要','台账定位'],
+        ['证据编号','支持章节','来源标题','台账定位']]
+    compact_caption_source=company and rows[0]==['证据编号','支持章节','来源标题','台账定位']
+    cell_vertical_margin='40' if compact_caption_source else '90'
+    industry_source = not company and rows[0] == ['证据编号及支持章节', '原始来源与发布日期', '定位识别']
     widths=[col_width]*width
     if not company and not person:
         headers = rows[0]
@@ -230,6 +249,14 @@ def _table(
             weights = [14, 16, 17, 25, 7, 21]
         elif headers == ['风险维度', '评估状态', '模型分值', '风险等级', '判断依据或未评分原因', '证据编号']:
             weights = [17, 12, 10, 10, 34, 17]
+        elif headers == ['比较方向', '原文信息', '适用边界']:
+            weights = [17, 58, 25]
+        elif headers == ['上游', '中游', '下游']:
+            weights = [1, 1, 1]
+        elif headers == ['期间与数值性质', '来源列示值', '分别保留的统计口径与出处']:
+            weights = [20, 30, 50]
+        elif industry_source:
+            weights = [26, 44, 30]
         elif width == 3 and any('定位' in h for h in headers):
             weights = [23, 49, 28]
         else:
@@ -259,14 +286,15 @@ def _table(
     grid = "".join(f'<w:gridCol w:w="{value}"/>' for value in widths)
     xml = [
         f'<w:tbl><w:tblPr><w:tblW w:w="{table_width}" w:type="dxa"/>'
-        '<w:tblLayout w:type="fixed"/>'
-        '<w:tblCellMar><w:top w:w="90" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="90" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar>'
+        '<w:tblInd w:w="0" w:type="dxa"/>'
         '<w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>'
         '<w:left w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>'
         '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>'
         '<w:right w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>'
         '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>'
-        '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/></w:tblBorders></w:tblPr>'
+        '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/></w:tblBorders>'
+        '<w:tblLayout w:type="fixed"/>'
+        f'<w:tblCellMar><w:top w:w="{cell_vertical_margin}" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="{cell_vertical_margin}" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar></w:tblPr>'
         f'<w:tblGrid>{grid}</w:tblGrid>',
     ]
     for ridx, row in enumerate(rows):
@@ -287,14 +315,15 @@ def _table(
                 if damaged:
                     cell = '原文存在乱码、缺字或残句，暂不转述；请核对原始来源。'
             if compact_source and ridx>0:cell=_company_source_cell(cell,cidx)
-            shade = '<w:shd w:fill="EAF1F8"/>' if ridx == 0 else ""
+            shade = '<w:shd w:fill="EAF1F8"/>' if ridx == 0 else (
+                '<w:shd w:fill="F7FAFC"/>' if industry and ridx % 2 == 0 else '')
             long_row = max((len(str(value)) for value in row), default=0) > 80
             v_align = '<w:vAlign w:val="top"/>' if company or person or long_row else '<w:vAlign w:val="center"/>'
             evidence_id = str(cell or "").strip().upper()
             bookmark = (evidence_bookmarks or {}).get(evidence_id) if ridx > 0 and cidx == 0 else None
             xml.append(
                 f"<w:tc><w:tcPr><w:tcW w:w=\"{widths[cidx]}\" w:type=\"dxa\"/>{shade}{v_align}</w:tcPr>"
-                f"{_paragraph(cell, style='CompanyTable' if company else 'PersonTable' if person else 'TableText', hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, bookmark=bookmark, suppress_evidence_links=bool(bookmark), compact_url_labels=bool(compact_source and ridx>0 and cidx==3 or person and ridx>0 and rows[0][cidx]=='原始定位'), bold=ridx == 0)}</w:tc>"
+                f"{_paragraph(cell, style='CompanySource' if compact_caption_source else 'CompanyTable' if company else 'PersonTable' if person else 'TableText', hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, bookmark=bookmark, suppress_evidence_links=bool(bookmark), compact_url_labels=bool(compact_source and ridx>0 and cidx==3 or person and ridx>0 and rows[0][cidx]=='原始定位'), monospace_evidence_ids=bool(industry_source and ridx>0), bold=ridx == 0)}</w:tc>"
             )
         xml.append("</w:tr>")
     xml.append("</w:tbl>")
@@ -310,6 +339,7 @@ def _paragraph(
     bookmark: tuple[int, str] | None = None,
     suppress_evidence_links: bool = False,
     compact_url_labels: bool = False,
+    monospace_evidence_ids: bool = False,
     keep_next: bool = False,
     keep_lines: bool = False,
     bold: bool = False,
@@ -325,9 +355,10 @@ def _paragraph(
         evidence_bookmarks=evidence_bookmarks,
         suppress_evidence_links=suppress_evidence_links,
         compact_url_labels=compact_url_labels,
+        monospace_evidence_ids=monospace_evidence_ids,
         bold=bold,
     )
-    after='60' if style in {'CompanyTable', 'TableText', 'PersonTable', 'PersonQuote'} else '120'
+    after='0' if style=='CompanySource' else '60' if style in {'CompanyTable', 'TableText', 'PersonTable', 'PersonQuote'} else '120'
     keep_xml=('<w:keepNext/>' if keep_next else '')+('<w:keepLines/>' if keep_next or keep_lines else '')
     return f"<w:p><w:pPr>{style_xml}{indent_xml}{keep_xml}<w:spacing w:after=\"{after}\"/></w:pPr>{bookmark_start}{runs}{bookmark_end}</w:p>"
 
@@ -344,6 +375,7 @@ def _parse_table(
     evidence_bookmarks: dict[str, tuple[int, str]] | None = None,
     company: bool = False,
     person: bool = False,
+    industry: bool = False,
 ) -> tuple[str, int]:
     rows: list[list[str]] = []
     i = start
@@ -356,7 +388,7 @@ def _parse_table(
                 cells = cells[:width-1] + [' / '.join(c for c in cells[width-1:] if c)]
             rows.append(cells)
         i += 1
-    return _table(rows, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, company=company, person=person), i
+    return _table(rows, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, company=company, person=person, industry=industry), i
 
 
 def _image_payload(target: str) -> tuple[bytes, str] | None:
@@ -635,7 +667,7 @@ def markdown_to_docx_bytes(
             i += 1
             continue
         if "|" in line and i + 1 < len(lines) and _is_separator_row(lines[i + 1]):
-            table_xml, i = _parse_table(lines, i, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, company=company_claim_index, person=person_claim_index)
+            table_xml, i = _parse_table(lines, i, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, company=company_claim_index, person=person_claim_index, industry=document_kind.startswith('industry_'))
             body.append(table_xml)
             continue
         heading = re.match(r"^(#{1,6})\s*(.*)$", line)
@@ -663,12 +695,14 @@ def markdown_to_docx_bytes(
                         style = "SectionHeading"
             body.append(_paragraph(text, style=style, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks,
                                    bookmark=chapter_bookmarks.get(text) if chapter_bookmarks and level==2 else None,
-                                   keep_next=company_claim_index or person_claim_index))
+                                   keep_next=company_claim_index or person_claim_index or document_kind.startswith('industry_')))
             i += 1
             continue
         quote = re.match(r"^>\s*(.*)$", line)
         if quote:
-            body.append(_paragraph(quote.group(1), style='PersonQuote' if person_claim_index else None, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, keep_lines=company_claim_index))
+            finding = document_kind == 'industry_report' and current_chapter == 14 and bool(quote.group(1))
+            body.append(_paragraph(quote.group(1), style='IndustryFinding' if finding else 'PersonQuote' if person_claim_index else None,
+                hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, keep_lines=company_claim_index or finding))
             i += 1
             continue
         if person_claim_index and line.startswith('**来源记录 '):

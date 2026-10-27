@@ -26,6 +26,44 @@ def package(name,*pairs,**kwargs):
     return build_reputation_package({'facts':[p[0] for p in pairs]},name,[p[1] for p in pairs],**kwargs)
 
 
+def test_original_research_view_is_attributed_without_invented_market_share_or_peer_table():
+    from company_publishers import research_publisher_identity,statistics_publisher_identity
+    name='青禾网络科技有限公司';url='https://www.idc.com/resource-center/blog/cloud-study/'
+    raw=('Markets and Trends October 8, 2026 1 min\n\nIDC发布《中国AI云市场追踪报告，2025》。\n\n'
+         '在综合能力方面，'+name+'、星河科技等厂商取得了优势与主要市场份额。')
+    c,s=filing(name,raw);s.update(url=url,content=raw);c['source_url']=url
+    assert research_publisher_identity(url,raw)['publication_date']=='2026-10-08'
+    assert statistics_publisher_identity(url,raw)=={}
+    p=package(name,(c,s),as_of='2026-10-20');text=render_reputation(p)
+    assert len(p['facts'])==1 and p['facts'][0]['kind']=='research_view'
+    assert p['facts'][0]['fact'] in raw and p['facts'][0]['aspect']=='行业地位'
+    assert '原发布机构研究观点／非完整定量对标' in text
+    assert '尚无达到同产品、同期间、同地区及同分母条件的完整对标组' in text
+    assert not any(r['kind']=='benchmark' for r in p['facts'])
+    assert not package(name,(c,s),as_of='2026-10-01')['facts']
+    c['eligible_for_report']=False
+    assert not package(name,(c,s))['facts']
+
+
+@pytest.mark.parametrize('url',[
+    'https://idc.com.evil.example/resource-center/blog/cloud-study/',
+    'https://www.idc.com/customer-story/cloud-study/',
+    'http://www.idc.com/resource-center/blog/cloud-study/',
+])
+def test_original_research_route_not_inferred_from_republication_or_company_story(url):
+    from company_publishers import research_publisher_identity
+    assert research_publisher_identity(url,'October 8, 2026 IDC发布云市场研究。')=={}
+
+
+def test_declared_quarter_issuer_aliases_are_not_inferred_from_brand_prefixes():
+    name='青禾网络科技有限公司'
+    raw=(name+'（「青禾网络」或「青禾集团」）今日公布截至2026年6月30日止季度业绩。')
+    c,s=filing(name,'季度业绩公告\n'+raw)
+    aliases=aliases_for_target(name,[s])
+    assert {'青禾网络','青禾集团'}<=aliases
+    assert '青禾云' not in aliases and '星河' not in aliases
+
+
 def survey(name,raw=None,*,i=1):
     raw=raw or table_rows()
     c,s=filing(name,'',i=i)
