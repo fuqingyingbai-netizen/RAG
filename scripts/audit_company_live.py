@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -25,6 +26,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'backend'))
 
 
+def retained_project_state(previous, *, interrupted=False):
+    path=Path(previous)/'project-state.json'
+    # An interrupted collector may not have reached the first full snapshot.
+    # Absence supplies no query attempts; malformed existing state still fails.
+    if interrupted and not path.exists():return {}
+    state=json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(state,dict):raise ValueError('Retained project state must be an object')
+    return state
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--live', action='store_true')
@@ -33,6 +44,8 @@ def main():
     parser.add_argument('--deadline', required=True, help='Absolute ISO timestamp with timezone')
     parser.add_argument('--reuse-search-from', type=Path, help='Retained real provider responses and originals; missing requests remain live')
     parser.add_argument('--report-only', action='store_true', help='Requires retained run; freeze original sources and cleaned facts, regenerate production risk/report/export only')
+    parser.add_argument('--reclean-retained', action='store_true', help='Requires completed retained run; freeze actual collected originals, execute the current production cleaner and risk/report/export without reusing old cleaned facts')
+    parser.add_argument('--resume-interrupted', action='store_true', help='Resume an interrupted real collection from its retained provider receipts and SQLite sources; missing calls remain live, no completed-cleaning claim')
     parser.add_argument('--resume-collected', action='store_true', help='Resume a retained run stopped at the pre-clean professional-source gate; freeze its actual collected sources, then execute real cleaning/risk/report')
     parser.add_argument('--supplement-json', type=Path, help='Requires retained run; fetch explicitly listed known original URLs, retain prior corpus, clean changed inputs, regenerate report; no search replay')
     parser.add_argument('--max-new-search-calls', type=int, default=240, help='Bound additional provider calls in retained-input follow-up mode')
@@ -41,11 +54,15 @@ def main():
         parser.error('--live is required for paid external calls')
     if args.report_only and not args.reuse_search_from:
         parser.error('--report-only requires --reuse-search-from')
+    if args.reclean_retained and (not args.reuse_search_from or args.report_only or args.resume_collected or args.supplement_json or args.resume_interrupted):
+        parser.error('--reclean-retained requires --reuse-search-from and excludes other replay modes')
+    if args.resume_interrupted and (not args.reuse_search_from or args.report_only or args.resume_collected or args.supplement_json):
+        parser.error('--resume-interrupted requires --reuse-search-from and excludes frozen replay modes')
     if args.resume_collected and (not args.reuse_search_from or args.report_only or args.supplement_json):
         parser.error('--resume-collected requires --reuse-search-from and excludes report-only/supplement modes')
     if args.supplement_json and (not args.reuse_search_from or args.report_only):
         parser.error('--supplement-json requires --reuse-search-from and cannot be combined with --report-only')
-    frozen_retrieval=bool(args.report_only or args.supplement_json or args.resume_collected)
+    frozen_retrieval=bool(args.report_only or args.supplement_json or args.resume_collected or args.reclean_retained)
     deadline = datetime.fromisoformat(args.deadline).timestamp()
     if deadline - time.time() < 300:
         parser.error('Less than five minutes remain; no new run may start')
@@ -127,6 +144,16 @@ def main():
         runtime.update(scope='resume_actual_collected_sources_after_preclean_gate_failure',
                        sources='Frozen actual collected originals; real cleaning/risk/report executes now; prior failed run remains unchanged')
         write('runtime.json',runtime)
+    if args.reclean_retained:
+        runtime=json.loads((run/'runtime.json').read_text(encoding='utf-8'))
+        runtime.update(scope='frozen_actual_originals_current_production_reclean_risk_report_export',
+                       sources='Frozen real collected originals; old cleaned facts are not used as cleaner output')
+        write('runtime.json',runtime)
+    if args.resume_interrupted:
+        runtime=json.loads((run/'runtime.json').read_text(encoding='utf-8'))
+        runtime.update(scope='interrupted_actual_collection_resume_with_live_missing_requests',
+                       sources='Same-session interrupted real collection; retained receipts reused, missing requests live; current production cleaning executes from originals')
+        write('runtime.json',runtime)
 
     import requests
     import httpx
@@ -143,10 +170,18 @@ def main():
     previous_cleaned={};previous_intake={}
     if args.reuse_search_from:
         previous=args.reuse_search_from.resolve()
-        if not (previous/'result.json').exists():
+        if not (previous/'result.json').exists() and not args.resume_interrupted:
             raise ValueError('Retained run must have finished before starting a follow-up')
-        previous_result=json.loads((previous/'result.json').read_text(encoding='utf-8'))
-        if args.resume_collected:
+        previous_result=json.loads((previous/'result.json').read_text(encoding='utf-8')) if (previous/'result.json').exists() else {}
+        if args.resume_interrupted:
+            if previous_result.get('completed') or (previous/'cleaned_facts.json').exists() or not (previous/'run.sqlite').exists():
+                raise ValueError('Interrupted collection resume requires actual SQLite collection, without completed output or prior cleaned facts')
+            write('interrupted-collection-inputs.json',{'scope':'Interrupted actual collection; no completion or prior cleaning claimed',
+                'retained_run':str(previous),'prior_result':previous_result or None,
+                'sqlite_sha256':hashlib.sha256((previous/'run.sqlite').read_bytes()).hexdigest(),
+                'trace_sha256':hashlib.sha256((previous/'trace.jsonl').read_bytes()).hexdigest(),
+                'prior_code':json.loads((previous/'code-start.json').read_text(encoding='utf-8'))})
+        elif args.resume_collected:
             if (previous_result.get('completed') is not False or '专业数据库来源' not in str(previous_result.get('error') or '')
                     or (previous/'cleaned_facts.json').exists() or not (previous/'source-snapshots.json').exists()):
                 raise ValueError('Collection resume requires the actual retained pre-clean professional-source gate failure and its source snapshot')
@@ -159,18 +194,37 @@ def main():
         with (StringIO('') if frozen_retrieval else search_log.open(encoding='utf-8')) as stream:
             for line in stream:
                 if not line.strip():continue
-                batch=json.loads(line)
+                try:batch=json.loads(line)
+                except json.JSONDecodeError:
+                    if not args.resume_interrupted:raise
+                    append('interrupted-input-recovery.jsonl',{'kind':'incomplete_provider_receipt_excluded',
+                        'line_sha256':hashlib.sha256(line.encode()).hexdigest()})
+                    continue
                 if 'results' not in batch:continue
                 key=(batch['provider'],batch['query'])
                 if key in retained_search:
                     ambiguous.add(key)
                 else:retained_search[key]=batch['results']
         for key in ambiguous:retained_search.pop(key,None)
-        retained_sources=json.loads((previous/'source-snapshots.json').read_text(encoding='utf-8'))
+        if (previous/'source-snapshots.json').exists():
+            retained_sources=json.loads((previous/'source-snapshots.json').read_text(encoding='utf-8'))
+        elif args.resume_interrupted:
+            with sqlite3.connect('file:'+(previous/'run.sqlite').as_posix()+'?mode=ro',uri=True) as checkpoint:
+                checkpoint.row_factory=sqlite3.Row
+                retained_sources=[dict(row) for row in checkpoint.execute('SELECT * FROM research_sources ORDER BY id')]
+            for source in retained_sources:
+                source['source_metadata']=json.loads(source.get('source_metadata') or '{}')
+            write('interrupted-source-checkpoint.json',retained_sources)
+        else:raise ValueError('Retained source snapshot is missing')
         previous_intake=json.loads((previous/'intake.json').read_text(encoding='utf-8'))
         if any(previous_intake.get(k)!=intake.get(k) for k in ('company_name','industry','as_of_date','focus_questions')):
             raise ValueError('Retained-input follow-up requires the same target, industry, cutoff and focus questions')
-        previous_cleaned={} if args.resume_collected else json.loads((previous/'cleaned_facts.json').read_text(encoding='utf-8'))
+        previous_cleaned={} if args.resume_collected or args.reclean_retained or args.resume_interrupted else json.loads((previous/'cleaned_facts.json').read_text(encoding='utf-8'))
+        if args.reclean_retained:
+            write('reclean-retained-inputs.json',{'scope':'Same actual retained originals; current production cleaner executes from originals, without prior cleaned output reuse',
+                'retained_run':str(previous),'source_count':len(retained_sources),
+                'sources_sha256':hashlib.sha256((previous/'source-snapshots.json').read_bytes()).hexdigest(),
+                'prior_cleaned_facts_sha256':hashlib.sha256((previous/'cleaned_facts.json').read_bytes()).hexdigest()})
         if args.report_only:
             write('frozen-report-inputs.json',{'scope':'Report-stage replay; no claim of a new full collection or cleaning run',
                 'retained_run':str(previous),'source_count':len(retained_sources),
@@ -187,7 +241,8 @@ def main():
         if not previous_objects.exists():previous_objects=previous/'objects'
         shutil.copytree(previous_objects,run/'objects',dirs_exist_ok=True)
         write('retained-input-manifest.json',{'provider_batches':len(retained_search),'ambiguous_batches_requeried':len(ambiguous),
-              'retained_successful_originals':len(retained_fetch),'source_snapshot_sha256':hashlib.sha256((previous/'source-snapshots.json').read_bytes()).hexdigest(),
+              'retained_successful_originals':len(retained_fetch),'source_snapshot_sha256':hashlib.sha256((previous/'source-snapshots.json').read_bytes()).hexdigest() if (previous/'source-snapshots.json').exists() else None,
+              'interrupted_sqlite_sha256':hashlib.sha256((previous/'run.sqlite').read_bytes()).hexdigest() if args.resume_interrupted else None,
               'search_log_sha256':hashlib.sha256(search_log.read_bytes()).hexdigest() if search_log.exists() else None,
               'note':'These are retained actual responses, not new online results or simulated fixtures.'})
 
@@ -399,11 +454,11 @@ def main():
     if frozen_retrieval:
         def frozen_collection(*a,**kw):
             emit({'stage':'web_search','label':'保留本轮真实来源，跳过重复搜索','status':'skipped',
-                  'detail':'Explicitly scoped retained-corpus report validation; no new search or platform queries.'})
+                  'detail':'Explicitly scoped retained-corpus validation; no new search or platform queries. Cleaning mode is recorded separately.'})
             return 0
         workflow.collect_web_sources=frozen_collection
         workflow.collect_structured_sources=frozen_collection
-    if args.report_only:
+    if args.report_only or args.reclean_retained:
         workflow.enrich_ocr_sources=frozen_collection
         workflow.enrich_company_survey_charts=frozen_collection
     finalize_original = workflow._finalize_source_records
@@ -416,6 +471,16 @@ def main():
     save_original = workflow.save_artifact
     def save(db, project, kind, title, content, *a, **kw):
         artifact = save_original(db, project, kind, title, content, *a, **kw)
+        if kind=='cleaned_facts' and args.report_only:
+            prior_metadata=args.reuse_search_from/'cleaned_facts-metadata.json'
+            original_meta=json.loads(prior_metadata.read_text(encoding='utf-8-sig')) if prior_metadata.exists() else {}
+            current_meta=dict(artifact.artifact_metadata or {})
+            current_version=current_meta.get('pipeline_version')
+            current_meta.update(pipeline_version=original_meta.get('pipeline_version','retained_original_version_unknown'),
+                frozen_replay={'retained_from':str(args.reuse_search_from),'cleaning_executed':False,
+                    'current_cleaning_code_version':current_version})
+            artifact.artifact_metadata=current_meta
+            db.add(artifact);db.commit()
         (run / (kind + ('.md' if kind in {'desktop_report', 'proposal'} else '.json'))).write_text(content, encoding='utf-8')
         write(kind + '-metadata.json', artifact.artifact_metadata)
         return artifact
@@ -425,6 +490,8 @@ def main():
     result = {'acceptance_status': 'not_evaluated',
               'scope':'known_original_supplement_incremental_cleaning_production_report' if args.supplement_json else 'frozen_real_inputs_production_risk_report_export_replay' if args.report_only else 'retained_real_inputs_with_live_missing_requests_and_incremental_cleaning' if args.reuse_search_from else 'real_full_run_not_yet_independently_accepted'}
     if args.resume_collected:result['scope']='retained_actual_collection_after_preclean_failure_with_real_cleaning_and_report'
+    if args.reclean_retained:result['scope']='retained_actual_originals_current_production_cleaning_risk_report_export'
+    if args.resume_interrupted:result['scope']='interrupted_actual_collection_resumed_current_cleaning_risk_report_export'
     try:
         with Session(engine) as db:
             user = User(username='company-live-qa', password_hash='no-product-login')
@@ -439,7 +506,7 @@ def main():
                     fields['title'],fields['source_metadata']=workflow._source_title_for_storage(fields.get('title',''),fields.get('source_metadata') or {})
                     if frozen_retrieval and source.get('id'):fields['id']=source['id']
                     db.add(ResearchSource(project_id=project.id,**fields))
-                previous_state=json.loads((args.reuse_search_from/'project-state.json').read_text(encoding='utf-8'))
+                previous_state=retained_project_state(args.reuse_search_from,interrupted=args.resume_interrupted)
                 for key in ('company_professional_platform_attempts','company_judicial_query_attempts'):
                     if key in previous_state:setattr(project,key,previous_state[key])
                 db.commit();db.expire(project,['sources'])
@@ -516,7 +583,7 @@ def main():
         result['finished_at'] = datetime.now(timezone.utc).isoformat()
         write('result.json', result)
         after = fingerprint()
-        write('code-end.json', {'hashes': after, 'changed_during_run': [k for k in code if code[k] != after.get(k)]})
+        write('code-end.json', {'hashes': after, 'changed_during_run': [k for k in sorted(set(code)|set(after)) if code.get(k) != after.get(k)]})
         budget_timer.cancel()
         print(json.dumps(safe(result), ensure_ascii=False), flush=True)
 
