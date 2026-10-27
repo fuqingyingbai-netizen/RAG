@@ -7,7 +7,7 @@ const app = { component() { return this; }, use() { return this; }, mount() {} }
 const message = { warning() {}, success() {}, error(value) { throw Error(value); }, info() {} };
 vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../frontend/script.js'), 'utf8'), {
   Vue: { createApp(value) { definition = value; return app; } },
-  ElementPlus: { ElMessage: message }, CompanyKnowledge: {},
+  ElementPlus: { ElMessage: message }, CompanyKnowledge: {}, AccountManagement: {}, PersonalHome: {}, ReportVersions: {},
   localStorage: { getItem() { return null; } }, Date, JSON, TextDecoder,
   setInterval() { return 1; }, clearInterval() {},
 });

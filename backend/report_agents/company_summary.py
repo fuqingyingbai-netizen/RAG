@@ -570,6 +570,9 @@ def summary_errors(text: str, package: dict[str, Any]) -> list[str]:
         if ids and ids <= set(by_id):
             support = " ".join(f["fact"] + " " + f.get("period", "") for eid in ids for f in by_id[eid])
             supported_cards = [f for eid in ids for f in by_id[eid]]
+            if any(f.get('original_record_kind')=='goodwill_impairment_loss' for f in supported_cards) and re.search(
+                r'(?:不|不能)证明已发生(?:事故或)?(?:减值)?损失|(?:尚未|并未|未)(?:确认|发生)(?:商誉)?减值损失',line):
+                errors.append('已确认年度减值损失不能套用召回公告未证明发生损失的表述')
             undated = any(f.get('temporal_basis') == 'undated_platform_snapshot' for f in supported_cards)
             roster_undated=any(f.get('temporal_basis')=='roster_effective_date_not_stated' for f in supported_cards)
             if roster_undated and re.search(r'现任|目前担任|当前.{0,10}(?:主席|董事|首席|总裁)',line) and not re.search(r'不认定|不能认定|不保证',line):
@@ -655,8 +658,10 @@ def fallback_company_summary(project: Any, package: dict[str, Any]) -> str:
         risks=groups['risk'][:2] if any(f.get('original_record_kind')=='regulatory_remediation' for f in groups['risk']) else groups['risk'][:1]
         for f in risks:
             followup = ("历史决定与后续评估分别看待，原件范围以第九、十一章为准。" if f.get('original_record_kind') in {'administrative_penalty','regulatory_remediation'} else
+                        "应核对对应资产组、减值测试假设及后续变化；已确认年度损失与后续影响分别核查。"
+                        if f.get('original_record_kind')=='goodwill_impairment_loss' else
                         "应追踪整改覆盖、后续状态和实际影响；公告不证明已发生事故或损失。"
-                        if f['source_kind'] == 'checked_chapter_field' else
+                        if f.get('original_record_kind')=='recall' else
                         "本次仅确认平台返回记录，案件性质、审理状态及实际影响需调取明细核验。" if f.get('source_url','').startswith('structured://') else
                         "以上接续所引来源的事件记载；原始文件、历史日期及后续处理仍需核验，不能据此判定当前状态。")
             lines.append("- " + literal(f) + followup + refs([f]))

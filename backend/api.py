@@ -46,14 +46,11 @@ from sqlalchemy.orm import Session  # SQLAlchemy的数据库会话（ORM）
 # 自定义业务模块（项目内的工具/服务）
 from agent import chat_with_agent, chat_with_agent_stream, storage  # 智能代理对话/会话存储
 from auth import (  # 认证授权相关工具
-    authenticate_user,  # 验证用户密码
-    create_access_token,  # 生成JWT token
     get_current_user,  # 获取当前登录用户（依赖项）
     get_db,  # 获取数据库会话（依赖项）
-    get_password_hash,  # 密码哈希（加密）
     require_admin,  # 要求管理员权限（依赖项）
-    resolve_role,  # 解析用户角色（普通/管理员）
 )
+from account_api import router as account_router
 from document_loader import DocumentLoader  # 文档加载器（解析PDF/Word/Excel）
 from embedding import embedding_service  # 文本嵌入服务（生成向量）
 from milvus_client import MilvusManager  # Milvus向量数据库客户端
@@ -61,17 +58,13 @@ from milvus_writer import MilvusWriter  # Milvus向量写入工具
 from models import User  # SQLAlchemy的用户模型（数据库表映射）
 from parent_chunk_store import ParentChunkStore  # 父分块存储（PostgreSQL）
 from schemas import (  # Pydantic模型（请求/响应数据校验）
-    AuthResponse,
     ChatRequest,
     ChatResponse,
-    CurrentUserResponse,
     DocumentDeleteResponse,
     DocumentInfo,
     DocumentListResponse,
     DocumentUploadResponse,
-    LoginRequest,
     MessageInfo,
-    RegisterRequest,
     SessionDeleteResponse,
     SessionInfo,
     SessionListResponse,
@@ -96,6 +89,7 @@ milvus_writer = MilvusWriter(embedding_service=embedding_service, milvus_manager
 
 # 创建API路由器实例（模块化路由）
 router = APIRouter()
+router.include_router(account_router)
 
 
 def _remove_bm25_stats_for_filename(filename: str) -> None:
@@ -112,40 +106,6 @@ def _remove_bm25_stats_for_filename(filename: str) -> None:
     texts = [r.get("text") or "" for r in rows]
     # 从嵌入服务的BM25统计中移除这些文本
     embedding_service.increment_remove_documents(texts)
-
-
-@router.post("/auth/register", response_model=AuthResponse)
-async def register(request: RegisterRequest, db: Session = Depends(get_db)):
-    username = (request.username or "").strip()
-    password = (request.password or "").strip()
-    if not username or not password:
-        raise HTTPException(status_code=400, detail="用户名和密码不能为空")
-
-    exists = db.query(User).filter(User.username == username).first()
-    if exists:
-        raise HTTPException(status_code=409, detail="用户名已存在")
-
-    role = resolve_role(request.role, request.admin_code)
-    user = User(username=username, password_hash=get_password_hash(password), role=role)
-    db.add(user)
-    db.commit()
-
-    token = create_access_token(username=username, role=role)
-    return AuthResponse(access_token=token, username=username, role=role)
-
-
-@router.post("/auth/login", response_model=AuthResponse)
-async def login(request: LoginRequest, db: Session = Depends(get_db)):
-    user = authenticate_user(db, request.username, request.password)
-    if not user:
-        raise HTTPException(status_code=401, detail="用户名或密码错误")
-    token = create_access_token(username=user.username, role=user.role)
-    return AuthResponse(access_token=token, username=user.username, role=user.role)
-
-
-@router.get("/auth/me", response_model=CurrentUserResponse)
-async def me(current_user: User = Depends(get_current_user)):
-    return CurrentUserResponse(username=current_user.username, role=current_user.role)
 
 
 @router.get("/sessions/{session_id}", response_model=SessionMessagesResponse)

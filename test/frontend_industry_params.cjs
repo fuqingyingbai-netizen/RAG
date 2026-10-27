@@ -16,7 +16,7 @@ const app = {
 };
 vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../frontend/script.js'), 'utf8'), {
   Vue: { createApp(value) { definition = value; return app; } },
-  ElementPlus: {}, CompanyKnowledge: knowledge, localStorage: { getItem() { return null; } }, Date, JSON,
+  ElementPlus: {}, CompanyKnowledge: knowledge, AccountManagement: {}, PersonalHome: {}, ReportVersions: {}, localStorage: { getItem() { return null; } }, Date, JSON,
 });
 assert.ok(knowledgeRegistered);
 const state = definition.data();
@@ -41,8 +41,12 @@ assert.equal(resumed.research_purpose, '投资判断');
 assert.ok(state.modulesByTarget.industry.some(row => row.value === '技术路线对比'));
 console.log('Industry form and resume parameters passed');
 const page = fs.readFileSync('frontend/index.html', 'utf8');
+assert.ok(page.includes("artifact.metadata?.proposal_confirmation_status === 'pending'"));
+assert.ok(page.includes('建议书待确认'));
 assert.ok(page.includes('artifact.metadata?.risk_transparency?.version'));
 assert.ok(page.includes("dimension.score ?? '未评估'")); // A risk score of zero is a real score.
 assert.ok(page.includes('dimension.evidence_support.verified_metric_count'));
 assert.ok(page.includes('尚未校准'));
 console.log('Industry risk support presentation passed');
+assert.equal(definition.methods.artifactTypeLabel('industry_run'), '运行记录');
+assert.ok(page.includes('最后记录：'));

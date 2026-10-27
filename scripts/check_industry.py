@@ -38,7 +38,8 @@ def audit_saved_run(folder: Path) -> dict:
     if diagnostic is not None:
         by_id = {f.get('evidence_id'): f for f in facts}
         for eid, card in diagnostic.get('numeric_evidence', {}).items():
-            card['source_url'] = by_id.get(eid, {}).get('source_url', '')
+            for field in ('source_url','source_title','evidence_quote','claim_type','module','fact','evidence_scope'):
+                card[field]=by_id.get(eid, {}).get(field,card.get(field,''))
         report_issues = delivery_errors(report, diagnostic, scope)
     else:
         report_issues = ['缺少原章节证据包诊断，无法完整回放章节归属闸门。']
@@ -52,6 +53,8 @@ def audit_saved_run(folder: Path) -> dict:
     required_status = ('review_draft' if unknown or report_issues or meta.get('generation_degradations') else 'final_candidate')
     proposal_chapters = [int(n) for n in re.findall(r'^##\s*(\d+)[.、．]', proposal, re.M)]
     contract_issues = []
+    from industry_delivery import risk_state_issues
+    contract_issues.extend(risk_state_issues(report,checked,scope))
     if summary_chars is None or summary_chars > 600:
         contract_issues.append('摘要缺失或正文超过600字。')
     if chapters != list(range(1, 17)):
@@ -109,8 +112,8 @@ def main(argv=None):
             ['cleaned_facts.json', 'risk_assessment.json', 'desktop_report.md', 'proposal.md', 'monitor-evidence-summary.json','industry_claim_ledger.json']}:
         parser.error('--output must not overwrite saved source artifacts')
     if not args.replay_only:
-        files = (sorted((ROOT / 'test').glob('test_industry_*.py')) if args.full else
-                 [ROOT / 'test' / name for name in ['test_industry_evidence_contract.py','test_industry_fallback.py','test_industry_risk_support.py','test_industry_claim_semantics.py', 'test_industry_risk_repair.py']])
+        files = (sorted((ROOT / 'test').glob('test_industry_*.py')) + [ROOT / 'test/test_runtime_version.py'] if args.full else
+                 [ROOT / 'test' / name for name in ['test_runtime_version.py','test_industry_fact_contracts.py','test_industry_v12_acceptance.py','test_industry_v13_acceptance.py','test_industry_v14_acceptance.py','test_industry_evidence_contract.py','test_industry_runs.py','test_industry_delivery_contracts.py','test_industry_synthesis_contracts.py','test_industry_verification_tasks.py','test_industry_assertion_boundaries.py','test_industry_fallback.py','test_industry_risk_support.py','test_industry_claim_semantics.py', 'test_industry_risk_repair.py']])
         env = {**os.environ, 'PYTHONUTF8':'1', 'PYTHONPATH':str(ROOT / 'backend')}
         code = subprocess.run([sys.executable, '-m', 'pytest', *map(str, files), '-q', '--tb=short'], cwd=ROOT, env=env).returncode
         if code:

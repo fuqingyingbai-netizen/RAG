@@ -1,17 +1,18 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 
 
 class RegisterRequest(BaseModel):
-    username: str
-    password: str
-    role: Optional[str] = "user"
-    admin_code: Optional[str] = None
+    model_config = ConfigDict(extra="forbid")
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(max_length=128)
+    confirm_password: str = Field(max_length=128)
+    invitation: str = Field(min_length=1, max_length=2048)
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=128)
 
 
 class AuthResponse(BaseModel):
@@ -19,11 +20,13 @@ class AuthResponse(BaseModel):
     token_type: str = "bearer"
     username: str
     role: str
+    must_change_password: bool = False
 
 
 class CurrentUserResponse(BaseModel):
     username: str
     role: str
+    must_change_password: bool = False
 
 
 class ChatRequest(BaseModel):

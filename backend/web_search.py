@@ -644,24 +644,12 @@ class WebSearchProvider:
 
     @staticmethod
     def _decode_web_text(response: requests.Response) -> str:
-        """Preserve HTML names when requests defaults unlabelled text to Latin-1."""
-        raw = response.content
-        if not isinstance(raw, bytes):
-            return response.text or ""
-        declared = re.search(r"charset\s*=\s*['\"]?([^\s;\"']+)", response.headers.get("Content-Type", ""), re.I)
-        meta = re.search(br"<meta\b[^>]*charset\s*=\s*['\"]?([^\s;\"'/>]+)", raw[:16384], re.I)
-        encoding = declared.group(1) if declared else meta.group(1).decode("ascii", errors="ignore") if meta else ""
-        if raw.startswith(b"\xef\xbb\xbf"):
-            encoding = "utf-8-sig"
-        if not encoding:
-            try:
-                return raw.decode("utf-8")
-            except UnicodeDecodeError:
-                encoding = response.apparent_encoding or response.encoding or "utf-8"
+        """Use the shared lossless decoder for every research route."""
         try:
-            return raw.decode(encoding, errors="replace")
-        except LookupError:
-            return raw.decode("utf-8", errors="replace")
+            from .text_integrity import decode_http_text
+        except ImportError:
+            from text_integrity import decode_http_text
+        return decode_http_text(response)
 
     def _extract_html_text(self, body: str) -> str:
         soup_text = self._extract_html_text_with_bs4(body)

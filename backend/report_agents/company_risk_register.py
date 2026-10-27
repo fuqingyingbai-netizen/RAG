@@ -6,6 +6,8 @@ search result are deliberately insufficient to answer any of those questions.
 import hashlib
 import json
 import re
+from copy import deepcopy
+from urllib.parse import urlsplit
 from collections import Counter, defaultdict
 from datetime import date, datetime
 from pathlib import Path
@@ -20,7 +22,7 @@ from .company_judicial import build_judicial_package, displayed_case_key
 from .company_people import build_people_package
 from .company_financial_statements import fiscal_report_period
 
-VERSION = 'company-risk-register-v3-regulatory-decisions'
+VERSION = 'company-risk-register-v4-publication-variants'
 TITLE = '风险核查'
 CATEGORIES = ('组织与管理风险', '业务与运营风险', '行业特殊风险')
 BAD_FETCH = {'failed', 'fetch_timeout', 'invalid_pdf_response', 'blocked_or_challenge',
@@ -330,6 +332,41 @@ def recall_discovery_queries(sources, target, seen=None):
     return queries
 
 
+def _fold_remediation_versions(records):
+    """Fold a literal short version only at the same dated publication URL.
+
+    Scheme/port aliases do not make independent notices. Shortened text never
+    becomes corroboration for sentences that appear only in the complete copy.
+    """
+    rows=deepcopy(list(records));removed=set()
+    def publications(row):
+        result=set()
+        for publication in [row]+row.get('corroborating_publications',[]):
+            url=urlsplit(str(publication.get('source_url') or ''))
+            day=publication.get('publication_date')
+            if url.hostname and day:result.add((url.hostname.lower(),url.path,url.query,day))
+        return result
+    def literal(row):
+        text=folded(row.get('fact'));title=folded(row.get('source_title'))
+        if title and text.endswith(title):text=text[:-len(title)].rstrip()
+        return text
+    for i,short in enumerate(rows):
+        if short.get('kind')!='regulatory_remediation' or not short.get('authority'):continue
+        text=literal(short)
+        if len(text)<40:continue
+        for j,complete in enumerate(rows):
+            if i==j or j in removed:continue
+            if any(short.get(k)!=complete.get(k) for k in ('kind','entity','authority')):continue
+            longer=literal(complete)
+            if len(longer)<=len(text) or not longer.startswith(text):continue
+            if not publications(short)&publications(complete):continue
+            complete.setdefault('same_publication_variants',[]).append({k:deepcopy(short.get(k)) for k in
+                ('source_url','source_title','publication_date','evidence_id','evidence_ids','fact','evidence_quote')})
+            complete['same_publication_variants']+=short.get('same_publication_variants',[])
+            removed.add(i);break
+    return [row for i,row in enumerate(rows) if i not in removed]
+
+
 def _judicial_entries(records):
     selected = {}
     # Prefer the more recent original report for the same exact description;
@@ -368,7 +405,7 @@ def _judicial_entries(records):
             earlier['evidence_ids']=list(dict.fromkeys(earlier['evidence_ids']+r['evidence_ids']))
             earlier.setdefault('corroborating_publications',[]).append({k:r.get(k) for k in ('source_url','publication_date','evidence_id')})
         else:regulatory[key]=dict(r,evidence_ids=list(r['evidence_ids']))
-    for r in regulatory.values():
+    for r in _fold_remediation_versions(regulatory.values()):
         if r.get('kind')=='administrative_penalty':
             entries.append(_entry('administrative_penalty','历史行政处罚及当前整改核查',r,
                 '监管原公告记载已作出的行政处罚，应连同后续整改核查；行政决定与法院判决分别看待。'
@@ -667,6 +704,8 @@ def render_risk_register(p):
                       str(x.get('period') or x.get('date') or '按原件') + ('；物理页' + str(x['page']) if x.get('page') else '') + refs(x),
                       _display_fact(x)] for x in records]))
                 lines += ['']
+                if r.get('same_publication_variants'):
+                    lines += ['同一公告地址的短文本版本保留在结构化附件，不另计为监管事项，也不单独支持本表完整长引文。', '']
             followup=e['followup']
             if e['kind']=='recall':
                 signature=(followup,e['priority'],e['company_severity'])

@@ -14,6 +14,7 @@ dependencies = [
     "pymilvus>=2.5.0",
     "python-multipart>=0.0.9",
     "pydantic>=2.8.0",
+    "pillow>=10.4.0",
     "langchain>=0.2.14",
     "langchain-core>=0.2.37",
     "langchain-community>=0.2.12",
@@ -54,6 +55,15 @@ default = true
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+pythonpath = ["backend", "."]
+addopts = "--strict-markers"
+markers = [
+    "integration: isolated database or local-service integration checks",
+    "browser: isolated browser-based checks",
 ]
 
 [project.optional-dependencies]

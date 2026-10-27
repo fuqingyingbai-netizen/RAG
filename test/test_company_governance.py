@@ -363,3 +363,17 @@ def test_package_budget_preserves_whole_records_and_identity_only_is_review_draf
     assert json.loads(json.dumps(p))['facts']
     empty=package(name,evidence(name,table(name,'')))
     assert governance_errors(render_governance(empty),empty)
+
+
+def test_explicit_acquisition_provenance_does_not_displace_a_full_personnel_table():
+    name='青禾食品有限公司'
+    body=table(name,'')+'\n\n| 姓名 | 职务 | 任期 |\n| --- | --- | --- |\n'
+    body+='\n'.join(f'| 员工{i} | 副总裁 | 2025-01-01 至今 |' for i in range(80))
+    card,src=evidence(name,body,meta={'retrieved_at':'2026-10-20T10:00:00'})
+    src['url']=card['source_url']='structured://neutral-platform/management/'+name+'/independent-original-record'
+    src['title']=card['source_title']=name+'主要人员及董事会任职情况原始字段'
+    p=package(name,(card,src))
+    people=[r for r in p['facts'] if r['kind']=='personnel']
+    assert {r['entity'] for r in people}=={f'员工{i}' for i in range(80)}
+    assert all(r['observed_at']=='2026-10-20' and r['observed_at_basis']=='retrieved_at' for r in people)
+    assert not p['diagnostic']['filters'].get('budget_excluded')

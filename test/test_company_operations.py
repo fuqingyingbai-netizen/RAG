@@ -204,3 +204,12 @@ def test_checked_operations_survive_batch_editor_without_padding(monkeypatch):
     result=agent.generate(p,json.dumps({'facts':[pair[0]]}),'{}',lambda *a:'',lambda s,n:s[:n],lambda *a,**k:None)
     chapter=result.split('## 4.')[1].split('## 5.')[0]
     assert '500股' in chapter and 'FFFFFFFFFFFF' not in chapter and '本章引用证据' not in chapter
+def test_role_summary_names_an_independent_director_once_across_retained_records():
+    from report_agents.company_operations import build_operations_package
+    rows=[{'kind':'personnel','entity':name,'role':role,'period':'原表未载',
+           'evidence_id':'E-123456789ABC','evidence_ids':['E-123456789ABC']}
+          for name,role in [('赵一','独立董事'),('赵一','独立董事'),('钱二','非独立董事'),('孙三','独立董事')]]
+    result=build_operations_package({'facts':[]},'青禾食品有限公司',[],governance={'facts':rows})
+    record=next(r for r in result['facts'] if r['mode']=='任职字段')
+    assert record['fact']=='主要人员记录载有独立董事：赵一、孙三'
+    assert len(rows)==4

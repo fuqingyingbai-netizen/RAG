@@ -289,6 +289,10 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     artifacts, added = workflow.run_project(database, project, [], [], intake={
         'target_type': 'industry', 'include_capital_markets': False, 'as_of_date': '2026-01-31'})
     assert added == 4 and project.status == 'completed'
+    run_record = next(a for a in artifacts if a.artifact_type == 'industry_run')
+    first_run = json.loads(run_record.content)
+    assert first_run['status'] == 'completed' and len(first_run['stages']) == 8
+    assert first_run['stages'][4]['outputs'][0]['usage'] == 'created'
     risk_artifact = next(a for a in artifacts if a.artifact_type == 'risk_assessment')
     assert risk_artifact.artifact_metadata['risk_transparency']['calibration_status'] == 'not_calibrated'
     report = next(a for a in artifacts if a.artifact_type == 'desktop_report')
@@ -300,13 +304,20 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     with zipfile.ZipFile(io.BytesIO(exports[0])) as archive:
         assert archive.testzip() is None and 'word/document.xml' in archive.namelist()
     assert any(a.artifact_type == 'proposal' for a in artifacts)
+    from industry_delivery import verification_task_table
+    proposal = next(a for a in artifacts if a.artifact_type == 'proposal')
+    task_table = verification_task_table(report.artifact_metadata['verification_tasks'])
+    assert task_table in report.content
+    assert verification_task_table(report.artifact_metadata['verification_tasks'], include_reference_index=False,
+                                   reference_location='附录B候选来源索引') in proposal.content
+    assert verification_task_table(report.artifact_metadata['verification_tasks'], reference_index_only=True) in proposal.content
     ledger_artifact=next(a for a in artifacts if a.artifact_type=='industry_claim_ledger')
     ledger=json.loads(ledger_artifact.content)
     assert ledger['dependencies']['report_artifact_id']==report.id
     assert report.artifact_metadata['claim_ledger_artifact_id']==ledger_artifact.id
     assert all(c['entailment_status']=='not_evaluated' for c in ledger['claims'])
     cleaned_contract=json.loads(next(a.content for a in artifacts if a.artifact_type=='cleaned_facts'))
-    assert cleaned_contract['evidence_coverage']['version']=='industry-evidence-contract-v1'
+    assert cleaned_contract['evidence_coverage']['version']=='industry-evidence-contract-v2-atomic-passages'
 
     # A newer review draft must survive resume even if an older candidate exists.
     older = SimpleNamespace(id=999, artifact_type='desktop_report', title='旧候选稿', version=1,
@@ -321,6 +332,10 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     resumed,_=workflow.run_project(database,project,[],[],intake={
         'target_type':'industry','include_capital_markets':False,'as_of_date':'2026-01-31'})
     reexported=next(a for a in resumed if a.artifact_type=='desktop_report')
+    resumed_run=json.loads(next(a.content for a in resumed if a.artifact_type=='industry_run'))
+    assert resumed_run['parent_run_id']==first_run['run_id']
+    assert resumed_run['stages'][4]['outputs'][0]['usage']=='reused'
+    assert json.loads(run_record.content)==first_run
     assert reexported.artifact_metadata['reexported_from_artifact_id']==report.id
     assert reexported.artifact_metadata['delivery_status']=='review_draft'
     assert reexported.artifact_metadata['delivery_review_reasons']==report.artifact_metadata['delivery_review_reasons']
@@ -344,7 +359,8 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     new_risk=next(a for a in refreshed if a.artifact_type=='risk_assessment')
     new_report=next(a for a in refreshed if a.artifact_type=='desktop_report')
     assert len(risk_calls)==1 and new_risk.id!=prior_risk.id
-    assert new_risk.artifact_metadata['risk_pipeline_version']=='industry-risk-v5-diverse-evidence'
+    from industry_research import INDUSTRY_RISK_VERSION
+    assert new_risk.artifact_metadata['risk_pipeline_version']==INDUSTRY_RISK_VERSION
     assert 'reexported_from_artifact_id' not in new_report.artifact_metadata
 
     # Same source set and pipeline version do not authorize a stale downstream

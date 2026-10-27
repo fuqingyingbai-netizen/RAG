@@ -36,10 +36,12 @@ def test_company_table_repeats_header_and_keeps_short_rows_together():
     assert rows[2].find('.//'+W+'cantSplit') is None
 
 
-def test_person_or_industry_export_does_not_use_company_table_profile():
+def test_generic_export_keeps_shared_headers_without_company_table_profile():
     doc,_=exported('## 14. 信息来源\n| 来源 | URL |\n| --- | --- |\n| 原件 | '+URL+' |')
     assert URL in ''.join(x.text or '' for x in doc.iter(W+'t'))
-    assert doc.find('.//'+W+'tblHeader') is None
+    # Repeated headers are shared pagination behavior, not a company profile.
+    assert doc.find('.//'+W+'tblHeader') is not None
+    assert not any(style.get(W+'val') == 'CompanyTable' for style in doc.iter(W+'pStyle'))
 
 
 def test_company_body_urls_are_not_hidden_by_source_index_compaction():

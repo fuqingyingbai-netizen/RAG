@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from pathlib import Path
+import asyncio
+from contextlib import suppress
 import os
 import sys
 
@@ -13,7 +15,12 @@ if str(BACKEND_DIR) not in sys.path:
 import api as api_module
 import research_api as research_api_module
 import company_knowledge as company_knowledge_module
+import research_workflow as research_workflow_module
+import industry_research as industry_research_module
 from database import init_db
+from runtime_version import create_version_router
+from account_lifecycle import invitation_cleanup_loop
+from personal_home import create_home_router
 
 BASE_DIR = BACKEND_DIR.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -33,6 +40,15 @@ def create_app() -> FastAPI:
         # restarted, their database status otherwise remains "generating"
         # forever even though no worker exists to finish them.
         research_api_module.recover_stale_research_projects()
+        app.state.invitation_cleanup_task = asyncio.create_task(invitation_cleanup_loop())
+
+    @app.on_event("shutdown")
+    async def _stop_invitation_cleanup():
+        task = getattr(app.state, "invitation_cleanup_task", None)
+        if task:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
 
     app.add_middleware(
         CORSMiddleware,
@@ -55,7 +71,13 @@ def create_app() -> FastAPI:
 
     app.include_router(api_module.router)
     app.include_router(research_api_module.router)
+    app.include_router(create_home_router(research_api_module._is_project_running))
     app.include_router(company_knowledge_module.router)
+    app.include_router(create_version_router({
+        'cleaning': research_workflow_module.INDUSTRY_CLEANING_VERSION,
+        'risk': industry_research_module.INDUSTRY_RISK_VERSION,
+        'report': research_workflow_module.INDUSTRY_REPORT_VERSION,
+    }))
 
     # serve frontend static files at root
     if FRONTEND_DIR.exists():

@@ -1,0 +1,77 @@
+{
+  "phase": "all_validation_passed_ready_to_sync_remotes",
+  "initial_main": "c081700772b6975caa381922b780d0e23eabf145",
+  "initial_company": "9f9bc6c100d14a502abe0d52a723827678db9dfc",
+  "deployment_requested": false,
+  "unresolved_paths": [],
+  "report_route_tests": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "191",
+    "time": "13.945",
+    "timestamp": "2026-10-21T10:34:09.325240+08:00",
+    "hostname": "DESKTOP-226P4DF"
+  },
+  "frontend_groups": [
+    {
+      "file": "test\\company-knowledge-ui.test.cjs",
+      "exit_code": 0
+    },
+    {
+      "file": "test\\frontend_accounts.cjs",
+      "exit_code": 0
+    },
+    {
+      "file": "test\\frontend_home.cjs",
+      "exit_code": 0
+    },
+    {
+      "file": "test\\frontend_industry_params.cjs",
+      "exit_code": 0
+    },
+    {
+      "file": "test\\frontend_markdown.cjs",
+      "exit_code": 0
+    },
+    {
+      "file": "test\\frontend_person_params.cjs",
+      "exit_code": 0
+    },
+    {
+      "file": "test\\frontend_report_versions.cjs",
+      "exit_code": 0
+    },
+    {
+      "file": "test\\system-guide-ui.test.cjs",
+      "exit_code": 0
+    },
+    {
+      "file": "test\\task-filters-ui.test.cjs",
+      "exit_code": 0
+    }
+  ],
+  "shared_conflicts": [
+    "backend/research_workflow.py",
+    "backend/docx_exporter.py"
+  ],
+  "preserve_uncommitted_other_chats": true,
+  "tested_merge_tree": "3453395b713eb058a6faf3e7b4571aad1a19b01b",
+  "python_tests": {
+    "tests": 1909,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "python_junit_sha256": "cfeec64d361a395b3ebd5a8cb9ae8a7254810f9184b3ff2c993cdae345599a79",
+  "python_elapsed_seconds": 1450.095,
+  "report_route_tests_are_full_suite_subset": true,
+  "dependency_constraints_match_lock": true,
+  "frontend_and_api_match_latest_main": true,
+  "person_company_specialized_modules_match_company_branch": true,
+  "configured_credentials_leaked_files": [],
+  "deployment_performed": false,
+  "service_restart_performed": false,
+  "live_paid_research_calls": 0
+}

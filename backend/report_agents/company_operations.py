@@ -94,7 +94,7 @@ def build_operations_package(cleaned,target,sources=None,*,governance=None,limit
     independent=[r for r in personnel if re.search(r'(?<!非)独立董事',r.get('role',''))]
     if independent:
         r=independent[0]
-        add(r,HEADINGS[1],'主要人员记录载有独立董事：'+'、'.join(x['entity'] for x in independent),r['period'],'任职字段')
+        add(r,HEADINGS[1],'主要人员记录载有独立董事：'+'、'.join(dict.fromkeys(x['entity'] for x in independent)),r['period'],'任职字段')
     for src in sources or []:
         raw,origin=source_body(src);url=str(get(src,'url') or '');meta=get(src,'source_metadata',{}) or {}
         if not raw or origin=='discovery_summary' or meta.get('entity_validation') in {'rejected','ambiguous','related_entity_context'}:continue
