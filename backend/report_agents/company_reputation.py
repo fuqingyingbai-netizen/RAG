@@ -10,11 +10,12 @@ from .company_governance import cited_evidence_ids
 from .company_governance import EID,_table,_period_rank,compact,get,refs,_primary_filing
 from .company_history import _issuer_hosts
 from .company_management import issuer as management_issuer
-from .company_text import OriginalTextView
+from .company_text import OriginalTextView,match_text
+from .company_financial_statements import quarter_report_period
 try:
-    from ..company_publishers import statistics_publisher_identity
+    from ..company_publishers import statistics_publisher_identity,research_publisher_identity
 except ImportError:
-    from company_publishers import statistics_publisher_identity
+    from company_publishers import statistics_publisher_identity,research_publisher_identity
 try:
     from ..company_charts import VERSION as CHART_VERSION
 except ImportError:
@@ -22,7 +23,7 @@ except ImportError:
 
 TITLE='行业口碑、产品认可度与同业竞争地位研判'
 HEADINGS=('员工评价','竞品评价','合作方评价','行业地位','技术实力','综合软实力','同业对标')
-VERSION='company-reputation-v4-primary-source-recovery'
+VERSION='company-reputation-v5-attributed-original-research'
 METRICS={
  '员工满意度分数':('员工评价','分数'), '员工敬业度分数':('员工评价','分数'),
  '客户满意度':('综合软实力','%'), '接获的客户投诉数目':('综合软实力','宗'),
@@ -70,6 +71,9 @@ def aliases_for_target(target,sources):
     for source in sources or []:
         if not _primary_filing(source,target):continue
         head=str(get(source,'content'))[:7000]
+        quarter=quarter_report_period(str(get(source,'content')),target)
+        if quarter:
+            aliases.update(a for a in quarter['issuer_aliases'] if a not in {'公司','本公司','我们','本集团','集团'})
         m=re.search(r'公司(?:的)?外文名称缩写(?:[（(]如有[）)])?\s*[:：|]?\s*([A-Z][A-Z0-9.-]{1,20})',head)
         if m:aliases.add(m[1])
     return aliases
@@ -204,7 +208,7 @@ def _market_rows(text,aliases):
     return rows if any(r['target_row'] for r in rows) and any(not r['target_row'] for r in rows) else []
 
 
-def build_reputation_package(cleaned,target,sources=None,*,limit=30000):
+def build_reputation_package(cleaned,target,sources=None,*,limit=30000,as_of=''):
     aliases=aliases_for_target(target,sources);hosts=_issuer_hosts(sources,target)
     cards_by_url=defaultdict(list)
     for card in cleaned.get('facts') or []:
@@ -221,9 +225,11 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000):
         seen.add(key);records.append(record)
     for source in sources or []:
         url=str(get(source,'url'));raw,origin=source_body(source);meta=get(source,'source_metadata',{}) or {}
-        inferred=statistics_publisher_identity(url,raw)
+        inferred=statistics_publisher_identity(url,raw) or research_publisher_identity(url,raw)
         if inferred and not meta.get('publisher_role') and meta.get('publisher_verified') is not False:
             meta={**meta,**inferred}
+        if as_of and str(meta.get('publication_date') or '')>as_of:
+            counts['after_research_cutoff']+=1;continue
         if origin=='discovery_summary':counts['discovery_only']+=1;continue
         if meta.get('entity_validation') in {'rejected','ambiguous'}:continue
         issuer=management_issuer(source,target,hosts)
@@ -233,13 +239,22 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000):
         # archive locator from an authenticated issuer or verified statistics
         # publisher; all claims below still come from original fields/pages.
         # Explicitly excluded cards never get resurrected by this fallback.
-        if not cards and not cards_by_url[url] and (issuer or (meta.get('publisher_role')=='statistics_origin' and meta.get('publisher_verified') is True)):
+        if not cards and not cards_by_url[url] and (issuer or (meta.get('publisher_role') in {'statistics_origin','independent_research'} and meta.get('publisher_verified') is True)):
             from .company_risk_register import source_anchor
             anchor=source_anchor(source,{})
             if anchor:
                 cards=[anchor];counts['original_locator_recovered']+=1
         if not cards:continue
         card=cards[0];title=str(get(source,'title'));host=(urlparse(url).hostname or '').lower().removeprefix('www.')
+        if meta.get('publisher_role')=='independent_research' and meta.get('publisher_verified') is True:
+            for original in re.split(r'(?<=[。；])\s*|\n\s*\n',raw):
+                quote=original.strip();normal=match_text(quote)
+                if not 25<=len(quote)<=650 or not _mentions(normal,aliases):continue
+                if not re.search(r'市场份额|市场地位|竞争优势|主要市场',normal):continue
+                if re.search(r'预计|预测|将会|将于|如果|未来',normal):continue
+                add(card,'research_view','行业地位',quote,period=meta.get('publication_date') or '研究发布日期未明确',
+                    mode='原发布机构研究观点／非完整定量对标',publisher=meta.get('publisher_name') or '原发布机构',rank=3,
+                    note='保留原文主体、时点及归因；未载精确份额时不补数，不作为当前排名、独立访谈或投资评分。')
         extraction=meta.get('document_extraction') or {}
         counts['omitted_pdf_pages']+=int(extraction.get('omitted_pages') or 0)
         counts['low_text_pdf_pages']+=len(extraction.get('needs_ocr_pages') or [])
@@ -355,7 +370,9 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000):
         if r['kind']=='benchmark' and r['target_row'] and r.get('previous_value'):
             delta=Decimal(r['value'].rstrip('%'))-Decimal(r['previous_value'].rstrip('%'))
             findings.append({'aspect':'行业地位','fact':'同一统计发布记载，'+r['entity']+'份额由上年同期'+r['previous_value']+'变为'+r['value']+'，变化'+str(delta)+'个百分点；这是细分统计口径内的份额变化，不是整体产品质量结论。','evidence_ids':r['evidence_ids']})
+    from .company_selection_audit import selection_audit
     return {'version':VERSION,'target_name':target,'facts':delivered,'findings':findings,'information_gaps':gaps,
+            'selection_audit':selection_audit(records,delivered),
             'diagnostic':{'candidate_claims':len(records),'delivered_claims':len(delivered),
                           'by_kind':dict(Counter(r['kind'] for r in delivered)),'filters':dict(counts)}}
 
@@ -395,10 +412,13 @@ def render_reputation(package):
             else:lines+=['尚无可核对的合作方独立评价；目标公司的合作宣传不作为对方信任背书。']
         elif heading=='行业地位':
             rows=[r for r in facts if r['kind']=='benchmark' and r['target_row']]
+            views=[r for r in facts if r['kind']=='research_view' and r['aspect']=='行业地位']
             if rows:
                 for r in rows:lines+=['- '+r['period']+'，'+r['entity']+'在“'+r['metric']+'”口径下为'+r['value']+'。'+refs(r)]
                 lines+=['该位置仅适用于所列细分市场、期间与统计分母，不能外推为整家公司所有业务的领先地位。']
             else:lines+=['本章尚未形成同口径行业位置数据，待补原发布机构统计。']
+            for r in views:
+                lines+=['- '+r['period']+'，'+r.get('publisher','研究来源')+'（'+r['mode']+'）：'+r['fact']+' '+refs(r),r.get('note','')]
         elif heading=='技术实力':
             lines+=['技术投入、产品发布、第三方测评和实际用户体验分别核对。研发投入及资本化见第四章、研发落地与经营数据见第六章；本章不重复计算研发占比，也不把业务分部收入当公司总收入。']
             if any(r['kind']=='partner_statement' for r in facts):lines+=['已列的特定产品合作可支持该产品存在技术协作，不能从其他品牌的合作推导目标公司的依赖关系。']

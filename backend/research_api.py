@@ -2367,6 +2367,13 @@ def download_artifact(
             )
         except Exception:
             pass
+    if artifact.artifact_type=='desktop_report' and metadata.get('default_download_format')=='zip':
+        bundle_key=metadata.get('delivery_bundle_object_key')
+        if not bundle_key:raise HTTPException(status_code=409,detail='完整交付包尚未生成')
+        try:payload=research_store.get_bytes(bundle_key)
+        except Exception as exc:raise HTTPException(status_code=503,detail='完整交付包暂不可读取') from exc
+        return Response(content=payload,media_type='application/zip',
+            headers=_download_headers(f'{_safe_download_name(artifact.title,artifact.artifact_type)}_v{artifact.version}.zip'))
     docx_key = metadata.get("docx_object_key")
     if docx_key and artifact.artifact_type in {"desktop_report", "proposal"}:
         try:
@@ -2387,9 +2394,9 @@ def download_artifact(
         except Exception:
             content = artifact.content
 
-    ext = "json" if artifact.artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger", "industry_run"} else "md"
+    ext = "html" if artifact.artifact_type=='company_evidence_annex' else "json" if artifact.artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger", "industry_run", "company_editorial", "company_information_usage", "company_corpus_digest", "company_source_coverage", "company_collection_audit", "company_presentation"} else "md"
     filename = f"{_safe_download_name(artifact.title, artifact.artifact_type)}_v{artifact.version}.{ext}"
-    media_type = "application/json; charset=utf-8" if ext == "json" else "text/markdown; charset=utf-8"
+    media_type = "application/json; charset=utf-8" if ext == "json" else "text/html; charset=utf-8" if ext=='html' else "text/markdown; charset=utf-8"
     return Response(
         content=content,
         media_type=media_type,

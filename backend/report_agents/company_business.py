@@ -14,7 +14,7 @@ from .company_product_releases import product_release_rows
 
 TITLE='主营业务真实经营情况核验'
 HEADINGS=('分部门业务运营数据核验表','核心业务板块运营进展核验表','关键经营事实与核验判断','视觉与原页核对')
-VERSION='company-business-v2-cross-page-projects'
+VERSION='company-business-v3-header-bound-operating-tables'
 NUMBER=r'[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?'
 PERCENT=r'[-+]?\d+(?:\.\d+)?%'
 DIMENSIONS={'分行业','分产品','分地区','分销售模式'}
@@ -30,6 +30,11 @@ def _clean(text,target=''):
 def _unit(text):
     m=re.search(r'单位\s*[:：]\s*((?:(?:人民币|美元|港元|欧元|日元|英镑|RMB|CNY|USD|HKD|US\$)\s*)?(?:亿|万|千)?元|(?:万|千)?(?:美元|港元|欧元|吨|辆|件|台)|(?:USD|HKD|RMB|CNY|US\$)(?:[\x27’]000|\s+(?:thousand|million|billion)s?)?)',text,re.I)
     return m[1] if m else ''
+
+
+def _money_value(record, key):
+    currency=record.get('currency','');unit=record['unit']
+    return (currency if currency and currency not in unit else '')+record[key]+unit
 
 
 def _cell(value):
@@ -126,6 +131,65 @@ def vector_financial_rows(pages,period):
                                  'evidence_quote':' | '.join(cells)})
         last_page=page['page']
     return mark_subcategories(rows)
+
+
+def main_business_margin_rows(pages, period):
+    """Read the seven-column operating table without guessing percentage units.
+
+    Some issuer forms print bare numbers under explicit (%) column headers and
+    express the last column in percentage points. Keep that last wording intact.
+    Labels and values may wrap within a physical page; quotes remain contiguous.
+    """
+    result=[]
+    money=r'[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)\.\d{2}'
+    point=r'个\s*百\s*分\s*点'
+    change=rf'(?:(?:增加|减少|下降|上升)\s*{NUMBER}\s*{point}|{NUMBER}\s*(?:{point}|[%％]))'
+    row_pattern=re.compile(
+        r'(?m)^[ \t]*(?![^\n]*(?:毛利率|营业收入|营业成本|增减))'
+        r'(?![（(]\s*[%％]\s*[）)][ \t]*(?:\n|$))'
+        r'(?!单位\s*[:：]|币种\s*[:：])'
+        r'(?P<label>[^\n]{1,100}?(?:\n[^\n]{1,100}?)?)\s+'
+        rf'(?P<value>{money})\s+(?P<cost>{money})\s+'
+        rf'(?P<margin>{NUMBER}[%％]?)\s+(?P<revenue_yoy>{NUMBER}[%％]?)\s+'
+        rf'(?P<cost_yoy>{NUMBER}[%％]?)\s+(?P<change>{change})(?=\s|$)')
+    caption=re.compile(r'(?m)^[ \t]*主营业务(?P<dimension>分行业|分产品|分地区|分销售模式)情况[ \t]*$')
+    for page in pages:
+        raw=page['text']
+        headings=list(caption.finditer(raw))
+        for index, heading in enumerate(headings):
+            stop=headings[index+1].start() if index+1<len(headings) else len(raw)
+            section=raw[heading.end():stop]
+            matches=list(row_pattern.finditer(section))
+            if not matches:continue
+            first_row_start=heading.end()+matches[0].start()
+            for row in matches:
+                header=section[:matches[0].start()]
+                compact_header=compact(header)
+                percent_headers=(r'毛利率[（(][%％][）)]',
+                    r'营业收入比上年(?:同期)?增减[（(][%％][）)]',
+                    r'营业成本比上年(?:同期)?增减[（(][%％][）)]')
+                if not all(re.search(pattern,compact_header) for pattern in percent_headers):continue
+                unit_markers=list(re.finditer(r'单位\s*[:：]',raw[:first_row_start]))
+                if not unit_markers:continue
+                unit_start=unit_markers[-1].start();unit_context=raw[unit_start:first_row_start]
+                unit=_unit(unit_context)
+                if not unit:continue
+                currency_matches=list(re.finditer(r'币种\s*[:：]\s*(人民币|美元|港元|欧元|日元|英镑)',unit_context))
+                currency=currency_matches[-1][1] if currency_matches else ''
+                unit_quote=unit_context.split('\n',1)[0].strip()
+                label=_prose(row['label'])
+                if not label or len(label)>80:continue
+                def percent(name):return row[name].replace('％','%').removesuffix('%')+'%'
+                result.append({'kind':'margin','dimension':heading['dimension'],'entity':label,
+                    'value':row['value'],'cost':row['cost'],'margin':percent('margin'),
+                    'revenue_yoy':percent('revenue_yoy'),'cost_yoy':percent('cost_yoy'),
+                    'margin_change_source':compact(row['change']),'unit':unit,'currency':currency,
+                    'period':period,'page':page['page'],'evidence_quote':row[0].strip(),
+                    'context_quote':raw[heading.start():first_row_start].strip(),
+                    'context':{'unit_quote':unit_quote,
+                               'currency_quote':currency_matches[-1][0] if currency_matches else ''},
+                    'percentage_basis':'百分比单位由原表列头明示；毛利率变动保留原文，不把百分点改为相对增幅。'})
+    return result
 
 
 def mark_subcategories(rows):
@@ -327,7 +391,11 @@ def build_business_package(cleaned,target,sources=None,*,limit=50000,as_of=''):
         pages=document_pages(source)
         financial=vector_financial_rows(pages,period)
         revenue=[r for r in financial if r['kind']=='revenue'] or revenue_rows(raw,period,target)
-        rows=revenue+[r for r in financial if r['kind']=='margin']+fiscal_segment_revenue_rows(pages,target,period)+project_rows(pages,period)+production_rows(pages,period)+operating_updates(pages,period,target)
+        native_margins=main_business_margin_rows(pages,period)
+        native_keys={(r['page'],r['dimension'],compact(r['entity'])) for r in native_margins}
+        margins=native_margins+[r for r in financial if r['kind']=='margin' and
+            (r['page'],r['dimension'],compact(r['entity'])) not in native_keys]
+        rows=revenue+margins+fiscal_segment_revenue_rows(pages,target,period)+project_rows(pages,period)+production_rows(pages,period)+operating_updates(pages,period,target)
         extraction=(get(source,'source_metadata',{}) or {}).get('document_extraction') or {}
         counts['table_pages_pending']+=len((extraction.get('business_tables') or {}).get('pending_pages') or [])
         counts['empty_grid_pages']+=len((extraction.get('business_tables') or {}).get('empty_grid_pages') or [])
@@ -335,7 +403,7 @@ def build_business_package(cleaned,target,sources=None,*,limit=50000,as_of=''):
         counts['needs_ocr_pages']+=len(extraction.get('needs_ocr_pages') or [])
         for row in rows:
             if row['kind']=='revenue':row['fact']=row['dimension']+'，'+row['entity']+'：收入'+row['value']+row['unit']+'，占比'+row['share']+'，上年同期'+row['previous_value']+row['unit']+'，同比'+row['yoy']
-            elif row['kind']=='margin':row['fact']=row['dimension']+'，'+row['entity']+'：收入'+row['value']+row['unit']+'，营业成本'+row['cost']+row['unit']+'，毛利率'+row['margin']
+            elif row['kind']=='margin':row['fact']=row['dimension']+'，'+row['entity']+'：收入'+_money_value(row,'value')+'，营业成本'+_money_value(row,'cost')+'，毛利率'+row['margin']
             row.update(evidence_id=card['evidence_id'],evidence_ids=[card['evidence_id']],source_url=url,source_title=card.get('source_title',''),evidence_scope='target_direct')
             records.append(row)
     # Merge mirrors, retain exact period/dimension/unit and any true conflicts.
@@ -354,7 +422,7 @@ def build_business_package(cleaned,target,sources=None,*,limit=50000,as_of=''):
         if len(group)>1:
             conflicts.append({'kind':key[0],'period':key[1],'entity':key[3],'evidence_ids':list(dict.fromkeys(e for r in group for e in r['evidence_ids']))})
             for row in group:row['conflict']=True
-    periods=sorted({r['period'] for r in unique if r['kind']=='revenue'},key=_period_rank,reverse=True)
+    periods=sorted({r['period'] for r in unique if r['kind'] in {'revenue','margin'}},key=_period_rank,reverse=True)
     annual=next((p for p in periods if '年度' in p and '半年度' not in p),None)
     interim=next((p for p in periods if '半年度' in p),None)
     selected_periods={p for p in (annual,interim) if p}
@@ -407,7 +475,9 @@ def build_business_package(cleaned,target,sources=None,*,limit=50000,as_of=''):
     if counts['needs_ocr_pages']:gaps.append(pending_ocr_notice(sources,'原件含低文字页，尚未实际执行OCR；嵌入文本/向量表格提取不能代表扫描页已识别。'))
     if conflicts:gaps.append('同主体、期间、维度与单位的来源记录存在差异，保留各值及出处，需核对重述、范围或版本；未择一认定。')
     if counts['clipped_release_original_fields_recovered']:gaps.append('原宽泛节选因截断未绑定目标而被自动排除，仍保留原排除状态；本章仅从完整归档重新绑定日期块和页脚署名，不将宽泛节选或宣传性能作为已核经营结论。')
+    from .company_selection_audit import selection_audit
     return {'version':VERSION,'target_name':target,'facts':delivered,'information_gaps':gaps,
+            'selection_audit':selection_audit(records,delivered),
             'conflicts':conflicts,
             'diagnostic':{'candidate_claims':len(records),'delivered_claims':len(delivered),
                           'by_kind':dict(Counter(r['kind'] for r in delivered)),'filters':dict(counts)}}
@@ -435,7 +505,19 @@ def render_business(package):
         lines+=['','分产品、分地区、销售模式各为不同观察维度；同表总项与“其中”子项不能相加。各期名称/范围按原表保留，名称变化不视为完全可比。']
     elif any(r['kind']=='segment_revenue' for r in records):
         lines+=['原件按报告分部列示收入，见下表；报告分部不直接当产品类别或单个部门台账。']
+    elif margins:
+        lines+=['原件按主营业务分类列示收入、成本及毛利率，按各表的期间与维度分别核对。']
     else:lines+=['尚未形成可核对的分产品收入表，不能把评级预估或经营范围当实际收入。']
+    unpaired=[r for r in records if r['kind']=='margin' and (r.get('percentage_basis') or not revenue) and not any(
+        all(r.get(k)==s.get(k) for k in ('period','dimension','entity','unit','value')) for s in revenue)]
+    if unpaired:
+        lines+=['','主营业务原表收入、成本和毛利率（不由比例倒推金额）：','']
+        lines+=_table(['市场/业务范围','期间','源表数据','核验边界','来源'],[
+            [r['dimension']+'：'+r['entity'],r['period'],
+             '收入'+_money_value(r,'value')+'；营业成本'+_money_value(r,'cost')+'；毛利率'+r['margin']+
+             '；收入同比'+r['revenue_yoy']+'；成本同比'+r['cost_yoy']+'；毛利率变动原文：'+r['margin_change_source'],
+             '同口径来源差异待核，未择一' if r.get('conflict') else '原表业务分类，不等于单一部门台账；百分点与相对增幅分开。',
+             refs(r)+(f"（物理页{r['page']}）" if r.get('page') else '')] for r in unpaired])
     segments=[r for r in records if r['kind']=='segment_revenue']
     if segments:
         lines+=['','原件财年分部收入与合并调节（人民币原列）：','']

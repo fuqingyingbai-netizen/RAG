@@ -50,10 +50,10 @@ def issuer(source,target,hosts):
     if meta.get('entity_validation') in {'rejected','ambiguous','related_entity_context'}:return False
     host=(urlparse(str(get(source,'url'))).hostname or '').lower().removeprefix('www.')
     if not (host in hosts or any(host==d or host.endswith('.'+d) for d in ('cninfo.com.cn','szse.cn','sse.com.cn','hkexnews.hk'))):return False
-    raw=str(get(source,'content') or '')[:3000]
-    # A standalone issuer heading authenticates the document, not a search
-    # title or a parent's name mentioned in a subsidiary biography.
-    return issuer_anchor(raw,target)['matched']
+    from .company_issuer_identity import publisher_anchor
+    # A corporate footer can bind publisher-owned website material. It never
+    # overrides a conflicting subsidiary filing heading or a rejected source.
+    return bool(publisher_anchor(source,target,{'roots':set(hosts)}))
 
 
 def roster_rows(pages,period):
@@ -428,7 +428,9 @@ def build_management_package(cleaned,target,sources=None,*,limit=160000,governan
     if any(r.get('roster_format')=='simple_annual' for r in delivered):gaps.append('简式年报名册的完整任期与精确时点尚未逐人绑定；届期及生效条款需结合原表脚注复核，不把财年截止日当任职生效日。')
     if registered:gaps.append('本次已得平台注册主要人员记录，但正式任命、完整任期和个人履历仍待核对；登记职务不直接等于创始人、业务负责人、实际控制人或完整现任团队。')
     if platform_profiles:gaps.append('平台团队描述与登记人员范围不同，未逐人核验学历、经历及离职/在任时间；不将创始人描述替代登记职务或实际控制证明。')
+    from .company_selection_audit import selection_audit
     return {'version':VERSION,'target_name':target,'facts':delivered,'information_gaps':gaps,
+            'selection_audit':selection_audit(records+registered+platform_profiles,delivered),
             'diagnostic':{'candidate_claims':len(records)+len(registered)+len(platform_profiles),'delivered_claims':len(delivered),'by_kind':dict(Counter(r['kind'] for r in delivered)),'filters':dict(counts)}}
 
 

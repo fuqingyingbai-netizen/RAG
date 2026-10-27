@@ -217,6 +217,8 @@ def _company_fact_has_trusted_target_anchor(fact: dict[str, Any], target_name: s
         if (''.join(match_text(fact.get('source_issuer_name')).casefold().split()) == target_key
                 and target_key in ''.join(match_text(fact.get('source_issuer_quote')).casefold().split())):
             return True
+        from .company_issuer_identity import binding_matches_fact
+        if binding_matches_fact(fact,target_name):return True
     query_echo_markers = (
         "用户查询", "查询关注", "针对用户", "与查询", "相关性", "检索关键词",
         "userquery", "searchquery", "queryfocus", "doesnotdirectlyinvolve",

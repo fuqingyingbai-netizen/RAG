@@ -47,6 +47,7 @@ STYLES_XML = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:pPr><w:spacing w:after="120" w:line="300" w:lineRule="auto"/></w:pPr><w:rPr><w:rFonts w:ascii="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="21"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="CompanyTable"><w:name w:val="Company Table"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="60" w:line="240" w:lineRule="auto"/></w:pPr></w:style>
+  <w:style w:type="paragraph" w:styleId="CompanySource"><w:name w:val="Company Source Index"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr><w:sz w:val="18"/></w:rPr></w:style>
   <w:style w:type="paragraph" w:styleId="PersonTable"><w:name w:val="Person Table"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="40" w:line="240" w:lineRule="auto"/></w:pPr></w:style>
   <w:style w:type="paragraph" w:styleId="PersonQuote"><w:name w:val="Person Source Quote"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="60" w:line="260" w:lineRule="auto"/></w:pPr></w:style>
   <w:style w:type="paragraph" w:styleId="PersonEvidenceLabel"><w:name w:val="Person Evidence Label"/><w:basedOn w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="160" w:after="60"/></w:pPr><w:rPr><w:b/></w:rPr></w:style>
@@ -233,7 +234,11 @@ def _table(
     width = max(len(row) for row in rows)
     table_width = 9026
     col_width = table_width // max(1, width)
-    compact_source=company and rows[0]==['证据编号','支持章节','来源与关键摘要','台账定位']
+    compact_source=company and rows[0] in [
+        ['证据编号','支持章节','来源与关键摘要','台账定位'],
+        ['证据编号','支持章节','来源标题','台账定位']]
+    compact_caption_source=company and rows[0]==['证据编号','支持章节','来源标题','台账定位']
+    cell_vertical_margin='40' if compact_caption_source else '90'
     industry_source = not company and rows[0] == ['证据编号及支持章节', '原始来源与发布日期', '定位识别']
     widths=[col_width]*width
     if not company and not person:
@@ -289,7 +294,7 @@ def _table(
         '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>'
         '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/></w:tblBorders>'
         '<w:tblLayout w:type="fixed"/>'
-        '<w:tblCellMar><w:top w:w="90" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="90" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar></w:tblPr>'
+        f'<w:tblCellMar><w:top w:w="{cell_vertical_margin}" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="{cell_vertical_margin}" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar></w:tblPr>'
         f'<w:tblGrid>{grid}</w:tblGrid>',
     ]
     for ridx, row in enumerate(rows):
@@ -318,7 +323,7 @@ def _table(
             bookmark = (evidence_bookmarks or {}).get(evidence_id) if ridx > 0 and cidx == 0 else None
             xml.append(
                 f"<w:tc><w:tcPr><w:tcW w:w=\"{widths[cidx]}\" w:type=\"dxa\"/>{shade}{v_align}</w:tcPr>"
-                f"{_paragraph(cell, style='CompanyTable' if company else 'PersonTable' if person else 'TableText', hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, bookmark=bookmark, suppress_evidence_links=bool(bookmark), compact_url_labels=bool(compact_source and ridx>0 and cidx==3 or person and ridx>0 and rows[0][cidx]=='原始定位'), monospace_evidence_ids=bool(industry_source and ridx>0), bold=ridx == 0)}</w:tc>"
+                f"{_paragraph(cell, style='CompanySource' if compact_caption_source else 'CompanyTable' if company else 'PersonTable' if person else 'TableText', hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, bookmark=bookmark, suppress_evidence_links=bool(bookmark), compact_url_labels=bool(compact_source and ridx>0 and cidx==3 or person and ridx>0 and rows[0][cidx]=='原始定位'), monospace_evidence_ids=bool(industry_source and ridx>0), bold=ridx == 0)}</w:tc>"
             )
         xml.append("</w:tr>")
     xml.append("</w:tbl>")
@@ -353,7 +358,7 @@ def _paragraph(
         monospace_evidence_ids=monospace_evidence_ids,
         bold=bold,
     )
-    after='60' if style in {'CompanyTable', 'TableText', 'PersonTable', 'PersonQuote'} else '120'
+    after='0' if style=='CompanySource' else '60' if style in {'CompanyTable', 'TableText', 'PersonTable', 'PersonQuote'} else '120'
     keep_xml=('<w:keepNext/>' if keep_next else '')+('<w:keepLines/>' if keep_next or keep_lines else '')
     return f"<w:p><w:pPr>{style_xml}{indent_xml}{keep_xml}<w:spacing w:after=\"{after}\"/></w:pPr>{bookmark_start}{runs}{bookmark_end}</w:p>"
 

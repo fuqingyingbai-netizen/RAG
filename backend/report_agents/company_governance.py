@@ -16,7 +16,7 @@ from .company_financial_statements import fiscal_report_period,quarter_report_pe
 
 TITLE = "主体工商基本信息核查股东关系与治理底盘"
 HEADINGS = ("主体工商信息表", "股权与治理信息表", "股东/实控人/关联方关系网图", "治理底盘判断")
-VERSION = "company-governance-v1"
+VERSION = "company-governance-v6-complete-multiline-registry-records"
 EID = re.compile(r"E-[A-Z0-9-]{6,}", re.I)
 
 
@@ -65,7 +65,61 @@ def pick(row, keys):
     return next((str(row[k]).strip() for k in keys if k in row and present(row[k]) and not isinstance(row[k], (dict, list))), "")
 
 
-def read_fields(content: str):
+def _registry_subject_text(content, target=''):
+    """Keep explicit legal-subject records separate, including PDF subsidiaries.
+
+    A repeated issuer page header cannot reset a subsidiary's field block.
+    Shareholder/person/product names are not the record's legal subject.
+    """
+    label = re.compile(r'(?<![A-Za-z\u4e00-\u9fff])'
+        r'(?:(?:全资|控股)?子公司名称|企业名称|公司名称|主体名称|中文名称|发行人名称|名称|companyName|company_name|Name)'
+        r'[ \t]*(?:[：:]|\|)[ \t]*(?P<value>[^\n|]+)',re.I)
+    legal = re.compile(r'^[ \t]*(?P<name>[^：:，,；;\n|]{2,120}(?:股份有限公司|有限责任公司|有限公司|股份公司|分公司|'
+        r'合伙企业(?:[（(]有限合伙[）)])?|\bLimited\b|\bLtd\.?|\bInc\.?|\bLLC\b|\bplc\b|\bCorporation\b))',re.I)
+    field_label = re.compile('|'.join(re.escape(a)+r'[ \t]*[：:]' for aliases in ALIASES.values() for a in aliases))
+    anchors=[]
+    for match in label.finditer(content):
+        value=field_label.split(match['value'],maxsplit=1)[0].strip(' \t，,。；;')
+        if target and compact(value)==compact(target):
+            name=target
+        else:
+            owner=legal.match(value)
+            if not owner:continue
+            name=owner['name'].strip()
+        start=match.start()
+        # A compact field record may put its data date before its legal name.
+        # Extend only over schema rows, never over a prospectus narrative.
+        separator=content.rfind('\n\n',0,start)
+        block_start=separator+2 if separator>=0 else 0
+        prefix=content[block_start:start]
+        if not any(block_start<=old[0]<start for old in anchors) and all(
+                not line.strip() or line.strip().startswith(('|','#')) or field_label.match(line.strip())
+                for line in prefix.splitlines()):
+            start=block_start
+        anchors.append((start,name))
+    # A profile can put its named heading above 工商信息 and repeat the
+    # explicit 主体名称 only in a later module. Bind that actual field block,
+    # without borrowing the leading search/SEO summary or a PDF page header.
+    if target:
+        named_heading=re.compile(r'(?m)^[ \t]*'+re.escape(target)+r'[ \t]*$')
+        for header in re.finditer(r'(?m)^[ \t]*(?:工商信息|企业基本信息|公司基本信息|基本登记信息)'
+                                  r'(?:[ \t]+以上数据来源于互联网)?[ \t]*$',content):
+            if named_heading.search(content[:header.start()]) and not any(
+                    start<header.start() and compact(name)!=compact(target) for start,name in anchors):
+                anchors.append((header.start(),target))
+        anchors.sort(key=lambda item:item[0])
+    if not anchors:
+        return content,''
+    target=target or anchors[0][1]
+    retained=[]
+    for i,(start,name) in enumerate(anchors):
+        if compact(name)==compact(target):
+            end=anchors[i+1][0] if i+1<len(anchors) else len(content)
+            retained.append(content[start:end])
+    return '\n'.join(retained),target if retained else ''
+
+
+def read_fields(content: str, target: str=''):
     """Keep header meanings, names, units and row boundaries across providers."""
     fields, tables = {}, []
     try:
@@ -92,6 +146,9 @@ def read_fields(content: str):
                         walk(x,str(key))
         walk(obj)
         return fields, tables
+    content,subject=_registry_subject_text(content,target)
+    # The name comes from an explicit original field, never a query echo.
+    if subject:fields['企业名称']=subject
     blocks = re.split(r"(?m)(^#{1,6} .*$)|\n\s*\n", content)
     section=''
     for block in blocks:
@@ -117,12 +174,32 @@ def read_fields(content: str):
             if header and len(row)==len(header) and any(x in header for x in (*SHARE_NAMES, *PEOPLE, "变更日期", "变更时间")):
                 tables.append({**dict(zip(header, row)),'_section':section})
     # Plain key:value records are common in official pages and MCP responses.
-    for line in content.splitlines():
-        known = {a:name for name,aliases in ALIASES.items() for a in aliases}
-        pattern = '|'.join(re.escape(k) for k in sorted(known,key=len,reverse=True))
+    known = {a:name for name,aliases in ALIASES.items() for a in aliases}
+    pattern = '|'.join(re.escape(k) for k in sorted(known,key=len,reverse=True))
+    lines=content.splitlines(keepends=True)
+    for line_number,original_line in enumerate(lines):
+        line=original_line.rstrip('\r\n')
         matches=list(re.finditer(r'('+pattern+r')\s*[：:]\s*',line)) if '|' not in line else []
         for i,match in enumerate(matches):
-            value=line[match.end():matches[i+1].start() if i+1<len(matches) else len(line)].strip()
+            value=line[match.end():matches[i+1].start() if i+1<len(matches) else len(line)]
+            if i+1==len(matches) and known[match[1]] in {'经营范围','成立日期'}:
+                # Native prospectus fields wrap over physical lines. Keep
+                # the original continuation, but never cross a new field,
+                # section, table, blank separator or page-number artifact.
+                continuation=[]
+                for following in lines[line_number+1:]:
+                    candidate=following.strip()
+                    if known[match[1]]=='成立日期' and (re.fullmatch(r'\d{4}[-./年]\d{1,2}[-./月]\d{1,2}日?',value.strip()) or
+                            not re.match(r'(?:(?:19|20)\d{2}|\d{1,2}[月日]|整体|改制|设立|变更|股份公司|股份有限公司|有限责任公司|有限公司)',candidate)):
+                        break
+                    if (not candidate or candidate.startswith(('|','#')) or
+                            re.match(r'(?:[一二三四五六七八九十]+[、．.]|[（(][一二三四五六七八九十]+[）)])',candidate) or
+                            re.fullmatch(r'\d+(?:[-/]\d+)*',candidate) or
+                            re.match(r'[\u4e00-\u9fffA-Za-z_（）() ]{1,20}\s*[：:]',candidate)):
+                        break
+                    continuation.append(following)
+                if continuation:value+=original_line[len(line):]+''.join(continuation)
+            value=value.strip()
             if present(value):
                 fields.setdefault(known[match[1]],value)
     return fields, tables
@@ -147,6 +224,7 @@ def _historical(text):
 def _primary_filing(source, target):
     host=(urlparse(str(get(source,'url'))).hostname or '').lower()
     official=any(host==d or host.endswith('.'+d) for d in ('szse.cn','sse.com.cn','cninfo.com.cn','hkexnews.hk'))
+    if not official:return False
     head=match_compact(str(get(source,'content'))[:2400])
     # A parent's mention inside a subsidiary filing is insufficient. Require
     # the issuer's full name immediately followed by its reporting period.
@@ -207,7 +285,9 @@ def _controller_entity(value):
     return value if re.fullmatch(r'[\u4e00-\u9fff·]{2,10}',value) and not re.search(r'不适用|未披露|待核验|无实际|无控股|不存在|未知',value) else ''
 
 
-def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=45000) -> dict:
+def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=50000, as_of_date="") -> dict:
+    # Explicit acquisition-date provenance adds bookkeeping to every row.
+    # Allow for it without displacing previously retained substantive records.
     by_url = {str(get(s, "url")):s for s in sources or []}
     source_cards = defaultdict(list)
     counters = Counter()
@@ -215,16 +295,24 @@ def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=
         if isinstance(f, dict) and EID.fullmatch(str(f.get("evidence_id") or "")):
             source_cards[str(f.get("source_url") or "")].append(f)
     records, seen = [], {}
+    beneficial_contexts={}
 
     def add(f, kind, *, value="", field="", entity="", period="", **values):
         source = by_url.get(str(f.get("source_url") or ""))
         meta = get(source, "source_metadata", {}) or {}
+        acquired=str(meta.get('retrieved_at') or '')
+        acquired=acquired if re.match(r'^20\d{2}-\d{2}-\d{2}',acquired) else ''
         r = dict(kind=kind, field=field, value=str(value), entity=entity,
-                 period=period or "数据基准日未载", observed_at=str(get(source,"created_at") or "")[:10],
+                 period=period or "数据基准日未载", observed_at=(acquired or str(get(source,"created_at") or ""))[:10],
+                 observed_at_basis='retrieved_at' if acquired else 'source_created_at',
                  evidence_id=f['evidence_id'], source_url=f.get('source_url',''),
                  source_title=f.get('source_title',''), evidence_scope='target_direct', **values)
         # Do not collapse conflicting values, distinct entities or different dates.
-        key = json.dumps({k:v for k,v in r.items() if k not in {'evidence_id','source_url','source_title','observed_at'}},ensure_ascii=False,sort_keys=True)
+        identity={k:v for k,v in r.items() if k not in {'evidence_id','source_url','source_title','observed_at','observed_at_basis'}}
+        if kind in {'beneficial_ownership','beneficial_ownership_total'}:
+            identity.pop('value',None)
+            identity['entity']=r['holder_key']
+        key = json.dumps(identity,ensure_ascii=False,sort_keys=True)
         if key in seen:
             prev=seen[key]
             if f['evidence_id'] not in prev['evidence_ids']:
@@ -274,7 +362,22 @@ def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=
             for quote,date in events:
                 add(eligible[0],'history',value=quote,period=date or '报告期披露：'+report_period,
                     basis='primary_filing')
-        fields, rows=read_fields(raw)
+            from .company_evidence import source_body,document_pages
+            from .company_text import issuer_anchor
+            if source_body(src)[1]!='discovery_summary' and issuer_anchor(raw,target)['matched']:
+                from .company_beneficial_ownership import beneficial_ownership_disclosures
+                holdings,contexts=beneficial_ownership_disclosures(document_pages(src),as_of_date=as_of_date)
+                for context in contexts:
+                    key=context['key']
+                    if key not in beneficial_contexts:
+                        beneficial_contexts[key]={**context,'evidence_ids':[eligible[0]['evidence_id']]}
+                    elif eligible[0]['evidence_id'] not in beneficial_contexts[key]['evidence_ids']:
+                        beneficial_contexts[key]['evidence_ids'].append(eligible[0]['evidence_id'])
+                for holding in holdings:
+                    values={k:v for k,v in holding.items() if k not in {'kind','entity','period','fact','evidence_quote'}}
+                    add(eligible[0],holding['kind'],entity=holding['entity'],period=holding['period'],
+                        value=holding['evidence_quote'],**values)
+        fields, rows=read_fields(raw,target)
         if fields.get('企业名称') and compact(fields['企业名称'])==compact(target):
             f=eligible[0]
             period=fields.get('数据日期') or meta.get('as_of_date') or meta.get('data_date') or ''
@@ -338,6 +441,11 @@ def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=
     # Deterministic factual tables receive whole records, not a clipped prompt.
     # Keep the latest dated control disclosure, alongside undated platform
     # fields. Historical repeats do not masquerade as additional verification.
+    ownership_kinds={'beneficial_ownership','beneficial_ownership_total'}
+    latest_beneficial=max((r['cutoff'] for r in records if r['kind'] in ownership_kinds),default='')
+    older_beneficial=[r for r in records if r['kind'] in ownership_kinds and r['cutoff']!=latest_beneficial]
+    counters['older_beneficial_rows_not_displayed']+=len(older_beneficial)
+    records=[r for r in records if r not in older_beneficial]
     controls=[r for r in records if r['kind']=='control' and r.get('basis')=='primary_filing']
     latest_control=max((r['period'] for r in controls),key=_period_rank,default='')
     records=[r for r in records if r not in controls or r['period']==latest_control]
@@ -354,7 +462,7 @@ def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=
     founding=[r for r in admitted_history if re.search(r'整体改制|改制设立',r['value'])][:1]
     history_keep=admitted_history[:3]+[r for r in founding if r not in admitted_history[:3]]
     records=[r for r in records if r['kind']!='history' or r in history_keep]
-    priority={'registry':0,'shareholder':1,'control':2,'history':3,'personnel':4,'historical_shareholder':5}
+    priority={'registry':0,'shareholder':1,'beneficial_ownership':2,'beneficial_ownership_total':2,'control':2,'history':3,'personnel':4,'historical_shareholder':5}
     records.sort(key=lambda r:priority[r['kind']])
     selected=[]
     for r in records:
@@ -368,9 +476,12 @@ def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=
             conflict_groups[(r['field'],r['period'])].append(r)
         elif r['kind']=='shareholder':
             conflict_groups[('股东持股比例:'+r['entity'],r['period'])].append(r)
+        elif r['kind'] in ownership_kinds:
+            conflict_groups[('原件受益所有权:'+r['holder_key'],r['period'])].append(r)
     conflicts=[]
     for (field,date),rs in conflict_groups.items():
-        vals={r.get('ratio') or r['value'] for r in rs}
+        vals={(f"普通股 {r['ordinary_shares']}；美国存托股 {r['ads']}；原表比例 {r['ratio']}"
+               if r['kind'] in ownership_kinds else r.get('ratio') or r['value']) for r in rs}
         if len(vals)>1:
             conflicts.append({'field':field,'period':date,'values':sorted(vals),
                               'evidence_ids':list(dict.fromkeys(eid for r in rs for eid in r['evidence_ids']))})
@@ -378,6 +489,10 @@ def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=
     gaps=[]
     if any(r.get('basis')=='official_overseas_filing' for r in selected):
         gaps.append('境外发行人名称和注册司法辖区来自官方发行人文件，未替代专业平台实际查询或独立工商档案核验；不能套用中国内地统一社会信用代码、法定代表人或注册资本字段。')
+    if any(r['kind'] in ownership_kinds for r in selected):
+        gaps.append('已接纳发行人20-F受益所有权子表，不是完整登记股东名册；可能含未来60日内权利及受托表决/处置权，不直接等同本人金钱权益或实际控制。')
+        if len({r['context_key'] for r in selected if r['kind'] in ownership_kinds})>1:
+            gaps.append('同一截至日有多份定义或附注不同的受益所有权披露，已按原件分别列示，不把重复行当新增独立持有人。')
     for kind,label in (('registry','工商登记原始字段'),('shareholder','当前股东明细'),('personnel','主要人员明细'),
                        ('history','股权变动与减资事件记录'),('control','明确的控制关系或表决权安排披露')):
         if kind not in kinds:
@@ -386,7 +501,11 @@ def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=
     if not any(r['kind']=='history' and re.search(r'变更|减资|注册资本由|注册资本从',r['value']) for r in selected):
         gap='股权变动、减资尚缺完整的逐项事件日期和前后值对照，需补充工商变更档案和相关公告。'
         gaps=[x for x in gaps if not x.startswith('股权变动与减资')]+[gap]
+    context_keys={r['context_key'] for r in selected if r['kind'] in ownership_kinds}
+    from .company_selection_audit import selection_audit
     return {'version':VERSION,'target_name':target,'facts':selected,'conflicts':conflicts,
+            'selection_audit':selection_audit(records,selected),
+            'beneficial_ownership_contexts':[value for key,value in beneficial_contexts.items() if key in context_keys],
             'information_gaps':gaps,'diagnostic':{'candidate_records':len(records),'delivered_records':len(selected),
             'by_kind':dict(Counter(r['kind'] for r in selected)),'filters':dict(counters)}}
 
@@ -407,7 +526,10 @@ def combined_refs(records):
 def provenance(record):
     period=record['period']
     observed=record.get('observed_at')
-    return period+(f'；采集于{observed}' if observed else '')
+    if not observed:return period
+    if record.get('observed_at_basis')=='retrieved_at':return period+f'；原件采集记录日期{observed}'
+    if record.get('observed_at_basis')=='source_created_at':return period+f'；本次入库日期{observed}（原始采集时间未单列）'
+    return period+f'；记录日期{observed}（时间性质未单列）'
 
 
 def _table(headers, rows):
@@ -435,6 +557,58 @@ def _role_priority(role):
     return 2 if re.search(r'财务|秘书',role) else 3
 
 
+def render_beneficial_ownership(package: dict) -> str:
+    """Deterministic original-value table shared by full and compact writers."""
+    groups=defaultdict(list)
+    for record in package.get('facts', []):
+        groups[record['kind']].append(record)
+    lines=[]
+    beneficial=groups['beneficial_ownership']+groups['beneficial_ownership_total']
+    if not beneficial:
+        return ''
+    lines+=['#### 发行人受益所有权披露（非完整登记股东名册）','',
+        '普通股、美国存托股和原表比例分别保留。可能包含截至日后60日内可取得股份及受托表决或处置权，不直接等同本人金钱权益、已到手股份或实际控制。逐人分母按原件定义，比例不简单相加；0.0%为原表显示值，不能据此认定0股。本轮不自行换算ADS或重算合计。','']
+    for context in package.get('beneficial_ownership_contexts',[]):
+        group=[r for r in beneficial if r['context_key']==context['key']]
+        if not group:
+            continue
+        lines+=['原表截至日：'+context['cutoff']+'；物理页'+str(context['page'])+'。仅列本次成功对齐的'+str(len(group))+'条原文记录，合计行不是独立持有人。'+refs(context),'']
+        lines+=_table(['原表主体','普通股（原表）','美国存托股（原表）','原表比例','记录性质／出处'],[
+            [r['entity']+('（原注'+r['footnote_marker']+'）' if r['footnote_marker'] else ''),r['ordinary_shares'],r['ads'],r['ratio'],
+             ('原表合计，非独立主体' if r['kind']=='beneficial_ownership_total' else '20-F定义下的受益所有权')+'；'+refs(r)] for r in group])
+        for note in context.get('holder_caveats',[]):
+            lines+=['','原注'+note['marker']+'的权益边界：'+_cell(note['quote'])+' '+refs(context)+'（物理页'+str(note['page'])+'）']
+    return '\n'.join(lines)
+
+
+def shareholder_aggregate(record):
+    return bool(re.fullmatch(r'(?:A股股东|H股股东|境外上市外资股|境内上市内资股|合计|合計|总计|總計)', str(record.get('entity') or '').strip(), re.I))
+
+
+def render_registered_shareholders(package: dict) -> str:
+    """The graph and compact narrative must not replace original row values."""
+    rows = [r for r in package.get('facts', []) if r['kind'] == 'shareholder']
+    if not rows: return ''
+    lines = ['#### 股东登记原值及资料口径', '']
+    lines += _timed_table(['登记股东名称','源表持股比例','持股数／出资额（原字段）','数据时点／口径','来源'], [
+        [r['entity'] + ('（原表股份类别汇总，非独立股东）' if shareholder_aggregate(r) else ''), r.get('ratio') or '源表未载', r.get('count') or r.get('contribution') or '源表未载', provenance(r), refs(r)] for r in rows])
+    lines += ['', '原表比例、持股数和认缴金额分别保留，原字段未载单位不补单位；数据基准日未载不以采集日替代。同一主体的不同来源比例并列，不任选一值；图中对应差异亦保留，不能据此计算表决权合计或认定完整股东名册。']
+    return '\n'.join(lines)
+
+
+def render_governance_personnel(package: dict) -> str:
+    """Keep source role/term fields behind the displayed relationship nodes."""
+    rows=sorted([r for r in package.get('facts',[]) if r['kind']=='personnel'],key=lambda r:_role_priority(r['role']))
+    if not rows:return ''
+    shown=rows[:12]
+    lines=['#### 主要人员原值及资料口径','']
+    lines+=_timed_table(['姓名','源表职务','源表任期','数据时点／口径','来源'],[
+        [r['entity'],r['role'],r.get('term') or '源表未载',provenance(r),refs(r)] for r in shown])
+    lines+=['','任职、创始人及技术人员字段各按源表含义保留，不等同全部工商治理职务或实际控制；未载任期与数据基准日不补齐。']
+    if len(rows)>len(shown):lines+=['本表选列'+str(len(shown))+'条主要人员记录，其余'+str(len(rows)-len(shown))+'条及完整原文保留于本章证据包和来源台账，不据展示上限推断其余职位不存在。']
+    return '\n'.join(lines)
+
+
 def render_governance(package: dict) -> str:
     groups=defaultdict(list)
     for r in package['facts']:
@@ -458,13 +632,13 @@ def render_governance(package: dict) -> str:
         rows += [[r['period'],'历史股东 '+r['entity']+'；'+r.get('ratio',''),refs(r)] for r in groups['historical_shareholder']]
         lines+=_table(['事件日期','已核对事项','来源'],rows)
         lines+=['','登记成立日期、改制日期、文件发布日期分别保留；历史发起人比例不作为当前持股比例。']
-    lines+=['','### '+HEADINGS[1],'','#### 股东登记记录','']
+    lines+=['','### '+HEADINGS[1],'',render_registered_shareholders(package),'']
     shareholders=groups['shareholder']
-    lines+=_timed_table(['登记股东名称','源表持股比例','持股数／出资额（原字段）','数据时点／口径','来源'],[
-        [r['entity'],r['ratio'] or '源表未载',r['count'] or r['contribution'] or '源表未载',provenance(r),refs(r)]
-        for r in shareholders])
     if shareholders:
         lines+=['','以上保留源表名称及登记持股口径；未载数据基准日的记录不借用采集日期或其他报告期补齐。持股数、认缴金额和注册资本分别列示，不相互换算；未确认完整股东名册前不计算未列股东比例或表决权合计。']
+    beneficial_text=render_beneficial_ownership(package)
+    if beneficial_text:
+        lines+=['',beneficial_text]
     lines+=['','#### 主要人员记录','']
     personnel=groups['personnel']
     # Board, executive, finance and secretary roles first; do not lose current
@@ -524,13 +698,19 @@ def governance_graph_nodes(package, graph_kind):
         node=None
         if graph_kind in {'control','relationship'} and r['kind']=='control' and r['entity']:
             node=(r['entity'],'披露实际控制人',r['period'])
-        elif graph_kind=='equity' and r['kind']=='shareholder':
-            node=(r['entity'],'登记股东',r['ratio'] or '比例未载')
+        elif graph_kind=='equity' and r['kind']=='shareholder' and not shareholder_aggregate(r):
+            node=(r['entity'],'登记股东；'+r['period'],r['ratio'] or '比例未载')
+        elif graph_kind=='beneficial' and r['kind']=='beneficial_ownership' and r['entity']:
+            # A disclosed beneficial interest is neither a registry holding nor
+            # proof of control. Aggregates must never become person nodes.
+            node=(r['entity'],'披露实益持股 '+(r.get('ratio') or '比例未载'),
+                  r.get('cutoff') or r['period'])
         elif graph_kind in {'control','relationship'} and r['kind']=='personnel':
             node=(r['entity'],r['role'],'任职记录，非控制结论')
         elif graph_kind in {'control','relationship'} and r['kind']=='registry' and r['field']=='法定代表人':
             node=(r['value'],'法定代表人','登记角色，非控制结论')
-        if node and node[0] not in seen and compact(node[0])!=compact(package['target_name']):
+        identity = node if graph_kind in {'beneficial','equity'} else node[0] if node else None
+        if node and identity not in seen and compact(node[0])!=compact(package['target_name']):
             nodes.append(node)
-            seen.add(node[0])
+            seen.add(identity)
     return nodes

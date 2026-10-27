@@ -18,12 +18,17 @@ from .company_governance import build_governance_package, _table, refs, get, cit
 from .company_history import build_history_package, financial_rows, METRICS
 from .company_management import build_management_package, latest_roles
 from .company_financial_statements import consolidated_statement_rows
+from .company_accounting_tables import accounting_grid_rows
 from .company_risk_register import (
     build_risk_register, filing_cutoff, iso_date, later_than_research_cutoff,
     source_anchor, usable,
 )
+from .company_assessment_sources import (
+    assessment_source_context, assessment_anchor, platform_financial_rows,
+    platform_funding_records,
+)
 
-VERSION = 'company-assessment-v2-paged-funding-proof'
+VERSION = 'company-assessment-v6-issuer-listing-actual-net-proceeds'
 TITLE = '综合评价'
 NUMBER = r'[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?'
 RUBRIC = [
@@ -71,19 +76,22 @@ def _recent(cutoff, as_of):
     return start <= date.fromisoformat(cutoff) <= end
 
 
-def financial_observations(source, base):
+def financial_observations(source, base, *, pages=None):
     """Recover the issuer's main accounting table, including integer amounts.
 
     No segment, subsidiary or three-month table is spliced into a group annual
     snapshot. Current/prior headers and row-local units must both be explicit.
     """
-    pages = document_pages(source)
+    pages = document_pages(source) if pages is None else pages
     period = period_of(source, pages)
     cutoff = filing_cutoff(pages)
     if not cutoff or not re.search(r'年度|半年度|中期|季度业绩', period):
         return []
     if '季度业绩' in period:
         return consolidated_statement_rows(pages,base['entity'],base,period,cutoff,METRICS)
+    native=accounting_grid_rows(pages,base['entity'],base,period,cutoff,METRICS,source_body(source)[0])
+    if native:
+        return native
     rows = []
     for p in pages[:55]:
         text = p['text']
@@ -142,7 +150,9 @@ def _latest_metric(rows, metric):
         return [], '对应会计指标未取得'
     cutoff = max(r['cutoff'] for r in group)
     group = [r for r in group if r['cutoff'] == cutoff]
-    signatures = {(decimal(r['value']), decimal(r['previous_value']), r['unit'], r['period_kind'], r.get('currency','')) for r in group}
+    signatures = {(decimal(r['value']), decimal(r['previous_value']), r['unit'], r['period_kind'], r.get('currency',''),r.get('statistical_scope','')) for r in group}
+    if any(r.get('currency')=='未载' for r in group):
+        return group, '原表币种未载，保留观察但停止该分项评分'
     if len(signatures) != 1 or any(r['printed_yoy_conflict'] for r in group):
         return group, '同截至日指标存在原文数值/单位/同比冲突，停止该分项评分'
     return group, ''
@@ -157,14 +167,14 @@ def _financial_scores(rows):
         if v < 0 or p < 0 or (v == 0 and p == 0):
             revenue = score_row('revenue', None, '零收入研发阶段或异常负营业收入须按阶段另评，不强行套用成熟经营趋势分', selected)
         else:
-            two_years = r['period_kind'] == 'annual' and third is not None and third > 0
+            two_years = r['period_kind'] == 'annual' and r.get('third_value_comparable',True) and third is not None and third > 0
             score = 1 if v == 0 or (two_years and v < p < third) else 2 if v < p else 3 if v == p or p == 0 else 5 if two_years and v > p > third else 4
             revenue = score_row('revenue', score, r['period'] + '本期与上年同期比较；' + ('连续两次年度比较' if two_years else '本轮只评价已得同期变化')
-                                + '，收入' + _change(r) + '。不将规模大小或收入增长视为技术领先。', selected)
+                                + '，收入' + _change(r) + '。' + r.get('comparability_note','') + '不将规模大小或收入增长视为技术领先。', selected)
     profits, pe = _latest_metric(rows, METRICS[1]);cash, ce = _latest_metric(rows, METRICS[2])
     if pe or ce:
         earnings = score_row('earnings_cash', None, pe or ce, profits + cash)
-    elif (profits[0]['cutoff'], profits[0]['period_kind'], profits[0]['unit'], profits[0].get('currency','')) != (cash[0]['cutoff'], cash[0]['period_kind'], cash[0]['unit'], cash[0].get('currency','')):
+    elif (profits[0]['cutoff'], profits[0]['period_kind'], profits[0]['unit'], profits[0].get('currency',''),profits[0].get('statistical_scope','')) != (cash[0]['cutoff'], cash[0]['period_kind'], cash[0]['unit'], cash[0].get('currency',''),cash[0].get('statistical_scope','')):
         earnings = score_row('earnings_cash', None, '归母净利润与经营现金流不是同一截至日/期间/币种/单位，不拼接评分', profits + cash)
     else:
         a, b = profits[0], cash[0]
@@ -178,12 +188,12 @@ def _financial_scores(rows):
             score = 3
         else:
             pt, ct = decimal(a.get('third_value')), decimal(b.get('third_value'))
-            continuous = a['period_kind'] == 'annual' and pt is not None and ct is not None and pp > 0 and cp > 0 and pp >= pt > 0 and cp >= ct > 0
+            continuous = a['period_kind'] == 'annual' and a.get('third_value_comparable',True) and b.get('third_value_comparable',True) and pt is not None and ct is not None and pp > 0 and cp > 0 and pp >= pt > 0 and cp >= ct > 0
             score = 5 if continuous else 4
         earnings = score_row('earnings_cash', score,
             a['period'] + '归母净利润' + ('为负' if pv < 0 else '为零' if pv == 0 else '为正') + '，经营现金流净额'
             + ('为负' if cv < 0 else '为零' if cv == 0 else '为正') + '；与同口径上年同期比较，归母利润' + _change(a) + '、经营现金流' + _change(b)
-            + '。两者不相除冒充合并现金转化率。', profits + cash)
+            + '。' + a.get('comparability_note','') + '两者不相除冒充合并现金转化率。', profits + cash)
     return [revenue, earnings]
 
 
@@ -196,10 +206,12 @@ def _change(record):
     return direction + (str(pct) + '%' if pct else '')
 
 
-def internal_control_observations(source, base):
-    records = []
-    cutoff = filing_cutoff(document_pages(source))
-    for p in document_pages(source):
+def internal_control_observations(source, base, *, pages=None):
+    from .company_audit_disclosures import combined_control_rows
+    pages = document_pages(source) if pages is None else pages
+    records = combined_control_rows(pages,base.get('entity') or '',base)
+    cutoff = filing_cutoff(pages)
+    for p in pages:
         text = re.sub(r'\s+', '', p['text'])
         if not re.search(r'内部控制审计报告|財務報告內部控制審計', text):
             continue
@@ -266,6 +278,25 @@ def funding_score(history, target, as_of, originals=None):
     completed = []
     for r in history.get('facts', []):
         quote = str(r.get('fact') or '')
+        if r.get('native_listing_funding'):
+            from .company_listing_funding import listing_funding_events
+            original=originals.get(r.get('source_url'))
+            if not original:continue
+            checked=listing_funding_events(original,target,assessment_anchor(original,{}),as_of)
+            if not any(v['fact']==quote and v['period']==r.get('period') and
+                       all(v.get(k)==r.get(k) for k in ('value','currency','unit')) for v in checked):continue
+            completed.append({**r,'amount_records':[],'original_quote_verified':True})
+            continue
+        if r.get('original_platform_row'):
+            if not _recent(r.get('period'),as_of):continue
+            original=originals.get(r.get('source_url'))
+            if not original or not assessment_source_context(original,target)['usable']:continue
+            _,checked=platform_funding_records(original,assessment_anchor(original,{}),target,as_of)
+            if not any(x['fact']==quote and x['period']==r.get('period') for x in checked):continue
+            completed.append({**r,'funding_date':r['period'],'amount_records':[],
+                              'pages':[],'original_quote_verified':True,
+                              'mode':'专业平台原始字段明确融资已完成、目标收款主体及实际净额；按平台所载归因。'})
+            continue
         if r.get('kind') != 'event' or not re.search(r'完成.*(?:配售|发行)|配售完成|资金到账', quote):
             continue
         if re.search(r'拟|尚未|尚待|将于|决议通过', quote):
@@ -310,8 +341,8 @@ def capital_status_observations(sources, target, cards, as_of):
     relations = {}
     owned = []
     for s in sources:
-        pages = document_pages(s)
-        if not exchange(s) or not issuer_heading(pages, target):
+        context=assessment_source_context(s,target);pages=context['pages']
+        if not context['usable']:
             continue
         base = source_anchor(s, cards)
         owned.append((s, base))
@@ -402,10 +433,10 @@ def outcome_observations(sources, target, cards):
     """
     tech, execution = [], []
     for s in sources:
-        pages = document_pages(s)
-        if not exchange(s) or not issuer_heading(pages, target):
+        context=assessment_source_context(s,target);pages=context['pages']
+        if not context['usable']:
             continue
-        base = source_anchor(s, cards)
+        base = assessment_anchor(s, cards)
         cutoff = filing_cutoff(pages);period = period_of(s, pages)
         if not base or not cutoff:
             continue
@@ -464,7 +495,7 @@ def outcome_observations(sources, target, cards):
 
 
 def execution_score(records, team_records):
-    fallback = '已有岗位/任职及履历可说明配置；尚未取得全公司考核范围、期前目标批准、责任主体、同期间实际和完整原权重，不以任期、持股、年龄或亲属关系评分。'
+    fallback = ('已有岗位/任职及履历可说明配置；' if team_records else '本章尚未形成正式岗位/任职及履历记录；')+'尚未取得全公司考核范围、期前目标批准、责任主体、同期间实际和完整原权重，不以任期、持股、年龄或亲属关系评分。'
     if not records:
         return score_row('team', None, fallback, team_records[:5])
     latest = max(r['cutoff'] for r in records)
@@ -480,28 +511,91 @@ def execution_score(records, team_records):
     return score_row('team', float(value), '公司期前批准目标的实际兑现按原考核权重汇总；只评价该目标体系的执行结果，不推同业领先、目标难度或管理者个人能力。', group)
 
 
-def build_assessment_package(cleaned, target, sources=None, *, intake=None, industry=''):
+def non_scoring_investment_context(sources, target, cards):
+    """Retain third-party investment disclosures without inventing target cash.
+
+    These literal, local passages are observations only. They never enter a
+    dimension's records or the numerical aggregation.
+    """
+    result = []
+    target_pattern = r'\s*'.join(map(re.escape, target))
+    for source in sources:
+        if not exchange(source): continue
+        raw, _ = source_body(source)
+        if not re.search(r'公告编号|公告編號', raw[:1800]): continue
+        if issuer_heading(document_pages(source), target): continue
+        spans = list(re.finditer(r'[^。]+。?', raw))
+        for i, span in enumerate(spans):
+            if not re.search(target_pattern, span[0]): continue
+            if not re.search(r'间接投资|間接投資|实缴|實繳|完成交割', span[0]): continue
+            end = span.end()
+            if i + 1 < len(spans) and re.match(r'\s*(?:--- PDF page \d+ ---\s*\d*\s*)?截至本公告日', spans[i+1][0]):
+                end = spans[i+1].end()
+            quote = raw[span.start():end].strip()
+            if len(quote) > 1800: continue
+            anchor = source_anchor(source, cards)
+            if not anchor: continue
+            pages = [p['page'] for p in document_pages(source) if re.search(target_pattern, p['text'])]
+            result.append({**anchor, 'kind': 'non_scoring_investment_context',
+                'entity': '投资方公告口径；非目标公司财务报表', 'fact': quote,
+                'evidence_quote': quote, 'original_offset': raw.find(quote), 'pages': pages,
+                'boundary': '基金实缴、投资方出资及间接投资交割分别按原文列示；不等于目标法人实际募集净额或到账，不进入六项评分。'})
+            break
+    return result
+
+
+def build_assessment_package(cleaned, target, sources=None, *, intake=None, industry='', event_reviews=None):
     intake = dict(intake or {})
     requested = intake.get('as_of_date')
     as_of = iso_date(requested) if requested else date.today().isoformat()
     if not as_of:
         raise ValueError('公司评价的研究截至日无法识别，不能静默改用当前日期')
     intake['as_of_date'] = as_of
-    source_list = [s for s in list(sources or []) if usable(s) and not later_than_research_cutoff(s, as_of)]
+    all_sources=list(sources or [])
+    source_list = [s for s in all_sources if source_body(s)[1]!='discovery_summary'
+                   and not later_than_research_cutoff(s, as_of)]
+    # Per-build reuse only: source text and metadata stay immutable during
+    # this assessment. No global cache retains bodies across projects/runs.
+    source_contexts={id(s):assessment_source_context(s,target) for s in all_sources}
     cards = defaultdict(list)
     for c in cleaned.get('facts', []):
         if isinstance(c, dict):
             cards[str(c.get('source_url') or '')].append(c)
-    anchors, financial, controls = [], [], []
+    anchors, financial, controls, listing_events = [], [], [], []
+    platform_review, platform_observations, platform_events = [], [], []
+    for s in all_sources:
+        context=source_contexts[id(s)]
+        if context['platform']:
+            raw,origin=source_body(s)
+            platform_review.append({'source_id':get(s,'id'),'source_url':str(get(s,'url')),
+                'source_title':str(get(s,'title')),'original_sha256':context['original_sha256'],
+                'text_origin':origin,'subject_bound':context['subject_bound'],'admitted':context['usable'] and s in source_list,
+                'reason':'after_research_cutoff' if context['usable'] and s not in source_list else context['reason'],
+                'financial_records':0,'control_records':0,'funding_observations':0,'scorable_funding_records':0,
+                'technology_records':0,'execution_records':0,
+                'indicator_passages':[raw[max(0,m.start()-60):m.end()+140] for m in re.finditer(
+                    r'营业收入|净利润|经营现金流|募集净额|资金到账|公司盈利情况|融资事件详情|内部控制审计|全公司目标考核',raw)]})
     for s in source_list:
-        base = source_anchor(s, cards)
+        context=source_contexts[id(s)]
+        base = assessment_anchor(s, cards)
         if not base:
             continue
-        if exchange(s) and issuer_heading(document_pages(s), target):
+        if context['usable']:
             base = {**base, 'entity': target}
             anchors.append({**base, 'fact': '原件定位，评分事实由对应字段解析，不采用模型评分。', 'evidence_scope': 'target_direct'})
-            financial += financial_observations(s, base)
-            controls += internal_control_observations(s, base)
+            found=financial_observations(s, base,pages=context['pages'])
+            opinions=internal_control_observations(s, base,pages=context['pages'])
+            from .company_listing_funding import listing_funding_events
+            listing_events+=listing_funding_events(s,target,base,as_of)
+            if context['platform']:
+                found+=platform_financial_rows(s,base,target)
+                observations,events=platform_funding_records(s,base,target,as_of)
+                platform_observations+=observations;platform_events+=events
+                for r in found+opinions:r['source_attribution']='专业平台所载；不冒称官方披露或独立审计'
+                audit=next(r for r in platform_review if r['source_url']==str(get(s,'url')))
+                audit.update(financial_records=len(found),control_records=len(opinions),
+                             funding_observations=len(observations),scorable_funding_records=len(events))
+            financial+=found;controls+=opinions
     financial = [r for r in financial if _recent(r['cutoff'], as_of) and (not r.get('publication_date') or r['publication_date']<=as_of)]
     controls = [r for r in controls if _recent(r['cutoff'], as_of)]
     clean = {**cleaned, 'facts': list(cleaned.get('facts', [])) + anchors}
@@ -509,7 +603,7 @@ def build_assessment_package(cleaned, target, sources=None, *, intake=None, indu
     history = build_history_package(clean, target, source_list, governance=governance)
     business = build_business_package(clean, target, source_list,as_of=as_of)
     management = build_management_package(clean, target, source_list, governance=governance)
-    risk = build_risk_register(clean, target, source_list, industry=industry, intake=intake)
+    risk = build_risk_register(clean, target, source_list, industry=industry, intake=intake, event_reviews=event_reviews)
     dimensions = _financial_scores(financial)
     projects = [r for r in business['facts'] if r['kind'] == 'project' and not r.get('conflict')]
     project_scores = []
@@ -524,6 +618,11 @@ def build_assessment_package(cleaned, target, sources=None, *, intake=None, indu
             project_scores.append({**r, 'project_observation_score': value,
                                    'judgment': '项目阶段观察；不是公司技术领先/核心竞争力分，不从目标或量产宣传推独立性能验证。'})
     tech, execution = outcome_observations(source_list, target, cards)
+    for audit in platform_review:
+        audit['technology_records']=sum(r['source_url']==audit['source_url'] for r in tech)
+        audit['execution_records']=sum(r['source_url']==audit['source_url'] for r in execution)
+        for r in tech+execution:
+            if r['source_url']==audit['source_url']:r['source_attribution']='专业平台所载；不冒称官方披露或独立审计'
     tech = [r for r in tech if _recent(r['cutoff'], as_of)]
     if tech:
         proxy = [{**r, 'metric': METRICS[0]} for r in tech]
@@ -532,11 +631,12 @@ def build_assessment_package(cleaned, target, sources=None, *, intake=None, indu
                                    + ' 此分不等于技术性能、专利壁垒或同业领先程度。', tech)
     else:
         tech_dimension = score_row('technology', None,
-            '已得项目可分别说明样品/试制或量产阶段；尚未取得公司范围研发成果商业贡献，不能取最好项目或按项目数量给全公司技术分。', project_scores[:3])
+            ('已得项目可分别说明样品/试制或量产阶段；' if project_scores else '本章尚未形成可按原锚点评价的项目阶段记录；')+
+            '尚未取得公司合并范围研发成果收入同期原表，不能取最好项目或按项目数量给全公司技术分。', project_scores[:3])
     tech_dimension['project_scores'] = project_scores
     dimensions.append(tech_dimension)
-    originals = {str(get(s, 'url')): s for s in source_list if exchange(s) and issuer_heading(document_pages(s), target)}
-    dimensions.append(funding_score(history, target, as_of, originals=originals))
+    originals = {str(get(s, 'url')): s for s in source_list if source_contexts[id(s)]['usable']}
+    dimensions.append(funding_score({**history,'facts':history['facts']+platform_events+listing_events}, target, as_of, originals=originals))
     dimensions.append(control_score(controls))
     roster = latest_roles(management['facts'])
     team_records = [row for _, rows in roster for row in rows]
@@ -544,7 +644,8 @@ def build_assessment_package(cleaned, target, sources=None, *, intake=None, indu
     dimensions.append(execution_score(execution, team_records))
     aggregate = aggregate_scores(dimensions)
     capital, relations = capital_status_observations(source_list, target, cards, as_of)
-    facts = financial + controls + [r for d in dimensions for r in d['records']] + capital + [e['proof'] for e in relations] + team_records + project_scores
+    context = non_scoring_investment_context(source_list, target, cards)
+    facts = financial + controls + [r for d in dimensions for r in d['records']] + capital + [e['proof'] for e in relations] + team_records + project_scores + context + platform_observations
     # Keep only actually used risk records in this chapter. Detailed case,
     # recall scope and transaction tables remain in chapters 9—11.
     signals = []
@@ -589,20 +690,32 @@ def build_assessment_package(cleaned, target, sources=None, *, intake=None, indu
             'score_direction': '公司表现分1—5，越高表示对应已观察表现较好；与风险分0—100越高风险越高严格分开。趋势档位不代表行业排名，变动幅度与金额需一起判断。',
             'dimensions': dimensions, 'aggregate': aggregate, 'financial_observations': financial,
             'capital_status': capital, 'risk_signals': signals, 'facts': list(unique.values()),
+            'non_scoring_observations': context,
+            'platform_observations':platform_observations,'platform_source_review':platform_review,
             'information_gaps': gaps, 'current_roles': team_records, 'source_limitations': limitations,
-            'overall_judgment': ('可形成有依据的经营、融资及内控分项评价；仍须结合未评分维度和具体风险的集团重大性，部分正分不能替代推进条件核验。' if aggregate['assessed_weight_pct'] else '目前不能形成有依据的公司综合分项评分，先补充核心经营/执行结果原件。'),
+            'overall_judgment': ('可按下列已评分维度形成局部评价；仍须结合未评分维度和具体风险的集团重大性，部分正分不能替代推进条件核验。' if aggregate['assessed_weight_pct'] else '本章六个维度均保留未评分状态：缺少符合原锚点的公司原始指标。评分定义、固定权重、缺项原因及补证动作分别列示。'),
             'diagnostic': {'scored_dimensions': sum(d['score'] is not None for d in dimensions),
                            'unscored_dimensions': sum(d['score'] is None for d in dimensions),
                            'financial_records': len(financial), 'project_observations': len(project_scores),
                            'capital_status_subjects': len(capital), 'risk_mechanisms': len(signals)}}
 
 
+SCORE_FOLLOWUP={
+    'revenue':'取得相同合并范围的本期、比较期及前一比较期利润表收入原值，核对会计期间和币种后按收入趋势锚点计算。',
+    'earnings_cash':'取得同期间归母净利润与经营现金流本期及比较期原表，分别核对正负与同比；两者不相除为转化率。',
+    'technology':'取得公司合并范围研发成果或核心技术产品收入本期及比较期原表；项目阶段原件另列，不替代公司商业贡献。',
+    'funding':'取得目标作为收款主体的融资完成披露及实际募集净额或到账凭证，分开核对独立融资周期与完成日期。',
+    'control':'取得明确针对财务报告内控有效性的审计意见、评价截至日与缺陷处理结果；财务报表审计意见另列。',
+    'team':'取得全公司目标考核范围、期前批准目标、责任主体、全部原权重及同期间实际结果，再按原权重复算。',
+}
+
+
 def render_assessment(p):
     a = p['aggregate']
-    lines = ['## 12. ' + TITLE, '', '### 综合判断与评分口径', '', '评价截至：' + p['as_of_date'] + '；各指标数据期另列。', '', p['overall_judgment'], '',
+    lines = ['## 12. ' + TITLE, '', '### 综合判断与评分口径', '', '评价截至：' + p['as_of_date'] + '。以下列示当前评分状态与原始锚点。', '', p['overall_judgment'], '',
              p['score_direction'], '', p['rubric_basis'], '']
     if not p['facts']:
-        lines += ['本次已检索公开来源未形成可引用记录；不能补造公司分数，需按后续核查要求取得原件。', '']
+        lines += ['本章尚未取得满足以下评分锚点的公司指标，各维度保留未评分状态；原文披露不直接转换为评分，不能据此补造分数。', '']
     if a['quality_score'] is not None:
         lines += ['按已披露框架计算的公司综合观察分：' + str(a['quality_score']) + '/100。该数值仍需结合下述风险事项及适用范围理解。', '']
     elif a['possible_range']:
@@ -610,9 +723,10 @@ def render_assessment(p):
                   + str(a['unassessed_weight_pct']) + '%权重；按未评分项1—5分求得的可能区间为'
                   + '—'.join(map(str, a['possible_range'])) + '/100。该区间是待核项造成的数学边界，不能当作已实现分数或置信区间。', '']
     lines += [a['formula'], '', '### 分项评价与原件依据', '']
-    lines += _table(['评估维度/固定权重', '1—5分', '判断依据及边界'],
+    lines += _table(['评估维度/固定权重', '1—5分', '判断依据及边界','补证与核验动作'],
                     [[d['name'] + ' ' + str(d['weight']) + '%', str(d['score']) if d['score'] is not None else '未评分',
-                      d['reason'] + combined_refs(_sample(d['records'], 2))] for d in p['dimensions']])
+                      d['reason'] + combined_refs(_sample(d['records'], 2)),
+                      SCORE_FOLLOWUP[d['id']] if d['score'] is None else '按所列原件复核期间、主体与原锚点计算，后续状态另核。'] for d in p['dimensions']])
     lines += ['', '### 已核经营变化、优势与制约', '']
     by_metric = {m: _latest_metric(p['financial_observations'], m) for m in METRICS}
     prof, prof_error = by_metric[METRICS[1]];cash, cash_error = by_metric[METRICS[2]]
@@ -632,10 +746,16 @@ def render_assessment(p):
                         key=lambda r: (r['cutoff'], r['metric'], r['unit'], r.get('currency','')))
     if financial:
         lines += ['', '经营指标按年度、中期与单季分别列示，不将半年度或季度数年化，不混用全年、半年和单季增速。'
-                  '下表名称为披露发行人，指标取原件主要会计数据表，不能据发行人名称解释为母公司单体数据。', '']
-        lines += _table(['文件期／披露发行人', '指标', '本期/上年同期（原单位）', '同口径变化/定位'],
+                  '指标按原件主体和统计范围列示；专业平台字段按平台所载归因，不能据公司名称解释为母公司单体或已审计数据。', '']
+        lines += _table(['文件期／所载主体', '指标', '本期/上年同期（原单位）', '同口径变化/定位'],
                         [[r['period'] + '；' + r['entity'], r.get('source_metric') or r['metric'], r['value'] + ' / ' + r['previous_value'] + ' ' + (r['currency'] if r.get('currency') in {'人民币','港元','美元'} else '') + r['unit'],
-                          _change(r) + '；物理页' + str(r['page']) + refs(r)] for r in financial])
+                          _change(r) + ('；物理页'+str(r['page']) if r.get('page') is not None else '；原文字段行')
+                          + ('；'+r['source_attribution'] if r.get('source_attribution') else '')+refs(r)] for r in financial])
+        for r in financial:
+            if r.get('previous_value_before_adjustment'):
+                lines += ['原表比较列：'+(r.get('source_metric') or r['metric'])+'上年同期调整后'
+                          +r['previous_value']+r['unit']+'，调整前'+r['previous_value_before_adjustment']+r['unit']
+                          +'；本表同比采用调整后列。'+r.get('comparability_note','')+refs(r)]
         notes={r.get('source_translation_note'):r for r in financial if r.get('source_translation_note')}
         lines += ['原件版本说明：'+note+refs(row) for note,row in notes.items()]
     projects = next(d for d in p['dimensions'] if d['id'] == 'technology')['project_scores']
@@ -644,6 +764,20 @@ def render_assessment(p):
         lines += _table(['项目/披露期', '项目观察分', '已达到阶段与边界'],
                         [[r['entity'] + '；' + r['period'], str(r['project_observation_score']),
                           r.get('progress', '') + '（公司披露，非独立性能测试）' + refs(r)] for r in projects[:3]])
+    if not financial and not projects and funding['score'] is None:
+        lines += ['本章未形成可评分的经营同期原表、公司合并范围研发成果收入同期原表及目标融资完成与实际净额记录；'
+                  + ('已列项目阶段不能替代公司商业贡献。' if projects else '不以功能介绍、管理层观点或交易意向代替上述原始指标。')]
+    if p.get('platform_observations'):
+        lines+=['','专业平台融资记录已纳入评价材料，原字段如下；下表金额不自动解释为实际净额或收款。','']
+        lines+=_table(['平台记录日期','原轮次及融资金额','原投资方字段','原始状态与评分用途'],[
+            [r['period'],r['platform_fields'].get('融资轮次','源表未载')+'；'+r['platform_fields']['融资金额'],
+             r['platform_fields'].get('投资方','源表未载'),r['boundary']+refs(r)] for r in p['platform_observations']])
+    if p.get('non_scoring_observations'):
+        lines += ['', '投资方披露已取得，作为非评分观察保留。以下资金口径属于投资方或基金，不作为目标公司的营业收入、利润、经营现金流或融资净额。', '']
+        lines += _table(['原件与定位', '投资方所载事项原文', '评分边界'], [
+            [r['source_title'] + ('；物理页' + '、'.join(map(str, r['pages'])) if r['pages'] else '') + refs(r),
+             re.sub(r'--- PDF page \d+ ---\s*\d*', '', r['fact']), r['boundary']]
+            for r in p['non_scoring_observations']])
     lines += ['', '### 历史资本事项的当前表述', '']
     if p['capital_status']:
         for r in p['capital_status']:
@@ -655,11 +789,13 @@ def render_assessment(p):
     lines += ['', '### 核心制约与下一步判断条件', '']
     for r in p['risk_signals']:
         lines += ['- ' + r['label'] + '：' + r['evaluation_implication'] + refs(r['fact_record'])]
+    if not p['risk_signals']:
+        lines += ['本章未形成可量化的具体风险事件记录，不计算发生概率、损失或公司敞口，也不给默认风险等级。事件核查范围与状态见第十一章。']
     if p['current_roles']:
         dates = sorted({r.get('as_of', '') for r in p['current_roles'] if r.get('as_of')})
         lines += ['', '团队配置已有岗位与任职记录，最近已得任职披露截至' + (dates[-1] if dates else '原件所列时点')
                   + '。这些记录不直接证明执行稳定性或人员能力评分。' + combined_refs(_sample(p['current_roles'], 2))]
-    lines += ['', '下一阶段应围绕上列具体事项补足判断条件。尚未量化的安全整改、回收/资金影响和关键评价缺口不能被经营正分抵消；是否进入交易或投资决策应结合委托方具体条件，不预设通用TS禁签门槛。', '',
+    lines += ['', '下一阶段按各未评分维度的补证动作取得原始指标，分别核对范围、期间和原锚点；已评分项仍须复核后续状态。若发现具体风险，其影响另作判断，不以经营正分抵消；是否推进交易应结合委托方条件。', '',
               '### 分项锚点', '']
     for d in p['dimensions']:
         lines += ['- ' + d['name'] + '：' + d['anchors']]

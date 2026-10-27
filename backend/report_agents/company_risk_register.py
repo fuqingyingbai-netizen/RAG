@@ -6,6 +6,8 @@ search result are deliberately insufficient to answer any of those questions.
 import hashlib
 import json
 import re
+from copy import deepcopy
+from urllib.parse import urlsplit
 from collections import Counter, defaultdict
 from datetime import date, datetime
 from pathlib import Path
@@ -20,7 +22,7 @@ from .company_judicial import build_judicial_package, displayed_case_key
 from .company_people import build_people_package
 from .company_financial_statements import fiscal_report_period
 
-VERSION = 'company-risk-register-v2-case-display-references'
+VERSION = 'company-risk-register-v5-primary-regulatory-events'
 TITLE = '风险核查'
 CATEGORIES = ('组织与管理风险', '业务与运营风险', '行业特殊风险')
 BAD_FETCH = {'failed', 'fetch_timeout', 'invalid_pdf_response', 'blocked_or_challenge',
@@ -31,6 +33,17 @@ SECTOR_TERMS = {
     '硬科技行业': r'硬科技|半导体|芯片|机器人|集成电路',
     '新能源行业': r'新能源|光伏|锂电|储能|风电',
 }
+INDUSTRY_REVIEWS=(
+    ('PLATFORM','互联网平台',r'互联网平台|电商|电子商务|网络零售',(
+        ('平台竞争及商家规则','对应经营主体、具体商家规则、监管决定、申诉与整改记录；市场份额或平台规模不直接证明违法。'),
+        ('推荐、内容与消费者治理','具体产品和地区的规则、投诉、处置和复核记录；制度存在不等于执行有效。'))),
+    ('CLOUD','云服务与数据基础设施',r'云计算|云服务|云基础设施',(
+        ('服务可用性、访问控制及租户隔离','服务范围、SLA、故障及复盘、权限测试和独立鉴证；技术宣传不证明安全或可用性结果。'),
+        ('算力投入、供应与成本兑现','设备/算力采购、交付、利用率、付款义务和同口径业务回报；预算与订单不当已支出或已实现收益。'))),
+    ('AI','人工智能与模型服务',r'人工智能|大模型|模型服务|(?:^|[^A-Za-z])AI(?:[^A-Za-z]|$)',(
+        ('训练数据、知识产权及模型许可','数据和模型的取得及授权范围、训练/部署主体、具体争议和后续处理；开源标签不替代逐项许可核对。'),
+        ('模型测评、安全与业务兑现','版本、任务、样本与测评方法、部署安全记录和同口径成本/收入；榜单、发布或调用量不直接证明公司盈利及全部场景可靠。'))),
+)
 DATE = r'(20\d{2})\s*[年/-]\s*(\d{1,2})\s*[月/-]\s*(\d{1,2})\s*日?'
 
 
@@ -319,6 +332,41 @@ def recall_discovery_queries(sources, target, seen=None):
     return queries
 
 
+def _fold_remediation_versions(records):
+    """Fold a literal short version only at the same dated publication URL.
+
+    Scheme/port aliases do not make independent notices. Shortened text never
+    becomes corroboration for sentences that appear only in the complete copy.
+    """
+    rows=deepcopy(list(records));removed=set()
+    def publications(row):
+        result=set()
+        for publication in [row]+row.get('corroborating_publications',[]):
+            url=urlsplit(str(publication.get('source_url') or ''))
+            day=publication.get('publication_date')
+            if url.hostname and day:result.add((url.hostname.lower(),url.path,url.query,day))
+        return result
+    def literal(row):
+        text=folded(row.get('fact'));title=folded(row.get('source_title'))
+        if title and text.endswith(title):text=text[:-len(title)].rstrip()
+        return text
+    for i,short in enumerate(rows):
+        if short.get('kind')!='regulatory_remediation' or not short.get('authority'):continue
+        text=literal(short)
+        if len(text)<40:continue
+        for j,complete in enumerate(rows):
+            if i==j or j in removed:continue
+            if any(short.get(k)!=complete.get(k) for k in ('kind','entity','authority')):continue
+            longer=literal(complete)
+            if len(longer)<=len(text) or not longer.startswith(text):continue
+            if not publications(short)&publications(complete):continue
+            complete.setdefault('same_publication_variants',[]).append({k:deepcopy(short.get(k)) for k in
+                ('source_url','source_title','publication_date','evidence_id','evidence_ids','fact','evidence_quote')})
+            complete['same_publication_variants']+=short.get('same_publication_variants',[])
+            removed.add(i);break
+    return [row for i,row in enumerate(rows) if i not in removed]
+
+
 def _judicial_entries(records):
     selected = {}
     # Prefer the more recent original report for the same exact description;
@@ -346,6 +394,30 @@ def _judicial_entries(records):
             entries.append(_entry('case_pending', '未结案件与程序进展', r,
                 '原件列明该案尚处程序或执行阶段；诉讼请求、判决金额和执行回款应分开，不能直接当作损失或集团整体风险等级。',
                 '核对最新程序/回款、金额币种与当事人责任；不与其他时期同案重复累计。', state='procedure_pending'))
+    regulatory={}
+    for r in sorted(records,key=lambda row:row.get('publication_date') or ''):
+        if r.get('kind') not in {'administrative_penalty','regulatory_remediation'}:continue
+        # Republishing an identical assessment on the regulator's subsite is
+        # additional provenance, not another sanction or independent review.
+        key=(r['kind'],folded(r['entity']),folded(r['fact']))
+        if key in regulatory:
+            earlier=regulatory[key]
+            earlier['evidence_ids']=list(dict.fromkeys(earlier['evidence_ids']+r['evidence_ids']))
+            earlier.setdefault('corroborating_publications',[]).append({k:r.get(k) for k in ('source_url','publication_date','evidence_id')})
+        else:regulatory[key]=dict(r,evidence_ids=list(r['evidence_ids']))
+    for r in _fold_remediation_versions(regulatory.values()):
+        if r.get('kind')=='administrative_penalty':
+            entries.append(_entry('administrative_penalty','历史行政处罚及当前整改核查',r,
+                '监管原公告记载已作出的行政处罚，应连同后续整改核查；行政决定与法院判决分别看待。'
+                '历史罚款不直接计为当前应付、违约或集团本期损失，不能据旧决定认定当前仍在持续违法。',
+                '核对原处罚决定、支付凭证、整改要求及后续监管评估；确认现行业务适用范围与剩余义务。',
+                state='historical_regulatory_decision',category=CATEGORIES[2]))
+        elif r.get('kind')=='regulatory_remediation':
+            entries.append(_entry('regulatory_remediation','监管整改后续评估',r,
+                '监管机关发布了对应整改核查和评估结果，评价范围与时点按原公告保留。'
+                '这是后续处理证据，不能消除历史处罚或证明其他业务及未来期间无风险。',
+                '逐项核对整改措施、复查范围、持续义务及后续执法；与原决定和资金履行分别绑定。',
+                state='regulator_followup_disclosed',category=CATEGORIES[2]))
     return entries
 
 
@@ -383,7 +455,23 @@ def checklist_requirements(item):
     return '对应主体、期间和具体事件的原始经营/监管/司法材料及后续处理；不能仅凭关键词或信息缺口认定发生。'
 
 
-def build_risk_register(cleaned, target, sources=None, *, industry='', intake=None, query_attempts=None, displayed_judicial=None):
+def industry_review_questions(industry,entries):
+    rows=[]
+    for code,label,pattern,questions in INDUSTRY_REVIEWS:
+        if not re.search(pattern,str(industry or ''),re.I):continue
+        for i,(question,materials) in enumerate(questions,1):
+            linked=[]
+            if code=='PLATFORM' and i==1:
+                linked=[e['id'] for e in entries if e['kind']=='administrative_penalty'
+                        and re.search(r'垄断|竞争',e['fact_record']['fact'])]
+            rows.append({'id':f'EXT-{code}-{i:02d}','sector':label,'label':question,
+                'state':'linked_event_requires_specific_judgment' if linked else 'requires_event_evidence',
+                'entry_ids':linked,'required_evidence':materials,'score':None,
+                'scope_basis':'仅按项目声明行业设定补充核查任务；实际业务、法人与地区适用范围仍须逐项核实。'})
+    return rows
+
+
+def build_risk_register(cleaned, target, sources=None, *, industry='', intake=None, query_attempts=None, displayed_judicial=None, event_reviews=None):
     sources = list(sources or [])
     intake = intake or {}
     as_of = iso_date(intake.get('as_of_date'))
@@ -404,6 +492,30 @@ def build_risk_register(cleaned, target, sources=None, *, industry='', intake=No
         by_child[folded(r['entity'])].append(r)
     entries, facts, coverage = [], [], []
     counts = Counter()
+    from .company_event_evidence import reviewed_event_records, BOUNDARIES, event_period
+    originals = {str(get(s, 'url')): s for s in sources}
+    for event in reviewed_event_records(event_reviews, sources, target, as_of):
+        base = source_anchor(originals[event['source_url']], cards)
+        if not base: continue
+        label, boundary = BOUNDARIES[event['kind']]
+        record = {**base, 'kind': event['kind'], 'entity': event['subject_scope'],
+            'period': event_period(event), 'publication_date': event.get('publication_date'),
+            'source_date': event.get('source_date') or event.get('publication_date'),
+            'source_date_role': event.get('source_date_role'), 'source_date_quote': event.get('date_quote'),
+            'fact': event['summary'], 'evidence_quote': event['quote'],
+            'original_offset': event['quote_offset'], 'subject_quote': event['subject_quote'],
+            'date_quote': event['date_quote'], 'original_sha256': event['original_sha256'],
+            'independent_check': event['independent_check'], 'boundary': boundary}
+        direct = re.sub(r'\s+', '', target) in re.sub(r'\s+', '', event['subject_quote'])
+        record['evidence_scope'] = ('external_third_party' if event['kind'] == 'external_impersonation' else
+                                    'target_direct' if direct else 'service_context_legal_identity_unverified')
+        if record['evidence_scope'] == 'service_context_legal_identity_unverified':
+            record['boundary'] += '原件英文法人及服务对象按原文保留；与中文目标法人同一性待登记核验，不直接归为目标法人已确认违法或责任。'
+            boundary = record['boundary']
+        entry = _entry(event['kind'], label, record, boundary,
+            '核对该地区截至研究日的后续决定、申诉、整改接受与下载恢复记录及实际业务影响；不把旧措施默认为当前状态。',
+            state='primary_recorded_action', category='行业特殊风险', priority='优先核对监管范围与后续处理')
+        entries.append(entry)
     for s in sources:
         raw, _ = source_body(s)
         if '召回' not in (str(get(s, 'title') or '') + raw):
@@ -457,9 +569,9 @@ def build_risk_register(cleaned, target, sources=None, *, industry='', intake=No
     entries += _judicial_entries(judicial['facts'])
     context = []
     context_seen = {}
-    # These disclosures expose a mechanism to examine, but do not establish a
-    # default or an impairment. Keep unlike bases separate in the risk register.
-    context_kinds = {'purchase_accounting', 'accounting_consideration', 'payment_pending', 'related_funding', 'pro_forma'}
+    # Keep potential mechanisms and explicitly recorded losses separate.
+    # Neither alone establishes default or group-level materiality.
+    context_kinds = {'purchase_accounting', 'accounting_consideration', 'payment_pending', 'related_funding', 'pro_forma','goodwill_impairment_loss'}
     for r in diligence['facts']:
         if r['kind'] not in context_kinds:
             continue
@@ -472,6 +584,7 @@ def build_risk_register(cleaned, target, sources=None, *, industry='', intake=No
         context_seen[key] = clone
         context.append(clone)
     for kind, label, assessment, followup in (
+        ('goodwill_impairment_loss','已确认的年度商誉减值损失','审计报告关键事项记载已确认的年度商誉减值损失，需核对相关报告单位、估值假设及后续变化；不把全部商誉账面余额当本期损失，不将已计入原报表的损失再次扣减利润，也不直接推定流动性违约。','接续第十章原年度、币种和单位，核对对应资产组/报告单位、减值测试底稿、后续账面额与经营兑现；年度损失不冒充最新季度新增损失。'),
         ('purchase_accounting', '并购商誉与估值敏感性', '原件列示购买会计/商誉事项，未来回收受现金流和估值假设影响；减值测试、历史确认或商誉比例不等于已经减值。', '按当前现金产生单位、账面值、测试假设和敏感性核对；不得跨主体或拿年度与半年度增速直接定级。'),
         ('payment_pending', '未付款项及流动性核查', '原件存在未付/未使用披露；是否逾期、原因及后续兑付仍须逐项核实，不能仅凭未付字样认定违约。', '核对原文原因、到期义务、后续付款和现金流覆盖；应收未提示付款与发行人无力付款分开。'),
         ('related_funding', '关联资金与偿还安排', '原件披露具体关联融资；借款人、出借人、币种、余额/额度和时期应逐笔核对，关联往来本身不证明挪用或隐性关联。', '核对实际借款主体、用途、资金流水、定价/审批和还款；备考授信不当实际提款。'),
@@ -481,7 +594,8 @@ def build_risk_register(cleaned, target, sources=None, *, industry='', intake=No
             # One bounded assessment per mechanism, all distinct supporting
             # observations retained in the structured packet, no paragraph spam.
             representative = max(rows, key=lambda r: (record_rank(r), '年度报告' in str(r.get('period'))))
-            entry = _entry(kind, label, representative, assessment, followup, state='indicator_to_verify')
+            entry = _entry(kind, label, representative, assessment, followup,
+                           state='recorded_impairment_loss' if kind=='goodwill_impairment_loss' else 'indicator_to_verify')
             entry['supporting_records'] = rows
             entry['evidence_ids'] = sorted({e for r in rows for e in r.get('evidence_ids', [])})
             entries.append(entry)
@@ -503,7 +617,8 @@ def build_risk_register(cleaned, target, sources=None, *, industry='', intake=No
             matching = [e['id'] for e in entries if e['kind'] == 'labour_procedure']
         if item['id'] == 'CON-07' and in_scope:
             matching = [e['id'] for e in entries if e['kind'] == 'recall']
-        state = 'requires_event_evidence' if in_scope else 'outside_declared_sector_scope'
+        state = ('requires_event_evidence' if in_scope else
+                 'requires_sector_confirmation' if not active else 'outside_declared_sector_scope')
         if matching:
             state = 'linked_event_requires_specific_judgment'
         checklist.append({**item, 'state': state, 'entry_ids': matching,
@@ -515,12 +630,15 @@ def build_risk_register(cleaned, target, sources=None, *, industry='', intake=No
         unique.setdefault(key, r)
     facts = list(unique.values())
     entries = list({e['id']: e for e in entries}.values())
+    industry_extensions=industry_review_questions(scope,entries)
     attach_case_display_references(entries, displayed_judicial)
     gaps = [
         '召回检索和来源解析并非全量覆盖；403、跳转首页、空结果不能证明没有记录。',
         '已披露的具体风险事项不等于集团重大性已量化；须核对实际敞口、整改、发生概率及当前状态。',
         '管理、渠道及技术等模板问题需相应事件和可比证据；不由创始人主导、资料缺失、销售目标或宣传内容直接定级。',
     ]
+    if industry_extensions and not any(e['kind']=='recall' for e in entries):
+        gaps[0]='监管、数据安全与服务事件的检索和来源解析并非全量覆盖；抓取失败、权限限制及空结果不能证明没有记录。'
     dimensions = []
     for category in CATEGORIES:
         group = [e for e in entries if e['category'] == category]
@@ -534,7 +652,10 @@ def build_risk_register(cleaned, target, sources=None, *, industry='', intake=No
             'dimensions': dimensions, 'key_risks': list(dict.fromkeys(e['label'] + '：' + e['assessment'] for e in entries)),
             'unknowns': gaps, 'recommended_followups': list(dict.fromkeys(e['followup'] for e in entries)),
             'entries': entries, 'facts': facts, 'checklist': checklist, 'coverage': coverage,
-            'query_attempts': query_attempts or [], 'active_template_sectors': sorted(active),
+            'query_attempts': query_attempts or [], 'declared_industry_scope':scope,
+            'active_template_sectors': sorted(active),'industry_extensions':industry_extensions,
+            'event_review_pending': [r['source_url'] for r in (event_reviews or {}).get('receipts', [])
+                                     if r.get('state') == 'requires_review'],
             'template_reference': template['template_reference'], 'template_sha256': template['template_sha256'],
             'information_gaps': gaps,
             'diagnostic': {'template_items': len(checklist), 'category_counts': dict(Counter(i['category'] for i in checklist)),
@@ -580,12 +701,16 @@ def _recall_lines(group,display_context=None):
 def render_risk_register(p):
     lines = ['## 11. ' + TITLE, '',
              '风险识别按模板的组织与管理、业务与运营、行业特殊风险三类组织。模板词条用于逐项核查，不能直接套作企业事实；产品召回、具体诉讼和并购资金核查作为扩展事项明确列示。', '',
-             '已取得的原件支持以下具体事项及有边界的影响判断。其核查优先级与公司整体风险等级分开：尚未量化的集团重大性保留待核验，不将未取得资料当作低风险，也不按模型评分求平均。', '']
+             ('已取得的原件支持以下具体事项及有边界的影响判断。' if p['entries'] else '本章尚未形成可列示的具体风险事件判断，以下保留核查范围与取证条件。')+
+             '核查优先级与公司整体风险等级分开：尚未量化的集团重大性保留待核验，不将未取得资料当作低风险，也不按模型评分求平均。', '']
     for category in CATEGORIES:
         lines += ['### ' + category, '']
         group = [e for e in p['entries'] if e['category'] == category]
         if not group:
-            lines += ['该类尚未形成足以支持模板负面描述的具体事件判断。应依据对应核查目录补证，当前不能据此排除风险。', '']
+            conditions={CATEGORIES[0]:'本章尚未形成组织决策、岗位任用或制度执行的具体事件判断。需按目录调取授权、任用程序及执行结果原件，不以制度存在证明控制有效。',
+                CATEGORIES[1]:'本章尚未形成具体产品、履约、质量或资金事件判断。需将事件原件与同期间经营、交付及资金记录对应，不能由资料缺失推定造假或违约。',
+                CATEGORIES[2]:'行业特定事项先确认目标实际业务与适用监管要求，再核对具体决定、技术或合规原件及后续状态；未确认适用范围的条目保持待确认，不作风险排除。'}
+            lines += [conditions[category], '']
             continue
         rendered_recalls = set()
         display_context={};followup_origins={}
@@ -611,6 +736,8 @@ def render_risk_register(p):
                       str(x.get('period') or x.get('date') or '按原件') + ('；物理页' + str(x['page']) if x.get('page') else '') + refs(x),
                       _display_fact(x)] for x in records]))
                 lines += ['']
+                if r.get('same_publication_variants'):
+                    lines += ['同一公告地址的短文本版本保留在结构化附件，不另计为监管事项，也不单独支持本表完整长引文。', '']
             followup=e['followup']
             if e['kind']=='recall':
                 signature=(followup,e['priority'],e['company_severity'])
@@ -624,13 +751,23 @@ def render_risk_register(p):
                   '已取得员工流失率披露，但不同期间、主动/被动及公式分母须按第八章核对。净人数变化不等于流失或裁员，未有可比基准不能认定高流失。' + combined_refs(turnover[:2]), '']
     counts = p['diagnostic']['checklist_states']
     state_labels = {'requires_event_evidence': '需要具体事件证据',
+                    'requires_sector_confirmation':'行业适用范围待确认',
                     'outside_declared_sector_scope': '不在当前声明行业核查范围',
                     'linked_event_requires_specific_judgment': '已有相关事项，须按该词条进一步核对'}
     lines += ['### 模板核查覆盖与判断缺口', '',
-              '75个原始词条已逐项建立核查状态和所需材料；当前行业词条范围：' + ('、'.join(p['active_template_sectors']) or '尚待明确') + '。', '',
-              '核查目录：' + '；'.join(state_labels.get(k, k) + ' ' + str(v) + '项' for k, v in counts.items()) + '。此处统计是核查覆盖状态，不是风险发生数或企业质量评分。', '',
+              '75个原始词条逐项列明核查状态和所需材料；项目声明行业：'+(p.get('declared_industry_scope') or '未提供，专属行业条目保持适用范围待确认')+
+              '；匹配的既有行业类别：' + ('、'.join(p['active_template_sectors']) or '无已确认匹配类别') + '。', '',
+              '75项状态合计：' + '；'.join(state_labels.get(k, k) + ' ' + str(v) + '项' for k, v in counts.items()) +
+              '；合计'+str(sum(counts.values()))+'项。范围外仅按项目已声明行业暂列，不代表集团不存在相关业务。此处统计是核查覆盖状态，不是风险发生数或企业质量评分。', '',
               '尚不能仅凭创始人主导、年龄亲属、业务多元、销量目标、研报预测或技术宣传推定治理失效、压货、造假及商誉减值。监管交流案例也不能替代审查结论。具体判断需补足对应原件和同口径对照。', '',
               '当前召回/司法材料的获取范围和平台权限仍有限；未接纳或未检索到的记录不能当作全时段无风险证明。完整75项核查目录及逐项取证要求保留在结构化风险登记附件。']
+    if p.get('industry_extensions'):
+        lines+=['','### 本项目行业补充核查','',
+            '以下按项目声明行业补充核查任务，独立于原模板75项；行业标签和问题清单均不是已发生的风险事实或评分。业务主体、地区与适用范围仍需核实。','']
+        lines+=_table(['行业／核查任务','所需材料与判断边界','已接续事项'],[
+            [r['sector']+'；'+r['label'],r['required_evidence'],
+             '已接续原监管事项，仍需核对实际适用及后续处理' if r['entry_ids'] else '尚缺具体事项证据，不作肯定或排除判断']
+            for r in p['industry_extensions']])
     return '\n'.join(lines).strip()
 
 
@@ -676,6 +813,8 @@ def risk_register_errors(text, p):
         errors.append('风险字典75项覆盖不完整')
     if not p.get('entries'):
         errors.append('尚未形成具体可追溯风险事项，需要补充原件核查')
+    if p.get('event_review_pending'):
+        errors.append('具体监管原件仍有提取或独立核对未通过的记录，不能视为已完成')
     allowed = {e for r in p.get('facts', []) for e in r.get('evidence_ids', [])}
     if set(cited_evidence_ids(text)) - allowed:
         errors.append('出现未进入风险原件包的证据编号')

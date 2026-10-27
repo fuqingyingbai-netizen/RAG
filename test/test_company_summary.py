@@ -33,6 +33,26 @@ def section(text):
                                                 for i, heading in enumerate(SUMMARY_HEADINGS))
 
 
+def test_confirmed_annual_impairment_summary_does_not_deny_the_disclosed_loss():
+    f=card(text='2025年度审计报告记载已确认商誉减值损失人民币8百万元。')
+    f.update(summary_topic='risk',source_kind='checked_chapter_field',original_record_kind='goodwill_impairment_loss',period='2025年度')
+    package={'facts':[f]}
+    text=fallback_company_summary(project(),package)
+    assert '已确认商誉减值损失人民币8百万元' in text
+    assert '减值测试假设' in text and '公告不证明已发生事故或损失' not in text
+    assert not summary_errors(text,package)
+    bad=text.replace('应核对对应资产组、减值测试假设及后续变化；已确认年度损失与后续影响分别核查。',
+                     '公告不证明已发生事故或损失。')
+    assert any('已确认年度减值损失' in error for error in summary_errors(bad,package))
+
+
+def test_recall_summary_preserves_the_unproved_accident_and_loss_boundary():
+    f=card(text='2025年主管机关公告目标科技股份有限公司召回部分产品。')
+    f.update(summary_topic='risk',source_kind='checked_chapter_field',original_record_kind='recall',period='2025年')
+    text=fallback_company_summary(project(),{'facts':[f]})
+    assert '公告不证明已发生事故或损失' in text and '减值测试假设' not in text
+
+
 def test_summary_cannot_turn_undated_personnel_snapshot_into_current_role():
     f=card();f.update(source_url='structured://qcc/personnel',is_structured_evidence=True,source_entity_validation='verified',claim_type='source_excerpt')
     raw='| 企业名称 | 目标科技股份有限公司 |\n| 1 | 王甲 | 2008-06-11至今 | 董事长 |'
@@ -58,6 +78,41 @@ def test_summary_rejects_related_company_even_when_target_is_in_title():
     related['evidence_scope']='related_entity_context'
     package=build_company_summary_package({'facts':[direct,related]},project().target_name)
     assert [f['evidence_id'] for f in package['facts']]==[direct['evidence_id']]
+
+
+def test_competitor_share_in_target_filing_cannot_become_a_target_summary_card():
+    fact = card()
+    fact.update(claim_type='source_excerpt', fact='目标科技股份有限公司年度报告原件。')
+    competitor = '比亚迪在2025年度新能源汽车市场中的市场份额达到20%，相关数据覆盖境内乘用车市场。'
+    raw = '目标科技股份有限公司2025年年度报告\n\n' + competitor
+    package = build_company_summary_package({'facts': [fact]}, project().target_name, [source(fact, raw)])
+    assert not any(competitor in row['fact'] for row in package['facts'])
+
+
+def test_generic_product_and_service_descriptions_are_business_summary_cards():
+    from report_agents.company_summary import _topic
+    for text in ('主要产品为食品调味配料，供给餐饮及家庭渠道。',
+                 '公司主要从事办公协同软件的开发与订阅服务。',
+                 '核心产品为工业传感设备及配套运维服务。'):
+        assert _topic(text) == 'business'
+
+
+def test_market_share_accepts_the_targets_actual_disclosed_alias():
+    fact = card()
+    fact.update(claim_type='source_excerpt', fact='目标科技股份有限公司年度报告原件。')
+    claim = '目科软件2025年在相关工业控制软件市场的市场份额为20%，统计范围为境内同类软件。'
+    raw = ('目标科技股份有限公司2025年年度报告\n\n'
+           '目标科技股份有限公司（以下简称“目科软件”）\n\n' + claim)
+    package = build_company_summary_package({'facts': [fact]}, project().target_name, [source(fact, raw)])
+    assert any(claim in row['fact'] for row in package['facts'])
+
+
+def test_unbound_company_pronoun_in_other_publication_cannot_supply_target_share():
+    fact = card()
+    fact.update(claim_type='source_excerpt', fact='目标科技股份有限公司相关市场材料。', source_title='行业市场概况')
+    claim = '本公司2025年在相关工业控制软件市场的市场份额为20%，统计范围为境内同类软件。'
+    package = build_company_summary_package({'facts': [fact]}, project().target_name, [source(fact, claim)])
+    assert not any(claim in row['fact'] for row in package['facts'])
 
 
 def test_current_structured_shareholders_survive_long_web_excerpts():
