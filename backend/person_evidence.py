@@ -166,7 +166,7 @@ def compact_dimension_gaps(gaps):
     return result
 
 
-def normalize_facts(payload, target, aliases=(), sources=()):
+def normalize_facts(payload, target, aliases=(), sources=(), *, validated_peer_subject=None):
     """Keep rejected facts auditable; create fact-level, stable citation identities."""
     facts, rejected, seen = [], [], set()
     if isinstance(aliases, str):
@@ -212,9 +212,20 @@ def normalize_facts(payload, target, aliases=(), sources=()):
                 and compact(text) in compact(originals[url]))
             if not explicit_colleague and not retained_context and (f.get('claim_type') != 'person_management_event' or not management_event(text, raw_names, event_orgs)):
                 reason = 'feedback_source_requires_attribution_record'
+        # Extraction labels cannot override the source's identity quarantine.
+        # A literal quote from a namesake page is still about the wrong person.
+        # Peer material has its own independently source-validated identity.
+        # The exception is an internal call context, never a model payload flag.
+        peer_identity_scope = (validated_peer_subject == target
+            and f.get('claim_type') == 'person_peer_record'
+            and f.get('comparison_subject') == target)
+        source_identity_quarantined = (source_meta.get(url, {}).get('identity_status') == 'quarantined'
+            and not peer_identity_scope)
         rejected_company_source = (f.get("claim_type")=="person_company_record" and (source_meta.get(url,{}).get("entity_validation")=="rejected" or source_meta.get(url,{}).get("identity_confidence") in {"low","rejected"}))
-        if rejected_company_source or f.get("eligible_for_report") is False or identity in {"ambiguous", "mismatch"} or confidence in {"low", "rejected"} or f.get("usable_as") == "identity_quarantine":
+        if source_identity_quarantined or rejected_company_source or f.get("eligible_for_report") is False or identity in {"ambiguous", "mismatch"} or confidence in {"low", "rejected"} or f.get("usable_as") == "identity_quarantine":
             reason = "identity_quarantine"
+            if source_identity_quarantined:
+                f['source_identity_quarantine_reason'] = source_meta[url].get('identity_reason', '')
         elif not text or not url.startswith(("https://", "http://", "structured://")):
             reason = "missing_source_or_statement"
         elif any(x in compact(text) for x in ("errorcallingtool", "requesttimedout", "上一页下一页", "空结果：", "insufficient_quota")):
@@ -347,7 +358,9 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
     known = {f['evidence_id'] for f in facts}
     for raw in supplements:
         subject = raw.get('comparison_subject') or target
-        extra, _ = normalize_facts({'facts': [raw]}, subject, sources=sources)
+        extra, extra_rejected = normalize_facts({'facts': [raw]}, subject, sources=sources,
+            validated_peer_subject=subject if raw.get('comparison_subject') else None)
+        rejected.extend(extra_rejected)
         for f in extra:
             if raw.get('feedback_record') and raw['feedback_record']['kind'] == 'attributed_opinion':
                 f.update(opinion_only=True, eligible_for_risk_scoring=False,
@@ -550,7 +563,10 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
                              "routing_audit": routing_audit,
                              "query_coverage": query_coverage,
                              "conflicts": [r for r in conflicts if set(r["evidence_ids"]) & {f["evidence_id"] for f in selected}]}
+    from person_provenance import build_provenance_index
+    provenance = build_provenance_index(target, intake, sources, facts, rejected, packages)
     return {"version": VERSION, "target_name": target, "as_of_date": cutoff, "facts": facts, "rejected": rejected,
+            "provenance_index": provenance,
             "commission_requirements": commissioned, "team_material_audit": team_material_audit,
             "source_material_audit": source_material_audit,
             "conflicts": conflicts, "chapters": packages}
