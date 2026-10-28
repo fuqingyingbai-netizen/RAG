@@ -161,6 +161,20 @@ def test_offline_check_accepts_complete_config_and_keeps_manual_limits(good_conf
     assert all(value not in text for key, value in good_config.items() if key.endswith(('KEY', 'URL')))
 
 
+def test_search_pool_can_replace_single_key_without_exposing_credentials(good_config):
+    good_config.pop('TAVILY_API_KEY')
+    good_config['TAVILY_API_KEYS'] = 'unit-search-token-one,unit-search-token-two'
+    issues = config.check_config(good_config)
+    assert not [issue for issue in issues if issue[0] == 'ERROR']
+    assert 'unit-search-token-one' not in json.dumps(issues)
+    good_config['TAVILY_API_KEYS'] = '["private-invalid-json"'
+    issues = config.check_config(good_config)
+    assert any(level == 'ERROR' and field == 'TAVILY_API_KEYS' for level, field, _ in issues)
+    assert 'private-invalid-json' not in json.dumps(issues)
+    good_config['TAVILY_API_KEYS'] = ',,,'
+    assert any(level == 'ERROR' and field == 'TAVILY_API_KEYS' for level, field, _ in config.check_config(good_config))
+
+
 @pytest.mark.parametrize('key,value', [
     ('JWT_SECRET_KEY', 'change-this-secret'),
     ('DATABASE_URL', 'postgresql://postgres:postgres@localhost/test'),

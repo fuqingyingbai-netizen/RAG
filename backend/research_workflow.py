@@ -39,7 +39,7 @@ try:
     from .report_agents.report_style import REPORT_CHAPTER_HEADING_RE, normalize_report_headings, sanitize_nested_report_chapter_headings
     from .research_store import research_store
     from .research_strategies import get_research_strategy
-    from .web_search import web_search_provider
+    from .web_search import WebSearchProvider, web_search_provider
     from .search_results import canonical_source_url, interleave_research_candidates
 except ImportError:
     from person_retrieval import SearchSession as PersonSearchSession, coverage as person_retrieval_coverage, VERSION as PERSON_RETRIEVAL_VERSION
@@ -54,7 +54,7 @@ except ImportError:
     from report_agents.report_style import REPORT_CHAPTER_HEADING_RE, normalize_report_headings, sanitize_nested_report_chapter_headings
     from research_store import research_store
     from research_strategies import get_research_strategy
-    from web_search import web_search_provider
+    from web_search import WebSearchProvider, web_search_provider
     from search_results import canonical_source_url, interleave_research_candidates
 
 load_dotenv()
@@ -2388,6 +2388,8 @@ class ResearchWorkflow:
                 query_item["person_search_status"] = "failed"
                 query_item["person_search_error_type"] = type(exc).__name__
                 query_item["person_search_error_reason"] = platform_failure_kind({"error": str(exc)})
+                if getattr(exc, 'audit', None):
+                    query_item["search_result_audit"] = dict(exc.audit)
                 return index, query_item, [], type(exc).__name__
 
         ordered: list[tuple[int, dict[str, Any], list[dict[str, Any]]]] = []
@@ -4571,11 +4573,11 @@ class ResearchWorkflow:
         configured_providers = [
             name
             for name, _engine in getattr(web_search_provider, "engines", [])
-            if os.getenv(f"{name.upper()}_API_KEY")
+            if WebSearchProvider.is_configured(name)
         ]
         active_provider = os.getenv("WEB_SEARCH_PROVIDER", "").strip().lower()
         if active_provider in {"tavily", "serper", "exa", "serpapi", "brave", "bocha"}:
-            configured_providers = [active_provider] if os.getenv(f"{active_provider.upper()}_API_KEY") else []
+            configured_providers = [active_provider] if WebSearchProvider.is_configured(active_provider) else []
         _emit(
             emit,
             "web_search",
