@@ -1,0 +1,81 @@
+{
+  "scope": "8 complete selected original financial PDF pages, not all pages of the filings and not final generated Word QA.",
+  "pages": [
+    {
+      "document": "haitian-25",
+      "page": 163,
+      "png": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\financial-pdf-review\\haitian-25-page-163.png",
+      "sha256": "ef3f59b2cb0be1908f868dc858dfcc4cd071a4595f7957ff25bed85b02a829fb",
+      "viewed": true,
+      "view_detail": "original",
+      "inspection_note": "亲见股本表及完整融资说明；股数、港元发行价、人民币总额/费用/净额/合计一致，日期原义为发行/挂牌及超额配股，不补银行到账日。"
+    },
+    {
+      "document": "haitian-165",
+      "page": 2,
+      "png": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\financial-pdf-review\\haitian-165-page-2.png",
+      "sha256": "403530b3115edcaaf832ed9a3ed3928c289a6fc78cee0220c9363ae8f554ec87",
+      "viewed": true,
+      "view_detail": "original",
+      "inspection_note": "亲见1.4未经审计；2.2人民币元表头、本报告期、上年同期调整后/调整前及同比列。"
+    },
+    {
+      "document": "haitian-165",
+      "page": 3,
+      "png": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\financial-pdf-review\\haitian-165-page-3.png",
+      "sha256": "30e7414e872aaca0488c3e5cdcc26684b80f3d46e1bda53b74f819236ae0155f",
+      "viewed": true,
+      "view_detail": "original",
+      "inspection_note": "亲见跨页财务行：归母利润7.13%、正经营现金流同比-18.52%，调整列对应正确；页底还披露股东一致行动等关系，应另在最终治理正文核对，不以当前字段解析缺口推断不存在。"
+    },
+    {
+      "document": "kingsoft-2",
+      "page": 2,
+      "png": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\financial-pdf-review\\kingsoft-2-page-2.png",
+      "sha256": "ac585f78eb19e52eed41f0705e340cc551f6095ec655dd3f95808927f897a2ac",
+      "viewed": true,
+      "view_detail": "original",
+      "inspection_note": "亲见半年报未经审计及公司自报事项，不能将自报否转为无边界核实结论。"
+    },
+    {
+      "document": "kingsoft-2",
+      "page": 8,
+      "png": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\financial-pdf-review\\kingsoft-2-page-8.png",
+      "sha256": "c637631be30b1fc284e8b4d91961708e126c9fea5b9a24ffe6f5dd5781c62a8e",
+      "viewed": true,
+      "view_detail": "original",
+      "inspection_note": "亲见非企业会计准则调整定义、10.87/8.47亿元和补充而非替代法定指标的限制。"
+    },
+    {
+      "document": "kingsoft-2",
+      "page": 12,
+      "png": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\financial-pdf-review\\kingsoft-2-page-12.png",
+      "sha256": "1dad26f681ff6034ad0a532c93bbca12915792c77e442ff2cc3cc21f36c99ac8",
+      "viewed": true,
+      "view_detail": "original",
+      "inspection_note": "亲见经营模式与现金流说明：法定同比-12.96%，剔除投资收益浮盈预缴所得税后正增长为公司解释。"
+    },
+    {
+      "document": "kingsoft-2",
+      "page": 13,
+      "png": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\financial-pdf-review\\kingsoft-2-page-13.png",
+      "sha256": "7819145952361396c0f61935f1291a312dc32e34d692d62f1af795cf679040fe",
+      "viewed": true,
+      "view_detail": "original",
+      "inspection_note": "亲见基金投资收益对净利贡献显著、108679.68万元/+28.29%，页下注包含股份支付/基金收益/所得税调整定义。"
+    },
+    {
+      "document": "kingsoft-30",
+      "page": 3,
+      "png": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\financial-pdf-review\\kingsoft-30-page-3.png",
+      "sha256": "7de451b84950e1803e3347e1bd4d22b617962cd9b0ec91a4054368d63a9aa38e",
+      "viewed": true,
+      "view_detail": "original",
+      "inspection_note": "亲见单位人民币元、本期与上期列；营收+24.69%、归母+236.94%、法定扣非+241.99%、经营现金流-12.96%。"
+    }
+  ],
+  "all_selected_pages_viewed": true,
+  "native_source_records_modified": false,
+  "report_semantic_adoption": "pending",
+  "final_report_accepted": false
+}
