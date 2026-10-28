@@ -41,6 +41,8 @@ def main():
     parser.add_argument('case', choices=['haitian', 'kingsoft'])
     parser.add_argument('--max-model-calls', type=int, default=12)
     parser.add_argument('--max-http-calls', type=int, default=24)
+    parser.add_argument('--stage', choices=['native', 'frozen-report'], default='native',
+                        help='frozen-report uses the existing production ai_search_enabled=False intake for writing replay; not new collection acceptance.')
     parser.add_argument('--prepare-only', action='store_true')
     args = parser.parse_args()
     baseline = RUN / 'baseline' / args.case
@@ -120,6 +122,12 @@ def main():
     store.get_bytes = get_bytes
     store.get_text = lambda key: get_bytes(key).decode('utf-8')
     import research_workflow as runtime
+    if args.stage == 'frozen-report':
+        run_project = runtime.ResearchWorkflow.run_project
+        def frozen_report(self, *positional, **keywords):
+            keywords['intake'] = {**(keywords.get('intake') or {}), 'ai_search_enabled': False}
+            return run_project(self, *positional, **keywords)
+        runtime.ResearchWorkflow.run_project = frozen_report
     factory = runtime.init_chat_model
     model_lock = threading.Semaphore(1)
     http_lock = threading.Semaphore(2)
@@ -193,6 +201,7 @@ def main():
     code_files = [*sorted((ROOT/'backend').rglob('*.py')), ROOT/'diagnostics/accept_company_live.py', Path(__file__).resolve()]
     code_hashes = {p.relative_to(ROOT).as_posix(): sha(p) for p in code_files}
     write('bounded-plan-' + tag + '.json', {'case': args.case, 'code_commit': version,
+          'stage': args.stage, 'new_collection_acceptance': args.stage == 'native',
           'model_logical_request_limit': args.max_model_calls, 'requests_http_limit': args.max_http_calls,
           'model_concurrency_enforced_by_semaphore': 1, 'requests_concurrency_enforced_by_semaphore': 2,
           'code_sha256': code_hashes, 'settings_overrides': overrides,
@@ -220,6 +229,7 @@ def main():
     finally:
         unchanged = all(sha(ROOT / path) == value for path, value in code_hashes.items())
         write('bounded-result-' + tag + '.json', {'state': status, 'counts': counts,
+              'stage': args.stage, 'new_collection_acceptance': False,
               'runtime_code_unchanged': unchanged, 'delivery_accepted': False,
               'manual_review': 'pending', 'actual_cost': None})
         print(json.dumps({'case': args.case, 'state': status, 'counts': counts,
