@@ -52,7 +52,8 @@ def build_provenance_index(target, intake, sources, facts, rejected, chapters):
                     'content_chars': len(original),
                     'identity_status': meta.get('identity_status', 'not_independently_resolved'),
                     'identity_reason': meta.get('identity_reason', ''),
-                    'requirement_ids': meta.get('requirement_ids') or [],
+                    'requirement_ids': list(dict.fromkeys([*(meta.get('person_requirement_ids') or []),
+                                                          *(meta.get('requirement_ids') or [])])),
                     'observations': [], 'rejected_statements': []}
         documents.append(document)
         by_url.setdefault(url, []).append((document, original, meta))

@@ -7,6 +7,10 @@ from company_platform import failure_kind
 class EmptyPersonModelResponse(RuntimeError):
     """The provider returned no final answer; reasoning is never report prose."""
 
+    def __init__(self, message, *, finish_reason=None):
+        super().__init__(message)
+        self.finish_reason = finish_reason
+
 
 def section_model_options(model_name):
     """Bound output generation, never source admission or input records."""
@@ -52,6 +56,12 @@ def invoke_same_input(invoke,role,prompt,emit,audit,field):
             kind=failure_kind({'error':str(exc)})
             transient=(isinstance(exc,(TimeoutError,ConnectionError)) or type(exc).__name__ in {
                 'APIConnectionError','APITimeoutError','InternalServerError','EmptyPersonModelResponse'})
+            if isinstance(exc, EmptyPersonModelResponse) and exc.finish_reason == 'length':
+                # An exhausted output budget is not a transient disconnect.
+                # Keep the candidate pending; a later bounded run can change
+                # the evidence partition without resending this same input.
+                transient = False
+                kind = 'model_output_exhausted'
             attempts.append({'status':'failed','exception_type':type(exc).__name__,'failure_kind':kind})
             if attempt==0 and transient and kind not in {'quota_exceeded','unauthorized','access_denied'}:
                 continue

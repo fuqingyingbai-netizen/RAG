@@ -1,0 +1,516 @@
+{
+  "run": "C:\\Users\\wangli\\.codex\\worktrees\\person-evidence-audit\\RAG\\work\\person-delivery-cycle-20261023\\fresh-wang-v96-generated",
+  "report_sha256": "dbea4b27a229130d54307299ebe843ea3443134722d9b74826df332174804890",
+  "chapter_count": 15,
+  "chapters": [
+    {
+      "chapter": 1,
+      "title": "摘要",
+      "chars": 509,
+      "research_facts": 811,
+      "research_source_urls": 63,
+      "displayed_original_records": [],
+      "cited_fact_count": 10,
+      "cited_source_urls": 6,
+      "unknown_evidence_ids": [],
+      "model_input_count": 0,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": null,
+      "batch_input_accounted_for": true,
+      "research_request_status": "no_model_research_stage",
+      "research_scopes": {
+        "affiliated_company": 94,
+        "person": 717
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 2,
+      "title": "创始人底色画像",
+      "chars": 2622,
+      "research_facts": 306,
+      "research_source_urls": 47,
+      "displayed_original_records": [
+        "E-P70F6B72FAF8DAF",
+        "E-P8E3CE30AF3314F",
+        "E-PF4B8B808FFAB23",
+        "E-P329CD0F767E7EE",
+        "E-PDF616D4239BEEF",
+        "E-P24773354ACDEEE",
+        "E-PAD1D43955CDDFA",
+        "E-P70A4FE260BB020",
+        "E-P71EEF5D3EE9925",
+        "E-P307F2D0DC59552",
+        "E-P917505D1F82040",
+        "E-P2C447AD12CD70D"
+      ],
+      "cited_fact_count": 15,
+      "cited_source_urls": 9,
+      "unknown_evidence_ids": [],
+      "model_input_count": 306,
+      "model_returned_input_count": 76,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "affiliated_company": 1,
+        "person": 305
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": [
+        "E-P307F2D0DC59552"
+      ]
+    },
+    {
+      "chapter": 3,
+      "title": "人格特质风险",
+      "chars": 2402,
+      "research_facts": 166,
+      "research_source_urls": 38,
+      "displayed_original_records": [
+        "E-PD7BC2A5FF6CFC4",
+        "E-P46511348DF9F76",
+        "E-PD330452434073D",
+        "E-PCDAD09ABD9B65B",
+        "E-PD0791C63932A93",
+        "E-P43F1826CDAEBE2",
+        "E-P121666CF9433AF",
+        "E-PFF75D8DD125391",
+        "E-P659B0615D86FD3",
+        "E-PFE0170990EEB8C"
+      ],
+      "cited_fact_count": 16,
+      "cited_source_urls": 7,
+      "unknown_evidence_ids": [],
+      "model_input_count": 166,
+      "model_returned_input_count": 77,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "person": 166
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 4,
+      "title": "经营胜任力、持续创新与迭代能力验证",
+      "chars": 18776,
+      "research_facts": 401,
+      "research_source_urls": 46,
+      "displayed_original_records": [
+        "E-P2199D0816D95CC",
+        "E-P37B3320DF334D5",
+        "E-PEF1502E6644A56",
+        "E-P29C36CE40336B6",
+        "E-P6F067DA25913ED",
+        "E-PE962DF2C07676C",
+        "E-PC742E4CB6ED344"
+      ],
+      "cited_fact_count": 161,
+      "cited_source_urls": 9,
+      "unknown_evidence_ids": [],
+      "model_input_count": 401,
+      "model_returned_input_count": 65,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "affiliated_company": 147,
+        "person": 254
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 5,
+      "title": "识人用人、统筹管理及核心经营管控能力",
+      "chars": 2558,
+      "research_facts": 151,
+      "research_source_urls": 33,
+      "displayed_original_records": [
+        "E-PAB8F9924CBF5A1",
+        "E-PF2A63EF1BC1E1A",
+        "E-P5B48F2ADFD19E4",
+        "E-P09AB1E51A87F8F",
+        "E-P1648DE4FBC6519"
+      ],
+      "cited_fact_count": 7,
+      "cited_source_urls": 6,
+      "unknown_evidence_ids": [],
+      "model_input_count": 151,
+      "model_returned_input_count": 30,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "affiliated_company": 1,
+        "person": 150
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 6,
+      "title": "核心管理团队背景调研",
+      "chars": 7615,
+      "research_facts": 60,
+      "research_source_urls": 9,
+      "displayed_original_records": [
+        "E-P001596EEA2C9B7",
+        "E-P560662DA869603",
+        "E-P655BBACBAC9F45",
+        "E-P3ACC567EECD0AE",
+        "E-P8C26988A0DF326",
+        "E-P288C89EB583765",
+        "E-PEF0A1C32D141EE",
+        "E-PD531583F68E78D",
+        "E-PC9ED5CC7378403",
+        "E-PA1B32A88A3C161"
+      ],
+      "cited_fact_count": 50,
+      "cited_source_urls": 3,
+      "unknown_evidence_ids": [],
+      "model_input_count": 60,
+      "model_returned_input_count": 34,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "other_person": 58,
+        "person": 2
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 7,
+      "title": "商业操守与个人信用风险核查",
+      "chars": 2550,
+      "research_facts": 42,
+      "research_source_urls": 12,
+      "displayed_original_records": [
+        "E-PA98F76B1F8CD56",
+        "E-PF01691443C1B94",
+        "E-PA9640D60038495",
+        "E-PB69EF4F531802F",
+        "E-P2F28FD74D601B6",
+        "E-P6423B2DBE8D0E3",
+        "E-P274612FDC2B7CF"
+      ],
+      "cited_fact_count": 10,
+      "cited_source_urls": 7,
+      "unknown_evidence_ids": [],
+      "model_input_count": 42,
+      "model_returned_input_count": 27,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "person": 42
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": [
+        "E-P274612FDC2B7CF"
+      ]
+    },
+    {
+      "chapter": 8,
+      "title": "同业对标下综合能力与品行隐患评估",
+      "chars": 4122,
+      "research_facts": 56,
+      "research_source_urls": 21,
+      "displayed_original_records": [
+        "E-P91FCF4BE91ECDA",
+        "E-P57066FBECECCBC",
+        "E-P3E5A563D942F29",
+        "E-P08EA8AC1C01B76",
+        "E-P27B5AF97C4C432",
+        "E-PE04DDBCD2B0288",
+        "E-P49C4C7D47FF20A"
+      ],
+      "cited_fact_count": 36,
+      "cited_source_urls": 14,
+      "unknown_evidence_ids": [],
+      "model_input_count": 56,
+      "model_returned_input_count": 46,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": true,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "affiliated_company": 6,
+        "comparison_person": 36,
+        "person": 14
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 9,
+      "title": "关联利益冲突及司法负面核查",
+      "chars": 17915,
+      "research_facts": 497,
+      "research_source_urls": 44,
+      "displayed_original_records": [
+        "E-P19ACAD4307D830",
+        "E-P8197C28904B4E2",
+        "E-P79D83DA3A753FA",
+        "E-P77CA3EFC01CE15"
+      ],
+      "cited_fact_count": 168,
+      "cited_source_urls": 11,
+      "unknown_evidence_ids": [],
+      "model_input_count": 497,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "affiliated_company": 12,
+        "other_person": 2,
+        "person": 483
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": [
+        "E-P79D83DA3A753FA"
+      ]
+    },
+    {
+      "chapter": 10,
+      "title": "专项调研",
+      "chars": 3742,
+      "research_facts": 523,
+      "research_source_urls": 56,
+      "displayed_original_records": [
+        "E-P7DF8318DC4C5EA",
+        "E-P2116A6060A157E",
+        "E-P1CBE10F3AC1AA1",
+        "E-P1AA5DF46635930",
+        "E-P31B0DBA53FC8B0",
+        "E-P9384858476A927",
+        "E-P2B19941556C7B1",
+        "E-P1A5A0563EA11AC",
+        "E-P1B819A2140059D"
+      ],
+      "cited_fact_count": 22,
+      "cited_source_urls": 9,
+      "unknown_evidence_ids": [],
+      "model_input_count": 523,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "person": 523
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": [
+        "E-P1CBE10F3AC1AA1",
+        "E-P9384858476A927"
+      ]
+    },
+    {
+      "chapter": 11,
+      "title": "投后治理及退出风险研判",
+      "chars": 1531,
+      "research_facts": 198,
+      "research_source_urls": 49,
+      "displayed_original_records": [],
+      "cited_fact_count": 14,
+      "cited_source_urls": 9,
+      "unknown_evidence_ids": [],
+      "model_input_count": 198,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "affiliated_company": 2,
+        "person": 196
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 12,
+      "title": "风险核查",
+      "chars": 3766,
+      "research_facts": 20,
+      "research_source_urls": 10,
+      "displayed_original_records": [
+        "E-PFD7CA12439DCBC",
+        "E-P0FE7221A311395",
+        "E-P971FCA5110F78A",
+        "E-P2B1DBEB47F074F",
+        "E-P7DE9A82B2C9A6E",
+        "E-PA306619894758A"
+      ],
+      "cited_fact_count": 9,
+      "cited_source_urls": 8,
+      "unknown_evidence_ids": [],
+      "model_input_count": 0,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 20,
+      "all_research_records_accounted_for": true,
+      "batch_input_accounted_for": true,
+      "research_request_status": "deterministic_attributed_records",
+      "research_scopes": {
+        "affiliated_company": 3,
+        "person": 17
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "material_disposition_review_incomplete"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": [
+        "E-P2B1DBEB47F074F"
+      ]
+    },
+    {
+      "chapter": 13,
+      "title": "综合评估",
+      "chars": 568,
+      "research_facts": 811,
+      "research_source_urls": 63,
+      "displayed_original_records": [],
+      "cited_fact_count": 10,
+      "cited_source_urls": 6,
+      "unknown_evidence_ids": [],
+      "model_input_count": 0,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": null,
+      "batch_input_accounted_for": true,
+      "research_request_status": "no_model_research_stage",
+      "research_scopes": {
+        "affiliated_company": 94,
+        "person": 717
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 14,
+      "title": "信息来源",
+      "chars": 82689,
+      "research_facts": 0,
+      "research_source_urls": 0,
+      "displayed_original_records": [],
+      "cited_fact_count": 464,
+      "cited_source_urls": 42,
+      "unknown_evidence_ids": [],
+      "model_input_count": 0,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": null,
+      "batch_input_accounted_for": true,
+      "research_request_status": "no_model_research_stage",
+      "research_scopes": {},
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 15,
+      "title": "后续研究点",
+      "chars": 4024,
+      "research_facts": 0,
+      "research_source_urls": 0,
+      "displayed_original_records": [],
+      "cited_fact_count": 0,
+      "cited_source_urls": 0,
+      "unknown_evidence_ids": [],
+      "model_input_count": 0,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": null,
+      "batch_input_accounted_for": true,
+      "research_request_status": "no_model_research_stage",
+      "research_scopes": {},
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    }
+  ],
+  "repeated_originals_across_body_chapters": [],
+  "repeated_original_character_excess": 0,
+  "contained_original_review_targets": [
+    {
+      "first_chapter": 7,
+      "second_chapter": 10,
+      "first_evidence_id": "E-P2F28FD74D601B6",
+      "second_evidence_id": "E-P1AA5DF46635930",
+      "contained_chars": 106
+    },
+    {
+      "first_chapter": 7,
+      "second_chapter": 10,
+      "first_evidence_id": "E-P6423B2DBE8D0E3",
+      "second_evidence_id": "E-P1AA5DF46635930",
+      "contained_chars": 106
+    }
+  ],
+  "displayed_original_literal_mismatches": [],
+  "repeated_analyses_across_body_chapters": [],
+  "boundary": "Flags identify review targets; counts do not measure independent accuracy or research completeness."
+}

@@ -392,6 +392,8 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
     conflicts = temporal_conflicts(facts)
     conflicting = {eid for row in conflicts for eid in row["evidence_ids"]}
     commissioned = commission_requirements({**intake, 'target_name': target})
+    from person_requirements import requirements as person_form_requirements
+    user_requirements = person_form_requirements({**intake, 'target_name': target})
     packages = {}
     for chapter, (title, requirements) in enumerate(outline, 1):
         terms = TOPICS.get(chapter, ())
@@ -556,6 +558,7 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
                 if not any(any(compact(t) in compact(f['fact']) for t in terms) for f in selected):
                     gaps.append(f'研究维度“{view}”缺少能回答问题的原文、个人角色或时期证据。')
         packages[chapter] = {"chapter": chapter, "title": title, "requirements": requirements,
+                             "user_requirements": [r for r in user_requirements if chapter in r['chapters']],
                              "task": TASKS[chapter], "identity_clues_not_facts": intake.get("person_anchor") or {}, "facts": selected, "information_gaps": gaps,
                              "commission_coverage": commission_coverage,
                              "material_coverage": coverage, "selection_audit": selection_audit,
@@ -567,6 +570,7 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
     provenance = build_provenance_index(target, intake, sources, facts, rejected, packages)
     return {"version": VERSION, "target_name": target, "as_of_date": cutoff, "facts": facts, "rejected": rejected,
             "provenance_index": provenance,
+            "form_requirements": user_requirements,
             "commission_requirements": commissioned, "team_material_audit": team_material_audit,
             "source_material_audit": source_material_audit,
             "conflicts": conflicts, "chapters": packages}

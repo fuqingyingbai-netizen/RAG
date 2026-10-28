@@ -573,7 +573,8 @@ class ResearchWorkflow:
                     from person_model_transport import EmptyPersonModelResponse
                 _emit(emit,'llm',role,'模型未返回可供校验的正文',
                     'empty_final_content',finish_reason=finish_reason,**token_usage,status='fallback')
-                raise EmptyPersonModelResponse('empty_model_final_content:'+str(finish_reason or 'unknown'))
+                raise EmptyPersonModelResponse('empty_model_final_content:'+str(finish_reason or 'unknown'),
+                                               finish_reason=finish_reason)
             output_url_count = len(set(re.findall(r"https?://[^\s)\]|>]+", content)))
             _emit(
                 emit,
@@ -594,6 +595,8 @@ class ResearchWorkflow:
             duration_ms = int((time.monotonic() - started_at) * 1000)
             error_text = str(exc)
             failure_kind = "timeout" if "timeout" in error_text.lower() or "timed out" in error_text.lower() else "provider_error"
+            if getattr(exc, 'finish_reason', None) == 'length':
+                failure_kind = 'model_output_exhausted'
             _emit(
                 emit,
                 "llm",
@@ -2313,6 +2316,8 @@ class ResearchWorkflow:
             )
         if intake.get("target_type") == "person":
             plan["person_template_version"] = PERSON_TEMPLATE_VERSION
+            from person_requirements import requirements as person_form_requirements
+            plan['person_form_requirements'] = person_form_requirements(intake)
             plan["identity_anchor"] = intake.get("person_anchor") or {}
             plan["person_evidence_requirements"] = person_retrieval_coverage([], intake)["chapters"]
             plan["chapter_research_tasks"] = [

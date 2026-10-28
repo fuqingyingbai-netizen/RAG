@@ -39,6 +39,9 @@ def writing_cards(facts):
 def writing_input_for(package,facts):
     clues=package.get('identity_clues_not_facts',{})
     return {'chapter':package['chapter'],'title':package['title'],'task':package.get('task',''),
+        **({'user_requirements': [{k:r[k] for k in ('requirement_id','question','expected_evidence')}
+                                  for r in package['user_requirements']]}
+           if package.get('user_requirements') else {}),
         'research_questions':[row['view'] for row in package.get('material_coverage',[])],
         'identity_clues_not_facts':{k:clues.get(k,[]) for k in ('aliases','known_affiliations','identity_anchors','roles','supplementary_context')},
         'facts':writing_cards(facts),

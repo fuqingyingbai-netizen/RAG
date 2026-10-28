@@ -46,7 +46,8 @@ def read(root, name):
 def generation_code_snapshot():
     files=[*ROOT.joinpath('backend').glob('person*.py'),
         ROOT/'backend/research_workflow.py',ROOT/'backend/report_agents/person_report_agent.py',
-        ROOT/'backend/company_ocr.py',ROOT/'backend/company_platform.py',ROOT/'scripts/replay_person_chapters.py',ROOT/'scripts/person_iteration.py']
+        ROOT/'backend/company_ocr.py',ROOT/'backend/company_platform.py',ROOT/'backend/research_strategies/person.py',
+        ROOT/'scripts/replay_person_chapters.py',ROOT/'scripts/person_iteration.py']
     return {str(path.relative_to(ROOT)).replace('\\','/'):hashlib.sha256(path.read_bytes()).hexdigest()
             for path in sorted(files) if path.is_file()}
 
