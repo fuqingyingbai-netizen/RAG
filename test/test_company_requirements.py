@@ -94,7 +94,8 @@ def test_resume_uses_only_specific_gaps_without_mutating_intake_or_claiming_acce
     assert 'delivery_ready' not in result
 
 
-def test_real_resume_and_collector_pass_only_gap_queries_with_requirement_ids(monkeypatch):
+@pytest.mark.parametrize('mixed_tiers',[False,True])
+def test_real_resume_and_collector_pass_only_gap_queries_with_requirement_ids(monkeypatch,mixed_tiers):
     """Exercise both entry points; abort at the network boundary, before calls."""
     class ReachedSearch(BaseException):pass
     workflow=ResearchWorkflow()
@@ -113,7 +114,8 @@ def test_real_resume_and_collector_pass_only_gap_queries_with_requirement_ids(mo
     plan['coverage_thresholds']={'min_sources_per_module':1}
     monkeypatch.setattr(workflow,'plan_research',lambda *a,**kw:plan)
     query={'module':'收入情况','query':'已识别的原件缺口','search_tier':'authority_first'}
-    monkeypatch.setattr('report_agents.company_diligence.diligence_discovery_queries',lambda *a:[query])
+    gaps=[query]+([dict(query,query='特定公开资料缺口',search_tier='open_web')] if mixed_tiers else [])
+    monkeypatch.setattr('report_agents.company_diligence.diligence_discovery_queries',lambda *a:gaps)
     monkeypatch.setattr('report_agents.company_risk_register.recall_discovery_queries',lambda *a:[])
     def no_foundation(*a,**kw):raise AssertionError('resume must not expand foundation queries')
     monkeypatch.setattr(workflow,'_expand_search_queries',no_foundation)
@@ -124,8 +126,8 @@ def test_real_resume_and_collector_pass_only_gap_queries_with_requirement_ids(mo
         raise ReachedSearch()
     monkeypatch.setattr(workflow,'_search_query_items_parallel',search)
     with pytest.raises(ReachedSearch):workflow.run_project(db,project,[],[],intake=config)
-    assert len(captured)==1 and captured[0]['query']==query['query']
-    assert captured[0]['company_requirement_ids']==[plan['company_requirements'][0]['requirement_id']]
+    assert len(captured)==len(gaps) and captured[0]['query']==query['query']
+    assert all(r['company_requirement_ids']==[plan['company_requirements'][0]['requirement_id']] for r in captured)
 
 
 def test_plan_persists_company_contract_but_other_target_plans_keep_their_semantics():

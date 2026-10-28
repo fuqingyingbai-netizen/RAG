@@ -4549,7 +4549,7 @@ class ResearchWorkflow:
         query_items = authority_queries or expanded_query_items
         max_rounds = max(1, int(intake.get("max_search_rounds") or FIXED_MAX_SEARCH_ROUNDS))
         if pending_open_web_queries:
-            if intake.get("target_type") == "industry" and max_rounds == 1:
+            if (intake.get("target_type") == "industry" or company_selected_queries) and max_rounds == 1:
                 query_items = expanded_query_items
                 pending_open_web_queries = []
             else:

@@ -11,6 +11,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import sqlite3
@@ -30,8 +31,10 @@ class BoundedCheckpoint(BaseException):
 
 def terminal_model_error(exc):
     """Do not let production fallbacks repeat a known account-level failure."""
-    if getattr(exc, 'status_code', None) in (401, 403):
+    if getattr(exc, 'status_code', None) == 401:
         return 'model_authentication_failed'
+    if getattr(exc, 'status_code', None) == 403:
+        return 'model_access_denied'
     body = getattr(exc, 'body', None)
     if isinstance(body, dict):
         error = body.get('error', body)
@@ -54,6 +57,8 @@ def main():
     parser.add_argument('case', choices=['haitian', 'kingsoft'])
     parser.add_argument('--max-model-calls', type=int, default=12)
     parser.add_argument('--max-http-calls', type=int, default=24)
+    parser.add_argument('--max-model-http-calls', type=int)
+    parser.add_argument('--profile', action='store_true', help='Retain a local cProfile trace for this round.')
     parser.add_argument('--stage', choices=['native', 'frozen-report'], default='native',
                         help='frozen-report uses the existing production ai_search_enabled=False intake for writing replay; not new collection acceptance.')
     parser.add_argument('--prepare-only', action='store_true')
@@ -63,7 +68,13 @@ def main():
     output = RUN / 'native' / args.case
     output.mkdir(parents=True, exist_ok=True)
     def write(name, value):
-        (output / name).write_text(json.dumps(value, ensure_ascii=False, default=str, indent=2), encoding='utf-8')
+        destination=output/name
+        destination.parent.mkdir(parents=True,exist_ok=True)
+        serialized=json.dumps(value,ensure_ascii=False,default=str,indent=2)
+        for key,secret in os.environ.items():
+            if len(secret)>=8 and re.search(r'API_KEY|TOKEN|PASSWORD|SECRET',key,re.I):
+                serialized=serialized.replace(secret,'[REDACTED]')
+        destination.write_text(serialized,encoding='utf-8')
     database = output / 'acceptance.sqlite'
     if not database.exists():
         shutil.copyfile(baseline / 'acceptance.sqlite', database)
@@ -146,7 +157,7 @@ def main():
     http_lock = threading.Semaphore(2)
     ledger_lock = threading.Lock()
     counts = {'model_calls': 0, 'model_failures': 0, 'http_calls': 0, 'http_failures': 0,
-              'http_error_responses': 0}
+              'http_error_responses': 0, 'model_http_calls': 0}
     terminal_failure = ''
     tag = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')
     ledger = output / ('bounded-calls-' + tag + '.jsonl')
@@ -172,6 +183,8 @@ def main():
                 started = time.monotonic()
                 record({'kind': 'model_started', 'number': number, 'model': self.settings.get('model'),
                         'input_sha256': request, 'sdk_max_retries': self.settings.get('max_retries')})
+                write(f'bounded-inputs/{tag}-{number:06d}.json',
+                      {'model':self.settings.get('model'),'messages':messages,'kwargs':keywords,'input_sha256':request})
                 try:
                     result = self.delegate.invoke(messages, *positional, **keywords)
                     record({'kind': 'model_returned', 'number': number,
@@ -192,6 +205,27 @@ def main():
     def model_factory(*positional, **settings):
         return Model(factory(*positional, **settings), settings)
     runtime.init_chat_model = model_factory
+    import httpx
+    send = httpx.Client.send
+    wire_limit = args.max_model_http_calls or args.max_model_calls*3
+    def observed_send(client, request, *positional, **keywords):
+        parsed=urlsplit(str(request.url))
+        if not parsed.path.rstrip('/').endswith(('/chat/completions','/responses')):
+            return send(client,request,*positional,**keywords)
+        with ledger_lock:
+            if counts['model_http_calls']>=wire_limit:raise BoundedCheckpoint('model_http_call_budget_exhausted')
+            counts['model_http_calls']+=1
+            number=counts['model_http_calls']
+        record({'kind':'model_http_started','number':number,'host':parsed.hostname,'path':parsed.path})
+        try:
+            response=send(client,request,*positional,**keywords)
+            record({'kind':'model_http_headers','number':number,'http_status':response.status_code,
+                    'note':'Headers are not stream completion or semantic acceptance.'})
+            return response
+        except Exception as exc:
+            record({'kind':'model_http_failed','number':number,'error_type':type(exc).__name__})
+            raise
+    httpx.Client.send=observed_send
     import requests
     request = requests.Session.request
     def bounded_request(session, method, url, *positional, **keywords):
@@ -236,6 +270,9 @@ def main():
     write('bounded-plan-' + tag + '.json', {'case': args.case, 'code_commit': version,
           'stage': args.stage, 'new_collection_acceptance': args.stage == 'native',
           'model_logical_request_limit': args.max_model_calls, 'requests_http_limit': args.max_http_calls,
+          'model_http_send_limit':wire_limit,
+          'model':os.getenv('MODEL'),'model_endpoint_host':urlsplit(os.getenv('BASE_URL','')).hostname,
+          'vision_model':os.getenv('VISION_MODEL'),'vision_endpoint_host':urlsplit(os.getenv('VISION_BASE_URL','')).hostname,
           'model_concurrency_enforced_by_semaphore': 1, 'requests_concurrency_enforced_by_semaphore': 2,
           'code_sha256': code_hashes, 'settings_overrides': overrides,
           'sdk_retries_remain_configured': True, 'original_model_responses_modified': False})
@@ -246,6 +283,17 @@ def main():
                 '--env-file', str(isolated_env), '--output', str(output), '--as-of', '2026-10-24', '--resume']
     status = 'not_started'
     result_code = 1
+    profiler=None
+    if args.profile:
+        import cProfile
+        from report_agents.company_report_agent import CompanyReportAgent
+        generate=CompanyReportAgent.generate
+        def profiled_generate(self,*positional,**keywords):
+            report_profile=cProfile.Profile()
+            try:return report_profile.runcall(generate,self,*positional,**keywords)
+            finally:report_profile.dump_stats(str(output/('profile-report-'+tag+'.prof')))
+        CompanyReportAgent.generate=profiled_generate
+        profiler=cProfile.Profile();profiler.enable()
     try:
         result_code = entry.main()
         status = 'native_entry_completed'
@@ -260,6 +308,8 @@ def main():
             value.update(status='bounded_checkpoint', delivery_ready=False, bounded_reason=status)
             write('acceptance.json', value)
     finally:
+        if profiler:
+            profiler.disable();profiler.dump_stats(str(output/('profile-'+tag+'.prof')))
         unchanged = all(sha(ROOT / path) == value for path, value in code_hashes.items())
         write('bounded-result-' + tag + '.json', {'state': status, 'counts': counts,
               'stage': args.stage, 'new_collection_acceptance': False,

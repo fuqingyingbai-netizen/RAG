@@ -12,8 +12,9 @@ from .company_evidence import source_body, document_pages, pending_ocr_notice
 from .company_governance import EID, get, refs, _table, _cell, cited_evidence_ids
 from .company_history import _issuer_hosts
 from .company_financial_statements import fiscal_report_period,quarter_report_period
+from .company_text import match_text
 
-VERSION='company-diligence-v2-cross-chapter-display'
+VERSION='company-diligence-v3-legal-name-boundaries'
 TITLE='定向穿透专项尽职调查'
 _CC=OpenCC('t2s')
 LEGAL=r'[\u4e00-\u9fffA-Za-z（）()·]{2,55}?(?:股份有限公司|有限责任公司|有限公司)'
@@ -256,7 +257,7 @@ def _sentences(text):
 
 
 def classify_quote(quote):
-    t=_CC.convert(quote);low=t.lower()
+    t=match_text(quote);low=t.lower()
     from .company_history import accounting_background
     if accounting_background(t):return None
     if re.search(r'如果|若|不时进行企业合并|可能.{0,100}完成|完成.{0,50}可能',low):return None
@@ -284,7 +285,7 @@ def classify_quote(quote):
 def disclosure_rows(source,pages,base):
     rows=[]
     for page in pages:
-        raw=page['text'];text=_CC.convert(raw)
+        raw=page['text'];text=match_text(raw)
         rows+=money_rows(page,base)
         if re.search(r'重要会计政策|会计政策及会计估计|SUMMARY\s+OF\s+(?:SIGNIFICANT|MATERIAL)\s+ACCOUNTING\s+POLICIES',text,re.I):continue
         # Fund use disclosures usually wrap across several lines and bullets.

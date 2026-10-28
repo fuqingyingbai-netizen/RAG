@@ -68,22 +68,43 @@ class OriginalTextView:
         self.original = str(original or '')
         self.text = match_text(self.original)
         self._opcodes = None
+        self._segments = None
+        self._line_opcodes = {}
 
     def quote(self, start, end):
         if start >= end:
             return ''
         if self.original == self.text:
             return self.original[start:end]
-        if self._opcodes is None:
-            self._opcodes = SequenceMatcher(None, self.original, self.text, autojunk=False).get_opcodes()
-        spans = []
-        for tag, a, b, c, d in self._opcodes:
-            if c >= end or d <= start:
-                continue
-            if tag == 'equal':
-                spans.append((a + max(start, c) - c, a + min(end, d) - c))
+        if self._segments is None:
+            original_lines=self.original.splitlines(keepends=True)
+            converted_lines=self.text.splitlines(keepends=True)
+            # Only split an alignment when conversion is independently proven
+            # to preserve these boundaries. Length equality alone is unsafe.
+            separable=(len(original_lines)==len(converted_lines) and
+                all(match_text(a)==b for a,b in zip(original_lines,converted_lines)))
+            if separable:
+                self._segments=[];a=c=0
+                for raw,converted in zip(original_lines,converted_lines):
+                    self._segments.append((a,a+len(raw),c,c+len(converted)))
+                    a+=len(raw);c+=len(converted)
             else:
-                spans.append((a, b))
+                self._segments=[(0,len(self.original),0,len(self.text))]
+        spans = []
+        for number,(a0,b0,c0,d0) in enumerate(self._segments):
+            if c0 >= end or d0 <= start:
+                continue
+            raw=self.original[a0:b0];converted=self.text[c0:d0]
+            if raw==converted:
+                spans.append((a0+max(start,c0)-c0,a0+min(end,d0)-c0))
+                continue
+            if number not in self._line_opcodes:
+                self._line_opcodes[number]=SequenceMatcher(None,raw,converted,autojunk=False).get_opcodes()
+            for tag,a,b,c,d in self._line_opcodes[number]:
+                c+=c0;d+=c0;a+=a0;b+=a0
+                if c >= end or d <= start:continue
+                if tag=='equal':spans.append((a+max(start,c)-c,a+min(end,d)-c))
+                else:spans.append((a,b))
         return self.original[spans[0][0]:spans[-1][1]] if spans else ''
 
 
