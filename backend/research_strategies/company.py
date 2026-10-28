@@ -4,6 +4,16 @@ from .base import BaseResearchStrategy
 class CompanyResearchStrategy(BaseResearchStrategy):
     target_type = "company"
 
+    def module_questions(self, module, target, industry):
+        from company_requirements import question_spec
+        spec = question_spec(module)
+        return [spec[1].format(target=target)] if spec else super().module_questions(module, target, industry)
+
+    def templates_for_module(self, module, target, industry):
+        from company_requirements import question_spec
+        spec = question_spec(module)
+        return ['{target} ' + term for term in spec[3]] if spec else super().templates_for_module(module, target, industry)
+
     def expand_search_queries(self, plan, intake):
         from datetime import date
         import re
@@ -19,7 +29,10 @@ class CompanyResearchStrategy(BaseResearchStrategy):
             'search_tier':'authority_first','include_domains':['cninfo.com.cn','szse.cn','sse.com.cn','hkexnews.hk'],
             'preferred_providers':['tavily','exa','serper','bocha'],'authority_required':1,'search_year_hint':y,'as_of_date':cutoff}
             for y in (year,year-1)]
-        return recent+rows
+        from company_requirements import build_requirements, bind_queries
+        requirements = plan.get('company_requirements') or build_requirements(
+            [m['name'] for m in plan.get('modules', []) if isinstance(m, dict) and m.get('name')], intake)
+        return bind_queries(recent+rows, requirements)
     default_modules = [
         "公司背景",
         "诉讼/制裁",

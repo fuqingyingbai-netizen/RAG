@@ -2319,6 +2319,13 @@ class ResearchWorkflow:
                 {"chapter": i, "title": title, "requirements": requirements,
                  "scope": "actual_citations" if i == 14 else "verification_plan" if i == 15 else "evidence_bound"}
                 for i, (title, requirements) in enumerate(PersonReportAgent.outline, 1)]
+        if intake.get('target_type') == 'company':
+            from company_requirements import build_requirements, VERSION as COMPANY_QUESTION_VERSION
+            plan['company_requirement_version'] = COMPANY_QUESTION_VERSION
+            plan['company_requirements'] = build_requirements(modules, {**intake, 'target_name': target})
+            project.company_research_requirements = plan['company_requirements']
+            for item in plan['modules']:
+                item['company_requirement_ids'] = [r['requirement_id'] for r in plan['company_requirements'] if r['module'] == item['name']]
         if intake.get('target_type') == 'industry':
             try:
                 from .industry_evidence import evidence_requirements, VERSION
@@ -4741,6 +4748,11 @@ class ResearchWorkflow:
                                 "person_chapters": list(query_item.get("person_chapters") or []),
                                 "person_commission_id": query_item.get("commission_id", ""),
                                 "person_requirement_ids": list(query_item.get("requirement_ids") or []),
+                                **({"company_requirement_ids": list(query_item.get("company_requirement_ids") or []),
+                                    "company_requirement_version": query_item.get("company_requirement_version", ""),
+                                    "company_requirement_scope_sha256": query_item.get("company_requirement_scope_sha256", ""),
+                                    "company_query_purpose": query_item.get("query_purpose", "")}
+                                   if intake.get('target_type') == 'company' else {}),
                                 "round": round_index,
                                 "search_tier": search_tier,
                                 "authority_domains": include_domains,
@@ -4984,6 +4996,11 @@ class ResearchWorkflow:
                                 "person_chapters": list(query_item.get("person_chapters") or []),
                                 "person_commission_id": query_item.get("commission_id", ""),
                                 "person_requirement_ids": list(query_item.get("requirement_ids") or []),
+                                **({"company_requirement_ids": list(query_item.get("company_requirement_ids") or []),
+                                    "company_requirement_version": query_item.get("company_requirement_version", ""),
+                                    "company_requirement_scope_sha256": query_item.get("company_requirement_scope_sha256", ""),
+                                    "company_query_purpose": query_item.get("query_purpose", "")}
+                                   if intake.get('target_type') == 'company' else {}),
                             "round": round_index,
                             "search_tier": search_tier,
                             "authority_domains": include_domains,

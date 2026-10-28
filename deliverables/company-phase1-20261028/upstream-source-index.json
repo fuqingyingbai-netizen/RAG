@@ -1,0 +1,1070 @@
+[
+  {
+    "repository": "https://github.com/alephdata/followthemoney",
+    "commit": "c70a89ffa59ea785956f6095643310da3735b7fb",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "sha256": "ded7e69a4f51b53d5e87aedaf8d0d1c1c98e2f3ced6c2b6a9475ba3b553dd990"
+      }
+    ],
+    "selected_files": [
+      {
+        "path": "followthemoney/proxy.py",
+        "url": "https://github.com/alephdata/followthemoney/blob/c70a89ffa59ea785956f6095643310da3735b7fb/followthemoney/proxy.py",
+        "sha256": "3c8ba8dfc7affcc2716a63bfd0c18a87631d8098b06a57ad65bab7b8a3b762fe",
+        "bytes": 20054,
+        "definitions": [
+          {
+            "line": 37,
+            "definition": "class EntityProxy(object):"
+          },
+          {
+            "line": 46,
+            "definition": "def __init__("
+          },
+          {
+            "line": 100,
+            "definition": "def make_id(self, *parts: Any) -> Optional[str]:"
+          },
+          {
+            "line": 108,
+            "definition": "def _prop_name(self, prop: P, quiet: bool = False) -> Optional[str]:"
+          },
+          {
+            "line": 123,
+            "definition": "def get(self, prop: P, quiet: bool = False) -> List[str]:"
+          },
+          {
+            "line": 137,
+            "definition": "def first(self, prop: P, quiet: bool = False) -> Optional[str]:"
+          },
+          {
+            "line": 150,
+            "definition": "def has(self, prop: P, quiet: bool = False) -> bool:"
+          },
+          {
+            "line": 162,
+            "definition": "def add("
+          },
+          {
+            "line": 202,
+            "definition": "def unsafe_add("
+          },
+          {
+            "line": 236,
+            "definition": "def set("
+          },
+          {
+            "line": 262,
+            "definition": "def pop(self, prop: P, quiet: bool = True) -> List[str]:"
+          },
+          {
+            "line": 276,
+            "definition": "def remove(self, prop: P, value: str, quiet: bool = True) -> None:"
+          },
+          {
+            "line": 293,
+            "definition": "def iterprops(self) -> List[Property]:"
+          },
+          {
+            "line": 298,
+            "definition": "def itervalues(self) -> Generator[Tuple[Property, str], None, None]:"
+          },
+          {
+            "line": 306,
+            "definition": "def edgepairs(self) -> Generator[Tuple[str, str], None, None]:"
+          },
+          {
+            "line": 315,
+            "definition": "def get_type_values("
+          },
+          {
+            "line": 335,
+            "definition": "def names(self) -> List[str]:"
+          },
+          {
+            "line": 340,
+            "definition": "def countries(self) -> List[str]:"
+          },
+          {
+            "line": 345,
+            "definition": "def temporal_start(self) -> Optional[Tuple[Property, str]]:"
+          },
+          {
+            "line": 358,
+            "definition": "def temporal_end(self) -> Optional[Tuple[Property, str]]:"
+          },
+          {
+            "line": 369,
+            "definition": "def get_type_inverted(self, matchable: bool = False) -> Dict[str, List[str]]:"
+          },
+          {
+            "line": 380,
+            "definition": "def triples(self, qualified: bool = True) -> Generator[Triple, None, None]:"
+          },
+          {
+            "line": 401,
+            "definition": "def caption(self) -> str:"
+          },
+          {
+            "line": 411,
+            "definition": "def country_hints(self) -> Set[str]:"
+          },
+          {
+            "line": 424,
+            "definition": "def properties(self) -> Dict[str, List[str]]:"
+          },
+          {
+            "line": 428,
+            "definition": "def to_dict(self) -> Dict[str, Any]:"
+          },
+          {
+            "line": 442,
+            "definition": "def to_full_dict(self, matchable: bool = False) -> Dict[str, Any]:"
+          },
+          {
+            "line": 449,
+            "definition": "def clone(self: E) -> E:"
+          },
+          {
+            "line": 453,
+            "definition": "def merge(self: E, other: E) -> E:"
+          },
+          {
+            "line": 470,
+            "definition": "def __str__(self) -> str:"
+          },
+          {
+            "line": 473,
+            "definition": "def __repr__(self) -> str:"
+          },
+          {
+            "line": 476,
+            "definition": "def __len__(self) -> int:"
+          },
+          {
+            "line": 479,
+            "definition": "def __hash__(self) -> int:"
+          },
+          {
+            "line": 487,
+            "definition": "def __eq__(self, other: Any) -> bool:"
+          },
+          {
+            "line": 499,
+            "definition": "def from_dict("
+          }
+        ]
+      },
+      {
+        "path": "followthemoney/schema/Company.yaml",
+        "url": "https://github.com/alephdata/followthemoney/blob/c70a89ffa59ea785956f6095643310da3735b7fb/followthemoney/schema/Company.yaml",
+        "sha256": "a335cffcf1e5cbf70e6b7c632a4c5a5279705dcfb48ec2d8b7febcd80baa978f",
+        "bytes": 3276,
+        "definitions": []
+      },
+      {
+        "path": "followthemoney/schema/Ownership.yaml",
+        "url": "https://github.com/alephdata/followthemoney/blob/c70a89ffa59ea785956f6095643310da3735b7fb/followthemoney/schema/Ownership.yaml",
+        "sha256": "b4b584484f555f4694ba17ba0b5a53a2adbe6ae3d5641744df1bc199345f98f7",
+        "bytes": 1057,
+        "definitions": []
+      },
+      {
+        "path": "followthemoney/schema/Directorship.yaml",
+        "url": "https://github.com/alephdata/followthemoney/blob/c70a89ffa59ea785956f6095643310da3735b7fb/followthemoney/schema/Directorship.yaml",
+        "sha256": "04cc760104cbcb9b5afe558f9d82a3ecb1636564f0b6ed618169dc21274a7f6f",
+        "bytes": 773,
+        "definitions": []
+      },
+      {
+        "path": "followthemoney/schema/Document.yaml",
+        "url": "https://github.com/alephdata/followthemoney/blob/c70a89ffa59ea785956f6095643310da3735b7fb/followthemoney/schema/Document.yaml",
+        "sha256": "300faf66b2bf2267761ee22127b73f047f42a5e72ff837b05c985f8c40978eec",
+        "bytes": 2927,
+        "definitions": []
+      }
+    ],
+    "code_copied_into_runtime": false
+  },
+  {
+    "repository": "https://github.com/assafelovic/gpt-researcher",
+    "commit": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      }
+    ],
+    "selected_files": [
+      {
+        "path": "multi_agents/agent.py",
+        "url": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/multi_agents/agent.py",
+        "sha256": "cc74caada782db63307b78a3e9e26a9c204a8c7ea174ad0010a64a34b1d514a8",
+        "bytes": 621,
+        "definitions": []
+      },
+      {
+        "path": "multi_agents/agents/orchestrator.py",
+        "url": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/multi_agents/agents/orchestrator.py",
+        "sha256": "cda492d11159aae0858545d36905e8d4d91a9964bcbc45c33ccef3a0e090eef1",
+        "bytes": 6496,
+        "definitions": [
+          {
+            "line": 30,
+            "definition": "class ChiefEditorAgent:"
+          },
+          {
+            "line": 33,
+            "definition": "def __init__(self, task: dict, websocket=None, stream_output=None, tone=None, headers=None):"
+          },
+          {
+            "line": 42,
+            "definition": "def _generate_task_id(self):"
+          },
+          {
+            "line": 46,
+            "definition": "def _create_output_directory(self):"
+          },
+          {
+            "line": 54,
+            "definition": "def _initialize_agents(self):"
+          },
+          {
+            "line": 65,
+            "definition": "def _create_workflow(self, agents):"
+          },
+          {
+            "line": 83,
+            "definition": "def _add_workflow_edges(self, workflow):"
+          },
+          {
+            "line": 107,
+            "definition": "def _route_human_feedback(self, review):"
+          },
+          {
+            "line": 123,
+            "definition": "def _route_fact_check(self, state):"
+          },
+          {
+            "line": 137,
+            "definition": "def init_research_team(self):"
+          },
+          {
+            "line": 142,
+            "definition": "async def _log_research_start(self):"
+          },
+          {
+            "line": 149,
+            "definition": "async def run_research_task(self, task_id=None):"
+          }
+        ]
+      },
+      {
+        "path": "multi_agents/agents/editor.py",
+        "url": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/multi_agents/agents/editor.py",
+        "sha256": "ecf5148927bafb5751a95860c07bab36254cda14669e331e5022b638eb5aa903",
+        "bytes": 8275,
+        "definitions": [
+          {
+            "line": 18,
+            "definition": "class EditorAgent:"
+          },
+          {
+            "line": 21,
+            "definition": "def __init__(self, websocket=None, stream_output=None, tone=None, headers=None):"
+          },
+          {
+            "line": 27,
+            "definition": "async def plan_research(self, research_state: Dict[str, any]) -> Dict[str, any]:"
+          },
+          {
+            "line": 57,
+            "definition": "async def run_parallel_research(self, research_state: Dict[str, any]) -> Dict[str, List[str]]:"
+          },
+          {
+            "line": 84,
+            "definition": "def _create_planning_prompt(self, initial_research: str, include_human_feedback: bool,"
+          },
+          {
+            "line": 101,
+            "definition": "def _format_planning_instructions(self, initial_research: str, include_human_feedback: bool,"
+          },
+          {
+            "line": 123,
+            "definition": "def _initialize_agents(self) -> Dict[str, any]:"
+          },
+          {
+            "line": 131,
+            "definition": "def _create_workflow(self) -> StateGraph:"
+          },
+          {
+            "line": 151,
+            "definition": "def _route_draft_review(self, draft: Dict[str, any]) -> str:"
+          },
+          {
+            "line": 166,
+            "definition": "def _log_parallel_research(self, queries: List[str]) -> None:"
+          },
+          {
+            "line": 181,
+            "definition": "def _create_task_input(self, research_state: Dict[str, any], query: str, title: str,"
+          }
+        ]
+      },
+      {
+        "path": "multi_agents/agents/reviewer.py",
+        "url": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/multi_agents/agents/reviewer.py",
+        "sha256": "f508c6075b7c8fad00cbeacce301ac067ffde2e883c0e12f3c3be3844a47853e",
+        "bytes": 3544,
+        "definitions": [
+          {
+            "line": 9,
+            "definition": "class ReviewerAgent:"
+          },
+          {
+            "line": 10,
+            "definition": "def __init__(self, websocket=None, stream_output=None, headers=None):"
+          },
+          {
+            "line": 15,
+            "definition": "async def review_draft(self, draft_state: dict):"
+          },
+          {
+            "line": 68,
+            "definition": "async def run(self, draft_state: dict):"
+          }
+        ]
+      },
+      {
+        "path": "multi_agents/agents/reviser.py",
+        "url": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/multi_agents/agents/reviser.py",
+        "sha256": "4ecfb41e131ce5be14726e499f1f8f582c4dc3087048adf871984a88670af138",
+        "bytes": 2541,
+        "definitions": [
+          {
+            "line": 15,
+            "definition": "class ReviserAgent:"
+          },
+          {
+            "line": 16,
+            "definition": "def __init__(self, websocket=None, stream_output=None, headers=None):"
+          },
+          {
+            "line": 21,
+            "definition": "async def revise_draft(self, draft_state: dict):"
+          },
+          {
+            "line": 54,
+            "definition": "async def run(self, draft_state: dict):"
+          }
+        ]
+      }
+    ],
+    "code_copied_into_runtime": false
+  },
+  {
+    "repository": "https://github.com/duhu2000/financial-services-qcc",
+    "commit": "fb1289cf1c58fa99a3af37d594488400a22974b7",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+      }
+    ],
+    "selected_files": [
+      {
+        "path": "commands/qcc-kyb-profile.md",
+        "url": "https://github.com/duhu2000/financial-services-qcc/blob/fb1289cf1c58fa99a3af37d594488400a22974b7/commands/qcc-kyb-profile.md",
+        "sha256": "39ec3b097472c08fc397562f51bbf36dcab9e14accf02bab28e51401a3201762",
+        "bytes": 4063,
+        "definitions": []
+      },
+      {
+        "path": "skills/kyb-verification-qcc/SKILL.md",
+        "url": "https://github.com/duhu2000/financial-services-qcc/blob/fb1289cf1c58fa99a3af37d594488400a22974b7/skills/kyb-verification-qcc/SKILL.md",
+        "sha256": "1cfefdd0a76f0f0560ecb91c52b689406c52e2f93a3b346b80e882c2d3db7b22",
+        "bytes": 76598,
+        "definitions": []
+      }
+    ],
+    "code_copied_into_runtime": false
+  },
+  {
+    "repository": "https://github.com/langchain-ai/open_deep_research",
+    "commit": "1b7d2e80db9faa586165c60e09096dbbfd483a64",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "sha256": "3404cb66935968edefe1149c9bfcb44bd8532c437c01ac095ec53b6e195ce110"
+      }
+    ],
+    "selected_files": [
+      {
+        "path": "src/open_deep_research/deep_researcher.py",
+        "url": "https://github.com/langchain-ai/open_deep_research/blob/1b7d2e80db9faa586165c60e09096dbbfd483a64/src/open_deep_research/deep_researcher.py",
+        "sha256": "af128d5d8773008d021b6ef7562e9fb90a45f7eb5e886483d1e6e835223275e0",
+        "bytes": 30117,
+        "definitions": [
+          {
+            "line": 60,
+            "definition": "async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Command[Literal[\"write_research_brief\", \"__end__\"]]:"
+          },
+          {
+            "line": 118,
+            "definition": "async def write_research_brief(state: AgentState, config: RunnableConfig) -> Command[Literal[\"research_supervisor\"]]:"
+          },
+          {
+            "line": 178,
+            "definition": "async def supervisor(state: SupervisorState, config: RunnableConfig) -> Command[Literal[\"supervisor_tools\"]]:"
+          },
+          {
+            "line": 225,
+            "definition": "async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Command[Literal[\"supervisor\", \"__end__\"]]:"
+          },
+          {
+            "line": 365,
+            "definition": "async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[Literal[\"researcher_tools\"]]:"
+          },
+          {
+            "line": 427,
+            "definition": "async def execute_tool_safely(tool, args, config):"
+          },
+          {
+            "line": 435,
+            "definition": "async def researcher_tools(state: ResearcherState, config: RunnableConfig) -> Command[Literal[\"researcher\", \"compress_research\"]]:"
+          },
+          {
+            "line": 511,
+            "definition": "async def compress_research(state: ResearcherState, config: RunnableConfig):"
+          },
+          {
+            "line": 607,
+            "definition": "async def final_report_generation(state: AgentState, config: RunnableConfig):"
+          }
+        ]
+      },
+      {
+        "path": "src/open_deep_research/state.py",
+        "url": "https://github.com/langchain-ai/open_deep_research/blob/1b7d2e80db9faa586165c60e09096dbbfd483a64/src/open_deep_research/state.py",
+        "sha256": "7a03f4a1d5132573ed306d403fd3478fe8916d955f3caa44a8d365877ac35d0e",
+        "bytes": 3273,
+        "definitions": [
+          {
+            "line": 15,
+            "definition": "class ConductResearch(BaseModel):"
+          },
+          {
+            "line": 21,
+            "definition": "class ResearchComplete(BaseModel):"
+          },
+          {
+            "line": 24,
+            "definition": "class Summary(BaseModel):"
+          },
+          {
+            "line": 30,
+            "definition": "class ClarifyWithUser(BaseModel):"
+          },
+          {
+            "line": 43,
+            "definition": "class ResearchQuestion(BaseModel):"
+          },
+          {
+            "line": 55,
+            "definition": "def override_reducer(current_value, new_value):"
+          },
+          {
+            "line": 62,
+            "definition": "class AgentInputState(MessagesState):"
+          },
+          {
+            "line": 65,
+            "definition": "class AgentState(MessagesState):"
+          },
+          {
+            "line": 74,
+            "definition": "class SupervisorState(TypedDict):"
+          },
+          {
+            "line": 83,
+            "definition": "class ResearcherState(TypedDict):"
+          },
+          {
+            "line": 92,
+            "definition": "class ResearcherOutputState(BaseModel):"
+          }
+        ]
+      },
+      {
+        "path": "src/open_deep_research/configuration.py",
+        "url": "https://github.com/langchain-ai/open_deep_research/blob/1b7d2e80db9faa586165c60e09096dbbfd483a64/src/open_deep_research/configuration.py",
+        "sha256": "61e1a62ada20d16cb7b876c10b15a3ddb71f61248a53a05d7511ca6930af98da",
+        "bytes": 8234,
+        "definitions": [
+          {
+            "line": 11,
+            "definition": "class SearchAPI(Enum):"
+          },
+          {
+            "line": 19,
+            "definition": "class MCPConfig(BaseModel):"
+          },
+          {
+            "line": 38,
+            "definition": "class Configuration(BaseModel):"
+          },
+          {
+            "line": 237,
+            "definition": "def from_runnable_config("
+          },
+          {
+            "line": 249,
+            "definition": "class Config:"
+          }
+        ]
+      }
+    ],
+    "code_copied_into_runtime": false
+  },
+  {
+    "repository": "https://github.com/openaleph/openaleph",
+    "commit": "ef41665db5e8c8e9b563ba61036ea9842f8c4dec",
+    "license_files": [
+      {
+        "path": "LICENSE.txt",
+        "sha256": "dbedcaa72fa2f5dea4fbaaddd9bf506c31b1142cd24b19aef811e075e536b4a7"
+      }
+    ],
+    "selected_files": [
+      {
+        "path": "aleph/model/document.py",
+        "url": "https://github.com/openaleph/openaleph/blob/ef41665db5e8c8e9b563ba61036ea9842f8c4dec/aleph/model/document.py",
+        "sha256": "887325dfb9093fef745701afbfa6cef83ab8805f2400ffaa1e82b285f0377d4b",
+        "bytes": 7908,
+        "definitions": [
+          {
+            "line": 21,
+            "definition": "class Document(db.Model, DatedModel):"
+          },
+          {
+            "line": 41,
+            "definition": "def __init__(self, **kw):"
+          },
+          {
+            "line": 46,
+            "definition": "def model(self):"
+          },
+          {
+            "line": 50,
+            "definition": "def ancestors(self):"
+          },
+          {
+            "line": 69,
+            "definition": "def update(self, data):"
+          },
+          {
+            "line": 106,
+            "definition": "def delete_by_collection(cls, collection_id):"
+          },
+          {
+            "line": 112,
+            "definition": "def save("
+          },
+          {
+            "line": 160,
+            "definition": "def by_id(cls, document_id, collection=None):"
+          },
+          {
+            "line": 172,
+            "definition": "def by_content_hash(cls, content_hash):"
+          },
+          {
+            "line": 177,
+            "definition": "def by_collection(cls, collection_id=None):"
+          },
+          {
+            "line": 183,
+            "definition": "def to_proxy(self, ns=None):"
+          },
+          {
+            "line": 231,
+            "definition": "def __repr__(self):"
+          }
+        ]
+      },
+      {
+        "path": "aleph/model/entity.py",
+        "url": "https://github.com/openaleph/openaleph/blob/ef41665db5e8c8e9b563ba61036ea9842f8c4dec/aleph/model/entity.py",
+        "sha256": "aebdbdc069293a03ca56d07badf4f5a0460294ee993f615836cb303c9e983145",
+        "bytes": 3475,
+        "definitions": [
+          {
+            "line": 18,
+            "definition": "class Entity(db.Model, DatedModel):"
+          },
+          {
+            "line": 40,
+            "definition": "def model(self):"
+          },
+          {
+            "line": 43,
+            "definition": "def update(self, data, collection, sign=True):"
+          },
+          {
+            "line": 59,
+            "definition": "def to_proxy(self) -> EntityProxy:"
+          },
+          {
+            "line": 72,
+            "definition": "def create(cls, data, collection, sign=True, role_id=None):"
+          },
+          {
+            "line": 84,
+            "definition": "def by_id(cls, entity_id, collection=None):"
+          },
+          {
+            "line": 91,
+            "definition": "def by_collection(cls, collection_id):"
+          },
+          {
+            "line": 98,
+            "definition": "def delete_by_collection(cls, collection_id):"
+          },
+          {
+            "line": 103,
+            "definition": "def __repr__(self):"
+          }
+        ]
+      },
+      {
+        "path": "aleph/model/entityset.py",
+        "url": "https://github.com/openaleph/openaleph/blob/ef41665db5e8c8e9b563ba61036ea9842f8c4dec/aleph/model/entityset.py",
+        "sha256": "509e385785dd3ec314a088fcec02cc6e139d077e18bc234e1520bde0bc2a832b",
+        "bytes": 14410,
+        "definitions": [
+          {
+            "line": 19,
+            "definition": "class Judgement(Enum):"
+          },
+          {
+            "line": 25,
+            "definition": "def __add__(self, other):"
+          },
+          {
+            "line": 32,
+            "definition": "def to_dict(self):"
+          },
+          {
+            "line": 36,
+            "definition": "class EntitySet(db.Model, SoftDeleteModel):"
+          },
+          {
+            "line": 63,
+            "definition": "def entities(self):"
+          },
+          {
+            "line": 71,
+            "definition": "def create(cls, data, collection, authz):"
+          },
+          {
+            "line": 83,
+            "definition": "def by_id(cls, entityset_id, types=None, deleted=False):"
+          },
+          {
+            "line": 89,
+            "definition": "def by_authz(cls, authz, types=None, prefix=None):"
+          },
+          {
+            "line": 98,
+            "definition": "def by_type(cls, types, deleted=False):"
+          },
+          {
+            "line": 107,
+            "definition": "def by_collection_id(cls, collection_id, types=None):"
+          },
+          {
+            "line": 114,
+            "definition": "def by_entity_id("
+          },
+          {
+            "line": 138,
+            "definition": "def entity_entitysets(cls, entity_id, collection_id=None):"
+          },
+          {
+            "line": 151,
+            "definition": "def all_profiles(cls, collection_id, entity_id=None):"
+          },
+          {
+            "line": 165,
+            "definition": "def delete_by_collection(cls, collection_id, deleted_at):"
+          },
+          {
+            "line": 174,
+            "definition": "def type_counts(cls, authz=None, collection_id=None):"
+          },
+          {
+            "line": 186,
+            "definition": "def items(self, authz=None, deleted=False):"
+          },
+          {
+            "line": 195,
+            "definition": "def profile(self, judgements=None, deleted=False):"
+          },
+          {
+            "line": 201,
+            "definition": "def merge(self, other, merged_by_id):"
+          },
+          {
+            "line": 242,
+            "definition": "def update(self, data):"
+          },
+          {
+            "line": 252,
+            "definition": "def delete(self, deleted_at=None):"
+          },
+          {
+            "line": 265,
+            "definition": "def to_dict(self):"
+          },
+          {
+            "line": 280,
+            "definition": "def __repr__(self):"
+          },
+          {
+            "line": 284,
+            "definition": "class EntitySetItem(db.Model, SoftDeleteModel):"
+          },
+          {
+            "line": 303,
+            "definition": "def by_entity_id(cls, entityset, entity_id):"
+          },
+          {
+            "line": 311,
+            "definition": "def save(cls, entityset, entity_id, judgement=None, collection_id=None, **data):"
+          },
+          {
+            "line": 355,
+            "definition": "def delete_by_collection(cls, collection_id):"
+          },
+          {
+            "line": 366,
+            "definition": "def delete_by_entity(cls, entity_id):"
+          },
+          {
+            "line": 371,
+            "definition": "def to_dict(self, entityset=None):"
+          },
+          {
+            "line": 386,
+            "definition": "def __repr__(self):"
+          }
+        ]
+      }
+    ],
+    "code_copied_into_runtime": false
+  },
+  {
+    "repository": "https://github.com/rgerjeki/Dossier",
+    "commit": "512b121739a8c95ec5015dcee337fefc48da1105",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "sha256": "fb9530c1aafa9e3a80a6721fc7ed2665169140a3af476d3a75dffd40f1de0a71"
+      }
+    ],
+    "selected_files": [
+      {
+        "path": "src/dossier/models.py",
+        "url": "https://github.com/rgerjeki/Dossier/blob/512b121739a8c95ec5015dcee337fefc48da1105/src/dossier/models.py",
+        "sha256": "a36f41a0984b486d582a3962a04f6bf79957dcd717f272c9d8bd8d11481aba75",
+        "bytes": 6812,
+        "definitions": [
+          {
+            "line": 20,
+            "definition": "class FindingType(StrEnum):"
+          },
+          {
+            "line": 31,
+            "definition": "class FindingStatus(StrEnum):"
+          },
+          {
+            "line": 45,
+            "definition": "class Confidence(StrEnum):"
+          },
+          {
+            "line": 74,
+            "definition": "def default_section_for_type(finding_type: FindingType) -> str:"
+          },
+          {
+            "line": 80,
+            "definition": "def _utcnow() -> datetime:"
+          },
+          {
+            "line": 85,
+            "definition": "class Finding:"
+          },
+          {
+            "line": 122,
+            "definition": "def __post_init__(self) -> None:"
+          },
+          {
+            "line": 131,
+            "definition": "def to_dict(self) -> dict:"
+          },
+          {
+            "line": 150,
+            "definition": "def from_dict(cls, data: dict) -> Finding:"
+          }
+        ]
+      },
+      {
+        "path": "src/dossier/case.py",
+        "url": "https://github.com/rgerjeki/Dossier/blob/512b121739a8c95ec5015dcee337fefc48da1105/src/dossier/case.py",
+        "sha256": "2cfd1a9055aa9ac02b46091208ce7b259ee4bbf49c7defe02bd282149210aaad",
+        "bytes": 7571,
+        "definitions": [
+          {
+            "line": 25,
+            "definition": "class SubjectType(StrEnum):"
+          },
+          {
+            "line": 34,
+            "definition": "def _utcnow() -> datetime:"
+          },
+          {
+            "line": 38,
+            "definition": "def _is_frozen() -> bool:"
+          },
+          {
+            "line": 44,
+            "definition": "def app_data_dir() -> Path:"
+          },
+          {
+            "line": 62,
+            "definition": "def default_cases_dir() -> Path:"
+          },
+          {
+            "line": 79,
+            "definition": "def default_exports_dir() -> Path:"
+          },
+          {
+            "line": 94,
+            "definition": "def _slugify(text: str) -> str:"
+          },
+          {
+            "line": 100,
+            "definition": "class Case:"
+          },
+          {
+            "line": 132,
+            "definition": "def __post_init__(self) -> None:"
+          },
+          {
+            "line": 137,
+            "definition": "def add_finding(self, finding: Finding) -> None:"
+          },
+          {
+            "line": 143,
+            "definition": "def included_findings(self) -> list[Finding]:"
+          },
+          {
+            "line": 148,
+            "definition": "def touch(self) -> None:"
+          },
+          {
+            "line": 151,
+            "definition": "def to_dict(self) -> dict:"
+          },
+          {
+            "line": 171,
+            "definition": "def from_dict(cls, data: dict) -> Case:"
+          },
+          {
+            "line": 190,
+            "definition": "def filename(self) -> str:"
+          },
+          {
+            "line": 195,
+            "definition": "def write(self, path: Path | str) -> Path:"
+          },
+          {
+            "line": 203,
+            "definition": "def save(self, directory: Path | str | None = None) -> Path:"
+          },
+          {
+            "line": 210,
+            "definition": "def load(cls, path: Path | str) -> Case:"
+          }
+        ]
+      },
+      {
+        "path": "src/dossier/ui/report_editor.py",
+        "url": "https://github.com/rgerjeki/Dossier/blob/512b121739a8c95ec5015dcee337fefc48da1105/src/dossier/ui/report_editor.py",
+        "sha256": "5ac448ee66493c1642645609a88df7f57da0e21270365c0fffa3b3f74025077a",
+        "bytes": 13907,
+        "definitions": [
+          {
+            "line": 23,
+            "definition": "def _qwebchannel_js() -> str:"
+          },
+          {
+            "line": 223,
+            "definition": "class _Bridge(QObject):"
+          },
+          {
+            "line": 234,
+            "definition": "def onInput(self, html: str) -> None:  # noqa: N802 - called from JS"
+          },
+          {
+            "line": 238,
+            "definition": "def onReady(self) -> None:  # noqa: N802 - called from JS"
+          },
+          {
+            "line": 242,
+            "definition": "def pickImage(self) -> None:  # noqa: N802 - called from JS"
+          },
+          {
+            "line": 246,
+            "definition": "class ReportEditor(QWidget):"
+          },
+          {
+            "line": 251,
+            "definition": "def __init__(self, parent: QWidget | None = None) -> None:"
+          },
+          {
+            "line": 274,
+            "definition": "def _on_ready(self) -> None:"
+          },
+          {
+            "line": 280,
+            "definition": "def _on_edited(self, html: str) -> None:"
+          },
+          {
+            "line": 284,
+            "definition": "def set_content(self, html: str) -> None:"
+          },
+          {
+            "line": 292,
+            "definition": "def content(self) -> str:"
+          },
+          {
+            "line": 296,
+            "definition": "def update_dynamic(self, parts: dict) -> None:"
+          },
+          {
+            "line": 301,
+            "definition": "def _pick_image(self) -> None:"
+          },
+          {
+            "line": 316,
+            "definition": "def scroll_to_anchor(self, name: str) -> None:"
+          },
+          {
+            "line": 321,
+            "definition": "def print_pdf(self, path: Path | str, on_done=None) -> None:"
+          }
+        ]
+      }
+    ],
+    "code_copied_into_runtime": false
+  },
+  {
+    "repository": "https://github.com/stanford-oval/storm",
+    "commit": "fb951af7744dab086e34962e9bc6fe878e145f83",
+    "license_files": [
+      {
+        "path": "LICENSE",
+        "sha256": "88241386c28ff04821832762714c9ff0d22c4de6b0633d11554e69a968a718e0"
+      }
+    ],
+    "selected_files": [
+      {
+        "path": "knowledge_storm/storm_wiki/modules/knowledge_curation.py",
+        "url": "https://github.com/stanford-oval/storm/blob/fb951af7744dab086e34962e9bc6fe878e145f83/knowledge_storm/storm_wiki/modules/knowledge_curation.py",
+        "sha256": "c3f037dc808287631825e6e9bb4dd0b51b9ca43f1c790a713d41513b7ae2c7e0",
+        "bytes": 16320,
+        "definitions": [
+          {
+            "line": 25,
+            "definition": "class ConvSimulator(dspy.Module):"
+          },
+          {
+            "line": 28,
+            "definition": "def __init__("
+          },
+          {
+            "line": 47,
+            "definition": "def forward("
+          },
+          {
+            "line": 84,
+            "definition": "class WikiWriter(dspy.Module):"
+          },
+          {
+            "line": 89,
+            "definition": "def __init__(self, engine: Union[dspy.dsp.LM, dspy.dsp.HFModel]):"
+          },
+          {
+            "line": 95,
+            "definition": "def forward("
+          },
+          {
+            "line": 128,
+            "definition": "class AskQuestion(dspy.Signature):"
+          },
+          {
+            "line": 139,
+            "definition": "class AskQuestionWithPersona(dspy.Signature):"
+          },
+          {
+            "line": 154,
+            "definition": "class QuestionToQuery(dspy.Signature):"
+          },
+          {
+            "line": 167,
+            "definition": "class AnswerQuestion(dspy.Signature):"
+          },
+          {
+            "line": 181,
+            "definition": "class TopicExpert(dspy.Module):"
+          },
+          {
+            "line": 189,
+            "definition": "def __init__("
+          },
+          {
+            "line": 204,
+            "definition": "def forward(self, topic: str, question: str, ground_truth_url: str):"
+          },
+          {
+            "line": 247,
+            "definition": "class StormKnowledgeCurationModule(KnowledgeCurationModule):"
+          },
+          {
+            "line": 252,
+            "definition": "def __init__("
+          },
+          {
+            "line": 281,
+            "definition": "def _get_considered_personas(self, topic: str, max_num_persona) -> List[str]:"
+          },
+          {
+            "line": 286,
+            "definition": "def _run_conversation("
+          },
+          {
+            "line": 317,
+            "definition": "def run_conv(persona):"
+          },
+          {
+            "line": 347,
+            "definition": "def research("
+          }
+        ]
+      }
+    ],
+    "code_copied_into_runtime": false
+  }
+]
