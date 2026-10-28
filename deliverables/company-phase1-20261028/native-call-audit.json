@@ -1,7 +1,7 @@
 {
   "version": "company-phase1-native-call-audit-v1",
   "audit_source_sha256": "9563d6bbecc1da3cacd3ad97965c6db0b390f076d8f89ea1fc3f6c3365045259",
-  "observed_at": "2026-10-28T16:54:51.751162+00:00",
+  "observed_at": "2026-10-28T17:19:06.031972+00:00",
   "rounds": [
     {
       "case": "haitian",
@@ -416,34 +416,60 @@
       "stage": "frozen-report",
       "model": "qwen3.8-max",
       "state": "in_progress_or_unrecorded_stop",
-      "logical_model_requests": 2,
-      "logical_model_returns": 1,
+      "logical_model_requests": 15,
+      "logical_model_returns": 14,
       "finish_reasons": {
-        "stop": 1
+        "stop": 14
       },
       "logical_model_failures": 0,
       "logical_without_recorded_return_or_failure": 1,
       "event_counts": {
         "http_returned": 1,
-        "model_started": 2,
-        "model_http_started": 2,
-        "model_http_headers": 2,
-        "model_returned": 1
+        "model_started": 15,
+        "model_http_started": 15,
+        "model_http_headers": 15,
+        "model_returned": 14
       },
       "model_http_statuses": {
-        "200": 2
+        "200": 15
       },
       "returned_reported_token_usage": {
-        "input_tokens": 5047,
-        "output_tokens": 9903,
-        "total_tokens": 14950,
-        "reasoning_tokens": 4940
+        "input_tokens": 70245,
+        "output_tokens": 157377,
+        "total_tokens": 227622,
+        "reasoning_tokens": 105022
       },
       "partial_or_malformed_ledger_lines": [],
       "plan_sha256": "9f0d6bde73ede916b675f9a76dadbeef4df4e00b0f787a39af696d03b194dddb",
-      "observed_ledger_sha256": "4a9506ea8e2d538ea7647c4f8c3f550325c5cd471c067a128c94ab1ec1d1c7be",
-      "observed_ledger_bytes": 2035,
+      "observed_ledger_sha256": "9a88ba478253d8c206d1ec2f1db39ee8d3c60837eb55050f4ad0d06450d6ff66",
+      "observed_ledger_bytes": 15520,
       "result_sha256": null,
+      "stop_proofs": {},
+      "report_acceptance": "not_inferred_from_calls",
+      "actual_currency_cost": null
+    },
+    {
+      "case": "kingsoft",
+      "tag": "20261028T165519188680",
+      "code_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
+      "stage": "frozen-report",
+      "model": "qwen3.8-max",
+      "state": "model_call_budget_exhausted",
+      "logical_model_requests": 0,
+      "logical_model_returns": 0,
+      "finish_reasons": {},
+      "logical_model_failures": 0,
+      "logical_without_recorded_return_or_failure": 0,
+      "event_counts": {
+        "http_returned": 1
+      },
+      "model_http_statuses": {},
+      "returned_reported_token_usage": {},
+      "partial_or_malformed_ledger_lines": [],
+      "plan_sha256": "d940a48cadbe5e7b725b236ae9b899af83466738f3ac5ca93c0a9d9b2fbe7f3f",
+      "observed_ledger_sha256": "1c8a40388477690b77b5201483121ddd60dc8d85aa831df694f6e1c523f11105",
+      "observed_ledger_bytes": 238,
+      "result_sha256": "624a0b2cddc45d654e7d34a4dae949fd7405d5849d1b23c57602334f7a478557",
       "stop_proofs": {},
       "report_acceptance": "not_inferred_from_calls",
       "actual_currency_cost": null

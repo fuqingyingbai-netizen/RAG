@@ -1,18 +1,18 @@
 {
   "backend_product_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
-  "checked_repository_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
-  "backend_test_frontend_files_unchanged_since_test_commit": false,
+  "checked_repository_commit": "04486c43af2230b2c0c836988cb6c653f540fc0c",
+  "backend_test_frontend_files_unchanged_since_test_commit": true,
   "backend": {
-    "passed": 4205,
+    "tested_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
+    "passed": 4213,
     "skipped": 1,
     "failures": 0,
     "errors": 0,
     "warnings": 2340,
-    "seconds": 1287.301,
+    "seconds": 1988.724,
     "network_allowed": false,
     "plugin_autoload": false,
-    "pytest_reported_wall_seconds": 1287.33,
-    "tested_commit": "6e6bf3b5423e75b343d15fc7ad5731c914d823fa"
+    "pytest_reported_wall_seconds": 1988.92
   },
   "frontend": {
     "passed": 118,
@@ -45,13 +45,44 @@
       "sha256": "2cc2d11ae44a7c14289db94450a3d992598469dc1567dbb1429a8de0eb0c29a5",
       "bytes": 182,
       "native_log": "work/company-phase1-20261028/chapter-encoding-regression.log"
+    },
+    "deliverables/company-phase1-20261028/test-results/full-regression-2099cd3.xml": {
+      "sha256": "53d7cf900acad155a32a6185b56f07dfa616c85fcb55cbe85e2437e9c5afd739",
+      "bytes": 767979,
+      "native_log": "work/company-phase1-20261028/full-regression-2099cd3-run2.xml"
+    },
+    "deliverables/company-phase1-20261028/test-results/full-regression-2099cd3.txt": {
+      "sha256": "f1850b5b26c58ec302a25d90caad7c5cb51fe1e3e91157c500ef44edd689d35b",
+      "bytes": 28609,
+      "native_log": "work/company-phase1-20261028/full-regression-2099cd3-run2.log"
     }
   },
   "full_report_accepted": false,
   "real_browser_and_word_all_pages_review": "pending_final_candidate",
-  "latest_product_full_regression": "pending; full-regression-2099cd3-run2.xml/log; initial invocation failed before collection because anyio plugin was loaded twice",
+  "latest_product_full_regression": "passed; full-regression-2099cd3.xml/txt",
   "frontend_files_unchanged_since_d8d4d77": true,
   "last_completed_backend_full_regression": {
+    "tested_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
+    "passed": 4213,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "warnings": 2340,
+    "seconds": 1988.724,
+    "network_allowed": false,
+    "plugin_autoload": false,
+    "pytest_reported_wall_seconds": 1988.92
+  },
+  "focused_legacy_audit_regression": {
+    "passed": 49,
+    "failures": 0,
+    "seconds": 4.53,
+    "files": [
+      "test-results/legacy-audit-ocr-regression.log",
+      "test-results/legacy-audit-ocr-regression.xml"
+    ]
+  },
+  "previous_completed_backend_full_regression": {
     "passed": 4205,
     "skipped": 1,
     "failures": 0,
@@ -62,14 +93,5 @@
     "plugin_autoload": false,
     "pytest_reported_wall_seconds": 1287.33,
     "tested_commit": "6e6bf3b5423e75b343d15fc7ad5731c914d823fa"
-  },
-  "focused_legacy_audit_regression": {
-    "passed": 49,
-    "failures": 0,
-    "seconds": 4.53,
-    "files": [
-      "test-results/legacy-audit-ocr-regression.log",
-      "test-results/legacy-audit-ocr-regression.xml"
-    ]
   }
 }
