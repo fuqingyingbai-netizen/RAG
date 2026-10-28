@@ -1,0 +1,56 @@
+{
+  "assessment_version": "company-assessment-v6-issuer-listing-actual-net-proceeds",
+  "rubric": [
+    {
+      "id": "revenue",
+      "name": "收入延续与增长",
+      "weight": 20,
+      "anchors": "1=收入归零或连续两次同比下降；2=本期收入同比下降但仍为正；3=同比持平或从零转收入；4=本期同比增长；5=连续两次年度同比增长。零收入研发阶段另评，不默认1分。"
+    },
+    {
+      "id": "earnings_cash",
+      "name": "盈利与经营现金流表现",
+      "weight": 25,
+      "anchors": "1=归母净利润与经营现金流均为负；2=其中一项为负或为零；3=两项均正但至少一项同比下降；4=两项均正且均不下降；5=连续两次年度比较均满足4分。两者口径不同，不相除作为现金转化率。"
+    },
+    {
+      "id": "technology",
+      "name": "研发成果商业兑现",
+      "weight": 15,
+      "anchors": "公司分按明确合并范围的研发成果/核心技术产品收入同期趋势评价，1—5锚点同收入趋势；不代表技术性能领先。项目级2=已到样品/试制，3=已披露量产/交付。没有公司范围商业贡献时，不取最好项目或项目数量代替公司分。"
+    },
+    {
+      "id": "funding",
+      "name": "近期融资执行",
+      "weight": 15,
+      "anchors": "3=目标法人近期融资已完成并披露实际募集净额/到账；5=至少两个相互独立、不同年度融资周期均已完成及实际净额。拟议、批准、子公司融资、估值或授信额度不加分。无近期融资不代表能力差。此项不等于偿债能力。"
+    },
+    {
+      "id": "control",
+      "name": "财务报告内控结果",
+      "weight": 15,
+      "anchors": "1=审计明确财务报告内控无效/否定；2=明确保留意见且有未消除缺陷；3=明确截至日重大方面有效；4=连续两年度明确有效。一般制度、定性缺陷标准、财务报表审计意见或“未发现”不替代内控有效性结论。"
+    },
+    {
+      "id": "team",
+      "name": "组织目标执行结果",
+      "weight": 10,
+      "anchors": "明确全公司考核范围、原考核权重、期前批准目标和同期间实际结果：1=实际为零且目标正；2=未达标；3=达标；4=超目标。按原权重汇总，不以目标设置宽松推同业领先，也不推个人能力或因果归因。岗位、年龄、持股与任期不直接评分。"
+    }
+  ],
+  "functions": {
+    "aggregate_scores": 404,
+    "build_assessment_package": 547
+  },
+  "risk_dictionary_version": "company-risk-dictionary-v1",
+  "risk_question_count": 75,
+  "template_reference": "桌面研究报告与建议书内容模板.xlsx / 目标公司桌面研究!B24",
+  "template_sha256": "8dd0d1b1f366aa0a2602b98c3d82d378b5d1ebd9b5b5e49130d45a43d5683adf",
+  "source_sha256": {
+    "backend/report_agents/company_risk_register.py": "b9705c544b2ade37c7c35b2b8e18ff0f0344cea4b39d4eb8859c5ea3bd29236b",
+    "backend/report_agents/company_assessment.py": "438b6381557b1b95db28d7822c6e9ca1013fe817bbe022fdbbb1d7c01b0a9a54",
+    "backend/report_agents/company_risk_dictionary.json": "81473080719329c6801491248eda23ffb355352dcdf56b0b306d05376b732245"
+  },
+  "sample_report_accepted": false,
+  "scope": "Implementation rule inventory only; not an external certification or a sample scoring result."
+}
