@@ -1,0 +1,11 @@
+........................................................................ [ 26%]
+........................................................................ [ 53%]
+........................................................................ [ 79%]
+.......................................................                  [100%]
+============================== warnings summary ===============================
+test/test_company_event_evidence.py::test_equity_svg_separates_date_so_the_exact_percentage_is_not_clipped
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\research_workflow.py:214: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y%m%d%H%M%S")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+271 passed, 1 warning in 9.73s
