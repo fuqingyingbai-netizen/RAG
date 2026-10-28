@@ -24,7 +24,7 @@ from .company_source_review import (
     BOUNDARIES, TOPICS, NAVIGATION, external_standard_participation,
 )
 
-VERSION='company-corpus-v11-bounded-industry-and-standard-roles'
+VERSION='company-corpus-v12-audited-chapter-encoding'
 PLATFORM_HOSTS=('qcc.com','tianyancha.com','qixin.com','aiqicha.baidu.com',
                 'qichamao.com','xcc.cn','itjuzi.com','xiniu.com','zhipin.com',
                 'liepin.com','lagou.com','maimai.cn','kanzhun.com')
@@ -417,7 +417,8 @@ def build_corpus_review(project,cleaned,sections,invoke,emit,trace_emit=None,*,p
         prior=cached.get(batch_key(batch))
         if not prior and old.get('version') in {'company-corpus-v2-native-guard-and-literal-reuse','company-corpus-v6-explicit-research-scope',
                 'company-corpus-v7-explicit-entity-admission','company-corpus-v8-subject-bound-registry-fields',
-                'company-corpus-v9-complete-registry-field-context','company-corpus-v10-issuer-reply-authorship'}:
+                'company-corpus-v9-complete-registry-field-context','company-corpus-v10-issuer-reply-authorship',
+                'company-corpus-v11-bounded-industry-and-standard-roles'}:
             # Identical old inputs can reuse a response, but each proposed
             # literal is validated again below with the current guards.
             prior=cached.get(batch_key(batch,old['version']))
@@ -469,7 +470,9 @@ def build_corpus_review(project,cleaned,sections,invoke,emit,trace_emit=None,*,p
                     record['relevance_status']='model_proposal_not_a_verified_conclusion'
                     record['subject_reference']=next(w['subject_reference'] for w in doc['windows'] if w['window_id']==selection.get('window_id'))
                     facts.append(record);accepted[record['source_id']]+=1
-                else:rejections.append({'evidence_id':selection.get('evidence_id') if isinstance(selection,dict) else '', 'reason':reason})
+                else:rejections.append({'evidence_id':selection.get('evidence_id') if isinstance(selection,dict) else '',
+                    'window_id':selection.get('window_id') if isinstance(selection,dict) else '',
+                    'proposed_chapter':selection.get('chapter') if isinstance(selection,dict) else None,'reason':reason})
             for doc in batch:
                 state=states[doc['source_id']]
                 if doc['evidence_id'] in decisions:state['reviewed_windows']+=len(doc['windows'])
@@ -511,7 +514,10 @@ def build_corpus_review(project,cleaned,sections,invoke,emit,trace_emit=None,*,p
         decisions=state['review_decisions']
         errors=[d for d in decisions if d.get('error')]
         state['validation_rejections']=[r['reason'] for r in rejections if r['evidence_id']==state['evidence_id']]
-        state['state']='reviewed_literal_claims' if state['accepted_claims'] else 'review_call_failed' if errors else 'reviewed_no_accepted_claim'
+        state['state']=('reviewed_literal_claims' if state['accepted_claims'] else 'review_call_failed' if errors else
+                        'reviewed_selections_rejected' if state['validation_rejections'] else 'reviewed_no_accepted_claim')
+        if state['state']=='reviewed_selections_rejected':
+            state['reason']='模型提出的条目未通过原文、范围或格式校验；不代表没有找到资料，具体拒绝原因另列。'
         if state['reviewed_windows']!=state['review_windows']:state['state']='review_incomplete'
     return {'version':VERSION,'target_name':target,'research_as_of':as_of,'research_context':context,'facts':facts,'appendix_statements':[],
         'source_review':states,'review_receipts':sorted(receipts,key=lambda r:r['batch']),

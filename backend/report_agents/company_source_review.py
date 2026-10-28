@@ -20,7 +20,7 @@ from .company_governance import get, _table, refs, cited_evidence_ids
 from .company_issuer_identity import build_issuer_identity, publisher_anchor
 from .company_text import match_compact, match_text,issuer_response_title
 
-VERSION = 'company-source-review-v5-contained-quotation'
+VERSION = 'company-source-review-v6-canonical-chapter-encoding'
 FAILURES = {'empty','empty_pdf','invalid_pdf_response','blocked_or_challenge','unsupported_content_type',
             'fetch_timeout','timeout','failed','fetch_failed','skipped'}
 TOPICS = {
@@ -271,6 +271,11 @@ def validate_selection(row, documents, target, as_of=''):
     # Model text is never copied into the report when selecting by ID.
     quote=chosen['quote'] if chosen else str(row.get('quote') or '').strip()
     chapter=row.get('chapter')
+    chapter_encoding=None
+    if isinstance(chapter,str) and chapter in {str(n) for n in TOPICS}:
+        chapter_encoding={'field':'chapter','proposed':chapter,'accepted':int(chapter),
+                          'reason':'canonical_numeric_chapter_encoding'}
+        chapter=int(chapter)
     if type(chapter) is not int or chapter not in TOPICS:return None,'invalid_chapter'
     window=next((w for w in doc['windows'] if quote and quote in w['quote'] and chapter in w['candidate_chapters']),None)
     if not window or not 35<=len(quote)<=1200:return None,'nonliteral_or_unrouted_quote'
@@ -285,7 +290,7 @@ def validate_selection(row, documents, target, as_of=''):
     from .company_reputation import _mentions
     local_alias=bool(corpus_aliases and _mentions(normal,corpus_aliases))
     industry_only=window.get('subject_reference')=='industry_context_only'
-    corrections=[]
+    corrections=[chapter_encoding] if chapter_encoding else []
     row=dict(row)
     related=binding.get('entity_validation')=='related_entity_context'
     if related and row.get('scope')!='industry_context':
@@ -530,10 +535,14 @@ def build_source_review(project, cleaned, sections, invoke, emit, trace_emit=Non
                 else:rejected.append({'evidence_id':row.get('evidence_id') if isinstance(row,dict) else '', 'reason':reason or 'source_claim_budget'})
             for doc in batch:
                 info=status[doc['source_id']];decision=decisions.get(doc['evidence_id'],{})
+                validation_rejections=[r['reason'] for r in rejected if r['evidence_id']==doc['evidence_id']]
                 info.update(state='review_call_failed' if error else 'reviewed_literal_claims' if accepted[doc['evidence_id']] else
+                            'reviewed_selections_rejected' if validation_rejections else
                             'reviewed_no_accepted_claim' if decision else 'review_response_missing_source',
                             review_reason=str(decision.get('reason') or ''),accepted_claims=accepted[doc['evidence_id']])
-                info['validation_rejections']=[r['reason'] for r in rejected if r['evidence_id']==doc['evidence_id']]
+                info['validation_rejections']=validation_rejections
+                if info['state']=='reviewed_selections_rejected':
+                    info['reason']='模型提出的条目未通过原文、范围或格式校验；不代表没有找到资料，具体拒绝原因另列。'
             receipts.append({'evidence_ids':list(lookup),'error':error,'response':result})
             emit(trace_emit,'report','company_source_review','原文批次复核完成',
                  f'reviewed={sum(len(r["evidence_ids"]) for r in receipts)}, literal_claims={len(facts)}',status='running')
