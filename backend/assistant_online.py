@@ -7,6 +7,11 @@ from urllib.parse import quote, urlsplit
 
 import requests
 
+try:
+    from .tavily_keys import get_tavily_pool, tavily_api_keys
+except ImportError:
+    from tavily_keys import get_tavily_pool, tavily_api_keys
+
 CHINA_TIME = timezone(timedelta(hours=8))
 
 TOOLS = [
@@ -109,11 +114,11 @@ def search_web(query, news=False, time_range='', include_domains=None):
         return {'status': 'error', 'message': '网站范围必须使用域名列表。'}
     provider = os.getenv('ASSISTANT_SEARCH_PROVIDER', '').strip().lower()
     if not provider:
-        provider = 'tavily' if os.getenv('TAVILY_API_KEY') else 'serper'
+        provider = 'tavily' if tavily_api_keys() else 'serper'
     if provider not in ('tavily', 'serper'):
         return {'status': 'error', 'message': '小助手搜索服务未配置，请管理员选择 tavily 或 serper。'}
     key = os.getenv(provider.upper() + '_API_KEY', '').strip()
-    if not key:
+    if not (tavily_api_keys() if provider == 'tavily' else key):
         return {'status': 'error', 'message': '小助手搜索密钥未配置，请联系管理员。'}
     domains = [str(domain).lower().strip() for domain in (include_domains or [])[:5]
                if re.fullmatch(r'(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}', str(domain).strip())]
@@ -128,10 +133,8 @@ def search_web(query, news=False, time_range='', include_domains=None):
                 params['time_range'] = time_range
             if domains:
                 params['include_domains'] = domains
-            response = requests.post('https://api.tavily.com/search', json=params,
-                headers={'Authorization': 'Bearer ' + key}, timeout=(5, 18))
-            response.raise_for_status()
-            rows = response.json().get('results') or []
+            payload, _key_audit = get_tavily_pool().search(params, timeout=(5, 18), post=requests.post)
+            rows = payload.get('results') or []
         else:
             params = {'q': query, 'num': 5}
             if domains:
