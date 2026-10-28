@@ -335,10 +335,17 @@ class ResearchWorkflow:
         )
         return self._model
 
-    def _invoke(self, role: str, prompt: str, emit: TraceEmitter | None = None, *, stream: bool | None = None) -> str:
+    @staticmethod
+    def _company_analysis_configured():
+        return (_env_int('COMPANY_ANALYSIS_MAX_COMPLETION_TOKENS',0,0,131072)>0 or
+                _env_int('COMPANY_ANALYSIS_THINKING_BUDGET',0,0,262144)>0 or
+                bool(os.getenv('COMPANY_ANALYSIS_REASONING_EFFORT','').strip()))
+
+    def _invoke(self, role: str, prompt: str, emit: TraceEmitter | None = None, *, stream: bool | None = None,
+                company_analysis: bool = False) -> str:
         if stream is None and role == "公司数据清洗 Agent":
             stream = os.getenv("COMPANY_CLEANING_STREAMING_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
-        model = self._get_model()
+        model = self._get_company_report_editor_model(profile='analysis') if company_analysis else self._get_model()
         if not model:
             _emit(emit, "llm", "workflow", "大模型未配置，使用降级逻辑", "", status="fallback")
             return ""
@@ -355,7 +362,7 @@ class ResearchWorkflow:
                     {"role": "user", "content": prompt},
                 ], **({'stream': stream} if stream is not None else {})
             )
-            if stream is not None and (getattr(result, 'response_metadata', {}) or {}).get('finish_reason') != 'stop':
+            if (stream is not None or company_analysis) and (getattr(result, 'response_metadata', {}) or {}).get('finish_reason') != 'stop':
                 raise ValueError('company_response_incomplete')
             content = str(result.content or "")
             _emit(emit, "llm", role, "大模型调用完成", f"chars={len(content)}", status="done")
@@ -498,17 +505,23 @@ class ResearchWorkflow:
         if not os.getenv("ARK_API_KEY") or not os.getenv("MODEL"):
             return ""
         repair = "修订" in role
+        completion_limit=_env_int('COMPANY_SUMMARY_MAX_COMPLETION_TOKENS',0,0,131072)
+        reasoning_effort=os.getenv('COMPANY_SUMMARY_REASONING_EFFORT','').strip().lower()
         try:
             model = init_chat_model(
                 model=os.environ["MODEL"], model_provider="openai",
                 api_key=os.environ["ARK_API_KEY"], base_url=os.getenv("BASE_URL"),
-                temperature=0.1, max_tokens=2400, max_retries=0,
+                temperature=0.1, max_tokens=completion_limit or 2400, max_retries=0,
+                **({'reasoning_effort':reasoning_effort} if reasoning_effort else {}),
                 timeout=_env_int("COMPANY_SUMMARY_REPAIR_TIMEOUT_SECONDS" if repair else "COMPANY_SUMMARY_TIMEOUT_SECONDS", 45 if repair else 75, 10, 180),
             )
             response = model.invoke([
                 {"role": "system", "content": "只依据完整事实卡撰写中文公司摘要，保留主体、时间、数值单位和证据编号。"},
                 {"role": "user", "content": prompt},
             ])
+            if ((completion_limit or reasoning_effort) and
+                    (getattr(response,'response_metadata',{}) or {}).get('finish_reason')!='stop'):
+                raise ValueError('company_summary_response_incomplete')
             return str(response.content or "")
         except Exception as exc:
             _emit(emit, "llm", role, "公司摘要模型调用失败", type(exc).__name__, status="fallback")
@@ -629,9 +642,12 @@ class ResearchWorkflow:
             return ""
 
     def _get_company_report_editor_model(self, *, profile='editor'):
-        if profile not in {'editor','main_focus'}:
+        profiles={'editor':('_company_report_editor_model','COMPANY_REPORT_EDITOR'),
+                  'main_focus':('_company_main_focus_model','COMPANY_MAIN_FOCUS'),
+                  'analysis':('_company_analysis_model','COMPANY_ANALYSIS')}
+        if profile not in profiles:
             raise ValueError('invalid_company_editor_profile')
-        attribute = '_company_main_focus_model' if profile == 'main_focus' else '_company_report_editor_model'
+        attribute,prefix=profiles[profile]
         cached = getattr(self, attribute, None)
         if cached is not None:
             return cached
@@ -640,7 +656,6 @@ class ResearchWorkflow:
         base_url = os.getenv("BASE_URL")
         if not api_key or not model_name:
             return None
-        prefix = 'COMPANY_MAIN_FOCUS' if profile == 'main_focus' else 'COMPANY_REPORT_EDITOR'
         completion_limit=_env_int(prefix+'_MAX_COMPLETION_TOKENS',0,0,131072)
         reasoning_effort=os.getenv(prefix+'_REASONING_EFFORT','').strip().lower()
         thinking_budget=_env_int(prefix+'_THINKING_BUDGET',0,0,262144)
@@ -651,11 +666,13 @@ class ResearchWorkflow:
             model_provider="openai",
             api_key=api_key,
             base_url=base_url,
-            temperature=0.1,
+            temperature=0.2 if profile=='analysis' else 0.1,
             stream_usage=True,
             streaming=os.getenv('COMPANY_REPORT_EDITOR_STREAMING_ENABLED', 'true').strip().lower() in {'1','true','yes','on'},
-            timeout=_env_int("COMPANY_REPORT_EDITOR_TIMEOUT_SECONDS", 150, 30, 600),
-            max_retries=_env_int("COMPANY_REPORT_EDITOR_MAX_RETRIES", 1, 0, 1),
+            timeout=(_env_int('COMPANY_ANALYSIS_TIMEOUT_SECONDS',_env_int('LLM_TIMEOUT_SECONDS',120,10,600),10,600)
+                     if profile=='analysis' else _env_int("COMPANY_REPORT_EDITOR_TIMEOUT_SECONDS",150,30,600)),
+            max_retries=(_env_int('COMPANY_ANALYSIS_MAX_RETRIES',_env_int('LLM_MAX_RETRIES',2,0,5),0,5)
+                         if profile=='analysis' else _env_int("COMPANY_REPORT_EDITOR_MAX_RETRIES",1,0,1)),
             **({'max_tokens':completion_limit} if completion_limit else {}),
             **({'reasoning_effort':reasoning_effort} if reasoning_effort else {}),
             **({'extra_body':{'thinking_budget':thinking_budget,'enable_thinking':True}} if thinking_budget else {}),
@@ -5985,7 +6002,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                     timeout_seconds=min(remaining, _env_int('INDUSTRY_CLEANING_TIMEOUT_SECONDS', 60, 10, 120)))
             else:
                 role = "公司数据清洗 Agent" if target_type == "company" else "数据清洗 Agent"
-                answer = self._invoke(role, prompt, emit=emit)
+                answer = self._invoke(role, prompt, emit=emit,
+                    **({'company_analysis':True} if target_type=='company' and self._company_analysis_configured() else {}))
             parsed = _plain_json(answer, allow_preface=not industry_mode)
             if isinstance(parsed, dict):
                 if industry_mode:
@@ -6554,6 +6572,7 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                 return self._invoke_company_report_editor(role, prompt, emit=trace_emit)
             if target_type == 'company':
                 return self._invoke(role, prompt, emit=trace_emit,
+                    **({'company_analysis':True} if self._company_analysis_configured() else {}),
                     stream=os.getenv('COMPANY_REPORT_EDITOR_STREAMING_ENABLED','true').strip().lower() in {'1','true','yes','on'})
             return self._invoke(role, prompt, emit=trace_emit)
 

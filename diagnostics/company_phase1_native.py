@@ -303,6 +303,11 @@ def main():
           'company_main_focus_thinking_budget':os.getenv('COMPANY_MAIN_FOCUS_THINKING_BUDGET','provider_default'),
           'company_main_focus_batch_chars':os.getenv('COMPANY_MAIN_FOCUS_BATCH_CHARS','26000'),
           'company_main_focus_batch_records':os.getenv('COMPANY_MAIN_FOCUS_BATCH_RECORDS','12'),
+          'company_analysis_completion_budget':os.getenv('COMPANY_ANALYSIS_MAX_COMPLETION_TOKENS','provider_default'),
+          'company_analysis_reasoning_effort':os.getenv('COMPANY_ANALYSIS_REASONING_EFFORT','provider_default'),
+          'company_analysis_thinking_budget':os.getenv('COMPANY_ANALYSIS_THINKING_BUDGET','provider_default'),
+          'company_summary_completion_budget':os.getenv('COMPANY_SUMMARY_MAX_COMPLETION_TOKENS','2400'),
+          'company_summary_reasoning_effort':os.getenv('COMPANY_SUMMARY_REASONING_EFFORT','provider_default'),
           'model_concurrency_enforced_by_semaphore': 1, 'requests_concurrency_enforced_by_semaphore': 2,
           'code_sha256': code_hashes, 'settings_overrides': overrides,
           'sdk_retries_remain_configured': True, 'original_model_responses_modified': False})

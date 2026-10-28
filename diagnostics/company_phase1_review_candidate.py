@@ -14,6 +14,7 @@ from pathlib import Path
 import re
 import sqlite3
 import zipfile
+from urllib.parse import unquote, urlsplit
 
 from markdown_it import MarkdownIt
 
@@ -23,6 +24,27 @@ RUN = ROOT / 'work/company-phase1-20261028'
 
 def sha(payload):
     return hashlib.sha256(payload).hexdigest()
+
+
+def local_image_assets(markdown,object_root):
+    """Keep native object-relative image links usable without rewriting the MD."""
+    assets={};root=object_root.resolve()
+    def visit(tokens):
+        for token in tokens:
+            if token.type=='image':
+                source=str(token.attrGet('src') or '')
+                parsed=urlsplit(source)
+                if parsed.scheme or parsed.netloc:continue
+                relative=unquote(parsed.path)
+                if not relative or relative.startswith('/') or '\\' in relative:
+                    raise RuntimeError('Unsupported local report image path.')
+                path=(root/relative).resolve()
+                if not path.is_relative_to(root) or not path.is_file():
+                    raise RuntimeError('Missing or escaped native report image: '+relative)
+                assets[path.relative_to(root).as_posix()]=path.read_bytes()
+            if token.children:visit(token.children)
+    visit(MarkdownIt('commonmark').parse(markdown.decode('utf-8')))
+    return assets
 
 
 def main():
@@ -87,6 +109,7 @@ def main():
     # Generated from the exact Markdown, without changing a factual sentence.
     # Disallow raw source HTML and use CommonMark's safe link handling.
     renderer = MarkdownIt('commonmark', {'html': False}).enable('table')
+    image_assets=local_image_assets(markdown,native/'objects')
     chapter_links = []
     def heading_open(tokens, index, options, env):
         if tokens[index].tag == 'h2' and index + 1 < len(tokens):
@@ -115,6 +138,7 @@ def main():
                'th,td{border:1px solid #d9d9d9;padding:10px 12px;text-align:left;overflow-wrap:anywhere}'
                'th{background:#eaf0f5}tr:nth-child(even){background:#fafafa}'
                'a{color:#185b86;overflow-wrap:anywhere}p,li{overflow-wrap:anywhere}'
+               'img{max-width:100%;height:auto;display:block;margin:1em auto}'
                'blockquote{margin:1em 0 1em 1.4em}pre{white-space:pre-wrap;overflow-wrap:anywhere}'
                'nav{font-size:14px;margin-bottom:2em}@media(max-width:700px){main{padding:22px 18px}table{font-size:13px}}'
                '</style><main><nav><a href="报告.md">Markdown</a> · '
@@ -122,6 +146,7 @@ def main():
                + directory + '<article>' + body + '</article></main></html>').encode('utf-8')
     files = {'报告.md': markdown, '报告.html': webpage, '分析主报告.docx': docx,
              '完整证据附件.html': annex, '原生交付包.zip': bundle}
+    files.update(image_assets)
     renderer_source_sha256 = sha(Path(__file__).read_bytes())
     candidate_id = sha(json.dumps({'files': {name: sha(payload) for name, payload in files.items()},
                                   'renderer_source_sha256': renderer_source_sha256}, sort_keys=True).encode())
@@ -129,6 +154,7 @@ def main():
     destination.mkdir(parents=True, exist_ok=True)
     for name, payload in files.items():
         path = destination / name
+        path.parent.mkdir(parents=True,exist_ok=True)
         if path.exists() and path.read_bytes() != payload:
             raise RuntimeError('An immutable QA candidate already has different bytes: ' + name)
         path.write_bytes(payload)

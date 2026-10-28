@@ -1,0 +1,18 @@
+{
+  "purpose": "Offline image packaging helper check using old report links; not a new candidate or report acceptance.",
+  "assets": {
+    "projects/1/visual_evidence/equity_graph_20261026211940.svg": {
+      "sha256": "b6dad608b3da342fc3c4796d09c5e2d966bf8311cd244ba8fee6e95fac35a80f",
+      "bytes": 7571
+    },
+    "projects/1/visual_evidence/relationship_graph_20261026211940.svg": {
+      "sha256": "8e2eed98a00abc23f8dc4d17548f2d3b32f4a5ef26c7ed693922e5d80b5a241f",
+      "bytes": 6256
+    }
+  },
+  "path_traversal_rejected": true,
+  "missing_image_rejected": true,
+  "network_calls": 0,
+  "native_sources_modified": false,
+  "report_accepted": false
+}
