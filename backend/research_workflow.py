@@ -995,14 +995,14 @@ class ResearchWorkflow:
             company_diligence_queries = diligence_discovery_queries(list(project.sources or []), str(project.target_name or ""))
             from report_agents.company_risk_register import recall_discovery_queries
             company_diligence_queries += recall_discovery_queries(list(project.sources or []), str(project.target_name or ""))
-        skip_web_search = bool(
+        resume_coverage_ready = bool(
             resume_enabled
             and not force_refresh
             and sources_match_intake
             and required_modules
             and all(existing_module_counts.get(module, 0) >= resume_min_per_module for module in required_modules)
-            and not company_diligence_queries
         )
+        skip_web_search = resume_coverage_ready and not company_diligence_queries
         if standardized_type == "person":
             prior_retrieval = self._latest_artifact(project, "person_retrieval_audit")
             skip_web_search = bool(resume_enabled and not force_refresh and sources_match_intake
@@ -1021,6 +1021,14 @@ class ResearchWorkflow:
                 status="skipped",
             )
         else:
+            collection_intake = normalized_intake
+            if standardized_type == 'company' and resume_coverage_ready and company_diligence_queries:
+                from company_requirements import resume_gap_intake
+                collection_intake = resume_gap_intake(normalized_intake, company_diligence_queries,
+                    plan.get('company_requirements') or [])
+                _emit(emit, 'web_search', 'company_diligence_discovery_agent',
+                    '复用既有模块来源，仅补查已识别的专项缺口',
+                    f'queries={len(collection_intake["company_resume_gap_queries"])}', status='running')
             try:
                 sources_added = self.collect_web_sources(
                     db,
@@ -1030,7 +1038,7 @@ class ResearchWorkflow:
                     max_results_per_query,
                     emit=emit,
                     plan=plan,
-                    intake=normalized_intake,
+                    intake=collection_intake,
                     reuse_archived=allow_archive_reuse,
                     pause_requested=pause_requested,
                 )
@@ -4514,8 +4522,10 @@ class ResearchWorkflow:
                 if collection_emit:collection_emit(event)
             emit=company_emit
 
-        expanded_query_items = (list(intake['company_delivery_repair_queries'])
-            if intake.get('company_delivery_repair_queries') else self._expand_search_queries(plan, intake))
+        company_selected_queries = (intake.get('company_delivery_repair_queries')
+            or intake.get('company_resume_gap_queries')) if intake.get('target_type') == 'company' else None
+        expanded_query_items = (list(company_selected_queries)
+            if company_selected_queries else self._expand_search_queries(plan, intake))
         if intake.get('target_type')=='industry' and plan.get('evidence_requirements') and not intake.get('search_queries'):
             active=self._active_industry_sources(project)
             counts=Counter(str((s.source_metadata or {}).get('module') or '') for s in active if (s.content or '').strip())
@@ -4527,7 +4537,7 @@ class ResearchWorkflow:
                     _emit(emit,'web_search','coverage_agent','复用已有来源，仅补采指标证据缺口',
                           f'queries={len(expanded_query_items)}',status='running')
         discovered_company_recalls: set[str] = set()
-        if str(intake.get("target_type") or "").lower() == "company" and not intake.get('company_delivery_repair_queries'):
+        if str(intake.get("target_type") or "").lower() == "company" and not company_selected_queries:
             from report_agents.company_risk_register import recall_discovery_queries
             from report_agents.company_assessment import assessment_discovery_queries
             expanded_query_items = recall_discovery_queries(list(project.sources or []),

@@ -151,3 +151,15 @@ def platform_requirement_ids(requirements, provider, tool, arguments):
     return sorted({r['requirement_id'] for r in requirements for route in r.get('routes', [])
                    if route['provider'] == provider and route['tool'] == tool and
                    all(arguments.get(k) == v for k, v in route['arguments'].items())})
+
+
+def resume_gap_intake(intake, queries, requirements):
+    """One bounded pass of proven gaps; existing coverage is not acceptance."""
+    selected = []
+    seen = set()
+    for row in bind_queries(queries, requirements):
+        key = fingerprint(row)
+        if key not in seen:
+            selected.append(dict(row))
+            seen.add(key)
+    return {**intake, 'company_resume_gap_queries': selected, 'max_search_rounds': 1}

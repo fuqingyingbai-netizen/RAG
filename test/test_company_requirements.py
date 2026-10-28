@@ -3,8 +3,9 @@ from copy import deepcopy
 from pathlib import Path
 import re
 from types import SimpleNamespace
+import pytest
 
-from company_requirements import build_requirements, platform_requirement_ids, VERSION
+from company_requirements import build_requirements, platform_requirement_ids, resume_gap_intake, VERSION
 from company_platform import CompanyPlatformAudit
 from research_strategies import get_research_strategy
 from research_workflow import ResearchWorkflow
@@ -78,6 +79,53 @@ def test_platform_quota_failure_remains_a_collection_gap_linked_to_the_question(
 def test_unknown_choice_requires_a_real_question_instead_of_claiming_a_supported_route():
     row = build_requirements(['客户自定义专项'], intake())[0]
     assert row['state'] == 'requires_specific_question' and row['routes'] == []
+
+
+def test_resume_uses_only_specific_gaps_without_mutating_intake_or_claiming_acceptance():
+    original=intake(max_search_rounds=4, ai_search_enabled=True)
+    query={'module':'收入情况','query':'示例制造股份有限公司 半年度报告 现金流量 原文',
+           'search_tier':'authority_first'}
+    rows=build_requirements(['收入情况'],original)
+    result=resume_gap_intake(original,[query,query],rows)
+    assert result['max_search_rounds']==1 and result['ai_search_enabled'] is True
+    assert len(result['company_resume_gap_queries'])==1
+    assert result['company_resume_gap_queries'][0]['company_requirement_ids']==[rows[0]['requirement_id']]
+    assert original['max_search_rounds']==4 and 'company_resume_gap_queries' not in original
+    assert 'delivery_ready' not in result
+
+
+def test_real_resume_and_collector_pass_only_gap_queries_with_requirement_ids(monkeypatch):
+    """Exercise both entry points; abort at the network boundary, before calls."""
+    class ReachedSearch(BaseException):pass
+    workflow=ResearchWorkflow()
+    config=intake(focus_modules=['收入情况'],max_search_rounds=4)
+    project=SimpleNamespace(id=1,title='研究',target_name=config['target_name'],target_type='company',
+        industry='制造业',artifacts=[],sources=[SimpleNamespace(id=1,title='历史报告',url='https://example.org/a',
+            source_type='web',content='历史原文',summary='',source_metadata={'module':'收入情况'})])
+    db=SimpleNamespace(commit=lambda:None)
+    monkeypatch.setattr(workflow,'_normalize_intake',lambda *a:config)
+    monkeypatch.setattr(workflow,'_company_chart_refresh_candidates',lambda *a:[])
+    monkeypatch.setattr(workflow,'_project_sources_match_intake',lambda *a:True)
+    monkeypatch.setattr(workflow,'_latest_artifact',lambda *a:None)
+    monkeypatch.setattr(workflow,'resolve_business_entity',lambda p,i,**kw:i)
+    monkeypatch.setattr(workflow,'save_artifact',lambda *a:SimpleNamespace(id=1))
+    plan=workflow.plan_research(project,config)
+    plan['coverage_thresholds']={'min_sources_per_module':1}
+    monkeypatch.setattr(workflow,'plan_research',lambda *a,**kw:plan)
+    query={'module':'收入情况','query':'已识别的原件缺口','search_tier':'authority_first'}
+    monkeypatch.setattr('report_agents.company_diligence.diligence_discovery_queries',lambda *a:[query])
+    monkeypatch.setattr('report_agents.company_risk_register.recall_discovery_queries',lambda *a:[])
+    def no_foundation(*a,**kw):raise AssertionError('resume must not expand foundation queries')
+    monkeypatch.setattr(workflow,'_expand_search_queries',no_foundation)
+    monkeypatch.setattr('report_agents.company_assessment.assessment_discovery_queries',no_foundation)
+    captured=[]
+    def search(rows,*a,**kw):
+        captured.extend(rows)
+        raise ReachedSearch()
+    monkeypatch.setattr(workflow,'_search_query_items_parallel',search)
+    with pytest.raises(ReachedSearch):workflow.run_project(db,project,[],[],intake=config)
+    assert len(captured)==1 and captured[0]['query']==query['query']
+    assert captured[0]['company_requirement_ids']==[plan['company_requirements'][0]['requirement_id']]
 
 
 def test_plan_persists_company_contract_but_other_target_plans_keep_their_semantics():

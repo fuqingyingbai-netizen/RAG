@@ -16,7 +16,7 @@ from .company_financial_statements import fiscal_report_period,quarter_report_pe
 VERSION='company-diligence-v2-cross-chapter-display'
 TITLE='定向穿透专项尽职调查'
 _CC=OpenCC('t2s')
-LEGAL=r'[\u4e00-\u9fffA-Za-z（）()·]{2,55}(?:股份有限公司|有限责任公司|有限公司)'
+LEGAL=r'[\u4e00-\u9fffA-Za-z（）()·]{2,55}?(?:股份有限公司|有限责任公司|有限公司)'
 TRUSTED=('hkexnews.hk','cninfo.com.cn','szse.cn','sse.com.cn')
 STREAMS=('融资情况','资金使用合规性','战略布局','业务真实性','大额资金往来','委托方指定事项')
 
@@ -169,6 +169,10 @@ def identity_registry(cleaned,target,sources):
                        and len(re.findall(r'\d+(?:\.\d+)?\s*%',text))>=4)
             for m in re.finditer(r'(?:控股子公司|全资子公司|子公司|附属公司)(?:为|是|包括)?\s*('+LEGAL+r')',text):
                 child=m[1]
+                # A short subsidiary alias followed by a counterparty is not
+                # one legal name. Keep the source for alias resolution; do not
+                # promote the counterparty into the parent's entity registry.
+                if re.search(r'与|以及',child):continue
                 if schematic and re.fullmatch(r'(?:中国|境内|境外|国内|海外)(?:投资|经营|运营)?(?:控股)?(?:有限责任公司|有限公司)',child):continue
                 if re.search(r'根据|注册成立|成立于|简称|依据|以下|上述|通过',child):continue
                 prefix=re.sub(r'\s+','',re.split(r'[。；]',text[:m.start()])[-1])

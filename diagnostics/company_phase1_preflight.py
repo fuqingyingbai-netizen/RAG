@@ -101,7 +101,7 @@ def main():
               'search_result_counts': [len(rows) for query, rows in searched],
               'query_audits': [query.get('search_result_audit') for query, rows in searched],
               'original_fetch_attempted': fetched is not None,
-              'actual_cost': None, 'cost_reason': '供应商未返回货币费用；保留原始 token 用量，不估造账单',
+              'actual_cost': None, 'cost_reason': '本轮保留记录没有可确认的货币费用；保留原始 token 用量，不推断账单或供应商是否提供费用字段',
               'not_end_to_end_report_acceptance': True,
               'call_plan_sha256': hashlib.sha256((OUT/'call-plan.json').read_bytes()).hexdigest()}
     write('result.json', result)

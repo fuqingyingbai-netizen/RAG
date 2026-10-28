@@ -28,6 +28,19 @@ class BoundedCheckpoint(BaseException):
     """Unwind nested SDK/validator Exception handlers without a fake response."""
 
 
+def terminal_model_error(exc):
+    """Do not let production fallbacks repeat a known account-level failure."""
+    if getattr(exc, 'status_code', None) in (401, 403):
+        return 'model_authentication_failed'
+    body = getattr(exc, 'body', None)
+    if isinstance(body, dict):
+        error = body.get('error', body)
+        if isinstance(error, dict) and str(error.get('code') or error.get('type') or '').lower() in {
+                'arrearage', 'insufficient_quota', 'insufficient_balance', 'isv.out_of_service'}:
+            return 'model_account_unavailable'
+    return ''
+
+
 def sha(path):
     h = hashlib.sha256()
     with path.open('rb') as f:
@@ -132,7 +145,9 @@ def main():
     model_lock = threading.Semaphore(1)
     http_lock = threading.Semaphore(2)
     ledger_lock = threading.Lock()
-    counts = {'model_calls': 0, 'model_failures': 0, 'http_calls': 0, 'http_failures': 0}
+    counts = {'model_calls': 0, 'model_failures': 0, 'http_calls': 0, 'http_failures': 0,
+              'http_error_responses': 0}
+    terminal_failure = ''
     tag = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')
     ledger = output / ('bounded-calls-' + tag + '.jsonl')
     def record(value):
@@ -145,7 +160,10 @@ def main():
         def __getattr__(self, name):
             return getattr(self.delegate, name)
         def invoke(self, messages, *positional, **keywords):
+            nonlocal terminal_failure
             with model_lock:
+                if terminal_failure:
+                    raise BoundedCheckpoint(terminal_failure)
                 if counts['model_calls'] >= args.max_model_calls:
                     raise BoundedCheckpoint('model_call_budget_exhausted')
                 counts['model_calls'] += 1
@@ -163,8 +181,13 @@ def main():
                     return result
                 except Exception as exc:
                     counts['model_failures'] += 1
+                    status_code = getattr(exc, 'status_code', None)
                     record({'kind': 'model_failed', 'number': number, 'error_type': type(exc).__name__,
+                            'http_status': status_code,
                             'elapsed_seconds': round(time.monotonic()-started, 3)})
+                    terminal_failure = terminal_model_error(exc)
+                    if terminal_failure:
+                        raise BoundedCheckpoint(terminal_failure) from exc
                     raise
     def model_factory(*positional, **settings):
         return Model(factory(*positional, **settings), settings)
@@ -187,8 +210,18 @@ def main():
             started = time.monotonic()
             try:
                 response = request(session, method, url, *positional, **keywords)
+                reported_usage = {}
+                try:
+                    payload = response.json()
+                    if isinstance(payload, dict):
+                        reported_usage = {k: payload[k] for k in ('costDollars', 'usage', 'credits', 'remainingCredits') if k in payload}
+                except (ValueError, TypeError):
+                    pass
+                if response.status_code >= 400:
+                    counts['http_error_responses'] += 1
                 record({'kind': 'http_returned', 'number': number, 'host': parsed.hostname,
                         'path': parsed.path, 'http_status': response.status_code,
+                        'provider_reported_usage': reported_usage,
                         'elapsed_seconds': round(time.monotonic()-started, 3)})
                 return response
             except Exception as exc:

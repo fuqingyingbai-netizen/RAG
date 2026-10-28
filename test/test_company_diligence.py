@@ -56,6 +56,16 @@ def test_registry_requires_explicit_parent_relation_and_owner_heading():
     assert not package(child)['facts']  # A subsidiary report alone cannot describe the parent.
 
 
+def test_subsidiary_alias_and_counterparty_are_not_a_combined_legal_entity():
+    p=package(source(body='本公司子公司青禾制造与远航国际贸易（上海）有限公司签订采购合同。'))
+    assert p['diagnostic']['linked_entities']==[]
+
+
+def test_adjacent_legal_entities_stop_at_first_legal_suffix():
+    p=package(source(body='本公司全资子公司'+CHILD+'与远航贸易有限公司签订采购合同。'))
+    assert p['diagnostic']['linked_entities']==[CHILD]
+
+
 def test_garbled_caption_does_not_turn_generic_vie_diagram_nodes_into_companies():
     diagram=('ٙVIEᔊఊͪԷf\n50%50%\n25% 25% 25% 25%\n本公司\n全资子公司\n'
              '境内投资控股有限公司\n可变利益实体\n普通合伙人的自然人股东\n'
