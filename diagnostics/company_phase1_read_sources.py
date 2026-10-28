@@ -29,6 +29,10 @@ def retain(item):
     directory = OUT / repo.replace('/', '--')
     metadata = json.loads((directory / 'metadata.json').read_text())
     sha = metadata['commit']
+    index=json.loads((ROOT/'deliverables/company-phase1-20261028/upstream-source-index.json').read_text(encoding='utf-8'))
+    expected=next((row for row in index if row['repository']=='https://github.com/'+repo),{})
+    if expected and expected['commit']!=sha:raise ValueError('Pinned upstream commit changed')
+    expected_files={row['path']:row['sha256'] for row in expected.get('selected_files',[])}
     results = []
     for path in paths:
         destination = directory / 'selected' / path
@@ -39,6 +43,9 @@ def retain(item):
             else:
                 with urllib.request.urlopen(url, timeout=40) as response:
                     raw = response.read()
+            if path in expected_files and hashlib.sha256(raw).hexdigest()!=expected_files[path]:
+                raise ValueError('Pinned source hash mismatch')
+            if not destination.exists():
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 destination.write_bytes(raw)
             text = raw.decode('utf-8')

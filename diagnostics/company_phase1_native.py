@@ -20,6 +20,7 @@ import sys
 import threading
 import time
 from urllib.parse import urlsplit
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
 RUN = ROOT / 'work/company-phase1-20261028'
@@ -182,7 +183,8 @@ def main():
                 request = hashlib.sha256(json.dumps(messages, ensure_ascii=False, default=str, sort_keys=True).encode()).hexdigest()
                 started = time.monotonic()
                 record({'kind': 'model_started', 'number': number, 'model': self.settings.get('model'),
-                        'input_sha256': request, 'sdk_max_retries': self.settings.get('max_retries')})
+                        'input_sha256': request, 'sdk_max_retries': self.settings.get('max_retries'),
+                        'max_completion_tokens': self.settings.get('max_completion_tokens',self.settings.get('max_tokens'))})
                 write(f'bounded-inputs/{tag}-{number:06d}.json',
                       {'model':self.settings.get('model'),'messages':messages,'kwargs':keywords,'input_sha256':request})
                 try:
@@ -216,7 +218,14 @@ def main():
             if counts['model_http_calls']>=wire_limit:raise BoundedCheckpoint('model_http_call_budget_exhausted')
             counts['model_http_calls']+=1
             number=counts['model_http_calls']
-        record({'kind':'model_http_started','number':number,'host':parsed.hostname,'path':parsed.path})
+        request_settings={}
+        try:
+            body=json.loads(request.content)
+            request_settings={k:body[k] for k in ('model','stream','max_completion_tokens','max_tokens',
+                'reasoning_effort','thinking_budget','enable_thinking') if k in body}
+        except (ValueError,TypeError,httpx.RequestNotRead):pass
+        record({'kind':'model_http_started','number':number,'host':parsed.hostname,'path':parsed.path,
+                'request_settings':request_settings})
         try:
             response=send(client,request,*positional,**keywords)
             record({'kind':'model_http_headers','number':number,'http_status':response.status_code,
@@ -229,6 +238,7 @@ def main():
     import requests
     request = requests.Session.request
     def bounded_request(session, method, url, *positional, **keywords):
+        nonlocal terminal_failure
         parsed = urlsplit(url)
         is_model = parsed.path.rstrip('/').endswith(('/chat/completions', '/responses'))
         with http_lock, (model_lock if is_model else nullcontext()):
@@ -236,15 +246,19 @@ def main():
                 if counts['http_calls'] >= args.max_http_calls:
                     raise BoundedCheckpoint('http_call_budget_exhausted')
                 if is_model:
+                    if terminal_failure:raise BoundedCheckpoint(terminal_failure)
                     if counts['model_calls'] >= args.max_model_calls:
                         raise BoundedCheckpoint('model_call_budget_exhausted')
+                    if counts['model_http_calls']>=wire_limit:raise BoundedCheckpoint('model_http_call_budget_exhausted')
                     counts['model_calls'] += 1
+                    counts['model_http_calls']+=1
                 counts['http_calls'] += 1
                 number = counts['http_calls']
             started = time.monotonic()
             try:
                 response = request(session, method, url, *positional, **keywords)
                 reported_usage = {}
+                payload={}
                 try:
                     payload = response.json()
                     if isinstance(payload, dict):
@@ -257,6 +271,11 @@ def main():
                         'path': parsed.path, 'http_status': response.status_code,
                         'provider_reported_usage': reported_usage,
                         'elapsed_seconds': round(time.monotonic()-started, 3)})
+                if is_model:
+                    terminal_failure=terminal_model_error(SimpleNamespace(status_code=response.status_code,body=payload))
+                    if terminal_failure:
+                        counts['model_failures']+=1
+                        raise BoundedCheckpoint(terminal_failure)
                 return response
             except Exception as exc:
                 counts['http_failures'] += 1
@@ -273,6 +292,7 @@ def main():
           'model_http_send_limit':wire_limit,
           'model':os.getenv('MODEL'),'model_endpoint_host':urlsplit(os.getenv('BASE_URL','')).hostname,
           'vision_model':os.getenv('VISION_MODEL'),'vision_endpoint_host':urlsplit(os.getenv('VISION_BASE_URL','')).hostname,
+          'company_editor_completion_budget':os.getenv('COMPANY_REPORT_EDITOR_MAX_COMPLETION_TOKENS','provider_default'),
           'model_concurrency_enforced_by_semaphore': 1, 'requests_concurrency_enforced_by_semaphore': 2,
           'code_sha256': code_hashes, 'settings_overrides': overrides,
           'sdk_retries_remain_configured': True, 'original_model_responses_modified': False})

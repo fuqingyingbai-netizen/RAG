@@ -13,14 +13,14 @@ def test_negated_duty_classification_is_not_a_positive_order(negative,role):
     source,row=case()
     row['summary']='关联身份和行为评价'+negative+role+'承担赔偿的判项。'
     assert not actor_obligation_errors(row,source['content'])
-    assert not validate_event(row,source,TARGET,AS_OF)
+    assert not validate_event(row,source,TARGET,AS_OF,require_independent=False)
 
 
 def test_actual_native_negative_shareholder_classification():
     source,row=case()
     row['summary']='股东的行业经历及被认定的攀附恶意不是股东个人赔偿或连带责任判项。'
     assert not actor_obligation_errors(row,source['content'])
-    assert not validate_event(row,source,TARGET,AS_OF)
+    assert not validate_event(row,source,TARGET,AS_OF,require_independent=False)
 
 
 @pytest.mark.parametrize('negative',['不是','并不是','並不是'])

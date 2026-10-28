@@ -12,6 +12,13 @@ OUT = ROOT / 'work/company-phase1-20261028/upstream'
 REPOS = ['assafelovic/gpt-researcher', 'langchain-ai/open_deep_research',
          'stanford-oval/storm', 'duhu2000/financial-services-qcc',
          'alephdata/followthemoney', 'rgerjeki/Dossier', 'openaleph/openaleph']
+PIN_INDEX=ROOT/'deliverables/company-phase1-20261028/upstream-source-index.json'
+
+
+def pinned_record(repo):
+    if not PIN_INDEX.exists():return {}
+    return next((row for row in json.loads(PIN_INDEX.read_text(encoding='utf-8'))
+                 if row['repository']=='https://github.com/'+repo),{})
 
 
 def fetch(url):
@@ -21,19 +28,19 @@ def fetch(url):
 
 
 def inspect(repo):
+    expected=pinned_record(repo)
     folder = OUT / repo.replace('/', '--')
     folder.mkdir(parents=True, exist_ok=True)
     manifest = folder / 'metadata.json'
     if manifest.exists():
         previous = json.loads(manifest.read_text(encoding='utf-8'))
-        if previous.get('status') == 'pinned':
+        if previous.get('status') == 'pinned' and (not expected or previous.get('commit')==expected['commit']):
             return previous
     result = {'repository': 'https://github.com/' + repo, 'repo': repo,
               'code_copied_into_runtime': False, 'status': 'not_fetched'}
     try:
         metadata = json.loads(fetch('https://api.github.com/repos/' + repo))
-        commit = json.loads(fetch('https://api.github.com/repos/' + repo + '/commits/HEAD'))
-        sha = commit['sha']
+        sha = expected.get('commit') or json.loads(fetch('https://api.github.com/repos/' + repo + '/commits/HEAD'))['sha']
         tree = json.loads(fetch('https://api.github.com/repos/' + repo + '/git/trees/' + sha + '?recursive=1'))
         (folder / 'tree.json').write_text(json.dumps(tree, ensure_ascii=False), encoding='utf-8')
         paths = [i['path'] for i in tree.get('tree', []) if i['type'] == 'blob']
@@ -65,13 +72,16 @@ def inspect(repo):
                                check=True, capture_output=True, timeout=150)
             def git(*args):
                 return subprocess.check_output([*git_command, '-C', str(checkout), *args], timeout=75)
-            sha = git('rev-parse', 'HEAD').decode().strip()
-            paths = git('ls-tree', '-r', '--name-only', 'HEAD').decode().splitlines()
+            sha=expected.get('commit') or git('rev-parse','HEAD').decode().strip()
+            if expected:
+                try:git('cat-file','-e',sha+'^{commit}')
+                except subprocess.CalledProcessError:git('fetch','--depth=1','origin',sha)
+            paths = git('ls-tree', '-r', '--name-only', sha).decode().splitlines()
             (folder / 'paths.json').write_text(json.dumps(paths), encoding='utf-8')
             licenses = [p for p in paths if '/' not in p and p.lower().startswith(('license', 'licence', 'copying'))]
             saved = []
             for path in licenses:
-                raw = git('show', 'HEAD:' + path)
+                raw = git('show', sha+':' + path)
                 (folder / path).write_bytes(raw)
                 saved.append({'path': path, 'sha256': hashlib.sha256(raw).hexdigest()})
             result.update(status='pinned', commit=sha, transport='filtered_git', license_files=saved,

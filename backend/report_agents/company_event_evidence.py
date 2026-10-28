@@ -14,7 +14,7 @@ from .company_governance import get
 from .company_transport import bounded_company_invoke
 from .company_text import issuer_response_title
 
-VERSION = 'company-event-evidence-v4-complete-object-responses'
+VERSION = 'company-event-evidence-v5-bound-independent-check'
 DATE_ROLES = {'publication', 'document_date', 'unverified_display', 'unknown'}
 REVIEW_CRITERIA = ('factual_support', 'responsibility_and_impact', 'date_meaning',
                    'procedure_and_receipt_state', 'counterevidence', 'actors_and_obligations')
@@ -28,6 +28,33 @@ BOUNDARIES = {
     'correction_recommendation': ('监管核查及整改要求', '按监管核查结论与整改建议列示，保留已采取措施；建议不等同罚款、整改验收或持续停服。'),
     'external_impersonation': ('第三方冒名与品牌保护', '第三方行为与责任不记为目标公司的违法或罚款；目标公司受损影响及法院损失认定按原文保留。判赔不等于已收款，申请撤诉不等于获准或判决已生效。'),
 }
+
+
+def review_candidate(value):
+    """The independent reviewer never receives an earlier review verdict."""
+    return {k:v for k,v in value.items() if k not in {'independent_check','independent_check_witness'}}
+
+
+def _fingerprint(value):
+    return hashlib.sha256(json.dumps(value,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+
+
+def independent_check_witness(value, check, target, as_of):
+    return {'version':VERSION,'input_sha256':_fingerprint({'version':VERSION,'target_name':target,
+        'as_of_date':as_of,'candidate':review_candidate(value)}),'response_sha256':_fingerprint(check)}
+
+
+def review_reason_quantity_errors(check, native):
+    """Supplement semantic review: its own monetary/rate claims need support.
+
+    A review's item count is methodology, so it is not a company quantity.
+    Presence is not semantic adoption; this only rejects new measurements.
+    """
+    from .company_editorial import new_numeric_tokens
+    added=new_numeric_tokens(str(check.get('reason') or ''),native)
+    measured={t for t in added if re.fullmatch(r'[-+]?\d+(?:\.\d+)?(?:%|股|万股|亿股|'
+        r'(?:万亿|千万|百万|亿|万|千|百)?(?:人民币|港元|港币|美元|欧元|日元|日圆|元)|万亿|亿|万)',t)}
+    return ['independent_reason_unsupported_quantity:'+t for t in sorted(measured)]
 
 
 def _object_answer(answer):
@@ -266,10 +293,18 @@ def validate_event(selection, source, target, as_of, *, require_independent=True
     errors.extend(actor_obligation_errors(selection, raw))
     if require_independent:
         check = selection.get('independent_check') or {}
+        if not isinstance(check,dict):
+            errors.append('invalid_independent_check');check={}
         if check.get('status') != 'supported': errors.append('independent_check_missing')
+        criteria=check.get('criteria') if isinstance(check.get('criteria'),dict) else {}
         for key in REVIEW_CRITERIA:
-            if (check.get('criteria') or {}).get(key) is not True:
+            if criteria.get(key) is not True:
                 errors.append('independent_criterion:' + key)
+        expected=independent_check_witness(selection,check,target,as_of)
+        if selection.get('independent_check_witness')!=expected:
+            errors.append('independent_check_input_or_response_changed')
+        support='\n'.join(str(selection.get(k) or '') for k in ('quote','subject_quote','date_quote'))
+        errors.extend(review_reason_quantity_errors(check,support))
     return errors
 
 
@@ -350,8 +385,10 @@ def review_primary_events(sources, target, as_of, invoke, *, cache=None, trace_e
         def prepare(value):
             if not isinstance(value, dict): raise ValueError('invalid_event_object')
             # A producer's self-assessment is data, never a review witness.
-            if 'independent_check' in value:
-                receipt.setdefault('untrusted_self_checks', []).append(value.pop('independent_check'))
+            for key in ('independent_check','independent_check_witness'):
+                if key in value:
+                    log_key='untrusted_self_checks' if key=='independent_check' else 'untrusted_review_witnesses'
+                    receipt.setdefault(log_key, []).append(value.pop(key))
             value.update(target_name=target, source_url=url, source_title=str(get(source, 'title')),
                          original_sha256=receipt['original_sha256'])
             _bind_literal(value, raw)
@@ -392,6 +429,7 @@ def review_primary_events(sources, target, as_of, invoke, *, cache=None, trace_e
                 '逐项核对source_date_role及publication_date是否真实对应：未核实性质的页面时间不能充当发布日期或事件日期，'
                 'unknown/unverified_display正确标明未知并保留事件原文可以通过，不要求伪造日期。'
                 '英文译本、日期冲突等版本问题必须明确。'
+                '复核理由本身也不得引入原文没有的金额、比例或股数；不为凑结论改写原值。'
                 '只输出JSON {status:supported/unsupported,criteria:{factual_support:true/false,'
                 'responsibility_and_impact:true/false,date_meaning:true/false,procedure_and_receipt_state:true/false,'
                 'counterevidence:true/false,actors_and_obligations:true/false},reason:中文说明}；只有六项都确实通过才可supported，不能只给总括支持结论。'
@@ -402,12 +440,15 @@ def review_primary_events(sources, target, as_of, invoke, *, cache=None, trace_e
             receipt['semantic_attempts'] = semantic_attempts
             for attempt in range(2):
                 check = _invoke_object(invoke,'公司监管原件独立核对',check_instructions + '\n提取：'
-                    + json.dumps(value,ensure_ascii=False),trace_emit,receipt)
+                    + json.dumps(review_candidate(value),ensure_ascii=False),trace_emit,receipt)
                 value['independent_check'] = check
+                value['independent_check_witness']=independent_check_witness(value,check,target,as_of)
                 errors = validate_event(value, source, target, as_of)
                 semantic_attempts.append({'attempt': attempt + 1, 'check': check, 'errors': list(errors)})
                 if not errors: break
                 if attempt: raise ValueError(','.join(errors))
+                if all(error.startswith('independent_reason_unsupported_quantity:') for error in errors):
+                    continue  # Recheck the same extraction; do not rewrite supported source facts.
                 repaired = _invoke_object(invoke,'公司监管原件语义修复',prompt
                     + '\n独立核对未通过，请仅在原文支持范围内重新提取，原文不足不补造：'
                     + json.dumps({'event': value, 'check': check, 'errors': errors},ensure_ascii=False),trace_emit,receipt)

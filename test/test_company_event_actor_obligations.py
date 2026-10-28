@@ -34,7 +34,7 @@ def test_named_role_or_affiliation_does_not_add_payment_obligations_even_with_gr
 def test_conduct_judicial_reasoning_and_unknown_personal_duty_remain_distinct(summary):
     s,row=case();row['summary']=summary
     assert not actor_obligation_errors(row,s['content'])
-    assert not validate_event(row,s,TARGET,AS_OF)
+    assert not validate_event(row,s,TARGET,AS_OF,require_independent=False)
 
 
 @pytest.mark.parametrize('disposition',[
@@ -46,7 +46,7 @@ def test_explicit_role_payment_order_is_preserved(disposition):
     s,row=case(disposition)
     role='董事' if '董事' in disposition else '股东'
     row['summary']='赔偿责任主体为第三方公司及其'+role+'；按原文明示保留。'
-    assert not validate_event(row,s,TARGET,AS_OF)
+    assert not validate_event(row,s,TARGET,AS_OF,require_independent=False)
 
 
 @pytest.mark.parametrize('extra',[
@@ -106,7 +106,7 @@ def test_actor_repair_requires_a_new_complete_independent_review():
 def test_source_order_absence_qualification_is_not_a_positive_payment_claim(scope):
     s,row=case();row['subject_scope']+=scope
     assert not actor_obligation_errors(row,s['content'])
-    assert not validate_event(row,s,TARGET,AS_OF)
+    assert not validate_event(row,s,TARGET,AS_OF,require_independent=False)
 
 
 def test_negative_order_qualification_cannot_hide_a_separate_affirmative_extension():
