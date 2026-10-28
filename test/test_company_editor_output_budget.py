@@ -41,6 +41,21 @@ def test_focus_profile_has_its_own_cached_budget_and_leaves_other_factories_alon
     assert all('max_tokens' not in row.settings and 'reasoning_effort' not in row.settings for row in seen[2:])
 
 
+def test_explicit_thinking_budget_keeps_thinking_enabled_and_never_sends_both_controls(monkeypatch):
+    for key,value in {'ARK_API_KEY':'test-not-a-credential','MODEL':'qwen-test',
+            'COMPANY_MAIN_FOCUS_THINKING_BUDGET':'8192'}.items():monkeypatch.setenv(key,value)
+    monkeypatch.delenv('COMPANY_MAIN_FOCUS_REASONING_EFFORT',raising=False)
+    seen=[]
+    monkeypatch.setattr('research_workflow.init_chat_model',lambda **kw:seen.append(kw) or SimpleNamespace())
+    ResearchWorkflow()._get_company_report_editor_model(profile='main_focus')
+    assert seen[0]['extra_body']=={'thinking_budget':8192,'enable_thinking':True}
+    assert 'reasoning_effort' not in seen[0]
+    monkeypatch.setenv('COMPANY_MAIN_FOCUS_REASONING_EFFORT','low')
+    with pytest.raises(ValueError,match='conflicts_with_reasoning_effort'):
+        ResearchWorkflow()._get_company_report_editor_model(profile='main_focus')
+    assert len(seen)==1
+
+
 @pytest.mark.parametrize('finish_reason',['length',None,'content_filter'])
 def test_focus_role_rejects_incomplete_responses_even_if_the_body_is_valid_json(monkeypatch,finish_reason):
     class Model:

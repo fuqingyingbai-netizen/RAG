@@ -185,7 +185,8 @@ def main():
                 record({'kind': 'model_started', 'number': number, 'model': self.settings.get('model'),
                         'input_sha256': request, 'sdk_max_retries': self.settings.get('max_retries'),
                         'max_completion_tokens': self.settings.get('max_completion_tokens',self.settings.get('max_tokens')),
-                        'reasoning_effort':self.settings.get('reasoning_effort')})
+                        'reasoning_effort':self.settings.get('reasoning_effort'),
+                        'thinking_budget':(self.settings.get('extra_body') or {}).get('thinking_budget')})
                 write(f'bounded-inputs/{tag}-{number:06d}.json',
                       {'model':self.settings.get('model'),'messages':messages,'kwargs':keywords,'input_sha256':request,
                        'model_settings':{k:self.settings[k] for k in ('temperature','timeout','streaming','max_tokens',
@@ -299,6 +300,7 @@ def main():
           'company_editor_reasoning_effort':os.getenv('COMPANY_REPORT_EDITOR_REASONING_EFFORT','provider_default'),
           'company_main_focus_completion_budget':os.getenv('COMPANY_MAIN_FOCUS_MAX_COMPLETION_TOKENS','provider_default'),
           'company_main_focus_reasoning_effort':os.getenv('COMPANY_MAIN_FOCUS_REASONING_EFFORT','provider_default'),
+          'company_main_focus_thinking_budget':os.getenv('COMPANY_MAIN_FOCUS_THINKING_BUDGET','provider_default'),
           'company_main_focus_batch_chars':os.getenv('COMPANY_MAIN_FOCUS_BATCH_CHARS','26000'),
           'company_main_focus_batch_records':os.getenv('COMPANY_MAIN_FOCUS_BATCH_RECORDS','12'),
           'model_concurrency_enforced_by_semaphore': 1, 'requests_concurrency_enforced_by_semaphore': 2,

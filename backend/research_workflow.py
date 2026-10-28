@@ -643,6 +643,9 @@ class ResearchWorkflow:
         prefix = 'COMPANY_MAIN_FOCUS' if profile == 'main_focus' else 'COMPANY_REPORT_EDITOR'
         completion_limit=_env_int(prefix+'_MAX_COMPLETION_TOKENS',0,0,131072)
         reasoning_effort=os.getenv(prefix+'_REASONING_EFFORT','').strip().lower()
+        thinking_budget=_env_int(prefix+'_THINKING_BUDGET',0,0,262144)
+        if thinking_budget and reasoning_effort:
+            raise ValueError('company_thinking_budget_conflicts_with_reasoning_effort')
         model = init_chat_model(
             model=model_name,
             model_provider="openai",
@@ -655,6 +658,7 @@ class ResearchWorkflow:
             max_retries=_env_int("COMPANY_REPORT_EDITOR_MAX_RETRIES", 1, 0, 1),
             **({'max_tokens':completion_limit} if completion_limit else {}),
             **({'reasoning_effort':reasoning_effort} if reasoning_effort else {}),
+            **({'extra_body':{'thinking_budget':thinking_budget,'enable_thinking':True}} if thinking_budget else {}),
         )
         setattr(self, attribute, model)
         return model
@@ -6544,6 +6548,7 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                 return self._invoke_person_report_section(role, prompt, emit=trace_emit)
             focus_profile = role.startswith('公司主报告事实选择') and (
                 _env_int('COMPANY_MAIN_FOCUS_MAX_COMPLETION_TOKENS',0,0,131072) > 0 or
+                _env_int('COMPANY_MAIN_FOCUS_THINKING_BUDGET',0,0,262144) > 0 or
                 bool(os.getenv('COMPANY_MAIN_FOCUS_REASONING_EFFORT','').strip()))
             if target_type == "company" and ("分批主编 Agent" in role or role.startswith('公司交付') or focus_profile):
                 return self._invoke_company_report_editor(role, prompt, emit=trace_emit)

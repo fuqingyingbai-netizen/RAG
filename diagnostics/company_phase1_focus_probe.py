@@ -5,6 +5,7 @@ not either of the production readers, not a semantic audit and not a report.
 """
 from __future__ import annotations
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -65,8 +66,8 @@ def main():
     prompt = focus_prompt(rows, checkpoint['target_name'], index['scope'])
     messages = [{'role': 'system', 'content': '你是严谨的公司研究编辑与核对员。按当前任务精编或独立审稿；仅使用给定原文和结构化证据，不新增事实或来源，输出任务要求的完整格式。'},
                 {'role': 'user', 'content': prompt}]
-    output = RUN / 'focus-context-budget-probe'
-    output.mkdir(exist_ok=True)
+    output = RUN / 'focus-probes' / (args.case + '-' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f'))
+    output.mkdir(parents=True, exist_ok=False)
     (output / 'input.json').write_text(json.dumps({'role': role, 'messages': messages}, ensure_ascii=False, indent=2), encoding='utf-8')
     wire = []
     send = httpx.Client.send
@@ -75,7 +76,7 @@ def main():
             if len(wire) >= 3:
                 raise BaseException('Probe model HTTP limit reached.')
             body = json.loads(request.content)
-            item = {'settings': {k: body[k] for k in ('model', 'stream', 'max_completion_tokens', 'reasoning_effort') if k in body}}
+            item = {'settings': {k: body[k] for k in ('model', 'stream', 'max_completion_tokens', 'reasoning_effort', 'thinking_budget', 'enable_thinking') if k in body}}
             wire.append(item)
             try:
                 response = send(client, request, *positional, **keywords)
@@ -86,6 +87,7 @@ def main():
                 raise
         return send(client, request, *positional, **keywords)
     result = {'case': args.case, 'checkpoint_sha256': pointer['sha256'],
+              'probe_directory': output.relative_to(ROOT).as_posix(),
               'code_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
               'code_sha256': {p.relative_to(ROOT).as_posix(): sha(p.read_bytes()) for p in
                               [ROOT / 'backend/research_workflow.py', ROOT / 'backend/report_agents/company_main_focus.py', Path(__file__)]},
@@ -115,6 +117,8 @@ def main():
         httpx.Client.send = send
         result['elapsed_seconds'] = round(time.monotonic() - started, 3)
         (output / 'summary.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+        (output.parent / 'latest.json').write_text(json.dumps({'summary': (output / 'summary.json').relative_to(ROOT).as_posix(),
+            'sha256': sha((output / 'summary.json').read_bytes())}, indent=2), encoding='utf-8')
     print(json.dumps(result, ensure_ascii=False))
     return 0 if result.get('format_and_literal_status') == 'passed' else 1
 
