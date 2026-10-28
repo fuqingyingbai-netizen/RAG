@@ -296,7 +296,13 @@ def normalize_facts(payload, target, aliases=(), sources=(), *, validated_peer_s
             f['attribution_boundary'] += ' 原文中股东术语疑有字形转录异常，保留原句待核物理原页，不据此认定控股身份。'
             f['eligible_for_risk_scoring']=False
         f["eligible_for_risk_scoring"] = not affiliated and f.get("eligible_for_risk_scoring") is not False and f.get("category") != "personal_background"
-        f['observation'] = observation(f, target, raw_names)
+        f['observation'] = observation(f, target, raw_names, source_text=original)
+        from person_source_context import signature_only_context
+        if signature_only_context(text, raw_names):
+            f['personal_attribution_pending'] = True
+            f['eligible_for_risk_scoring'] = False
+            f['observation']['direct_person_link'] = False
+            f['attribution_boundary'] = '目标姓名仅位于签署或末尾董事名单，前文事项不得自动归到本人；完整页面仅供来源上下文复核。'
         if f['observation']['subject_scope'] == 'other_person':
             f['subject_scope'] = 'other_person'
             f['subject'] = f['observation']['subject']

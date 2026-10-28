@@ -1,0 +1,50 @@
+[
+  {
+    "role": "BDD目标人物章节 Agent - 创始人底色画像资料研读1/4",
+    "status": "returned",
+    "started_utc": "2026-10-28T11:48:32.880482+00:00",
+    "elapsed_seconds": 24.516
+  },
+  {
+    "role": "BDD目标人物章节 Agent - 创始人底色画像资料研读2/4",
+    "status": "failed",
+    "started_utc": "2026-10-28T11:48:57.473972+00:00",
+    "exception_type": "APIConnectionError",
+    "exception_chain": [
+      {
+        "type": "APIConnectionError",
+        "message": "Connection error."
+      },
+      {
+        "type": "RemoteProtocolError",
+        "message": "Server disconnected without sending a response."
+      },
+      {
+        "type": "RemoteProtocolError",
+        "message": "Server disconnected without sending a response."
+      }
+    ],
+    "elapsed_seconds": 92.875
+  },
+  {
+    "role": "BDD目标人物章节 Agent - 创始人底色画像资料研读2/4",
+    "status": "failed",
+    "started_utc": "2026-10-28T11:50:30.341736+00:00",
+    "exception_type": "APIConnectionError",
+    "exception_chain": [
+      {
+        "type": "APIConnectionError",
+        "message": "Connection error."
+      },
+      {
+        "type": "RemoteProtocolError",
+        "message": "Server disconnected without sending a response."
+      },
+      {
+        "type": "RemoteProtocolError",
+        "message": "Server disconnected without sending a response."
+      }
+    ],
+    "elapsed_seconds": 85.125
+  }
+]

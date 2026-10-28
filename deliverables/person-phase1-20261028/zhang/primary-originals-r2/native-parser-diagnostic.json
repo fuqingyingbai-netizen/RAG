@@ -1,0 +1,215 @@
+{
+  "scope": "offline_independent_native_extractors_same_retained_pdf_bytes",
+  "network_calls": 0,
+  "model_calls": 0,
+  "versions": {
+    "pypdf": "6.9.1",
+    "pdfminer.six": "20251230",
+    "pypdfium2": "5.6.0"
+  },
+  "items": [
+    {
+      "binary_sha256": "10f2e63538a31b12ab62d0769f72840afd79e1f5e06f2655cb96f4106d6e3835",
+      "pages": [
+        {
+          "physical_page": 1,
+          "parsers": {
+            "pypdf": {
+              "chars": 300,
+              "replacement_characters": 0,
+              "text_sha256": "36cfdf2fd77f35a74503f9c6cfb00d0c25d60ddfdbd7b60c9a981d6106f9f0e6",
+              "quality_issue": "mixed_script_character_map"
+            },
+            "pdfminer": {
+              "chars": 657,
+              "replacement_characters": 0,
+              "text_sha256": "ae32df098f6ac6a29243c8bbed5f85a36e9abab3dc183ef578b758f0bdbf0431",
+              "quality_issue": ""
+            },
+            "pdfium": {
+              "chars": 648,
+              "replacement_characters": 0,
+              "text_sha256": "f1cae2ee75b645fc47e30fc1283db296fed048c03ca5187a9b1a3c37aea4ea35",
+              "quality_issue": ""
+            }
+          }
+        },
+        {
+          "physical_page": 2,
+          "parsers": {
+            "pypdf": {
+              "chars": 222,
+              "replacement_characters": 0,
+              "text_sha256": "5277df02de0d4c43c3faa91dd2e8d7f7ad21ea9ffd7aebae787836fdf9647b11",
+              "quality_issue": "mixed_script_character_map"
+            },
+            "pdfminer": {
+              "chars": 842,
+              "replacement_characters": 0,
+              "text_sha256": "3d227fb3bbba6ab00ba0e65a3f84edf3adbe90a1f84b26d38008e0b7fb60fe82",
+              "quality_issue": ""
+            },
+            "pdfium": {
+              "chars": 857,
+              "replacement_characters": 0,
+              "text_sha256": "aa3cd841e20953a5d6a081e02bd18ef98f58f00a11c2ae50a226e640eaa856c5",
+              "quality_issue": ""
+            }
+          }
+        },
+        {
+          "physical_page": 3,
+          "parsers": {
+            "pypdf": {
+              "chars": 305,
+              "replacement_characters": 0,
+              "text_sha256": "db9ec4db39fc3a88fa25f9d954f00cb75046e5e5bff33af4f0540cdb62d98ad0",
+              "quality_issue": "mixed_script_character_map"
+            },
+            "pdfminer": {
+              "chars": 660,
+              "replacement_characters": 0,
+              "text_sha256": "f744e0944af7f01b707f69896977e1a623a70f339da10b9d12c4b4488653918d",
+              "quality_issue": ""
+            },
+            "pdfium": {
+              "chars": 666,
+              "replacement_characters": 0,
+              "text_sha256": "2f08c51a7dda3fbd845d2fa87e9ccb504767cce5e2daa9278c20809bd06bdab3",
+              "quality_issue": ""
+            }
+          }
+        },
+        {
+          "physical_page": 4,
+          "parsers": {
+            "pypdf": {
+              "chars": 271,
+              "replacement_characters": 0,
+              "text_sha256": "c9005db7e3ebe389069b70c089f0d34a5dd9ea3d28d4271e4491e377ae19b09d",
+              "quality_issue": "mixed_script_character_map"
+            },
+            "pdfminer": {
+              "chars": 735,
+              "replacement_characters": 0,
+              "text_sha256": "4539f8830125614d9714511490751c91684516d057d5ed29608de6133fd4b2f8",
+              "quality_issue": ""
+            },
+            "pdfium": {
+              "chars": 743,
+              "replacement_characters": 0,
+              "text_sha256": "252a9b5556e6a3daf51f9864e9e43d046efeeca2300fd8998d9c3b4336d442a5",
+              "quality_issue": ""
+            }
+          }
+        },
+        {
+          "physical_page": 5,
+          "parsers": {
+            "pypdf": {
+              "chars": 268,
+              "replacement_characters": 0,
+              "text_sha256": "986ef1bb9db4fe4037be24dd6efbe69251e5ad2e634ab5c53a0eba97572bb499",
+              "quality_issue": "mixed_script_character_map"
+            },
+            "pdfminer": {
+              "chars": 795,
+              "replacement_characters": 0,
+              "text_sha256": "46f9e3080b48e68851d0f31815822957f2ccd01833b90d22964d8cd40f41bb03",
+              "quality_issue": ""
+            },
+            "pdfium": {
+              "chars": 807,
+              "replacement_characters": 0,
+              "text_sha256": "4c2e2e795a3c9d6c4ecca321e5e6dc4708ea8a5586594961fbffc1cadaf073e7",
+              "quality_issue": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "binary_sha256": "245080e5cc3a9eb0ae281d772c4c160834a5766f7532b6f5474abe1d178ab243",
+      "pages": [
+        {
+          "physical_page": 1,
+          "parsers": {
+            "pypdf": {
+              "chars": 212,
+              "replacement_characters": 0,
+              "text_sha256": "b9fb7443c674d2c1bc05093aebed007bb50a0cf9c0125e3bd9bc4aa479fa7d35",
+              "quality_issue": "mixed_script_character_map"
+            },
+            "pdfminer": {
+              "chars": 678,
+              "replacement_characters": 0,
+              "text_sha256": "58faf7ccaae1f7df97f4a0252c7a05ec67222b5e9899947037286431547f3de8",
+              "quality_issue": ""
+            },
+            "pdfium": {
+              "chars": 648,
+              "replacement_characters": 0,
+              "text_sha256": "6b6846d2f5e5cb5a61f6389ee6a6ecb4f5a4cea08b1ed5de356af99aeba44ec4",
+              "quality_issue": ""
+            }
+          }
+        },
+        {
+          "physical_page": 2,
+          "parsers": {
+            "pypdf": {
+              "chars": 85,
+              "replacement_characters": 0,
+              "text_sha256": "70e7c40ae1c0ef634a9f530603a0fe86dbaa99d107a316471bee138ca1b06bb8",
+              "quality_issue": "mixed_script_character_map"
+            },
+            "pdfminer": {
+              "chars": 259,
+              "replacement_characters": 0,
+              "text_sha256": "056e340e785b9de677b0ffdc48384fc60ad7ef7bdb2c8d78891996fcba8dfb9e",
+              "quality_issue": ""
+            },
+            "pdfium": {
+              "chars": 264,
+              "replacement_characters": 0,
+              "text_sha256": "a46327e70fb1bb3cb23d130555f9e416ef8dba04a1b9fc8750fd48f362b1b2cf",
+              "quality_issue": ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "binary_sha256": "735b073d5976e76e250ef7925d1c026c32de58a821d54dd4a179da8ded4ec977",
+      "pages": [
+        {
+          "physical_page": 1,
+          "parsers": {
+            "pypdf": {
+              "chars": 332,
+              "replacement_characters": 0,
+              "text_sha256": "c07db062e6346e13c0081eefc30dfe5d4c90ef930f8a4e20c5305148f752259d",
+              "quality_issue": "mixed_script_character_map"
+            },
+            "pdfminer": {
+              "chars": 781,
+              "replacement_characters": 0,
+              "text_sha256": "00739592c8963bba60714ffe548867cc66a7a4e93c9f38dd46eeb8b579d71e64",
+              "quality_issue": ""
+            },
+            "pdfium": {
+              "chars": 783,
+              "replacement_characters": 0,
+              "text_sha256": "23f2248ff0449a152605e67c60bbbbdfa110f22acbee6d2e607da2218d9713ec",
+              "quality_issue": ""
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "admitted_to_model_report": false,
+  "status": "unicode_quality_rechecked_production_pdfminer_fallback_verified",
+  "previous_console_diagnostic_corrected": true,
+  "diagnostic_note": "Earlier console used incompatible stdout encoding; parser quality must be read from Unicode text, not rendered console glyphs."
+}

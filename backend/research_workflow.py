@@ -564,6 +564,9 @@ class ResearchWorkflow:
             duration_ms = int((time.monotonic() - started_at) * 1000)
             usage = getattr(result, 'usage_metadata', None) or {}
             token_usage = {k: usage[k] for k in ('input_tokens', 'output_tokens', 'total_tokens') if isinstance(usage.get(k), int)}
+            reasoning_tokens = (usage.get('output_token_details') or {}).get('reasoning')
+            if isinstance(reasoning_tokens, int):
+                token_usage['reasoning_tokens'] = reasoning_tokens
             metadata=getattr(result,'response_metadata',None) or {}
             finish_reason=metadata.get('finish_reason') or metadata.get('stop_reason')
             if not content.strip():

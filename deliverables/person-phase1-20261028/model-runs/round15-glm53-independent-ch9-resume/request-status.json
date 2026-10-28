@@ -1,0 +1,40 @@
+[
+  {
+    "role": "人物报告行文复查 - 第9章第1批",
+    "status": "returned",
+    "started_utc": "2026-10-28T12:09:47.631744+00:00",
+    "elapsed_seconds": 29.906
+  },
+  {
+    "role": "人物报告行文复查 - 第9章第3批",
+    "status": "failed",
+    "started_utc": "2026-10-28T12:10:17.548739+00:00",
+    "exception_type": "APIConnectionError",
+    "error": "Connection error.",
+    "elapsed_seconds": 71.187
+  },
+  {
+    "role": "人物报告行文复查 - 第9章第3批",
+    "status": "failed",
+    "started_utc": "2026-10-28T12:11:28.728085+00:00",
+    "exception_type": "APIConnectionError",
+    "error": "Connection error.",
+    "elapsed_seconds": 104.938
+  },
+  {
+    "role": "人物报告行文复查 - 第9章第4批",
+    "status": "failed",
+    "started_utc": "2026-10-28T12:13:13.676696+00:00",
+    "exception_type": "APIConnectionError",
+    "error": "Connection error.",
+    "elapsed_seconds": 96.437
+  },
+  {
+    "role": "人物报告行文复查 - 第9章第4批",
+    "status": "failed",
+    "started_utc": "2026-10-28T12:14:50.117924+00:00",
+    "exception_type": "APITimeoutError",
+    "error": "Request timed out.",
+    "elapsed_seconds": 120.25
+  }
+]

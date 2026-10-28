@@ -1,0 +1,219 @@
+{
+  "report_sha256": "7276163f3df9b20592ad64730121f657b6d863957846e3bb8fcb9ad1ae3202ce",
+  "review_code_sha256": "98a70370b58d58d41a6ac565e695e56cfb0783d89174fbadd7b0b6119bf924da",
+  "scope": "actual_chapter_citations",
+  "chapter": 9,
+  "planned_batches": 4,
+  "completed_unique_batches": [
+    [
+      9,
+      1
+    ],
+    [
+      9,
+      2
+    ],
+    [
+      9,
+      4
+    ]
+  ],
+  "pending_batches": [
+    [
+      9,
+      3
+    ]
+  ],
+  "parts": [
+    {
+      "run": "round14-glm53-independent-ch9",
+      "model_context": {
+        "model": "glm-5.3",
+        "endpoint_sha256": "9045dc7291bc66c59a061290cfba595238ba3f290d762e4a8f03b05937ddd4ec",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "completed_batches": [
+        [
+          9,
+          2
+        ]
+      ],
+      "requests": [
+        {
+          "role": "人物报告行文复查 - 第9章第1批",
+          "status": "failed",
+          "started_utc": "2026-10-28T12:03:11.060952+00:00",
+          "exception_type": "APIConnectionError",
+          "error": "Connection error.",
+          "elapsed_seconds": 108.234
+        },
+        {
+          "role": "人物报告行文复查 - 第9章第1批",
+          "status": "failed",
+          "started_utc": "2026-10-28T12:04:59.319661+00:00",
+          "exception_type": "APITimeoutError",
+          "error": "Request timed out.",
+          "elapsed_seconds": 120.234
+        },
+        {
+          "role": "人物报告行文复查 - 第9章第2批",
+          "status": "failed",
+          "started_utc": "2026-10-28T12:06:59.548910+00:00",
+          "exception_type": "APIConnectionError",
+          "error": "Connection error.",
+          "elapsed_seconds": 63.203
+        },
+        {
+          "role": "人物报告行文复查 - 第9章第2批",
+          "status": "returned",
+          "started_utc": "2026-10-28T12:08:02.757951+00:00",
+          "elapsed_seconds": 38.437
+        }
+      ],
+      "returned_input_hashes": [
+        "c7356728a167a9d78697a4790e9f82b865cae2bdd7c97dfa9b89141751131b60"
+      ]
+    },
+    {
+      "run": "round15-glm53-independent-ch9-resume",
+      "model_context": {
+        "model": "glm-5.3",
+        "endpoint_sha256": "9045dc7291bc66c59a061290cfba595238ba3f290d762e4a8f03b05937ddd4ec",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "completed_batches": [
+        [
+          9,
+          1
+        ],
+        [
+          9,
+          2
+        ]
+      ],
+      "requests": [
+        {
+          "role": "人物报告行文复查 - 第9章第1批",
+          "status": "returned",
+          "started_utc": "2026-10-28T12:09:47.631744+00:00",
+          "elapsed_seconds": 29.906
+        },
+        {
+          "role": "人物报告行文复查 - 第9章第3批",
+          "status": "failed",
+          "started_utc": "2026-10-28T12:10:17.548739+00:00",
+          "exception_type": "APIConnectionError",
+          "error": "Connection error.",
+          "elapsed_seconds": 71.187
+        },
+        {
+          "role": "人物报告行文复查 - 第9章第3批",
+          "status": "failed",
+          "started_utc": "2026-10-28T12:11:28.728085+00:00",
+          "exception_type": "APIConnectionError",
+          "error": "Connection error.",
+          "elapsed_seconds": 104.938
+        },
+        {
+          "role": "人物报告行文复查 - 第9章第4批",
+          "status": "failed",
+          "started_utc": "2026-10-28T12:13:13.676696+00:00",
+          "exception_type": "APIConnectionError",
+          "error": "Connection error.",
+          "elapsed_seconds": 96.437
+        },
+        {
+          "role": "人物报告行文复查 - 第9章第4批",
+          "status": "failed",
+          "started_utc": "2026-10-28T12:14:50.117924+00:00",
+          "exception_type": "APITimeoutError",
+          "error": "Request timed out.",
+          "elapsed_seconds": 120.25
+        }
+      ],
+      "returned_input_hashes": [
+        "7d9abc95017c739b094f82cd9c12049b598d193c51e69c1d882c5756b53795ba",
+        "c7356728a167a9d78697a4790e9f82b865cae2bdd7c97dfa9b89141751131b60"
+      ]
+    },
+    {
+      "run": "round16-glm53-backup-independent-ch9",
+      "model_context": {
+        "model": "glm-5.3",
+        "endpoint_sha256": "ca39687d6dbed96a650a887e60ff2aa46fe101e8d02f39ac9d30497659f71b8e",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "completed_batches": [
+        [
+          9,
+          1
+        ],
+        [
+          9,
+          4
+        ]
+      ],
+      "requests": [
+        {
+          "role": "人物报告行文复查 - 第9章第1批",
+          "status": "returned",
+          "started_utc": "2026-10-28T12:18:10.071584+00:00",
+          "elapsed_seconds": 46.094
+        },
+        {
+          "role": "人物报告行文复查 - 第9章第2批",
+          "status": "failed",
+          "started_utc": "2026-10-28T12:18:56.199037+00:00",
+          "exception_type": "EmptyPersonModelResponse",
+          "error": "empty_model_final_content:length",
+          "elapsed_seconds": 81.156
+        },
+        {
+          "role": "人物报告行文复查 - 第9章第3批",
+          "status": "failed",
+          "started_utc": "2026-10-28T12:20:17.374694+00:00",
+          "exception_type": "APIConnectionError",
+          "error": "Connection error.",
+          "elapsed_seconds": 2.969
+        },
+        {
+          "role": "人物报告行文复查 - 第9章第3批",
+          "status": "failed",
+          "started_utc": "2026-10-28T12:20:20.342276+00:00",
+          "exception_type": "APITimeoutError",
+          "error": "Request timed out.",
+          "elapsed_seconds": 90.703
+        },
+        {
+          "role": "人物报告行文复查 - 第9章第4批",
+          "status": "failed",
+          "started_utc": "2026-10-28T12:21:51.049536+00:00",
+          "exception_type": "APITimeoutError",
+          "error": "Request timed out.",
+          "elapsed_seconds": 91.0
+        },
+        {
+          "role": "人物报告行文复查 - 第9章第4批",
+          "status": "returned",
+          "started_utc": "2026-10-28T12:23:22.046210+00:00",
+          "elapsed_seconds": 5.094
+        }
+      ],
+      "returned_input_hashes": [
+        "7d9abc95017c739b094f82cd9c12049b598d193c51e69c1d882c5756b53795ba",
+        "0954d40ab1ba5516616a019d130b3a8800b1d3b523ebadfd1da897e6247e25ac"
+      ]
+    }
+  ],
+  "report_accepted": false,
+  "boundary": "Collates separately retained same-report review batches across both authorized endpoints; no cross-endpoint cache relabeling or claim truth approval. Returned candidates still require source review."
+}

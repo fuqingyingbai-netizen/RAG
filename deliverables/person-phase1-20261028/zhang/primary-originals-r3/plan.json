@@ -1,0 +1,21 @@
+{
+  "intake": "work/person-phase1-20261028/frozen/zhang/intake.json",
+  "scope": "Development-source supplement from current official discoveries; no claim of exhaustive retrieval.",
+  "originals": [
+    {
+      "url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0113/2026011300560_c.pdf",
+      "title": "海底捞 执行董事及首席执行官变更 委任提名委员会成员",
+      "question": "核对CEO任命生效日及董事会治理说明，不能将任命与完整授权范围混同"
+    },
+    {
+      "url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0410/2026041000189_c.pdf",
+      "title": "海底捞 控股股东执行董事董事会主席兼首席执行官拟增持股份",
+      "question": "核对持股快照日期、计量口径与拟增持条件，不将计划当作已执行"
+    },
+    {
+      "url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0522/2026052201151_c.pdf",
+      "title": "海底捞 控股股东执行董事董事会主席兼首席执行官增持本公司股份",
+      "question": "核对后续增持实际期间、数量和增持后口径，保留与旧媒体数据的差异"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "baseline": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\frozen\\zhang",
+  "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+  "generation_code_sha256": "62904afc30a3638f90b9a759cf933a18bc2545b395ee05cbbe415f2cd219cabb",
+  "previous_replay": "work\\person-phase1-20261028\\round12-glm53-ch2",
+  "comparison_scope": "same_retained_corpus",
+  "prior_sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+  "prior_supplement_calls": {
+    "new_search_calls": 0,
+    "new_fetch_calls": 35,
+    "new_professional_calls": 0
+  },
+  "feedback_records": "work\\person-phase1-20261028\\frozen\\zhang-feedback.json",
+  "prior_analysis_coverage_reminders": false,
+  "intake_sha256": "419b91a1c7d19701f0d6e3fba21d0ef040dda2c13f4ec836356442f2162b65f3",
+  "material_changed_chapters": [],
+  "rewrite_requested": [
+    2
+  ],
+  "outside_request": [],
+  "retained_after_compatible_narrowing": [],
+  "research_scope": {
+    "2": {
+      "admitted_facts": 58,
+      "admitted_sources": 23,
+      "personal_analysis_candidates": 56
+    }
+  },
+  "new_search_calls": 0,
+  "new_fetch_calls": 0,
+  "new_professional_calls": 0,
+  "model_request_timeout_seconds": 120
+}

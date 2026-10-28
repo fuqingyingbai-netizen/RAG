@@ -69,3 +69,29 @@ E:/projects/RAG/.venv/Scripts/python.exe -m pytest -q -s -p anyio.pytest_plugin 
 ```
 
 历史目录只读。首次审计复制输入到本任务冻结区；已有冻结文件内容不一致时审计拒绝覆盖。付费入口必须显式使用相应脚本的 `--live` 或 `--live-model`，不在离线重放中自动触发。
+
+## 后续检查点（GLM 切换与来源上下文）
+
+| 轮次 | 实际工作与回执 | 结论边界 |
+|---|---|---|
+| 相邻主语 R9 | 依据同段相邻亲属主语处理代词，模型提供的上下文不能覆盖原文；92项专项通过 | 张小哥材料仍保留，其他人员范围；不认证姓名或身份 |
+| Qwen R8/R9 | 追加4次材料返回，仍出现连接失败；请求异常链和两次以内重试已记录 | 正文与材料采用仍未完成 |
+| Qwen R10/R11 | 显式非思考与流式实验均有断开，部分流式输出未作为正文 | 默认配置未持久开启实验选项 |
+| GLM R12 | 用户授权 glm-5.3，3次真实请求，1次返回、2次服务端断开 | 无跨模型回答复用，整章未完成 |
+| GLM R13 | 全部材料拆为4000字符批次；5次请求，2次返回、3次失败（含502和断开） | 未裁掉材料；第3批未完成，非36次上限触发停止 |
+| 独立审稿 R14/R15 | 第9章实际引用共4批，累计完成其中2批；其余保留连接失败或超时 | 返回空issues不证明无问题；规则检查与来源片段对照另有待修订项 |
+| 港交所原件 R2/R3 | 3次生产抓取、3次原件二次归档；随后仅重抽同一原件，零网络零模型 | 8页备用原生抽取完成，损坏解析与OCR回执保留；尚未用于报告重写 |
+| 最终专项 R20 | 人物与公司/行业/助手/导出受影响共享路径1139 passed、614 warnings，113.95秒 | 代码通过不能替代报告与引用验收 |
+
+新的快照差异解释约束会拒绝“基准日未明却均属不同时点”的断言；旧稿第9章、摘要与结论仍须重写。签署/末尾董事名单不自动承接前页所有个人事实。新证据包保留原文与角色边界，不产生个人信用分。
+
+重放当前原件抽取：
+
+```powershell
+E:/projects/RAG/.venv/Scripts/python.exe scripts/person_primary_originals.py --plan work/person-phase1-20261028/primary-supplement-r2-plan.json --output work/person-phase1-20261028/primary-supplement-new-round --reextract-archive deliverables/person-phase1-20261028/zhang/primary-originals-r2
+E:/projects/RAG/.venv/Scripts/python.exe scripts/summarize_person_phase1_runs.py work/person-phase1-20261028 --output deliverables/person-phase1-20261028/model-run-receipts.json
+```
+
+报告、语料和模型上下文未变时才允许精确输入回答复用；失败请求、变化的语料或另一个模型不借用旧审稿结论。
+
+备用地址 R16：实际6次请求，2次返回、4次失败（含输出耗尽空正文、连接错误及超时）。第9章跨主备回执合计覆盖第1、2、4批，第3批未完成；原件核对和旧稿修订仍待完成。备用批次1返回20条候选，原始输出与逐项分流记录均保留，未将“无需修改”或批次外缺材料提升为事实错误。

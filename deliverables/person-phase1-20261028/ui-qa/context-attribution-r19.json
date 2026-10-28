@@ -1,0 +1,18 @@
+{
+  "page": "http://127.0.0.1:8028/zhang/review.html",
+  "binding": {
+    "report_sha256": "7276163f3df9b20592ad64730121f657b6d863957846e3bb8fcb9ad1ae3202ce",
+    "source_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+    "index_code_sha256": "fe54156b3f61c6d2a649e32bd74a3a275dca9bec4b0f73b5a40c5144d8857e49"
+  },
+  "entry_count": 425,
+  "actions": [
+    "reloaded current generated HTML",
+    "filtered exact evidence ID E-PF127B231227BC3",
+    "confirmed other_person and adjacent-original-subject pending label",
+    "expanded unchanged full original and saw preceding son-subject sentence"
+  ],
+  "reviewed_notes_created": 0,
+  "report_accepted": false,
+  "screenshot": "ui-qa/context-attribution-r19.jpg"
+}

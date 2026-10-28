@@ -32,6 +32,8 @@ def writing_cards(facts):
             source_events=compact_metadata(f.get('source_events',record.get('source_events',[]))),
             source_named_person=f.get('source_named_person',record.get('source_named_person','')),
             eligible_for_risk_scoring=False)
+        if record.get('actor_context'):
+            card['source_actor_context'] = compact_metadata(record['actor_context'])
         result.append(card)
     return result
 

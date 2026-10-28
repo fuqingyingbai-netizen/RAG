@@ -1,0 +1,236 @@
+[
+  {
+    "provider": "qcc",
+    "tool": "get_executive_positions",
+    "subject": "海底捞国际控股有限公司",
+    "status": "failed",
+    "reason": "access_denied",
+    "error_code": 403,
+    "retrieved_at": "2026-10-20T23:20:14"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_positions",
+    "subject": "海底捞国际控股有限公司",
+    "status": "failed",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:20:14"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_related_companies",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:20:14"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_risk_scan",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:20:14"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_dishonest",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:20:14"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_judgment_debtor",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:20:14"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_judicial_docs",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:20:14"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_historical_related_companies",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:20:14"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_historical_positions",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:20:14"
+  },
+  {
+    "provider": "xiniu",
+    "tool": "get_company_info:融资状况分析",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "identity_not_verified",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:20:14"
+  },
+  {
+    "provider": "xiniu",
+    "tool": "get_company_info:团队人物及招聘分析",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "identity_not_verified",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:20:14"
+  },
+  {
+    "provider": "xiniu",
+    "tool": "get_project_events",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "identity_not_verified",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:20:14"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_positions",
+    "subject": "海底捞国际控股有限公司",
+    "status": "failed",
+    "reason": "access_denied",
+    "error_code": 403,
+    "retrieved_at": "2026-10-20T23:46:01"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_positions",
+    "subject": "海底捞国际控股有限公司",
+    "status": "failed",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:46:01"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_related_companies",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:46:01"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_risk_scan",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:46:01"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_dishonest",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:46:01"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_judgment_debtor",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:46:01"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_judicial_docs",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:46:01"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_historical_related_companies",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:46:01"
+  },
+  {
+    "provider": "qcc",
+    "tool": "get_executive_historical_positions",
+    "subject": "海底捞国际控股有限公司",
+    "status": "not_queried",
+    "reason": "regional_restriction",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:46:01"
+  },
+  {
+    "provider": "xiniu",
+    "tool": "get_company_info:融资状况分析",
+    "subject": "海底捞国际控股有限公司",
+    "status": "failed",
+    "reason": "provider_entity_not_found",
+    "error_code": "tool_execution_error",
+    "retrieved_at": "2026-10-20T23:46:02"
+  },
+  {
+    "provider": "xiniu",
+    "tool": "get_company_info:融资状况分析",
+    "subject": "海底捞国际控股有限公司",
+    "status": "failed",
+    "reason": "provider_entity_not_found",
+    "error_code": "tool_execution_error",
+    "retrieved_at": "2026-10-20T23:46:02"
+  },
+  {
+    "provider": "xiniu",
+    "tool": "get_company_info:团队人物及招聘分析",
+    "subject": "海底捞国际控股有限公司",
+    "status": "failed",
+    "reason": "provider_entity_not_found",
+    "error_code": "tool_execution_error",
+    "retrieved_at": "2026-10-20T23:46:02"
+  },
+  {
+    "provider": "xiniu",
+    "tool": "get_company_info:团队人物及招聘分析",
+    "subject": "海底捞国际控股有限公司",
+    "status": "failed",
+    "reason": "provider_entity_not_found",
+    "error_code": "tool_execution_error",
+    "retrieved_at": "2026-10-20T23:46:03"
+  },
+  {
+    "provider": "xiniu",
+    "tool": "get_project_events",
+    "subject": "海底捞国际控股有限公司",
+    "status": "empty_result",
+    "reason": "explicit_empty_record_list",
+    "error_code": null,
+    "retrieved_at": "2026-10-20T23:46:03"
+  }
+]

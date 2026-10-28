@@ -140,6 +140,7 @@ def build_provenance_index(target, intake, sources, facts, rejected, chapters):
                    'evidence_id': evidence_id, 'statement': text, 'source_url': url,
                    'subject': fact.get('subject') or obs.get('subject') or '',
                    'subject_scope': fact.get('subject_scope') or obs.get('subject_scope') or 'unresolved',
+                   'actor_context': obs.get('actor_context') or {},
                    'event_period': obs.get('period') or '',
                    'event_period_basis': obs.get('period_basis') or 'unknown',
                    'role_date_fields': obs.get('role_date_fields') or [],
