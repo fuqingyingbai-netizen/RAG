@@ -3215,7 +3215,7 @@ class ResearchWorkflow:
         if str(project.target_type or '').lower() != 'company':
             _emit(emit, "ocr", "ocr_extraction_agent", "当前链路未启用OCR", "", status="skipped")
             return 0
-        from company_ocr import VERSION, _integer
+        from company_ocr import VERSION, LEGACY_AUDIT_REFRESH_VERSION, _integer, legacy_audit_original_needed
         if os.getenv('COMPANY_PDF_OCR_ENABLED', 'true').lower() in {'false', '0', 'off'}:
             _emit(emit, 'ocr', 'ocr_extraction_agent', '公司按页OCR已关闭', '原待识别页保留', status='skipped')
             return 0
@@ -3232,16 +3232,45 @@ class ResearchWorkflow:
             if (previous_ocr.get('version') == VERSION and previous_ocr.get('status') not in {'busy','unavailable','disabled'} and not retry_pending):
                 continue
             pending = extraction.get('needs_ocr_pages') or []
+            legacy_audit = legacy_audit_original_needed(source, getattr(project, 'target_name', ''))
+            prior_refresh = meta.get('legacy_audit_original_refresh') or {}
+            if legacy_audit and prior_refresh.get('version') == LEGACY_AUDIT_REFRESH_VERSION and not retry_pending:
+                continue
             pdf = str(source.url or '').split('?', 1)[0].lower().endswith('.pdf') or 'pdf' in str(meta.get('fetched_content_type') or '')
-            if not pdf or not pending:
+            if not pdf or not (pending or legacy_audit):
                 continue
             if attempted >= maximum:
                 _emit(emit, 'ocr', 'ocr_extraction_agent', '扫描页待后续处理', '本轮来源预算已用完，原缺口保留', url=source.url, status='warning')
                 continue
             attempted += 1
-            _emit(emit, 'ocr', 'ocr_extraction_agent', '公司PDF按页补充识别', f'pending_pages={len(pending)}', url=source.url, status='running')
+            _emit(emit, 'ocr', 'ocr_extraction_agent', '公司PDF按页补充识别',
+                  f'pending_pages={len(pending)}; legacy_audit_without_physical_pages={legacy_audit}', url=source.url, status='running')
             fetched = self._fetch_web_url_with_timeout(source.url, False, emit=emit, document_profile='company')
-            if fetched.get('document_extraction') and fetched.get('document_pages'):
+            subject_bound = True
+            if legacy_audit:
+                from report_agents.company_diligence import issuer_heading
+                subject_bound = bool(fetched.get('content')) and issuer_heading(
+                    fetched.get('document_pages') or [], project.target_name)
+            if fetched.get('document_extraction') and fetched.get('document_pages') and subject_bound:
+                if legacy_audit:
+                    snapshot = json.dumps({'content': source.content, 'source_metadata': meta,
+                                           'object_key': getattr(source, 'object_key', None)}, ensure_ascii=False)
+                    snapshot_sha = hashlib.sha256(snapshot.encode('utf-8')).hexdigest()
+                    revision_key = research_store.put_text(
+                        f'projects/{project.id}/source_revisions/{source.id}_{snapshot_sha}.json', snapshot,
+                        'application/json; charset=utf-8')
+                    body = fetched.get('content') or ''
+                    body_sha = hashlib.sha256(body.encode('utf-8')).hexdigest()
+                    source.object_key = research_store.put_text(
+                        f'projects/{project.id}/raw_web/ocr_refresh_{source.id}_{body_sha}.txt', body)
+                    meta['legacy_audit_original_refresh'] = {
+                        'version': LEGACY_AUDIT_REFRESH_VERSION, 'status': 'retrieved',
+                        'previous_revision_key': revision_key, 'previous_revision_sha256': snapshot_sha,
+                        'body_sha256': body_sha, 'retrieved_at': datetime.now().isoformat(timespec='seconds')}
+                    # The archived revision retains the old provider receipt;
+                    # it must not describe the newly fetched physical pages.
+                    meta.pop('retained_provider_receipt', None)
+                    meta['content_origin'] = 'direct_company_pdf_refresh'
                 source.content = fetched.get('content') or source.content
                 meta.update(document_pages=fetched['document_pages'], document_extraction=fetched['document_extraction'])
                 if fetched.get('content'):
@@ -3257,6 +3286,10 @@ class ResearchWorkflow:
                 # Fetch failure must not erase original text/coverage or be
                 # represented as an empty search result.
                 meta['ocr_retry'] = {'status': fetched.get('status') or 'failed', 'error': fetched.get('error') or ''}
+                if legacy_audit:
+                    meta['legacy_audit_original_refresh'] = {
+                        'version': LEGACY_AUDIT_REFRESH_VERSION, 'status': 'failed',
+                        'reason': 'subject_not_bound' if not subject_bound else fetched.get('status') or 'extraction_unavailable'}
                 detail = '重新获取失败，保留原文字与待识别页'
                 status = 'warning'
             source.source_metadata = meta

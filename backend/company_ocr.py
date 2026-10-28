@@ -14,9 +14,31 @@ from importlib.metadata import version
 from io import BytesIO
 
 VERSION = 'company-page-ocr-v1'
+LEGACY_AUDIT_REFRESH_VERSION = 'company-legacy-audit-original-v1'
 _engine = None
 _engine_lock = threading.RLock()
 _pdfium_lock = threading.Lock()
+
+
+def legacy_audit_original_needed(source, target):
+    """Provider text without physical pages cannot rule out scanned opinions."""
+    from report_agents.company_diligence import exchange, issuer_heading
+    from report_agents.company_evidence import source_body
+    from report_agents.company_governance import get
+    if not str(target or '').strip():
+        return False
+    meta = get(source, 'source_metadata', {}) or {}
+    if meta.get('entity_validation') in {'rejected', 'ambiguous', 'related_entity_context'}:
+        return False
+    if meta.get('document_pages') or meta.get('document_extraction'):
+        return False
+    url = str(get(source, 'url') or '').split('?', 1)[0].lower()
+    if not url.endswith('.pdf') or not exchange(source):
+        return False
+    raw, origin = source_body(source)
+    if origin == 'discovery_summary' or not re.search(r'内部控制审计报告|內部控制審計報告', raw):
+        return False
+    return issuer_heading([{'page': None, 'text': raw}], target)
 
 
 def _integer(name, default, low, high):
