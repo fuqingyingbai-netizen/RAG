@@ -14,7 +14,7 @@ from .company_governance import get
 from .company_transport import bounded_company_invoke
 from .company_text import issuer_response_title
 
-VERSION = 'company-event-evidence-v5-bound-independent-check'
+VERSION = 'company-event-evidence-v6-qualified-state-scope'
 DATE_ROLES = {'publication', 'document_date', 'unverified_display', 'unknown'}
 REVIEW_CRITERIA = ('factual_support', 'responsibility_and_impact', 'date_meaning',
                    'procedure_and_receipt_state', 'counterevidence', 'actors_and_obligations')
@@ -161,8 +161,24 @@ def _positive_clauses(text, pattern):
             continue
         if _state_distinction_clause(clause):
             continue
+        if _unconfirmed_state_clause(clause):
+            continue
         for match in re.finditer(pattern, clause):
             yield clause, match
+
+
+def _unconfirmed_state_clause(clause):
+    """A coordinated state label qualified as unknown is not a completed act.
+
+    Explicit completion markers, dates and separate affirmative clauses do
+    not fit this grammar and must still pass the ordinary act checks.
+    """
+    label=(r'(?:(?:判决|判決|原判)(?:生效|发生法律效力|發生法律效力)'
+           r'|(?:执行|執行|履行)(?:状态|狀態|情况|情況)'
+           r'|(?:赔偿款|賠償款)(?:到账|到賬|履行)(?:状态|狀態|情况|情況)?)')
+    return bool(re.fullmatch(r'(?:故|因此|目前|本案)?'+label+r'(?:(?:及|与|與|和|、)'+label+r')*'
+        r'(?:与否|與否|状态|狀態|情况|情況)?(?:仍|尚|暂|暫)?'
+        r'(?:无法|無法|难以|難以|不能)(?:确认|確認|核实|核實|确定|確定)',clause))
 
 
 def case_state_errors(selection, raw):
@@ -369,6 +385,8 @@ def review_primary_events(sources, target, as_of, invoke, *, cache=None, trace_e
             '但subject_scope和summary必须写清仅为服务背景、中文法人对应及责任待核，不能因名称未证丢弃整份官方文件。'
             '不得按资料缺口评风险、分数或推定违法；外部仿冒案处罚不得归目标。主体英文名称与中文目标是否对应需要核对，不能只凭同名品牌。'
             '第三方承担侵权责任不等于目标公司没有受损；原文明示的商誉、销量及利润损失和法院认定须保留，不能被责任边界抹去。'
+            '原文空引号或缺失图样、名称、注册号须按未呈现保留，不能自行补齐。'
+            '商标/字号文字、图样及近似判断分别核对，只有原文明示的认定才可归因法院。'
             '申请撤回上诉、法院准许撤回、判决生效、判赔义务和赔偿款实际到账是不同状态；只按原文明示分别表达。'
             '逐一核对裁判或监管措施的义务主体、义务类型和金额：股东、董事、员工或关联企业的行为、任职、关联及主观恶意，'
             '不等于原文明示其个人或连带赔偿、罚款、支付义务。不得把仅针对公司的判项扩展给其股东或其他主体。'
@@ -429,6 +447,7 @@ def review_primary_events(sources, target, as_of, invoke, *, cache=None, trace_e
                 '逐项核对source_date_role及publication_date是否真实对应：未核实性质的页面时间不能充当发布日期或事件日期，'
                 'unknown/unverified_display正确标明未知并保留事件原文可以通过，不要求伪造日期。'
                 '英文译本、日期冲突等版本问题必须明确。'
+                '缺失图样、空引号或未列明字段不能补成名称、注册号、近似认定或法律条款；法院认定只按原文明示归因。'
                 '复核理由本身也不得引入原文没有的金额、比例或股数；不为凑结论改写原值。'
                 '只输出JSON {status:supported/unsupported,criteria:{factual_support:true/false,'
                 'responsibility_and_impact:true/false,date_meaning:true/false,procedure_and_receipt_state:true/false,'

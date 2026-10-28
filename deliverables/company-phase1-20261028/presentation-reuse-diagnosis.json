@@ -1,0 +1,11 @@
+{
+  "native_information_records": 9079,
+  "stored_accepted_batches": 318,
+  "current_jobs": 322,
+  "reusable_jobs": 318,
+  "new_jobs": 4,
+  "request_payload_rows": 27,
+  "rows_different_from_latest_whole_usage": [],
+  "model_calls": 0,
+  "cache_gate_bypassed": false
+}

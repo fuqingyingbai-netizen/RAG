@@ -147,10 +147,17 @@ def bind_queries(rows, requirements):
     return result
 
 
-def platform_requirement_ids(requirements, provider, tool, arguments):
+def platform_requirement_ids(requirements, provider, tool, arguments, *, planned=False):
+    aspect=''
+    # The existing Xiniu audit labels each get_company_info invocation by its
+    # requested aspect; the underlying MCP tool retains its ordinary name.
+    if provider=='xiniu' and tool.startswith('get_company_info:'):
+        tool,aspect=tool.split(':',1)
+        if not planned and arguments.get('aspect')!=aspect:return []
     return sorted({r['requirement_id'] for r in requirements for route in r.get('routes', [])
                    if route['provider'] == provider and route['tool'] == tool and
-                   all(arguments.get(k) == v for k, v in route['arguments'].items())})
+                   (not aspect or route['arguments'].get('aspect')==aspect) and
+                   (planned or all(arguments.get(k) == v for k, v in route['arguments'].items()))})
 
 
 def resume_gap_intake(intake, queries, requirements):

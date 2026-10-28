@@ -66,6 +66,39 @@ def test_platform_mapping_requires_the_actual_target_and_aspect():
     assert platform_requirement_ids(rows, 'xiniu', 'get_company_info', {**args, 'aspect': '风险评估'}) == []
 
 
+def test_actual_xiniu_aspect_label_binds_only_matching_arguments_and_preserves_the_label():
+    rows=build_requirements(['融资情报','管理团队'],intake())
+    project=SimpleNamespace(company_research_requirements=rows)
+    audit=CompanyPlatformAudit(project,'xiniu','test-not-a-credential',{})
+    tool='get_company_info:融资状况分析';args={'firm_name':intake()['target_name'],'aspect':'融资状况分析'}
+    audit.result(tool,args,{'content':[]})
+    row=project.company_professional_platform_attempts[0]
+    assert row['tool']==tool and row['arguments']==args
+    assert row['company_requirement_ids']==[rows[0]['requirement_id']]
+    assert row['company_requirement_binding']=='actual_arguments'
+    assert platform_requirement_ids(rows,'xiniu',tool,{**args,'aspect':'团队人物及招聘分析'})==[]
+
+
+def test_unexecuted_planned_tools_remain_requirement_gaps_without_invented_arguments():
+    rows=build_requirements(['融资情报','管理团队'],intake())
+    project=SimpleNamespace(company_research_requirements=rows)
+    audit=CompanyPlatformAudit(project,'xiniu','test-not-a-credential',{})
+    audit.planned(['get_company_info:融资状况分析','get_company_info:团队人物及招聘分析'])
+    audit.stop_reason='not_configured';audit.finish_unqueried()
+    attempts=project.company_professional_platform_attempts
+    assert len(attempts)==2
+    assert [r['company_requirement_ids'] for r in attempts]==[[r['requirement_id']] for r in rows]
+    assert all(r['status']=='not_queried' and r['arguments']=={} and r['company_requirement_binding']=='planned_not_executed' for r in attempts)
+
+
+def test_shared_platform_audit_does_not_carry_company_requirements_into_person_context():
+    project=SimpleNamespace(target_type='person',company_research_requirements=build_requirements(['融资情报'],intake()))
+    audit=CompanyPlatformAudit(project,'xiniu','test-not-a-credential',{},attribute='person_platform_attempts')
+    audit.record('get_company_info:融资状况分析',{'firm_name':intake()['target_name'],'aspect':'融资状况分析'},'returned')
+    row=project.person_platform_attempts[0]
+    assert row['status']=='returned' and not any(k.startswith('company_') for k in row)
+
+
 def test_platform_quota_failure_remains_a_collection_gap_linked_to_the_question():
     project = SimpleNamespace(company_research_requirements=build_requirements(['诉讼/制裁'], intake()))
     audit = CompanyPlatformAudit(project, 'qcc', 'test-credential', {})

@@ -184,9 +184,12 @@ def main():
                 started = time.monotonic()
                 record({'kind': 'model_started', 'number': number, 'model': self.settings.get('model'),
                         'input_sha256': request, 'sdk_max_retries': self.settings.get('max_retries'),
-                        'max_completion_tokens': self.settings.get('max_completion_tokens',self.settings.get('max_tokens'))})
+                        'max_completion_tokens': self.settings.get('max_completion_tokens',self.settings.get('max_tokens')),
+                        'reasoning_effort':self.settings.get('reasoning_effort')})
                 write(f'bounded-inputs/{tag}-{number:06d}.json',
-                      {'model':self.settings.get('model'),'messages':messages,'kwargs':keywords,'input_sha256':request})
+                      {'model':self.settings.get('model'),'messages':messages,'kwargs':keywords,'input_sha256':request,
+                       'model_settings':{k:self.settings[k] for k in ('temperature','timeout','streaming','max_tokens',
+                            'max_completion_tokens','reasoning_effort','max_retries') if k in self.settings}})
                 try:
                     result = self.delegate.invoke(messages, *positional, **keywords)
                     record({'kind': 'model_returned', 'number': number,
@@ -293,6 +296,7 @@ def main():
           'model':os.getenv('MODEL'),'model_endpoint_host':urlsplit(os.getenv('BASE_URL','')).hostname,
           'vision_model':os.getenv('VISION_MODEL'),'vision_endpoint_host':urlsplit(os.getenv('VISION_BASE_URL','')).hostname,
           'company_editor_completion_budget':os.getenv('COMPANY_REPORT_EDITOR_MAX_COMPLETION_TOKENS','provider_default'),
+          'company_editor_reasoning_effort':os.getenv('COMPANY_REPORT_EDITOR_REASONING_EFFORT','provider_default'),
           'model_concurrency_enforced_by_semaphore': 1, 'requests_concurrency_enforced_by_semaphore': 2,
           'code_sha256': code_hashes, 'settings_overrides': overrides,
           'sdk_retries_remain_configured': True, 'original_model_responses_modified': False})

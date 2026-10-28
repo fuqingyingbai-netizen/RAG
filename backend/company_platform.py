@@ -72,10 +72,15 @@ class CompanyPlatformAudit:
         row = {'provider': self.provider, 'tool': tool, 'subject': self.subject, 'arguments': dict(arguments),
                'status': status, 'reason': reason, 'retrieved_at': datetime.now().isoformat(timespec='seconds')}
         requirements = getattr(self.project, 'company_research_requirements', None)
-        if requirements:
+        company_context=(self.attribute=='company_professional_platform_attempts' and
+                         str(getattr(self.project,'target_type','company')).lower()=='company')
+        if requirements and company_context:
             from company_requirements import platform_requirement_ids, VERSION
-            row['company_requirement_ids'] = platform_requirement_ids(requirements, self.provider, tool, arguments)
+            planned=status=='not_queried'
+            row['company_requirement_ids'] = platform_requirement_ids(requirements, self.provider, tool, arguments,planned=planned)
             row['company_requirement_version'] = VERSION
+            row['company_requirement_binding']=('planned_not_executed' if planned else
+                'actual_arguments' if row['company_requirement_ids'] else 'unmatched')
         if isinstance(error, dict):
             # Keep machine diagnostics, not external instructions or credentials.
             row['error_code'] = error.get('code')

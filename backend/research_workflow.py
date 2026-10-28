@@ -637,6 +637,7 @@ class ResearchWorkflow:
         if not api_key or not model_name:
             return None
         completion_limit=_env_int('COMPANY_REPORT_EDITOR_MAX_COMPLETION_TOKENS',0,0,131072)
+        reasoning_effort=os.getenv('COMPANY_REPORT_EDITOR_REASONING_EFFORT','').strip().lower()
         self._company_report_editor_model = init_chat_model(
             model=model_name,
             model_provider="openai",
@@ -648,6 +649,7 @@ class ResearchWorkflow:
             timeout=_env_int("COMPANY_REPORT_EDITOR_TIMEOUT_SECONDS", 150, 30, 600),
             max_retries=_env_int("COMPANY_REPORT_EDITOR_MAX_RETRIES", 1, 0, 1),
             **({'max_tokens':completion_limit} if completion_limit else {}),
+            **({'reasoning_effort':reasoning_effort} if reasoning_effort else {}),
         )
         return self._company_report_editor_model
 

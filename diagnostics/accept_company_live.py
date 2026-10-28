@@ -126,7 +126,7 @@ def main():
     def observe_factory(*positional, **keywords):
         delegate = factory(*positional, **keywords)
         settings = {key: keywords[key] for key in ('model_provider', 'temperature', 'stream_usage',
-            'timeout', 'max_retries', 'max_tokens') if key in keywords}
+            'timeout', 'max_retries', 'max_tokens', 'max_completion_tokens', 'reasoning_effort') if key in keywords}
         settings['streaming'] = getattr(delegate, 'streaming', False)
         return ObservedModel(delegate, keywords.get('model', ''), settings)
 
