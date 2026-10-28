@@ -11,6 +11,7 @@ import html
 import io
 import json
 from pathlib import Path
+import re
 import sqlite3
 import zipfile
 
@@ -86,8 +87,22 @@ def main():
     # Generated from the exact Markdown, without changing a factual sentence.
     # Disallow raw source HTML and use CommonMark's safe link handling.
     renderer = MarkdownIt('commonmark', {'html': False}).enable('table')
+    chapter_links = []
+    def heading_open(tokens, index, options, env):
+        if tokens[index].tag == 'h2' and index + 1 < len(tokens):
+            label = tokens[index + 1].content
+            match = re.match(r'^(\d+)[.、．]\s*', label)
+            if match:
+                anchor = 'chapter-' + match[1]
+                tokens[index].attrSet('id', anchor)
+                chapter_links.append((anchor, label))
+        return renderer.renderer.renderToken(tokens, index, options, env)
+    renderer.renderer.rules['heading_open'] = heading_open
     body = renderer.render(markdown.decode('utf-8'))
     title = html.escape(artifact['title'])
+    directory = '<details><summary>目录</summary><ol>' + ''.join(
+        '<li><a href="#' + anchor + '">' + html.escape(label) + '</a></li>'
+        for anchor, label in chapter_links) + '</ol></details>'
     webpage = ('<!doctype html><html lang="zh-CN"><meta charset="utf-8">'
                '<meta name="viewport" content="width=device-width,initial-scale=1">'
                '<meta name="source-markdown-sha256" content="' + sha(markdown) + '">'
@@ -104,10 +119,13 @@ def main():
                'nav{font-size:14px;margin-bottom:2em}@media(max-width:700px){main{padding:22px 18px}table{font-size:13px}}'
                '</style><main><nav><a href="报告.md">Markdown</a> · '
                '<a href="分析主报告.docx">Word</a> · <a href="完整证据附件.html">完整证据附件</a></nav>'
-               '<article>' + body + '</article></main></html>').encode('utf-8')
+               + directory + '<article>' + body + '</article></main></html>').encode('utf-8')
     files = {'报告.md': markdown, '报告.html': webpage, '分析主报告.docx': docx,
              '完整证据附件.html': annex, '原生交付包.zip': bundle}
-    destination = RUN / 'review-candidates' / args.case / sha(markdown)
+    renderer_source_sha256 = sha(Path(__file__).read_bytes())
+    candidate_id = sha(json.dumps({'files': {name: sha(payload) for name, payload in files.items()},
+                                  'renderer_source_sha256': renderer_source_sha256}, sort_keys=True).encode())
+    destination = RUN / 'review-candidates' / args.case / candidate_id
     destination.mkdir(parents=True, exist_ok=True)
     for name, payload in files.items():
         path = destination / name
@@ -115,6 +133,7 @@ def main():
             raise RuntimeError('An immutable QA candidate already has different bytes: ' + name)
         path.write_bytes(payload)
     manifest = {'version': 'company-phase1-review-candidate-v1', 'case': args.case,
+                'candidate_id': candidate_id, 'renderer_source_sha256': renderer_source_sha256,
                 'artifact_id': artifact['id'], 'artifact_version': artifact['version'],
                 'report_sha256': sha(markdown),
                 'native_code_commit': plan.get('code_commit'),

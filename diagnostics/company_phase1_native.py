@@ -55,7 +55,7 @@ def sha(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('case', choices=['haitian', 'kingsoft'])
+    parser.add_argument('case', choices=['haitian', 'kingsoft', 'holdout'])
     parser.add_argument('--max-model-calls', type=int, default=12)
     parser.add_argument('--max-http-calls', type=int, default=24)
     parser.add_argument('--max-model-http-calls', type=int)
@@ -297,6 +297,10 @@ def main():
           'vision_model':os.getenv('VISION_MODEL'),'vision_endpoint_host':urlsplit(os.getenv('VISION_BASE_URL','')).hostname,
           'company_editor_completion_budget':os.getenv('COMPANY_REPORT_EDITOR_MAX_COMPLETION_TOKENS','provider_default'),
           'company_editor_reasoning_effort':os.getenv('COMPANY_REPORT_EDITOR_REASONING_EFFORT','provider_default'),
+          'company_main_focus_completion_budget':os.getenv('COMPANY_MAIN_FOCUS_MAX_COMPLETION_TOKENS','provider_default'),
+          'company_main_focus_reasoning_effort':os.getenv('COMPANY_MAIN_FOCUS_REASONING_EFFORT','provider_default'),
+          'company_main_focus_batch_chars':os.getenv('COMPANY_MAIN_FOCUS_BATCH_CHARS','26000'),
+          'company_main_focus_batch_records':os.getenv('COMPANY_MAIN_FOCUS_BATCH_RECORDS','12'),
           'model_concurrency_enforced_by_semaphore': 1, 'requests_concurrency_enforced_by_semaphore': 2,
           'code_sha256': code_hashes, 'settings_overrides': overrides,
           'sdk_retries_remain_configured': True, 'original_model_responses_modified': False})

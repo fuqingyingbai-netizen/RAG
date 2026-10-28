@@ -628,17 +628,22 @@ class ResearchWorkflow:
             _emit(emit, "llm", role, "人物报告轻量总编超时或失败，保留章节草稿", str(exc), status="fallback")
             return ""
 
-    def _get_company_report_editor_model(self):
-        if self._company_report_editor_model is not None:
-            return self._company_report_editor_model
+    def _get_company_report_editor_model(self, *, profile='editor'):
+        if profile not in {'editor','main_focus'}:
+            raise ValueError('invalid_company_editor_profile')
+        attribute = '_company_main_focus_model' if profile == 'main_focus' else '_company_report_editor_model'
+        cached = getattr(self, attribute, None)
+        if cached is not None:
+            return cached
         api_key = os.getenv("ARK_API_KEY")
         model_name = os.getenv("MODEL")
         base_url = os.getenv("BASE_URL")
         if not api_key or not model_name:
             return None
-        completion_limit=_env_int('COMPANY_REPORT_EDITOR_MAX_COMPLETION_TOKENS',0,0,131072)
-        reasoning_effort=os.getenv('COMPANY_REPORT_EDITOR_REASONING_EFFORT','').strip().lower()
-        self._company_report_editor_model = init_chat_model(
+        prefix = 'COMPANY_MAIN_FOCUS' if profile == 'main_focus' else 'COMPANY_REPORT_EDITOR'
+        completion_limit=_env_int(prefix+'_MAX_COMPLETION_TOKENS',0,0,131072)
+        reasoning_effort=os.getenv(prefix+'_REASONING_EFFORT','').strip().lower()
+        model = init_chat_model(
             model=model_name,
             model_provider="openai",
             api_key=api_key,
@@ -651,11 +656,13 @@ class ResearchWorkflow:
             **({'max_tokens':completion_limit} if completion_limit else {}),
             **({'reasoning_effort':reasoning_effort} if reasoning_effort else {}),
         )
-        return self._company_report_editor_model
+        setattr(self, attribute, model)
+        return model
 
     def _invoke_company_report_editor(self, role: str, prompt: str, emit: TraceEmitter | None = None) -> str:
         """Use a dedicated, bounded editor request for company-report batches."""
-        model = self._get_company_report_editor_model()
+        model = (self._get_company_report_editor_model(profile='main_focus')
+                 if role.startswith('公司主报告事实选择') else self._get_company_report_editor_model())
         if not model:
             _emit(emit, "llm", role, "公司报告分批主编模型未配置，保留章节草稿", "", status="fallback")
             return ""
@@ -6535,7 +6542,10 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                 return self._invoke_person_report_editor(role, prompt, emit=trace_emit)
             if target_type == "person" and "章节 Agent" in role:
                 return self._invoke_person_report_section(role, prompt, emit=trace_emit)
-            if target_type == "company" and ("分批主编 Agent" in role or role.startswith('公司交付')):
+            focus_profile = role.startswith('公司主报告事实选择') and (
+                _env_int('COMPANY_MAIN_FOCUS_MAX_COMPLETION_TOKENS',0,0,131072) > 0 or
+                bool(os.getenv('COMPANY_MAIN_FOCUS_REASONING_EFFORT','').strip()))
+            if target_type == "company" and ("分批主编 Agent" in role or role.startswith('公司交付') or focus_profile):
                 return self._invoke_company_report_editor(role, prompt, emit=trace_emit)
             if target_type == 'company':
                 return self._invoke(role, prompt, emit=trace_emit,

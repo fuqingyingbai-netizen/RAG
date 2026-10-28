@@ -1,0 +1,37 @@
+{
+  "backend_product_commit": "10111b68dc4f37a8c744529eea1507a967411f48",
+  "checked_repository_commit": "d8d4d771fa058316a406d31424839e4e7a193818",
+  "backend_test_frontend_files_unchanged_since_test_commit": true,
+  "backend": {
+    "passed": 4157,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "warnings": 2340,
+    "seconds": 1307.252,
+    "network_allowed": false,
+    "plugin_autoload": false
+  },
+  "frontend": {
+    "passed": 118,
+    "skipped": 0,
+    "failures": 0,
+    "milliseconds": 2942.6294
+  },
+  "files": {
+    "work/company-phase1-20261028/full-regression-10111b6.xml": {
+      "sha256": "9a94f042710ce5270ab78491c1b962b5551235b61eb73ae061c80a410a72dc68",
+      "bytes": 757853
+    },
+    "work/company-phase1-20261028/full-regression-10111b6.log": {
+      "sha256": "8d43fb4a4300716a9259caaab2a9e510766624c6a98cbd8c734656dab3bf868a",
+      "bytes": 28528
+    },
+    "work/company-phase1-20261028/frontend-regression-d8d4d77.log": {
+      "sha256": "306173ec566947f3b6a488285eef96c48c150adfad9b7ad24a3eb78e2909ace4",
+      "bytes": 11728
+    }
+  },
+  "full_report_accepted": false,
+  "real_browser_and_word_all_pages_review": "pending_final_candidate"
+}
