@@ -4,3 +4,6 @@
 *.jpeg binary
 # Frozen acceptance files are byte-fingerprinted; preserve their original bytes.
 test/fixtures/industry_acceptance/v1/*.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+# Preserve byte-bound phase-one logs and final exports across Windows checkouts.
+deliverables/company-phase1-20261028/test-results/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+deliverables/company-phase1-20261028/reports/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

@@ -1,16 +1,17 @@
 {
-  "backend_product_commit": "19e70b8c39088957dea1308eb29a18fa0428f368",
-  "checked_repository_commit": "db1fffc71a786102ac02961dcd274dd74173c6a6",
-  "backend_test_frontend_files_unchanged_since_test_commit": false,
+  "backend_product_commit": "6e6bf3b5423e75b343d15fc7ad5731c914d823fa",
+  "checked_repository_commit": "6e6bf3b5423e75b343d15fc7ad5731c914d823fa",
+  "backend_test_frontend_files_unchanged_since_test_commit": true,
   "backend": {
-    "passed": 4178,
+    "passed": 4205,
     "skipped": 1,
     "failures": 0,
     "errors": 0,
     "warnings": 2340,
-    "seconds": 1149.277,
+    "seconds": 1287.301,
     "network_allowed": false,
-    "plugin_autoload": false
+    "plugin_autoload": false,
+    "pytest_reported_wall_seconds": 1287.33
   },
   "frontend": {
     "passed": 118,
@@ -19,29 +20,34 @@
     "milliseconds": 2942.6294
   },
   "files": {
-    "work/company-phase1-20261028/full-regression-19e70b8.xml": {
-      "sha256": "056058a8045da00f7a799e94a319b42b1cb0a0a230b3796f5431c56a9180bd14",
-      "bytes": 762620
+    "deliverables/company-phase1-20261028/test-results/full-regression-6e6bf3b.xml": {
+      "sha256": "7e333aa928406293da094ec22d306855cf09691839d5440c88f402b8961d374e",
+      "bytes": 766794,
+      "native_log": "work/company-phase1-20261028/full-regression-6e6bf3b.xml"
     },
-    "work/company-phase1-20261028/full-regression-19e70b8.log": {
-      "sha256": "4cfc14ff141230d8737219a44fa5f91f2975c68319b13e4ee0af7df74603c7dd",
-      "bytes": 28609
+    "deliverables/company-phase1-20261028/test-results/full-regression-6e6bf3b.txt": {
+      "sha256": "9614bd0a4b35d2a007775eedc19856a144f24c29feb7a4602c2c1af6ac7c44ef",
+      "bytes": 28609,
+      "native_log": "work/company-phase1-20261028/full-regression-6e6bf3b.log"
     },
-    "work/company-phase1-20261028/frontend-regression-d8d4d77.log": {
+    "deliverables/company-phase1-20261028/test-results/frontend-regression-d8d4d77.txt": {
       "sha256": "306173ec566947f3b6a488285eef96c48c150adfad9b7ad24a3eb78e2909ace4",
-      "bytes": 11728
+      "bytes": 11728,
+      "native_log": "work/company-phase1-20261028/frontend-regression-d8d4d77.log"
     },
-    "work/company-phase1-20261028/analysis-budget-regression.xml": {
-      "sha256": "30b030eea5c40e6145948cff470294a3de6e71428e44ab7459d7b474c341e087",
-      "bytes": 19777
+    "deliverables/company-phase1-20261028/test-results/chapter-encoding-regression.xml": {
+      "sha256": "23bf3720246baabc26220f37cd60e3d4307931c70b29c0ca573291d94bfe59ed",
+      "bytes": 15374,
+      "native_log": "work/company-phase1-20261028/chapter-encoding-regression.xml"
     },
-    "work/company-phase1-20261028/analysis-budget-regression.log": {
-      "sha256": "4f0d04d25e54b050bca45cc06f7486c8a506892653629d047fbb0247c6998849",
-      "bytes": 2689
+    "deliverables/company-phase1-20261028/test-results/chapter-encoding-regression.txt": {
+      "sha256": "2cc2d11ae44a7c14289db94450a3d992598469dc1567dbb1429a8de0eb0c29a5",
+      "bytes": 182,
+      "native_log": "work/company-phase1-20261028/chapter-encoding-regression.log"
     }
   },
   "full_report_accepted": false,
   "real_browser_and_word_all_pages_review": "pending_final_candidate",
-  "latest_product_full_regression": "running; full-regression-db1fffc.xml/log",
+  "latest_product_full_regression": "passed; full-regression-6e6bf3b.xml/txt",
   "frontend_files_unchanged_since_d8d4d77": true
 }

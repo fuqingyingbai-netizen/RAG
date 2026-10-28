@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import sqlite3
 import sys
@@ -18,14 +19,19 @@ def digest(value):return hashlib.sha256(value).hexdigest()
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('case',choices=['haitian','kingsoft','holdout'])
+    parser.add_argument('--checkpoint-sha',help='Revalidate a preserved payload in this case instead of the live pointer.')
     args=parser.parse_args()
+    if args.checkpoint_sha and not re.fullmatch('[0-9a-f]{64}',args.checkpoint_sha):
+        parser.error('checkpoint-sha must be a lowercase SHA256 digest')
     os.environ['PYTHON_DOTENV_DISABLED']='1'
     sys.path.insert(0,str(ROOT/'backend'))
     from report_agents.company_corpus import build_corpus_review,VERSION
     from report_agents.company_text import company_matching_cache
     native=ROOT/'work/company-phase1-20261028/native'/args.case
     store=native/'objects'
-    pointer=json.loads((store/'projects/1/company_generation_checkpoint/current.json').read_text(encoding='utf-8'))
+    directory=store/'projects/1/company_generation_checkpoint'
+    pointer=(dict(key=(directory/(args.checkpoint_sha+'.json')).relative_to(store).as_posix(),sha256=args.checkpoint_sha)
+             if args.checkpoint_sha else json.loads((directory/'current.json').read_text(encoding='utf-8')))
     path=(store/pointer['key']).resolve()
     assert path.is_relative_to(store.resolve())
     payload=path.read_bytes();assert digest(payload)==pointer['sha256']
