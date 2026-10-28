@@ -21,10 +21,10 @@ from .company_text import match_text, match_compact
 from .company_reputation import aliases_for_target, _mentions
 from .company_source_review import (
     evidence_id, provenance, document_date_proof, validate_selection,
-    BOUNDARIES, TOPICS, NAVIGATION,
+    BOUNDARIES, TOPICS, NAVIGATION, external_standard_participation,
 )
 
-VERSION='company-corpus-v10-issuer-reply-authorship'
+VERSION='company-corpus-v11-bounded-industry-and-standard-roles'
 PLATFORM_HOSTS=('qcc.com','tianyancha.com','qixin.com','aiqicha.baidu.com',
                 'qichamao.com','xcc.cn','itjuzi.com','xiniu.com','zhipin.com',
                 'liepin.com','lagou.com','maimai.cn','kanzhun.com')
@@ -128,6 +128,20 @@ def _paragraph_spans(raw):
             cursor=right
 
 
+def _standard_participation_spans(raw,target):
+    """Keep the adjacent standard title/status and complete drafting list together."""
+    blocks=list(re.finditer(r'\S[\s\S]*?(?=\n\s*\n|\Z)',raw))
+    for i,block in enumerate(blocks):
+        if '起草单位' not in block[0] or match_text(target) not in match_text(block[0]):continue
+        left=block.start()
+        for previous in reversed(blocks[max(0,i-3):i]):
+            if block.end()-previous.start()>1100:break
+            if not re.search(r'(?:国家|行业|团体|地方)标准|技术规范|标准计划|^#{1,6}',previous[0]):break
+            left=previous.start()
+        quote=raw[left:block.end()].strip()
+        if 35<=len(quote)<=1100 and external_standard_participation(quote,target):yield left,quote
+
+
 def _profile_table_spans(raw):
     """Complete native two-column rows; never cut a value or infer columns."""
     lines=list(re.finditer(r'(?m)^\s*\|[^\n]*\|\s*$',raw))
@@ -181,7 +195,7 @@ def _attributed_speech_spans(raw):
         if 35<=len(quote)<=1100:yield block.start(),quote
 
 
-def prepare_corpus(project,cleaned,*,sentence_recovery=False,_context=None):
+def prepare_corpus(project,cleaned,*,sentence_recovery=False,scope_recovery=False,_context=None):
     sources=list(getattr(project,'sources',[]) or [])
     target=str(project.target_name or '')
     identity_sources=[s for s in sources if (get(s,'source_metadata',{}) or {}).get('entity_validation')
@@ -250,6 +264,7 @@ def prepare_corpus(project,cleaned,*,sentence_recovery=False,_context=None):
         reporting_headers+=list(re.finditer(r'(?mi)^[^\n]{0,450}\b(?:first|second|third|fourth)\s+quarter\s+(?:and\s+)?fiscal\s+year\s+20\d{2}[^\n]{0,450}$',raw))
         reporting_headers.sort(key=lambda h:h.start())
         spans=list(_paragraph_spans(raw))+list(_attributed_speech_spans(raw))
+        if scope_recovery:spans.extend(_standard_participation_spans(raw,target))
         if sentence_recovery:spans.extend(_complete_sentence_spans(raw))
         if legal_profile:spans.extend(_profile_table_spans(raw))
         for start,quote in sorted(spans):
@@ -262,6 +277,7 @@ def prepare_corpus(project,cleaned,*,sentence_recovery=False,_context=None):
             industry=bool(re.search(INDUSTRY_SIGNALS,normal,re.I))
             if not (direct or issuer or legal_profile or title_subject or industry):continue
             topics=[n for n,pattern in TOPICS.items() if re.search(pattern,normal,re.I)]
+            if scope_recovery and external_standard_participation(quote,target):topics=[5]
             if re.search(r'参保人数|人员规模|职工人数',normal) and 8 not in topics:topics.append(8)
             if re.search(r'评测|测评|benchmark|行业地位|行业影响|广泛应用|主流模型',normal,re.I) and 5 not in topics:topics.append(5)
             if industry and 5 not in topics:topics.append(5)
@@ -276,6 +292,7 @@ def prepare_corpus(project,cleaned,*,sentence_recovery=False,_context=None):
             native_fields,_=read_fields(quote) if legal_profile and '|' in quote else ({},[])
             selected.append({'window_id':f'W{len(selected)+1}','quote':quote,'start':start,
                 'candidate_chapters':sorted(topics),'context_quote':context,
+                **({'extended_scope_recovery':True} if scope_recovery else {}),
                 'profile_field_table':bool(native_fields),
                 'subject_reference':'legal_name_or_disclosed_alias' if direct else 'verified_issuer_document' if issuer else 'legal_profile' if legal_profile else 'title_reference' if title_subject else 'industry_context_only'})
         state.update(candidate_windows=len(selected),review_windows=len(selected),oversize_windows=oversize)
@@ -321,6 +338,21 @@ def prepare_corpus(project,cleaned,*,sentence_recovery=False,_context=None):
                 state['native_sentence_recovery']=True
                 states[sid]=state
                 documents.append(doc)
+        scope_ids={sid for sid,s in states.items() if s['state'] in {
+            'native_windows_require_structural_or_scope_review','no_literal_topic_window'}}
+        if scope_ids:
+            # Append bounded roles/industry context after existing recovery. This
+            # preserves unchanged batch inputs and their genuine old receipts.
+            subset=SimpleNamespace(target_name=target,
+                sources=[s for s in sources if str(get(s,'id',get(s,'url'))) in scope_ids],
+                company_research_intake=getattr(project,'company_research_intake',{}))
+            recovered,recovered_states,_=prepare_corpus(subset,cleaned,sentence_recovery=True,
+                scope_recovery=True,_context=(aliases,identity))
+            for doc in recovered:
+                sid=doc['source_id'];state=recovered_states[sid]
+                state['paragraph_pass_state']=states[sid]['state']
+                state['native_scope_recovery']=True
+                states[sid]=state;documents.append(doc)
     return documents,states,duplicates
 
 
@@ -385,7 +417,7 @@ def build_corpus_review(project,cleaned,sections,invoke,emit,trace_emit=None,*,p
         prior=cached.get(batch_key(batch))
         if not prior and old.get('version') in {'company-corpus-v2-native-guard-and-literal-reuse','company-corpus-v6-explicit-research-scope',
                 'company-corpus-v7-explicit-entity-admission','company-corpus-v8-subject-bound-registry-fields',
-                'company-corpus-v9-complete-registry-field-context'}:
+                'company-corpus-v9-complete-registry-field-context','company-corpus-v10-issuer-reply-authorship'}:
             # Identical old inputs can reuse a response, but each proposed
             # literal is validated again below with the current guards.
             prior=cached.get(batch_key(batch,old['version']))
