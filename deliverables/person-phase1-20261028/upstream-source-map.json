@@ -5,9 +5,9 @@
     "license_reviewed": "MIT",
     "source_functions_or_types": "Employment/Directorship/Interest; EntityProxy.make_id",
     "problem": "将任职等关系作为带时间的独立实体，名称不足以证明身份。",
-    "project_location": "backend/person_provenance.py:build_provenance_index",
-    "adaptation_and_state": "已用于独立候选、文档与观察记录ID及事件/文档时间分离；未复制代码、未引入整套依赖。",
-    "validation": "test_person_provenance; test_person_source_identity_veto",
+    "project_location": "backend/person_provenance.py:build_provenance_index/effective_time/merge_supports",
+    "adaptation_and_state": "身份候选、文档、观察、任职关系、履历事件及具名评价分别建索引，保留多来源支持与原文时间边界；不据同名或缺失离任日期认定身份或现任。",
+    "validation": "test/test_person_provenance.py; test/test_person_source_identity_veto.py",
     "implementation_copied": false,
     "source_files": [
       {
@@ -60,9 +60,9 @@
     "license_reviewed": "MIT",
     "source_functions_or_types": "TopicExpert.forward; QuestionToQuery",
     "problem": "从具体研究问题生成检索，并保留检索与回答关联。",
-    "project_location": "backend/person_retrieval.py; backend/person_commission.py",
-    "adaptation_and_state": "现有问题驱动检索可复用；新前端需求映射待实施。不采用每来源只读首条摘要和1000词截断。",
-    "validation": "pending requirement lineage regression",
+    "project_location": "backend/person_requirements.py:requirements/query_rows/bind_query_requirements; backend/research_strategies/person.py",
+    "adaptation_and_state": "前端11项要求贯通研究问题、身份锚点、工具能力、查询及预期证据；未知选项明确待映射。未采用上游首条摘要或1000词裁剪。",
+    "validation": "test/test_person_requirement_lineage.py; 全流程真实要求覆盖仍待验收",
     "implementation_copied": false,
     "source_files": [
       {
@@ -85,9 +85,9 @@
     "license_reviewed": "MIT",
     "source_functions_or_types": "write_research_brief; supervisor_tools; ResearcherState; compress_research",
     "problem": "研究简报、原始笔记和压缩结果分开保留，带有有界研究迭代。",
-    "project_location": "backend/person_commission.py; person_provenance.py; person_material_review.py",
-    "adaptation_and_state": "原件与观察链已新增；缺口驱动计划和保留要求贯通仍待实施。",
-    "validation": "baseline-comparison.json; pending full-report checks",
+    "project_location": "backend/person_material_review.py:writing_input_for/material_batches/read_then_write; scripts/audit_person_phase1_gaps.py:audit",
+    "adaptation_and_state": "要求进入完整材料研读，原文与分批研读分别保留；新增去向账和缺口账。未复制上游压缩实现，完整报告采用与补查闭环尚待验收。",
+    "validation": "test/test_person_requirement_lineage.py; test/test_person_question_material.py; historical-gaps/",
     "implementation_copied": false,
     "source_files": [
       {
@@ -116,9 +116,9 @@
     "license_reviewed": "Apache-2.0",
     "source_functions_or_types": "EditorAgent._create_workflow/_route_draft_review; ReviewerAgent.review_draft; ReviserAgent",
     "problem": "研究、审稿、修订各有职责，审稿反馈驱动下一步。",
-    "project_location": "backend/person_semantic_review.py; person_content_acceptance.py",
-    "adaptation_and_state": "保留现有独立审稿调用职责，不建立每章常驻agent；不采用修订次数到顶后force-accept分支。全量重要漏用与统稿待验收。",
-    "validation": "pending genuine full-report reviews",
+    "project_location": "backend/person_evidence.py:generate_person_report; scripts/replay_person_chapters.py",
+    "adaptation_and_state": "保留现有写作、语义审稿、采用审稿及修订的独立调用职责，不因次数到顶自动接受；未建立常驻多代理。当前新接口尚未跑完章节审稿。",
+    "validation": "test/test_person_question_material.py; test/test_person_output_exhaustion.py; 真实整报告审稿待完成",
     "implementation_copied": false,
     "source_files": [
       {
@@ -159,9 +159,9 @@
     "license_reviewed": "MIT",
     "source_functions_or_types": "Finding; FindingStatus; Confidence; Case",
     "problem": "采集状态、来源置信与分析置信独立；保留人工采用与备注入口。",
-    "project_location": "backend/person_provenance.py; deliverables/person-phase1-20261028",
-    "adaptation_and_state": "索引已区分来源身份状态、待审状态和风险结论空值。未采集邮件、账号探测或无关个人隐私。交互复核入口待完成。",
-    "validation": "test_person_provenance",
+    "project_location": "backend/person_risk_evidence.py:build_register; scripts/build_person_phase1_review.py:main",
+    "adaptation_and_state": "来源线索存在、可靠性、严重性与个人责任分开；复核记录绑定报告/语料/代码版本，实际浏览器已验证导出导入及版本拒绝。未采集账号探测等无关个人信息。",
+    "validation": "test/test_person_risk_evidence.py; ui-qa/; 人工事实复核仍待完成",
     "implementation_copied": false,
     "source_files": [
       {
@@ -196,9 +196,9 @@
     "license_reviewed": "MIT",
     "source_functions_or_types": "Document.content_hash/update; Entity.update/to_proxy",
     "problem": "文档内容身份与实体数据分离，来源日期分字段保存。",
-    "project_location": "backend/person_provenance.py",
-    "adaptation_and_state": "文档内容哈希和精确片段位置已采用设计；不复制平台数据库或覆盖现有存储。",
-    "validation": "test_person_provenance; frozen-inputs.json",
+    "project_location": "backend/person_provenance.py:build_provenance_index/stable_id",
+    "adaptation_and_state": "文档内容哈希、片段ID和精确字符位置贯通；无法精确定位时保留待核，不虚构偏移或物理页。未替换现有存储或复制平台数据库。",
+    "validation": "test/test_person_provenance.py; baseline-comparison.json",
     "implementation_copied": false,
     "source_files": [
       {
@@ -233,9 +233,9 @@
     "license_reviewed": "Apache-2.0",
     "source_functions_or_types": "QccMcpConnectorFinancial._call_mcp/kyb_fast_verification; executive-background-qcc工具路由文本",
     "problem": "按专业数据类型组织调用，人物姓名和组织作为不同参数。",
-    "project_location": "backend/person_platforms.py; person_company_records.py",
-    "adaptation_and_state": "仅参考工具路由设计；不采用公司KYB分数、风险阈值或示例接口可用性断言。实际当前接口以本项目实测为准。人物需求路由待实施。",
-    "validation": "pending current production search/platform accounting",
+    "project_location": "backend/person_requirements.py:requirements/bind_query_requirements; backend/person_risk_evidence.py:build_register",
+    "adaptation_and_state": "仅参考人物问题与专业工具路由设计，映射工具能力而非臆造API名；失败、未查询、无可引用记录分开登记，不转为个人风险。未采用公司KYB评分或上游示例接口可用性断言。",
+    "validation": "test/test_person_requirement_lineage.py; test/test_person_risk_evidence.py; 当前专业平台成功回执尚待验证",
     "implementation_copied": false,
     "source_files": [
       {

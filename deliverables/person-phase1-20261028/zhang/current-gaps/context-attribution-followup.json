@@ -1,0 +1,13 @@
+{
+  "status": "blocking_attribution_followup_pending",
+  "report_sha256": "ba85ca29290d9ab287b512939385026b61b7865d8c07adedbe631ee657392cfe",
+  "evidence_id": "E-PF127B231227BC3",
+  "source_url": "https://www.thepaper.cn/newsDetail_forward_33975024",
+  "retained_statement": "与员工对张勇“张大哥”的称呼相对应，他在内部被称为“张小哥”。",
+  "current_scope": "person",
+  "finding": "同一来源上文将张小哥指向目标人物之子；本条的他不能仅因出现目标姓名而解析为目标人物。",
+  "required_action": "将该代词与完整来源上下文关联，或明确隔离为主体待核；修复后重建证据包并重审采用该材料的判断。",
+  "reviewer_kind": "agent_source_context_inspection",
+  "human_review_completed": false,
+  "report_accepted": false
+}

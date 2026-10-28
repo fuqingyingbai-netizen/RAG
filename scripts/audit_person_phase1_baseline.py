@@ -85,6 +85,8 @@ def main():
         save(output / alias / 'baseline-audit.json', record)
         save(owned / alias / 'current-contract.json', after)
         save(output / alias / 'provenance-index.json', after['provenance_index'])
+        save(output / alias / 'risk-evidence-register.json', after['risk_evidence_register'])
+        save(output / alias / 'form-requirements.json', after['form_requirements'])
         results.append(record)
         print(json.dumps({k:v for k,v in record.items() if k not in {
             'removed_from_admission', 'historical_citations_absent_from_current_contract', 'new_admitted_ids'}},

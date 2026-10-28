@@ -88,6 +88,24 @@ def observation(fact, target, aliases=()):
     # A shared surname is not identity. Listed-company bios often describe a
     # sibling as "王先生...为...王某某先生的兄长" in the same excerpt.
     for form in forms:
+        if not form:
+            continue
+        # A possessive mention names the relative as the actor. In particular,
+        # "X之子...毕业/加入公司" does not describe X's education or appointment.
+        # Keep the unsplit original as background; do not invent a verified name.
+        normalized_text = compact(folded(text))
+        kin = re.search(re.escape(compact(folded(form))) + r'(?:先生|女士)?'
+            r'(?P<relation>之子(?!公司)|之女|的儿子|的女儿|的配偶|的父亲|的母亲|的兄长|的弟弟|的姐姐|的妹妹)', normalized_text)
+        if kin:
+            relative_clause = re.split(r'[。；;]', normalized_text[kin.end():], maxsplit=1)[0]
+            repeated_target = re.search('|'.join(re.escape(compact(folded(n))) for n in forms if n), relative_clause)
+            if repeated_target:
+                relative_clause = relative_clause[:repeated_target.start()]
+            if re.search(r'毕业|留学|就读|入学|获.{0,12}学位|加入|出任|担任|获委任|被聘任|被执行|被处罚|被判|刑拘', relative_clause):
+                relation = {'之子': '儿子', '之女': '女儿'}.get(kin['relation'], kin['relation'].removeprefix('的'))
+                other = True
+                named_person = named_person or f'{target}的{relation}（原文亲属称谓，姓名待核）'
+                break
         relative = re.search(r'([\u4e00-\u9fff]{1,4}(?:先生|女士)).{0,100}?为.{0,100}?'
                              + re.escape(compact(form)) + r'(?:先生|女士)?的(兄长|弟弟|姐姐|妹妹|配偶|父亲|母亲|儿子|女儿)', compact(text))
         if relative and compact(relative[1]).removesuffix('先生').removesuffix('女士') != compact(form):

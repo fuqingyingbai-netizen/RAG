@@ -6046,7 +6046,10 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
         target_type = str(project.target_type or "").lower()
         if target_type == "person":
             payload = _plain_json(cleaned_json) or {}
-            result = normalize_person_risk(payload)
+            person_intake = getattr(project, 'person_research_intake', {}) or {}
+            result = normalize_person_risk(payload, target=str(project.target_name or ''),
+                aliases=(person_intake.get('person_anchor') or {}).get('aliases') or [],
+                sources=list(getattr(project, 'sources', []) or []))
             _emit(emit, "risk", "risk_assessment_agent", "人物风险按证据登记，未知项不评分", "", status="done")
             return json.dumps(result, ensure_ascii=False, indent=2)
         if target_type == "company":

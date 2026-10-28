@@ -1,0 +1,95 @@
+{
+  "status": "authentication_and_content_return_verified_generation_unstable",
+  "date": "2026-10-28",
+  "endpoint": "https://llm.goaichat.top/v1",
+  "model_requested": "qwen3.8-max",
+  "configuration_scope": "This task worktree ignored .env only; main workspace untouched.",
+  "credential_included": false,
+  "provider_identity_of_underlying_model_independently_verified": false,
+  "actual_cost_receipt_available": false,
+  "report_accepted": false,
+  "configured_endpoint": "https://llm.goaichat.top/v1",
+  "backup_endpoint": "https://model.kimitk.top/v1",
+  "subsequent_rounds_including_initial_check": [
+    {
+      "directory": "work\\person-phase1-20261028\\round5-goaichat-qwen-ch2",
+      "actual_model_requests": 1,
+      "returned": 1,
+      "failed": 0,
+      "exact_input_reused": 0,
+      "elapsed_seconds": 62.516,
+      "generation_code_sha256": "c35790f5ce2c8f465b2877856d918778c09d0ab4d11172a9cd353c8ce9f40a83",
+      "code_unchanged_during_run": true
+    },
+    {
+      "directory": "work\\person-phase1-20261028\\round6-goaichat-affected-chapters",
+      "actual_model_requests": 6,
+      "returned": 3,
+      "failed": 3,
+      "exact_input_reused": 1,
+      "elapsed_seconds": 179.453,
+      "generation_code_sha256": "ab4290f7878e95e4df5d64f6b79cad581e3e13157d94bbda88cf10f8ed60c625",
+      "code_unchanged_during_run": true
+    },
+    {
+      "directory": "work\\person-phase1-20261028\\round7-kimitk-affected-chapters",
+      "actual_model_requests": 3,
+      "returned": 0,
+      "failed": 3,
+      "exact_input_reused": 0,
+      "elapsed_seconds": 117.359,
+      "generation_code_sha256": "ab4290f7878e95e4df5d64f6b79cad581e3e13157d94bbda88cf10f8ed60c625",
+      "code_unchanged_during_run": true
+    }
+  ],
+  "total_actual_model_requests": 10,
+  "total_returned": 4,
+  "total_failed": 6,
+  "read_only_authenticated_inventory": [
+    {
+      "host": "llm.goaichat.top",
+      "operation": "read_only_model_inventory",
+      "status": 200,
+      "model_count": 19,
+      "requested_model_listed": true
+    },
+    {
+      "host": "model.kimitk.top",
+      "operation": "read_only_model_inventory",
+      "status": 200,
+      "model_count": 19,
+      "requested_model_listed": true
+    }
+  ],
+  "final_generation_limitation": "Primary later returned two 503 responses and one connection error; backup had three connection errors. No full chapter or report acceptance. Configuration returned to primary, which has successful content receipts.",
+  "initial_single_request_check": {
+    "actual_model_requests": 1,
+    "model_requests_returned": 1,
+    "model_requests_failed": 0,
+    "fallback_endpoint_used": false,
+    "receipt_directory": "work/person-phase1-20261028/round5-goaichat-qwen-ch2",
+    "generation_code_sha256": "c35790f5ce2c8f465b2877856d918778c09d0ab4d11172a9cd353c8ce9f40a83",
+    "input_sha256": "b2866a1c4db28c15b4c1f34c36624aa3043fc465c7a81ae237f63ae6420ddbd5",
+    "provider_reported_usage": {
+      "input_tokens": 2612,
+      "output_tokens": 2383,
+      "total_tokens": 4995,
+      "finish_reason": "stop",
+      "duration_ms": 50359,
+      "output_chars": 685
+    },
+    "response_validation": {
+      "json_claims_returned": 5,
+      "valid_findings": 3,
+      "validation_rejections": [
+        "date_bound_to_different_source_event",
+        "date_bound_to_different_source_event"
+      ]
+    },
+    "scope_limit": "Only the first of 16 material-reading batches was requested. Subsequent requests were stopped by the explicit one-call cap. This proves this request returned content; chapter and whole-report acceptance remain pending."
+  },
+  "actual_model_requests": 10,
+  "model_requests_returned": 4,
+  "model_requests_failed": 6,
+  "fallback_endpoint_used": true
+}
