@@ -1,7 +1,7 @@
 {
-  "backend_product_commit": "6e6bf3b5423e75b343d15fc7ad5731c914d823fa",
-  "checked_repository_commit": "6e6bf3b5423e75b343d15fc7ad5731c914d823fa",
-  "backend_test_frontend_files_unchanged_since_test_commit": true,
+  "backend_product_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
+  "checked_repository_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
+  "backend_test_frontend_files_unchanged_since_test_commit": false,
   "backend": {
     "passed": 4205,
     "skipped": 1,
@@ -11,7 +11,8 @@
     "seconds": 1287.301,
     "network_allowed": false,
     "plugin_autoload": false,
-    "pytest_reported_wall_seconds": 1287.33
+    "pytest_reported_wall_seconds": 1287.33,
+    "tested_commit": "6e6bf3b5423e75b343d15fc7ad5731c914d823fa"
   },
   "frontend": {
     "passed": 118,
@@ -48,6 +49,27 @@
   },
   "full_report_accepted": false,
   "real_browser_and_word_all_pages_review": "pending_final_candidate",
-  "latest_product_full_regression": "passed; full-regression-6e6bf3b.xml/txt",
-  "frontend_files_unchanged_since_d8d4d77": true
+  "latest_product_full_regression": "pending; full-regression-2099cd3-run2.xml/log; initial invocation failed before collection because anyio plugin was loaded twice",
+  "frontend_files_unchanged_since_d8d4d77": true,
+  "last_completed_backend_full_regression": {
+    "passed": 4205,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "warnings": 2340,
+    "seconds": 1287.301,
+    "network_allowed": false,
+    "plugin_autoload": false,
+    "pytest_reported_wall_seconds": 1287.33,
+    "tested_commit": "6e6bf3b5423e75b343d15fc7ad5731c914d823fa"
+  },
+  "focused_legacy_audit_regression": {
+    "passed": 49,
+    "failures": 0,
+    "seconds": 4.53,
+    "files": [
+      "test-results/legacy-audit-ocr-regression.log",
+      "test-results/legacy-audit-ocr-regression.xml"
+    ]
+  }
 }
