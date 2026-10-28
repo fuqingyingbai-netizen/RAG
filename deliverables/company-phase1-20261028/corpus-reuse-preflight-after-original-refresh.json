@@ -1,0 +1,20 @@
+{
+  "version": "company-corpus-v12-audited-chapter-encoding",
+  "checkpoint_sha256": "6e63a597c78db62c04c0353b9125cf543919f6dcff7e3022c5e74d51e6232528",
+  "cleaned_artifact_id": 90,
+  "scope": "Read-only preflight using current sources but the last persisted cleaned artifact, while new cleaning is still in progress; final counts may change after it is committed.",
+  "previous_batches": 952,
+  "current_batches": 947,
+  "exact_prior_input_matches": 884,
+  "not_exact_prior_input_matches": 63,
+  "new_model_calls": 0,
+  "production_cache_modified": false,
+  "report_accepted": false,
+  "elapsed_seconds": 58.39,
+  "case": "haitian",
+  "as_of_date": "2026-10-24",
+  "backend_product_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
+  "observed_at": "2026-10-28T17:32:35.681115+00:00",
+  "native_preflight_sha256": "21deaeadccb4dfbe7c65d7c10c0718a81d1da50d84f86798871f5a8ff052db5d",
+  "acceptance_boundary": "Exact serialized input matches only; production revalidation still required. Uses persisted cleaned artifact 90 while current cleaning is in flight."
+}
