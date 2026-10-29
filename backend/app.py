@@ -21,7 +21,7 @@ from database import init_db
 from runtime_version import create_version_router
 from account_lifecycle import invitation_cleanup_loop
 from personal_home import create_home_router
-from http_delivery import ResearchReadCompression
+from http_delivery import ResearchReadCompression, RequestBodyLimit
 
 BASE_DIR = BACKEND_DIR.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -52,18 +52,27 @@ def create_app() -> FastAPI:
                 await task
 
     app.add_middleware(ResearchReadCompression)
+    app.add_middleware(RequestBodyLimit)
+    origins = [origin.strip() for origin in os.getenv('CORS_ALLOWED_ORIGINS',
+        'http://127.0.0.1:18010,http://localhost:18010').split(',') if origin.strip()]
+    if '*' in origins:
+        raise ValueError('CORS_ALLOWED_ORIGINS must list explicit trusted origins')
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_origins=origins,
+        allow_credentials=False,
+        allow_methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allow_headers=['Authorization', 'Content-Type', 'X-Admin-Confirmation'],
     )
 
     # No-cache middleware for development
     @app.middleware("http")
     async def _no_cache(request, call_next):
         response = await call_next(request)
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['Referrer-Policy'] = 'no-referrer'
+        response.headers['Content-Security-Policy'] = "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
         path = request.url.path or ""
         if path == "/" or path.endswith((".html", ".js", ".css")):
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -79,6 +88,7 @@ def create_app() -> FastAPI:
         'cleaning': research_workflow_module.INDUSTRY_CLEANING_VERSION,
         'risk': industry_research_module.INDUSTRY_RISK_VERSION,
         'report': research_workflow_module.INDUSTRY_REPORT_VERSION,
+        'proposal': research_workflow_module.INDUSTRY_PROPOSAL_VERSION,
     }))
 
     # serve frontend static files at root

@@ -82,6 +82,8 @@ class WebSearchProvider:
         self._engine_state_lock = threading.Lock()
         self._disabled_engines: set[str] = set()
         self._disabled_engine_reasons: dict[str, str] = {}
+        self._tavily_key_lock = threading.Lock()
+        self._unavailable_tavily_keys: dict[str, str] = {}
         self._serper_capability_lock = threading.Lock()
         self._serper_caps: dict[str, int] = {}
         self._serper_large_verified: set[str] = set()
@@ -136,7 +138,7 @@ class WebSearchProvider:
         Errors propagate to the run audit. Original pages are fetched later,
         after identity filtering and URL deduplication, under a separate budget.
         """
-        if not os.getenv(f"{provider.upper()}_API_KEY"):
+        if not self._has_search_credentials(provider):
             raise RuntimeError("search_provider_not_configured")
         if provider == "bocha":
             return self._search_bocha(query, limit, include_domains, lightweight=True)
@@ -178,8 +180,7 @@ class WebSearchProvider:
                     if name in self._disabled_engines:
                         engine_states[name] = {'status':'not_queried','reason':self._disabled_engine_reasons.get(name,'previous_authorization_failure')}
                         continue
-                api_key_env = f"{name.upper()}_API_KEY"
-                if os.getenv(api_key_env):
+                if self._has_search_credentials(name):
                     if name == "tavily":
                         future = executor.submit(engine_func, query, limit, include_domains, exclude_domains)
                     elif name == "exa":
@@ -223,6 +224,9 @@ class WebSearchProvider:
 
     @staticmethod
     def _search_failure_reason(exc):
+        cached_reason = getattr(exc, 'search_failure_reason', None)
+        if cached_reason in {'unauthorized','access_denied','quota_exceeded'}:
+            return cached_reason
         status = getattr(getattr(exc, 'response', None), 'status_code', None)
         try:body = str(exc.response.json()).lower()
         except (AttributeError, ValueError):body = ''
@@ -236,6 +240,44 @@ class WebSearchProvider:
         if status == 400:return 'invalid_request'
         return 'request_failed'
 
+    @staticmethod
+    def _tavily_api_keys():
+        # Keep the existing single-key setting compatible. Secrets never become
+        # request audit fields, exception messages or result metadata.
+        values = [os.getenv('TAVILY_API_KEY','')]
+        values += re.split(r'[,;\s]+',os.getenv('TAVILY_API_KEYS',''))
+        return list(dict.fromkeys(v.strip() for v in values if v.strip()))
+
+    def _has_search_credentials(self, name):
+        return bool(self._tavily_api_keys()) if name=='tavily' else bool(os.getenv(f'{name.upper()}_API_KEY','').strip())
+
+    def _post_tavily(self, payload):
+        attempts, last_error, last_reason = 0, None, None
+        for key in self._tavily_api_keys():
+            signature = hashlib.sha256(key.encode()).hexdigest()
+            with self._tavily_key_lock:
+                unavailable = self._unavailable_tavily_keys.get(signature)
+            if unavailable:
+                last_reason = unavailable
+                continue
+            attempts += 1
+            try:
+                response = requests.post('https://api.tavily.com/search',json={**payload,'api_key':key},timeout=30)
+                response.raise_for_status()
+                return response, attempts
+            except requests.HTTPError as exc:
+                reason = self._search_failure_reason(exc)
+                if reason not in {'unauthorized','access_denied','quota_exceeded'}:
+                    raise
+                with self._tavily_key_lock:
+                    self._unavailable_tavily_keys[signature] = reason
+                last_error, last_reason = exc, reason
+        if last_error is not None:
+            raise last_error
+        error = RuntimeError('tavily_credential_pool_unavailable')
+        error.search_failure_reason = last_reason
+        raise error
+
     def _search_tavily(
         self,
         query: str,
@@ -244,13 +286,9 @@ class WebSearchProvider:
         exclude_domains: list[str] | None = None,
         *, lightweight: bool = False,
     ) -> list[dict[str, Any]]:
-        api_key = os.getenv("TAVILY_API_KEY", "")
-        if not api_key:
+        if not self._tavily_api_keys():
             return []
-        resp = requests.post(
-            "https://api.tavily.com/search",
-            json={
-                "api_key": api_key,
+        resp, attempts = self._post_tavily({
                 "query": query,
                 # Tavily accepts 0..20; the research candidate budget is wider
                 # than this provider's own request limit.
@@ -262,14 +300,11 @@ class WebSearchProvider:
                 "include_image_descriptions": not lightweight,
                 "include_domains": list(include_domains or [])[:300],
                 "exclude_domains": list(exclude_domains or [])[:150],
-            },
-            timeout=30,
-        )
-        resp.raise_for_status()
+            })
         payload = resp.json()
         rows = payload.get("results", [])
         images = payload.get("images", []) or []
-        return [
+        return SearchResults([
             {
                 "title": item.get("title", ""),
                 "url": item.get("url", ""),
@@ -286,7 +321,7 @@ class WebSearchProvider:
                 "credibility_score": int(float(item.get("score") or 0.5) * 100),
             }
             for item in rows
-        ]
+        ], audit={'http_attempts':attempts,'credential_switches':attempts-1})
 
     def _search_serper(self, query: str, limit: int) -> list[dict[str, Any]]:
         api_key = os.getenv("SERPER_API_KEY", "")

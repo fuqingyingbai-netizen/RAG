@@ -161,6 +161,7 @@ def test_proposal_reflects_actual_unknowns_and_uses_pending_cover_and_navigation
         root=ET.fromstring(z.read('word/document.xml'));text=''.join(root.itertext())
         assert '项目建议书待确认稿' in text and '桌面研究交付版' not in text
         assert len(root.findall('.//w:bookmarkStart',NS))==7
-        assert len(root.findall('.//w:fldSimple',NS))==7
+        assert not root.findall('.//w:fldSimple',NS)
+        assert len(root.findall('.//w:hyperlink',NS)) >= 7
         assert b'updateFields' in z.read('word/settings.xml')
         assert all(len({len(r.findall('w:tc',NS)) for r in t.findall('w:tr',NS)})==1 for t in root.findall('.//w:tbl',NS))

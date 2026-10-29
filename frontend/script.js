@@ -42,14 +42,16 @@ createApp({
       authForm: { username: '', password: '', confirm_password: '', invitation: '' },
       inviteStatus: '', inviteValid: false, inviteChecking: false, inviteRequestId: 0,
       passwordOpen: false, passwordLoading: false, passwordForm: { current_password: '', new_password: '', confirm_password: '' },
-      activeView: 'home', mobileNavOpen: false, projects: [], projectMeta: {}, projectDetails: {}, artifactsByProject: {}, sourcesByProject: {}, traceByProject: {},
+      activeView: 'home', mobileNavOpen: false, projects: [], projectSummary: {}, projectMeta: {}, projectDetails: {}, artifactsByProject: {}, sourcesByProject: {}, traceByProject: {},
+      artifactHistory: {}, artifactHistoryRequests: {},
+      traceActivityByProject: {},
       taskSearch: '', taskStatusFilter: '', taskTargetFilter: '', selectedFiles: [], submitting: false, reindexing: false,
       startingProjects: {}, recoveryBusy: {}, taskUploadIssues: {},
       pendingActions: {}, actionPromises: {}, actionErrors: {}, actionSequence: 0,
       reviewIntakes: {}, reviewSelectionSeq: 0, detailLoadedAt: {}, repositoryRequestId: 0,
       taskStatusOptions: [{value: '', label: '全部状态'}, {value: 'draft', label: '未开始'},
         {value: 'active', label: '进行中'}, {value: 'paused', label: '已暂停'}, {value: 'completed', label: '已完成'},
-        {value: 'failed', label: '执行失败'}, {value: 'diagnostic', label: '待检查'}, {value: 'other', label: '其他状态'}],
+        {value: 'failed', label: '执行失败'}, {value: 'diagnostic', label: '待检查'}, {value: 'waiting', label: '待继续'}, {value: 'other', label: '其他状态'}],
       reportVersionsOpen: false, reportVersionsProject: null, reportVersionsType: 'desktop_report',
       taskPage: 1, taskPageSize: 12, sourcePage: 1, sourcePageSize: 50,
       nowTick: Date.now(), nowTimer: null, taskRefreshTimer: null, taskRefreshBusy: false, taskRefreshTicks: 0,
@@ -93,9 +95,9 @@ createApp({
       if (this.activeView === 'review') return '上传人工修订报告、专家访谈和走访资料，触发二阶段再生成。';
       return '填写核心输入，提交一个新的 AI 尽调任务。';
     },
-    generatingCount() { return this.projects.filter(p => !['completed', 'failed', 'draft', 'paused'].includes(p.status)).length; },
+    generatingCount() { return this.projects.filter(p => this.projectIsRunning(p)).length; },
     readyCount() { return this.projects.filter(p => p.status === 'completed').length; },
-    sourceCount() { return this.knowledgeResults.length; },
+    sourceCount() { return Number.isInteger(this.projectSummary.source_count) ? this.projectSummary.source_count : '—'; },
     assistantFabStyle() {
       const clamp = (value, maximum) => Math.min(Math.max(16, maximum), Math.max(16, value));
       return {right: `${clamp(this.assistantPosition.right, this.assistantViewportWidth - 84)}px`,
@@ -119,10 +121,10 @@ createApp({
     targetSecondaryPlaceholder() { return this.form.targetType === 'person' ? '可填写现任或曾任机构及职位；多个机构用 / 分隔' : this.form.targetType === 'industry' ? '填写需开展公开资料尽调的公司名称；关注产品可写在重点问题中' : ''; },
     filteredProjects() {
       const keyword = this.taskSearch.trim().toLowerCase();
-      return this.projects.filter(p => (!this.taskStatusFilter || this.taskStatusGroup(p.status) === this.taskStatusFilter)
+      return this.projects.filter(p => (!this.taskStatusFilter || this.projectStatusGroup(p) === this.taskStatusFilter)
         && (!this.taskTargetFilter || p.target_type === this.taskTargetFilter)
-        && (!keyword || [p.title, p.target_name, p.industry, p.status, this.taskStatusLabel(p.status),
-          this.taskStatusGroup(p.status) === 'active' ? '进行中' : '',
+        && (!keyword || [p.title, p.target_name, p.industry, p.status, this.projectStateLabel(p),
+          this.projectStatusGroup(p) === 'active' ? '进行中' : '',
           this.targetTypeLabel(p.target_type)].join(' ').toLowerCase().includes(keyword)));
     },
     hasTaskFilters() { return !!(this.taskSearch.trim() || this.taskStatusFilter || this.taskTargetFilter); },
@@ -339,7 +341,7 @@ createApp({
       this.token = ''; this.currentUser = null; this.authStep = 'role'; this.authMode = 'login';
       this.authForm = {username:'',password:'',confirm_password:'',invitation:''}; this.inviteStatus = ''; this.inviteValid = false; this.inviteRequestId++;
       this.passwordOpen = false; this.passwordForm = {current_password:'',new_password:'',confirm_password:''};
-      this.projects = []; this.knowledgeResults = []; this.assistantOpen = false; localStorage.removeItem('accessToken');
+      this.projects = []; this.projectSummary = {}; this.artifactHistory = {}; this.artifactHistoryRequests = {}; this.traceActivityByProject = {}; this.knowledgeResults = []; this.assistantOpen = false; localStorage.removeItem('accessToken');
       this.projectMeta = {}; this.projectDetails = {}; this.artifactsByProject = {}; this.sourcesByProject = {}; this.traceByProject = {}; this.recoveryBusy = {}; this.taskUploadIssues = {};
       this.pendingActions = {}; this.actionPromises = {}; this.actionErrors = {}; this.reviewIntakes = {}; this.detailLoadedAt = {};
       this.startingProjects = {}; this.secondStageRunning = false; this.secondStageProjectId = '';
@@ -411,8 +413,11 @@ createApp({
     handleFileRemove(file, fileList) { this.selectedFiles = fileList.map(item => item.raw || item).filter(Boolean); },
     async loadProjects() {
       return this.runAction('projects', '正在读取任务列表', async () => {
+        const sentToken = this.token;
         const data = await this.readJSON('/research/projects', '加载任务失败');
+        if (sentToken !== this.token) return;
         this.projects = data.projects || [];
+        this.projectSummary = data.summary || {};
       }, {readOnly: true});
     },
     async submitTask() {
@@ -561,9 +566,24 @@ createApp({
         if (sentToken === this.token) delete this.startingProjects[project.id];
       }
     },
-    canPauseProject(project) {
-      return !['draft', 'paused', 'completed', 'failed'].includes(project.status);
+    projectIsRunning(project) {
+      if (!project) return false;
+      if (typeof project?.is_running === 'boolean') return project.is_running;
+      return this.taskStatusGroup(project.status) === 'active';
     },
+    projectStateLabel(project) {
+      if (project?.state_label) return project.state_label;
+      if (project?.is_running === false && this.taskStatusGroup(project.status) === 'active') return '待继续';
+      return this.taskStatusLabel(project?.status);
+    },
+    projectStatusGroup(project) {
+      if (this.projectIsRunning(project)) return 'active';
+      return this.taskStatusGroup(project.status) === 'active' ? 'waiting' : this.taskStatusGroup(project.status);
+    },
+    projectStateType(project) {
+      return this.projectIsRunning(project) ? 'warning' : this.projectStatusGroup(project) === 'waiting' ? 'info' : this.statusType(project.status);
+    },
+    canPauseProject(project) { return this.projectIsRunning(project); },
     async pauseProject(project) {
       try { await this.runAction(`pause:${project.id}`, '正在提交暂停请求', async () => {
       const r = await this.authFetch(`/research/projects/${project.id}/pause`, { method: 'POST' });
@@ -674,13 +694,13 @@ createApp({
           && Date.now() - (this.detailLoadedAt[project.id] || 0) < 5000) return this.projectDetails[project.id];
       return this.runAction(`detail:${project.id}`, '正在读取任务详情', async () => {
       const sentToken = this.token;
-      const data = await this.readJSON(`/research/projects/${project.id}/detail`, '加载项目详情失败');
+      const data = await this.readJSON(`/research/projects/${project.id}/detail?latest_only=true`, '加载项目详情失败');
       if (sentToken !== this.token) throw new Error('登录账号已变更，请重试');
       if (data.project) this.replaceProject(data.project);
       this.projectDetails[project.id] = data;
       this.artifactsByProject[project.id] = data.artifacts || [];
       this.sourcesByProject[project.id] = data.sources || [];
-      if (data.trace?.length) this.mergeTraceList(project.id, data.trace);
+      if (data.trace?.length || data.activity) this.mergeTraceList(project.id, data.trace || [], data.activity);
       const intake = data.intake || {};
       this.projectMeta[project.id] = {
         startDate: intake.start_date || this.projectMeta[project.id]?.startDate || '',
@@ -695,15 +715,15 @@ createApp({
         const previousStatus = project.status;
         const data = await this.readJSON(`/research/projects/${project.id}/progress`, '加载任务进度失败');
         if (data.project) this.replaceProject(data.project);
-        if (data.trace?.length) this.mergeTraceList(project.id, data.trace);
+        if (data.trace?.length || data.activity) this.mergeTraceList(project.id, data.trace || [], data.activity);
         if (data.project && previousStatus !== data.project.status && ['failed', 'paused', 'completed'].includes(data.project.status)
             && this.projectDetails[project.id]) await this.loadProjectDetail(data.project, {force: true});
       }, {readOnly:true, silent:true});
     },
     async refreshVisibleTaskProgress() {
       if (!this.token || !this.currentUser || this.currentUser.must_change_password || !['tasks', 'review'].includes(this.activeView) || this.taskRefreshBusy) return;
-      const activeProjects = this.projects.filter(project => !['completed', 'failed', 'draft', 'paused'].includes(project.status));
-      if (!activeProjects.length) return;
+      const sentToken = this.token;
+      const activeProjects = this.projects.filter(project => this.projectIsRunning(project));
       this.taskRefreshBusy = true;
       this.taskRefreshTicks += 1;
       try {
@@ -711,7 +731,10 @@ createApp({
         if (this.taskRefreshTicks % 4 === 0) {
           const r = await this.authFetch('/research/projects');
           const data = await r.json().catch(() => ({}));
-          if (r.ok) this.projects = data.projects || this.projects;
+          if (r.ok && sentToken === this.token) {
+            this.projects = data.projects || this.projects;
+            this.projectSummary = data.summary || {};
+          }
         }
       } finally {
         this.taskRefreshBusy = false;
@@ -720,10 +743,22 @@ createApp({
     mergeTraceEvent(projectId, event) {
       this.mergeTraceList(projectId, [event]);
     },
-    mergeTraceList(projectId, events) {
-      if (!events?.length) return;
+    mergeTraceList(projectId, events, activity = null) {
+      if (!events?.length && !activity) return;
+      // An init starts a new timeline. Never merge prior-run heartbeats into it.
+      let saved = this.traceByProject[projectId] || [];
+      if (activity) {
+        const previous = this.traceActivityByProject[projectId] || {};
+        const time = a => this.eventTimestampMs({timestamp:a.run_started_at});
+        if (time(previous) > time(activity)) return;
+        if (activity.run_id && previous.run_id && activity.run_id !== previous.run_id) saved = [];
+        this.traceActivityByProject[projectId] = activity;
+      }
+      const newestStart = rows => Math.max(0, ...rows.filter(e => e.stage === 'init').map(e => this.eventTimestampMs(e)));
+      const start = Math.max(newestStart(saved), newestStart(events));
+      events = events.filter(e => !start || !this.eventTimestampMs(e) || this.eventTimestampMs(e) >= start);
       const keyFor = event => [event.timestamp || '', event.stage || '', event.agent || '', event.label || '', event.detail || '', event.status || '', event.section || ''].join('|');
-      const list = [...(this.traceByProject[projectId] || [])], keys = list.map(keyFor), counts = new Map();
+      const list = saved.filter(e => !start || !this.eventTimestampMs(e) || this.eventTimestampMs(e) >= start), keys = list.map(keyFor), counts = new Map();
       for (const key of keys) counts.set(key, (counts.get(key) || 0) + 1);
       let first = 0;
       for (const event of events) {
@@ -750,7 +785,7 @@ createApp({
     },
     uploadFileSummary(project) {
       const sources = this.sourcesByProject[project.id] || [];
-      const uploadCount = sources.filter(s => s.source_type === 'upload').length;
+      const uploadCount = this.projectDetails[project.id]?.upload_count ?? sources.filter(s => s.source_type === 'upload').length;
       const totalCount = this.projectDetails[project.id]?.source_count || sources.length;
       if (uploadCount > 0) return `${uploadCount} 个文件（共 ${totalCount} 个来源）`;
       if (totalCount > 0) return `无上传文件（共 ${totalCount} 个来源）`;
@@ -808,12 +843,22 @@ createApp({
       if (!timestamp) return '-';
       return `${this.formatDuration((this.nowTick - timestamp) / 1000)}前`;
     },
-    heartbeatStale(event) {
-      if (!event?.heartbeat) return false;
+    heartbeatState(event, project) {
+      if (!event?.heartbeat || !this.projectIsRunning(project)) return 'history';
+      const events = this.traceByProject[project.id] || [];
+      const latest = Math.max(0, ...events.filter(e => e.heartbeat).map(e => this.eventTimestampMs(e)));
+      if (!latest || latest !== this.eventTimestampMs(event)) return 'history';
+      const actual = events.filter(e => !e.heartbeat && e.type !== 'heartbeat');
+      const activity = this.traceActivityByProject[project.id] || {};
+      const lastActual = this.eventTimestampMs({timestamp:activity.last_backend_event_timestamp})
+        || Math.max(0, ...actual.map(e => this.eventTimestampMs(e)));
+      if (lastActual && this.nowTick - lastActual > 300000) return 'stalled';
       const timestamp = this.eventTimestampMs(event);
-      if (!timestamp) return false;
-      return (this.nowTick - timestamp) > 60000;
+      return timestamp && this.nowTick - timestamp > 60000 ? 'delayed' : 'active';
     },
+    heartbeatStale(event, project) { return this.heartbeatState(event, project) === 'stalled'; },
+    heartbeatLabel(event, project) { return {history:'历史记录', active:'活跃', delayed:'进度连接延迟', stalled:'超过5分钟无实际进展'}[this.heartbeatState(event, project)]; },
+    heartbeatType(event, project) { return {history:'info', active:'success', delayed:'info', stalled:'warning'}[this.heartbeatState(event, project)]; },
     traceDetail(event) {
       if (!event?.heartbeat) return event?.detail || event?.status || '';
       const parts = [];
@@ -843,7 +888,7 @@ createApp({
         const currentStages = stageAliases[project.status] || [project.status];
         const visible = (project.status === 'completed' ? liveTrace.slice(-200) : liveTrace.slice(-200)).map(this.normalizeTraceEvent);
         const hasCurrentRunning = visible.some(event => currentStages.includes(event.stage) && event.status === 'running');
-        if (project.status !== 'completed' && current !== -1 && !hasCurrentRunning) {
+        if (this.projectIsRunning(project) && current !== -1 && !hasCurrentRunning) {
           visible.push({
             stage: project.status,
             label: `当前阶段：${currentLabel}`,
@@ -854,6 +899,7 @@ createApp({
         }
         return visible.slice(-120);
       }
+      if (!this.projectIsRunning(project) && !['completed', 'failed'].includes(project.status)) return [];
       return steps.map(([stage, label], index) => ({
         stage,
         label,
@@ -996,7 +1042,29 @@ createApp({
       this.reportVersionsType = artifactType === 'proposal' ? 'proposal' : 'desktop_report'; this.reportVersionsOpen = true;
     },
     closeReportVersions() { this.reportVersionsOpen = false; this.reportVersionsProject = null; },
-    downloadableArtifacts(project) { return this.artifactsFor(project).filter(a => !['project_intake', 'workflow_trace'].includes(a.artifact_type)); },
+    downloadableArtifacts(project) {
+      const latest = new Map();
+      const rows = this.artifactsFor(project).filter(a => !['project_intake', 'workflow_trace'].includes(a.artifact_type));
+      for (const row of [...rows].sort((a,b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0) || b.version-a.version || b.id-a.id)) {
+        if (!latest.has(row.artifact_type)) latest.set(row.artifact_type, row);
+      }
+      return [...latest.values()].filter(a => ['desktop_report', 'proposal', 'report_quality_diagnostic'].includes(a.artifact_type));
+    },
+    async loadArtifactHistory(project, page = 1) {
+      const key = `artifact-history:${project.id}`;
+      if (this.actionPromises[key]) return this.actionPromises[key];
+      const requestId = (this.artifactHistoryRequests[project.id] || 0) + 1;
+      this.artifactHistoryRequests[project.id] = requestId;
+      return this.runAction(key, '正在读取历史产物', async () => {
+        const sentToken = this.token;
+        const data = await this.readJSON(`/research/projects/${project.id}/artifact-history?page=${page}&page_size=20`, '历史产物加载失败');
+        if (sentToken === this.token && this.artifactHistoryRequests[project.id] === requestId) this.artifactHistory[project.id] = data;
+      }, {readOnly:true});
+    },
+    closeArtifactHistory(project) {
+      this.artifactHistoryRequests[project.id] = (this.artifactHistoryRequests[project.id] || 0) + 1;
+      delete this.artifactHistory[project.id];
+    },
     latestDownloadable(project) { return this.downloadableArtifacts(project).find(a => ['desktop_report', 'proposal'].includes(a.artifact_type)) || this.downloadableArtifacts(project)[0]; },
     async deleteProject(project) {
       try { await ElementPlus.ElMessageBox.confirm(`确认删除任务“${project.title}”？`, '删除任务', { type: 'warning' }); } catch (_) { return; }

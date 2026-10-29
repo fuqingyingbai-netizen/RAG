@@ -88,7 +88,7 @@
           <div v-for="action in visibleActions" :key="action.id" class="operation-pending" role="status" aria-live="polite"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i><span>{{actionWaitText(action)}}</span></div>
           <div v-for="[key, error] in visibleActionErrors" :key="key" class="operation-error" role="alert"><div><strong>{{error.label.replace('正在', '')}}未完成</strong><p>{{error.message}}</p><small>{{error.advice}}</small></div><el-button text size="small" @click="delete actionErrors[key]" aria-label="关闭操作提示">关闭</el-button></div>
         </section>
-        <section v-if="!['home','company-knowledge','accounts'].includes(activeView)" class="summary-band"><div><span>任务总数</span><strong>{{ projects.length }}</strong></div><div><span>生成中</span><strong>{{ generatingCount }}</strong></div><div><span>可下载</span><strong>{{ readyCount }}</strong></div><div><span>溯源条目</span><strong>{{ sourceCount }}</strong></div></section>
+        <section v-if="!['home','company-knowledge','accounts'].includes(activeView)" class="summary-band"><div><span>任务总数</span><strong>{{ projects.length }}</strong></div><div><span>生成中</span><strong>{{ generatingCount }}</strong></div><div><span>可下载</span><strong>{{ readyCount }}</strong></div><div><el-tooltip content="当前账号可见项目中保存的来源记录总数；同一网址的多次记录分别计数。"><span>来源记录总数</span></el-tooltip><strong>{{ sourceCount }}</strong></div></section>
         <personal-home v-if="activeView === 'home'" :request="authFetch" :read="readJSON" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @open-project="openHomeProject" @view-versions="report => openReportVersions({id:report.project_id, title:report.project_title}, report.artifact_type)"></personal-home>
         <company-knowledge v-if="activeView === 'company-knowledge'" :projects="projects" :feedback="runAction" :operation-state="pendingActions"></company-knowledge>
 
@@ -158,11 +158,12 @@
                 </section>
                 <div class="detail-grid primary-result-grid">
                   <section class="detail-panel result-panel">
-                    <div class="workflow-head"><strong>成果下载</strong><el-space wrap><el-button plain size="small" @click="openReportVersions(row)">历史版本</el-button><el-tag size="small" type="success">{{ downloadableArtifacts(row).length }} 个产物</el-tag></el-space></div>
+                    <div class="workflow-head"><strong>最新成果</strong><el-space wrap><el-button plain size="small" @click="openReportVersions(row)">报告历史版本</el-button><el-button plain size="small" :loading="actionPending('artifact-history:' + row.id)" @click="loadArtifactHistory(row)">全部产物（{{ projectDetails[row.id]?.downloadable_artifact_count ?? artifactsFor(row).length }}）</el-button><el-tag size="small" type="success">最新 {{ downloadableArtifacts(row).length }} 项</el-tag></el-space></div>
                     <div v-if="downloadableArtifacts(row).length" class="artifact-list primary-artifacts">
                       <div v-for="artifact in downloadableArtifacts(row)" :key="artifact.id" class="artifact-item">
                         <div class="artifact-title">
                           <span>{{ artifact.title || artifactTypeLabel(artifact.artifact_type) }} · {{ recordLabel(artifact.version) }}</span>
+                          <small class="table-subtext">生成时间：{{formatTime(artifact.created_at)}}</small>
                           <div v-if="artifact.artifact_type === 'desktop_report'" class="table-subtext">
                             公司知识库：{{ knowledgeStatus(artifact) }} · {{ artifact.metadata?.knowledge_review || '待复核' }}
                             <el-button v-if="!artifact.metadata?.knowledge_sync_status || artifact.metadata?.knowledge_sync_status === 'failed'" link type="primary" @click="retryKnowledge(artifact)">重试归档</el-button>
@@ -191,6 +192,12 @@
                         <el-tag v-if="artifact.metadata?.docx_export_error" type="danger" size="small">Word 导出失败</el-tag>
                         <el-tag v-if="row.target_type === 'industry' && artifact.metadata?.docx_integrity_status === 'passed'" type="success" size="small">Word 文件检查通过</el-tag>
                         <el-tag v-if="!artifact.metadata?.docx_export_error && artifact.metadata?.docx_render_status === 'unavailable'" type="info" size="small">版式未校验</el-tag>
+                        <el-popover v-if="artifact.metadata?.claim_support_review?.valid_review_count !== undefined" trigger="click" width="440">
+                          <template #reference><el-button text>结论复核：有效 {{artifact.metadata.claim_support_review.valid_review_count}} / {{artifact.metadata.claim_support_review.total_claim_count}}</el-button></template>
+                          <p>送审 {{artifact.metadata.claim_support_review.submitted_claim_count}} 条，取得有效结果 {{artifact.metadata.claim_support_review.valid_review_count}} 条，其中模型认为支持 {{artifact.metadata.claim_support_review.supported_claim_count}} 条；尚未取得有效结果 {{artifact.metadata.claim_support_review.pending_claim_count}} 条。</p>
+                          <p>有效结果包括不支持和无法判断；模型认为支持仍需人工复核。</p>
+                          <table style="width:100%;text-align:left"><thead><tr><th>章节</th><th>判断</th><th>送审</th><th>有效结果</th></tr></thead><tbody><tr v-for="(coverage, chapter) in artifact.metadata.claim_support_review.coverage_by_chapter" :key="chapter"><td>{{chapter}}</td><td>{{coverage.total}}</td><td>{{coverage.submitted}}</td><td>{{coverage.valid}}</td></tr></tbody></table>
+                        </el-popover>
                         <el-popover v-if="row.target_type === 'industry' && artifact.metadata?.industry_evidence_diagnostic?.fact_quality" trigger="click" width="380">
                           <template #reference><el-button text>查看事实质量</el-button></template>
                           <p>结构化事实：{{ artifact.metadata.industry_evidence_diagnostic.fact_quality.structured_fact_count }} 条</p>
@@ -224,10 +231,18 @@
                       </div>
                     </div>
                     <el-empty v-else description="暂无可下载成果" :image-size="60" ></el-empty>
+                    <section v-if="artifactHistory[row.id]" class="artifact-history-panel" aria-label="全部产物">
+                      <div class="workflow-head"><strong>全部产物 · 按时间排序</strong><el-button text @click="closeArtifactHistory(row)">收起</el-button></div>
+                      <div v-for="artifact in artifactHistory[row.id].records" :key="artifact.id" class="artifact-item">
+                        <div class="artifact-title"><span>{{artifact.title || artifactTypeLabel(artifact.artifact_type)}} · {{recordLabel(artifact.version)}}</span><small class="table-subtext">{{formatTime(artifact.created_at)}} · {{artifactTypeLabel(artifact.artifact_type)}}</small></div>
+                        <div class="artifact-actions"><el-button plain size="small" :loading="actionPending('download-artifact:' + artifact.id)" @click="downloadArtifact(artifact)">下载</el-button></div>
+                      </div>
+                      <el-pagination small layout="prev, pager, next, total" :total="artifactHistory[row.id].total" :page-size="20" :current-page="artifactHistory[row.id].page" :disabled="actionPending('artifact-history:' + row.id)" @current-change="page => loadArtifactHistory(row, page)"></el-pagination>
+                    </section>
                   </section>
                   <section class="detail-panel workflow-panel">
-                    <div class="workflow-head"><strong>工作流进度</strong><el-tag size="small" :type="statusType(row.status)">{{ taskStatusLabel(row.status) }}</el-tag></div>
-                    <div v-if="traceFor(row).length" class="trace-scroll"><el-timeline><el-timeline-item v-for="(event, index) in traceFor(row)" :key="index" :type="timelineType(event.status)" :timestamp="event.stage"><div :class="['trace-item', event.heartbeat ? 'trace-heartbeat' : '', heartbeatStale(event) ? 'trace-stale' : '']"><strong><span v-if="event.heartbeat" class="live-dot"></span>{{ event.label }}</strong><p>{{ traceDetail(event) }}</p><div v-if="event.heartbeat" class="trace-meta"><el-tag size="small" :type="heartbeatStale(event) ? 'warning' : 'success'" effect="plain">{{ heartbeatStale(event) ? '可能卡住' : '活跃' }}</el-tag><span>最后心跳 {{ eventAge(event) }}</span><span v-if="event.elapsed_seconds">总耗时 {{ formatDuration(event.elapsed_seconds) }}</span><span v-if="event.current_elapsed_seconds">当前步骤 {{ formatDuration(event.current_elapsed_seconds) }}</span></div><div v-if="event.platform || event.url" class="trace-meta"><el-tag v-if="event.platform" size="small" effect="plain">{{ event.platform }}</el-tag><el-link v-if="event.url && isExternalUrl(event.url)" :href="event.url" target="_blank" type="primary">{{ event.url }}</el-link></div></div></el-timeline-item></el-timeline></div>
+                    <div class="workflow-head"><strong>工作流进度</strong><el-tag size="small" :type="projectStateType(row)">{{ projectStateLabel(row) }}</el-tag></div>
+                    <div v-if="traceFor(row).length" class="trace-scroll"><el-timeline><el-timeline-item v-for="(event, index) in traceFor(row)" :key="index" :type="timelineType(event.status)" :timestamp="event.stage"><div :class="['trace-item', event.heartbeat ? (heartbeatState(event, row) === 'history' ? 'trace-heartbeat trace-history' : 'trace-heartbeat') : '', heartbeatStale(event, row) ? 'trace-stale' : '']"><strong><span v-if="event.heartbeat" class="live-dot"></span>{{ event.label }}</strong><p>{{ traceDetail(event) }}</p><div v-if="event.heartbeat" class="trace-meta"><el-tag size="small" :type="heartbeatType(event, row)" effect="plain">{{ heartbeatLabel(event, row) }}</el-tag><span>{{ heartbeatState(event, row) === 'history' ? '记录时间 ' + formatTime(event.timestamp) : '最后心跳 ' + eventAge(event) }}</span><span v-if="event.elapsed_seconds">总耗时 {{ formatDuration(event.elapsed_seconds) }}</span><span v-if="event.current_elapsed_seconds">当前步骤 {{ formatDuration(event.current_elapsed_seconds) }}</span></div><div v-if="event.platform || event.url" class="trace-meta"><el-tag v-if="event.platform" size="small" effect="plain">{{ event.platform }}</el-tag><el-link v-if="event.url && isExternalUrl(event.url)" :href="event.url" target="_blank" type="primary">{{ event.url }}</el-link></div></div></el-timeline-item></el-timeline></div>
                     <el-empty v-else description="暂无工作流记录" :image-size="60" ></el-empty>
                   </section>
                 </div>
@@ -256,7 +271,7 @@
               <el-table-column prop="title" label="项目" min-width="220" ></el-table-column>
               <el-table-column label="研究对象" min-width="220"><template #default="{ row }"><div>{{ row.target_name }}</div><div class="table-subtext">{{ targetTypeLabel(row.target_type) }}</div></template></el-table-column>
               <el-table-column label="项目周期" width="210"><template #default="{ row }">{{ projectPeriod(row) }}</template></el-table-column>
-              <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)" effect="light">{{ taskStatusLabel(row.status) }}</el-tag></template></el-table-column>
+              <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="projectStateType(row)" effect="light">{{ projectStateLabel(row) }}</el-tag></template></el-table-column>
               <el-table-column label="进度" min-width="180"><template #default="{ row }"><el-progress :percentage="progressFor(row)" ></el-progress></template></el-table-column>
               <el-table-column label="更新" width="190"><template #default="{ row }"><div>{{ formatTime(row.updated_at) }}</div><div class="table-subtext">创建 {{ formatTime(row.created_at) }}</div></template></el-table-column>
               <el-table-column label="操作" width="248" fixed="right" align="center"><template #default="{ row }"><div class="task-row-actions"><el-button link type="primary" :loading="actionPending('detail:' + row.id)" @click="viewProject(row)">查看</el-button><el-button link type="primary" :loading="actionPending('download-artifact:' + latestDownloadable(row)?.id)" :disabled="!latestDownloadable(row)" @click="downloadArtifact(latestDownloadable(row))">下载</el-button><el-button v-if="canPauseProject(row)" link type="warning" :loading="actionPending('pause:' + row.id)" @click="pauseProject(row)">暂停</el-button><el-button v-else link type="warning" :loading="!!startingProjects[row.id]" :disabled="!!startingProjects[row.id]" @click="rerunProject(row)">{{ startingProjects[row.id] ? '处理中' : row.status === 'completed' ? '重跑' : '继续' }}</el-button><el-button link type="danger" :loading="actionPending('delete-project:' + row.id)" @click="deleteProject(row)">删除</el-button></div></template></el-table-column>
@@ -306,7 +321,7 @@
                 </template></el-table-column>
                 <el-table-column prop="title" label="项目" min-width="220" ></el-table-column>
                 <el-table-column label="研究对象" min-width="200"><template #default="{ row }">{{ row.target_name || '-' }}</template></el-table-column>
-                <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)" effect="light">{{ taskStatusLabel(row.status) }}</el-tag></template></el-table-column>
+                <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="projectStateType(row)" effect="light">{{ projectStateLabel(row) }}</el-tag></template></el-table-column>
                 <el-table-column label="更新" width="190"><template #default="{ row }">{{ formatTime(row.updated_at) }}</template></el-table-column>
                 <el-table-column label="操作" width="136" align="right"><template #default="{ row }"><el-button link type="primary" :loading="actionPending('review:' + row.id)" :disabled="reviewWriteBusy" @click="selectReviewProject(row)">{{actionPending('review:' + row.id) ? '准备中' : '复核'}}</el-button></template></el-table-column>
               </el-table>

@@ -1,12 +1,16 @@
 """A bounded proposal matching the reference template's seven sections."""
 import json
 import re
+from .industry_proposal_contract import render_tables, validate_proposal, _cell
 
 
-def _task_overview(tasks, risk):
+def _task_overview(tasks, risk, scope=None):
     """Project questions first; detailed work and source locators live in appendices."""
     from industry_delivery import _cell
-    unknown = [str(d.get('name')) for d in risk.get('dimensions', []) if d.get('score') is None and d.get('name')]
+    unknown = [str(d.get('name')) for d in risk.get('dimensions', [])
+               if d.get('score') is None and d.get('name')
+               and not ((scope or {}).get('capital_market') == 'none'
+                        and (d.get('key') == 'capital' or '资本' in str(d.get('name'))))]
     lines = []
     if unknown:
         lines += ['本轮尚未完成有效评估的事项：' + '、'.join(unknown) + '。先区分评分校验问题与真实资料缺口，再决定复核、补采或缩减范围。', '']
@@ -19,14 +23,16 @@ def _task_overview(tasks, risk):
         # All individual questions and full completion criteria remain in
         # appendix A; the main proposal must not duplicate that entire appendix.
         for sub in t.get('subtasks') or []:
-            if sub.get('status') in {'missing', 'background_only'}:
+            if sub.get('material_status', sub.get('status')) in {'missing', 'background_only'}:
                 chapter_topics.setdefault(sub['chapter'], [])
                 if sub['topic'] not in chapter_topics[sub['chapter']]:
                     chapter_topics[sub['chapter']].append(sub['topic'])
     if chapter_topics:
         lines += ['', '优先复核方向（完整动作见附录A）：' + '；'.join(
             '第'+str(chapter)+'章：'+'、'.join(topics) for chapter, topics in chapter_topics.items())+'。']
-    return '\n'.join(lines) if tasks else '本轮尚未登记专项任务，实施前先核对报告及实际研究缺口。'
+    if not tasks:
+        return ('\n'.join(lines[:2]) if unknown else '') + '本轮尚未登记专项任务，实施前先核对报告及实际研究缺口。'
+    return '\n'.join(lines)
 
 
 def build_industry_proposal(project, report='', risk_json='{}') -> str:
@@ -38,7 +44,7 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
         risk = json.loads(risk_json) if isinstance(risk_json, str) else (risk_json or {})
     except (ValueError, TypeError):
         risk = {}
-    from industry_delivery import verification_tasks, verification_task_table
+    from industry_delivery import verification_tasks, verification_task_table, consolidate_verification_tasks
     structured_tasks = getattr(project,'industry_verification_tasks',None)
     if isinstance(structured_tasks,list):
         # The current report and proposal share one prioritized gap list. Do
@@ -51,7 +57,9 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
         # gap as a review task, never synthesize technical facts from its prose.
         if re.search(r'技术路线.{0,40}(?:缺失|缺少|待核验)|无法构建横向对比',report) and not any('技术' in t['topic'] for t in tasks):
             tasks += verification_tasks({}, {}, [{'chapter':7,'message':'技术路线尚未形成同条件比较，需复核测试条件及性能成本材料。'}], scope)
-    task_section=_task_overview(tasks, risk)
+    tasks = consolidate_verification_tasks(tasks)
+    task_section=_task_overview(tasks, risk, scope)
+    tables=render_tables(scope, tasks)
     task_detail=verification_task_table(tasks, include_reference_index=False, reference_location='附录B候选来源索引')
     task_sources=verification_task_table(tasks, reference_index_only=True)
     dependency=getattr(project,'industry_report_dependency',{}) or {}
@@ -62,32 +70,29 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
            +'报告正文SHA256：'+str(dependency.get('report_sha256') or '待核验')+'；事实产物：'
            +str(dependency.get('cleaned_artifact_id') or '待核验')+'；评分产物：'
            +str(dependency.get('risk_artifact_id') or '待核验')+'。') if dependency else '依据报告产物及版本尚未绑定，实施前须核对本建议书所承接的报告。'
-    conditional_rows = ''
-    if scope.get('named_companies'):
-        conditional_rows += '| 核心企业 | 仅对已指定企业核对注册、股权、经营和风险 | 独立企业证据清单及核验边界 |\n'
-    if scope.get('capital_market') == 'summary':
-        conditional_rows += '| 资本市场 | 核对融资、IPO、并购、估值与交易情绪 | 数据期间一致的资本事件表 |\n'
-    proposal = f'''# {project.title}：行业研究项目建议书
+    proposal = f'''# {_cell(project.title)}：行业研究项目建议书
 
 状态：待确认稿。范围、排期、投入人员、费用及验收条件须双方确认后实施；本稿不构成已确认报价。
 
 ## 1. 项目基本情况
 
-本项目研究 {scope.get('industry_name') or project.target_name}，用于 {scope.get('purpose') or '行业了解'}。后续工作以本轮报告的证据缺口为起点，明确需要补充的数据、交叉验证方式和预期判断价值。
+本项目研究 {_cell(scope.get('industry_name') or project.target_name)}，用于 {_cell(scope.get('purpose') or '行业了解')}。后续工作以本轮报告的证据缺口为起点，明确需要补充的数据、交叉验证方式和预期判断价值。
 
 {basis}
 
 | 范围要素 | 本轮口径 |
 | --- | --- |
-| 纳入赛道 | {segments} |
-| 研究地域 | {scope.get('geography') or '待确认'} |
-| 数据截止日 | {scope.get('as_of_date') or '待确认'} |
-| 核心企业 | {companies} |
+| 纳入赛道 | {_cell(segments)} |
+| 研究地域 | {_cell(scope.get('geography'))} |
+| 数据截止日 | {_cell(scope.get('as_of_date'))} |
+| 核心企业 | {_cell(companies)} |
 | 资本市场 | {capital} |
+
+{tables['project']}
 
 ## 2. 项目调研分析
 
-通用分析采用产业链拆解、竞争格局对比、政策时间线、市场规模口径核对及情景分析。专项问题按细分赛道、商业化阶段和客户关注产品确定，避免将不同产品、不同地域或不同统计期的数据直接合并。
+{tables['methods']}
 
 优先核验对决策影响大的缺口：规模统计是否同口径、关键政策是否仍适用、技术路线的性能与成本是否有可比数据、需求和商业化是否有原始披露支持。来源观点单独标注，预测必须列假设，企业样本不能替代行业整体统计。
 
@@ -99,21 +104,13 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
 
 ## 3. 项目调研框架与主要研究范围
 
-| 研究方向 | 工作内容 | 预期产物 |
-| --- | --- | --- |
-| 行业和市场 | 定义边界、细分赛道、供需、产业链、历史规模与增长 | 口径一致的市场表和产业链图谱 |
-| 政策和监管 | 核对文件发布机构、有效期、准入要求及地域适用性 | 政策摘录与影响清单 |
-| 竞争和技术 | 对比玩家层次、市场份额、路线性能、成本和成熟度 | 可比企业与技术路线表 |
-| 商业化和前景 | 核对产品、客户、定价与需求驱动，建立不同情景 | 商业化判断与可验证假设 |
-{conditional_rows}| 风险和综合评估 | 绑定有效证据，区分已验证信号、推演和未知事项 | 风险矩阵和后续核验优先级 |
+{tables['research']}
 
 验收口径：市场表逐项注明期间、地域、定义、单位及实际或预测属性；技术比较注明同一测试条件和版本；每项判断能追溯至原始来源与证据编号。样本数量、赛道覆盖、修改轮次、确认人及确认日期在启动会书面确认，未确认不得以空表视为达标。无法取得的数据逐项记录原因，由双方决定补采、缩减范围或保留未知。行业代表样本比较不等于独立企业主体尽调；关闭的模块不列入交付。
 
 ## 4. 项目调研方法与渠道资源
 
-公开信息检索优先使用官方统计、政策与监管文件、上市公司公告、行业协会及可追溯研究报告。企业工商、司法和知识产权平台作为指定企业的补充资料；授权、可用性及查询结果需在实施前确认。
-
-拟开展行业专家、上下游企业和客户访谈，以验证市场口径、技术路线、商业化障碍及非公开经营数据。访谈对象名单、可联系渠道、利益冲突和纪要安排待客户确认；本建议书不声称已完成访谈或已购买数据库。
+{tables['resources']}
 
 交叉验证记录原始链接、检索工具、数据期间、统计口径及证据编号。重复转载只计为同一原始来源。冲突数据分别呈现并说明差异，不以简单平均消除口径冲突。
 
@@ -128,23 +125,25 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
 
 排期确认项：各阶段预计工作日、客户资料提供截止日、访谈等待上限、阶段负责人、验收确认人及修改轮次均须填入双方确认的工作计划。依赖材料或渠道延迟时，先书面说明影响和调整日期，再变更交付时间。
 
+{tables['schedule']}
+
 客户配合清单：确认研究范围与排除项、提供可共享资料及使用授权、指定资料/访谈联系人、确认受访对象与审批责任、按节点反馈复核意见。历史数据截止日保持上述口径；新增来源仅在其覆盖该截止日时使用，需扩展时间范围则另行确认。
 
-中期简报为可选交付；最终交付包括行业研究报告、来源索引、技术与企业对比表、风险矩阵和后续研究清单。无法取得的数据注明原因及补充路径。周期不把渠道等待时间算成已经完成的调研。
+{tables['deliverables']}
 
 ## 6. 项目团队安排
 
-拟配置项目负责人、行业研究员、数据分析人员、行业专家及质量复核人员。负责人管理范围和客户沟通；研究员负责资料与访谈；分析人员统一数值口径；专家复核技术和商业化判断；质量复核人员检查来源、评分依据及交付边界。
+{tables['team']}
 
 人员姓名、履历、从业经验、投入工时和可调用专家名单由项目启动时确认，当前不以角色占位声称已有确定人员。
 
 ## 7. 项目报价与保密条款
 
-咨询费用总金额、币种、税费口径及付款节点待双方确认。报价应区分研究人员工时、数据采购、专家访谈、差旅、资料翻译及其他专项费用；额外样本企业、范围扩大和新增访谈另行确认费用与周期。
+{tables['fees']}
 
-报价确认表须列费用项目、计量单位、数量、单价、含税金额、是否包含在总价及批准人。数据库、专家和差旅未经预算批准不采购；客户追加范围先确认费用与工期。人员姓名、履历和工时未落实时保持待确认，不能自动填入推测信息。
+{tables['terms']}
 
-可约定启动预付、中期交付和最终验收分阶段付款，比例及期限在合同中确定。本建议书不生成未经报价确认的金额或折扣。
+本建议书不生成未经报价确认的金额或折扣。数据库、专家和差旅未经预算批准不采购；客户追加范围先确认费用与工期。
 
 无论双方最终是否形成委托，涉及委托方及其咨询业务的文字、声像、图片和其他载体资料均应按双方书面约定保密；未经书面许可不向第三方披露。数据保管、访问权限、使用期限、项目结束后的归档或删除方式，以及专家和访谈对象的保密责任应纳入合同或保密协议，由双方确认。
 
@@ -156,8 +155,7 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
 
 {task_sources}
 '''
-    from .industry_template import INDUSTRY_PROPOSAL_OUTLINE
-    headings = re.findall(r'^## (\d+)\. (.+)$', proposal, re.M)
-    if headings != [(str(i), title) for i, (title, _) in enumerate(INDUSTRY_PROPOSAL_OUTLINE, 1)]:
-        raise ValueError('industry_proposal_template_mismatch')
+    diagnostic = validate_proposal(proposal, scope, tasks)
+    if not diagnostic['passed']:
+        raise ValueError('industry_proposal_template_mismatch: ' + ', '.join(e['code'] for e in diagnostic['errors']))
     return proposal

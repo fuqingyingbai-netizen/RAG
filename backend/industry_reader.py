@@ -2,7 +2,43 @@
 from collections import defaultdict
 import re
 
-VERSION = 'industry-reader-v1-evidence-proportional-body'
+VERSION = 'industry-reader-v2-question-level-development'
+
+
+def question_writing_profile(facts, question):
+    """Guide the actual retained question packet, not the whole source pool."""
+    statements = {f.get('fact_contract',{}).get('statement') for f in facts}
+    statements.discard(None);statements.discard('')
+    documents = {f.get('source_document_key') or f.get('source_url') for f in facts}
+    documents.discard(None);documents.discard('')
+    n = len(statements)
+    tier = 'rich' if n>=4 and len(documents)>=2 else 'standard' if n>=2 else 'sparse'
+    low,high = {'rich':(350,650),'standard':(240,450),'sparse':(140,280)}[tier]
+    return {'material_tier':tier,'distinct_premises':n,
+        'target_analysis_characters':[low,high],
+        'finding_guidance':'用1至3句说明主要判断、实际含义及关键条件；有充分依据时约70至160字。',
+        'development_focus': ('风险触发情景、影响对象、作用机制与业务关注点；未发生的影响明确作为条件分析。'
+            if re.search(r'风险|监管义务',question) else
+            '解释具体前提之间的联系、比较维度、业务含义与成立条件；不重复结论或逐卡复述。'),
+        'targets_are_guidance_not_permission_to_invent':True}
+
+
+def analysis_paragraphs(text):
+    """Separate long prose at whole sentences without cutting quoted passages."""
+    if not text or len(text)<=360:
+        return [text] if text else []
+    paragraphs=[];start=0;closing=[]
+    pairs={'《':'》','“':'”','「':'」','『':'』'}
+    for i,char in enumerate(text):
+        if char in pairs:closing.append(pairs[char])
+        elif closing and char==closing[-1]:closing.pop()
+        if char in '。！？' and not closing and i+1-start>=220:
+            paragraphs.append(text[start:i+1]);start=i+1
+    tail=text[start:]
+    if tail:
+        if paragraphs and len(tail)<80:paragraphs[-1]+=tail
+        else:paragraphs.append(tail)
+    return paragraphs
 
 
 def writing_profile(package, chapter, ids=None):
@@ -22,6 +58,10 @@ def writing_profile(package, chapter, ids=None):
               'standard': (600, 1100, '3至5', '150至280'),
               'sparse': (200, 500, '1至3', '100至220')}
     low, high, count, paragraph = limits[tier]
+    if chapter==14:
+        # Synthesis has its own bounded 3-4 short-judgment contract, rather
+        # than the detailed chapter's 1100-1800-character expansion target.
+        low,high,count,paragraph=240,640,'3至4','60至160'
     return {'version': VERSION, 'tier': tier, 'suitable_fact_count': len(cards),
         'document_count': len(documents), 'questions_with_direct_material': direct,
         'target_analysis_characters': [low, high], 'suggested_paragraphs': count,
@@ -42,11 +82,15 @@ def writing_instruction(profile):
 
 def analysis_balance(package, chapter, ids, claims):
     profile = writing_profile(package, chapter, ids)
-    substantive = [c for c in claims if c.get('claim_kind') != 'limitation' and c.get('analysis_role') != 'material_limitation']
+    substantive = [c for c in claims if c.get('claim_kind') != 'limitation' and c.get('analysis_role') != 'material_limitation'
+                   and not c.get('source_observation_only')]
     chars = sum(len(re.sub(r'\s+', '', c.get('text', ''))) for c in substantive)
     return {**profile, 'substantive_analysis_paragraphs': len(substantive),
         'substantive_analysis_characters': chars,
-        'limitation_paragraphs': len(claims)-len(substantive),
+        'explicit_conclusion_count': sum(bool(c.get('conclusion')) for c in substantive),
+        'source_observation_paragraphs':sum(bool(c.get('source_observation_only')) for c in claims),
+        'inference_or_conditional_paragraphs': sum(c.get('claim_kind') in {'inference', 'conditional'} for c in substantive),
+        'limitation_paragraphs': sum(c.get('claim_kind')=='limitation' or c.get('analysis_role')=='material_limitation' for c in claims),
         'expansion_review_needed': profile['tier'] in {'rich', 'standard'} and chars < profile['target_analysis_characters'][0],
         'metric_is_not_semantic_or_quality_proof': True}
 

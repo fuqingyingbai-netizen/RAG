@@ -12,6 +12,29 @@ class ResearchObjectStore:
         self.local_root = Path(os.getenv("RESEARCH_LOCAL_STORE", "data/research_store")).resolve()
         self._minio_client = None
 
+    @staticmethod
+    def validate_key(key: str) -> str:
+        # Object keys are identifiers, never filesystem paths supplied by a client.
+        if (not isinstance(key, str) or not key or any(ord(c) < 32 for c in key)
+                or "\\" in key or ":" in key
+                or any(part in {"", ".", ".."} for part in key.split("/"))):
+            raise ValueError("Invalid storage key")
+        return key
+
+    @classmethod
+    def project_key(cls, key: str, project_id: int) -> str:
+        key = cls.validate_key(key)
+        if not key.startswith(f"projects/{int(project_id)}/"):
+            raise ValueError("Storage key does not belong to this project")
+        return key
+
+    def _local_path(self, key: str) -> Path:
+        root = self.local_root.resolve()
+        path = (root / self.validate_key(key)).resolve()
+        if root not in path.parents:
+            raise ValueError("Invalid storage path")
+        return path
+
     def _client(self):
         if self.mode != "minio":
             return None
@@ -33,7 +56,7 @@ class ResearchObjectStore:
         return self.put_bytes(key, content.encode("utf-8"), content_type)
 
     def put_bytes(self, key: str, payload: bytes, content_type: str = "application/octet-stream") -> str:
-        safe_key = key.replace("\\", "/").lstrip("/")
+        safe_key = self.validate_key(key)
         if self.mode == "minio":
             from io import BytesIO
 
@@ -46,13 +69,13 @@ class ResearchObjectStore:
             )
             return safe_key
 
-        path = self.local_root / safe_key
+        path = self._local_path(safe_key)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(payload)
         return safe_key
 
     def get_bytes(self, key: str) -> bytes:
-        safe_key = key.replace("\\", "/").lstrip("/")
+        safe_key = self.validate_key(key)
         if self.mode == "minio":
             response = self._client().get_object(self.bucket, safe_key)
             try:
@@ -60,46 +83,32 @@ class ResearchObjectStore:
             finally:
                 response.close()
                 response.release_conn()
-        return (self.local_root / safe_key).read_bytes()
+        return self._local_path(safe_key).read_bytes()
 
     def get_text(self, key: str) -> str:
-        safe_key = key.replace("\\", "/").lstrip("/")
-        if self.mode == "minio":
-            response = self._client().get_object(self.bucket, safe_key)
-            try:
-                return response.read().decode("utf-8")
-            finally:
-                response.close()
-                response.release_conn()
-        return (self.local_root / safe_key).read_text(encoding="utf-8")
+        return self.get_bytes(key).decode("utf-8")
 
     def delete_object(self, key: str | None) -> None:
         if not key:
             return
-        safe_key = key.replace("\\", "/").lstrip("/")
+        safe_key = self.validate_key(key)
         if self.mode == "minio":
             self._client().remove_object(self.bucket, safe_key)
             return
-        path = (self.local_root / safe_key).resolve()
-        root = self.local_root.resolve()
-        if root not in path.parents and path != root:
-            return
+        path = self._local_path(safe_key)
         if path.is_file():
             path.unlink(missing_ok=True)
 
     def delete_prefix(self, prefix: str) -> None:
-        safe_prefix = prefix.replace("\\", "/").strip("/")
-        if not safe_prefix:
+        if not prefix:
             return
+        safe_prefix = self.validate_key(prefix)
         if self.mode == "minio":
             client = self._client()
             for item in client.list_objects(self.bucket, prefix=safe_prefix + "/", recursive=True):
                 client.remove_object(self.bucket, item.object_name)
             return
-        path = (self.local_root / safe_prefix).resolve()
-        root = self.local_root.resolve()
-        if root not in path.parents and path != root:
-            return
+        path = self._local_path(safe_prefix)
         if path.is_dir():
             shutil.rmtree(path, ignore_errors=True)
 

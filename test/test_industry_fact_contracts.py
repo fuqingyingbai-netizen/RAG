@@ -170,6 +170,10 @@ def test_real_outline_and_writer_preserve_16_chapters_and_seven_proposal_chapter
     def invoke(role, prompt, trace):
         data = json.loads(prompt.split('\n', 1)[1])
         packets.append(data)
+        if 'chapters' in data:
+            return json.dumps({'priorities':[]})
+        if 'questions' in data:
+            return json.dumps({'answers':[]})
         return json.dumps({'evidence_ids':[f['id'] for f in data['cards']][:8]})
     payload = {'facts':[chain, market, policy], 'fact_contract_version':VERSION, 'industry_scope':SCOPE}
     risk = unknown_risk(scope=SCOPE)
@@ -183,7 +187,9 @@ def test_real_outline_and_writer_preserve_16_chapters_and_seven_proposal_chapter
     for chapter in (6,7):
         body = report.split(f'## {chapter}. ')[1].split(f'## {chapter+1}. ')[0]
         assert '120亿元' not in body
-    assert packets and all('cards' in p for p in packets)
+    assert packets and all('cards' in p or 'chapters' in p for p in packets)
+    assert project.industry_question_jobs_enabled
+    assert project.industry_question_planning['attempts'] == 1
     assert project.industry_statement_plans[1]['model_attempts'] == 0
 
 

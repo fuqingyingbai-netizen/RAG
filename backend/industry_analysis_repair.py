@@ -82,9 +82,11 @@ def repair_analyses(project, package, chapter, ids, accepted, rejected, invoke, 
     prompt = ('只修复列出的失败段落，不改章节、研究问题或已通过段落。失败原文仅作修改对象，不能作为事实依据。'
         '仅引用cards中实际保留的编号、完整statement及其已授权数值；不新增资料、数值或法律义务。'
         '可改正格式、引用和适用范围；证据不够时仅说明本章所引材料的缺口，claim_kind用limitation，'
-        '不能把样本写成行业结论，不能把预测写成实际。每段60至180字，不输出标题、换行、网址或正文引用标记。'
+        '不能把样本写成行业结论，不能把预测写成实际。先按本问题实际前提生成局部判断，不为填满问题强造结论；'
+        'conclusion与解释一起修正，各自保留必要范围与条件，合计60至180字，不输出标题、换行、网址或正文引用标记。'
         '返回严格JSON：{"request_fingerprint":"原样回传", "repairs":[{"index":原索引,'
-        '"analysis":{"question":"原问题", "text":"修正分析", "evidence_ids":["卡片编号"],'
+        '"analysis":{"question":"原问题", "conclusion":"含范围及条件的1至3句完整初步判断；仅缺口说明填空字符串",'
+        '"text":"解释前提到判断及业务含义，不重复conclusion", "evidence_ids":["卡片编号"],'
         '"claim_kind":"comparison或inference或conditional或limitation",'
         '"reasoning":"从前提到判断及限制"}}]}。逐字前提由程序按编号绑定，不必返回premises。不能修复的段落不返回；至多一次请求。\n'
         + json.dumps(packet, ensure_ascii=False))
@@ -109,8 +111,10 @@ def repair_analyses(project, package, chapter, ids, accepted, rejected, invoke, 
             ordinal = record['index']; seen.add(ordinal); claim = record['analysis']
             if not isinstance(claim, dict) or claim.get('question') != originals[ordinal]['question']:
                 raise ValueError('changed_repair_question')
-            if not {'premises', 'claim_kind', 'reasoning'} <= set(claim):
-                raise ValueError('missing_repair_premises')
+            if not {'claim_kind', 'reasoning'} <= set(claim):
+                raise ValueError('missing_repair_reasoning')
+            # Exact premises may be program-bound, as promised in the prompt.
+            # Explicit premises still go through the ordinary exact-byte check.
             # Validate against the actually retained packet, not wider chapter IDs.
             valid, errors = validate_analyses([claim], package, chapter, list(packet['cards']))
             if valid:
@@ -138,6 +142,11 @@ def repair_analyses(project, package, chapter, ids, accepted, rejected, invoke, 
         return merged, remaining, diagnostic
     except Exception as exc:
         diagnostic.update(status='failed', error_type=type(exc).__name__)
+        known={'invalid_repair_response','invalid_repair_index','changed_repair_question','missing_repair_reasoning'}
+        if isinstance(exc,ValueError) and str(exc) in known:
+            diagnostic['validation_code']=str(exc)
+        elif isinstance(exc,json.JSONDecodeError):
+            diagnostic['validation_code']='invalid_repair_json'
         emit(trace_emit, 'report', 'industry_report_agent', '分析段落未能修复，保留有效材料待人工复核',
             f'chapter={chapter}; error={type(exc).__name__}', status='warning')
         return accepted, rejected, diagnostic

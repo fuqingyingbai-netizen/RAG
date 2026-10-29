@@ -24,7 +24,7 @@ def observed_business(fact):
     return False
 
 
-def complete_plan(package, index, ids, analyses=()):
+def complete_plan(package, index, ids, analyses=(), *, max_facts=8, preserve_premises_first=False):
     """Reserve question coverage before filling with the model's ordered IDs."""
     from industry_fact_contracts import chapter_admitted, chapter_coverage
     from industry_passages import policy_obligation
@@ -51,8 +51,11 @@ def complete_plan(package, index, ids, analyses=()):
     # there is room, instead of evicting them for equivalent unused cards and
     # subsequently reporting a valid analysis as a foreign citation.
     premises = [eid for claim in analyses for eid in claim.get('evidence_ids', []) if eid in cards]
-    ordered = chosen + premises + list(ids)
-    if index == 5:
+    ordered = (premises + chosen + list(ids)) if preserve_premises_first else (chosen + premises + list(ids))
+    # A second batch may need additional premises, but must not double the
+    # displayed source list merely because it returned more unused IDs.
+    limit = min(max_facts, max(8, len(set(premises + chosen)))) if preserve_premises_first else max_facts
+    if index == 5 and not preserve_premises_first:
         ordered = sorted(dict.fromkeys(ordered), key=lambda eid: rank(eid) if eid in cards else (), reverse=True)
     for eid in ordered:
         if eid in result or eid not in cards:
@@ -68,11 +71,11 @@ def complete_plan(package, index, ids, analyses=()):
                 date = effective or re.search(r'(?:(20\d{2})年)?(\d{1,2})月(\d{1,2})日', text)
                 key = (event[1], 'draft' if re.search(r'征求意见', text) else 'published',
                        ((date[1] or str(cards[eid].get('published_date') or '')[:4]), int(date[2]), int(date[3])) if date else '')
-                if key in seen_events:
+                if key in seen_events and not (preserve_premises_first and eid in supported):
                     continue
                 seen_events.add(key)
         result.append(eid)
-        if len(result) == 8:
+        if len(result) == limit:
             break
     return result
 

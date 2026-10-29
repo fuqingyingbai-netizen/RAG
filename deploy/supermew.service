@@ -18,6 +18,10 @@ TimeoutStopSec=120
 UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
+MemoryHigh=2500M
+MemoryMax=3G
+CPUQuota=200%
+TasksMax=512
 StandardOutput=journal
 StandardError=journal
 

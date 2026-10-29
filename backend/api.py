@@ -36,6 +36,8 @@ import os
 import json          # 用于JSON数据序列化/反序列化
 import os            # 用于文件/目录操作
 import re            # 正则表达式，用于错误码提取等场景
+import tempfile
+import threading
 from pathlib import Path  # 更优雅的路径处理（Python3.4+）
 
 # FastAPI核心模块
@@ -51,6 +53,7 @@ from auth import (  # 认证授权相关工具
     require_admin,  # 要求管理员权限（依赖项）
 )
 from account_api import router as account_router
+from upload_limits import copy_upload, validate_filename
 from document_loader import DocumentLoader  # 文档加载器（解析PDF/Word/Excel）
 from embedding import embedding_service  # 文本嵌入服务（生成向量）
 from milvus_client import MilvusManager  # Milvus向量数据库客户端
@@ -90,6 +93,7 @@ milvus_writer = MilvusWriter(embedding_service=embedding_service, milvus_manager
 # 创建API路由器实例（模块化路由）
 router = APIRouter()
 router.include_router(account_router)
+DOCUMENT_UPLOAD_LOCK = threading.Lock()
 
 
 def _remove_bm25_stats_for_filename(filename: str) -> None:
@@ -152,7 +156,7 @@ async def delete_session(session_id: str, current_user: User = Depends(get_curre
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_current_user)):
+def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_current_user)):
     try:
         session_id = request.session_id or "default_session"
         resp = chat_with_agent(request.message, current_user.username, session_id)
@@ -233,9 +237,9 @@ async def list_documents(_: User = Depends(require_admin)):
 
 @router.post("/documents/upload", response_model=DocumentUploadResponse)
 def upload_document(file: UploadFile = File(...), _: User = Depends(require_admin)):
-    """上传文档并进行 embedding（管理员）"""
+    """Add a document without implicitly replacing an existing indexed filename."""
     try:
-        filename = file.filename or ""
+        filename = validate_filename(file.filename or "")
         file_lower = filename.lower()
         if not filename:
             raise HTTPException(status_code=400, detail="文件名不能为空")
@@ -246,43 +250,40 @@ def upload_document(file: UploadFile = File(...), _: User = Depends(require_admi
         ):
             raise HTTPException(status_code=400, detail="仅支持 PDF、Word 和 Excel 文档")
 
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-        milvus_manager.init_collection()
-
-        delete_expr = f'filename == "{filename}"'
-        try:
-            _remove_bm25_stats_for_filename(filename)
-        except Exception:
-            pass
-        try:
-            milvus_manager.delete(delete_expr)
-        except Exception:
-            pass
-        try:
-            parent_chunk_store.delete_by_filename(filename)
-        except Exception:
-            pass
-
-        file_path = UPLOAD_DIR / filename
-        with open(file_path, "wb") as f:
-            content = file.file.read()
-            f.write(content)
-
-        try:
-            new_docs = loader.load_document(str(file_path), filename)
-        except Exception as doc_err:
-            raise HTTPException(status_code=500, detail=f"文档处理失败: {doc_err}")
-
-        if not new_docs:
-            raise HTTPException(status_code=500, detail="文档处理失败，未能提取内容")
-
-        parent_docs = [doc for doc in new_docs if int(doc.get("chunk_level", 0) or 0) in (1, 2)]
-        leaf_docs = [doc for doc in new_docs if int(doc.get("chunk_level", 0) or 0) == 3]
-        if not leaf_docs:
-            raise HTTPException(status_code=500, detail="文档处理失败，未生成可检索叶子分块")
-
-        parent_chunk_store.upsert_documents(parent_docs)
-        milvus_writer.write_documents(leaf_docs)
+        with DOCUMENT_UPLOAD_LOCK:
+            UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+            file_path = UPLOAD_DIR / filename
+            expression = 'filename == ' + json.dumps(filename, ensure_ascii=False)
+            milvus_manager.init_collection()
+            if (file_path.exists() or parent_chunk_store.contains_filename(filename) or
+                    milvus_manager.query(filter_expr=expression, output_fields=['filename'], limit=1)):
+                raise HTTPException(409, '同名文档已存在，请使用文档版本管理，或改名后新增；原资料未更改')
+            with tempfile.TemporaryDirectory(prefix='.incoming-', dir=UPLOAD_DIR) as staging:
+                candidate = Path(staging) / filename
+                copy_upload(file, candidate)
+                try:
+                    new_docs = loader.load_document(str(candidate), filename)
+                except Exception as exc:
+                    raise HTTPException(400, '文档无法解析，原有资料未更改') from exc
+                parent_docs = [doc for doc in new_docs if int(doc.get('chunk_level', 0) or 0) in (1, 2)]
+                leaf_docs = [doc for doc in new_docs if int(doc.get('chunk_level', 0) or 0) == 3]
+                if not leaf_docs:
+                    raise HTTPException(400, '文档未提取到可检索内容，原有资料未更改')
+                for doc in new_docs:
+                    doc['file_path'] = str(file_path)
+                writer_started = False
+                try:
+                    parent_chunk_store.upsert_documents(parent_docs)
+                    writer_started = True
+                    milvus_writer.write_documents(leaf_docs)
+                    # Linking publishes a fully prepared original without overwriting a file.
+                    os.link(candidate, file_path)
+                except Exception:
+                    if writer_started:
+                        embedding_service.increment_remove_documents([doc['text'] for doc in leaf_docs])
+                    milvus_manager.delete(expression)
+                    parent_chunk_store.delete_by_filename(filename)
+                    raise
 
         return DocumentUploadResponse(
             filename=filename,
@@ -304,7 +305,8 @@ async def delete_document(filename: str, _: User = Depends(require_admin)):
     try:
         milvus_manager.init_collection()
 
-        delete_expr = f'filename == "{filename}"'
+        filename = validate_filename(filename)
+        delete_expr = 'filename == ' + json.dumps(filename, ensure_ascii=False)
         _remove_bm25_stats_for_filename(filename)
         result = milvus_manager.delete(delete_expr)
         parent_chunk_store.delete_by_filename(filename)

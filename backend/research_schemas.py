@@ -28,12 +28,15 @@ class ResearchProjectResponse(BaseModel):
     industry: str
     description: str
     status: str
+    is_running: bool = False
+    state_label: str = ""
     created_at: str
     updated_at: str
 
 
 class ResearchProjectListResponse(BaseModel):
     projects: list[ResearchProjectResponse]
+    summary: dict[str, int] = Field(default_factory=dict)
 
 
 class ResearchSourceCreate(BaseModel):

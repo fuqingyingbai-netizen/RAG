@@ -121,9 +121,9 @@ def check_config(values, *, check_paths=False):
     if values.get('ASSISTANT_API_KEY'):
         secret('ASSISTANT_API_KEY')
     provider = values.get('WEB_SEARCH_PROVIDER', '').lower()
-    if provider and provider not in SEARCH_KEYS:
+    if provider and provider not in SEARCH_KEYS and provider != 'multi':
         issue('ERROR', 'WEB_SEARCH_PROVIDER', 'Unsupported search provider in this deployment profile.')
-    elif provider:
+    elif provider in SEARCH_KEYS:
         secret(SEARCH_KEYS[provider])
     elif not any(not placeholder(values.get(key, '')) for key in SEARCH_KEYS.values()):
         issue('ERROR', 'WEB_SEARCH_PROVIDER', 'Configure at least one search provider credential.')
@@ -207,6 +207,26 @@ def check_config(values, *, check_paths=False):
     for key, value in values.items():
         if value and placeholder(value) and not any(level == 'ERROR' and field == key for level, field, _ in issues):
             issue('ERROR', key, 'Replace template values; service environment files do not expand variables.')
+    for key, default, maximum in [('MAX_UPLOAD_BYTES', 52428800, 104857600),
+                                  ('MAX_REQUEST_BYTES', 54525952, 110100480),
+                                  ('MAX_JSON_BYTES', 2097152, 10485760),
+                                  ('RESEARCH_MAX_CONCURRENT_RUNS', 1, 8),
+                                  ('RESEARCH_MAX_RUNS_PER_USER', 1, 8)]:
+        try:
+            if not 1 <= int(values.get(key, str(default))) <= maximum:
+                raise ValueError()
+        except ValueError:
+            issue('ERROR', key, 'Specify a positive bounded resource limit.')
+    for origin in values.get('CORS_ALLOWED_ORIGINS', '').split(','):
+        if not origin.strip():
+            continue
+        try:
+            parsed = urlsplit(origin.strip())
+            if (parsed.scheme not in {'http', 'https'} or not parsed.hostname or parsed.username
+                    or parsed.password or parsed.path or parsed.query or parsed.fragment or '*' in origin):
+                raise ValueError()
+        except ValueError:
+            issue('ERROR', 'CORS_ALLOWED_ORIGINS', 'List explicit trusted HTTP or HTTPS origins without paths or wildcards.')
     issue('WARN', 'MANUAL_ACCEPTANCE', 'Offline checks cannot prove CORS, TLS, permissions, connectivity, backup recovery or task capacity.')
     return issues
 

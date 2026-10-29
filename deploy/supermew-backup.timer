@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily SuperMew backup at 03:00 Beijing time
+
+[Timer]
+OnCalendar=*-*-* 19:00:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+Unit=supermew-backup.service
+
+[Install]
+WantedBy=timers.target
