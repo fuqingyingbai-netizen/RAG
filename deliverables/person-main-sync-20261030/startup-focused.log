@@ -1,0 +1,19 @@
+....................
+============================== warnings summary ===============================
+test/test_research_indexing.py::test_index_worker_writes_result_after_timeout_and_rejects_parallel_retry
+test/test_research_indexing.py::test_index_worker_persists_failure_for_independent_retry
+  E:\projects\RAG\.venv\Lib\site-packages\sqlalchemy\sql\schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+test/test_research_indexing.py::test_index_worker_writes_result_after_timeout_and_rejects_parallel_retry
+test/test_research_indexing.py::test_index_worker_persists_failure_for_independent_retry
+  C:\Users\wangli\.codex\worktrees\f19b\RAG\backend\research_workflow.py:8833: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    metadata.update(vector_index_status="running", vector_indexed=False, vector_index_started_at=datetime.utcnow().isoformat())
+
+test/test_research_indexing.py::test_index_worker_writes_result_after_timeout_and_rejects_parallel_retry
+test/test_research_indexing.py::test_index_worker_persists_failure_for_independent_retry
+  C:\Users\wangli\.codex\worktrees\f19b\RAG\backend\research_workflow.py:8844: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    result["vector_index_finished_at"] = datetime.utcnow().isoformat()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+20 passed, 6 warnings in 199.48s (0:03:19)
