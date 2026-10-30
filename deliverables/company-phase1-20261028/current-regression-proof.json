@@ -1,23 +1,30 @@
 {
-  "backend_product_commit": "pending financial-field-boundary commit",
-  "checked_repository_commit": "04486c43af2230b2c0c836988cb6c653f540fc0c",
+  "backend_product_commit": "a7aaf283c8f7103ebe564f4f0da7eb8a285a4a70",
+  "checked_repository_commit": "ceac976dfc381d4266b7bb6f0cd564bd5016aee7",
   "backend_test_frontend_files_unchanged_since_test_commit": false,
   "backend": {
-    "tested_commit": "f0395c996c3ea17ced292cab441387611b274d24",
-    "passed": 4233,
-    "skipped": 1,
-    "failures": 1,
+    "tested_commit": "079218f1ab723c2ef562a0e72731b75c09505b04",
+    "status": "completed",
+    "tests": 4252,
+    "passed": 4251,
+    "failures": 0,
     "errors": 0,
+    "skipped": 1,
     "warnings": 2340,
-    "pytest_reported_wall_seconds": 1984.97,
-    "result": "failed: isolated startup subprocess exceeded 90s",
-    "standalone_recheck": "also timed out; no timeout extension or test skip applied"
+    "seconds": 2502.196,
+    "reported_wall_seconds": 2502.27,
+    "result": "passed",
+    "scope": "full backend on company source079218f before person/Milvus handoff; not a full run on final joint code",
+    "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -p anyio.pytest_plugin --junitxml=work/company-phase1-20261028/full-regression-079218f.xml"
   },
   "frontend": {
     "passed": 118,
-    "skipped": 0,
     "failures": 0,
-    "milliseconds": 2942.6294
+    "skipped": 0,
+    "milliseconds": 821.5022,
+    "command": "node --test test/*.cjs",
+    "tested_commit": "079218f1ab723c2ef562a0e72731b75c09505b04",
+    "unchanged_frontend_and_js_tests": true
   },
   "files": {
     "deliverables/company-phase1-20261028/test-results/full-regression-6e6bf3b.xml": {
@@ -78,22 +85,34 @@
     "deliverables/company-phase1-20261028/test-results/startup-recheck-f0395c9-failed.xml": {
       "sha256": "0d992428df6188856d83c9733b07c07ee13aa3836c063040dbc1d6140d1bf619",
       "bytes": 9531
+    },
+    "deliverables/main-sync-20261030/full-regression-079218f.log": {
+      "sha256": "50d2cdcf32fdbc778c5c1f1098796b8b99fea8126b4df9e48082c5543e9c8421",
+      "bytes": 28690
+    },
+    "deliverables/main-sync-20261030/full-regression-079218f.xml": {
+      "sha256": "9991e8ca1c91769a63a03908efcbbabfc3306c232e76182d236ca30cc933d297",
+      "bytes": 776624
     }
   },
   "full_report_accepted": false,
   "real_browser_and_word_all_pages_review": "pending_final_candidate",
-  "latest_product_full_regression": "pending; previous f0395c9 run FAILED, not passed",
+  "latest_product_full_regression": "Full company-source079218f run completed; exact scope/result below. Final combined code separately passed joint affected-suite regression; not labelled a full combined run.",
   "frontend_files_unchanged_since_d8d4d77": true,
   "last_completed_backend_full_regression": {
-    "tested_commit": "f0395c996c3ea17ced292cab441387611b274d24",
-    "passed": 4233,
-    "skipped": 1,
-    "failures": 1,
+    "tested_commit": "079218f1ab723c2ef562a0e72731b75c09505b04",
+    "status": "completed",
+    "tests": 4252,
+    "passed": 4251,
+    "failures": 0,
     "errors": 0,
+    "skipped": 1,
     "warnings": 2340,
-    "pytest_reported_wall_seconds": 1984.97,
-    "result": "failed: isolated startup subprocess exceeded 90s",
-    "standalone_recheck": "also timed out; no timeout extension or test skip applied"
+    "seconds": 2502.196,
+    "reported_wall_seconds": 2502.27,
+    "result": "passed",
+    "scope": "full backend on company source079218f before person/Milvus handoff; not a full run on final joint code",
+    "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -p anyio.pytest_plugin --junitxml=work/company-phase1-20261028/full-regression-079218f.xml"
   },
   "focused_legacy_audit_regression": {
     "passed": 49,
@@ -105,16 +124,15 @@
     ]
   },
   "previous_completed_backend_full_regression": {
-    "passed": 4205,
+    "tested_commit": "f0395c996c3ea17ced292cab441387611b274d24",
+    "passed": 4233,
     "skipped": 1,
-    "failures": 0,
+    "failures": 1,
     "errors": 0,
     "warnings": 2340,
-    "seconds": 1287.301,
-    "network_allowed": false,
-    "plugin_autoload": false,
-    "pytest_reported_wall_seconds": 1287.33,
-    "tested_commit": "6e6bf3b5423e75b343d15fc7ad5731c914d823fa"
+    "pytest_reported_wall_seconds": 1984.97,
+    "result": "failed: isolated startup subprocess exceeded 90s",
+    "standalone_recheck": "also timed out; no timeout extension or test skip applied"
   },
   "previous_successful_backend_full_regression": {
     "tested_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
@@ -136,5 +154,20 @@
       "test-results/financial-boundary-focused-final.log",
       "test-results/financial-boundary-focused-final.xml"
     ]
+  },
+  "latest_joint_regression": {
+    "tested_commit": "a7aaf283c8f7103ebe564f4f0da7eb8a285a4a70",
+    "tests": 1345,
+    "passed": 1344,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "warnings": 670,
+    "seconds": 263.769,
+    "reported_wall_seconds": 263.99,
+    "startup_test_seconds": 38.417,
+    "startup_deadline_seconds": 90,
+    "skipped_reason": "Actual Linux path checks run on the target platform.",
+    "scope": "all person tests and selected affected company/industry/assistant/search/export/startup/indexing suites; selection file retained; not a full backend run"
   }
 }

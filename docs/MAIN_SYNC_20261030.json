@@ -1,0 +1,129 @@
+{
+  "date": "2026-10-30",
+  "recorded_at": "2026-10-30T02:05:26.131975+00:00",
+  "publication_scope": "authorized company/person engineering progress; neither report chain accepted; no deployment",
+  "main_base": "7cc0752c15a052bf606135a7a1e39553ccb23863",
+  "company_source": "079218f1ab723c2ef562a0e72731b75c09505b04",
+  "person_source": "dd258ada57edf2c8a874ac66aca34031890bc08f",
+  "person_handoff": "3e4a0998760c048c4ce0d6756f52a7a46fd7ae0d",
+  "person_handoff_authority": {
+    "source_thread": "01a18168-9f36-7282-875c-961470f30972",
+    "human_reply": "授权交接，由公司聊天统一推送",
+    "verified_in_thread": true
+  },
+  "validated_joint_code_commit": "a7aaf283c8f7103ebe564f4f0da7eb8a285a4a70",
+  "joint_regression": {
+    "tests": 1345,
+    "passed": 1344,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "warnings": 670,
+    "seconds": 263.769,
+    "reported_wall_seconds": 263.99,
+    "startup_test_seconds": 38.417,
+    "startup_deadline_seconds": 90,
+    "skipped_reason": "Actual Linux path checks run on the target platform.",
+    "scope": "all person tests and selected affected company/industry/assistant/search/export/startup/indexing suites; selection file retained; not a full backend run"
+  },
+  "frontend": {
+    "passed": 118,
+    "failures": 0,
+    "skipped": 0,
+    "milliseconds": 821.5022,
+    "command": "node --test test/*.cjs",
+    "tested_commit": "079218f1ab723c2ef562a0e72731b75c09505b04",
+    "unchanged_frontend_and_js_tests": true
+  },
+  "company_full_regression": {
+    "tested_commit": "079218f1ab723c2ef562a0e72731b75c09505b04",
+    "status": "completed",
+    "tests": 4252,
+    "passed": 4251,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "warnings": 2340,
+    "seconds": 2502.196,
+    "reported_wall_seconds": 2502.27,
+    "result": "passed",
+    "scope": "full backend on company source079218f before person/Milvus handoff; not a full run on final joint code",
+    "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -p anyio.pytest_plugin --junitxml=work/company-phase1-20261028/full-regression-079218f.xml"
+  },
+  "line_ending_repairs": [
+    {
+      "file": "deliverables/person-main-sync-20261030/startup-before-fix.json",
+      "previous_normalized_sha256": "e0734cb90d11fa8a929a31f723442426ad6207b0df5eb77792d02c6e077c3533",
+      "restored_original_sha256": "cf25862efbdf75ec270efb5b5657503384d64341ea25212ade58157e8ae3b483",
+      "semantic_content_changed": false,
+      "source_worktree_modified": false
+    },
+    {
+      "file": "deliverables/person-main-sync-20261030/startup-focused.log",
+      "previous_normalized_sha256": "6b7535257ea5bccd3e4b23e3033f509829b88049e21101619905de35eb40ed0e",
+      "restored_original_sha256": "18f54a0d2f680bab6bbe3c51040ecd0bc639d74d1c87b4e325f0f952dfb2c3cd",
+      "semantic_content_changed": false,
+      "source_worktree_modified": false
+    }
+  ],
+  "main_checkout": {
+    "head_preserved": "7cc0752c15a052bf606135a7a1e39553ccb23863",
+    "tracked_modified_count": 8,
+    "original_tracked_file_hashes_unchanged": true,
+    "status_sha256_unchanged": false,
+    "additional_modified_files_seen_during_sync": [
+      "backend/company_knowledge.py",
+      "backend/company_workspace.py",
+      "docs/COMPANY_KNOWLEDGE.md",
+      "test/test_company_workspace.py"
+    ],
+    "additional_changes_included_in_this_sync": false,
+    "working_files_or_index_modified_by_this_task": false,
+    "index_tree_unchanged": true,
+    "local_main_left_at_old_head_to_protect_dirty_checkout": true
+  },
+  "published_refs": [
+    "refs/heads/codex/company",
+    "refs/heads/main"
+  ],
+  "push_mode": "normal fast-forward updates; no force",
+  "publication_status": "All required compatibility checks completed; ready for normal push; verify actual remote refs after push.",
+  "phase_one_report_acceptance": false,
+  "files": {
+    "deliverables/main-sync-20261030/frontend-all-079218f.log": {
+      "sha256": "5cad1cf9a40b5d2ae59a619b6c9b744f2857f756ac33bcd87b977c8136065f46",
+      "bytes": 11707
+    },
+    "deliverables/main-sync-20261030/history-secret-audit.json": {
+      "sha256": "04a92179153b189a8ec82ba7566c8674116bb64c08082d6e95596224e26f66d5",
+      "bytes": 277
+    },
+    "deliverables/main-sync-20261030/joint-regression-a7aaf28.log": {
+      "sha256": "f4764ca2e10c2226be56f388fef1d4868891a8946db4bdfc69846249a31c5976",
+      "bytes": 9740
+    },
+    "deliverables/main-sync-20261030/joint-regression-a7aaf28.xml": {
+      "sha256": "5ae85459a9100b8216cb9b218f70c3eb2737b8e75a64071cd91b0ec883318a9a",
+      "bytes": 218223
+    },
+    "deliverables/main-sync-20261030/joint-test-selection.json": {
+      "sha256": "a920dd468746eed35396fc63af5b7d4beaf1fa974bff2a8ddf39a8c2e0b207b6",
+      "bytes": 5339
+    },
+    "deliverables/main-sync-20261030/full-regression-079218f.log": {
+      "sha256": "50d2cdcf32fdbc778c5c1f1098796b8b99fea8126b4df9e48082c5543e9c8421",
+      "bytes": 28690
+    },
+    "deliverables/main-sync-20261030/full-regression-079218f.xml": {
+      "sha256": "9991e8ca1c91769a63a03908efcbbabfc3306c232e76182d236ca30cc933d297",
+      "bytes": 776624
+    }
+  },
+  "product_trees": {
+    "backend": "b60bc2845ff6266729f13e7c447d5a4e6e6bc28e",
+    "test": "785deb42f4a1c7b8e73fd4549296877f83fd545c",
+    "scripts": "00940affbdf72561d280870264ed6e2cdeb0fcb6",
+    "diagnostics": "d5f17a2fdc81a760d15804028717053b24f96706",
+    "frontend": "76d66b7f81ea8a11c4b5470ff580d5a2f56b2504"
+  }
+}
