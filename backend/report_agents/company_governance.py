@@ -6,6 +6,7 @@ not evidence that shareholders agree or that governance is stable.
 import json
 import re
 from collections import Counter, defaultdict
+from datetime import date
 from difflib import SequenceMatcher
 from typing import Any
 from urllib.parse import urlparse
@@ -16,7 +17,7 @@ from .company_financial_statements import fiscal_report_period,quarter_report_pe
 
 TITLE = "主体工商基本信息核查股东关系与治理底盘"
 HEADINGS = ("主体工商信息表", "股权与治理信息表", "股东/实控人/关联方关系网图", "治理底盘判断")
-VERSION = "company-governance-v6-complete-multiline-registry-records"
+VERSION = "company-governance-v7-literal-identifier-and-calendar-equivalence"
 EID = re.compile(r"E-[A-Z0-9-]{6,}", re.I)
 
 
@@ -119,6 +120,30 @@ def _registry_subject_text(content, target=''):
     return '\n'.join(retained),target if retained else ''
 
 
+def _registry_fields(fields):
+    """Keep the identifier token separate from a closing narrative clause.
+
+    This does not check legal validity or alter the retained original source.
+    A second identifier, number, or unknown trailing text stays unmodified.
+    """
+    value = str(fields.get('统一社会信用代码', '')).strip()
+    match = re.fullmatch(r'([0-9A-Z]{18})\s*[）)]\s*[,，]?\s*(?:(?:公司|企业)类型为[^A-Za-z0-9\r\n]+)?', value)
+    return {**fields, '统一社会信用代码': match[1]} if match else fields
+
+
+def _registry_value_key(field, value):
+    """Compare only complete calendar-date spellings; retain source literals."""
+    if field == '成立日期':
+        compact_date = re.sub(r'\s+', '', str(value))
+        match = re.fullmatch(r'(\d{4})(?:年|[-./])(\d{1,2})(?:月|[-./])(\d{1,2})日?', compact_date)
+        if match:
+            try:
+                return ('calendar_date', date(*(int(part) for part in match.groups())).isoformat())
+            except ValueError:
+                pass
+    return ('literal', value)
+
+
 def read_fields(content: str, target: str=''):
     """Keep header meanings, names, units and row boundaries across providers."""
     fields, tables = {}, []
@@ -145,7 +170,7 @@ def read_fields(content: str, target: str=''):
                     if isinstance(x, (dict, list)):
                         walk(x,str(key))
         walk(obj)
-        return fields, tables
+        return _registry_fields(fields), tables
     content,subject=_registry_subject_text(content,target)
     # The name comes from an explicit original field, never a query echo.
     if subject:fields['企业名称']=subject
@@ -202,7 +227,7 @@ def read_fields(content: str, target: str=''):
             value=value.strip()
             if present(value):
                 fields.setdefault(known[match[1]],value)
-    return fields, tables
+    return _registry_fields(fields), tables
 
 
 def _ratio(row):
@@ -482,7 +507,7 @@ def build_governance_package(cleaned: dict, target: str, sources=None, *, limit=
     for (field,date),rs in conflict_groups.items():
         vals={(f"普通股 {r['ordinary_shares']}；美国存托股 {r['ads']}；原表比例 {r['ratio']}"
                if r['kind'] in ownership_kinds else r.get('ratio') or r['value']) for r in rs}
-        if len(vals)>1:
+        if len({_registry_value_key(field, value) for value in vals})>1:
             conflicts.append({'field':field,'period':date,'values':sorted(vals),
                               'evidence_ids':list(dict.fromkeys(eid for r in rs for eid in r['evidence_ids']))})
     kinds={r['kind'] for r in selected}
