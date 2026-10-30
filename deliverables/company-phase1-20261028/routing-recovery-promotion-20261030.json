@@ -27,7 +27,23 @@
     "routing-stage-stop-proof-20261030.json": "6f1751db92835ce5fce92aeda05f78cb839dbc29fd91f178e2e68fa2afc063d5"
   },
   "server_or_other_worktree_changed": false,
-  "native_resume": "pending",
+  "native_resume": {
+    "observed_at": "2026-10-30T14:06:54.960747+00:00",
+    "native_session_id": 85963,
+    "native_plan": "bounded-plan-20261030T135651080519.json",
+    "code_commit": "3851946e37d64d47a8562f5995e0cc9432034d68",
+    "runtime_source_unchanged_since_start": true,
+    "reused_same_input_information_records": 9357,
+    "fresh_collection_acceptance": false,
+    "new_final_report_accepted": false,
+    "native_partial_journal_write_observed": true,
+    "native_partial_journal_readback": {
+      "proof": "native-routing-journal-proof-20261030.json",
+      "sha256": "877aef7afafb6fc35ba8a82171b37aa0f52ece20f356f9c56495a662d3cd1803",
+      "current_input_decisions_revalidated": 6,
+      "business_data_written_by_verifier": false
+    }
+  },
   "real_report_accepted": false,
   "goal_complete": false
 }

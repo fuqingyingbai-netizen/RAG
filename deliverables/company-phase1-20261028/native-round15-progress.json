@@ -1,0 +1,76 @@
+{
+  "observed_at": "2026-10-30T14:06:54.960747+00:00",
+  "native_session_id": 85963,
+  "case": "haitian",
+  "native_plan": "bounded-plan-20261030T135651080519.json",
+  "code_commit": "3851946e37d64d47a8562f5995e0cc9432034d68",
+  "runtime_source_unchanged_since_start": true,
+  "observed_live_processes": [
+    {
+      "pid": 21792,
+      "created_at": 1793368606.830422
+    },
+    {
+      "pid": 38764,
+      "created_at": 1793368606.8187273
+    }
+  ],
+  "stage": "frozen-report",
+  "fresh_collection_acceptance": false,
+  "resume_source_checkpoint": "e16e62826af59d59ae99255edaf0659e7a2abae1335cac724d54c376eced3e35",
+  "reuse_events": [
+    {
+      "at": "2026-10-30T13:57:21.017568+00:00",
+      "label": "复用既有模块来源，仅补查已识别的专项缺口",
+      "detail": "queries=7"
+    },
+    {
+      "at": "2026-10-30T13:58:43.972133+00:00",
+      "label": "复用已有清洗事实库",
+      "detail": ""
+    },
+    {
+      "at": "2026-10-30T13:58:44.037961+00:00",
+      "label": "复用已有风险研判",
+      "detail": ""
+    },
+    {
+      "at": "2026-10-30T14:03:32.325047+00:00",
+      "label": "复用同一语料已完成的全量分析",
+      "detail": "逐来源原文哈希、研究主体、截至日及完整性核对通过；本次仅重新归纳写作。"
+    },
+    {
+      "at": "2026-10-30T14:03:34.209158+00:00",
+      "label": "复用同一输入的信息用途判定",
+      "detail": "cached_information=9357; changed or unbound inputs are reviewed again"
+    }
+  ],
+  "ledger_sha256": "964d5e01f7bd9a442f248b0cf0ea15f73d94dbcf0097081ddb5e46fb36115930",
+  "ignored_partial_lines": 0,
+  "event_counts": {
+    "http_returned": 1,
+    "model_started": 3,
+    "model_http_started": 3,
+    "model_http_headers": 2,
+    "model_returned": 2
+  },
+  "completed_model_finish_reasons": {
+    "stop": 2
+  },
+  "unfinished_logical_model_numbers": [
+    3
+  ],
+  "latest_event": {
+    "at": "2026-10-30T14:06:52.568453+00:00",
+    "stage": "report",
+    "label": "报告生成心跳正常",
+    "current_label": "正在调用公司报告分批主编模型"
+  },
+  "new_final_report_accepted": false,
+  "word_all_pages_review": "pending",
+  "goal_complete": false,
+  "notes": [
+    "A complete stage is not a complete report.",
+    "This liveness observation expires; re-poll the actual handle next turn."
+  ]
+}
