@@ -87,10 +87,10 @@ def headers(cfg):
     return {'Authorization': 'Bearer ' + cfg['api_key'], 'Accept': 'application/json'}
 
 
-def provider_error(status: int) -> KnowledgeError:
-    message = {401: '百炼密钥无效或已失效，请联系管理员更新。',
-               403: '百炼访问权限不足，请核对业务空间与服务权限。',
-               404: '百炼服务未找到，请核对接口地址和服务 ID。',
+def provider_error(status: int, *, provider: str = '百炼') -> KnowledgeError:
+    message = {401: f'{provider}接口认证失败，请联系管理员核对 API Key、接口地址及密钥状态。',
+               403: f'{provider}访问权限不足，请核对服务与模型权限。',
+               404: f'{provider}服务未找到，请核对接口地址和服务或模型 ID。',
                429: '知识库请求较多，请稍后重试。'}.get(status, '云端知识库暂时不可用，请稍后重试。')
     return KnowledgeError(message, 429 if status == 429 else 502)
 
