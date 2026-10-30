@@ -182,7 +182,7 @@ def routing_fingerprint(record, target, scope, outline):
 
 
 def build_information_usage(digest, sections, outline, target, invoke, *, receipt_callback=None, workers=4,
-                            previous=None, review_scope=None, emit=None, trace_emit=None):
+                            previous=None, review_scope=None, emit=None, trace_emit=None, journal_loader=None):
     """Review all distinct retained information; failed calls remain pending.
 
     The caller can persist exact prompt/response receipts and replay them.
@@ -208,6 +208,22 @@ def build_information_usage(digest, sections, outline, target, invoke, *, receip
             checked,errors=validate_review([old],{'records':[dict(decision)]},outline)
             if not errors and iid in checked:
                 decisions[iid]=checked[iid];cached_ids.append(iid)
+    journal_ids=[]
+    if journal_loader:
+        try:
+            candidates=journal_loader(records)
+            for row in records:
+                iid=row['information_id']
+                if iid in decisions:continue
+                candidate=candidates.get(iid) if isinstance(candidates,dict) else None
+                if not isinstance(candidate,dict) or candidate.get('status')!='use':continue
+                checked,errors=validate_review([row],{'records':[candidate]},outline)
+                if not errors and iid in checked:
+                    decisions[iid]=checked[iid];cached_ids.append(iid);journal_ids.append(iid)
+        except Exception as exc:
+            if emit:
+                emit(trace_emit,'report','company_checkpoint','信息用途恢复回执读取失败',
+                     type(exc).__name__+'；未恢复记录仍重新判定。',status='warning')
     for row in records:
         if row['information_id'] in decisions:continue
         amount=len(json.dumps(row,ensure_ascii=False))
@@ -257,7 +273,9 @@ def build_information_usage(digest, sections, outline, target, invoke, *, receip
                         'voice':'原站记载或观点，发言归属及主体对应按原文核对',
                         'exclusion_overturned':True,'exclusion_check':verdict}
                 else:checked[iid]['exclusion_check']=verdict
-        receipt={'information_ids':[r['information_id'] for r in rows],'decisions':checked,
+        receipt={'routing_version':VERSION,'target_name':target,'review_scope':scope,
+            'routing_record_hashes':{r['information_id']:fingerprints[r['information_id']] for r in rows},
+            'information_ids':[r['information_id'] for r in rows],'decisions':checked,
             'errors':errors,'attempts':attempts,'exclusion_check':exclusion_check}
         if receipt_callback:receipt_callback(receipt)
         return receipt
@@ -273,7 +291,8 @@ def build_information_usage(digest, sections, outline, target, invoke, *, receip
     package.update(target_name=target,review_receipts=receipts,review_scope=scope,routing_record_hashes=fingerprints,
                    cached_information_ids=cached_ids)
     package['diagnostic'].update(review_batches=len(batches),
-        review_batches_with_errors=sum(bool(r['errors']) for r in receipts),cached_information_records=len(cached_ids))
+        review_batches_with_errors=sum(bool(r['errors']) for r in receipts),cached_information_records=len(cached_ids),
+        cached_journal_records=len(journal_ids))
     return package
 
 

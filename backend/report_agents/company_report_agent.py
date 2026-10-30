@@ -558,9 +558,12 @@ class CompanyReportAgent:
             else:
                 digest=build_compact_digest(project,review,self.outline,invoke,emit,trace_emit)
             project.company_corpus_digest_package=digest
+            from .company_information_journal import checkpoint_batch as checkpoint_routing, read_decisions as read_routing
             usage=build_information_usage(digest,sections_by_index,self.outline,str(project.target_name),invoke,
                 previous=getattr(project,'company_information_usage_cache',{}),review_scope=routing_scope(project),
-                emit=emit,trace_emit=trace_emit)
+                emit=emit,trace_emit=trace_emit,
+                receipt_callback=lambda batch:checkpoint_routing(project,batch,self.outline,emit,trace_emit),
+                journal_loader=lambda rows:read_routing(project,rows,self.outline))
             usage['source_map']=source_information_map(list(project.sources or []),review,usage)
             project.company_information_usage_package=usage
             checkpoint_generation_stage(project,emit,trace_emit)
