@@ -1,0 +1,116 @@
+{
+  "model": "qwen3.8-max",
+  "model_returned": true,
+  "model_finish_reason": "stop",
+  "model_usage": {
+    "input_tokens": 529,
+    "output_tokens": 26,
+    "total_tokens": 555,
+    "input_token_details": {
+      "cache_read": 0
+    },
+    "output_token_details": {
+      "reasoning": 0
+    }
+  },
+  "model_seconds": 44.781,
+  "search_seconds_including_fetch": 120.266,
+  "search_result_counts": [
+    3,
+    3
+  ],
+  "query_audits": [
+    {
+      "method": "canonical_url_rrf_v1",
+      "engine_counts": {
+        "serper": 3
+      },
+      "raw_count": 3,
+      "unique_count": 3,
+      "kept_count": 3,
+      "deduplicated_count": 0,
+      "invalid_or_empty_url_count": 0,
+      "trimmed_count": 0,
+      "result_limit": 3,
+      "requested_engines": [
+        "serper"
+      ],
+      "unavailable_engines": {},
+      "engine_states": {
+        "tavily": {
+          "status": "not_selected"
+        },
+        "exa": {
+          "status": "not_selected"
+        },
+        "serpapi": {
+          "status": "not_selected"
+        },
+        "brave": {
+          "status": "not_selected"
+        },
+        "bocha": {
+          "status": "not_selected"
+        },
+        "serper": {
+          "status": "returned",
+          "result_count": 3
+        }
+      },
+      "engine_request_audits": {
+        "serper": {
+          "requested_limit": 3,
+          "effective_limit": 3,
+          "negotiated_account_cap": null,
+          "limit_adjustment": ""
+        }
+      }
+    },
+    {
+      "method": "canonical_url_rrf_v1",
+      "engine_counts": {
+        "exa": 3
+      },
+      "raw_count": 3,
+      "unique_count": 3,
+      "kept_count": 3,
+      "deduplicated_count": 0,
+      "invalid_or_empty_url_count": 0,
+      "trimmed_count": 0,
+      "result_limit": 3,
+      "requested_engines": [
+        "exa"
+      ],
+      "unavailable_engines": {},
+      "engine_states": {
+        "tavily": {
+          "status": "not_selected"
+        },
+        "serper": {
+          "status": "not_selected"
+        },
+        "serpapi": {
+          "status": "not_selected"
+        },
+        "brave": {
+          "status": "not_selected"
+        },
+        "bocha": {
+          "status": "not_selected"
+        },
+        "exa": {
+          "status": "returned",
+          "result_count": 3
+        }
+      },
+      "engine_request_audits": {
+        "exa": {}
+      }
+    }
+  ],
+  "original_fetch_attempted": true,
+  "actual_cost": null,
+  "cost_reason": "供应商未返回货币费用；保留原始 token 用量，不估造账单",
+  "not_end_to_end_report_acceptance": true,
+  "call_plan_sha256": "5db889c6e4cf0d77cfd0f284c57ef1de3764c9c02c14f40ea2500de0a33edca2"
+}

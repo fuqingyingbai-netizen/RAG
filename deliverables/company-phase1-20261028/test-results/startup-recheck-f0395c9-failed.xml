@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="90.488" timestamp="2026-10-29T02:59:53.870647+08:00" hostname="DESKTOP-226P4DF"><testcase classname="test.test_startup_without_embedding" name="test_login_home_and_account_management_start_without_vector_model" time="90.115"><failure message="subprocess.TimeoutExpired: Command '['E:\\projects\\RAG\\.venv\\Scripts\\python.exe', '-c', &quot;\nimport ipaddress, socket, time, json\nstarted = time.perf_counter()\nlookup = socket.getaddrinfo\ndef offline_lookup(host, *args, **kwargs):\n    if host is not None and str(host).lower() != 'localhost':\n        try: allowed = ipaddress.ip_address(host).is_loopback\n        except ValueError: allowed = False\n        if not allowed: raise AssertionError('External request during isolated startup')\n    return lookup(host, *args, **kwargs)\nsocket.getaddrinfo = offline_lookup\nimport embedding\ndef no_model(): raise AssertionError('Login tried to initialize the dense model')\nembedding._create_dense_embedder = no_model\nfrom backend.app import app\nfrom fastapi.testclient import TestClient\nfrom database import SessionLocal\nfrom models import User\nimport auth\nauth.PBKDF2_ROUNDS = 1000\nwith TestClient(app) as client:\n    assert client.get('/').status_code == 200\n    assert client.get('/auth/me').status_code == 401\n    with SessionLocal() as db:\n        db.add(User(username='startup-admin', role='admin', password_hash=auth.get_password_hash('Fixture123')))\n        db.commit()\n    login = client.post('/auth/login', json={'username': 'startup-admin', 'password': 'Fixture123'})\n    assert login.status_code == 200, login.status_code\n    headers = {'Authorization': 'Bearer ' + login.json()['access_token']}\n    assert client.get('/research/home', headers=headers).status_code == 200\n    assert client.get('/admin/users', headers=headers).status_code == 200\n    assert embedding.embedding_service._embedder is None\nprint(json.dumps({'model_unloaded': True, 'login_home_accounts_ok': True, 'seconds': round(time.perf_counter()-started, 2)}))\n&quot;]' timed out after 90 seconds">tmp_path = WindowsPath('C:/Users/wangli/AppData/Local/Temp/pytest-of-wangli/pytest-909/test_login_home_and_account_ma0')
+
+    def test_login_home_and_account_management_start_without_vector_model(tmp_path):
+        root = Path(__file__).resolve().parents[1]
+        env = {key: os.environ[key] for key in ['PATH', 'SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP'] if key in os.environ}
+        env.update(PYTHONPATH=os.pathsep.join([str(root), str(root / 'backend')]),
+                   PYTHON_DOTENV_DISABLED='1', JWT_SECRET_KEY='isolated-startup-test-secret-only',
+                   DATABASE_URL='sqlite:///' + str(tmp_path / 'startup.sqlite'),
+                   REDIS_URL='redis://127.0.0.1:1/0', MILVUS_HOST='127.0.0.1', MILVUS_PORT='1',
+                   BM25_STATE_PATH=str(tmp_path / 'bm25.json'), RESEARCH_OBJECT_STORE='local',
+                   RESEARCH_LOCAL_STORE=str(tmp_path / 'reports'), COMPANY_KNOWLEDGE_ENABLED='false',
+                   COMPANY_KNOWLEDGE_LOCAL_STORE=str(tmp_path / 'knowledge'),
+                   LANGSMITH_TRACING='false', LANGCHAIN_TRACING_V2='false')
+        code = '''
+    import ipaddress, socket, time, json
+    started = time.perf_counter()
+    lookup = socket.getaddrinfo
+    def offline_lookup(host, *args, **kwargs):
+        if host is not None and str(host).lower() != 'localhost':
+            try: allowed = ipaddress.ip_address(host).is_loopback
+            except ValueError: allowed = False
+            if not allowed: raise AssertionError('External request during isolated startup')
+        return lookup(host, *args, **kwargs)
+    socket.getaddrinfo = offline_lookup
+    import embedding
+    def no_model(): raise AssertionError('Login tried to initialize the dense model')
+    embedding._create_dense_embedder = no_model
+    from backend.app import app
+    from fastapi.testclient import TestClient
+    from database import SessionLocal
+    from models import User
+    import auth
+    auth.PBKDF2_ROUNDS = 1000
+    with TestClient(app) as client:
+        assert client.get('/').status_code == 200
+        assert client.get('/auth/me').status_code == 401
+        with SessionLocal() as db:
+            db.add(User(username='startup-admin', role='admin', password_hash=auth.get_password_hash('Fixture123')))
+            db.commit()
+        login = client.post('/auth/login', json={'username': 'startup-admin', 'password': 'Fixture123'})
+        assert login.status_code == 200, login.status_code
+        headers = {'Authorization': 'Bearer ' + login.json()['access_token']}
+        assert client.get('/research/home', headers=headers).status_code == 200
+        assert client.get('/admin/users', headers=headers).status_code == 200
+        assert embedding.embedding_service._embedder is None
+    print(json.dumps({'model_unloaded': True, 'login_home_accounts_ok': True, 'seconds': round(time.perf_counter()-started, 2)}))
+    '''
+&gt;       result = subprocess.run([sys.executable, '-c', code], cwd=root, env=env, text=True,
+                                encoding='utf-8', errors='replace', capture_output=True, timeout=90)
+
+test\test_startup_without_embedding.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\subprocess.py:550: in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\subprocess.py:1209: in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;Popen: returncode: 1 args: ['E:\\projects\\RAG\\.venv\\Scripts\\python.exe'...&gt;
+input = None, endtime = 660235.812, orig_timeout = 90
+
+    def _communicate(self, input, endtime, orig_timeout):
+        # Start reader threads feeding into a list hanging off of this
+        # object, unless they've already been started.
+        if self.stdout and not hasattr(self, "_stdout_buff"):
+            self._stdout_buff = []
+            self.stdout_thread = \
+                    threading.Thread(target=self._readerthread,
+                                     args=(self.stdout, self._stdout_buff))
+            self.stdout_thread.daemon = True
+            self.stdout_thread.start()
+        if self.stderr and not hasattr(self, "_stderr_buff"):
+            self._stderr_buff = []
+            self.stderr_thread = \
+                    threading.Thread(target=self._readerthread,
+                                     args=(self.stderr, self._stderr_buff))
+            self.stderr_thread.daemon = True
+            self.stderr_thread.start()
+    
+        if self.stdin:
+            self._stdin_write(input)
+    
+        # Wait for the reader threads, or time out.  If we time out, the
+        # threads remain reading and the fds left open in case the user
+        # calls communicate again.
+        if self.stdout is not None:
+            self.stdout_thread.join(self._remaining_time(endtime))
+            if self.stdout_thread.is_alive():
+&gt;               raise TimeoutExpired(self.args, orig_timeout)
+E               subprocess.TimeoutExpired: Command '['E:\\projects\\RAG\\.venv\\Scripts\\python.exe', '-c', "\nimport ipaddress, socket, time, json\nstarted = time.perf_counter()\nlookup = socket.getaddrinfo\ndef offline_lookup(host, *args, **kwargs):\n    if host is not None and str(host).lower() != 'localhost':\n        try: allowed = ipaddress.ip_address(host).is_loopback\n        except ValueError: allowed = False\n        if not allowed: raise AssertionError('External request during isolated startup')\n    return lookup(host, *args, **kwargs)\nsocket.getaddrinfo = offline_lookup\nimport embedding\ndef no_model(): raise AssertionError('Login tried to initialize the dense model')\nembedding._create_dense_embedder = no_model\nfrom backend.app import app\nfrom fastapi.testclient import TestClient\nfrom database import SessionLocal\nfrom models import User\nimport auth\nauth.PBKDF2_ROUNDS = 1000\nwith TestClient(app) as client:\n    assert client.get('/').status_code == 200\n    assert client.get('/auth/me').status_code == 401\n    with SessionLocal() as db:\n        db.add(User(username='startup-admin', role='admin', password_hash=auth.get_password_hash('Fixture123')))\n        db.commit()\n    login = client.post('/auth/login', json={'username': 'startup-admin', 'password': 'Fixture123'})\n    assert login.status_code == 200, login.status_code\n    headers = {'Authorization': 'Bearer ' + login.json()['access_token']}\n    assert client.get('/research/home', headers=headers).status_code == 200\n    assert client.get('/admin/users', headers=headers).status_code == 200\n    assert embedding.embedding_service._embedder is None\nprint(json.dumps({'model_unloaded': True, 'login_home_accounts_ok': True, 'seconds': round(time.perf_counter()-started, 2)}))\n"]' timed out after 90 seconds
+
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\subprocess.py:1630: TimeoutExpired</failure></testcase></testsuite></testsuites>

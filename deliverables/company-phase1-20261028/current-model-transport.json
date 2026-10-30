@@ -1,0 +1,26 @@
+{
+  "purpose": "One unchanged-input streaming transport recheck after primary incomplete stream and backup connection error",
+  "model": "qwen3.8-max",
+  "endpoint": "https://llm.goaichat.top/v1",
+  "logical_requests": 1,
+  "sdk_max_retries": 0,
+  "input_receipt": "20261028T085439028882-000001.json",
+  "report_acceptance": false,
+  "response_metadata": {
+    "finish_reason": "stop",
+    "model_name": "qwen3.8-max",
+    "service_tier": "default",
+    "model_provider": "openai"
+  },
+  "usage_metadata": {
+    "input_tokens": 1491,
+    "output_tokens": 5563,
+    "total_tokens": 7054,
+    "input_token_details": {},
+    "output_token_details": {
+      "reasoning": 4511
+    }
+  },
+  "status": "returned",
+  "elapsed_seconds": 76.031
+}

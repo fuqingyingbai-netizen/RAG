@@ -335,10 +335,17 @@ class ResearchWorkflow:
         )
         return self._model
 
-    def _invoke(self, role: str, prompt: str, emit: TraceEmitter | None = None, *, stream: bool | None = None) -> str:
+    @staticmethod
+    def _company_analysis_configured():
+        return (_env_int('COMPANY_ANALYSIS_MAX_COMPLETION_TOKENS',0,0,131072)>0 or
+                _env_int('COMPANY_ANALYSIS_THINKING_BUDGET',0,0,262144)>0 or
+                bool(os.getenv('COMPANY_ANALYSIS_REASONING_EFFORT','').strip()))
+
+    def _invoke(self, role: str, prompt: str, emit: TraceEmitter | None = None, *, stream: bool | None = None,
+                company_analysis: bool = False) -> str:
         if stream is None and role == "公司数据清洗 Agent":
             stream = os.getenv("COMPANY_CLEANING_STREAMING_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
-        model = self._get_model()
+        model = self._get_company_report_editor_model(profile='analysis') if company_analysis else self._get_model()
         if not model:
             _emit(emit, "llm", "workflow", "大模型未配置，使用降级逻辑", "", status="fallback")
             return ""
@@ -355,7 +362,7 @@ class ResearchWorkflow:
                     {"role": "user", "content": prompt},
                 ], **({'stream': stream} if stream is not None else {})
             )
-            if stream is not None and (getattr(result, 'response_metadata', {}) or {}).get('finish_reason') != 'stop':
+            if (stream is not None or company_analysis) and (getattr(result, 'response_metadata', {}) or {}).get('finish_reason') != 'stop':
                 raise ValueError('company_response_incomplete')
             content = str(result.content or "")
             _emit(emit, "llm", role, "大模型调用完成", f"chars={len(content)}", status="done")
@@ -498,17 +505,23 @@ class ResearchWorkflow:
         if not os.getenv("ARK_API_KEY") or not os.getenv("MODEL"):
             return ""
         repair = "修订" in role
+        completion_limit=_env_int('COMPANY_SUMMARY_MAX_COMPLETION_TOKENS',0,0,131072)
+        reasoning_effort=os.getenv('COMPANY_SUMMARY_REASONING_EFFORT','').strip().lower()
         try:
             model = init_chat_model(
                 model=os.environ["MODEL"], model_provider="openai",
                 api_key=os.environ["ARK_API_KEY"], base_url=os.getenv("BASE_URL"),
-                temperature=0.1, max_tokens=2400, max_retries=0,
+                temperature=0.1, max_tokens=completion_limit or 2400, max_retries=0,
+                **({'reasoning_effort':reasoning_effort} if reasoning_effort else {}),
                 timeout=_env_int("COMPANY_SUMMARY_REPAIR_TIMEOUT_SECONDS" if repair else "COMPANY_SUMMARY_TIMEOUT_SECONDS", 45 if repair else 75, 10, 180),
             )
             response = model.invoke([
                 {"role": "system", "content": "只依据完整事实卡撰写中文公司摘要，保留主体、时间、数值单位和证据编号。"},
                 {"role": "user", "content": prompt},
             ])
+            if ((completion_limit or reasoning_effort) and
+                    (getattr(response,'response_metadata',{}) or {}).get('finish_reason')!='stop'):
+                raise ValueError('company_summary_response_incomplete')
             return str(response.content or "")
         except Exception as exc:
             _emit(emit, "llm", role, "公司摘要模型调用失败", type(exc).__name__, status="fallback")
@@ -634,30 +647,49 @@ class ResearchWorkflow:
             _emit(emit, "llm", role, "人物报告轻量总编超时或失败，保留章节草稿", str(exc), status="fallback")
             return ""
 
-    def _get_company_report_editor_model(self):
-        if self._company_report_editor_model is not None:
-            return self._company_report_editor_model
+    def _get_company_report_editor_model(self, *, profile='editor'):
+        profiles={'editor':('_company_report_editor_model','COMPANY_REPORT_EDITOR'),
+                  'main_focus':('_company_main_focus_model','COMPANY_MAIN_FOCUS'),
+                  'analysis':('_company_analysis_model','COMPANY_ANALYSIS')}
+        if profile not in profiles:
+            raise ValueError('invalid_company_editor_profile')
+        attribute,prefix=profiles[profile]
+        cached = getattr(self, attribute, None)
+        if cached is not None:
+            return cached
         api_key = os.getenv("ARK_API_KEY")
         model_name = os.getenv("MODEL")
         base_url = os.getenv("BASE_URL")
         if not api_key or not model_name:
             return None
-        self._company_report_editor_model = init_chat_model(
+        completion_limit=_env_int(prefix+'_MAX_COMPLETION_TOKENS',0,0,131072)
+        reasoning_effort=os.getenv(prefix+'_REASONING_EFFORT','').strip().lower()
+        thinking_budget=_env_int(prefix+'_THINKING_BUDGET',0,0,262144)
+        if thinking_budget and reasoning_effort:
+            raise ValueError('company_thinking_budget_conflicts_with_reasoning_effort')
+        model = init_chat_model(
             model=model_name,
             model_provider="openai",
             api_key=api_key,
             base_url=base_url,
-            temperature=0.1,
+            temperature=0.2 if profile=='analysis' else 0.1,
             stream_usage=True,
             streaming=os.getenv('COMPANY_REPORT_EDITOR_STREAMING_ENABLED', 'true').strip().lower() in {'1','true','yes','on'},
-            timeout=_env_int("COMPANY_REPORT_EDITOR_TIMEOUT_SECONDS", 150, 30, 600),
-            max_retries=_env_int("COMPANY_REPORT_EDITOR_MAX_RETRIES", 1, 0, 1),
+            timeout=(_env_int('COMPANY_ANALYSIS_TIMEOUT_SECONDS',_env_int('LLM_TIMEOUT_SECONDS',120,10,600),10,600)
+                     if profile=='analysis' else _env_int("COMPANY_REPORT_EDITOR_TIMEOUT_SECONDS",150,30,600)),
+            max_retries=(_env_int('COMPANY_ANALYSIS_MAX_RETRIES',_env_int('LLM_MAX_RETRIES',2,0,5),0,5)
+                         if profile=='analysis' else _env_int("COMPANY_REPORT_EDITOR_MAX_RETRIES",1,0,1)),
+            **({'max_tokens':completion_limit} if completion_limit else {}),
+            **({'reasoning_effort':reasoning_effort} if reasoning_effort else {}),
+            **({'extra_body':{'thinking_budget':thinking_budget,'enable_thinking':True}} if thinking_budget else {}),
         )
-        return self._company_report_editor_model
+        setattr(self, attribute, model)
+        return model
 
     def _invoke_company_report_editor(self, role: str, prompt: str, emit: TraceEmitter | None = None) -> str:
         """Use a dedicated, bounded editor request for company-report batches."""
-        model = self._get_company_report_editor_model()
+        model = (self._get_company_report_editor_model(profile='main_focus')
+                 if role.startswith('公司主报告事实选择') else self._get_company_report_editor_model())
         if not model:
             _emit(emit, "llm", role, "公司报告分批主编模型未配置，保留章节草稿", "", status="fallback")
             return ""
@@ -1001,14 +1033,14 @@ class ResearchWorkflow:
             company_diligence_queries = diligence_discovery_queries(list(project.sources or []), str(project.target_name or ""))
             from report_agents.company_risk_register import recall_discovery_queries
             company_diligence_queries += recall_discovery_queries(list(project.sources or []), str(project.target_name or ""))
-        skip_web_search = bool(
+        resume_coverage_ready = bool(
             resume_enabled
             and not force_refresh
             and sources_match_intake
             and required_modules
             and all(existing_module_counts.get(module, 0) >= resume_min_per_module for module in required_modules)
-            and not company_diligence_queries
         )
+        skip_web_search = resume_coverage_ready and not company_diligence_queries
         if standardized_type == "person":
             prior_retrieval = self._latest_artifact(project, "person_retrieval_audit")
             skip_web_search = bool(resume_enabled and not force_refresh and sources_match_intake
@@ -1027,6 +1059,14 @@ class ResearchWorkflow:
                 status="skipped",
             )
         else:
+            collection_intake = normalized_intake
+            if standardized_type == 'company' and resume_coverage_ready and company_diligence_queries:
+                from company_requirements import resume_gap_intake
+                collection_intake = resume_gap_intake(normalized_intake, company_diligence_queries,
+                    plan.get('company_requirements') or [])
+                _emit(emit, 'web_search', 'company_diligence_discovery_agent',
+                    '复用既有模块来源，仅补查已识别的专项缺口',
+                    f'queries={len(collection_intake["company_resume_gap_queries"])}', status='running')
             try:
                 sources_added = self.collect_web_sources(
                     db,
@@ -1036,7 +1076,7 @@ class ResearchWorkflow:
                     max_results_per_query,
                     emit=emit,
                     plan=plan,
-                    intake=normalized_intake,
+                    intake=collection_intake,
                     reuse_archived=allow_archive_reuse,
                     pause_requested=pause_requested,
                 )
@@ -2327,6 +2367,13 @@ class ResearchWorkflow:
                 {"chapter": i, "title": title, "requirements": requirements,
                  "scope": "actual_citations" if i == 14 else "verification_plan" if i == 15 else "evidence_bound"}
                 for i, (title, requirements) in enumerate(PersonReportAgent.outline, 1)]
+        if intake.get('target_type') == 'company':
+            from company_requirements import build_requirements, VERSION as COMPANY_QUESTION_VERSION
+            plan['company_requirement_version'] = COMPANY_QUESTION_VERSION
+            plan['company_requirements'] = build_requirements(modules, {**intake, 'target_name': target})
+            project.company_research_requirements = plan['company_requirements']
+            for item in plan['modules']:
+                item['company_requirement_ids'] = [r['requirement_id'] for r in plan['company_requirements'] if r['module'] == item['name']]
         if intake.get('target_type') == 'industry':
             try:
                 from .industry_evidence import evidence_requirements, VERSION
@@ -3176,7 +3223,7 @@ class ResearchWorkflow:
         if str(project.target_type or '').lower() != 'company':
             _emit(emit, "ocr", "ocr_extraction_agent", "当前链路未启用OCR", "", status="skipped")
             return 0
-        from company_ocr import VERSION, _integer
+        from company_ocr import VERSION, LEGACY_AUDIT_REFRESH_VERSION, _integer, legacy_audit_original_needed
         if os.getenv('COMPANY_PDF_OCR_ENABLED', 'true').lower() in {'false', '0', 'off'}:
             _emit(emit, 'ocr', 'ocr_extraction_agent', '公司按页OCR已关闭', '原待识别页保留', status='skipped')
             return 0
@@ -3193,16 +3240,45 @@ class ResearchWorkflow:
             if (previous_ocr.get('version') == VERSION and previous_ocr.get('status') not in {'busy','unavailable','disabled'} and not retry_pending):
                 continue
             pending = extraction.get('needs_ocr_pages') or []
+            legacy_audit = legacy_audit_original_needed(source, getattr(project, 'target_name', ''))
+            prior_refresh = meta.get('legacy_audit_original_refresh') or {}
+            if legacy_audit and prior_refresh.get('version') == LEGACY_AUDIT_REFRESH_VERSION and not retry_pending:
+                continue
             pdf = str(source.url or '').split('?', 1)[0].lower().endswith('.pdf') or 'pdf' in str(meta.get('fetched_content_type') or '')
-            if not pdf or not pending:
+            if not pdf or not (pending or legacy_audit):
                 continue
             if attempted >= maximum:
                 _emit(emit, 'ocr', 'ocr_extraction_agent', '扫描页待后续处理', '本轮来源预算已用完，原缺口保留', url=source.url, status='warning')
                 continue
             attempted += 1
-            _emit(emit, 'ocr', 'ocr_extraction_agent', '公司PDF按页补充识别', f'pending_pages={len(pending)}', url=source.url, status='running')
+            _emit(emit, 'ocr', 'ocr_extraction_agent', '公司PDF按页补充识别',
+                  f'pending_pages={len(pending)}; legacy_audit_without_physical_pages={legacy_audit}', url=source.url, status='running')
             fetched = self._fetch_web_url_with_timeout(source.url, False, emit=emit, document_profile='company')
-            if fetched.get('document_extraction') and fetched.get('document_pages'):
+            subject_bound = True
+            if legacy_audit:
+                from report_agents.company_diligence import issuer_heading
+                subject_bound = bool(fetched.get('content')) and issuer_heading(
+                    fetched.get('document_pages') or [], project.target_name)
+            if fetched.get('document_extraction') and fetched.get('document_pages') and subject_bound:
+                if legacy_audit:
+                    snapshot = json.dumps({'content': source.content, 'source_metadata': meta,
+                                           'object_key': getattr(source, 'object_key', None)}, ensure_ascii=False)
+                    snapshot_sha = hashlib.sha256(snapshot.encode('utf-8')).hexdigest()
+                    revision_key = research_store.put_text(
+                        f'projects/{project.id}/source_revisions/{source.id}_{snapshot_sha}.json', snapshot,
+                        'application/json; charset=utf-8')
+                    body = fetched.get('content') or ''
+                    body_sha = hashlib.sha256(body.encode('utf-8')).hexdigest()
+                    source.object_key = research_store.put_text(
+                        f'projects/{project.id}/raw_web/ocr_refresh_{source.id}_{body_sha}.txt', body)
+                    meta['legacy_audit_original_refresh'] = {
+                        'version': LEGACY_AUDIT_REFRESH_VERSION, 'status': 'retrieved',
+                        'previous_revision_key': revision_key, 'previous_revision_sha256': snapshot_sha,
+                        'body_sha256': body_sha, 'retrieved_at': datetime.now().isoformat(timespec='seconds')}
+                    # The archived revision retains the old provider receipt;
+                    # it must not describe the newly fetched physical pages.
+                    meta.pop('retained_provider_receipt', None)
+                    meta['content_origin'] = 'direct_company_pdf_refresh'
                 source.content = fetched.get('content') or source.content
                 meta.update(document_pages=fetched['document_pages'], document_extraction=fetched['document_extraction'])
                 if fetched.get('content'):
@@ -3218,6 +3294,10 @@ class ResearchWorkflow:
                 # Fetch failure must not erase original text/coverage or be
                 # represented as an empty search result.
                 meta['ocr_retry'] = {'status': fetched.get('status') or 'failed', 'error': fetched.get('error') or ''}
+                if legacy_audit:
+                    meta['legacy_audit_original_refresh'] = {
+                        'version': LEGACY_AUDIT_REFRESH_VERSION, 'status': 'failed',
+                        'reason': 'subject_not_bound' if not subject_bound else fetched.get('status') or 'extraction_unavailable'}
                 detail = '重新获取失败，保留原文字与待识别页'
                 status = 'warning'
             source.source_metadata = meta
@@ -4515,8 +4595,10 @@ class ResearchWorkflow:
                 if collection_emit:collection_emit(event)
             emit=company_emit
 
-        expanded_query_items = (list(intake['company_delivery_repair_queries'])
-            if intake.get('company_delivery_repair_queries') else self._expand_search_queries(plan, intake))
+        company_selected_queries = (intake.get('company_delivery_repair_queries')
+            or intake.get('company_resume_gap_queries')) if intake.get('target_type') == 'company' else None
+        expanded_query_items = (list(company_selected_queries)
+            if company_selected_queries else self._expand_search_queries(plan, intake))
         if intake.get('target_type')=='industry' and plan.get('evidence_requirements') and not intake.get('search_queries'):
             active=self._active_industry_sources(project)
             counts=Counter(str((s.source_metadata or {}).get('module') or '') for s in active if (s.content or '').strip())
@@ -4528,7 +4610,7 @@ class ResearchWorkflow:
                     _emit(emit,'web_search','coverage_agent','复用已有来源，仅补采指标证据缺口',
                           f'queries={len(expanded_query_items)}',status='running')
         discovered_company_recalls: set[str] = set()
-        if str(intake.get("target_type") or "").lower() == "company" and not intake.get('company_delivery_repair_queries'):
+        if str(intake.get("target_type") or "").lower() == "company" and not company_selected_queries:
             from report_agents.company_risk_register import recall_discovery_queries
             from report_agents.company_assessment import assessment_discovery_queries
             expanded_query_items = recall_discovery_queries(list(project.sources or []),
@@ -4540,7 +4622,7 @@ class ResearchWorkflow:
         query_items = authority_queries or expanded_query_items
         max_rounds = max(1, int(intake.get("max_search_rounds") or FIXED_MAX_SEARCH_ROUNDS))
         if pending_open_web_queries:
-            if intake.get("target_type") == "industry" and max_rounds == 1:
+            if (intake.get("target_type") == "industry" or company_selected_queries) and max_rounds == 1:
                 query_items = expanded_query_items
                 pending_open_web_queries = []
             else:
@@ -4749,6 +4831,11 @@ class ResearchWorkflow:
                                 "person_chapters": list(query_item.get("person_chapters") or []),
                                 "person_commission_id": query_item.get("commission_id", ""),
                                 "person_requirement_ids": list(query_item.get("requirement_ids") or []),
+                                **({"company_requirement_ids": list(query_item.get("company_requirement_ids") or []),
+                                    "company_requirement_version": query_item.get("company_requirement_version", ""),
+                                    "company_requirement_scope_sha256": query_item.get("company_requirement_scope_sha256", ""),
+                                    "company_query_purpose": query_item.get("query_purpose", "")}
+                                   if intake.get('target_type') == 'company' else {}),
                                 "round": round_index,
                                 "search_tier": search_tier,
                                 "authority_domains": include_domains,
@@ -4992,6 +5079,11 @@ class ResearchWorkflow:
                                 "person_chapters": list(query_item.get("person_chapters") or []),
                                 "person_commission_id": query_item.get("commission_id", ""),
                                 "person_requirement_ids": list(query_item.get("requirement_ids") or []),
+                                **({"company_requirement_ids": list(query_item.get("company_requirement_ids") or []),
+                                    "company_requirement_version": query_item.get("company_requirement_version", ""),
+                                    "company_requirement_scope_sha256": query_item.get("company_requirement_scope_sha256", ""),
+                                    "company_query_purpose": query_item.get("query_purpose", "")}
+                                   if intake.get('target_type') == 'company' else {}),
                             "round": round_index,
                             "search_tier": search_tier,
                             "authority_domains": include_domains,
@@ -5951,7 +6043,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                     timeout_seconds=min(remaining, _env_int('INDUSTRY_CLEANING_TIMEOUT_SECONDS', 60, 10, 120)))
             else:
                 role = "公司数据清洗 Agent" if target_type == "company" else "数据清洗 Agent"
-                answer = self._invoke(role, prompt, emit=emit)
+                answer = self._invoke(role, prompt, emit=emit,
+                    **({'company_analysis':True} if target_type=='company' and self._company_analysis_configured() else {}))
             parsed = _plain_json(answer, allow_preface=not industry_mode)
             if isinstance(parsed, dict):
                 if industry_mode:
@@ -6515,10 +6608,15 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                 return self._invoke_person_report_editor(role, prompt, emit=trace_emit)
             if target_type == "person" and "章节 Agent" in role:
                 return self._invoke_person_report_section(role, prompt, emit=trace_emit)
-            if target_type == "company" and ("分批主编 Agent" in role or role.startswith('公司交付')):
+            focus_profile = role.startswith('公司主报告事实选择') and (
+                _env_int('COMPANY_MAIN_FOCUS_MAX_COMPLETION_TOKENS',0,0,131072) > 0 or
+                _env_int('COMPANY_MAIN_FOCUS_THINKING_BUDGET',0,0,262144) > 0 or
+                bool(os.getenv('COMPANY_MAIN_FOCUS_REASONING_EFFORT','').strip()))
+            if target_type == "company" and ("分批主编 Agent" in role or role.startswith('公司交付') or focus_profile):
                 return self._invoke_company_report_editor(role, prompt, emit=trace_emit)
             if target_type == 'company':
                 return self._invoke(role, prompt, emit=trace_emit,
+                    **({'company_analysis':True} if self._company_analysis_configured() else {}),
                     stream=os.getenv('COMPANY_REPORT_EDITOR_STREAMING_ENABLED','true').strip().lower() in {'1','true','yes','on'})
             return self._invoke(role, prompt, emit=trace_emit)
 

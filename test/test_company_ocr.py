@@ -155,6 +155,71 @@ def test_failed_refetch_keeps_original_and_pending_pages(monkeypatch):
     assert source.source_metadata['ocr_retry']['status'] == 'http_403'
 
 
+def legacy_audit_source():
+    return SimpleNamespace(id=7, url='https://www.hkexnews.hk/a.pdf', object_key='old-body.txt',
+        content='示例食品股份有限公司\n内部控制审计报告\n正文仅留存责任段，扫描意见页未提取。',
+        source_metadata={'content_kind': 'retained_provider_text'})
+
+
+def test_legacy_audit_without_page_metadata_is_refetched_and_revision_preserved(monkeypatch):
+    source = legacy_audit_source()
+    project = SimpleNamespace(id=1, target_type='company', target_name='示例食品股份有限公司', sources=[source])
+    opinion = '我们认为，示例公司于2025年12月31日在所有重大方面保持了有效的财务报告内部控制。'
+    pages = [{'page': 1, 'text': '示例食品股份有限公司\n内部控制审计报告'},
+             {'page': 2, 'text': '内部控制审计报告（续）\n四、财务报告内部控制审计意见\n' + opinion}]
+    fetched = {'content': '\n'.join(p['text'] for p in pages), 'document_pages': pages,
+        'document_extraction': {'needs_ocr_pages': [], 'ocr': {
+            'version': company_ocr.VERSION, 'status': 'transcribed', 'accepted_pages': [2]}}}
+    w = ResearchWorkflow.__new__(ResearchWorkflow)
+    calls = []; stored = {}
+    monkeypatch.setattr(w, '_fetch_web_url_with_timeout', lambda *a, **kw: calls.append(kw) or fetched)
+    monkeypatch.setattr(research_workflow.research_store, 'put_text',
+        lambda key, body, *a: stored.setdefault(key, body) and key)
+    old_content = source.content
+    assert w.enrich_ocr_sources(SimpleNamespace(commit=lambda: None), project) == 1
+    revision = source.source_metadata['legacy_audit_original_refresh']
+    import json
+    saved = json.loads(stored[revision['previous_revision_key']])
+    assert saved['content'] == old_content and saved['object_key'] == 'old-body.txt'
+    assert stored[source.object_key] == source.content == fetched['content']
+    from report_agents.company_assessment import internal_control_observations
+    records = internal_control_observations(source, {'entity': project.target_name}, pages=pages)
+    assert [(r['cutoff'], r['state'], r['page']) for r in records] == [('2025-12-31', 'effective', 2)]
+    assert w.enrich_ocr_sources(SimpleNamespace(commit=lambda: None), project) == 0
+    assert len(calls) == 1 and calls[0]['document_profile'] == 'company'
+
+
+@pytest.mark.parametrize('change', ['other_issuer', 'failed'])
+def test_legacy_audit_failed_or_changed_subject_retains_original_and_does_not_loop(monkeypatch, change):
+    source = legacy_audit_source(); old_content = source.content
+    project = SimpleNamespace(id=1, target_type='company', target_name='示例食品股份有限公司', sources=[source])
+    w = ResearchWorkflow.__new__(ResearchWorkflow); calls = []
+    fetched = {'status': 'http_403'} if change == 'failed' else {
+        'content': '其他食品股份有限公司\n内部控制审计报告',
+        'document_pages': [{'page': 1, 'text': '其他食品股份有限公司\n内部控制审计报告'}],
+        'document_extraction': {'ocr': {'status': 'transcribed'}}}
+    monkeypatch.setattr(w, '_fetch_web_url_with_timeout', lambda *a, **kw: calls.append(1) or fetched)
+    monkeypatch.setattr(research_workflow.research_store, 'put_text', lambda *a: pytest.fail('must not replace body'))
+    db = SimpleNamespace(commit=lambda: None)
+    assert w.enrich_ocr_sources(db, project) == 0 and source.content == old_content
+    assert source.object_key == 'old-body.txt'
+    assert source.source_metadata['legacy_audit_original_refresh']['status'] == 'failed'
+    assert w.enrich_ocr_sources(db, project) == 0 and calls == [1]
+
+
+@pytest.mark.parametrize('change', ['non_official', 'wrong_subject', 'rejected', 'already_extracted', 'discovery'])
+def test_legacy_audit_refetch_requires_bound_official_original(change):
+    source = legacy_audit_source()
+    if change == 'non_official': source.url = 'https://publisher.test/a.pdf'
+    if change == 'wrong_subject': source.content = source.content.replace('示例食品', '其他食品')
+    if change == 'rejected': source.source_metadata['entity_validation'] = 'rejected'
+    if change == 'already_extracted': source.source_metadata['document_pages'] = [{'page': 1, 'text': source.content}]
+    if change == 'discovery':
+        source.summary = source.content
+        source.source_metadata = {'content_kind': 'summary_only', 'fetch_status': 'empty_pdf'}
+    assert not company_ocr.legacy_audit_original_needed(source, '示例食品股份有限公司')
+
+
 def test_sparse_company_pdf_keeps_ocr_gaps_without_mobile_or_reader_replacement(monkeypatch):
     import web_search
     provider=web_search.WebSearchProvider()

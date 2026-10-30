@@ -64,6 +64,27 @@ def test_matching_view_maps_length_changing_conversion_to_actual_original(monkey
     assert view.quote(start, view.text.index('乙')+1) == '甲AB乙'
 
 
+def test_long_repetitive_originals_align_only_independently_verified_lines(monkeypatch):
+    from difflib import SequenceMatcher
+    sizes=[]
+    def observed(junk,a,b,**kw):
+        sizes.append((len(a),len(b)))
+        return SequenceMatcher(junk,a,b,**kw)
+    monkeypatch.setattr('report_agents.company_text.SequenceMatcher',observed)
+    raw=('董事會及股東資料。'*12+'\n')*45+'青禾製造股份有限公司\n年度報告。'
+    view=OriginalTextView(raw)
+    start=view.text.index('青禾制造股份有限公司')
+    assert view.quote(start,start+len('青禾制造股份有限公司'))=='青禾製造股份有限公司'
+    assert view.quote(start,start+len('青禾制造股份有限公司\n年度报告。'))=='青禾製造股份有限公司\n年度報告。'
+    assert sizes and max(max(s) for s in sizes)<=max(map(len,raw.splitlines(keepends=True)))
+
+
+def test_cross_line_conversion_falls_back_to_whole_original_alignment(monkeypatch):
+    monkeypatch.setattr('report_agents.company_text.match_text',lambda x:x.replace('A\nB','XYZ'))
+    view=OriginalTextView('甲A\nB乙')
+    assert view.quote(view.text.index('X'),view.text.index('Z')+1)=='A\nB'
+
+
 def test_single_year_traditional_metrics_keep_units_quote_and_absent_comparison():
     raw = ('指標名稱 單位 2025年\n員工總人數 千人 198\n員工流失率 % 35.7\n'
            '員工培訓覆蓋率 % 100\n支持員工繼續教育投入金額 萬元 866.5\n累計培訓總費用 億元 1.7')

@@ -1,0 +1,15 @@
+{
+  "checkpoint_sha256": "168bbe1c779a469a4eea977566f63555336547bfc3009f7ea8fe920b59587e38",
+  "stored_event_version": "company-event-evidence-v4-complete-object-responses",
+  "events_for_source": 1,
+  "validation_errors": [
+    [
+      "independent_check_input_or_response_changed",
+      "independent_reason_unsupported_quantity:657万元"
+    ]
+  ],
+  "old_package_reusable": false,
+  "network_calls": 0,
+  "model_calls": 0,
+  "delivery_accepted": false
+}

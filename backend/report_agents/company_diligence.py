@@ -12,11 +12,12 @@ from .company_evidence import source_body, document_pages, pending_ocr_notice
 from .company_governance import EID, get, refs, _table, _cell, cited_evidence_ids
 from .company_history import _issuer_hosts
 from .company_financial_statements import fiscal_report_period,quarter_report_period
+from .company_text import match_text
 
-VERSION='company-diligence-v2-cross-chapter-display'
+VERSION='company-diligence-v4-financial-field-boundaries'
 TITLE='定向穿透专项尽职调查'
 _CC=OpenCC('t2s')
-LEGAL=r'[\u4e00-\u9fffA-Za-z（）()·]{2,55}(?:股份有限公司|有限责任公司|有限公司)'
+LEGAL=r'[\u4e00-\u9fffA-Za-z（）()·]{2,55}?(?:股份有限公司|有限责任公司|有限公司)'
 TRUSTED=('hkexnews.hk','cninfo.com.cn','szse.cn','sse.com.cn')
 STREAMS=('融资情况','资金使用合规性','战略布局','业务真实性','大额资金往来','委托方指定事项')
 
@@ -169,6 +170,10 @@ def identity_registry(cleaned,target,sources):
                        and len(re.findall(r'\d+(?:\.\d+)?\s*%',text))>=4)
             for m in re.finditer(r'(?:控股子公司|全资子公司|子公司|附属公司)(?:为|是|包括)?\s*('+LEGAL+r')',text):
                 child=m[1]
+                # A short subsidiary alias followed by a counterparty is not
+                # one legal name. Keep the source for alias resolution; do not
+                # promote the counterparty into the parent's entity registry.
+                if re.search(r'与|以及',child):continue
                 if schematic and re.fullmatch(r'(?:中国|境内|境外|国内|海外)(?:投资|经营|运营)?(?:控股)?(?:有限责任公司|有限公司)',child):continue
                 if re.search(r'根据|注册成立|成立于|简称|依据|以下|上述|通过',child):continue
                 prefix=re.sub(r'\s+','',re.split(r'[。；]',text[:m.start()])[-1])
@@ -247,18 +252,35 @@ def _sentences(text):
     clean=re.sub(r'(?m)^\s*\([a-z]\)\s*(?=[A-Z])','\n\n',clean)
     clean=re.sub(r'(?m)^(?=[A-Z][^\n]{2,100}a (?:wholly-owned|majority-owned) subsidiary)','\n\n',clean)
     clean=re.sub(r'(?m)^\s*(?:\d+\s+)?(?=On\s+\d{1,2}\s+[A-Z][a-z]+\s+20\d{2}|截至\s*20\d{2})','\n\n',clean)
+    # Numbered financial notes are field boundaries, not wrapped prose. A
+    # preceding "not applicable" reason must not borrow the next note's table.
+    clean=re.sub(r'(?m)^\s*(?=\d{1,3}\s*[、．]\s*\S)','\n\n',clean)
     clean=re.sub(r'(?<!\n)\n(?!\n)',' ',clean)
     return [re.sub(r'(?<=[\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])','',re.sub(r'\s+',' ',s)).replace('\u2024','.').strip() for s in re.split(r'\n{2,}|(?<=[。；])|(?<=[.!?])\s+(?=[A-Z])',clean) if s.strip()]
 
 
+def _has_pending_payment(quote):
+    """Keep field-local negative/zero disclosures out of positive pending rows."""
+    # classify_quote already normalized script and layout once.
+    for clause in re.split(r'[。；;]',quote):
+        for occurrence in re.finditer(r'未付|not paid yet',clause,re.I):
+            before=clause[max(0,occurrence.start()-24):occurrence.start()]
+            after=clause[occurrence.end():occurrence.end()+80]
+            if re.search(r'(?:不存在|没有|并无|并無|无|無)\s*(?:已到期|到期|任何|应付|應付|票据|票據|款项|款項|的|\s)*$',before):continue
+            if re.match(r'\s*(?:的)?原因\s*(?:是|为|為)?\s*[:：]?\s*(?:不适用|不適用|无|無)(?:\s|$|[，,])',after):continue
+            if re.match(r'\s*(?:的)?(?:款项|款項|金额|金額|余额|餘額|总额|總額|应付票据|應付票據|部分|\s)*\s*(?:为|為|是|[:：])?\s*(?:人民币|人民幣|RMB|HKD|USD)?\s*(?:0(?:\.0+)?|零)\s*(?:元|万元|萬元|千元|亿元|億元|$)',after,re.I):continue
+            return True
+    return False
+
+
 def classify_quote(quote):
-    t=_CC.convert(quote);low=t.lower()
+    t=match_text(quote);low=t.lower()
     from .company_history import accounting_background
     if accounting_background(t):return None
     if re.search(r'如果|若|不时进行企业合并|可能.{0,100}完成|完成.{0,50}可能',low):return None
     if re.search(r'(?:从|自).{0,35}控制权之日起|when.{0,20}control.{0,20}obtained',low):return None
     if re.search(r'unaudited pro forma|for the purpose of.*pro forma|备考|假设.{0,25}(?:交易|收购|完成|已发生)',low):return 'pro_forma','大额资金往来','备考假设/模拟影响，非实际提款或付款'
-    if re.search(r'未付|not paid yet',low) or (re.search(r'未使用',low) and re.search(r'募集|配售|融资款|所得款项',low)):return 'payment_pending','大额资金往来','未付/未使用，不能写成已全部支付'
+    if _has_pending_payment(t) or (re.search(r'未使用',low) and re.search(r'募集|配售|融资款|所得款项',low)):return 'payment_pending','大额资金往来','未付/未使用，不能写成已全部支付'
     if re.search(r'(?:采用|拟)?发行股份.{0,30}募集配套资金|拟发行债券',low):return 'financing_plan','融资情况','融资/交易方案披露；完成、到账和实际用途另行核验'
     if re.search(r'完成[^，。；:：]{0,25}(?:配售|发行)|配售完成后[^。；]{0,150}(?:股份总数|股本总额)|配售[^。；]{0,80}净额|已使用.*(?:配售|募集)|used.*net proceeds',low):
         if not re.search(r'已使用|used',low) and re.search(r'提名权|权利|股东的意向|发行完成前|发行完成时|发行完成后',low):return None
@@ -280,7 +302,7 @@ def classify_quote(quote):
 def disclosure_rows(source,pages,base):
     rows=[]
     for page in pages:
-        raw=page['text'];text=_CC.convert(raw)
+        raw=page['text'];text=match_text(raw)
         rows+=money_rows(page,base)
         if re.search(r'重要会计政策|会计政策及会计估计|SUMMARY\s+OF\s+(?:SIGNIFICANT|MATERIAL)\s+ACCOUNTING\s+POLICIES',text,re.I):continue
         # Fund use disclosures usually wrap across several lines and bullets.
@@ -306,11 +328,15 @@ def disclosure_rows(source,pages,base):
                 if re.search(r'Cash consideration not paid yet',quote,re.I):continue # explicit table fields above
                 date_start=re.search(r'(?:于|截至)\s*20\d{2}\s*年',quote)
                 if date_start:quote=quote[date_start.start():]
+                # The returned quote, not discarded context before its date,
+                # must still support its recorded category.
+                final_category=classify_quote(quote)
+                if not final_category or final_category[0]!=kind:continue
                 mode+='；到期未付需先核对披露原因及后续兑付，不直接等同违约'
             if kind=='fund_use' and re.search(r'募集\s*年份|募集资金总体使用情况|募集资金承诺项目',_CC.convert(quote)):continue
             if kind=='fund_use' and re.search(r'截至\s*20\d{2}.+本集团已使用',quote):continue # complete bullet paragraph retained above
             if kind=='strategy' and not re.search(r'收购|并购|acquisit|投资|investment',quote,re.I):continue
-            if kind=='related_funding' and not re.search(r'obtained|provided|outstanding.{0,30}loan|from.{0,50}holding|shareholder|股东贷款|借款(?:本金|金额|余额)|委托贷款',quote,re.I):continue
+            if kind=='related_funding' and not re.search(r'obtained|provided|outstanding.{0,30}loan|from.{0,50}holding|shareholder|股东贷款|借款(?:本金|金额|余额)|(?:取得|发放|提供|收回|偿还).{0,35}委托贷款|委托贷款.{0,20}(?:本金|金额|余额|额度)',match_text(quote),re.I):continue
             if kind=='related_funding' and len(re.findall(r'\d[\d,.]*',quote))>12:continue
             if kind in {'related_funding','pro_forma','consideration'} and not re.search(r'(?:RMB|US\$|USD|HK\$|人民币|港元).{0,30}\d|\d[\d,.]*\s*(?:亿元|万元|百万元|美元)',quote,re.I):continue
             if kind=='consideration' and not re.search(r'acquisit|purchas|seller|target|收购|并购|购买资产|交易对价|交易价格|现金对价',quote,re.I):continue

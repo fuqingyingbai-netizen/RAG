@@ -1,0 +1,26 @@
+{
+  "model": "qwen3.8-max",
+  "base_url": "https://llm.goaichat.top/v1",
+  "started_at": "2026-10-28T08:51:41.138344+00:00",
+  "logical_requests": 1,
+  "full_report_acceptance": false,
+  "content": "{\"connectivity\":\"ok\"}",
+  "response_metadata": {
+    "finish_reason": "stop",
+    "model_name": "qwen3.8-max",
+    "model_provider": "openai"
+  },
+  "usage_metadata": {
+    "input_tokens": 116,
+    "output_tokens": 40,
+    "total_tokens": 156,
+    "input_token_details": {
+      "cache_read": 0
+    },
+    "output_token_details": {
+      "reasoning": 33
+    }
+  },
+  "status": "returned",
+  "elapsed_seconds": 3.656
+}

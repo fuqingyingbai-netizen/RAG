@@ -17,7 +17,7 @@ def test_explicit_absence_of_reported_completion_is_not_an_asserted_completion(n
     row['summary'] += '原文'+negative+'法院准许撤回上诉、判决生效或赔偿款已到账。'
     before = deepcopy(row)
     assert not case_state_errors(row, source()['content'])
-    assert not validate_event(row, source(), TARGET, AS_OF)
+    assert not validate_event(row, source(), TARGET, AS_OF, require_independent=False)
     assert row == before
 
 

@@ -1,0 +1,29 @@
+{
+  "purpose": "One explicit medium-reasoning budget probe on the unchanged real editor request that exhausted 32768 tokens",
+  "model": "qwen3.8-max",
+  "logical_requests": 1,
+  "sdk_max_retries": 0,
+  "max_completion_tokens": 32768,
+  "reasoning_effort": "medium",
+  "input_receipt": "20261028T100827297610-000003.json",
+  "report_acceptance": false,
+  "response_metadata": {
+    "finish_reason": "stop",
+    "model_name": "qwen3.8-max",
+    "service_tier": "default",
+    "model_provider": "openai"
+  },
+  "usage_metadata": {
+    "input_tokens": 11324,
+    "output_tokens": 18703,
+    "total_tokens": 30027,
+    "input_token_details": {
+      "cache_read": 11264
+    },
+    "output_token_details": {
+      "reasoning": 16778
+    }
+  },
+  "status": "returned",
+  "elapsed_seconds": 223.172
+}
