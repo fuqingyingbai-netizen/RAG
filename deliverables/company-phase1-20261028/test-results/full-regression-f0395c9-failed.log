@@ -1,0 +1,441 @@
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 61%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 96%]
+.............s.......................................................... [ 98%]
+..........................F................................              [100%]
+================================== FAILURES ===================================
+______ test_login_home_and_account_management_start_without_vector_model ______
+
+tmp_path = WindowsPath('C:/Users/wangli/AppData/Local/Temp/pytest-of-wangli/pytest-902/test_login_home_and_account_ma0')
+
+    def test_login_home_and_account_management_start_without_vector_model(tmp_path):
+        root = Path(__file__).resolve().parents[1]
+        env = {key: os.environ[key] for key in ['PATH', 'SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP'] if key in os.environ}
+        env.update(PYTHONPATH=os.pathsep.join([str(root), str(root / 'backend')]),
+                   PYTHON_DOTENV_DISABLED='1', JWT_SECRET_KEY='isolated-startup-test-secret-only',
+                   DATABASE_URL='sqlite:///' + str(tmp_path / 'startup.sqlite'),
+                   REDIS_URL='redis://127.0.0.1:1/0', MILVUS_HOST='127.0.0.1', MILVUS_PORT='1',
+                   BM25_STATE_PATH=str(tmp_path / 'bm25.json'), RESEARCH_OBJECT_STORE='local',
+                   RESEARCH_LOCAL_STORE=str(tmp_path / 'reports'), COMPANY_KNOWLEDGE_ENABLED='false',
+                   COMPANY_KNOWLEDGE_LOCAL_STORE=str(tmp_path / 'knowledge'),
+                   LANGSMITH_TRACING='false', LANGCHAIN_TRACING_V2='false')
+        code = '''
+    import ipaddress, socket, time, json
+    started = time.perf_counter()
+    lookup = socket.getaddrinfo
+    def offline_lookup(host, *args, **kwargs):
+        if host is not None and str(host).lower() != 'localhost':
+            try: allowed = ipaddress.ip_address(host).is_loopback
+            except ValueError: allowed = False
+            if not allowed: raise AssertionError('External request during isolated startup')
+        return lookup(host, *args, **kwargs)
+    socket.getaddrinfo = offline_lookup
+    import embedding
+    def no_model(): raise AssertionError('Login tried to initialize the dense model')
+    embedding._create_dense_embedder = no_model
+    from backend.app import app
+    from fastapi.testclient import TestClient
+    from database import SessionLocal
+    from models import User
+    import auth
+    auth.PBKDF2_ROUNDS = 1000
+    with TestClient(app) as client:
+        assert client.get('/').status_code == 200
+        assert client.get('/auth/me').status_code == 401
+        with SessionLocal() as db:
+            db.add(User(username='startup-admin', role='admin', password_hash=auth.get_password_hash('Fixture123')))
+            db.commit()
+        login = client.post('/auth/login', json={'username': 'startup-admin', 'password': 'Fixture123'})
+        assert login.status_code == 200, login.status_code
+        headers = {'Authorization': 'Bearer ' + login.json()['access_token']}
+        assert client.get('/research/home', headers=headers).status_code == 200
+        assert client.get('/admin/users', headers=headers).status_code == 200
+        assert embedding.embedding_service._embedder is None
+    print(json.dumps({'model_unloaded': True, 'login_home_accounts_ok': True, 'seconds': round(time.perf_counter()-started, 2)}))
+    '''
+>       result = subprocess.run([sys.executable, '-c', code], cwd=root, env=env, text=True,
+                                encoding='utf-8', errors='replace', capture_output=True, timeout=90)
+
+test\test_startup_without_embedding.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\subprocess.py:550: in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\subprocess.py:1209: in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Popen: returncode: 1 args: ['E:\\projects\\RAG\\.venv\\Scripts\\python.exe'...>
+input = None, endtime = 659584.171, orig_timeout = 90
+
+    def _communicate(self, input, endtime, orig_timeout):
+        # Start reader threads feeding into a list hanging off of this
+        # object, unless they've already been started.
+        if self.stdout and not hasattr(self, "_stdout_buff"):
+            self._stdout_buff = []
+            self.stdout_thread = \
+                    threading.Thread(target=self._readerthread,
+                                     args=(self.stdout, self._stdout_buff))
+            self.stdout_thread.daemon = True
+            self.stdout_thread.start()
+        if self.stderr and not hasattr(self, "_stderr_buff"):
+            self._stderr_buff = []
+            self.stderr_thread = \
+                    threading.Thread(target=self._readerthread,
+                                     args=(self.stderr, self._stderr_buff))
+            self.stderr_thread.daemon = True
+            self.stderr_thread.start()
+    
+        if self.stdin:
+            self._stdin_write(input)
+    
+        # Wait for the reader threads, or time out.  If we time out, the
+        # threads remain reading and the fds left open in case the user
+        # calls communicate again.
+        if self.stdout is not None:
+            self.stdout_thread.join(self._remaining_time(endtime))
+            if self.stdout_thread.is_alive():
+>               raise TimeoutExpired(self.args, orig_timeout)
+E               subprocess.TimeoutExpired: Command '['E:\\projects\\RAG\\.venv\\Scripts\\python.exe', '-c', "\nimport ipaddress, socket, time, json\nstarted = time.perf_counter()\nlookup = socket.getaddrinfo\ndef offline_lookup(host, *args, **kwargs):\n    if host is not None and str(host).lower() != 'localhost':\n        try: allowed = ipaddress.ip_address(host).is_loopback\n        except ValueError: allowed = False\n        if not allowed: raise AssertionError('External request during isolated startup')\n    return lookup(host, *args, **kwargs)\nsocket.getaddrinfo = offline_lookup\nimport embedding\ndef no_model(): raise AssertionError('Login tried to initialize the dense model')\nembedding._create_dense_embedder = no_model\nfrom backend.app import app\nfrom fastapi.testclient import TestClient\nfrom database import SessionLocal\nfrom models import User\nimport auth\nauth.PBKDF2_ROUNDS = 1000\nwith TestClient(app) as client:\n    assert client.get('/').status_code == 200\n    assert client.get('/auth/me').status_code == 401\n    with SessionLocal() as db:\n        db.add(User(username='startup-admin', role='admin', password_hash=auth.get_password_hash('Fixture123')))\n        db.commit()\n    login = client.post('/auth/login', json={'username': 'startup-admin', 'password': 'Fixture123'})\n    assert login.status_code == 200, login.status_code\n    headers = {'Authorization': 'Bearer ' + login.json()['access_token']}\n    assert client.get('/research/home', headers=headers).status_code == 200\n    assert client.get('/admin/users', headers=headers).status_code == 200\n    assert embedding.embedding_service._embedder is None\nprint(json.dumps({'model_unloaded': True, 'login_home_accounts_ok': True, 'seconds': round(time.perf_counter()-started, 2)}))\n"]' timed out after 90 seconds
+
+..\..\..\..\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\subprocess.py:1630: TimeoutExpired
+============================== warnings summary ===============================
+backend\company_workspace.py:65
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\company_workspace.py:65: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @workspace_router.on_event('startup')
+
+backend\company_workspace.py:91
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\company_workspace.py:91: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @workspace_router.on_event('shutdown')
+
+test/test_accounts.py: 217 warnings
+test/test_assistant_images.py: 8 warnings
+test/test_assistant_memory.py: 223 warnings
+test/test_assistant_online.py: 5 warnings
+test/test_company_collection_audit.py: 17 warnings
+test/test_company_memory.py: 186 warnings
+test/test_company_workspace.py: 53 warnings
+test/test_guide_and_report_archive.py: 171 warnings
+test/test_industry_runs.py: 58 warnings
+test/test_person_context_routing.py: 43 warnings
+test/test_person_reputation_peers.py: 28 warnings
+test/test_person_template_workflow.py: 16 warnings
+test/test_personal_home.py: 79 warnings
+test/test_product_guide.py: 49 warnings
+test/test_report_versions.py: 182 warnings
+test/test_research_indexing.py: 2 warnings
+test/test_research_read_performance.py: 121 warnings
+test/test_research_recovery.py: 7 warnings
+test/test_search_recall_fusion.py: 60 warnings
+  E:\projects\RAG\.venv\Lib\site-packages\sqlalchemy\sql\schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+test/test_accounts.py::test_expired_revoked_and_malformed_invitations[sqlite]
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\test\test_accounts.py:164: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    db.get(AccountInvitation, expired["id"]).expires_at = datetime.utcnow() - timedelta(seconds=1)
+
+test/test_accounts.py::test_expiry_deletes_live_tokens_but_retains_history_and_registration_source[sqlite]
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\test\test_accounts.py:360: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    db.get(AccountInvitation, invitation["id"]).expires_at = datetime.utcnow() - timedelta(seconds=1)
+
+test/test_accounts.py::test_legacy_version_zero_jwt_remains_usable_until_revoked[sqlite]
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\test\test_accounts.py:398: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    token = jwt.encode({"sub": "existing", "exp": datetime.utcnow() + timedelta(minutes=5)}, auth.SECRET_KEY, algorithm=auth.ALGORITHM)
+
+test/test_accounts.py::test_confirmation_expiry_target_and_actor_version_are_enforced[sqlite]
+test/test_accounts.py::test_confirmation_expiry_target_and_actor_version_are_enforced[sqlite]
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\test\test_accounts.py:435: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    row.expires_at = datetime.utcnow() - timedelta(seconds=1)
+
+test/test_accounts.py::test_login_throttle_persists_and_expires_without_revealing_accounts[sqlite]
+test/test_accounts.py::test_login_throttle_persists_and_expires_without_revealing_accounts[sqlite]
+test/test_accounts.py::test_login_throttle_persists_and_expires_without_revealing_accounts[sqlite]
+test/test_accounts.py::test_login_throttle_persists_and_expires_without_revealing_accounts[sqlite]
+test/test_accounts.py::test_login_throttle_persists_and_expires_without_revealing_accounts[sqlite]
+test/test_accounts.py::test_login_throttle_persists_and_expires_without_revealing_accounts[sqlite]
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\test\test_accounts.py:502: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    monkeypatch.setattr(security, 'now', lambda: datetime.utcnow() + timedelta(seconds=301))
+
+test/test_assistant_images.py: 3 warnings
+test/test_assistant_memory.py: 26 warnings
+test/test_assistant_online.py: 1 warning
+test/test_product_guide.py: 1 warning
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\assistant_memory.py:83: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+test/test_assistant_images.py: 1 warning
+test/test_assistant_memory.py: 12 warnings
+test/test_assistant_online.py: 1 warning
+test/test_guide_and_report_archive.py: 16 warnings
+test/test_product_guide.py: 1 warning
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\assistant_memory.py:151: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+test/test_assistant_images.py: 1 warning
+test/test_assistant_memory.py: 9 warnings
+test/test_assistant_online.py: 1 warning
+test/test_guide_and_report_archive.py: 16 warnings
+test/test_product_guide.py: 1 warning
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\assistant_memory.py:254: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'summary': memory['summary'], 'summary_through': memory['through'], 'updated_at': datetime.utcnow()},
+
+test/test_assistant_memory.py::test_lease_blocks_overlapping_and_duplicate_turns_and_recovers_expiry
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\test\test_assistant_memory.py:156: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    db.query(Thread).filter(Thread.id == sid).update({'busy_until': datetime.utcnow() - timedelta(seconds=1)})
+
+test/test_company_collection_audit.py: 29 warnings
+test/test_company_editor_transport.py: 8 warnings
+test/test_company_platform.py: 31 warnings
+test/test_company_requirements.py: 4 warnings
+test/test_company_table_refresh.py: 2 warnings
+test/test_industry_evidence.py: 113 warnings
+test/test_industry_round3.py: 12 warnings
+test/test_person_context_routing.py: 64 warnings
+test/test_person_model_generation.py: 3 warnings
+test/test_person_template_workflow.py: 26 warnings
+test/test_search_recall_fusion.py: 145 warnings
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\research_workflow.py:278: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.utcnow().isoformat(),
+
+test/test_company_collection_audit.py: 5 warnings
+test/test_company_cross_case_boundaries.py: 2 warnings
+test/test_company_event_evidence.py: 1 warning
+test/test_company_governance.py: 1 warning
+test/test_company_governance_graph_delivery.py: 1 warning
+test/test_company_judicial.py: 1 warning
+test/test_person_context_routing.py: 20 warnings
+test/test_search_recall_fusion.py: 56 warnings
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\research_workflow.py:214: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y%m%d%H%M%S")
+
+test/test_company_collection_audit.py: 2 warnings
+test/test_company_editorial.py: 1 warning
+test/test_company_presentation_delivery.py: 1 warning
+test/test_industry_evidence.py: 1 warning
+test/test_industry_runs.py: 9 warnings
+test/test_person_context_routing.py: 16 warnings
+test/test_person_reputation_peers.py: 4 warnings
+test/test_person_template_workflow.py: 12 warnings
+test/test_search_recall_fusion.py: 1 warning
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\research_workflow.py:8795: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    project.updated_at = datetime.utcnow()
+
+test/test_company_memory.py: 27 warnings
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\company_workspace.py:82: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    or_(CompanyDocument.lease_until.is_(None), CompanyDocument.lease_until < datetime.utcnow())))
+
+test/test_company_memory.py: 23 warnings
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\company_memory.py:136: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+test/test_company_memory.py: 14 warnings
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\company_memory.py:208: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now, token = datetime.utcnow(), uuid4().hex
+
+test/test_company_memory.py: 11 warnings
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\company_memory.py:359: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'updated_at': datetime.utcnow()}, synchronize_session=False)
+
+test/test_company_memory.py::test_expired_worker_can_be_recovered_without_old_answer_overwriting
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\test\test_company_memory.py:154: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    db.get(memory.KnowledgeChatThread,sid).busy_until=datetime.utcnow()-timedelta(seconds=1);db.commit()
+
+test/test_company_requirements.py: 2 warnings
+test/test_industry_evidence.py: 4 warnings
+test/test_person_context_routing.py: 2 warnings
+test/test_person_template_workflow.py: 2 warnings
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\research_workflow.py:873: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    project.updated_at = datetime.utcnow()
+
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_registered_file_is_reused_after_import_failure
+test/test_company_workspace.py::test_active_database_lease_prevents_another_worker_from_claiming_file
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\company_ingestion.py:38: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    CompanyDocument.lease_until < datetime.utcnow())).values(worker_id=token,
+
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_registered_file_is_reused_after_import_failure
+test/test_company_workspace.py::test_active_database_lease_prevents_another_worker_from_claiming_file
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\company_ingestion.py:39: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    lease_until=datetime.utcnow() + timedelta(minutes=3)))
+
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_registered_file_is_reused_after_import_failure
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\company_ingestion.py:21: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    CompanyDocument.worker_id == token).values(**values, updated_at=datetime.utcnow(),
+
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_ingestion_upload_headers_explicit_import_and_ready
+test/test_company_workspace.py::test_registered_file_is_reused_after_import_failure
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\company_ingestion.py:22: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    lease_until=datetime.utcnow() + timedelta(minutes=3)))
+
+test/test_company_workspace.py::test_revocation_changes_next_query_and_original_access
+test/test_company_workspace.py::test_partial_metadata_patch_does_not_publish_restricted_file
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\company_workspace.py:304: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    doc.updated_at = datetime.utcnow()
+
+test/test_company_workspace.py::test_confidential_document_request_admin_approval_grants_read_download_and_qa_scope
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\company_workspace.py:396: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    doc.updated_at = datetime.utcnow()
+
+test/test_company_workspace.py::test_confidential_document_request_admin_approval_grants_read_download_and_qa_scope
+test/test_company_workspace.py::test_rejected_request_does_not_grant_access
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\company_workspace.py:401: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    request.decided_at = datetime.utcnow()
+
+test/test_company_workspace.py::test_delete_removes_only_selected_cloud_index_and_hides_original
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\company_workspace.py:471: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    doc.updated_at = datetime.utcnow()
+
+test/test_company_workspace.py::test_active_database_lease_prevents_another_worker_from_claiming_file
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\test\test_company_workspace.py:394: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    doc.lease_until = datetime.utcnow() + timedelta(minutes=3)
+
+test/test_guide_and_report_archive.py::test_verified_company_and_other_completed_research_keep_existing_retention_policy[company]
+test/test_guide_and_report_archive.py::test_verified_company_and_other_completed_research_keep_existing_retention_policy[person]
+test/test_guide_and_report_archive.py::test_verified_company_and_other_completed_research_keep_existing_retention_policy[industry]
+test/test_guide_and_report_archive.py::test_success_cleanup_removes_new_web_bodies_only_and_repository_does_not_fetch_objects
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\source_retention.py:41: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    meta.update(retention_policy='record_only', body_removed_at=datetime.utcnow().isoformat() + 'Z',
+
+test/test_industry_api_intake.py::test_save_and_resume_preserve_scope_and_allow_clearing_companies
+test/test_person_context_routing.py::test_abbreviated_api_resume_preserves_saved_context_and_explicit_clear_works
+test/test_person_context_routing.py::test_abbreviated_api_resume_preserves_saved_context_and_explicit_clear_works
+test/test_person_context_routing.py::test_abbreviated_api_resume_preserves_saved_context_and_explicit_clear_works
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\research_api.py:889: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    project.updated_at = datetime.utcnow()
+
+test/test_industry_evidence.py::test_industry_workflow_runs_from_collection_to_word_without_external_calls
+test/test_industry_evidence.py::test_industry_workflow_runs_from_collection_to_word_without_external_calls
+test/test_industry_evidence.py::test_industry_workflow_runs_from_collection_to_word_without_external_calls
+test/test_industry_evidence.py::test_industry_workflow_runs_from_collection_to_word_without_external_calls
+test/test_person_context_routing.py::test_actual_web_pipeline_retains_context_budget_and_all_15_diagnostics
+test/test_person_context_routing.py::test_actual_web_pipeline_retains_context_budget_and_all_15_diagnostics
+test/test_person_template_workflow.py::test_real_workflow_persists_all_chapters_ledger_and_review_status_on_resume
+test/test_person_template_workflow.py::test_real_workflow_persists_all_chapters_ledger_and_review_status_on_resume
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\research_workflow.py:1714: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    project.updated_at = datetime.utcnow()
+
+test/test_research_indexing.py::test_index_worker_writes_result_after_timeout_and_rejects_parallel_retry
+test/test_research_indexing.py::test_index_worker_persists_failure_for_independent_retry
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\research_workflow.py:8822: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    metadata.update(vector_index_status="running", vector_indexed=False, vector_index_started_at=datetime.utcnow().isoformat())
+
+test/test_research_indexing.py::test_index_worker_writes_result_after_timeout_and_rejects_parallel_retry
+test/test_research_indexing.py::test_index_worker_persists_failure_for_independent_retry
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\research_workflow.py:8833: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    result["vector_index_finished_at"] = datetime.utcnow().isoformat()
+
+test/test_research_read_performance.py::test_first_upload_parsing_does_not_block_other_requests
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\research_api.py:1024: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    project.updated_at = datetime.utcnow()
+
+test/test_runtime_version.py::test_real_app_registers_version_before_static_without_business_calls
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\app.py:37: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+test/test_runtime_version.py::test_real_app_registers_version_before_static_without_business_calls
+test/test_runtime_version.py::test_real_app_registers_version_before_static_without_business_calls
+  E:\projects\RAG\.venv\Lib\site-packages\fastapi\applications.py:4599: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+test/test_runtime_version.py::test_real_app_registers_version_before_static_without_business_calls
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\app.py:46: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED test/test_startup_without_embedding.py::test_login_home_and_account_management_start_without_vector_model
+1 failed, 4233 passed, 1 skipped, 2340 warnings in 1984.97s (0:33:04)

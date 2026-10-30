@@ -1,0 +1,271 @@
+{
+  "observed_at": "2026-10-28T16:45:03.487022+00:00",
+  "documents": [
+    {
+      "source_id": 176,
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "title": "佛山市海天调味食品股份有限公司",
+      "old_pdf_sha256": null,
+      "requested_at": "2026-10-28T16:14:11.116296+00:00",
+      "sdk_retries": 0,
+      "status": 200,
+      "content_type": "application/pdf",
+      "bytes": 4057601,
+      "http_hops": [
+        {
+          "url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+          "status": 200
+        }
+      ],
+      "pdf_sha256": "b23d6decaa7ea3007ce920927c3bbc0c07246f2832abe49e221a715b97cc03c9",
+      "local_pdf": "work/company-phase1-20261028/restored-context-pdf-review/176-b23d6decaa7ea3007ce920927c3bbc0c07246f2832abe49e221a715b97cc03c9.pdf",
+      "matches_old_pdf_hash": null,
+      "pages": 191,
+      "anchor_pages": [
+        {
+          "page": 56,
+          "anchors": [
+            "本年度公司无重大诉讼"
+          ],
+          "text_sha256": "4502d30dce769d86d26cdd0d081380963c7c4bbf674eea13ffdd65f74396530b"
+        }
+      ],
+      "elapsed_seconds": 6.438,
+      "model_calls": 0,
+      "production_sources_modified": false,
+      "report_accepted": false
+    },
+    {
+      "source_id": 254,
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "title": "佛山市海天調味食品股份有限公司",
+      "old_pdf_sha256": null,
+      "requested_at": "2026-10-28T16:14:17.542652+00:00",
+      "sdk_retries": 0,
+      "status": 200,
+      "content_type": "application/pdf",
+      "bytes": 9380198,
+      "http_hops": [
+        {
+          "url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+          "status": 200
+        }
+      ],
+      "pdf_sha256": "821c00ddd6561202e796f0d7a529d4a68fd9e93b4fe01b4f6d3a7d7108252330",
+      "local_pdf": "work/company-phase1-20261028/restored-context-pdf-review/254-821c00ddd6561202e796f0d7a529d4a68fd9e93b4fe01b4f6d3a7d7108252330.pdf",
+      "matches_old_pdf_hash": null,
+      "pages": 162,
+      "anchor_pages": [
+        {
+          "page": 136,
+          "anchors": [
+            "本集团不对经销商提供任何担保",
+            "嘉兴海天使用自有资金"
+          ],
+          "text_sha256": "8eef2e1bf4c6330bdccdf13f1d7adc75b7e67676356c4baf579f8e21050fa307"
+        }
+      ],
+      "elapsed_seconds": 25.844,
+      "model_calls": 0,
+      "production_sources_modified": false,
+      "report_accepted": false
+    },
+    {
+      "source_id": 301,
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "title": "佛山市海天調味食品股份有限公司",
+      "old_pdf_sha256": null,
+      "requested_at": "2026-10-28T16:14:43.394332+00:00",
+      "sdk_retries": 0,
+      "status": 200,
+      "content_type": "application/pdf",
+      "bytes": 9380198,
+      "http_hops": [
+        {
+          "url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+          "status": 200
+        }
+      ],
+      "pdf_sha256": "821c00ddd6561202e796f0d7a529d4a68fd9e93b4fe01b4f6d3a7d7108252330",
+      "local_pdf": "work/company-phase1-20261028/restored-context-pdf-review/301-821c00ddd6561202e796f0d7a529d4a68fd9e93b4fe01b4f6d3a7d7108252330.pdf",
+      "matches_old_pdf_hash": null,
+      "pages": 162,
+      "anchor_pages": [
+        {
+          "page": 136,
+          "anchors": [
+            "本集团不对经销商提供任何担保",
+            "嘉兴海天使用自有资金"
+          ],
+          "text_sha256": "8eef2e1bf4c6330bdccdf13f1d7adc75b7e67676356c4baf579f8e21050fa307"
+        }
+      ],
+      "elapsed_seconds": 31.125,
+      "model_calls": 0,
+      "production_sources_modified": false,
+      "report_accepted": false
+    },
+    {
+      "source_id": 82,
+      "source_url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225038225.PDF",
+      "requested_at": "2026-10-28T16:48:40.451843+00:00",
+      "http_status": 200,
+      "http_hops": [
+        {
+          "url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225038225.PDF",
+          "status": 200
+        }
+      ],
+      "pdf_sha256": "2d9b298bf3df7dbce43141e57ff68a0cdb82be10625c31bea32a3a5d2be334a6",
+      "matches_production_pdf_hash": true,
+      "bytes": 1860976,
+      "pages": 7,
+      "production_ocr_accepted_pages": [
+        3
+      ],
+      "model_calls": 0,
+      "production_sources_modified": false,
+      "report_accepted": false
+    }
+  ],
+  "download_requests": 4,
+  "download_models": 0,
+  "old_source_pdf_byte_continuity": "unknown: old records have no PDF hash",
+  "same_current_pdf_mirrors": [
+    254,
+    301
+  ],
+  "visually_checked_original_pages": [
+    {
+      "path": "original-pages/176-page-1.png",
+      "sha256": "3996b0deb19bea2cc4383b05fd105274e65748ad392da65b223acae96a100f39",
+      "actually_viewed": true
+    },
+    {
+      "path": "original-pages/176-page-56.png",
+      "sha256": "086d1f40b5a83e0c90d5da123c4c6b768bef4f8d40136b23118047da1e3e39ff",
+      "actually_viewed": true
+    },
+    {
+      "path": "original-pages/254-page-1.png",
+      "sha256": "dd5179f70898464294ae31891206e8a3ea206d231987e22d39e4f94c1decdea0",
+      "actually_viewed": true
+    },
+    {
+      "path": "original-pages/254-page-16.png",
+      "sha256": "47bd6f40eb023833064230965c00a633b3cc041981a4e480687fa01062c3fd3d",
+      "actually_viewed": true
+    },
+    {
+      "path": "original-pages/254-page-119.png",
+      "sha256": "0a109ccd2ed02774210d7f0825cebbc8398d8384f825a4c1ff91ca7c6095d64e",
+      "actually_viewed": true
+    },
+    {
+      "path": "original-pages/254-page-120.png",
+      "sha256": "301691602027d37101f79698d9244ea0970d36b6873f3cd7ea64242cef385469",
+      "actually_viewed": true
+    },
+    {
+      "path": "original-pages/254-page-136.png",
+      "sha256": "62381c96659b3732245eba1650ae7d4c7fac6deaf58ff35a920c736843a78ac5",
+      "actually_viewed": true
+    },
+    {
+      "path": "original-pages/82-page-3.png",
+      "sha256": "bc9cc19458bcb04621284278b475c3ecf7bf864691b5d70fb13aa9727ef16fb4",
+      "actually_viewed": true
+    }
+  ],
+  "retained_text_control_record_count": 0,
+  "retained_text_control_score": null,
+  "fresh_local_ocr": {
+    "version": "company-page-ocr-v1",
+    "engine": "rapidocr_onnxruntime",
+    "source_sha256": "821c00ddd6561202e796f0d7a529d4a68fd9e93b4fe01b4f6d3a7d7108252330",
+    "candidate_pages": [
+      1,
+      16,
+      23,
+      26,
+      29,
+      31,
+      33,
+      35,
+      37,
+      38,
+      39,
+      40,
+      41,
+      154,
+      162
+    ],
+    "attempted_pages": [
+      1,
+      16,
+      23,
+      26,
+      29,
+      31,
+      33,
+      35
+    ],
+    "accepted_pages": [
+      16,
+      23,
+      26,
+      29,
+      31,
+      33,
+      35
+    ],
+    "alternative_pages": [
+      1
+    ],
+    "pending_pages": [
+      1,
+      37,
+      38,
+      39,
+      40,
+      41,
+      154,
+      162
+    ],
+    "failed_pages": [],
+    "status": "partial",
+    "boundary": "OCR仅为机器转录；数字、表格列关系、签署日期和法律含义仍须原页核对。",
+    "engine_version": "1.4.4",
+    "elapsed_seconds": 46.969
+  },
+  "fresh_local_ocr_diagnostic_records": [
+    {
+      "entity": "佛山市海天调味食品股份有限公司",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "evidence_id": "E-DIAGNOSTIC-OCR",
+      "evidence_ids": [
+        "E-DIAGNOSTIC-OCR"
+      ],
+      "kind": "internal_control_opinion",
+      "cutoff": "2025-12-31",
+      "state": "effective",
+      "page": 16,
+      "period": "2025-12-31财务报告内控",
+      "fact": "我们认为，海天公司于2025年12月31日按照《企业内部控制基本规范》和相关规定在所有重大方面保持了有效的财务报告内部控制。",
+      "mode": "年报所载内控审计意见；不扩展为全部非财务控制或团队能力评价"
+    }
+  ],
+  "fresh_local_ocr_diagnostic_score": 3,
+  "diagnostic_only": true,
+  "production_source_write_by_this_audit": false,
+  "model_calls": 0,
+  "full_report_accepted": false,
+  "open_action": "Production original retrieval/OCR, current-input revalidation, complete report generation and bound export QA remain required.",
+  "code_fix_commit": "2099cd3",
+  "focused_tests": {
+    "passed": 49,
+    "log_sha256": "07a91ca3567aff45b3dbbf0d085965e88a8f802f0b43bdf1afe4c000d3b9fd7f",
+    "junit_sha256": "c746e6e8617945a543474f1f13025da145218add9de561bfd3fad84e455ff6ab"
+  },
+  "formal_refresh_proof": "production-original-refresh.json"
+}

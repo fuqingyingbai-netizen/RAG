@@ -475,13 +475,13 @@ def extract_personal_feedback(workflow, sources, intake, emit=None):
 def collect(workflow, db, project, intake, emit=None):
     try:
         from .person_retrieval import integer
-        from .web_search import web_search_provider
+        from .web_search import WebSearchProvider, web_search_provider
         from .models import ResearchSource
         from .research_store import research_store
         from .company_platform import failure_kind
     except ImportError:
         from person_retrieval import integer
-        from web_search import web_search_provider
+        from web_search import WebSearchProvider, web_search_provider
         from models import ResearchSource
         from research_store import research_store
         from company_platform import failure_kind
@@ -495,7 +495,7 @@ def collect(workflow, db, project, intake, emit=None):
     fetch_remaining = max(0, configured_fetch_budget - int(audit.get('page_fetch_attempts', 0))) if configured_fetch_budget is not None else None
     if not limit or fetch_remaining == 0:
         return 0
-    providers = [p for p in ('tavily', 'exa', 'bocha') if os.getenv(p.upper() + '_API_KEY')
+    providers = [p for p in ('tavily', 'exa', 'bocha') if WebSearchProvider.is_configured(p)
                  and p not in audit.get('unavailable_providers', {})]
     if not providers:
         return 0

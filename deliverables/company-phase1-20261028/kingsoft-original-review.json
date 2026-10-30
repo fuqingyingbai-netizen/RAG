@@ -1,0 +1,73 @@
+{
+  "case": "kingsoft",
+  "observed_at": "2026-10-28T17:17:10.832459+00:00",
+  "independent_retrieval": {
+    "case": "kingsoft",
+    "source_id": 44,
+    "url": "http://static.cninfo.com.cn/finalpage/2026-03-26/1225032227.PDF",
+    "requested_at": "2026-10-28T17:15:28.502096+00:00",
+    "http_status": 200,
+    "http_hops": [
+      {
+        "url": "http://static.cninfo.com.cn/finalpage/2026-03-26/1225032227.PDF",
+        "status": 200
+      }
+    ],
+    "pdf_sha256": "bf6ade124527896edb1c1be6af04a7d6b4c0eb964de42a96a77db7dbc6cee281",
+    "matches_production_pdf_hash": true,
+    "bytes": 1867850,
+    "pages": 262,
+    "ocr_status": "not_needed",
+    "model_calls": 0,
+    "production_sources_modified": false,
+    "report_accepted": false
+  },
+  "native_round_result": {
+    "state": "model_call_budget_exhausted",
+    "counts": {
+      "model_calls": 0,
+      "model_failures": 0,
+      "http_calls": 1,
+      "http_failures": 0,
+      "http_error_responses": 0,
+      "model_http_calls": 0
+    },
+    "stage": "frozen-report",
+    "new_collection_acceptance": false,
+    "runtime_code_unchanged": true,
+    "delivery_accepted": false,
+    "manual_review": "pending",
+    "actual_cost": null
+  },
+  "native_round_result_sha256": "624a0b2cddc45d654e7d34a4dae949fd7405d5849d1b23c57602334f7a478557",
+  "previous_revision_sha256_verified": "c4835fbbaf39d8d2add4433e23b7c6c7370df5c5c8f0c7481d9318ee950a4334",
+  "actually_viewed_original_pages": [
+    {
+      "path": "original-pages/kingsoft-44-page-1.png",
+      "sha256": "7068e714a7ac71af2613f3ef002d798bee1c55228b6184ad51c466e35bebcc20",
+      "actually_viewed": true
+    },
+    {
+      "path": "original-pages/kingsoft-44-page-68.png",
+      "sha256": "7c91fc3d02cf674f983a143dec2c76db00d720aff33194281a825d5878e8840c",
+      "actually_viewed": true
+    }
+  ],
+  "source_count": 1459,
+  "production_control_score": {
+    "id": "control",
+    "name": "财务报告内控结果",
+    "weight": 15,
+    "anchors": "1=审计明确财务报告内控无效/否定；2=明确保留意见且有未消除缺陷；3=明确截至日重大方面有效；4=连续两年度明确有效。一般制度、定性缺陷标准、财务报表审计意见或“未发现”不替代内控有效性结论。",
+    "score": null,
+    "reason": "未取得有明确截至日的财务报告内控审计结论；制度、自评和普通财务报表审计不代替",
+    "records": [],
+    "evidence_ids": [],
+    "evidence_basis": "原件所载披露；各记录的发行人自报/审计/程序范围另列，不按来源数量加分"
+  },
+  "source_snapshot_sha256": "8574cd67cf82553da3c4a66cdb9ee4e9f418981b20ef8e2a4b7abaf1b2d9ad96",
+  "cleaned_artifact_id": 73,
+  "boundary": "Annual report discloses an unqualified control audit; the auditor opinion text and explicit control cutoff have not been parsed in the current corpus. Do not upgrade issuer disclosure to a retrieved independent audit opinion, or interpret the not-applicable commentary checkbox as no audit report.",
+  "human_reviewed_all_262_pages": false,
+  "full_report_accepted": false
+}

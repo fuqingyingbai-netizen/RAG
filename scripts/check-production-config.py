@@ -120,12 +120,25 @@ def check_config(values, *, check_paths=False):
         https_endpoint('ASSISTANT_BASE_URL')
     if values.get('ASSISTANT_API_KEY'):
         secret('ASSISTANT_API_KEY')
+    tavily_pool = values.get('TAVILY_API_KEYS', '').strip()
+    if tavily_pool:
+        try:
+            pool_keys = json.loads(tavily_pool) if tavily_pool.startswith('[') else re.split(r'[,;\s]+', tavily_pool)
+            if (not isinstance(pool_keys, list) or not pool_keys
+                    or not any(isinstance(key, str) and key.strip() for key in pool_keys)
+                    or any(not isinstance(key, str) or placeholder(key.strip()) or len(key.strip()) < 16
+                           for key in pool_keys if key != '')):
+                raise ValueError
+        except (ValueError, TypeError):
+            issue('ERROR', 'TAVILY_API_KEYS', 'Use a list of valid credentials; values are never displayed.')
     provider = values.get('WEB_SEARCH_PROVIDER', '').lower()
     if provider and provider not in SEARCH_KEYS:
         issue('ERROR', 'WEB_SEARCH_PROVIDER', 'Unsupported search provider in this deployment profile.')
+    elif provider == 'tavily' and tavily_pool:
+        pass  # An explicit pool supersedes the legacy single credential.
     elif provider:
         secret(SEARCH_KEYS[provider])
-    elif not any(not placeholder(values.get(key, '')) for key in SEARCH_KEYS.values()):
+    elif not tavily_pool and not any(not placeholder(values.get(key, '')) for key in SEARCH_KEYS.values()):
         issue('ERROR', 'WEB_SEARCH_PROVIDER', 'Configure at least one search provider credential.')
 
     required('EMBEDDING_MODEL')

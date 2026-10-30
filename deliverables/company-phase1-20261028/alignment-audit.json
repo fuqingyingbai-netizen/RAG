@@ -1,0 +1,109 @@
+{
+  "cases": 16,
+  "seconds": {
+    "legacy": 4.125641,
+    "segmented": 0.305271
+  },
+  "exact_quote_equality": true,
+  "network_calls": 0,
+  "model_calls": 0,
+  "report_acceptance": false,
+  "records": [
+    {
+      "case": "haitian",
+      "source_id": 9,
+      "input_sha256": "c2eaf2fcddfada4b034c25bbd55086b952f31601532a38d0b16f4e33fb719261",
+      "quote_sha256": "99564dfae0394802528e0716e9e8b72473988e2c65d81d79dd5bd2b094b5e2ad"
+    },
+    {
+      "case": "haitian",
+      "source_id": 13,
+      "input_sha256": "57cd98006cfac38158add441e01a7e3790d1dc0e137a7e1e22dce526f6962bf6",
+      "quote_sha256": "00bdece1e44524ca6ac6c3edaa5697509dc54ec2e48da5a4ebfa9e79c83cf68b"
+    },
+    {
+      "case": "haitian",
+      "source_id": 15,
+      "input_sha256": "276cdb6c9b5ac1df691421e40d8d86a1edd274c8e7cdfc832be6798b0b825b74",
+      "quote_sha256": "00bdece1e44524ca6ac6c3edaa5697509dc54ec2e48da5a4ebfa9e79c83cf68b"
+    },
+    {
+      "case": "haitian",
+      "source_id": 18,
+      "input_sha256": "a4e6dff144e2b95b24436783a2bd59e8389407a9b44587bfa595ec55d91cad20",
+      "quote_sha256": "99564dfae0394802528e0716e9e8b72473988e2c65d81d79dd5bd2b094b5e2ad"
+    },
+    {
+      "case": "haitian",
+      "source_id": 25,
+      "input_sha256": "faedbe4656360e53a014991be8b3a0c6445c7100e0f9eb484da8ca7f50f1e9db",
+      "quote_sha256": "00bdece1e44524ca6ac6c3edaa5697509dc54ec2e48da5a4ebfa9e79c83cf68b"
+    },
+    {
+      "case": "haitian",
+      "source_id": 34,
+      "input_sha256": "da527347619930ca2805db041e1b1a3a1f84e83cdb5b6a2ef0a55e05f4e25fb4",
+      "quote_sha256": "00bdece1e44524ca6ac6c3edaa5697509dc54ec2e48da5a4ebfa9e79c83cf68b"
+    },
+    {
+      "case": "haitian",
+      "source_id": 46,
+      "input_sha256": "da527347619930ca2805db041e1b1a3a1f84e83cdb5b6a2ef0a55e05f4e25fb4",
+      "quote_sha256": "00bdece1e44524ca6ac6c3edaa5697509dc54ec2e48da5a4ebfa9e79c83cf68b"
+    },
+    {
+      "case": "haitian",
+      "source_id": 47,
+      "input_sha256": "bff24d5a437a4d53e0ece5ee7df91899810e898d80d221cc2ca3574632cb9d02",
+      "quote_sha256": "00bdece1e44524ca6ac6c3edaa5697509dc54ec2e48da5a4ebfa9e79c83cf68b"
+    },
+    {
+      "case": "kingsoft",
+      "source_id": 7,
+      "input_sha256": "3f3f32631bf8817adb88fef7004f2c5e97ae2a21dd62b50c1118123c44aeb6e3",
+      "quote_sha256": "9b22e005336d3369270616fccd10c50cbeed41c0ff3b87bb6c20692a3c9d3238"
+    },
+    {
+      "case": "kingsoft",
+      "source_id": 44,
+      "input_sha256": "67181f543498fc1a5bece2f4ea9791f6f1010ad686d87ddc63fca673f6ada18e",
+      "quote_sha256": "9b22e005336d3369270616fccd10c50cbeed41c0ff3b87bb6c20692a3c9d3238"
+    },
+    {
+      "case": "kingsoft",
+      "source_id": 81,
+      "input_sha256": "fe508f0655c71da45e1cc6f81de290217ecbb9ce1f4b7ab92e5286c4a9ac0370",
+      "quote_sha256": "9b22e005336d3369270616fccd10c50cbeed41c0ff3b87bb6c20692a3c9d3238"
+    },
+    {
+      "case": "kingsoft",
+      "source_id": 96,
+      "input_sha256": "b498c935955b95b24ef878e5d6d82315687c55d8e396b9ade2b83b44e6b66325",
+      "quote_sha256": "9b22e005336d3369270616fccd10c50cbeed41c0ff3b87bb6c20692a3c9d3238"
+    },
+    {
+      "case": "kingsoft",
+      "source_id": 102,
+      "input_sha256": "c522cefadaba40c246ba16f814d1d7506dcda43cee1b9f29f5f91de2b7c86c30",
+      "quote_sha256": "9b22e005336d3369270616fccd10c50cbeed41c0ff3b87bb6c20692a3c9d3238"
+    },
+    {
+      "case": "kingsoft",
+      "source_id": 119,
+      "input_sha256": "bfa58102399cb055ce4f2a044167a89c5953b2d24bd9f837a0cd05f881fd2238",
+      "quote_sha256": "9b22e005336d3369270616fccd10c50cbeed41c0ff3b87bb6c20692a3c9d3238"
+    },
+    {
+      "case": "kingsoft",
+      "source_id": 121,
+      "input_sha256": "117b2e8a3ff92fee55a71e5d19bb81ee77677b3cfc1481341293ae76abee703f",
+      "quote_sha256": "9b22e005336d3369270616fccd10c50cbeed41c0ff3b87bb6c20692a3c9d3238"
+    },
+    {
+      "case": "kingsoft",
+      "source_id": 134,
+      "input_sha256": "0a46af311a767c88976b38622090b0a37c241d9010f8e595fcdde071aab9baee",
+      "quote_sha256": "9b22e005336d3369270616fccd10c50cbeed41c0ff3b87bb6c20692a3c9d3238"
+    }
+  ]
+}

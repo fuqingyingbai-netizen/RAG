@@ -1,0 +1,46 @@
+{
+  "case": "haitian",
+  "checkpoint_sha256": "1e6e268e6fc67f2a3ddeaf779a48309756551f21517b23affe07d469f5ce7e3c",
+  "current_version": "company-event-evidence-v7-local-absence-state-claims",
+  "previous_version": "company-event-evidence-v6-qualified-state-scope",
+  "cached_event_sources_only": 1,
+  "cached_response_package_sha256_before_and_after": "c3446e11dffe2ac475d2fc7f4be8bc6d45d003f5bfc9e9e79f989536294d5fc2",
+  "literal_checks": [
+    {
+      "source_url": "https://www.shzcfy.gov.cn/detail.jhtml?id=349956",
+      "old_error": "unproven_judgment_finality,unproven_compensation_receipt",
+      "current_literal_errors": []
+    }
+  ],
+  "attempted_roles_refused_before_model": [
+    "公司监管原件独立核对"
+  ],
+  "restored_proposals": [
+    {
+      "source_url": "https://www.shzcfy.gov.cn/detail.jhtml?id=349956",
+      "state": "requires_review",
+      "error_type": "CompanyModelUnavailable",
+      "error": "company_model_unavailable",
+      "proposal_reused_from_raw_cache": true,
+      "cached_proposal_witness": {
+        "cache_version": "company-event-evidence-v6-qualified-state-scope",
+        "original_sha256": "3fe889b8bd55baaaee63d5256a17831da037bb39a675183fb3d20473835c2f2b",
+        "role": "公司监管原件提取修复",
+        "input_sha256": "0967d116b5deff11c23c7ca172090055fcd1cf2d8a39725d20f9822591bd7e9c",
+        "raw_response_sha256": "9d6ddba2807675aeab81d05a9ad572bbdf7bad5869cacdcf35866d8eae63525c",
+        "previous_receipt_sha256": "15acca1226c0eeedaa8ec5c9a1b9a9032ec7014ae1fdefe5f3c730df3a1d7caf",
+        "current_literal_validation_errors": []
+      }
+    }
+  ],
+  "accepted_events": 0,
+  "new_model_calls": 0,
+  "new_http_calls": 0,
+  "raw_responses_modified": false,
+  "production_cache_modified": false,
+  "full_report_accepted": false,
+  "boundary": "Literal/proposal replay only; every refused independent review remains pending.",
+  "backend_product_commit": "f0395c996c3ea17ced292cab441387611b274d24",
+  "audit_source_sha256": "40b0cbd70feeb906370e1a8485ef34715bcd511ebb07abb35e3424a315c1581e",
+  "production_event_module_sha256": "f8e52f8313913d8b0ba246be0270627d2685ba5d20c8ab4b2144592f5de585c8"
+}

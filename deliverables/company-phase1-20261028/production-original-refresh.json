@@ -1,0 +1,281 @@
+{
+  "observed_at": "2026-10-28T16:50:20.719908+00:00",
+  "code_commit": "2099cd3",
+  "sources": [
+    {
+      "source_id": 44,
+      "source_url": "http://static.cninfo.com.cn/finalpage/2015-03-10/1200683965.PDF",
+      "revision_status": "retrieved",
+      "archived_previous_revision_sha256": "1516b5d01a7cb774dfc71b8d4c1e8c0d037144625144a109d3804f403bf023d2",
+      "archived_previous_body_sha256": "7972040a080dfbd6a3e1384b2d30184052b197aed2656a5546fdda273be86a2a",
+      "current_body_sha256": "258f8f471479c22c91ba9ea2cdc48d746620eaed4f3af750d9400b4cde40a09e",
+      "current_pdf_sha256": "ae92e085bf43ec5fe6a1cee5d8e792988ae5fad52f5c6246e114d970eb760015",
+      "physical_pages_retained": 158,
+      "extraction_complete": true,
+      "ocr_accepted_pages": [
+        158
+      ],
+      "ocr_pending_pages": [],
+      "old_provider_receipt_only_in_archived_revision": true,
+      "source_and_object_body_match": true
+    },
+    {
+      "source_id": 82,
+      "source_url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225038225.PDF",
+      "revision_status": "retrieved",
+      "archived_previous_revision_sha256": "a3a8f73cb53849f29819411917b375d8989fb9cc89638b6da3527993d2d41bc1",
+      "archived_previous_body_sha256": "d7572df70fac53566c3813835b4e7fdb129e00c725b12c626657c4e7fb453217",
+      "current_body_sha256": "dcaa6401cbee36f2b66879c130ed6178484cc719231f91a3b59ad08c9c5f3317",
+      "current_pdf_sha256": "2d9b298bf3df7dbce43141e57ff68a0cdb82be10625c31bea32a3a5d2be334a6",
+      "physical_pages_retained": 7,
+      "extraction_complete": false,
+      "ocr_accepted_pages": [
+        3
+      ],
+      "ocr_pending_pages": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "old_provider_receipt_only_in_archived_revision": true,
+      "source_and_object_body_match": true
+    },
+    {
+      "source_id": 240,
+      "source_url": "http://static.cninfo.com.cn/finalpage/2016-03-10/1202032539.PDF",
+      "revision_status": "retrieved",
+      "archived_previous_revision_sha256": "1502b95077d8308c3979982b837d77e04053af4dfc75a5de55cf1cfffbfc7fe9",
+      "archived_previous_body_sha256": "920f39376b1e394cb45dce7e609b53beebf2f0df1edaad3b6f64c1722df7ccc2",
+      "current_body_sha256": "0631da8563eb0a38b87491a597e2e99a892b7c04688f5f9b12192c3c2cc9ea85",
+      "current_pdf_sha256": "315aa463c2382a02964fdf3f5d97d33eba2da25503b6a25dae78294390ad2c86",
+      "physical_pages_retained": 145,
+      "extraction_complete": true,
+      "ocr_accepted_pages": [
+        145
+      ],
+      "ocr_pending_pages": [],
+      "old_provider_receipt_only_in_archived_revision": true,
+      "source_and_object_body_match": true
+    },
+    {
+      "source_id": 254,
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "revision_status": "retrieved",
+      "archived_previous_revision_sha256": "a1273966213c73d41ede681870f0c507b2501245d750ccffd8382c56129bccd5",
+      "archived_previous_body_sha256": "54c84b595b39db9535025f8f25736b0310cdc351506383e37ae6448dbe9a0494",
+      "current_body_sha256": "571ed29c427aea4be820b12743a6904ca32773f3c96377f1fdfa8c24a12e57c8",
+      "current_pdf_sha256": "821c00ddd6561202e796f0d7a529d4a68fd9e93b4fe01b4f6d3a7d7108252330",
+      "physical_pages_retained": 162,
+      "extraction_complete": false,
+      "ocr_accepted_pages": [
+        16,
+        23,
+        26,
+        29,
+        31,
+        33,
+        35
+      ],
+      "ocr_pending_pages": [
+        1,
+        37,
+        38,
+        39,
+        40,
+        41,
+        154,
+        162
+      ],
+      "old_provider_receipt_only_in_archived_revision": true,
+      "source_and_object_body_match": true
+    },
+    {
+      "source_id": 267,
+      "source_url": "http://static.cninfo.com.cn/finalpage/2017-03-23/1203186513.PDF",
+      "revision_status": "retrieved",
+      "archived_previous_revision_sha256": "8d25f45e2a4b9f7951cc3a9f87c308375cd59f6bb0ed53c56883a6480e4dbe64",
+      "archived_previous_body_sha256": "87e804ff9e8c3ebeebdffe7f77e7ddf532d47440d5c200b5d2a2f7bdb02fe0a5",
+      "current_body_sha256": "8970e88fad72a7ad4e063ea7fc4c1049f0b5aa89eeccd780e154346c1521d6b9",
+      "current_pdf_sha256": "a4b31c55a051d676fd9b8948396ae83a6e4db2bb9d169711d202e78c8763143b",
+      "physical_pages_retained": 161,
+      "extraction_complete": true,
+      "ocr_accepted_pages": [
+        161
+      ],
+      "ocr_pending_pages": [],
+      "old_provider_receipt_only_in_archived_revision": true,
+      "source_and_object_body_match": true
+    },
+    {
+      "source_id": 301,
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "revision_status": "retrieved",
+      "archived_previous_revision_sha256": "4fbd4f5e23ec437f171f2acb7a3abd99241b88a4d1d11818947239387c50888a",
+      "archived_previous_body_sha256": "54c84b595b39db9535025f8f25736b0310cdc351506383e37ae6448dbe9a0494",
+      "current_body_sha256": "571ed29c427aea4be820b12743a6904ca32773f3c96377f1fdfa8c24a12e57c8",
+      "current_pdf_sha256": "821c00ddd6561202e796f0d7a529d4a68fd9e93b4fe01b4f6d3a7d7108252330",
+      "physical_pages_retained": 162,
+      "extraction_complete": false,
+      "ocr_accepted_pages": [
+        16,
+        23,
+        26,
+        29,
+        31,
+        33,
+        35
+      ],
+      "ocr_pending_pages": [
+        1,
+        37,
+        38,
+        39,
+        40,
+        41,
+        154,
+        162
+      ],
+      "old_provider_receipt_only_in_archived_revision": true,
+      "source_and_object_body_match": true
+    }
+  ],
+  "round_result": {
+    "state": "model_call_budget_exhausted",
+    "counts": {
+      "model_calls": 0,
+      "model_failures": 0,
+      "http_calls": 7,
+      "http_failures": 0,
+      "http_error_responses": 0,
+      "model_http_calls": 0
+    },
+    "stage": "frozen-report",
+    "new_collection_acceptance": false,
+    "runtime_code_unchanged": true,
+    "delivery_accepted": false,
+    "manual_review": "pending",
+    "actual_cost": null
+  },
+  "round_result_sha256": "838bb9517874f48452bb1d3b2621573ec11a94384d4c73b657a0a10c9016930b",
+  "production_input_control_records": [
+    {
+      "source_url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225038225.PDF",
+      "source_title": "佛山市海天调味食品股份有限公司",
+      "evidence_id": "E-7EC5C094407E",
+      "evidence_ids": [
+        "E-7EC5C094407E"
+      ],
+      "entity": "佛山市海天调味食品股份有限公司",
+      "kind": "internal_control_opinion",
+      "cutoff": "2025-12-31",
+      "state": "effective",
+      "page": 3,
+      "period": "2025-12-31财务报告内控",
+      "fact": "我们认为，海天公司于2025年12月31日按照《企业内部控制基本规范》和相关规定在所有重大方面保持了有效的财务报告内部控制。",
+      "mode": "年报所载内控审计意见；不扩展为全部非财务控制或团队能力评价"
+    },
+    {
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "source_title": "佛山市海天調味食品股份有限公司",
+      "evidence_id": "E-600BC935EEFC",
+      "evidence_ids": [
+        "E-600BC935EEFC"
+      ],
+      "entity": "佛山市海天调味食品股份有限公司",
+      "kind": "internal_control_opinion",
+      "cutoff": "2025-12-31",
+      "state": "effective",
+      "page": 16,
+      "period": "2025-12-31财务报告内控",
+      "fact": "我们认为，海天公司于2025年12月31日按照《企业内部控制基本规范》和相关规定在所有重大方面保持了有效的财务报告内部控制。",
+      "mode": "年报所载内控审计意见；不扩展为全部非财务控制或团队能力评价"
+    },
+    {
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "source_title": "佛山市海天調味食品股份有限公司",
+      "evidence_id": "E-411CA073815D",
+      "evidence_ids": [
+        "E-411CA073815D"
+      ],
+      "entity": "佛山市海天调味食品股份有限公司",
+      "kind": "internal_control_opinion",
+      "cutoff": "2025-12-31",
+      "state": "effective",
+      "page": 16,
+      "period": "2025-12-31财务报告内控",
+      "fact": "我们认为，海天公司于2025年12月31日按照《企业内部控制基本规范》和相关规定在所有重大方面保持了有效的财务报告内部控制。",
+      "mode": "年报所载内控审计意见；不扩展为全部非财务控制或团队能力评价"
+    }
+  ],
+  "production_input_control_score": {
+    "id": "control",
+    "name": "财务报告内控结果",
+    "weight": 15,
+    "anchors": "1=审计明确财务报告内控无效/否定；2=明确保留意见且有未消除缺陷；3=明确截至日重大方面有效；4=连续两年度明确有效。一般制度、定性缺陷标准、财务报表审计意见或“未发现”不替代内控有效性结论。",
+    "score": 3,
+    "reason": "截至2025-12-31原件所载财务报告内控结论为重大方面有效；不等同经营效率、团队胜任或全集团全部合规均已验证。",
+    "records": [
+      {
+        "source_url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225038225.PDF",
+        "source_title": "佛山市海天调味食品股份有限公司",
+        "evidence_id": "E-7EC5C094407E",
+        "evidence_ids": [
+          "E-7EC5C094407E"
+        ],
+        "entity": "佛山市海天调味食品股份有限公司",
+        "kind": "internal_control_opinion",
+        "cutoff": "2025-12-31",
+        "state": "effective",
+        "page": 3,
+        "period": "2025-12-31财务报告内控",
+        "fact": "我们认为，海天公司于2025年12月31日按照《企业内部控制基本规范》和相关规定在所有重大方面保持了有效的财务报告内部控制。",
+        "mode": "年报所载内控审计意见；不扩展为全部非财务控制或团队能力评价"
+      },
+      {
+        "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+        "source_title": "佛山市海天調味食品股份有限公司",
+        "evidence_id": "E-600BC935EEFC",
+        "evidence_ids": [
+          "E-600BC935EEFC"
+        ],
+        "entity": "佛山市海天调味食品股份有限公司",
+        "kind": "internal_control_opinion",
+        "cutoff": "2025-12-31",
+        "state": "effective",
+        "page": 16,
+        "period": "2025-12-31财务报告内控",
+        "fact": "我们认为，海天公司于2025年12月31日按照《企业内部控制基本规范》和相关规定在所有重大方面保持了有效的财务报告内部控制。",
+        "mode": "年报所载内控审计意见；不扩展为全部非财务控制或团队能力评价"
+      },
+      {
+        "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+        "source_title": "佛山市海天調味食品股份有限公司",
+        "evidence_id": "E-411CA073815D",
+        "evidence_ids": [
+          "E-411CA073815D"
+        ],
+        "entity": "佛山市海天调味食品股份有限公司",
+        "kind": "internal_control_opinion",
+        "cutoff": "2025-12-31",
+        "state": "effective",
+        "page": 16,
+        "period": "2025-12-31财务报告内控",
+        "fact": "我们认为，海天公司于2025年12月31日按照《企业内部控制基本规范》和相关规定在所有重大方面保持了有效的财务报告内部控制。",
+        "mode": "年报所载内控审计意见；不扩展为全部非财务控制或团队能力评价"
+      }
+    ],
+    "evidence_ids": [
+      "E-411CA073815D",
+      "E-600BC935EEFC",
+      "E-7EC5C094407E"
+    ],
+    "evidence_basis": "原件所载披露；各记录的发行人自报/审计/程序范围另列，不按来源数量加分"
+  },
+  "control_scope": "Same 2025 year-end auditor opinion in CNINFO disclosure and two HKEX mirrors; not independent years or three separate control achievements.",
+  "full_report_accepted": false,
+  "body_export_browser_word_review": "pending new complete candidate",
+  "source_snapshot_sha256": "345eb588624dd28de3490b5c5987313b7e96f9f90cf1eacec7c8c1c2e8ee444a",
+  "cleaned_artifact_id": 90,
+  "readonly_audit_source_sha256": "ab0b52ff4942c3b69f746c92044f4dbc7c6b4418e48380f84f8066db6169adfa"
+}

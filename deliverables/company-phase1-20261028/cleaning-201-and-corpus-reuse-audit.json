@@ -1,0 +1,1790 @@
+{
+  "observed_at": "2026-10-28T17:46:13.423147+00:00",
+  "case": "haitian",
+  "round": "20261028T164918887122",
+  "backend_product_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
+  "cleaning_artifacts": {
+    "90": {
+      "artifact_id": 90,
+      "artifact_version": 6,
+      "content_sha256": "8ec7d7d43165bccd2d7f66543c01e45674195415ef7f6b6f595f8756e1e1fb72",
+      "metadata_sha256": "a7dee26b2312a9cc21ba3e70feb15ad33be765ff0e13b31406cf2f30acce2890",
+      "pipeline_version": "company-evidence-v14-original-content-availability",
+      "source_fingerprint": "f1fb73ef5743292a0b7668ee720e9c3699d3b126cfb8c9e221256a46c1e540a1",
+      "fact_cards": 1453,
+      "unique_source_urls": 1246,
+      "coverage_summary": {
+        "source_count": 1246,
+        "ledgered_source_count": 1246,
+        "deterministically_processed_source_count": 1246,
+        "deterministically_cleaned_source_count": 1246,
+        "cleaning_mode": "fast",
+        "llm_enabled": true
+      }
+    },
+    "201": {
+      "artifact_id": 201,
+      "artifact_version": 7,
+      "content_sha256": "9a4a04339e5ba63a3ec32a03731585203ebacd3d8821acdd13b86e8cad80af6e",
+      "metadata_sha256": "e73dcf1853effdc5b0dfcb00e6f155e17dfb3e73e57de4a7288e1000b49d2b1c",
+      "pipeline_version": "company-evidence-v14-original-content-availability",
+      "source_fingerprint": "24508f01bab97afa4054913896b14212070da8e6cd909a49d5f0ada3bb95dccd",
+      "fact_cards": 1436,
+      "unique_source_urls": 1246,
+      "coverage_summary": {
+        "source_count": 1246,
+        "ledgered_source_count": 1246,
+        "deterministically_processed_source_count": 1246,
+        "deterministically_cleaned_source_count": 1093,
+        "cleaning_mode": "fast",
+        "llm_enabled": true
+      }
+    }
+  },
+  "metric_boundary": "Cleaning cards and source coverage only; not independently verified facts, unique business events, important-fact coverage or report quality.",
+  "cleaning_finished_at": "2026-10-28T17:41:10.405535+00:00",
+  "logical_model_started": 28,
+  "logical_model_returned": 27,
+  "logical_model_failed": [
+    {
+      "at": "2026-10-28T17:33:06.036901+00:00",
+      "kind": "model_failed",
+      "number": 24,
+      "error_type": "RateLimitError",
+      "http_status": 429,
+      "elapsed_seconds": 64.187
+    }
+  ],
+  "failure_classification": "Upstream HTTP 429 / RateLimitError. Generic cleaning split warning was not a semantic rejection of company evidence. Two smaller inputs returned; failed error text is absent from cleaned artifact 201.",
+  "rejected_error_text_in_cleaned_facts": false,
+  "corpus_reuse_preflight_with_new_cleaned_artifact": {
+    "case": "haitian",
+    "version": "company-corpus-v12-audited-chapter-encoding",
+    "checkpoint_sha256": "6e63a597c78db62c04c0353b9125cf543919f6dcff7e3022c5e74d51e6232528",
+    "old_review_batches": 952,
+    "current_review_batches": 947,
+    "unchanged_old_batches": 884,
+    "new_model_batches": 63,
+    "new_role_documents": [
+      {
+        "evidence_id": "E-CE7ACFA839F1",
+        "source_id": "12",
+        "source_url": "https://std.samr.gov.cn/db/search/stdDBDetailed?id=D7B6988FD963AABEE05397BE0A0A1B36",
+        "source_title": "地方标准 - 全国标准信息公共服务平台",
+        "source_kind": "government_statement",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {
+          "date": "2021-12-28",
+          "quote": "发布日期\n: 2021-12-28",
+          "meaning": "原页署明日期；不是推断的事实发生日期"
+        },
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "#### 企业质量文化建设成熟度评价规范\n\n 地方标准-佛山 推荐性 废止 \n\n地方标准《企业质量文化建设成熟度评价规范》由佛山市市场监督管理局归口上报，主管部门为佛山市。\n\n主要起草单位 佛山市质量品牌发展协会 、佛山市市场监督管理局 、佛山市质量和标准化研究院 、广东坚美铝型材厂（集团）有限公司 、美的集团股份有限公司 、广东东鹏控股股份有限公司 、蒙娜丽莎集团股份有限公司 、佛山市海天调味食品股份有限公司 、广东格兰仕集团有限公司 、广东联塑科技实业有限公司 、广东新润成陶瓷有限公司 、佛山市南海区铝型材行业协会 。",
+            "start": 21,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "legal_name_or_disclosed_alias"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-ECF93905FB1B",
+        "source_id": "29",
+        "source_url": "https://std.samr.gov.cn/search/personDetailedCNF?id=18F90A63D48BF8F37EE350E337FC68D4",
+        "source_title": "相关人员检索 - 全国标准信息公共服务平台",
+        "source_kind": "government_statement",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "委员会名称 TC398  全国调味品标准化技术委员会 工作单位 佛山市海天调味食品股份有限公司 委员会职务 副主任委员 加入时间 2025-08-28",
+            "start": 277,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "legal_name_or_disclosed_alias"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-6A06E9FF2609",
+        "source_id": "69",
+        "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=A81BBB5BC65627C8E05397BE0A0A33B4",
+        "source_title": "国家标准项目 - 全国标准信息公共服务平台",
+        "source_kind": "government_statement",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "##### Seasoning wine\n\n 国家标准项目 制定 推荐性 \n\n国家标准项目《料酒质量通则》由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。 \n\n主要起草单位 北京二商王致和食品有限公司 、北京市老才臣食品有限公司 、江苏恒顺集团有限公司 、佛山市海天调味食品股份有限公司 。",
+            "start": 23,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "legal_name_or_disclosed_alias"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-F7CB7BDD401D",
+        "source_id": "81",
+        "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=E116673E56A9A3B7E05397BE0A0AC6BF",
+        "source_title": "国家标准计划 - 全国标准信息公共服务平台",
+        "source_kind": "government_statement",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "##### Technical specification for soy sauce processing\n\n 国家标准计划 制定 推荐性 \n\n国家标准计划《酱油工艺技术规范》由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。 拟实施日期：发布后18个月正式实施。 \n\n主要起草单位 中国调味品协会 、佛山市海天调味食品股份有限公司 、新疆维吾尔自治区产品质量监督检验研究院 。",
+            "start": 23,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "legal_name_or_disclosed_alias"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-232ACDF3984F",
+        "source_id": "135",
+        "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=E116673E3350A3B7E05397BE0A0AC6BF",
+        "source_title": "国家标准计划 - 全国标准信息公共服务平台",
+        "source_kind": "government_statement",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "##### General rule for the quality of soy sauce\n\n 国家标准计划 修订 推荐性 \n\n国家标准计划《酱油质量通则》由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。 拟实施日期：发布后18个月正式实施。 \n\n主要起草单位 佛山市海天调味食品股份有限公司 、烟台欣和企业食品有限公司 、李锦记（新会）食品有限公司 、天津科技大学食品科学与工程学院 、千禾味业食品股份有限公司 、江苏恒顺醋业股份有限公司 、中国食品发酵工业研究院有限公司 、广东美味鲜调味食品有限公司 、华东理工大学 、广东珠江桥生物科技股份有限公司 。",
+            "start": 23,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "legal_name_or_disclosed_alias"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-6ED0715F20EE",
+        "source_id": "147",
+        "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=5A13050B023F303FE06397BE0A0ADA7D",
+        "source_title": "国家标准 - 全国标准信息公共服务平台",
+        "source_kind": "government_statement",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {
+          "date": "2026-08-28",
+          "quote": "发布日期\n: 2026-08-28",
+          "meaning": "原页署明日期；不是推断的事实发生日期"
+        },
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "##### Technical specification for soy sauce processing\n\n 国家标准 推荐性 即将实施 \n\n国家标准《酱油工艺技术规范》 由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。\n\n主要起草单位 中国调味品协会 、佛山市海天调味食品股份有限公司 、新疆维吾尔自治区产品质量监督检验研究院 。",
+            "start": 21,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "legal_name_or_disclosed_alias"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-16C09D8BA660",
+        "source_id": "169",
+        "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=36DE96AA3F5FCD71E06397BE0A0A23D9",
+        "source_title": "国家标准 - 全国标准信息公共服务平台",
+        "source_kind": "government_statement",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {
+          "date": "2025-05-30",
+          "quote": "发布日期\n: 2025-05-30",
+          "meaning": "原页署明日期；不是推断的事实发生日期"
+        },
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "##### General rule for the quality of soy sauce\n\n 国家标准 推荐性 即将实施 \n\n国家标准《酱油质量通则》 由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。\n\n主要起草单位 佛山市海天调味食品股份有限公司 、烟台欣和企业食品有限公司 、李锦记（新会）食品有限公司 、天津科技大学食品科学与工程学院 、千禾味业食品股份有限公司 、江苏恒顺醋业股份有限公司 、中国食品发酵工业研究院有限公司 、广东美味鲜调味食品有限公司 、华东理工大学 、广东珠江桥生物科技股份有限公司 。",
+            "start": 21,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "legal_name_or_disclosed_alias"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-1743F5812191",
+        "source_id": "190",
+        "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=49FD1852CA3CC31FE06397BE0A0A1304",
+        "source_title": "国家标准 - 全国标准信息公共服务平台",
+        "source_kind": "government_statement",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {
+          "date": "2026-01-28",
+          "quote": "发布日期\n: 2026-01-28",
+          "meaning": "原页署明日期；不是推断的事实发生日期"
+        },
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "国家标准 - 全国标准信息公共服务平台\n\n 国家标准 指导性技术文件 现行 \n\n国家标准《食品企业社会责任指南》 由 TC313（全国食品质量控制与管理标准化技术委员会）归口 ，主管部门为市场监管总局（食品生产经营）。\n\n主要起草单位 中国标准化研究院 、华中农业大学 、佛山市海天调味食品股份有限公司 、上海康识食品科技有限公司 、东鹏饮料（集团）股份有限公司 、中国贵州茅台酒厂（集团）有限责任公司 、安徽省产品质量监督检验研究院 、宜宾五粮液股份有限公司 、安徽老乡鸡餐饮有限公司 、南京市产品质量监督检验院(南京市质量发展与先进技术应用研究院) 、内蒙古伊利实业集团股份有限公司 、中国农业大学 、新希望乳业股份有限公司 、白象食品股份有限公司 、茶姬（上海）品牌管理有限公司 、江西省质量和标准化研究院 、黑龙江飞鹤乳业有限公司 。",
+            "start": 0,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "legal_name_or_disclosed_alias"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-A06FE9E190E3",
+        "source_id": "197",
+        "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=N0b4qkvswmM%3D&mode=plan",
+        "source_title": "国家标准计划 - 全国标准信息公共服务平台",
+        "source_kind": "government_statement",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "##### General quality for chicken powder seasoning\n\n 国家标准计划 制定 推荐性 \n\n国家标准计划《鸡粉调味料质量通则》由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。 拟实施日期：发布后18个月正式实施。 \n\n主要起草单位 上海太太乐食品有限公司 、东莞市永益食品有限公司 、四川金宫川派味业有限公司 、广东佳隆食品股份有限公司 、广东百味佳味业科技股份有限公司 、联合利华食品（中国）有限公司 、广东厨邦食品有限公司 、佛山市海天调味食品股份有限公司 、雀巢（中国）有限公司 、四川豪吉食品有限公司 、华测检测认证集团北京有限公司 。",
+            "start": 23,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "legal_name_or_disclosed_alias"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-212FF9218FBC",
+        "source_id": "202",
+        "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=39A40A496A330B27E06397BE0A0AA06A",
+        "source_title": "国家标准计划 - 全国标准信息公共服务平台",
+        "source_kind": "government_statement",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false,
+          "retained_provider_receipt": {
+            "provider": "exa",
+            "query": "\"佛山市海天调味食品股份有限公司\" 被执行 失信 行政处罚",
+            "reason": "text_already_supplied_no_new_fetch"
+          }
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "##### General quality for soybean paste\n\n 国家标准计划 修订 推荐性 \n\n国家标准计划《黄豆酱质量通则》由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。 \n\n主要起草单位 佛山市海天调味食品股份有限公司 、烟台欣和企业食品有限公司 、北京六必居食品有限公司 、黑龙江香其食品股份有限公司 、李锦记（新会）食品有限公司 、广东美味鲜调味食品有限公司 、千禾味业食品股份有限公司 、山东省食品药品检验研究院 、江苏恒顺醋业股份有限公司 、成都太和坊食品股份有限公司 、鹤山市东古调味食品有限公司 、广东佳隆食品股份有限公司 、浙江海螺万家调味品有限公司 、山东德馨斋食品有限公司 。",
+            "start": 23,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "legal_name_or_disclosed_alias"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-2A59207A82EE",
+        "source_id": "232",
+        "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=5A13050B02D3303FE06397BE0A0ADA7D",
+        "source_title": "国家标准 - 全国标准信息公共服务平台",
+        "source_kind": "government_statement",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false,
+          "retained_provider_receipt": {
+            "provider": "exa",
+            "query": "\"佛山市海天调味食品股份有限公司\" 被执行 失信 行政处罚",
+            "reason": "text_already_supplied_no_new_fetch"
+          }
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "##### General quality for chicken powder seasoning\n\n 国家标准 推荐性 即将实施 \n\n国家标准《鸡粉调味料质量通则》 由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。\n\n主要起草单位 上海太太乐食品有限公司 、东莞市永益食品有限公司 、四川金宫川派味业有限公司 、广东佳隆食品股份有限公司 、广东百味佳味业科技股份有限公司 、联合利华食品（中国）有限公司 、广东厨邦食品有限公司 、佛山市海天调味食品股份有限公司 、雀巢（中国）有限公司 、四川豪吉食品有限公司 、华测检测认证集团北京有限公司 。",
+            "start": 21,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "legal_name_or_disclosed_alias"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-153FEF544FE2",
+        "source_id": "238",
+        "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=5A13050B023E303FE06397BE0A0ADA7D",
+        "source_title": "国家标准 - 全国标准信息公共服务平台",
+        "source_kind": "government_statement",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false,
+          "retained_provider_receipt": {
+            "provider": "exa",
+            "query": "\"佛山市海天调味食品股份有限公司\" 被执行 失信 行政处罚",
+            "reason": "text_already_supplied_no_new_fetch"
+          }
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "##### General rule for the quality of seasoning alcohol\n\n 国家标准 推荐性 即将实施 \n\n国家标准《料酒质量通则》 由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。\n\n主要起草单位 北京王致和食品有限公司 、烟台欣和企业食品有限公司 、佛山市海天调味食品股份有限公司 、浙江圣塔绍兴酒有限公司 、天津科技大学 、福建福老酒业有限公司 、上海鼎丰酿造食品有限公司 、江苏恒顺醋业股份有限公司 、山西紫林醋业股份有限公司 、广东美味鲜调味食品有限公司 、上海太太乐食品有限公司 、四川凤和黄酒有限责任公司 、莱阳鲁花醋业食品有限公司 。",
+            "start": 21,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "legal_name_or_disclosed_alias"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-0B0AA2B666F9",
+        "source_id": "245",
+        "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=E116673ED9C8A3B7E05397BE0A0AC6BF",
+        "source_title": "国家标准计划 - 全国标准信息公共服务平台",
+        "source_kind": "government_statement",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false,
+          "retained_provider_receipt": {
+            "provider": "exa",
+            "query": "\"佛山市海天调味食品股份有限公司\" 被执行 失信 行政处罚",
+            "reason": "text_already_supplied_no_new_fetch"
+          }
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "##### General rule for the quality of seasoning alcohol\n\n 国家标准计划 制定 推荐性 \n\n国家标准计划《料酒质量通则》由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。 拟实施日期：发布后12个月正式实施。 \n\n主要起草单位 北京王致和食品有限公司 、烟台欣和企业食品有限公司 、佛山市海天调味食品股份有限公司 、浙江圣塔绍兴酒有限公司 、天津科技大学 、福建福老酒业有限公司 、上海鼎丰酿造食品有限公司 、江苏恒顺醋业股份有限公司 、山西紫林醋业股份有限公司 、广东美味鲜调味食品有限公司 、上海太太乐食品有限公司 、四川凤和黄酒有限责任公司 、莱阳鲁花醋业食品有限公司 。",
+            "start": 23,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "legal_name_or_disclosed_alias"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-2BB331356926",
+        "source_id": "381",
+        "source_url": "http://www.sse.com.cn/services/greensecurities/home/",
+        "source_title": "绿色证券  上海证券交易所",
+        "source_kind": "attributed_publication",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "上交所一直以来高度重视、积极推动资本市场绿色发展，支持绿色企业上市融资，大力发展绿色债券市场，加快绿色指数产品创新，深化绿色金融国际合作。近年来上交所市场在绿色产业股权融资、绿色债券、绿色指数及绿色投资基金方面均取得了一定的成效，绿色产品不断丰富，市场规模持续扩大。同时，上交所积极参与绿色金融领域的国际交流和宣传推广，是我国首个加入联合国可持续证券交易所倡议的证券交易所，近年来先后获选亚洲金融合作协会绿色金融合作委员会副主任单位、世界交易所联合会可持续发展工作组副主席职位等，并持续通过论坛、路演、培训等多种形式推介绿色金融产品与可持续发展理念。",
+            "start": 459,
+            "candidate_chapters": [
+              2,
+              3,
+              4,
+              5,
+              6,
+              8,
+              10
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W2",
+            "quote": "近年来上交所市场在绿色产业股权融资、绿色债券、绿色指数及绿色投资基金方面均取得了一定的成效，绿色产品不断丰富，市场规模持续扩大。",
+            "start": 528,
+            "candidate_chapters": [
+              2,
+              5,
+              6,
+              10
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-3D713645A12F",
+        "source_id": "758",
+        "source_url": "https://www.hanghangcha.com/cms/detail/21520.html",
+        "source_title": "2019年调味品行业市场规模1282亿_行行查_行业研究数据库",
+        "source_kind": "attributed_publication",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "行行查为用户提供海量行业研究数据和报告：2019年调味品行业市场规模1282亿 ,包含 市场容量大消费,食品 等相关数据，本数据编号为 21520,搜索行业数据和行业报告就来行行查(www.hanghangcha.com)。",
+            "start": 0,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W2",
+            "quote": "行行查为用户提供海量行业研究数据和报告：2019年调味品行业市场规模1282亿 ,包含 市场容量大消费,食品 等相关数据，本数据编号为 21520,搜索行业数据和行业报告就来行行查(www.hanghangcha.com)。 2019年调味品行业市场规模1282亿_行行查_行业研究数据库",
+            "start": 0,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W3",
+            "quote": "2019年调味品行业市场规模1282亿_行行查_行业研究数据库 \n\n数据精选 \n 行业图谱 \n 数据概览 \n\n收藏 \n 会员 \n 登录 \n\n查一下 \n\n行业研究数据库 \n 行业图谱研究 行业深度新闻 \n\n创业投资数据库 \n 知名创投机构 重点项目动态 \n\n证券研究数据库 \n 中国宏观数据 区域上市企业 \n\n2019年调味品行业市场规模1282亿 \n 2020-11-09 大消费 | 市场容量 \n 根据欧睿数据，2014年至2019年，调味品市场规模由852亿增至1282亿，年复合增速为8.2%，该口径包括酱醋、酱料、蚝油等，品类少于统计局口径。",
+            "start": 113,
+            "candidate_chapters": [
+              3,
+              5,
+              10
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W4",
+            "quote": "2019年调味品行业市场规模1282亿 \n 2020-11-09 大消费 | 市场容量 \n 根据欧睿数据，2014年至2019年，调味品市场规模由852亿增至1282亿，年复合增速为8.2%，该口径包括酱醋、酱料、蚝油等，品类少于统计局口径。 \n 食品 \n 登录网站查看更多数据",
+            "start": 267,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W5",
+            "quote": "2019年调味品行业市场规模1282亿 \n 2020-11-09 大消费 | 市场容量 \n 根据欧睿数据，2014年至2019年，调味品市场规模由852亿增至1282亿，年复合增速为8.2%，该口径包括酱醋、酱料、蚝油等，品类少于统计局口径。 \n 食品",
+            "start": 1518,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-70EF037C99CF",
+        "source_id": "767",
+        "source_url": "https://www.huaon.com/channel/china/737097.html",
+        "source_title": "调味品行业主要法律法规及相关产业政策分析「图」_华经情报网_华经产业研究院",
+        "source_kind": "attributed_publication",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "2022年中国学前教育行业现状分析，市场规模不断扩大，政府扶持力度加大「图」",
+            "start": 2751,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-8B9C8F4B4A1D",
+        "source_id": "801",
+        "source_url": "https://www.cir.cn/R_TiaoWeiPin/Index_38.html",
+        "source_title": "调味品市场调研报告 调味品行业分析报告_第7页 - 产业调研网",
+        "source_kind": "attributed_publication",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "产业调研网发布调味品市场调研报告,调味品行业分析报告,内容涵盖:调味品的现状,调味品产业链,调味品品牌,调味品市场规模,调味品的前景,调味品发展趋势等,第19页. ﻿ 调味品市场调研报告 调味品行业分析报告_第19页 - 产业调研网",
+            "start": 0,
+            "candidate_chapters": [
+              3,
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W2",
+            "quote": "«上一页 15 16 17 18 19 20 21 22 ... 56 下一页» \n 产业调研网发布调味品市场调研报告,调味品行业分析报告,内容涵盖:调味品的现状,调味品产业链,调味品品牌,调味品市场规模,调味品的前景,调味品发展趋势等,第19页.",
+            "start": 2622,
+            "candidate_chapters": [
+              3,
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-D1B6C7FCEC33",
+        "source_id": "807",
+        "source_url": "https://www.hanghangcha.com/cms/detail/29285.html",
+        "source_title": "调味品市场规模和增速__行行查_行业研究数据库",
+        "source_kind": "attributed_publication",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "行行查为用户提供海量行业研究数据和报告：调味品市场规模和增速_ ,包含 市场容量大消费,食品 等相关数据，本数据编号为 29285,搜索行业数据和行业报告就来行行查(www.hanghangcha.com)。",
+            "start": 0,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W2",
+            "quote": "行行查为用户提供海量行业研究数据和报告：调味品市场规模和增速_ ,包含 市场容量大消费,食品 等相关数据，本数据编号为 29285,搜索行业数据和行业报告就来行行查(www.hanghangcha.com)。 调味品市场规模和增速__行行查_行业研究数据库",
+            "start": 0,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W3",
+            "quote": "调味品市场规模和增速__行行查_行业研究数据库 \n\n数据精选 \n 行业图谱 \n 数据概览 \n\n收藏 \n 会员 \n 登录 \n\n查一下 \n\n行业研究数据库 \n 行业图谱研究 行业深度新闻 \n\n创业投资数据库 \n 知名创投机构 重点项目动态 \n\n证券研究数据库 \n 中国宏观数据 区域上市企业 \n\n调味品市场规模和增速_ \n 2020-11-09 大消费 | 市场容量 \n 调味品行业的上游行业是农业及农产品加工业，下游行业是商品流通行业、餐饮业、食品加工业等。",
+            "start": 105,
+            "candidate_chapters": [
+              3,
+              5,
+              6,
+              10
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W4",
+            "quote": "调味品市场规模和增速_ \n 2020-11-09 大消费 | 市场容量 \n 调味品行业的上游行业是农业及农产品加工业，下游行业是商品流通行业、餐饮业、食品加工业等。2017年中国调味品市场总体规模达到3097.40亿元，同比增长8.9%（国家统计局）。 \n 食品 \n 登录网站查看更多数据",
+            "start": 251,
+            "candidate_chapters": [
+              5,
+              6
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W5",
+            "quote": "调味品市场规模和增速_ \n 2020-11-09 大消费 | 市场容量 \n 调味品行业的上游行业是农业及农产品加工业，下游行业是商品流通行业、餐饮业、食品加工业等。2017年中国调味品市场总体规模达到3097.40亿元，同比增长8.9%（国家统计局）。 \n 食品",
+            "start": 1509,
+            "candidate_chapters": [
+              5,
+              6
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-38CCDA829008",
+        "source_id": "831",
+        "source_url": "https://m.docin.com/touch_new/preview_new.do?id=4690371497",
+        "source_title": "中国调味品市场规模达3300亿元，细分产品市场格局不尽相同.docx",
+        "source_kind": "attributed_publication",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "豆丁网是面向全球的中文社会化阅读分享平台，拥有商业,教育,研究报告,行业资料,学术论文,认证考试,星座,心理学等数亿实用文档和书刊杂志。 中国调味品市场规模达3300亿元，细分产品市场格局不尽相同 中国调味品市场规模达3300亿元，细分产品市场格局不尽相同 - 豆丁网",
+            "start": 0,
+            "candidate_chapters": [
+              5,
+              6
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-2C23A313F828",
+        "source_id": "849",
+        "source_url": "https://www.cir.cn/R_TiaoWeiPin/Index_42.html",
+        "source_title": "调味品市场调研报告 调味品行业分析报告_第3页 - 产业调研网",
+        "source_kind": "attributed_publication",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "产业调研网发布调味品市场调研报告,调味品行业分析报告,内容涵盖:调味品的现状,调味品产业链,调味品品牌,调味品市场规模,调味品的前景,调味品发展趋势等,第15页. ﻿ 调味品市场调研报告 调味品行业分析报告_第15页 - 产业调研网",
+            "start": 0,
+            "candidate_chapters": [
+              3,
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W2",
+            "quote": "«上一页 11 12 13 14 15 16 17 18 ... 56 下一页» \n 产业调研网发布调味品市场调研报告,调味品行业分析报告,内容涵盖:调味品的现状,调味品产业链,调味品品牌,调味品市场规模,调味品的前景,调味品发展趋势等,第15页.",
+            "start": 2783,
+            "candidate_chapters": [
+              3,
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-1C2936E3C4BB",
+        "source_id": "873",
+        "source_url": "https://www.sgpjbg.com/hyshuju/5a3ffd5ea937b49310396dd9b2e9b8f1.html",
+        "source_title": "中国调味品市场规模及预测-行业数据-三个皮匠报告",
+        "source_kind": "attributed_publication",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "中国调味品市场规模及预测，数据源于基础化工行业深度研究：氨基酸助益粮食安全借力合成生物-240521（60页）.pdf。",
+            "start": 0,
+            "candidate_chapters": [
+              5,
+              11
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W2",
+            "quote": "中国调味品市场规模及预测，数据源于基础化工行业深度研究：氨基酸助益粮食安全借力合成生物-240521（60页）.pdf。 中国调味品市场规模及预测-行业数据-三个皮匠报告",
+            "start": 0,
+            "candidate_chapters": [
+              5,
+              11
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W3",
+            "quote": "中国调味品市场规模及预测-行业数据-三个皮匠报告 \n\n三个皮匠报告—— 严选型全行业研究报告分享下载平台，您的专属行业智库！",
+            "start": 61,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W4",
+            "quote": "CPO光纤连接组件2030年市场规模约804亿 \n fCDlubTku70gfCBDUE/lhYnnuqTnu4Tku7bluILlnLrop4TmqKHvvIjkur/lhYPvvIkgfCDlkIzmr5Tlop7pgJ/vvIgl77yJIHwKfCA6LS0tIHwgOi0tLSB8IDotLS0gfAp8IDIwMjUgfCDiiYg1IHwg4oCUIHwKfCAyMDI2RSB8IOKJiDM1IHwg4omINDgwIHwKfCAyMDI3RSB8IOKJiDQwIHwg4omINTIwIHwKfCAyMDI4RSB8IOKJiDE3MCB8IOKJiDM1MCB8CnwgMjAyOUUgfCDiiYg0MTUgfCDiiYgxNDUgfAp8IDIwMzBFIHwgKiriiYg4MDQqKiB8IOKJiDk1IHwKCioq6LWE5paZ5p2l5rqQ77yaKiogRnJvc3QgJiBTdWxsaXZhbu+8jOaLm+WVhuivgeWIuA==",
+            "start": 4956,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W5",
+            "quote": "2030年Scale-up市场规模有望达27.54亿美元 \n fCDlubTku70gfCBTY2FsZS1vdXTluILlnLrop4TmqKHvvIjkur/nvo7lhYPvvIkgfCBTY2FsZS11cOW4guWcuuinhOaooe+8iOS6v+e+juWFg++8iSB8Cnw6LS0tLTp8Oi0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS06fDotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS06fAp8IDIwMjQgfCDiiYgwLjYgfCDiiYgwLjIgfAp8IDIwMjUgfCDiiYgxLjIgfCDiiYgwLjMgfAp8IDIwMjZFIHwg4omINC4wIHwg4omIMC44IHwKfCAyMDI3RSB8IOKJiDcuMiB8IOKJiDAuOSB8CnwgMjAyOEUgfCDiiYgxMS41IHwg4omIMS44IHwKfCAyMDI5RSB8IOKJiDE2LjggfCDiiYgzLjcgfAp8IDIwMzBFIHwg4omIMjYuMCB8ICoqMjcuNTQqKiB8Cgoq5rOo77yaMjAyNi0yMDMw5bm05Li66aKE5rWL5YC877yIRe+8ie+8mzIwMzDlubRTY2FsZS11cOW4guWcuuinhOaooeaVsOaNruadpea6kOS6juWbvuihqOagh+mimCoKCioq6LWE5paZ5p2l5rqQ77yaKiogWW9sZe+8jOaLm+WVhuivgeWIuA==",
+            "start": 5438,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W6",
+            "quote": "CPO模组市场规模2032年有望达到327亿美元 \n fCDlubTku70gfCDluILlnLrop4TmqKHvvIjkur/nvo7lhYPvvIkgfCDlkIzmr5Tlop7pgJ/vvIgl77yJIHwKfCA6LS0tOiB8IDotLS06IHwgOi0tLTogfAp8IDIwMjUgfCB+NSB8IH4xMDAgfAp8IDIwMjZFIHwgfjExIHwgfjEyMiB8CnwgMjAyN0UgfCB+MjUgfCB+MTEwIHwKfCAyMDI4RSB8IH40NiB8IH44NSB8CnwgMjAyOUUgfCB+ODEgfCB+NzUgfAp8IDIwMzBFIHwgfjEzNiB8IH43MCB8CnwgMjAzMUUgfCB+MjE5IHwgfjYwIHwKfCAyMDMyRSB8ICoqMzI3KiogfCB+NDggfAoKKuazqO+8mjIwMjXlubTkuLrlrp7pmYXlgLwv5Z+65YeG5YC877yMMjAyNkUtMjAzMkXkuLrpooTmtYvlgLzvvJvluILlnLrop4TmqKHmlbDmja7moLnmja7mn7Hnirblm77pq5jluqblj4rmoIfpopjkv6Hmga/kvLDnrpfvvIzlkIzmr5Tlop7pgJ/moLnmja7mipjnur/lm77otovlir/kvLDnrpcqCgoqKui1hOaWmeadpea6kO+8mioqIFBXIENvbnN1bHRpbmfvvIzmi5vllYbor4HliLg=",
+            "start": 6169,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W7",
+            "quote": "光芯片市场规模将于2031年达到150亿美元 \n fCDlubTku70gfCDlhYnoiq/niYfluILlnLrop4TmqKHvvIjkur/nvo7lhYPvvIkgfAp8IDotLS0gfCA6LS0tIHwKfCAyMDIzIHwgfjI1IHwKfCAyMDI0IHwgfjMyIHwKfCAyMDI1IHwgfjQwIHwKfCAyMDI2RSB8IH41MCB8CnwgMjAyN0UgfCB+NjIgfAp8IDIwMjhFIHwgfjc3IHwKfCAyMDI5RSB8IH45NSB8CnwgMjAzMEUgfCB+MTIwIHwKfCAyMDMxRSB8IH4xNTAgfAoKKirotYTmlpnmnaXmupDvvJoqKiBMaWdodENvdW50aW5n77yM5oub5ZWG6K+B5Yi4",
+            "start": 6888,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W8",
+            "quote": "中国跨境电商市场规模（商品进出口总额口径，2020-2029E， \n fCDlubTku70gfCDot6jlooPnlLXllYbov5vlj6Ppop3vvIjkuIfkur/lhYPvvIkgfCDot6jlooPnlLXllYblh7rlj6Ppop3vvIjkuIfkur/lhYPvvIkgfCDot6jlooPnlLXllYbmgLvpop3vvIjkuIfkur/lhYPvvIkgfAp8Oi0tLS06fDotLS0tLS0tLS0tLS0tLS0tLS0tLS0tOnw6LS0tLS0tLS0tLS0tLS0tLS0tLS0tLTp8Oi0tLS0tLS0tLS0tLS0tLS0tLS0tOnwKfCAyMDIwIHwgMC41NyB8IDEuMTIgfCAxLjY5IHwKfCAyMDIxIHwgMC41NCB8IDEuNDQgfCAxLjk4IHwKfCAyMDIyIHwgMC41NiB8IDEuNTUgfCAyLjExIHwKfCAyMDIzIHwgMC41NSB8IDEuODMgfCAyLjM4IHwKfCAyMDI0IHwgMC40OCB8IDIuMTUgfCAyLjYzIHwKfCAyMDI1RSB8IDAuNTcgfCAyLjI5IHwgMi44NyB8CnwgMjAyNkUgfCAwLjYwIHwgMi41NSB8IDMuMTUgfAp8IDIwMjdFIHwgMC42MyB8IDIuODcgfCAzLjUwIHwKfCAyMDI4RSB8IDAuNzAgfCAzLjE5IHwgMy44OSB8CnwgMjAyOUUgfCAwLjczIHwgMy41NSB8IDQuMjcgfAoKKirotYTmlpnmnaXmupDvvJoqKiDmtbflhbPmgLvnvbLvvIzkuK3lm73mlL/lupznvZHvvIzlvJfoi6Xmlq/nibnmspnliKnmlofvvIzlm73nm5vor4HliLjnoJTnqbbmiYA=",
+            "start": 7293,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W9",
+            "quote": "2020-2030年全球DRAM市场规模及增速（亿美元，%） \n fCDlubTku70gfCDluILlnLrop4TmqKHvvIjkur/nvo7lhYPvvIkgfCBZb1nvvIgl77yJIHwKfCA6LS0tIHwgOi0tLSB8IDotLS0gfAp8IDIwMjAgfCB+NjcwIHwgLSB8CnwgMjAyMSB8IH45NzAgfCB+NDUlIHwKfCAyMDIyIHwgfjgyMCB8IH4xNSUgfAp8IDIwMjMgfCB+NTIwIHwgfi0zNSUgfAp8IDIwMjQgfCB+MSwwMDAgfCB+OTAlIHwKfCAyMDI1IHwgfjEsNTAwIHwgfjU1JSB8CnwgMjAyNkUgfCB+Myw3MDAgfCB+MTQ1JSB8CnwgMjAyN0UgfCB+NCw3MDAgfCB+MjglIHwKfCAyMDI4RSB8IH41LDUwMCB8IH4xOCUgfAp8IDIwMjlFIHwgfjUsNjAwIHwgfjEyJSB8CnwgMjAzMEUgfCB+NSw4MDAgfCB+MTIlIHwKCirms6jvvJrmlbDmja7kuLrln7rkuo7lm77ooajnmoTop4bop4nkvLDnrpflgLzvvIzlrp7pmYXmlbDlgLzor7flj4LogIPljp/lp4vnoJTmiqUqCgoqKui1hOaWmeadpea6kO+8mioqIE9tZGlh77yM6ZW/6ZGr56eR5oqA5oub6IKh6K+05piO5Lmm77yMV2luZO+8jOWbveebm+ivgeWIuOeglOeptuaJgA==",
+            "start": 8180,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W10",
+            "quote": "2021-2027E中国智算中心供配电系统细分维度市场规模 \n fCDlubTku70gfCDphY3nlLXmn5wgfCDlj5jljovlmaggfCDmn7Tlj5EgfCDlkI7lpIfnlLXmsaAgfCDnlLXnvIYgfCBIVkRDIHwgVVBTIHwg5YiX5aS05p+cIHwKfDotLS0tOnw6LS0tLS0tOnw6LS0tLS0tOnw6LS0tLTp8Oi0tLS0tLS0tOnw6LS0tLTp8Oi0tLS06fDotLS06fDotLS0tLS06fAp8IDIwMjEgfCA4JSB8IDMyJSB8IDE2JSB8IDEyJSB8IDclIHwgOSUgfCAxMCUgfCA2JSB8CnwgMjAyMiB8IDglIHwgMzElIHwgMTklIHwgMTElIHwgNyUgfCA5JSB8IDExJSB8IDQlIHwKfCAyMDIzIHwgOSUgfCAzNCUgfCAyMCUgfCAxMSUgfCA2JSB8IDglIHwgOSUgfCAzJSB8CnwgMjAyNCB8IDklIHwgMzQlIHwgMTklIHwgMTIlIHwgNyUgfCA4JSB8IDklIHwgMiUgfAp8IDIwMjUgfCA5JSB8IDM0JSB8IDE5JSB8IDEzJSB8IDglIHwgNiUgfCA4JSB8IDMlIHwKfCAyMDI2RSB8IDklIHwgMzElIHwgMTglIHwgMTIlIHwgOCUgfCA4JSB8IDEwJSB8IDQlIHwKfCAyMDI3RSB8IDEwJSB8IDMwJSB8IDE2JSB8IDEyJSB8IDglIHwgOCUgfCA4JSB8IDglIHwKCioq6LWE5paZ5p2l5rqQ77yaTUlSKio=",
+            "start": 12780,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W11",
+            "quote": "图 2-5 全球碳化硅衬底市场规模及结构（2024一2030) \n fCDlubTku70gfCDlr7znlLXlnovooazlupUgfCDljYrnu53nvJjlnovooazlupUgfCDlkIjorqEgfAp8Oi0tLS06fDotLS0tLS0tLS0tOnw6LS0tLS0tLS0tLS0tOnw6LS0tLTp8CnwgMjAyNCB8IDY2IHwgMjIgfCA4OCB8CnwgMjAyNSB8IDg3IHwgMjYgfCAxMTMgfAp8IDIwMjYgfCAxMjkgfCAzNiB8IDE2NSB8CnwgMjAyNyB8IDE3OSB8IDQ4IHwgMjI3IHwKfCAyMDI4IHwgMjQ5IHwgNjIgfCAzMTEgfAp8IDIwMjkgfCAzNDEgfCA4NSB8IDQyNiB8CnwgMjAzMCB8IDQ3NCB8IDExMSB8IDU4NSB8CgoqKui1hOaWmeadpea6kO+8mioqIOW8l+iLpeaWr+eJueaymeWIqeaWhywgVHJlbmRGb3JjZSwg6Im+6YKm5Y2K5a+85L2T572RLCDpuqbplJDlvrfmlbTnkIY=",
+            "start": 13596,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W12",
+            "quote": "图3.1中国工业AI质检市场规模及预测2020-2025 \n fCDlubTku70gfCDova/ku7blj4rmnI3liqEgKOeZvuS4h+e+juWFgykgfCDnoazku7YgKOeZvuS4h+e+juWFgykgfCDmgLvorqEgKOeZvuS4h+e+juWFgykgfCBBU1AgfAp8Oi0tLS06fDotLS0tLS0tLS0tLS0tLS0tLS0tLS06fDotLS0tLS0tLS0tLS0tLS06fDotLS0tLS0tLS0tLS0tLS06fDotLS06fAp8IDIwMjAgfCAxNDIgfCA5NSB8IDIzNyB8IDAuNDg0IHwKfCAyMDIxIHwgMjExIHwgMTQxIHwgMzUyIHwgMC4yNDIgfAp8IDIwMjIgfCAyNjIgfCAxNTQgfCA0MTYgfCAwLjI3MyB8CnwgMjAyMyB8IDMzNCB8IDE5NiB8IDUzMCB8IDAuMzY0IHwKfCAyMDI0IHwgNDU1IHwgMjQ1IHwgNzAwIHwgMC4zNjkgfAp8IDIwMjUgfCA2MjMgfCAzMzUgfCA5NTggfCAwLjMyNyB8CgoqKui1hOaWmeadpea6kO+8mklEQ+S4reWbve+8jDIwMjIqKg==",
+            "start": 14166,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W13",
+            "quote": "2024-2026E面膜核心线上渠道市场规模 \n KioyMDI0LTIwMjZF6Z2i6Iac5qC45b+D57q/5LiK5rig6YGT5biC5Zy66KeE5qihKioKCnwg5bm05Lu9IHwg5Lqk5piT6aKd77yI5Lq/5YWD77yJIHwg5ZCM5q+U5aKe6ZW/546HIHwKfDotLS0tOnw6LS0tLS0tLS0tLS0tLS06fDotLS0tLS0tLS0tOnwKfCAyMDI0IHwgMzI5LjcgICAgICAgICAgfCDigJQgICAgICAgICAgfAp8IDIwMjUgfCAzNDYuOCAgICAgICAgICB8IDUuMiUgICAgICAgfAp8IDIwMjZFfCAzNzUuNSAgICAgICAgICB8IDguMyUgICAgICAgfAoKKuazqO+8mkXooajnpLrpooTmtYvlgLzvvIhFc3RpbWF0ZWTvvIkqCgotLS0KKirotYTmlpnmnaXmupAqKu+8muagueaNruWbvuihqOaVsOaNruaVtOeQhg==",
+            "start": 14793,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W14",
+            "quote": "2023-2030E中国药品市场规模增速 \n 5Lul5LiL5piv5Zu+54mH5Lit55qE5pWw5o2u5o+Q5Y+W57uT5p6c77yaCgojIyMgMjAyMy0yMDMwRSDkuK3lm73oja/lk4HluILlnLrop4TmqKHlop7pgJ8KCnwg5bm05Lu9IHwg5YyW5a2m6I2vIHwg55Sf54mp5Yi25ZOBIHwg5Lit5oiQ6I2vIHwKfCA6LS0tIHwgOi0tLSB8IDotLS0gfCA6LS0tIHwKfCAqKjIwMjQqKiB8IC0zLjglIHwgNi45JSB8IH4yLjAlKiB8CnwgKioyMDI1KiogfCB+LTIuNSUqIHwgfjYuNSUqIHwgKiotMy40JSoqIHwKfCAqKjIwMjZFKiogfCB+LTIuMCUqIHwgfjcuNSUqIHwgfi0xLjAlKiB8CnwgKioyMDI3RSoqIHwgfi0xLjglKiB8IH44LjUlKiB8IH4tMC41JSogfAp8ICoqMjAyOEUqKiB8IH4tMS43JSogfCB+OC41JSogfCB+LTAuNSUqIHwKfCAqKjIwMjlFKiogfCB+LTEuNiUqIHwgfjkuMCUqIHwgfi0wLjclKiB8CnwgKioyMDMwRSoqIHwgKiotMS41JSoqIHwgKio5LjQlKiogfCAqKi0wLjklKiogfAoKPiAq5rOo77ya5Yqg57KX5pWw5o2u5Li65Zu+5Lit5piO56Gu5qCH5rOo5pWw5YC877yb5bimICog5Y+35pWw5o2u5Li65qC55o2u5Zu+6KGo6LaL5Yq/5Lyw566X55qE6L+R5Ly85YC8KgoKLS0tCgoqKui1hOaWmeadpea6kO+8mioqIOWbvueJh+acquagh+azqOWFt+S9k+i1hOaWmeadpea6kO+8iOivpeWbvuihqOexu+Wei+W4uOingeS6juWMu+iNr+ihjOS4muW4guWcuueglOeptuacuuaehOaKpeWRiu+8jOWmgiBGcm9zdCAmIFN1bGxpdmFu44CB6Im+55Ge5ZKo6K+i562J5Y+R5biD55qE6I2v5ZOB5biC5Zy66KeE5qih6aKE5rWL5pWw5o2u77yJ",
+            "start": 15326,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W15",
+            "quote": "2023-2030E中国药品市场规模（亿元） \n fCDlubTku70gfCDljJblraboja/vvIjkur/lhYPvvIkgfCDnlJ/nianliLblk4HvvIjkur/lhYPvvIkgfCDkuK3miJDoja/vvIjkur/lhYPvvIkgfCDluILlnLrmgLvop4TmqKHvvIjkur/lhYPvvIkgfAp8IDotLS06IHwgOi0tLTogfCA6LS0tOiB8IDotLS06IHwgOi0tLTogfAp8IDIwMjMgfCDigJQgfCDigJQgfCDigJQgfCDigJQgfAp8IDIwMjQgfCAxMCw4NTMqIHwgNCwxNTQgfCA1LDA1OSB8IDIwLDA2NiB8CnwgMjAyNSB8IOKAlCB8IOKAlCB8IOKAlCB8IOKAlCB8CnwgMjAyNkUgfCDigJQgfCDigJQgfCDigJQgfCDigJQgfAp8IDIwMjdFIHwg4oCUIHwg4oCUIHwg4oCUIHwg4oCUIHwKfCAyMDI4RSB8IOKAlCB8IOKAlCB8IOKAlCB8IOKAlCB8CnwgMjAyOUUgfCDigJQgfCDigJQgfCDigJQgfCDigJQgfAp8IDIwMzBFIHwgMTAsMDkwIHwgNiw2MzggfCA0LDg2OCB8IDIxLDU5NCB8CgpcKuazqO+8mjIwMjTlubTljJblraboja/mlbDmja7kuLrmjqjnrpflgLzvvIjluILlnLrmgLvop4TmqKHlh4/ljrvnlJ/nianliLblk4HkuI7kuK3miJDoja/op4TmqKHvvInvvJsi4oCUIuihqOekuuWbvueJh+S4reacquagh+azqOWFt+S9k+aVsOWAvAoKKirotYTmlpnmnaXmupAqKu+8muagueaNruaPkOS+m+eahOWbvueJh+S/oeaBr+aVtOeQhu+8iOWOn+WbvueJh+acquagh+azqOWFt+S9k+eglOeptuacuuaehOaIluWPkeW4g+adpea6kO+8iQ==",
+            "start": 16433,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W16",
+            "quote": "2021-2027E中国智算中心供配电系统市场规模 \n fCDlubTku70gfCDlkIzmr5Tlop7plb/njocgfAp8Oi0tLS06fDotLS0tLS0tLS0tOnwKfCAyMDIyIHwgKzU5JSB8CnwgMjAyMyB8ICs3NCUgfAp8IDIwMjQgfCArMTAwJSB8CnwgMjAyNSB8ICs2MSUgfAp8IDIwMjZFIHwgKzMyJSB8CnwgMjAyN0UgfCArMjElIHwKCioq5rOoKirvvJoyMDIxLTIwMjdFIOWkjeWQiOW5tOWdh+WinumVv+eOh++8iENBR1LvvInkuLogKio1NS42JSoqCgoqKui1hOaWmeadpea6kCoq77yaTUlS77yM5Y+C6ICDSURD44CBSUNU562J5p2D5aiB5py65p6E",
+            "start": 17434,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W17",
+            "quote": "图 1-1 中国半导体行业市场规模（2020—2025），单位：亿元 \n fCDlubTku70gfCDluILlnLrop4TmqKHvvIjkur/lhYPvvIkgfAp8Oi0tLS06fDotLS0tLS0tLS0tLS0tLS0tOnwKfCAyMDIwIHwgMTAsMzI2ICAgICAgICAgICB8CnwgMjAyMSB8IDEyLDQ0MCAgICAgICAgICAgfAp8IDIwMjIgfCAxMywyNDUgICAgICAgICAgIHwKfCAyMDIzIHwgMTQsNzU2ICAgICAgICAgICB8CnwgMjAyNCB8IDE2LDAzMiAgICAgICAgICAgfAp8IDIwMjUgfCAxNyw5OTcgICAgICAgICAgIHwKCioq6LWE5paZ5p2l5rqQKirvvJrlm74xLTEg5Lit5Zu95Y2K5a+85L2T6KGM5Lia5biC5Zy66KeE5qih77yIMjAyMOKAlDIwMjXvvIk=",
+            "start": 17862,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W18",
+            "quote": "据中商产业研究院，22 年国内调味品规模 5133 亿元，18-22 年 CAGR10%，23 年有望同 比+5%至 5364 亿元，据艾媒咨询，22 年国内预制菜规 模 4196 亿元，26 年有望增至 1.07万亿元，CAGR 达 26%，预制菜和复合调味品需求的增长有望带动味精消费量的提升，据Mordor Intelligence，23-25 年全球味精市场销售额规模仍有望保持 5%左右复合增速。 \n 市场规模 原图定位",
+            "start": 21620,
+            "candidate_chapters": [
+              5,
+              6
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-6D1283FC8983",
+        "source_id": "899",
+        "source_url": "http://www.cninfo.com.cn/new/disclosure/stock?stockCode=603822&orgId=9900023474",
+        "source_title": "巨潮资讯网",
+        "source_kind": "attributed_publication",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "确认 \n\n公司概况 公司介绍 公司高管 历史分红 \n 公司公告 最新公告 定期报告 调研 \n 财务数据 主要指标 财务报表 同业对比 \n 行情走势 实时行情 历史行情 \n 股东股本 股本结构 十大股东 十大流通股东 股东人数 基金持股 限售解禁 股权质押 \n 交易信息 公开信息 融资融券 大宗交易 股东增减持 高管增减持 公司日历 \n\n公司介绍 \n\n暂无数据！",
+            "start": 2615,
+            "candidate_chapters": [
+              2,
+              5,
+              10
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W2",
+            "quote": "公司概况 公司介绍 公司高管 历史分红 \n 公司公告 最新公告 定期报告 调研 \n 财务数据 主要指标 财务报表 同业对比 \n 行情走势 实时行情 历史行情 \n 股东股本 股本结构 十大股东 十大流通股东 股东人数 基金持股 限售解禁 股权质押 \n 交易信息 公开信息 融资融券 大宗交易 股东增减持 高管增减持 公司日历",
+            "start": 2620,
+            "candidate_chapters": [
+              2,
+              5,
+              10
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-2C2211E8D45C",
+        "source_id": "907",
+        "source_url": "https://m.chinabgao.com/k/diaoweipin/info/",
+        "source_title": "2025年调味品资讯_调味品热点聚焦_报告大厅",
+        "source_kind": "attributed_publication",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "中国报告大厅网讯，当前，调味品行业正处在一个充满动态变化与结构性机遇的时期。市场规模在波动中持续扩容... [详细]",
+            "start": 822,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W2",
+            "quote": "市场规模在波动中持续扩容... [详细] \n\n报告编号：No.1295156 最新修订：2025年12月 \n\n2025年调味品产业政策与市场环境分析：海天味业逆势增长背后的产业变革与战略布局 \n\n中国报告大厅网讯，在2025年的经济环境中，调味品行业面临政策调整与消费习惯转变的双重挑战。",
+            "start": 860,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "legal_name_or_disclosed_alias"
+          },
+          {
+            "window_id": "W3",
+            "quote": "2024年数据显示，尽管... [详细] \n\n报告编号：No.1259583 最新修订：2025年04月 \n\n2024年调味品市场规模分析：消费者购买食盐占比调味品市场79.8% \n\n中国报告大厅网讯，消费者对于调味品的个性化需求不断增加，这为市场带来了新的机遇。",
+            "start": 1625,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          }
+        ]
+      },
+      {
+        "evidence_id": "E-C9EC7BCCEE97",
+        "source_id": "1009",
+        "source_url": "https://m.chinabgao.com/k/diaoweiliao/",
+        "source_title": "2025年调味料行业发展现状_趋势_前景分析_报告大厅",
+        "source_kind": "attributed_publication",
+        "subject_binding": {
+          "legal_profile": false,
+          "title_subject": false,
+          "disclosed_aliases": [
+            "FOSHAN HAITIAN FLAVOURING AND FOOD COMPANY LTD.",
+            "佛山市海天调味食品股份有限公司",
+            "佛山市海天调味食品",
+            "海天公司",
+            "海天味业",
+            "海天股份",
+            "HAI",
+            "贵公司"
+          ],
+          "issuer_document": false
+        },
+        "document_date_proof": {},
+        "windows": [
+          {
+            "window_id": "W1",
+            "quote": "... 2023-08-22 [详细] \n 相关阅读 \n\n2023年调味料市场规模分析：中国调味料市场达到3950亿元 2023-08-22 \n\n2023年调味料产量大幅增长 行业发展前景广阔 2023-01-30 \n\n二、免费报告 \n\n2025年调味料市场规模分析：全球调味料市场规模将增至28917亿元 \n 中国报告大厅网讯，近年来，居民生活水平的提高和消费结构的升级，消费者对饮食种类样式、口感风味的多样性需求显著提升，导致了多样化调味料市场需求的增长，以下是2025年调味料市场规模分析。",
+            "start": 576,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W2",
+            "quote": "2023年调味料市场规模分析：中国调味料市场达到3950亿元 2023-08-22",
+            "start": 605,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W3",
+            "quote": "2025年调味料市场规模分析：全球调味料市场规模将增至28917亿元 \n 中国报告大厅网讯，近年来，居民生活水平的提高和消费结构的升级，消费者对饮食种类样式、口感风味的多样性需求显著提升，导致了多样化调味料市场需求的增长，以下是2025年调味料市场规模分析。",
+            "start": 695,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W4",
+            "quote": "一、全球市场规模与增长趋势：2029年将增至28917亿元 \n\n《2025-2030... 2025-07-21 [详细] \n 相关阅读 \n\n调味料市场分析 2020-06-08 \n\n三、价格数据 \n\n2026年8月15日调味料价格最新行情预测 \n 中国报告大厅2026年8月15日调味料价格最新走势监测显示：重庆市涪陵区，今日十三香价格为27.60元/斤。",
+            "start": 827,
+            "candidate_chapters": [
+              5
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          },
+          {
+            "window_id": "W5",
+            "quote": "调味品行业产业链上游行业包括养殖业、种植业和农产品、食品及食品添加剂加工制造业等，下游主要是... 2023-01-30 [详细] \n 相关阅读 \n\n2023年调味料行业政策环境 2023-01-30 \n\n2023年调味料行业发展前景分析 2023-01-30 \n\n2023年调味料行业数据统计 2023-01-30 \n\n2023年调味料行业发展现状 2023-01-30 \n\n调味料市场现状 2020-06-30 \n\n调味料市场规模 2020-06-16 \n\n五、品牌排行榜 \n\n2026年品牌调味料排行榜10强 \n 中国报告大厅网的最新《2026-2031年中国调味料行业重点企业发展分析及投资前景可行性评估报告》揭示了调味料行业的品牌影响力。",
+            "start": 1822,
+            "candidate_chapters": [
+              5,
+              6,
+              10
+            ],
+            "context_quote": "",
+            "extended_scope_recovery": true,
+            "profile_field_table": false,
+            "subject_reference": "industry_context_only"
+          }
+        ]
+      }
+    ],
+    "formerly_structural_states": [
+      {
+        "evidence_id": "E-BA0A4E135234",
+        "native_evidence_id": "E-BA0A4E135234",
+        "state": "native_windows_require_structural_or_scope_review",
+        "source_input_sha256": "98358c855245664522e39a5c9d268d8e032642c27f4093afd6fda37a941eee56",
+        "scanned_chars": 24089,
+        "original_sha256": "084bf65e4fe824ba652d8f9dac688e2a59941de81530fc4dc6d25ae0a469d177",
+        "text_origin": "retrieved_content",
+        "source_kind": "government_statement",
+        "professional_platform": false,
+        "candidate_windows": 1,
+        "review_windows": 0,
+        "oversize_windows": 10,
+        "reviewed_windows": 0,
+        "accepted_claims": 0,
+        "review_decisions": [],
+        "validation_rejections": [],
+        "prior_card_exclusions": [],
+        "preflight_rejections": [
+          {
+            "window_id": "W1",
+            "start": 1314,
+            "quote_sha256": "35b8927fa797b91ec1b50b66dbcdd75108b9f2d56810491ec5ee830f911cb079",
+            "reasons": [
+              "no_concrete_business_statement"
+            ]
+          }
+        ],
+        "source_id": "1",
+        "source_url": "https://www.samr.gov.cn/cms_files/filemanager/1647978232/attach/202412/dad372ed049c48f49207092c183d0644.pdf?fileName=2.%E5%8A%A0%E5%B7%A5%E9%A3%9F%E5%93%81%E5%9F%BA%E6%9C%AC%E6%9C%AF%E8%AF%AD%E5%92%8C%E5%88%86%E7%B1%BB++%E7%AC%AC2%E9%83%A8%E5%88%86%EF%BC%9A%E5%8A%A0%E5%B7%A5%E9%A3%9F%E5%93%81%E5%88%86%E7%B1%BB%EF%BC%88%E6%8A%A5%E6%89%B9%E7%A8%BF%EF%BC%89",
+        "source_title": "第2部分:"
+      },
+      {
+        "evidence_id": "E-6515477FBA84",
+        "native_evidence_id": "E-6515477FBA84",
+        "state": "native_windows_require_structural_or_scope_review",
+        "source_input_sha256": "2b4d51ce7bc475cc27672b7010b7ae8f059d526a12035e20c0942c160cc2633b",
+        "scanned_chars": 7235,
+        "original_sha256": "1e3949e3ca14413d51db0c68d75244b17274c07d028aa0d8d52c171935639eb2",
+        "text_origin": "retrieved_content",
+        "source_kind": "attributed_publication",
+        "professional_platform": false,
+        "candidate_windows": 1,
+        "review_windows": 0,
+        "oversize_windows": 0,
+        "reviewed_windows": 0,
+        "accepted_claims": 0,
+        "review_decisions": [],
+        "validation_rejections": [],
+        "prior_card_exclusions": [],
+        "preflight_rejections": [
+          {
+            "window_id": "W1",
+            "start": 4731,
+            "quote_sha256": "0fc8199ea8547b8bd4613acfccf61856241e1b3ef80ba066ad0a8eb13957d488",
+            "reasons": [
+              "no_concrete_historical_action"
+            ]
+          }
+        ],
+        "source_id": "1118",
+        "source_url": "http://www.chinacondiment.com/activity/1116/60295",
+        "source_title": "中国调味品协会换届系列之一--名企名事展播"
+      },
+      {
+        "evidence_id": "E-2952A73082E2",
+        "native_evidence_id": "E-2952A73082E2",
+        "state": "native_windows_require_structural_or_scope_review",
+        "source_input_sha256": "fed8e4dd09113d24b130e224fe37ac5f4ec0dad1f2233a84ca991dad62fb41dd",
+        "scanned_chars": 861,
+        "original_sha256": "4c0b31ad57f87727534bd241a6e403d1876236071f68ec7f8bfaf1a99a42c4a2",
+        "text_origin": "retrieved_content",
+        "source_kind": "professional_platform_record",
+        "professional_platform": true,
+        "candidate_windows": 1,
+        "review_windows": 0,
+        "oversize_windows": 0,
+        "reviewed_windows": 0,
+        "accepted_claims": 0,
+        "review_decisions": [],
+        "validation_rejections": [],
+        "prior_card_exclusions": [],
+        "preflight_rejections": [
+          {
+            "window_id": "W1",
+            "start": 102,
+            "quote_sha256": "952a0732be7869d078899d8230d2e2a0b462ff5ab8bb138a1dba1ac651522eeb",
+            "reasons": [
+              "tabular_columns_require_specialized_layout_validation"
+            ]
+          }
+        ],
+        "source_id": "1221",
+        "source_url": "structured://qcc_company/管理团队/企查查-get_key_personnel-佛山市海天调味食品股份有限公司",
+        "source_title": "企查查-get_key_personnel-佛山市海天调味食品股份有限公司"
+      },
+      {
+        "evidence_id": "E-8B13647E6977",
+        "native_evidence_id": "E-8B13647E6977",
+        "state": "native_windows_require_structural_or_scope_review",
+        "source_input_sha256": "3c2593d18347c98cdc5337b69232671763bc6fce236cdd7b58538df4e2cddb98",
+        "scanned_chars": 65832,
+        "original_sha256": "14bbd4b70be49c704cf61c6ae1724700866a2f5c719c2b1d1e3e4b79aeec3cf4",
+        "text_origin": "retrieved_content",
+        "source_kind": "government_statement",
+        "professional_platform": false,
+        "candidate_windows": 1,
+        "review_windows": 0,
+        "oversize_windows": 7,
+        "reviewed_windows": 0,
+        "accepted_claims": 0,
+        "review_decisions": [],
+        "validation_rejections": [],
+        "prior_card_exclusions": [],
+        "preflight_rejections": [
+          {
+            "window_id": "W1",
+            "start": 37613,
+            "quote_sha256": "b6a374354286fd77654df60e58ed6bd862f2fd20a02ece26e52dd7e40fc16ee3",
+            "reasons": [
+              "no_concrete_business_statement"
+            ]
+          }
+        ],
+        "source_id": "157",
+        "source_url": "https://www.cnipa.gov.cn/module/download/downfile.jsp?classid=0&filename=0ab3838538414b05be0f4fd8dae99b77.pdf&showname=%E9%99%84%E4%BB%B65%EF%BC%8E%E7%AC%AC%E4%BA%8C%E5%8D%81%E5%B1%8A%E4%B8%AD%E5%9B%BD%E4%B8%93%E5%88%A9%E4%BC%98%E7%A7%80%E5%A5%96%E9%A1%B9%E7%9B%AE%E5%90%8D%E5%8D%95.pdf",
+        "source_title": "国知发运字〔2018〕36号"
+      },
+      {
+        "evidence_id": "E-472CF07CCC9E",
+        "native_evidence_id": "E-472CF07CCC9E",
+        "state": "native_windows_require_structural_or_scope_review",
+        "source_input_sha256": "aa6592d48bd298c50fea49ab1106f0ffb81cebadba8461957e25845e8a7a0635",
+        "scanned_chars": 63583,
+        "original_sha256": "63c39173a1abf83f85dae1d8886be432b5c5cdf855f7dfcfd8288c793641ec30",
+        "text_origin": "retrieved_content",
+        "source_kind": "government_statement",
+        "professional_platform": false,
+        "candidate_windows": 2,
+        "review_windows": 0,
+        "oversize_windows": 0,
+        "reviewed_windows": 0,
+        "accepted_claims": 0,
+        "review_decisions": [],
+        "validation_rejections": [],
+        "prior_card_exclusions": [],
+        "preflight_rejections": [
+          {
+            "window_id": "W1",
+            "start": 13051,
+            "quote_sha256": "90615d851ef228cd99163805ca73dec075b67593206c9c77c9f51d16a7126a92",
+            "reasons": [
+              "numeric_or_diagram_layout_requires_specialized_parser"
+            ]
+          },
+          {
+            "window_id": "W2",
+            "start": 58552,
+            "quote_sha256": "82586fd8d49371e240856b4a04cbb2e737fa851302d626991061f3d368599492",
+            "reasons": [
+              "numeric_or_diagram_layout_requires_specialized_parser"
+            ]
+          }
+        ],
+        "source_id": "320",
+        "source_url": "https://www.cnipa.gov.cn/module/download/downfile.jsp?classid=0&showname=3%EF%BC%8E%E7%AC%AC%E5%8D%81%E4%B9%9D%E5%B1%8A%E4%B8%AD%E5%9B%BD%E4%B8%93%E5%88%A9%E4%BC%98%E7%A7%80%E5%A5%96%E9%A1%B9%E7%9B%AE%E5%90%8D%E5%8D%95.pdf&filename=050e8be487c046919f5cc126c2bdab5a.pdf",
+        "source_title": "第十九届中国专利优秀奖项目名单"
+      },
+      {
+        "evidence_id": "E-6CCCE95F81A0",
+        "native_evidence_id": "E-6CCCE95F81A0",
+        "state": "native_windows_require_structural_or_scope_review",
+        "source_input_sha256": "796dc3d08dc604851d2c69eec2102d20e6bc99bcf07e03850b95dfbc31e9fbc3",
+        "scanned_chars": 43165,
+        "original_sha256": "6ae14bea720be9607d90453d60d668f93f76b4811e51f18ea610e61f0ff741e7",
+        "text_origin": "retrieved_content",
+        "source_kind": "government_statement",
+        "professional_platform": false,
+        "candidate_windows": 1,
+        "review_windows": 0,
+        "oversize_windows": 0,
+        "reviewed_windows": 0,
+        "accepted_claims": 0,
+        "review_decisions": [],
+        "validation_rejections": [],
+        "prior_card_exclusions": [],
+        "preflight_rejections": [
+          {
+            "window_id": "W1",
+            "start": 11963,
+            "quote_sha256": "e9d9bf65a9e070ca65ff634a1bc429b5c4aacbf6269cdfa28358cc14e0a85abe",
+            "reasons": [
+              "numeric_or_diagram_layout_requires_specialized_parser"
+            ]
+          }
+        ],
+        "source_id": "321",
+        "source_url": "https://www.cnipa.gov.cn/module/download/downfile.jsp?classid=0&showname=%E7%AC%AC%E5%8D%81%E4%B8%83%E5%B1%8A%E4%B8%AD%E5%9B%BD%E4%B8%93%E5%88%A9%E4%BC%98%E7%A7%80%E5%A5%96%E9%A1%B9%E7%9B%AE%E5%90%8D%E5%8D%95.pdf&filename=94b329e85ca84e1e8d312ce1743d6ab5.pdf",
+        "source_title": "第十七届中国专利优秀奖项目名单"
+      },
+      {
+        "evidence_id": "E-E9CC1510F24A",
+        "native_evidence_id": "E-E9CC1510F24A",
+        "state": "native_windows_require_structural_or_scope_review",
+        "source_input_sha256": "07e5ed5ed91e5dadf738a43308c591fa1afdb778d6ac2893be493b7b089a78bf",
+        "scanned_chars": 52683,
+        "original_sha256": "c88c55edbce6189e5beae98dff46b5163be576682053f3f1d2de94af3e1c5f90",
+        "text_origin": "retrieved_content",
+        "source_kind": "government_statement",
+        "professional_platform": false,
+        "candidate_windows": 1,
+        "review_windows": 0,
+        "oversize_windows": 1,
+        "reviewed_windows": 0,
+        "accepted_claims": 0,
+        "review_decisions": [],
+        "validation_rejections": [],
+        "prior_card_exclusions": [],
+        "preflight_rejections": [
+          {
+            "window_id": "W1",
+            "start": 35775,
+            "quote_sha256": "0b21ab9dd3164afe5d9ba4f3137deb9a1ccaef5965c49921f28cee1ea8823e5c",
+            "reasons": [
+              "numeric_or_diagram_layout_requires_specialized_parser"
+            ]
+          }
+        ],
+        "source_id": "323",
+        "source_url": "https://www.cnipa.gov.cn/module/download/downfile.jsp?classid=0&showname=%E7%AC%AC%E4%BA%8C%E5%8D%81%E4%BA%94%E5%B1%8A%E4%B8%AD%E5%9B%BD%E4%B8%93%E5%88%A9%E4%BC%98%E7%A7%80%E5%A5%96%E9%A1%B9%E7%9B%AE%E5%90%8D%E5%8D%95.pdf&filename=e4faccec18ff4cafb4109a4735b0e2a9.pdf",
+        "source_title": "第二十五届中国专利优秀奖项目名单"
+      },
+      {
+        "evidence_id": "E-392AB815CD6C",
+        "native_evidence_id": "E-392AB815CD6C",
+        "state": "native_windows_require_structural_or_scope_review",
+        "source_input_sha256": "07a994878f4edbaa2de84106e347384e11edc988e201ec78c3bee4746da5f5a5",
+        "scanned_chars": 58225,
+        "original_sha256": "248bd64ac2013a0937063e9ad47df453d51542b0124e499f417ff1e762f28815",
+        "text_origin": "retrieved_content",
+        "source_kind": "government_statement",
+        "professional_platform": false,
+        "candidate_windows": 1,
+        "review_windows": 0,
+        "oversize_windows": 0,
+        "reviewed_windows": 0,
+        "accepted_claims": 0,
+        "review_decisions": [],
+        "validation_rejections": [],
+        "prior_card_exclusions": [],
+        "preflight_rejections": [
+          {
+            "window_id": "W1",
+            "start": 33170,
+            "quote_sha256": "b35a2a2b3e33d64e1a3dea05cac5f37601f2e9d6db427369789c15b102e16748",
+            "reasons": [
+              "numeric_or_diagram_layout_requires_specialized_parser"
+            ]
+          }
+        ],
+        "source_id": "324",
+        "source_url": "https://www.cnipa.gov.cn/module/download/downfile.jsp?classid=0&showname=%E9%99%84%E4%BB%B65%EF%BC%8E%E7%AC%AC%E4%BA%8C%E5%8D%81%E5%B1%8A%E4%B8%AD%E5%9B%BD%E4%B8%93%E5%88%A9%E4%BC%98%E7%A7%80%E5%A5%96%E9%A1%B9%E7%9B%AE%E5%90%8D%E5%8D%95.pdf&filename=0ab3838538414b05be0f4fd8dae99b77.pdf",
+        "source_title": "第二十届中国专利优秀奖项目名单"
+      },
+      {
+        "evidence_id": "E-A8E5CB164853",
+        "native_evidence_id": "E-A8E5CB164853",
+        "state": "native_windows_require_structural_or_scope_review",
+        "source_input_sha256": "a4282c24fcd01f4b74d04039866c1ba09258ada7343312673830ec0db69cc96e",
+        "scanned_chars": 712,
+        "original_sha256": "c8e8403017f43c7633ab246a4d4bd1649e861ced48ae719ad7749f8c1a0b1af9",
+        "text_origin": "retrieved_content",
+        "source_kind": "attributed_publication",
+        "professional_platform": false,
+        "candidate_windows": 1,
+        "review_windows": 0,
+        "oversize_windows": 0,
+        "reviewed_windows": 0,
+        "accepted_claims": 0,
+        "review_decisions": [],
+        "validation_rejections": [],
+        "prior_card_exclusions": [],
+        "preflight_rejections": [
+          {
+            "window_id": "W1",
+            "start": 262,
+            "quote_sha256": "0fffdccb6191479264707ddf19370bf94e888200b53d0561300be2866eb1e3b7",
+            "reasons": [
+              "no_concrete_business_statement"
+            ]
+          }
+        ],
+        "source_id": "435",
+        "source_url": "http://www.xiuplay.com/detail.php?id=438",
+        "source_title": "海天酱油"
+      },
+      {
+        "evidence_id": "E-866CB93A8D4E",
+        "native_evidence_id": "E-866CB93A8D4E",
+        "state": "native_windows_require_structural_or_scope_review",
+        "source_input_sha256": "a89df5834a4e970395a2dff978ae3fba04f880bedab48c53075ce3176a06716e",
+        "scanned_chars": 7347,
+        "original_sha256": "68184b65aeeffe2597a6f4225956e625a1194b1b18c0683496022ca4787fbb74",
+        "text_origin": "retrieved_content",
+        "source_kind": "government_statement",
+        "professional_platform": false,
+        "candidate_windows": 1,
+        "review_windows": 0,
+        "oversize_windows": 0,
+        "reviewed_windows": 0,
+        "accepted_claims": 0,
+        "review_decisions": [],
+        "validation_rejections": [],
+        "prior_card_exclusions": [],
+        "preflight_rejections": [
+          {
+            "window_id": "W1",
+            "start": 200,
+            "quote_sha256": "ee326d08c3345020651cd208dacadbe06055638dc47ebde0312dddbf529328ea",
+            "reasons": [
+              "cross_page_or_field_continuation_requires_specialized_parser"
+            ]
+          }
+        ],
+        "source_id": "93",
+        "source_url": "https://www.samr.gov.cn/cms_files/filemanager/1647978232/attach/20253/863b9a035fd941b992141f1e31577cb3.pdf?fileName=9.%E9%B8%A1%E7%B2%89%E8%B0%83%E5%91%B3%E6%96%99%E8%B4%A8%E9%87%8F%E9%80%9A%E5%88%99%EF%BC%88%E6%8A%A5%E6%89%B9%E7%A8%BF%EF%BC%89",
+        "source_title": "鸡粉调味料质量通则"
+      }
+    ],
+    "new_model_calls": 0,
+    "report_accepted": false,
+    "elapsed_seconds": 65.516,
+    "production_source_sha256": {
+      "backend/report_agents/company_corpus.py": "489ec599c8de63e84e3a74111e5d1383589b2304c58e27f7f6c7b51c3fb117fe",
+      "backend/report_agents/company_source_review.py": "94a5d95de62a139519400f9bcd9831c532a44e27be5cc566d984e4b7be975dd4"
+    }
+  },
+  "corpus_preflight_sha256": "0a09757dda20bd6fb7772b539d3cd3f5e2df1be6fab8ad1a223c7ada3fdd0324",
+  "source_snapshot_sha256": "345eb588624dd28de3490b5c5987313b7e96f9f90cf1eacec7c8c1c2e8ee444a",
+  "current_control_score": 3,
+  "control_recent_record_count": 3,
+  "production_cache_modified_by_audit": false,
+  "new_audit_model_calls": 0,
+  "full_report_accepted": false,
+  "complete_report_semantic_review": "pending"
+}

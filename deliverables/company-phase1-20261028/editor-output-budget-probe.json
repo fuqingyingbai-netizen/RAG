@@ -1,0 +1,28 @@
+{
+  "purpose": "One diagnostic request testing an explicit total completion budget on unchanged failed real editor messages",
+  "model": "qwen3.8-max",
+  "logical_requests": 1,
+  "sdk_max_retries": 0,
+  "max_completion_tokens": 32768,
+  "input_receipt": "20261028T093118676444-000004.json",
+  "model_reasoning_mode": "unchanged",
+  "report_acceptance": false,
+  "response_metadata": {
+    "finish_reason": "stop",
+    "model_name": "qwen3.8-max",
+    "model_provider": "openai"
+  },
+  "usage_metadata": {
+    "input_tokens": 11298,
+    "output_tokens": 24417,
+    "total_tokens": 35715,
+    "input_token_details": {
+      "cache_read": 11264
+    },
+    "output_token_details": {
+      "reasoning": 22445
+    }
+  },
+  "status": "returned",
+  "elapsed_seconds": 265.969
+}

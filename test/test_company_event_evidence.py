@@ -6,6 +6,7 @@ import pytest
 
 from report_agents.company_event_evidence import (
     VERSION, REVIEW_CRITERIA, reviewed_event_records, review_primary_events, validate_event,primary_event_candidate,
+    independent_check_witness,
 )
 from report_agents.company_risk_register import build_risk_register, render_risk_register, risk_register_errors
 from report_agents.company_governance import governance_graph_nodes, render_registered_shareholders
@@ -34,6 +35,7 @@ def selection(s):
         'original_sha256': hashlib.sha256(raw.encode()).hexdigest(),
         'independent_check': {'status': 'supported', 'criteria': dict.fromkeys(REVIEW_CRITERIA, True)}}
     for key in ('quote', 'subject_quote', 'date_quote'): row[key + '_offset'] = raw.find(row[key])
+    row['independent_check_witness']=independent_check_witness(row,row['independent_check'],TARGET,'2026-10-20')
     return row
 
 

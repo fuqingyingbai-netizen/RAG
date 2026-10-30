@@ -1,0 +1,19 @@
+{
+  "rule_version": "company-event-evidence-v6-qualified-state-scope",
+  "input_receipt_sha256": "0dae1e0a158aa5dbf0b2b54d1d7d9f8c0480d61038a6e7dd9612e2f7605de17f",
+  "source_url": "https://www.shzcfy.gov.cn/detail.jhtml?id=349956",
+  "candidate_precheck_errors": [],
+  "full_review_errors": [
+    "independent_check_missing",
+    "independent_criterion:factual_support",
+    "independent_criterion:responsibility_and_impact",
+    "independent_criterion:date_meaning",
+    "independent_criterion:procedure_and_receipt_state",
+    "independent_criterion:counterevidence",
+    "independent_criterion:actors_and_obligations",
+    "independent_check_input_or_response_changed"
+  ],
+  "model_calls": 0,
+  "new_witness_created": false,
+  "delivery_accepted": false
+}

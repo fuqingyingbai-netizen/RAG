@@ -15,8 +15,10 @@ from pypdf import PdfReader
 
 try:
     from .search_results import fuse_search_results, SearchResults
+    from .tavily_keys import get_tavily_pool, tavily_api_keys, TavilyKeysUnavailable
 except ImportError:
     from search_results import fuse_search_results, SearchResults
+    from tavily_keys import get_tavily_pool, tavily_api_keys, TavilyKeysUnavailable
 
 try:
     from bs4 import BeautifulSoup
@@ -131,12 +133,13 @@ class WebSearchProvider:
 
     def search_single(self, provider: str, query: str, limit: int = 6,
                       include_domains=None, category=None) -> list[dict[str, Any]]:
-        """An auditable single paid request with lightweight person recall.
+        """An auditable single-provider search with lightweight person recall.
 
         Errors propagate to the run audit. Original pages are fetched later,
         after identity filtering and URL deduplication, under a separate budget.
+        Tavily can retry credentials; its audit records the attempted key slots.
         """
-        if not os.getenv(f"{provider.upper()}_API_KEY"):
+        if not self.is_configured(provider):
             raise RuntimeError("search_provider_not_configured")
         if provider == "bocha":
             return self._search_bocha(query, limit, include_domains, lightweight=True)
@@ -178,8 +181,7 @@ class WebSearchProvider:
                     if name in self._disabled_engines:
                         engine_states[name] = {'status':'not_queried','reason':self._disabled_engine_reasons.get(name,'previous_authorization_failure')}
                         continue
-                api_key_env = f"{name.upper()}_API_KEY"
-                if os.getenv(api_key_env):
+                if self.is_configured(name):
                     if name == "tavily":
                         future = executor.submit(engine_func, query, limit, include_domains, exclude_domains)
                     elif name == "exa":
@@ -204,7 +206,9 @@ class WebSearchProvider:
                     failures[name] = f"HTTP {status_code}" if status_code else type(exc).__name__
                     reason = self._search_failure_reason(exc)
                     engine_states[name] = {'status':'failed','reason':reason,'http_status':status_code}
-                    if reason in {'unauthorized','access_denied','quota_exceeded'}:
+                    if getattr(exc, 'audit', None):
+                        engine_audits[name] = dict(exc.audit)
+                    if reason in {'unauthorized','access_denied','quota_exceeded'} and not isinstance(exc, TavilyKeysUnavailable):
                         # An invalid/expired credential will fail identically for every
                         # query. Quarantine that provider for this process and continue
                         # with the remaining configured engines instead of flooding the
@@ -222,7 +226,15 @@ class WebSearchProvider:
         return results
 
     @staticmethod
+    def is_configured(provider: str) -> bool:
+        if provider == 'tavily':
+            return bool(tavily_api_keys())
+        return bool(os.getenv(f'{provider.upper()}_API_KEY', '').strip())
+
+    @staticmethod
     def _search_failure_reason(exc):
+        if isinstance(exc, TavilyKeysUnavailable):
+            return exc.reason
         status = getattr(getattr(exc, 'response', None), 'status_code', None)
         try:body = str(exc.response.json()).lower()
         except (AttributeError, ValueError):body = ''
@@ -244,13 +256,10 @@ class WebSearchProvider:
         exclude_domains: list[str] | None = None,
         *, lightweight: bool = False,
     ) -> list[dict[str, Any]]:
-        api_key = os.getenv("TAVILY_API_KEY", "")
-        if not api_key:
+        if not tavily_api_keys():
             return []
-        resp = requests.post(
-            "https://api.tavily.com/search",
-            json={
-                "api_key": api_key,
+        payload, key_audit = get_tavily_pool().search(
+            {
                 "query": query,
                 # Tavily accepts 0..20; the research candidate budget is wider
                 # than this provider's own request limit.
@@ -264,12 +273,11 @@ class WebSearchProvider:
                 "exclude_domains": list(exclude_domains or [])[:150],
             },
             timeout=30,
+            post=requests.post,
         )
-        resp.raise_for_status()
-        payload = resp.json()
         rows = payload.get("results", [])
         images = payload.get("images", []) or []
-        return [
+        return SearchResults([
             {
                 "title": item.get("title", ""),
                 "url": item.get("url", ""),
@@ -286,7 +294,7 @@ class WebSearchProvider:
                 "credibility_score": int(float(item.get("score") or 0.5) * 100),
             }
             for item in rows
-        ]
+        ], audit=key_audit)
 
     def _search_serper(self, query: str, limit: int) -> list[dict[str, Any]]:
         api_key = os.getenv("SERPER_API_KEY", "")

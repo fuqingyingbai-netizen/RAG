@@ -1,0 +1,485 @@
+{
+  "version": "company-phase1-native-call-audit-v1",
+  "audit_source_sha256": "9563d6bbecc1da3cacd3ad97965c6db0b390f076d8f89ea1fc3f6c3365045259",
+  "observed_at": "2026-10-28T17:19:06.031972+00:00",
+  "rounds": [
+    {
+      "case": "haitian",
+      "tag": "20261028T081129290739",
+      "code_commit": "7b9ffe90353735c5d5083ae4971358e0e95af1f6",
+      "stage": null,
+      "model": null,
+      "state": "http_call_budget_exhausted",
+      "logical_model_requests": 0,
+      "logical_model_returns": 0,
+      "finish_reasons": {},
+      "logical_model_failures": 0,
+      "logical_without_recorded_return_or_failure": 0,
+      "event_counts": {
+        "http_returned": 24
+      },
+      "model_http_statuses": {},
+      "returned_reported_token_usage": {},
+      "partial_or_malformed_ledger_lines": [],
+      "plan_sha256": "a94f7f3bcf1f37bb7cd278b5fb091b281b32dcbf9ed94c3319780b5aad827d15",
+      "observed_ledger_sha256": "861e0a8d79be4288b2b4cdc2454a1ee688d577e8f5cedca4650b5adfb3d08ea9",
+      "observed_ledger_bytes": 4194,
+      "result_sha256": "2f268c8374bbd4296d0b65d8024da32e22228101c1b6d953b66bd9c489242dac",
+      "stop_proofs": {},
+      "report_acceptance": "not_inferred_from_calls",
+      "actual_currency_cost": null
+    },
+    {
+      "case": "haitian",
+      "tag": "20261028T082541996439",
+      "code_commit": "a3a3f58598313a4a3f67b948bd06743e0804f6f3",
+      "stage": "frozen-report",
+      "model": null,
+      "state": "in_progress_or_unrecorded_stop",
+      "logical_model_requests": 7,
+      "logical_model_returns": 0,
+      "finish_reasons": {},
+      "logical_model_failures": 7,
+      "logical_without_recorded_return_or_failure": 0,
+      "event_counts": {
+        "http_returned": 1,
+        "model_started": 7,
+        "model_failed": 7
+      },
+      "model_http_statuses": {},
+      "returned_reported_token_usage": {},
+      "partial_or_malformed_ledger_lines": [],
+      "plan_sha256": "a6c19e65e424e4e3c771dc0302d49572a42d43578a35938a297f74b0ffb8111a",
+      "observed_ledger_sha256": "d8c8b67a157c5a74a14d037ad1dc99b78435de03525e62a3bc196b831dafe634",
+      "observed_ledger_bytes": 2712,
+      "result_sha256": null,
+      "stop_proofs": {},
+      "report_acceptance": "not_inferred_from_calls",
+      "actual_currency_cost": null
+    },
+    {
+      "case": "haitian",
+      "tag": "20261028T085438794470",
+      "code_commit": "6f9905d643ba16401ab4458232d1f3f74d0c5f24",
+      "stage": "frozen-report",
+      "model": null,
+      "state": "in_progress_or_unrecorded_stop",
+      "logical_model_requests": 1,
+      "logical_model_returns": 0,
+      "finish_reasons": {},
+      "logical_model_failures": 1,
+      "logical_without_recorded_return_or_failure": 0,
+      "event_counts": {
+        "http_returned": 1,
+        "model_started": 1,
+        "model_failed": 1
+      },
+      "model_http_statuses": {},
+      "returned_reported_token_usage": {},
+      "partial_or_malformed_ledger_lines": [],
+      "plan_sha256": "72dec12ce43600fa097b51c12edeb8d0b0eef5959b2661032660ecadc699746f",
+      "observed_ledger_sha256": "1d483343ea2350a0d3e5d7d2103745209c7bf332dcf69e4b10a5645edaba7b48",
+      "observed_ledger_bytes": 632,
+      "result_sha256": null,
+      "stop_proofs": {},
+      "report_acceptance": "not_inferred_from_calls",
+      "actual_currency_cost": null
+    },
+    {
+      "case": "haitian",
+      "tag": "20261028T093116633130",
+      "code_commit": "7b4e5abc286af0c46541e27d0b5d6fb27e9a6146",
+      "stage": "frozen-report",
+      "model": "qwen3.8-max",
+      "state": "externally_stopped_with_proof",
+      "logical_model_requests": 6,
+      "logical_model_returns": 5,
+      "finish_reasons": {
+        "stop": 3,
+        "length": 2
+      },
+      "logical_model_failures": 0,
+      "logical_without_recorded_return_or_failure": 1,
+      "event_counts": {
+        "http_returned": 1,
+        "model_started": 6,
+        "model_http_started": 6,
+        "model_http_headers": 6,
+        "model_returned": 5
+      },
+      "model_http_statuses": {
+        "200": 6
+      },
+      "returned_reported_token_usage": {
+        "input_tokens": 29689,
+        "output_tokens": 30718,
+        "total_tokens": 60407,
+        "reasoning_tokens": 29123
+      },
+      "partial_or_malformed_ledger_lines": [],
+      "plan_sha256": "43d7971d90db520f5404de9618f09f39bf8baba1d7481f147c465f7b04c7b99c",
+      "observed_ledger_sha256": "c6fa6086733302b194a20522235366adaead9a0caea0692cca09228a0d1ce48c",
+      "observed_ledger_bytes": 4957,
+      "result_sha256": null,
+      "stop_proofs": {
+        "output-budget-stop-proof.json": "a54791752af7cd581e8eb7abeb55e2cf55c97303a56431274c04842e4dfcbce7"
+      },
+      "report_acceptance": "not_inferred_from_calls",
+      "actual_currency_cost": null
+    },
+    {
+      "case": "haitian",
+      "tag": "20261028T100827098533",
+      "code_commit": "a66e38d781476af22c01665cee7c139b91e396f5",
+      "stage": "frozen-report",
+      "model": "qwen3.8-max",
+      "state": "externally_stopped_with_proof",
+      "logical_model_requests": 5,
+      "logical_model_returns": 4,
+      "finish_reasons": {
+        "stop": 3,
+        "length": 1
+      },
+      "logical_model_failures": 0,
+      "logical_without_recorded_return_or_failure": 1,
+      "event_counts": {
+        "http_returned": 1,
+        "model_started": 5,
+        "model_http_started": 5,
+        "model_http_headers": 5,
+        "model_returned": 4
+      },
+      "model_http_statuses": {
+        "200": 5
+      },
+      "returned_reported_token_usage": {
+        "input_tokens": 27370,
+        "output_tokens": 63524,
+        "total_tokens": 90894,
+        "reasoning_tokens": 59367
+      },
+      "partial_or_malformed_ledger_lines": [],
+      "plan_sha256": "4ed26a281f80260c0aea2e674ec9f4282086e81920326d7a752f87307b947ff7",
+      "observed_ledger_sha256": "a7a11cdc6f125fd2bf474022df0daf5bc7cbba07540aa2ec3c6c7126b8335675",
+      "observed_ledger_bytes": 4672,
+      "result_sha256": null,
+      "stop_proofs": {
+        "reasoning-budget-stop-proof.json": "8f21fd03575636fe9b8e0559f2a071fd4d29bba0ab7f6e9efe56b57b5b5d31e8"
+      },
+      "report_acceptance": "not_inferred_from_calls",
+      "actual_currency_cost": null
+    },
+    {
+      "case": "haitian",
+      "tag": "20261028T111523780854",
+      "code_commit": "10111b68dc4f37a8c744529eea1507a967411f48",
+      "stage": "frozen-report",
+      "model": "qwen3.8-max",
+      "state": "externally_stopped_with_proof",
+      "logical_model_requests": 22,
+      "logical_model_returns": 19,
+      "finish_reasons": {
+        "stop": 17,
+        "length": 2
+      },
+      "logical_model_failures": 2,
+      "logical_without_recorded_return_or_failure": 1,
+      "event_counts": {
+        "http_returned": 1,
+        "model_started": 22,
+        "model_http_started": 24,
+        "model_http_headers": 23,
+        "model_returned": 19,
+        "model_failed": 2,
+        "model_http_failed": 1
+      },
+      "model_http_statuses": {
+        "200": 22,
+        "429": 1
+      },
+      "returned_reported_token_usage": {
+        "input_tokens": 171088,
+        "output_tokens": 215835,
+        "total_tokens": 386923,
+        "reasoning_tokens": 192466
+      },
+      "partial_or_malformed_ledger_lines": [],
+      "plan_sha256": "6def209e90c4dab5dcf9dd7f2eb264d4803f8d0aab3ea9b5f468764b0ccbf155",
+      "observed_ledger_sha256": "38e05d4fdc3d202785cf04e75a0189ceb7d7f124cde7ca2a037cdb267fe46660",
+      "observed_ledger_bytes": 22270,
+      "result_sha256": null,
+      "stop_proofs": {
+        "focus-budget-stop-proof.json": "2451bddb222d8b7bd92d046c1f5106426ad200484a78b9190dcddcf320b71c71"
+      },
+      "report_acceptance": "not_inferred_from_calls",
+      "actual_currency_cost": null
+    },
+    {
+      "case": "haitian",
+      "tag": "20261028T125951117712",
+      "code_commit": "91a4e78f6b9e7c60ff4893a74dd537953ee01e7c",
+      "stage": "frozen-report",
+      "model": "qwen3.8-max",
+      "state": "externally_stopped_with_proof",
+      "logical_model_requests": 6,
+      "logical_model_returns": 4,
+      "finish_reasons": {
+        "stop": 4
+      },
+      "logical_model_failures": 1,
+      "logical_without_recorded_return_or_failure": 1,
+      "event_counts": {
+        "http_returned": 1,
+        "model_started": 6,
+        "model_http_started": 8,
+        "model_http_headers": 5,
+        "model_returned": 4,
+        "model_http_failed": 2,
+        "model_failed": 1
+      },
+      "model_http_statuses": {
+        "200": 5
+      },
+      "returned_reported_token_usage": {
+        "input_tokens": 174001,
+        "output_tokens": 110387,
+        "total_tokens": 284388,
+        "reasoning_tokens": 82511
+      },
+      "partial_or_malformed_ledger_lines": [],
+      "plan_sha256": "9afc4a23299425cbda58c8436284524a72d9f6b3e71ad989987734b231a41070",
+      "observed_ledger_sha256": "bf43ae3dfec8b8c92499715ebd58a8f921451dae2fd6486978c7b91901b76497",
+      "observed_ledger_bytes": 6660,
+      "result_sha256": null,
+      "stop_proofs": {
+        "standard-route-stop-proof.json": "8d9503d92c399a58cf01b1bbf38b5620c5b0864d8c5d07f6922812f922c4a4dc"
+      },
+      "report_acceptance": "not_inferred_from_calls",
+      "actual_currency_cost": null
+    },
+    {
+      "case": "haitian",
+      "tag": "20261028T135215053398",
+      "code_commit": "19e70b8c39088957dea1308eb29a18fa0428f368",
+      "stage": "frozen-report",
+      "model": "qwen3.8-max",
+      "state": "externally_stopped_with_proof",
+      "logical_model_requests": 3,
+      "logical_model_returns": 2,
+      "finish_reasons": {
+        "length": 1,
+        "stop": 1
+      },
+      "logical_model_failures": 0,
+      "logical_without_recorded_return_or_failure": 1,
+      "event_counts": {
+        "http_returned": 1,
+        "model_started": 3,
+        "model_http_started": 3,
+        "model_http_headers": 2,
+        "model_returned": 2
+      },
+      "model_http_statuses": {
+        "200": 2
+      },
+      "returned_reported_token_usage": {
+        "input_tokens": 7654,
+        "output_tokens": 10342,
+        "total_tokens": 17996,
+        "reasoning_tokens": 9688
+      },
+      "partial_or_malformed_ledger_lines": [],
+      "plan_sha256": "fa2dc3efd66d5466df4f42239d4661350111ccf2c50b481d47afea578f18a1ab",
+      "observed_ledger_sha256": "2f0f5dc4d5f201287aeb584cfa646c4e107050108765691b6be2aca4c49794f5",
+      "observed_ledger_bytes": 2721,
+      "result_sha256": null,
+      "stop_proofs": {
+        "analysis-budget-stop-proof.json": "6bc4a1fe80900a1ae0dd3d5414db1820f714dc34f490974e63e9e4500ecd12a3"
+      },
+      "report_acceptance": "not_inferred_from_calls",
+      "actual_currency_cost": null
+    },
+    {
+      "case": "haitian",
+      "tag": "20261028T141650923905",
+      "code_commit": "db1fffc71a786102ac02961dcd274dd74173c6a6",
+      "stage": "frozen-report",
+      "model": "qwen3.8-max",
+      "state": "externally_stopped_with_proof",
+      "logical_model_requests": 8,
+      "logical_model_returns": 6,
+      "finish_reasons": {
+        "stop": 6
+      },
+      "logical_model_failures": 1,
+      "logical_without_recorded_return_or_failure": 1,
+      "event_counts": {
+        "http_returned": 1,
+        "model_started": 8,
+        "model_http_started": 8,
+        "model_http_headers": 8,
+        "model_returned": 6,
+        "model_failed": 1
+      },
+      "model_http_statuses": {
+        "200": 8
+      },
+      "returned_reported_token_usage": {
+        "input_tokens": 26191,
+        "output_tokens": 38471,
+        "total_tokens": 64662,
+        "reasoning_tokens": 34042
+      },
+      "partial_or_malformed_ledger_lines": [],
+      "plan_sha256": "776f9552d6c137193b39e825e99988cebd09f4cbb150453acf13b0f909db8867",
+      "observed_ledger_sha256": "18f5e2cc02c3fc0ca0dc885c5ce26c77e62e6a2a63f9f85e6cf7e58186062d1f",
+      "observed_ledger_bytes": 8105,
+      "result_sha256": null,
+      "stop_proofs": {
+        "chapter-type-stop-proof.json": "a8f4a7c8db3c31a780a5cd4712f19c5fbf3392f23b036a5a80d21f176190a6a3"
+      },
+      "report_acceptance": "not_inferred_from_calls",
+      "actual_currency_cost": null
+    },
+    {
+      "case": "haitian",
+      "tag": "20261028T150111038936",
+      "code_commit": "6e6bf3b5423e75b343d15fc7ad5731c914d823fa",
+      "stage": "frozen-report",
+      "model": "qwen3.8-max",
+      "state": "externally_stopped_with_proof",
+      "logical_model_requests": 34,
+      "logical_model_returns": 33,
+      "finish_reasons": {
+        "stop": 33
+      },
+      "logical_model_failures": 0,
+      "logical_without_recorded_return_or_failure": 1,
+      "event_counts": {
+        "http_returned": 1,
+        "model_started": 34,
+        "model_http_started": 35,
+        "model_http_headers": 34,
+        "model_returned": 33,
+        "model_http_failed": 1
+      },
+      "model_http_statuses": {
+        "200": 34
+      },
+      "returned_reported_token_usage": {
+        "input_tokens": 323365,
+        "output_tokens": 449691,
+        "total_tokens": 773056,
+        "reasoning_tokens": 403044
+      },
+      "partial_or_malformed_ledger_lines": [],
+      "plan_sha256": "8be3a005a32f0737d0782ca022299ba6882ff23692e5a75588ac0d0e7b8e2820",
+      "observed_ledger_sha256": "a4ef495104412cc840468eefdc1fdf0645235b89c16c55eab5ede3230f7091be",
+      "observed_ledger_bytes": 35905,
+      "result_sha256": null,
+      "stop_proofs": {
+        "original-ocr-gap-stop-proof.json": "dc0b002119d274ad58a7cd52044ebbad54202f30206c2e9c6162075672221fd6"
+      },
+      "report_acceptance": "not_inferred_from_calls",
+      "actual_currency_cost": null
+    },
+    {
+      "case": "haitian",
+      "tag": "20261028T164319448455",
+      "code_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
+      "stage": "frozen-report",
+      "model": "qwen3.8-max",
+      "state": "model_call_budget_exhausted",
+      "logical_model_requests": 0,
+      "logical_model_returns": 0,
+      "finish_reasons": {},
+      "logical_model_failures": 0,
+      "logical_without_recorded_return_or_failure": 0,
+      "event_counts": {
+        "http_returned": 7
+      },
+      "model_http_statuses": {},
+      "returned_reported_token_usage": {},
+      "partial_or_malformed_ledger_lines": [],
+      "plan_sha256": "4c3e059ccc8c3845592f6621f0518f95b07c1646330008852cc8c7748867ba3f",
+      "observed_ledger_sha256": "8d4c1796eb53a02fcab08bc1e194dd574083a413adcd24a2a61eca5e24ef695d",
+      "observed_ledger_bytes": 1717,
+      "result_sha256": "838bb9517874f48452bb1d3b2621573ec11a94384d4c73b657a0a10c9016930b",
+      "stop_proofs": {},
+      "report_acceptance": "not_inferred_from_calls",
+      "actual_currency_cost": null
+    },
+    {
+      "case": "haitian",
+      "tag": "20261028T164918887122",
+      "code_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
+      "stage": "frozen-report",
+      "model": "qwen3.8-max",
+      "state": "in_progress_or_unrecorded_stop",
+      "logical_model_requests": 15,
+      "logical_model_returns": 14,
+      "finish_reasons": {
+        "stop": 14
+      },
+      "logical_model_failures": 0,
+      "logical_without_recorded_return_or_failure": 1,
+      "event_counts": {
+        "http_returned": 1,
+        "model_started": 15,
+        "model_http_started": 15,
+        "model_http_headers": 15,
+        "model_returned": 14
+      },
+      "model_http_statuses": {
+        "200": 15
+      },
+      "returned_reported_token_usage": {
+        "input_tokens": 70245,
+        "output_tokens": 157377,
+        "total_tokens": 227622,
+        "reasoning_tokens": 105022
+      },
+      "partial_or_malformed_ledger_lines": [],
+      "plan_sha256": "9f0d6bde73ede916b675f9a76dadbeef4df4e00b0f787a39af696d03b194dddb",
+      "observed_ledger_sha256": "9a88ba478253d8c206d1ec2f1db39ee8d3c60837eb55050f4ad0d06450d6ff66",
+      "observed_ledger_bytes": 15520,
+      "result_sha256": null,
+      "stop_proofs": {},
+      "report_acceptance": "not_inferred_from_calls",
+      "actual_currency_cost": null
+    },
+    {
+      "case": "kingsoft",
+      "tag": "20261028T165519188680",
+      "code_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
+      "stage": "frozen-report",
+      "model": "qwen3.8-max",
+      "state": "model_call_budget_exhausted",
+      "logical_model_requests": 0,
+      "logical_model_returns": 0,
+      "finish_reasons": {},
+      "logical_model_failures": 0,
+      "logical_without_recorded_return_or_failure": 0,
+      "event_counts": {
+        "http_returned": 1
+      },
+      "model_http_statuses": {},
+      "returned_reported_token_usage": {},
+      "partial_or_malformed_ledger_lines": [],
+      "plan_sha256": "d940a48cadbe5e7b725b236ae9b899af83466738f3ac5ca93c0a9d9b2fbe7f3f",
+      "observed_ledger_sha256": "1c8a40388477690b77b5201483121ddd60dc8d85aa831df694f6e1c523f11105",
+      "observed_ledger_bytes": 238,
+      "result_sha256": "624a0b2cddc45d654e7d34a4dae949fd7405d5849d1b23c57602334f7a478557",
+      "stop_proofs": {},
+      "report_acceptance": "not_inferred_from_calls",
+      "actual_currency_cost": null
+    }
+  ],
+  "scope": "Native ledgers and their requests fetches only; excludes separate connectivity/capacity probes, GitHub upstream-source retrieval and standalone original-page downloads.",
+  "limitations": [
+    "Live ledgers are bound to observed bytes and may subsequently grow.",
+    "Returned token usage is not a billing statement; failed or interrupted calls may also be billed.",
+    "HTTP 200, stop and successful historical receipts do not establish semantic or full report acceptance."
+  ],
+  "full_report_acceptance": "not_evaluated_by_this_call_audit"
+}

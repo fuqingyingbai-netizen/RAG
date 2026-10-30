@@ -1,0 +1,10 @@
+{
+  "purpose": "Diagnostic response schema and literal locator validation only",
+  "expected_records": 27,
+  "returned_records": 27,
+  "bound_records": 27,
+  "errors": [],
+  "independent_materiality_review": "not_performed_for_this_probe",
+  "production_receipt_transplanted": false,
+  "report_acceptance": false
+}

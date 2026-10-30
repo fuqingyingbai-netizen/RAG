@@ -1,0 +1,19 @@
+{
+  "url": "https://www.shzcfy.gov.cn/detail.jhtml?id=349956",
+  "browser": "Codex In-app Browser, current task, background tab",
+  "observed_live_dom_clock": "2026-10-28 19:53:12",
+  "observed_full_page_screenshot_clock": "2026-10-28 19:54:28",
+  "article_title": "佛山市海天调味食品股份有限公司与佛山市高明威极调味食品有限公司侵害商标权及不正当竞争纠纷案",
+  "observations": [
+    "页头时刻随读取时刻变化，不能作为案件、裁判或文章发布日期。",
+    "原页商标引号处未显示可读图样，不由上下文补注册商标名称或图案。",
+    "亲见请求1000万元、判赔655万元及350万元利润损失、300万元广告费、5万元律师费。",
+    "亲见威极为停止侵害、变更名称、登报道歉及赔偿的义务主体；海天为权利人/原告及受损方。",
+    "原页仍只记载二审阶段申请撤回上诉，不证明已经准许、生效、履行、收款或股东个人义务。"
+  ],
+  "interface_read_notes": "Two high-level automatic accessibility reads timed out; selected browser core tabs.get + playwright.domSnapshot and fullPage screenshot succeeded. No webpage content or account state was modified.",
+  "screenshot_saved_as_local_file": false,
+  "source_or_model_response_transplanted": false,
+  "final_report_accepted": false,
+  "scope": "Current official source-page visual review; not the generated report browser acceptance."
+}

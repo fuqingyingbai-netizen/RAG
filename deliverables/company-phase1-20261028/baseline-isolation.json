@@ -1,0 +1,128 @@
+{
+  "at": "2026-10-28T07:58:14.536400+00:00",
+  "root": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG",
+  "base_commit": "7cc0752c15a052bf606135a7a1e39553ccb23863",
+  "shared_search_commit": "cb9f7bfd640e425ed6617fe4d83b9435d24e5bad",
+  "environment": {
+    "credentials_copied_not_linked": true,
+    "current_model": "qwen3.8-max",
+    "isolation": {
+      "DATABASE_URL": "sqlite:///C:/Users/wangli/.codex/worktrees/05ec/RAG/work/company-phase1-20261028/runtime.sqlite",
+      "RESEARCH_OBJECT_STORE": "local",
+      "RESEARCH_LOCAL_STORE": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\objects",
+      "COMPANY_KNOWLEDGE_OBJECT_STORE": "local",
+      "COMPANY_KNOWLEDGE_LOCAL_STORE": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\knowledge",
+      "BM25_STATE_PATH": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\bm25.json",
+      "REDIS_KEY_PREFIX": "company-phase1-01a18168",
+      "MILVUS_COLLECTION": "company_phase1_01a18168",
+      "DOCX_RENDER_QA_WORKDIR": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\render",
+      "RESEARCH_LEGACY_RAG_ENABLED": "false",
+      "REPORT_SECTION_MAX_WORKERS": "1",
+      "COMPANY_EDITORIAL_WORKERS": "1",
+      "COMPANY_CORPUS_REVIEW_WORKERS": "1",
+      "COMPANY_CORPUS_WRITE_WORKERS": "1",
+      "COMPANY_SOURCE_REVIEW_WORKERS": "1",
+      "CLEANING_MAX_WORKERS": "1",
+      "WEB_SEARCH_QUERY_CONCURRENCY": "2",
+      "RESEARCH_OBJECT_PREFIX": "company-phase1-01a18168"
+    },
+    "model_concurrency": 1,
+    "search_concurrency": 2,
+    "external_accounts_and_host_resources_shared": true
+  },
+  "cases": [
+    {
+      "case": "haitian",
+      "source_count": 1246,
+      "as_of": "2026-10-24",
+      "sample_kind": "real_public_legacy_development",
+      "new_collection": false,
+      "database": {
+        "sha256": "c12c0953ccc791916ca667d9696bbe20bf39f7c6339a6d7b71b7c19c51c3bc35",
+        "quick_check": "ok",
+        "tables": [
+          "users",
+          "account_management_lock",
+          "auth_throttles",
+          "parent_chunks",
+          "company_documents",
+          "account_invitations",
+          "admin_action_confirmations",
+          "chat_sessions",
+          "assistant_states",
+          "assistant_threads",
+          "research_projects",
+          "company_access_requests",
+          "account_audits",
+          "chat_messages",
+          "assistant_messages",
+          "research_sources",
+          "research_artifacts"
+        ]
+      },
+      "historical_completed_receipts": 120,
+      "checkpoint_archive": {
+        "path": "E:\\projects\\output\\公司真实检索交付验收_20261024\\haitian\\attempt-01\\before-v148-post-stop-checkpoints.zip",
+        "bytes": 171399117,
+        "journal_entries": {
+          "editorial": 516,
+          "presentation": 318,
+          "main-focus": 17
+        },
+        "whole_sha256": "54375bd426100deeba501c72fb29ad6754c6d63d4a604ab9e6eb05d128711555"
+      },
+      "historical_journal_storage": "verified_zip_selective_restore",
+      "delivery_accepted": false,
+      "v1_receipts_are_not_v2_acceptance": true,
+      "copied_files": 10479,
+      "reused_verified_manifest": true
+    },
+    {
+      "case": "kingsoft",
+      "source_count": 1459,
+      "as_of": "2026-10-24",
+      "sample_kind": "real_public_legacy_development",
+      "new_collection": false,
+      "database": {
+        "sha256": "7b5315fa90b1540b96363cecd9dcc72488728e9340d237b73a0ad128577df1a2",
+        "quick_check": "ok",
+        "tables": [
+          "users",
+          "account_management_lock",
+          "auth_throttles",
+          "parent_chunks",
+          "company_documents",
+          "account_invitations",
+          "admin_action_confirmations",
+          "chat_sessions",
+          "assistant_states",
+          "assistant_threads",
+          "research_projects",
+          "company_access_requests",
+          "account_audits",
+          "chat_messages",
+          "assistant_messages",
+          "research_sources",
+          "research_artifacts"
+        ]
+      },
+      "historical_completed_receipts": 161,
+      "earlier_model_receipts_readonly_reference": "E:\\projects\\output\\公司真实检索交付验收_20261024\\kingsoft\\attempt-01\\model-receipts",
+      "receipt_copy_scope": "all_completed_receipts_from_controlled_stop_manifest",
+      "checkpoint_archive": {
+        "path": "E:\\projects\\output\\公司真实检索交付验收_20261024\\kingsoft\\attempt-01\\before-v148-post-stop-checkpoints.zip",
+        "bytes": 164118292,
+        "journal_entries": {
+          "editorial": 518,
+          "presentation": 296,
+          "main-focus": 40
+        },
+        "whole_sha256": "48032c1f463976ae774f4d66c1d4d030a7717d6165d6e3eecd46118e7693d4d2"
+      },
+      "historical_journal_storage": "verified_zip_selective_restore",
+      "delivery_accepted": false,
+      "v1_receipts_are_not_v2_acceptance": true,
+      "copied_files": 2195
+    }
+  ]
+}
