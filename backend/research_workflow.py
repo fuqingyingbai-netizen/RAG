@@ -75,7 +75,7 @@ FIXED_AI_SEARCH_ENABLED = True
 FIXED_GENERATE_PROPOSAL = True
 PERSON_IDENTITY_POLICY_VERSION = "person-identity-v4-context"
 INDUSTRY_CLEANING_VERSION = "industry-evidence-v24-performance-boundaries"
-INDUSTRY_REPORT_VERSION = "industry-report-evidence-v55-editorial-feedback-and-revision"
+INDUSTRY_REPORT_VERSION = "industry-report-evidence-v56-editorial-protocol-and-active-budget"
 COMPANY_REPORT_VERSION = 'company-report-evidence-v148-canonical-focus-witnesses'
 
 

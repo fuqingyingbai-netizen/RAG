@@ -68,3 +68,41 @@ def test_budget_exhaustion_keeps_original_without_an_extra_model_call(draft):
     result, diagnostic = run(draft, invoke, max_calls=1)
     assert len(calls) == 1 and result == draft[0]
     assert diagnostic['status'] == 'revision_unavailable' and diagnostic['calls'] == 1
+
+
+def test_writer_wait_does_not_spend_active_editorial_time(draft):
+    budget = editorial.new_budget()
+    now = [10000.0]
+    initial = budget['remaining_seconds']
+    def invoke(*args):
+        now[0] += 1
+        return json.dumps(feedback(*draft, 'keep'))
+    result, diagnostic = editorial.refine_packet(*draft, invoke, lambda *args: None,
+        lambda packet: '', budget, clock=lambda: now[0])
+    assert result == draft[0] and diagnostic['status'] == 'reviewed_keep'
+    assert budget['remaining_seconds'] == initial-1 and budget['elapsed_seconds'] == 1
+
+
+def test_format_retry_keeps_the_call_cap_and_invalidates_old_support_verdict(draft):
+    answers = {'answers': [{'question_id': 'D1', 'status': 'answered',
+        'conclusion': '在原样本条件下验证后再推广。', 'analysis': '只在原样本条件下验证适用性。',
+        'kind': 'conditional', 'refs': ['F1']}]}
+    replies = iter([feedback(*draft), {'claims': ['PRIVATE_INVALID_PROVIDER_TEXT']}, answers])
+    def parse(raw, packet):
+        return [{**draft[0][0], 'text': answers['answers'][0]['analysis'],
+                 'entailment_status': 'supported', 'support_review': {'status': 'supported'}}], [], {
+                    'D1': {'answer_status': 'answered'}}
+    result, diagnostic = run(draft, lambda *args: json.dumps(next(replies)), parse, max_calls=3)
+    assert diagnostic['calls'] == 3 and diagnostic['format_retries'] == 1
+    assert diagnostic['status'] == 'revised_pending_support_review'
+    assert result[0]['entailment_status'] == 'not_evaluated' and 'support_review' not in result[0]
+    assert 'PRIVATE_INVALID_PROVIDER_TEXT' not in json.dumps(diagnostic)
+
+
+def test_exhausted_active_time_does_not_start_an_editorial_request(draft):
+    result, diagnostic = editorial.refine_packet(*draft,
+        lambda *args: pytest.fail('Exhausted time must not invoke a model'),
+        lambda *args: None, lambda packet: '',
+        {'calls': 0, 'max_calls': 4, 'remaining_seconds': 0, 'elapsed_seconds': 240})
+    assert result == draft[0] and diagnostic['calls'] == 0
+    assert diagnostic['error_code'] == 'editorial_time_budget_exhausted'

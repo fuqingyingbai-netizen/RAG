@@ -168,7 +168,7 @@ def test_new_section_path_records_roles_without_hidden_analysis_repair(monkeypat
     assert sum('质量编辑' in role for role in calls)==2
     assert plan['generation_batches']['editorial']['calls']==2
     assert plan['analysis_repair']['attempted'] is False
-    assert plan['generation_batches']['version']=='industry-question-jobs-v5-editorial-revision'
+    assert plan['generation_batches']['version']=='industry-question-jobs-v6-editorial-protocol-and-budget'
 
 
 def test_failure_usage_is_preserved_without_text_or_credentials():

@@ -12,7 +12,7 @@ import time
 
 from industry_model_output import IndustryModelOutputError, request_deadline, stage_timeout
 
-VERSION = 'industry-question-jobs-v5-editorial-revision'
+VERSION = 'industry-question-jobs-v6-editorial-protocol-and-budget'
 CHAPTERS = {2, 3, 4, 5, 6, 7, 10, 11, 13}
 MAX_REQUESTS = 2
 MAX_QUESTIONS_PER_REQUEST = 2
@@ -70,8 +70,8 @@ def job_prompt(packet):
         '多条判断用{"question_id":"Q1","status":"answered","claims":[{"conclusion":"判断一。","analysis":"独立依据和含义。","kind":"conditional","refs":["F1"]}]}；claims最多3条，每条分别引用。'
         '未回答格式：{"question_id":"Q2","status":"insufficient","reason":"具体缺失的前提"}。'
         '只回答所列问题，每题一次，最多两项，不输出其他字段。'
-        '报告应把已有材料组织成可检验的判断：先说明发现，再解释前提之间的联系、差异或机制及其业务含义。涉及选择建议时，说明建议对应的发现、适用对象、行动、成立条件和验证办法；不以“加强关注、积极布局”等口号替代具体建议。没有材料支持的行动效果、价格、周期或收益不得补造，条件性建议须明确标注条件。'
-        + '\n' + json.dumps(public, ensure_ascii=False, separators=(',', ':')))
+        '报告应把已有材料组织成可检验的判断：先说明发现，再解释前提之间的联系、差异或机制及其业务含义。涉及选择建议时，说明建议对应的发现、适用对象、行动、成立条件和验证办法；不以“加强关注、积极布局”等口号替代具体建议。没有材料支持的行动效果、价格、周期或收益不得补造，条件性建议须明确标注条件。\n'
+        + json.dumps(public, ensure_ascii=False, separators=(',', ':')))
 
 
 def compile_jobs(package, chapter, *, question_order=None, evidence_selection=None, only_questions=None, single_question=False):
@@ -280,7 +280,7 @@ def generate_questions(package, chapter, title, invoke, emit, trace_emit, *, clo
     claims, rejections, errors, requests, states = [], [], [], [], {}
     attempts, valid_responses = 0, 0
     request_timeout = stage_timeout('writer')
-    from industry_editorial import new_budget, refine_packet
+    from industry_editorial import VERSION as EDITORIAL_VERSION, new_budget, refine_packet
     editorial_budget = new_budget()
     for number, packet in enumerate(packets, 1):
         prompt = job_prompt(packet)
@@ -302,7 +302,8 @@ def generate_questions(package, chapter, title, invoke, emit, trace_emit, *, clo
             if len(prompt+intro+json.dumps(feedback,ensure_ascii=False))>MAX_PROMPT_CHARS:
                 feedback.pop('revision_draft',None)
             prompt += intro + json.dumps(feedback, ensure_ascii=False)
-        remaining = MAX_REQUESTS*request_timeout-(clock()-started)
+        writer_elapsed = max(0.0, clock()-started-editorial_budget.get('elapsed_seconds', 0.0))
+        remaining = MAX_REQUESTS*request_timeout-writer_elapsed
         if retry_deadline is not None:
             remaining = min(remaining, retry_deadline-time.monotonic())
         row = {'index': number, 'question_ids': [q['id'] for q in packet['questions']],
@@ -331,13 +332,14 @@ def generate_questions(package, chapter, title, invoke, emit, trace_emit, *, clo
                     try:
                         accepted, editorial = refine_packet(accepted, packet,
                             lambda role, body: invoke(role, body, trace_emit), parse_answers, job_prompt,
-                            editorial_budget, deadline=time.monotonic()+max(0, MAX_REQUESTS*request_timeout-(clock()-started)),
+                            editorial_budget, deadline=retry_deadline,
                             event=editorial_event, title=f'{title} - {number}')
                     except Exception as editorial_error:
                         from industry_model_output import generation_error_code
-                        editorial = {'version': 'industry-editorial-v1-evidence-bound-revision',
+                        editorial = {'version': EDITORIAL_VERSION,
                             'status': 'failed_original_retained', 'calls': 0, 'revised': [],
-                            'error_code': generation_error_code(editorial_error),
+                            'error_code': (generation_error_code(editorial_error) if isinstance(editorial_error, IndustryModelOutputError)
+                                           else 'editorial_unexpected_error'),
                             'semantic_support_authorized': False}
                     row['editorial'] = editorial
                     if editorial['revised']:
@@ -362,7 +364,8 @@ def generate_questions(package, chapter, title, invoke, emit, trace_emit, *, clo
                         rejected = [r for r in rejected if not (
                             r.get('question') in resolved and r.get('severity') == 'improvement')]
                     emit(trace_emit, 'report', 'industry_editorial_agent', '质量编辑与局部修订结束',
-                         f'chapter={chapter}; status={editorial["status"]}; revised={len(editorial["revised"])}',
+                         f'chapter={chapter}; status={editorial["status"]}; revised={len(editorial["revised"])}; '
+                          f'code={editorial.get("error_code", "")}; format_retries={editorial.get("format_retries", 0)}',
                          status='done' if editorial['status'] in {'reviewed_keep','revised_pending_support_review','not_needed','disabled'} else 'warning')
                 valid_responses += 1
                 claims.extend(accepted)
@@ -388,8 +391,11 @@ def generate_questions(package, chapter, title, invoke, emit, trace_emit, *, clo
     for decision in diagnostic['questions']:
         decision.update(states.get(decision['question_id'], {}))
     from industry_model_output import conclusion_output_limit
-    diagnostic['editorial'] = {'version': 'industry-editorial-v1-evidence-bound-revision', 'calls': editorial_budget['calls'],
-        'max_calls': editorial_budget['max_calls'], 'scope': 'quality_only_followed_by_existing_support_review'}
+    diagnostic['editorial'] = {'version': EDITORIAL_VERSION, 'calls': editorial_budget['calls'],
+        'max_calls': editorial_budget['max_calls'], 'scope': 'quality_only_followed_by_existing_support_review',
+        'budget_policy': 'active_editorial_time_excludes_writer',
+        'elapsed_seconds': round(editorial_budget.get('elapsed_seconds', 0.0), 3),
+        'remaining_seconds': round(editorial_budget.get('remaining_seconds', 0.0), 3)}
     diagnostic.update(max_requests=MAX_REQUESTS, max_stage_requests=MAX_REQUESTS+1+editorial_budget['max_calls'],
                       shared_timeout_seconds=MAX_REQUESTS*request_timeout, max_output_tokens_per_request=conclusion_output_limit(),
                       output_limit_policy='provider_default' if conclusion_output_limit() is None else 'configured',
