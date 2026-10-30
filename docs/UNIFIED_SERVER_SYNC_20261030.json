@@ -1,0 +1,72 @@
+{
+  "schema": "supermew-unified-server-sync-v1",
+  "verified_at_beijing": "2026-10-30T18:18:03+08:00",
+  "deployed_code_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04",
+  "main_base": "d316e1f8dc2bd5afca73f92f154b56e2a89fa001",
+  "prior_server_commit_label": "6eec7f03718e4bb0111de336ccc9a207052f7ccd",
+  "prior_server_uncommitted_runtime_files_preserved": [
+    "backend/industry_editorial.py",
+    "backend/industry_question_generation.py",
+    "backend/research_workflow.py"
+  ],
+  "source_parity": {
+    "byte_identical_live_files": 208,
+    "business_backend_frontend_byte_identical": true,
+    "missing_live_files": [],
+    "intentional_operational_changes": ["deploy/backup-production.py", "scripts/check-production-config.py"]
+  },
+  "release": {
+    "runtime_files": 213,
+    "archive_sha256": "e245a45ccc81cbc95788bfadd104f6fd16c48c8181933f7d0d4c4464b6b2ea94",
+    "new_current": "/opt/supermew/releases/66bd061582d1066a8b9f8ef91af356c25c315f04",
+    "old_current": "/opt/supermew/releases/6eec7f03-editorial-v56-20261030T090602Z",
+    "independent_venv": true,
+    "service_account_preflight": true,
+    "status": "verified"
+  },
+  "regression": {
+    "commit": "66bd061582d1066a8b9f8ef91af356c25c315f04",
+    "backend_platform": "Linux Python 3.12.3",
+    "backend_passed": 4724,
+    "backend_failed": 0,
+    "backend_skipped": 0,
+    "backend_seconds": 219.197,
+    "backend_deprecation_warnings": 2875,
+    "frontend_passed": 126,
+    "frontend_failed": 0,
+    "production_config_and_storage_inaccessible_to_tests": true
+  },
+  "data_preservation": {
+    "backup": "/opt/supermew/backups/unified-20261030T101540Z-66bd0615",
+    "database_restored_in_isolated_database_and_verified": true,
+    "temporary_restore_database_removed": true,
+    "configuration_unchanged": true,
+    "before_and_after_counts": {"users": 2, "research_projects": 1, "research_sources": 753, "research_artifacts": 37, "company_documents": 7},
+    "existing_download_hashes_unchanged": true
+  },
+  "live_verification": {
+    "authenticated_routes_http_200": 11,
+    "unauthenticated_research_http": 401,
+    "parseable_word_downloads": 2,
+    "knowledge_citations": 12,
+    "knowledge_answer_characters": 78,
+    "knowledge_completed": true,
+    "knowledge_error": false,
+    "browser_pages": 7,
+    "browser_script_errors": 0,
+    "browser_same_origin_http_errors": 0,
+    "mobile_viewport_width": 390,
+    "mobile_document_width": 390,
+    "dependencies": {"supermew": "active", "postgresql": "active", "redis-server": "active", "milvus": "running"}
+  },
+  "evidence_sha256": {
+    "pytest.log": "bf5fb2dbc9865300eec344323d924a07d511735cd1f20e716fa186204cc0a88b",
+    "pytest.xml": "7f9288c58b07a2f3b89542f587ea04594238863efa331ec6f6e40455bdee2491",
+    "server-update-frontend-final.log": "a3e078953e45d026c7d715ba00ac759bcc9416ebdf8146788f2b6fadf9b09dca",
+    "source-parity.json": "8132f5f09cb0473576755f1306da65066b87e4f2845fb329ee785c5d30fa6547",
+    "deployment-result.json": "a6b5c15a204fbba57db9e98112b633015f5444d9f3390333c26ba89cbe9c6b80",
+    "postflight-result.json": "2e9122a9c68b5c87c9cb4e686bcf81e4b19c1eb04b4cabc75cc5a6606f92d182",
+    "ui-verification.json": "d183f1897debc1a9e4ec1b99e08fd4f44034753c2423d8c70cadb82a9289b1b8"
+  },
+  "acceptance_scope": "Code compatibility and operational verification; no new complete real company, person or industry report acceptance is claimed."
+}
