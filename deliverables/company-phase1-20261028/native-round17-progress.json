@@ -1,0 +1,61 @@
+{
+  "at": "2026-10-30T16:50:57.287693+00:00",
+  "native_plan": "bounded-plan-20261030T164724736071.json",
+  "native_session_id": 43883,
+  "case": "haitian",
+  "code_commit": "2440d814caf70689fdd7c281f6290a8f82e01a90",
+  "observed_live_processes": [
+    {
+      "pid": 14396,
+      "created_at": 1793378840.1679215
+    },
+    {
+      "pid": 20476,
+      "created_at": 1793378840.1842391
+    }
+  ],
+  "runtime_source_unchanged_since_start": true,
+  "stage": "frozen-report",
+  "fresh_collection_acceptance": false,
+  "event_counts": {
+    "http_returned": 1
+  },
+  "reuse_events": [
+    {
+      "at": "2026-10-30T16:47:54.522403+00:00",
+      "label": "复用既有模块来源，仅补查已识别的专项缺口",
+      "detail": "queries=7"
+    },
+    {
+      "at": "2026-10-30T16:49:17.869535+00:00",
+      "label": "复用已有清洗事实库",
+      "detail": ""
+    },
+    {
+      "at": "2026-10-30T16:49:18.071676+00:00",
+      "label": "复用已有风险研判",
+      "detail": ""
+    }
+  ],
+  "native_governance_v7_execution": [
+    {
+      "at": "2026-10-30T16:49:26.200696+00:00",
+      "version": "company-governance-v7-literal-identifier-and-calendar-equivalence",
+      "candidate_records": 72,
+      "delivered_records": 72,
+      "all_report_approval": false
+    }
+  ],
+  "latest_event": {
+    "at": "2026-10-30T16:50:53.289956+00:00",
+    "stage": "report",
+    "label": "报告生成心跳正常",
+    "current_label": "第十章专项对象与核查边界核对完成"
+  },
+  "new_final_report_accepted": false,
+  "goal_complete": false,
+  "notes": [
+    "This liveness observation expires; re-poll the actual handle.",
+    "A native chapter diagnostic is not a complete report acceptance."
+  ]
+}

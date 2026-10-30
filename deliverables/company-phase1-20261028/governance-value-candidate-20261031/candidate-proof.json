@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-30T16:26:18.571720+00:00",
+  "at": "2026-10-30T16:49:24.724828+00:00",
   "scope": "isolated candidate module loaded at its production module name inside the guarded test process; active native backend is unchanged",
   "base_product_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
   "targeted_counts": {
@@ -11,9 +11,17 @@
   "new_candidate_tests_included": 34,
   "real_input_replay": "replay-proof.json",
   "full_regression": {
-    "status": "running",
-    "observed_live_exec_session": 92135,
-    "requires_fresh_handle_check": true
+    "status": "completed",
+    "terminal_exec_session": 92135,
+    "exit_code": 0,
+    "tests": 4792,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 4,
+    "passed": 4788,
+    "warnings": 2875,
+    "elapsed_seconds": 1290.99,
+    "scope": "entire backend test directory with staged governance module bound to its production name in the test process, plus 34 new candidate tests"
   },
   "files_sha256": {
     "candidate.json": "893aaf4ee595316c9dfd5e22565e1988cf6e4fea2a439a1af9c935d571f6feeb",
@@ -24,11 +32,22 @@
     "replay_candidate.py": "f2911b0ad3e6d30d4ceba4f7eed68d51ec1efa7aa69e5f36e681ac8bc059f834",
     "replay-proof.json": "684b0ea65b67970810b49d1c179d34f2f4f990c60b687f7e8146669ab14d6170",
     "targeted.xml": "0e4a1e74a651aa05a61685d85b37b1b0c7d412f6ef8f4dc5429aee1eca93cb24",
-    "targeted.log": "8286f60c3878bbc476cff9dbdf7f8edfb71b603da7c52c38bb122eeefb0ce5df"
+    "targeted.log": "8286f60c3878bbc476cff9dbdf7f8edfb71b603da7c52c38bb122eeefb0ce5df",
+    "full.xml": "a7824cfe1155a1002708d95c589d8382dcfaef7ac1b88fb019b7694c213b68a8",
+    "full.log": "b3434ddfeebd6e2037d990ce644dba151946cc6e7b15c20d72aeebff40cb6119",
+    "formal-targeted.xml": "c01c6617600f13d57ce25b6906dfc758415416ecb96632fe08c35a64c6a8d60d",
+    "formal-targeted.log": "891cb0570f828b8da9b5fe3027d6c91dcfe8796efbdb3a0c166a34df360925d9",
+    "stop_verified_native.py": "abdc89697093411b66c497bb886723dd35ac0412e12984f60959c6455444c033"
   },
-  "promoted": false,
-  "runtime_backend_modified": false,
+  "promoted": true,
   "three_final_reports_accepted": false,
   "goal_complete": false,
-  "targeted_runner_includes_final_module_binding_assertion": true
+  "targeted_runner_includes_final_module_binding_assertion": true,
+  "subsequently_promoted_product_commit": "2440d814caf70689fdd7c281f6290a8f82e01a90",
+  "current_product_formal_full_regression": {
+    "status": "running",
+    "observed_live_exec_session": 73504,
+    "requires_fresh_handle_check": true
+  },
+  "runtime_backend_modified_during_candidate_tests": false
 }
