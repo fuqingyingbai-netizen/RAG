@@ -47,6 +47,50 @@ def generation_options(model):
     return {'extra_body': {'enable_thinking': False}} if 'qwen3' in str(model).lower() else {}
 
 
+def stage_output_options(stage, default):
+    """A completion cap includes hidden reasoning on some compatible gateways."""
+    try:
+        limit = int(os.getenv(f'INDUSTRY_{stage.upper()}_MAX_OUTPUT_TOKENS', str(default)))
+    except ValueError:
+        limit = default
+    if limit < 0:
+        limit = default
+    return {'max_tokens': min(131072, max(256, limit))} if limit else {}
+
+
+def invoke_model(model, messages, *, timeout=None):
+    """Keep long reasoning responses active without accepting partial answers.
+
+    Streaming is transport only: callers still validate the completed message.
+    The wall budget includes reasoning, and an interrupted stream is discarded.
+    """
+    options = {'timeout': timeout} if timeout is not None else {}
+    if os.getenv('INDUSTRY_MODEL_STREAMING_ENABLED', 'false').lower() not in {'1', 'true', 'yes', 'on'}:
+        return model.invoke(messages, **options)
+    budget = timeout if timeout is not None else getattr(model, 'request_timeout', None)
+    deadline = time.monotonic() + budget if isinstance(budget, (int, float)) else None
+    if deadline is not None and time.monotonic() >= deadline:
+        raise TimeoutError('model_request_timeout')
+    result = None
+    stream = model.stream(messages, stream_usage=True, **options)
+    try:
+        for chunk in stream:
+            if deadline is not None and time.monotonic() >= deadline:
+                raise TimeoutError('model_request_timeout')
+            result = chunk if result is None else result + chunk
+        if deadline is not None and time.monotonic() >= deadline:
+            raise TimeoutError('model_request_timeout')
+    finally:
+        close = getattr(stream, 'close', None)
+        if close:
+            close()
+    if result is None:
+        raise IndustryModelOutputError('empty_model_output')
+    if not (getattr(result, 'response_metadata', None) or {}).get('finish_reason'):
+        raise IndustryModelOutputError('incomplete_model_stream')
+    return result
+
+
 def conclusion_output_limit():
     """Zero/unset omits max_tokens; the provider still enforces its own limit."""
     try:
