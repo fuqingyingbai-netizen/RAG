@@ -1,0 +1,4 @@
+{"role": "人物报告行文复查 - 第9章第1批", "transport": {"attempts": [{"status": "returned"}], "exhausted": false}}
+{"role": "人物报告行文复查 - 第9章第2批", "transport": {"attempts": [{"status": "failed", "exception_type": "EmptyPersonModelResponse", "failure_kind": "model_output_exhausted"}], "exhausted": true}}
+{"role": "人物报告行文复查 - 第9章第3批", "transport": {"attempts": [{"status": "failed", "exception_type": "APIConnectionError", "failure_kind": "request_failed"}, {"status": "failed", "exception_type": "APITimeoutError", "failure_kind": "request_failed"}], "exhausted": true}}
+{"role": "人物报告行文复查 - 第9章第4批", "transport": {"attempts": [{"status": "failed", "exception_type": "APITimeoutError", "failure_kind": "request_failed"}, {"status": "returned"}], "exhausted": false}}

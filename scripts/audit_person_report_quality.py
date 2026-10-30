@@ -92,7 +92,8 @@ def inspect(run):
                 contained.append({'first_chapter':first['chapter'],'second_chapter':second['chapter'],
                     'first_evidence_id':first['evidence_id'],'second_evidence_id':second['evidence_id'],
                     'contained_chars':min(len(first['text']),len(second['text']))})
-    return {'run': str(run), 'report_sha256': hashlib.sha256(report.encode()).hexdigest(),
+    return {'run': str(run), 'report_sha256': hashlib.sha256((run / 'desktop_report.md').read_bytes()).hexdigest(),
+        'report_hash_basis': 'raw_file_bytes',
         'chapter_count': len(sections), 'chapters': rows,
         'repeated_originals_across_body_chapters': duplicates,
         'repeated_original_character_excess': sum((len(r['body_chapters'])-1)*r['original_chars'] for r in duplicates),

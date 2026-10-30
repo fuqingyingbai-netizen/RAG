@@ -32,6 +32,8 @@ def writing_cards(facts):
             source_events=compact_metadata(f.get('source_events',record.get('source_events',[]))),
             source_named_person=f.get('source_named_person',record.get('source_named_person','')),
             eligible_for_risk_scoring=False)
+        if record.get('actor_context'):
+            card['source_actor_context'] = compact_metadata(record['actor_context'])
         result.append(card)
     return result
 
@@ -39,6 +41,9 @@ def writing_cards(facts):
 def writing_input_for(package,facts):
     clues=package.get('identity_clues_not_facts',{})
     return {'chapter':package['chapter'],'title':package['title'],'task':package.get('task',''),
+        **({'user_requirements': [{k:r[k] for k in ('requirement_id','question','expected_evidence')}
+                                  for r in package['user_requirements']]}
+           if package.get('user_requirements') else {}),
         'research_questions':[row['view'] for row in package.get('material_coverage',[])],
         'identity_clues_not_facts':{k:clues.get(k,[]) for k in ('aliases','known_affiliations','identity_anchors','roles','supplementary_context')},
         'facts':writing_cards(facts),

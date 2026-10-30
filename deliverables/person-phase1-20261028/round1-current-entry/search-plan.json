@@ -1,0 +1,147 @@
+{
+  "started_utc": "2026-10-28T07:57:36.243196+00:00",
+  "intake": {
+    "project_title": "张勇",
+    "client_name": "",
+    "deadline": "",
+    "target_name": "张勇",
+    "target_type": "person",
+    "official_identifier": "",
+    "affiliation": "海底捞",
+    "identity_anchors": "",
+    "focus_entities": "",
+    "industry": "",
+    "region": "",
+    "research_type": "鍟嗕笟灏借皟",
+    "focus_modules": [
+      "身份核验",
+      "基础履历",
+      "教育与履历",
+      "公开表达与采访",
+      "经营业绩",
+      "企业经营与战略事件",
+      "关联利益",
+      "司法信用",
+      "口碑与操守",
+      "团队与治理",
+      "同业对标",
+      "专项风险",
+      "个人背景"
+    ],
+    "ai_search_enabled": true,
+    "special_requirements": "核查目标人物的历史任职及持股变化，所有结论保留可定位原文和对应时期。",
+    "search_queries": [],
+    "focus_questions": [
+      "核对教育及职业履历与对应时期",
+      "核对本人任职、持股及公开司法事项",
+      "区分本人行为、关联公司记录与同名他人资料"
+    ],
+    "min_sources_per_module": 5,
+    "max_search_rounds": 3,
+    "force_refresh_from_upload_ocr": false,
+    "person_aliases": [],
+    "as_of_date": "2026-10-28",
+    "affiliation_raw": "海底捞",
+    "person_context": "研究对象为与海底捞有关的张勇。须区分同名的阿里巴巴前高管；输入职务只作身份定位线索，是否现任须核对披露时期。",
+    "uploaded_identity_clues": [],
+    "affiliations": [
+      "海底捞"
+    ],
+    "person_anchor": {
+      "target_person": "张勇",
+      "aliases": [
+        "张勇"
+      ],
+      "known_affiliations": [
+        "海底捞",
+        "海底捞国际控股有限公司"
+      ],
+      "identity_anchors": [],
+      "roles": [
+        "高管"
+      ],
+      "raw_context": "海底捞",
+      "supplementary_context": "研究对象为与海底捞有关的张勇。须区分同名的阿里巴巴前高管；输入职务只作身份定位线索，是否现任须核对披露时期。",
+      "focus_questions": [
+        "核对教育及职业履历与对应时期",
+        "核对本人任职、持股及公开司法事项",
+        "区分本人行为、关联公司记录与同名他人资料"
+      ],
+      "special_requirements": "核查目标人物的历史任职及持股变化，所有结论保留可定位原文和对应时期。",
+      "uploaded_identity_clues": [],
+      "provenance": "user_supplied_clues_not_verified_facts",
+      "anchor_status": "user_seeded",
+      "version": "person-identity-v6-article-and-actor-context"
+    },
+    "structured_target_candidates": [
+      "海底捞国际控股有限公司",
+      "海底捞餐饮有限责任公司",
+      "四川海底捞餐饮股份有限公司",
+      "就职于海底捞餐饮股份有限公司",
+      "法团名称)海底捞国际控股有限公司",
+      "就职于四川海底捞餐饮股份有限公司",
+      "四川省简阳市海底捞餐饮股份有限公司",
+      "四川省简阳市海底捞餐饮有限责任公司"
+    ],
+    "structured_target": "海底捞国际控股有限公司",
+    "canonical_company_name": "海底捞国际控股有限公司",
+    "associated_company": "海底捞国际控股有限公司",
+    "person_affiliation_context": {
+      "person_name": "张勇",
+      "affiliation_name": "海底捞",
+      "canonical_company_name": "海底捞国际控股有限公司",
+      "relationship_type": "用户提供或检索确认的直接关联主体",
+      "relationship_evidence_source_ids": [],
+      "relationship_evidence_hosts": [],
+      "relationship_confidence": "medium",
+      "recursion_depth": 0,
+      "selection_rank": 0,
+      "selection_reason": "人物项目显式关联主体，用于专业平台结构化采集。",
+      "filtering_note": "关联企业层面事实只能作为人物报告间接证据，不得直接归因为个人信用、违法或操守结论。"
+    }
+  },
+  "model_calls": 0,
+  "provider_query_limit": 2,
+  "original_fetch_limit": 2,
+  "professional_calls": 0,
+  "search_concurrency": 2,
+  "historical_corpus_modified": false,
+  "queries": [
+    {
+      "module": "身份核验",
+      "query": "\"张勇\" \"海底捞\" 官方 简历 任职 董事会",
+      "preferred_providers": [
+        "bocha"
+      ],
+      "person_search_audit_index": 0,
+      "person_chapters": [
+        2,
+        6,
+        9,
+        11
+      ],
+      "requirement_ids": [
+        "2.career"
+      ],
+      "retrieval_reason": "current_entry_identity_and_tenure_originals"
+    },
+    {
+      "module": "身份核验",
+      "query": "\"张勇\" \"海底捞\" 官方 简历 任职 董事会",
+      "preferred_providers": [
+        "exa"
+      ],
+      "person_search_audit_index": 1,
+      "person_chapters": [
+        2,
+        6,
+        9,
+        11
+      ],
+      "requirement_ids": [
+        "2.career"
+      ],
+      "retrieval_reason": "current_entry_identity_and_tenure_originals"
+    }
+  ]
+}

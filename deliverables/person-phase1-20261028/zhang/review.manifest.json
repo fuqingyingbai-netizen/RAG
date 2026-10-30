@@ -1,0 +1,11 @@
+{
+  "html": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\deliverables\\person-phase1-20261028\\zhang\\review.html",
+  "entry_count": 425,
+  "binding": {
+    "report_sha256": "7276163f3df9b20592ad64730121f657b6d863957846e3bb8fcb9ad1ae3202ce",
+    "source_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+    "index_code_sha256": "fe54156b3f61c6d2a649e32bd74a3a275dca9bec4b0f73b5a40c5144d8857e49"
+  },
+  "report_accepted": false,
+  "boundary": "Local review UI; no report approval or fabricated reviewer result."
+}

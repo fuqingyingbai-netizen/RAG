@@ -1,0 +1,47 @@
+[
+  {
+    "origin": "C:\\Users\\wangli\\.codex\\worktrees\\person-evidence-audit\\RAG\\work\\person-coverage-20261023\\corpus-wang\\chapter-selection-audit.json",
+    "copy": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\frozen\\wang\\chapter-selection-audit.json",
+    "sha256": "da1cff273dfead98b546bdc7593c54e2ae5b4d024028efed0066870dcab62af7"
+  },
+  {
+    "origin": "C:\\Users\\wangli\\.codex\\worktrees\\person-evidence-audit\\RAG\\work\\person-coverage-20261023\\corpus-wang\\cleaned_facts.json",
+    "copy": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\frozen\\wang\\cleaned_facts.json",
+    "sha256": "cf7230e3dbaa95d0ac7427c2efca516d21547a005c3bdb6cc37df31c9bd9c2b7"
+  },
+  {
+    "origin": "C:\\Users\\wangli\\.codex\\worktrees\\person-evidence-audit\\RAG\\work\\person-coverage-20261023\\corpus-wang\\desktop_report.md",
+    "copy": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\frozen\\wang\\desktop_report.md",
+    "sha256": "94cc7db3b1caa8290553d99ef30b63930bbffab740750dab7695f0c6b1549502"
+  },
+  {
+    "origin": "C:\\Users\\wangli\\.codex\\worktrees\\person-evidence-audit\\RAG\\work\\person-coverage-20261023\\corpus-wang\\intake.json",
+    "copy": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\frozen\\wang\\intake.json",
+    "sha256": "89bc7dcdfa25d7c42302a08582793b2132dd01910fbd67c983597f93f136feb9"
+  },
+  {
+    "origin": "C:\\Users\\wangli\\.codex\\worktrees\\person-evidence-audit\\RAG\\work\\person-coverage-20261023\\corpus-wang\\new-fetch-receipts.json",
+    "copy": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\frozen\\wang\\new-fetch-receipts.json",
+    "sha256": "2ce52965f0755c6b1fcccceaf26248500c151540a52a47e0da415202be3d3d8e"
+  },
+  {
+    "origin": "C:\\Users\\wangli\\.codex\\worktrees\\person-evidence-audit\\RAG\\work\\person-coverage-20261023\\corpus-wang\\person_claim_ledger.json",
+    "copy": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\frozen\\wang\\person_claim_ledger.json",
+    "sha256": "f48a7d10a65c9c708ce85bbbfaa030d805b1f40a2f337cc639e841d5cf009643"
+  },
+  {
+    "origin": "C:\\Users\\wangli\\.codex\\worktrees\\person-evidence-audit\\RAG\\work\\person-coverage-20261023\\corpus-wang\\person_retrieval_audit.json",
+    "copy": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\frozen\\wang\\person_retrieval_audit.json",
+    "sha256": "e35ea766ffec42ca57f59de3a7a215f147bb88aff8e56c2f1b010f4b9b8d1874"
+  },
+  {
+    "origin": "C:\\Users\\wangli\\.codex\\worktrees\\person-evidence-audit\\RAG\\work\\person-coverage-20261023\\corpus-wang\\source-snapshots.json",
+    "copy": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\frozen\\wang\\source-snapshots.json",
+    "sha256": "b152e60c02d8d41653f853b83116029f1ae5680bbfdd6f6b47413d551813a34a"
+  },
+  {
+    "origin": "C:\\Users\\wangli\\.codex\\worktrees\\person-evidence-audit\\RAG\\work\\person-coverage-20261023\\corpus-wang\\summary.json",
+    "copy": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\frozen\\wang\\summary.json",
+    "sha256": "ceb67b9403b6316b6374fe00a303a6d7c6ad85868550dc504b58beed7120eb88"
+  }
+]

@@ -1,0 +1,289 @@
+{
+  "scope": "one current production chapter generation, not a standalone model probe",
+  "summary": {
+    "baseline": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\frozen\\zhang",
+    "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+    "generation_code_sha256": "eca1e6a4888e6fa5a51bcd4dce609650fab3e94ab67067680d281da4ae185a08",
+    "previous_replay": "C:\\Users\\wangli\\.codex\\worktrees\\person-evidence-audit\\RAG\\work\\person-delivery-cycle-20261023\\fresh-zhang-v96-generated",
+    "comparison_scope": "same_retained_corpus",
+    "prior_sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+    "prior_supplement_calls": {
+      "new_search_calls": 0,
+      "new_fetch_calls": 35,
+      "new_professional_calls": 0
+    },
+    "feedback_records": "work\\person-phase1-20261028\\frozen\\zhang-feedback.json",
+    "prior_analysis_coverage_reminders": false,
+    "intake_sha256": "419b91a1c7d19701f0d6e3fba21d0ef040dda2c13f4ec836356442f2162b65f3",
+    "material_changed_chapters": [],
+    "rewrite_requested": [
+      2
+    ],
+    "outside_request": [],
+    "retained_after_compatible_narrowing": [],
+    "research_scope": {
+      "2": {
+        "admitted_facts": 58,
+        "admitted_sources": 23,
+        "personal_analysis_candidates": 56
+      }
+    },
+    "new_search_calls": 0,
+    "new_fetch_calls": 0,
+    "new_professional_calls": 0,
+    "model_request_timeout_seconds": 150,
+    "model_context": {
+      "model": "qwen3.8-max",
+      "endpoint_sha256": "f150bc566660d2ab4f87b073c0f0374b543ae8a492765ca3a0072f758039b4f0",
+      "temperature": 0.2,
+      "request_options": {
+        "max_tokens": 8192
+      }
+    },
+    "model_requests": 1,
+    "model_requests_returned": 0,
+    "code_unchanged_during_run": true,
+    "exact_input_responses_reused": 0,
+    "model_requests_failed": 1,
+    "elapsed_seconds": 158.625,
+    "unchanged_body_chapters": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "comparisons": [
+      {
+        "chapter": 1,
+        "text_changed": true,
+        "before_sha256": "9e5790d00311b523d84c7f60c58818f401b4088ab94a8db2c6368ab907e2f754",
+        "after_sha256": "8e5739855f7e02fbe458c62586a69a896d68a665dc4eddf8a500b373ce0712e5",
+        "before_chars": 1034,
+        "after_chars": 1034,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      },
+      {
+        "chapter": 2,
+        "text_changed": false,
+        "before_sha256": "03394ebfa70401c27b5978f802910f9153c185b853333f9a6d82249c6d432e50",
+        "after_sha256": "03394ebfa70401c27b5978f802910f9153c185b853333f9a6d82249c6d432e50",
+        "before_chars": 2721,
+        "after_chars": 2721,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      },
+      {
+        "chapter": 3,
+        "text_changed": false,
+        "before_sha256": "6fb04aa88377c04043352a5e79b7b7db7c1f34068936b44b78fd867a1069810e",
+        "after_sha256": "6fb04aa88377c04043352a5e79b7b7db7c1f34068936b44b78fd867a1069810e",
+        "before_chars": 1981,
+        "after_chars": 1981,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      },
+      {
+        "chapter": 4,
+        "text_changed": false,
+        "before_sha256": "d9b2b0bf3599c3852455bc4d8c2da6dae8731425ce2a0b15d127853288522b90",
+        "after_sha256": "d9b2b0bf3599c3852455bc4d8c2da6dae8731425ce2a0b15d127853288522b90",
+        "before_chars": 1943,
+        "after_chars": 1943,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      },
+      {
+        "chapter": 5,
+        "text_changed": false,
+        "before_sha256": "5e8c83e49203c3dbc9ec5dabcbe3eb5084c29c8c7f664a9a41f85198483dfae0",
+        "after_sha256": "5e8c83e49203c3dbc9ec5dabcbe3eb5084c29c8c7f664a9a41f85198483dfae0",
+        "before_chars": 2931,
+        "after_chars": 2931,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      },
+      {
+        "chapter": 6,
+        "text_changed": false,
+        "before_sha256": "fd5c39220ae926345a6a87b102816304a4ba6c62668ea77a686c4b11a94a5683",
+        "after_sha256": "fd5c39220ae926345a6a87b102816304a4ba6c62668ea77a686c4b11a94a5683",
+        "before_chars": 3100,
+        "after_chars": 3100,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      },
+      {
+        "chapter": 7,
+        "text_changed": false,
+        "before_sha256": "5d1513ec2aac7ff5ddccb805e0e502861ebf062e3269b1c78bda1b3574b6a267",
+        "after_sha256": "5d1513ec2aac7ff5ddccb805e0e502861ebf062e3269b1c78bda1b3574b6a267",
+        "before_chars": 1694,
+        "after_chars": 1694,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      },
+      {
+        "chapter": 8,
+        "text_changed": false,
+        "before_sha256": "d6dc2e18e23342715f3a599bf5bf282d2657acc878175594ee2c2297caa88974",
+        "after_sha256": "d6dc2e18e23342715f3a599bf5bf282d2657acc878175594ee2c2297caa88974",
+        "before_chars": 376,
+        "after_chars": 376,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      },
+      {
+        "chapter": 9,
+        "text_changed": false,
+        "before_sha256": "94b81af5a369405fc159e9cde1786854a1727875791db38bb8f6aebf43fb98f8",
+        "after_sha256": "94b81af5a369405fc159e9cde1786854a1727875791db38bb8f6aebf43fb98f8",
+        "before_chars": 5138,
+        "after_chars": 5138,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      },
+      {
+        "chapter": 10,
+        "text_changed": false,
+        "before_sha256": "ebd9bbf0376a4a0d8b44204ac5c8da52a47959e85c0cd001d8d3486f264c6d94",
+        "after_sha256": "ebd9bbf0376a4a0d8b44204ac5c8da52a47959e85c0cd001d8d3486f264c6d94",
+        "before_chars": 2602,
+        "after_chars": 2602,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      },
+      {
+        "chapter": 11,
+        "text_changed": false,
+        "before_sha256": "d880e2b7128bcab958acc49b41be17596c84c2d05230594b088fefcf42d94140",
+        "after_sha256": "d880e2b7128bcab958acc49b41be17596c84c2d05230594b088fefcf42d94140",
+        "before_chars": 1853,
+        "after_chars": 1853,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      },
+      {
+        "chapter": 12,
+        "text_changed": false,
+        "before_sha256": "fb617469b54297e9120f40285fcc71f8fc29747feb63bfe3ddc25ab84d7e1011",
+        "after_sha256": "fb617469b54297e9120f40285fcc71f8fc29747feb63bfe3ddc25ab84d7e1011",
+        "before_chars": 1987,
+        "after_chars": 1987,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      },
+      {
+        "chapter": 13,
+        "text_changed": true,
+        "before_sha256": "80e25eb310e4ebd0d424cac0e3ee69e592474cd943f61cc2eb6a99f505b7255b",
+        "after_sha256": "c390a5e5151a239c0f4e39a2c7771718f8d58b625a20744fc4aec8844774b38d",
+        "before_chars": 1612,
+        "after_chars": 1612,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      },
+      {
+        "chapter": 14,
+        "text_changed": false,
+        "before_sha256": "0d65cdb2fbb49723c56cdf186361ed5c657f1e13183933981b94b3900f2ebf04",
+        "after_sha256": "0d65cdb2fbb49723c56cdf186361ed5c657f1e13183933981b94b3900f2ebf04",
+        "before_chars": 19588,
+        "after_chars": 19588,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      },
+      {
+        "chapter": 15,
+        "text_changed": false,
+        "before_sha256": "00023b60823e76669050cc705de579842ad58d50a5542df6fff43e89dc2d52e1",
+        "after_sha256": "00023b60823e76669050cc705de579842ad58d50a5542df6fff43e89dc2d52e1",
+        "before_chars": 3246,
+        "after_chars": 3246,
+        "added_evidence_ids": [],
+        "removed_evidence_ids": []
+      }
+    ],
+    "actual_cost_available": false,
+    "cost_note": "No billing response supplied by provider; no price or cost estimated",
+    "audit": {
+      "degradations": [
+        {
+          "chapter": 2,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 3,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 4,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 5,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 9,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        },
+        {
+          "chapter": 10,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 11,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 12,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        }
+      ]
+    }
+  },
+  "observed_usage_and_errors": [
+    {
+      "label": "模型未返回可供校验的正文",
+      "detail": "empty_final_content",
+      "input_tokens": 6789,
+      "output_tokens": 8192,
+      "total_tokens": 14981,
+      "finish_reason": "length"
+    },
+    {
+      "label": "人物报告章节模型超时或失败，使用证据保底",
+      "detail": "empty_model_final_content:length",
+      "duration_ms": 67375,
+      "failure_kind": "provider_error"
+    }
+  ],
+  "error_classification": "model_output_exhausted_empty_final_content",
+  "http_403_or_429_observed": false,
+  "account_charge": null,
+  "report_accepted": false,
+  "next": "Repartition all 58 source records into 4000-char research batches, keep model, endpoint, output limit and all source records."
+}

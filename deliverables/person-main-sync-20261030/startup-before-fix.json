@@ -1,0 +1,8 @@
+{
+  "returncode": null,
+  "timed_out": true,
+  "seconds": 90.22,
+  "original_test_timeout_seconds": 90,
+  "external_network_allowed": false,
+  "code_modified": false
+}

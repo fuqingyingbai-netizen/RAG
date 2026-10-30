@@ -1,0 +1,11 @@
+{
+  "schema": "person-manual-review-v1",
+  "binding": {
+    "report_sha256": "ba85ca29290d9ab287b512939385026b61b7865d8c07adedbe631ee657392cfe",
+    "source_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+    "index_code_sha256": "ab4290f7878e95e4df5d64f6b79cad581e3e13157d94bbda88cf10f8ed60c625"
+  },
+  "target_name": "张勇",
+  "report_accepted": false,
+  "review_notes": {}
+}

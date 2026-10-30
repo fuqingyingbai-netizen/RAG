@@ -1,0 +1,261 @@
+[
+  {
+    "repository": "https://github.com/alephdata/followthemoney",
+    "commit": "c70a89ffa59ea785956f6095643310da3735b7fb",
+    "license_reviewed": "MIT",
+    "source_functions_or_types": "Employment/Directorship/Interest; EntityProxy.make_id",
+    "problem": "将任职等关系作为带时间的独立实体，名称不足以证明身份。",
+    "project_location": "backend/person_provenance.py:build_provenance_index/effective_time/merge_supports",
+    "adaptation_and_state": "身份候选、文档、观察、任职关系、履历事件及具名评价分别建索引，保留多来源支持与原文时间边界；不据同名或缺失离任日期认定身份或现任。",
+    "validation": "test/test_person_provenance.py; test/test_person_source_identity_veto.py",
+    "implementation_copied": false,
+    "source_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/alephdata/followthemoney/blob/c70a89ffa59ea785956f6095643310da3735b7fb/LICENSE",
+        "git_blob_sha": "82e6a0c89bbb3784acd5353b064f8895b25ed4c2",
+        "sha256": "5e9f5743b25c86b227a355426eb1df3bdb1839a2f3a1903b24f09427aa233e2c"
+      },
+      {
+        "path": "followthemoney/schema/Person.yaml",
+        "url": "https://github.com/alephdata/followthemoney/blob/c70a89ffa59ea785956f6095643310da3735b7fb/followthemoney/schema/Person.yaml",
+        "git_blob_sha": "31696136137f17c75fd25c20a4540f60c5d3273b",
+        "sha256": "315c61a07fd75263432a4fd8e671266ee9361fcdbd18e84a35b5f7f182e95a33"
+      },
+      {
+        "path": "followthemoney/schema/Employment.yaml",
+        "url": "https://github.com/alephdata/followthemoney/blob/c70a89ffa59ea785956f6095643310da3735b7fb/followthemoney/schema/Employment.yaml",
+        "git_blob_sha": "b2948cb062f08389c7422e1f8e31422d0c682753",
+        "sha256": "6185bc4ed2e6673f5ec0c8c058fd1c262e504fda9a776809514842f056e93530"
+      },
+      {
+        "path": "followthemoney/schema/Directorship.yaml",
+        "url": "https://github.com/alephdata/followthemoney/blob/c70a89ffa59ea785956f6095643310da3735b7fb/followthemoney/schema/Directorship.yaml",
+        "git_blob_sha": "2ac2c600bfe2b8b843582cfbf5eea26d35d38e3e",
+        "sha256": "5555f6c7a3376bbf3da9f02c8534a1e45a28221fde3e4ca3ba4e41df99730edf"
+      },
+      {
+        "path": "followthemoney/schema/Interest.yaml",
+        "url": "https://github.com/alephdata/followthemoney/blob/c70a89ffa59ea785956f6095643310da3735b7fb/followthemoney/schema/Interest.yaml",
+        "git_blob_sha": "09ad529f4619216fee9a6b8e9c41c7d1c31dc364",
+        "sha256": "cbdd6833134ce6608e3986589c5c84db21d1357f85a4f9f263f8b5bdef51be0b"
+      },
+      {
+        "path": "followthemoney/schema/Document.yaml",
+        "url": "https://github.com/alephdata/followthemoney/blob/c70a89ffa59ea785956f6095643310da3735b7fb/followthemoney/schema/Document.yaml",
+        "git_blob_sha": "5c064c2801f15100cbd11f33df06c618bf41aba1",
+        "sha256": "230ed8752f0d8befb627e758d0955626dd6638b4ce4a0031acbc41752c892b5f"
+      },
+      {
+        "path": "followthemoney/proxy.py",
+        "url": "https://github.com/alephdata/followthemoney/blob/c70a89ffa59ea785956f6095643310da3735b7fb/followthemoney/proxy.py",
+        "git_blob_sha": "5f4b6b7d0b57912b89a90781a85e4d41d9470520",
+        "sha256": "1efe7c394771672c27f915cacc7b45150d76593ee5ee68d902786ab4db91bc9a"
+      }
+    ]
+  },
+  {
+    "repository": "https://github.com/stanford-oval/storm",
+    "commit": "fb951af7744dab086e34962e9bc6fe878e145f83",
+    "license_reviewed": "MIT",
+    "source_functions_or_types": "TopicExpert.forward; QuestionToQuery",
+    "problem": "从具体研究问题生成检索，并保留检索与回答关联。",
+    "project_location": "backend/person_requirements.py:requirements/query_rows/bind_query_requirements; backend/research_strategies/person.py",
+    "adaptation_and_state": "前端11项要求贯通研究问题、身份锚点、工具能力、查询及预期证据；未知选项明确待映射。未采用上游首条摘要或1000词裁剪。",
+    "validation": "test/test_person_requirement_lineage.py; 全流程真实要求覆盖仍待验收",
+    "implementation_copied": false,
+    "source_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/stanford-oval/storm/blob/fb951af7744dab086e34962e9bc6fe878e145f83/LICENSE",
+        "git_blob_sha": "20df92744b57b9644a5b4351758522b8d49c87b5",
+        "sha256": "e23a6b4c68ea83e00fe9a5e82c1a05342cb594c72b6bbf1620a6e379f40e6c0c"
+      },
+      {
+        "path": "knowledge_storm/storm_wiki/modules/knowledge_curation.py",
+        "url": "https://github.com/stanford-oval/storm/blob/fb951af7744dab086e34962e9bc6fe878e145f83/knowledge_storm/storm_wiki/modules/knowledge_curation.py",
+        "git_blob_sha": "d6b892957e5ef2c68d659c294bf64a02c9135b2e",
+        "sha256": "d17fa5f1cc47b802647afd5004f1b3f79608f9a0b3159828089220f3b24a39c7"
+      }
+    ]
+  },
+  {
+    "repository": "https://github.com/langchain-ai/open_deep_research",
+    "commit": "1b7d2e80db9faa586165c60e09096dbbfd483a64",
+    "license_reviewed": "MIT",
+    "source_functions_or_types": "write_research_brief; supervisor_tools; ResearcherState; compress_research",
+    "problem": "研究简报、原始笔记和压缩结果分开保留，带有有界研究迭代。",
+    "project_location": "backend/person_material_review.py:writing_input_for/material_batches/read_then_write; scripts/audit_person_phase1_gaps.py:audit",
+    "adaptation_and_state": "要求进入完整材料研读，原文与分批研读分别保留；新增去向账和缺口账。未复制上游压缩实现，完整报告采用与补查闭环尚待验收。",
+    "validation": "test/test_person_requirement_lineage.py; test/test_person_question_material.py; historical-gaps/",
+    "implementation_copied": false,
+    "source_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/langchain-ai/open_deep_research/blob/1b7d2e80db9faa586165c60e09096dbbfd483a64/LICENSE",
+        "git_blob_sha": "82dc7c43f7ba98b72ac619ebfe7599576dc3ce7f",
+        "sha256": "98af1351ea856e008c835bc89a312905960a318072f950732bf346c741027c7d"
+      },
+      {
+        "path": "src/open_deep_research/deep_researcher.py",
+        "url": "https://github.com/langchain-ai/open_deep_research/blob/1b7d2e80db9faa586165c60e09096dbbfd483a64/src/open_deep_research/deep_researcher.py",
+        "git_blob_sha": "279dbffd9e49e07962fb4e1cfeff79e45adc43e9",
+        "sha256": "c5ef5c792440d6635021ec8ef85cac54da4ee5f6943a07fb26c01bed6320e231"
+      },
+      {
+        "path": "src/open_deep_research/state.py",
+        "url": "https://github.com/langchain-ai/open_deep_research/blob/1b7d2e80db9faa586165c60e09096dbbfd483a64/src/open_deep_research/state.py",
+        "git_blob_sha": "7578235e1369032276ef2c5ae3edf0c350ab7af8",
+        "sha256": "26ec1f1edf19e5bdba756454e0de2418e330b4889169bd17b8fbf98581422fa9"
+      }
+    ]
+  },
+  {
+    "repository": "https://github.com/assafelovic/gpt-researcher",
+    "commit": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "license_reviewed": "Apache-2.0",
+    "source_functions_or_types": "EditorAgent._create_workflow/_route_draft_review; ReviewerAgent.review_draft; ReviserAgent",
+    "problem": "研究、审稿、修订各有职责，审稿反馈驱动下一步。",
+    "project_location": "backend/person_evidence.py:generate_person_report; scripts/replay_person_chapters.py",
+    "adaptation_and_state": "保留现有写作、语义审稿、采用审稿及修订的独立调用职责，不因次数到顶自动接受；未建立常驻多代理。当前新接口尚未跑完章节审稿。",
+    "validation": "test/test_person_question_material.py; test/test_person_output_exhaustion.py; 真实整报告审稿待完成",
+    "implementation_copied": false,
+    "source_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/LICENSE",
+        "git_blob_sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+        "sha256": "c95bae1d1ce0235ecccd3560b772ec1efb97f348a79f0fbe0a634f0c2ccefe2c"
+      },
+      {
+        "path": "multi_agents/agents/orchestrator.py",
+        "url": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/multi_agents/agents/orchestrator.py",
+        "git_blob_sha": "d0b5aa492c36f34a8ad0d1e37b0c303144492b39",
+        "sha256": "862336d36ba0d975c692fb97e6cb0aefc01ce769fe6e8469b150920a3a0a9de5"
+      },
+      {
+        "path": "multi_agents/agents/reviewer.py",
+        "url": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/multi_agents/agents/reviewer.py",
+        "git_blob_sha": "e11195c2be064069bead12a7cac538b79b82806e",
+        "sha256": "3717e722a11dfbfc342c4f6eae1fec483d38c569a18d16f6b65f6084834e271c"
+      },
+      {
+        "path": "multi_agents/agents/reviser.py",
+        "url": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/multi_agents/agents/reviser.py",
+        "git_blob_sha": "198089de147eda172dea7d4fc49c07f1df78afae",
+        "sha256": "d326037b0f59f11633a939d3c18cd7f07b3f4cc722e640377d145b6b19fa4824"
+      },
+      {
+        "path": "multi_agents/agents/editor.py",
+        "url": "https://github.com/assafelovic/gpt-researcher/blob/3582a6841fe7dc801e2a34e34ee408641aea9bce/multi_agents/agents/editor.py",
+        "git_blob_sha": "2cbfc9800d21b716adffd2caf6bb867709fe1f4c",
+        "sha256": "ff547ab24ed37de584b3076e0543a35fca31ee4d4ba40acbcb0a19b4b1e06c3b"
+      }
+    ]
+  },
+  {
+    "repository": "https://github.com/rgerjeki/Dossier",
+    "commit": "512b121739a8c95ec5015dcee337fefc48da1105",
+    "license_reviewed": "MIT",
+    "source_functions_or_types": "Finding; FindingStatus; Confidence; Case",
+    "problem": "采集状态、来源置信与分析置信独立；保留人工采用与备注入口。",
+    "project_location": "backend/person_risk_evidence.py:build_register; scripts/build_person_phase1_review.py:main",
+    "adaptation_and_state": "来源线索存在、可靠性、严重性与个人责任分开；复核记录绑定报告/语料/代码版本，实际浏览器已验证导出导入及版本拒绝。未采集账号探测等无关个人信息。",
+    "validation": "test/test_person_risk_evidence.py; ui-qa/; 人工事实复核仍待完成",
+    "implementation_copied": false,
+    "source_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/rgerjeki/Dossier/blob/512b121739a8c95ec5015dcee337fefc48da1105/LICENSE",
+        "git_blob_sha": "62e6e3c645896da2657608ba26979fc74abb0c29",
+        "sha256": "fb07031d8d848c7ff6c907c8465968cca55dbab74ef5449faca26103510d9330"
+      },
+      {
+        "path": "src/dossier/models.py",
+        "url": "https://github.com/rgerjeki/Dossier/blob/512b121739a8c95ec5015dcee337fefc48da1105/src/dossier/models.py",
+        "git_blob_sha": "40e9866d9a0a4172865f8b273da241871c22f231",
+        "sha256": "dec99ce49c736d965458c0272f05471c08736ef44d828161a326d6bc13b6787c"
+      },
+      {
+        "path": "src/dossier/case.py",
+        "url": "https://github.com/rgerjeki/Dossier/blob/512b121739a8c95ec5015dcee337fefc48da1105/src/dossier/case.py",
+        "git_blob_sha": "cb6cbaed22769125e3f9c64c7ab00cbb2e49f6f5",
+        "sha256": "4f5bb5c9ec4789c5f430966b9d2e60175552087814e2ecd42a7a42da35b9ea9b"
+      },
+      {
+        "path": "src/dossier/ui/report_editor.py",
+        "url": "https://github.com/rgerjeki/Dossier/blob/512b121739a8c95ec5015dcee337fefc48da1105/src/dossier/ui/report_editor.py",
+        "git_blob_sha": "d7625dbc87695259cb59375b4d90aab0ddbc5959",
+        "sha256": "a9bdd7910171c5bcfd33d4e85d5dac5dcdb3103584f84eea1523e91385625804"
+      }
+    ]
+  },
+  {
+    "repository": "https://github.com/openaleph/openaleph",
+    "commit": "ef41665db5e8c8e9b563ba61036ea9842f8c4dec",
+    "license_reviewed": "MIT",
+    "source_functions_or_types": "Document.content_hash/update; Entity.update/to_proxy",
+    "problem": "文档内容身份与实体数据分离，来源日期分字段保存。",
+    "project_location": "backend/person_provenance.py:build_provenance_index/stable_id",
+    "adaptation_and_state": "文档内容哈希、片段ID和精确字符位置贯通；无法精确定位时保留待核，不虚构偏移或物理页。未替换现有存储或复制平台数据库。",
+    "validation": "test/test_person_provenance.py; baseline-comparison.json",
+    "implementation_copied": false,
+    "source_files": [
+      {
+        "path": "LICENSE.txt",
+        "url": "https://github.com/openaleph/openaleph/blob/ef41665db5e8c8e9b563ba61036ea9842f8c4dec/LICENSE.txt",
+        "git_blob_sha": "61e78c4d4db1740cd1d6e04726bacb20dcd0a3a8",
+        "sha256": "44cfcbc1ef81b7164a32b3a1da977729a78a5ba8238e613472e4b146fc36771f"
+      },
+      {
+        "path": "aleph/model/document.py",
+        "url": "https://github.com/openaleph/openaleph/blob/ef41665db5e8c8e9b563ba61036ea9842f8c4dec/aleph/model/document.py",
+        "git_blob_sha": "b3a24576a9c041d1376c6ca50f1e59a2ee6a5a41",
+        "sha256": "c6c3205a7f014fa63c4b1d48dfff5665453f0e815fbfcee9e77981708c82eb5a"
+      },
+      {
+        "path": "aleph/model/entity.py",
+        "url": "https://github.com/openaleph/openaleph/blob/ef41665db5e8c8e9b563ba61036ea9842f8c4dec/aleph/model/entity.py",
+        "git_blob_sha": "b761437e9bb897d36f8f589fa199ce96010c8e79",
+        "sha256": "b125ab02f1101538523d0304b62fcc60b568181d6c1334e4a29da5167e48445f"
+      },
+      {
+        "path": "aleph/logic/documents.py",
+        "url": "https://github.com/openaleph/openaleph/blob/ef41665db5e8c8e9b563ba61036ea9842f8c4dec/aleph/logic/documents.py",
+        "git_blob_sha": "7ad68c6cf8873f2ef66a52b2cc02eaa9de294746",
+        "sha256": "76ed1b694ba18ab674d88831a7b798956d164a89f0c39f2a96ad5ef9cdc34dec"
+      }
+    ]
+  },
+  {
+    "repository": "https://github.com/duhu2000/financial-services-qcc",
+    "commit": "fb1289cf1c58fa99a3af37d594488400a22974b7",
+    "license_reviewed": "Apache-2.0",
+    "source_functions_or_types": "QccMcpConnectorFinancial._call_mcp/kyb_fast_verification; executive-background-qcc工具路由文本",
+    "problem": "按专业数据类型组织调用，人物姓名和组织作为不同参数。",
+    "project_location": "backend/person_requirements.py:requirements/bind_query_requirements; backend/person_risk_evidence.py:build_register",
+    "adaptation_and_state": "仅参考人物问题与专业工具路由设计，映射工具能力而非臆造API名；失败、未查询、无可引用记录分开登记，不转为个人风险。未采用公司KYB评分或上游示例接口可用性断言。",
+    "validation": "test/test_person_requirement_lineage.py; test/test_person_risk_evidence.py; 当前专业平台成功回执尚待验证",
+    "implementation_copied": false,
+    "source_files": [
+      {
+        "path": "LICENSE",
+        "url": "https://github.com/duhu2000/financial-services-qcc/blob/fb1289cf1c58fa99a3af37d594488400a22974b7/LICENSE",
+        "git_blob_sha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+        "sha256": "8c6db340475136df3c1201d458fa5755698eace76e510471ecc9d857d6083dac"
+      },
+      {
+        "path": "scripts/qcc_mcp_connector_financial.py",
+        "url": "https://github.com/duhu2000/financial-services-qcc/blob/fb1289cf1c58fa99a3af37d594488400a22974b7/scripts/qcc_mcp_connector_financial.py",
+        "git_blob_sha": "5ac813586a3f58c306b84501bfc821f4a0b2fe4c",
+        "sha256": "e6509576b7e012b4f89875e1b97a0efc30546357c1387e322d9de52f96181af6"
+      },
+      {
+        "path": "skills/executive-background-qcc/SKILL.md",
+        "url": "https://github.com/duhu2000/financial-services-qcc/blob/fb1289cf1c58fa99a3af37d594488400a22974b7/skills/executive-background-qcc/SKILL.md",
+        "git_blob_sha": "9692b294781cd4ff3229ee0bb7c902bbb4eb3fee",
+        "sha256": "5390e01a17727bec43ec96bbd0033cdf3f4485123ddbbfe47a58521293ecd533"
+      }
+    ]
+  }
+]

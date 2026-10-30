@@ -1,0 +1,733 @@
+[
+  {
+    "review_id": "C7-0",
+    "chapter": 7,
+    "claim": "- 研究判断（待人工复核）：来源载明董事会将增持计划表述为对集团前景的长期承诺及坚定信心，并称体现其对中国经济及相关消费领域的正面预期；属董事会评价，不能直接作为个人信用已核实的结论。 [E-P9631719F3EBCEC]",
+    "sampling": "all_high_risk_chapter_analyses",
+    "source_support": [
+      {
+        "evidence_id": "E-P9631719F3EBCEC",
+        "source_url": "https://news.futunn.com/post/71320255/haidilao-06862-zhang-yong-controlling-shareholder-executive-director-chairman-of",
+        "quote": "董事会认为，本次增持计划表明张勇先生对集团前景的长期承诺及坚定信心，并体现其对中国经济及相关消费领域发展的正面预期。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [],
+          "direct_person_link": true,
+          "source_url": "https://news.futunn.com/post/71320255/haidilao-06862-zhang-yong-controlling-shareholder-executive-director-chairman-of",
+          "evidence_id": "E-P9631719F3EBCEC",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      }
+    ],
+    "independent_review_status": "pending",
+    "source_truth_or_responsibility_confirmed": false
+  },
+  {
+    "review_id": "C7-1",
+    "chapter": 7,
+    "claim": "- 研究判断（待人工复核）：来源以“用个人信用为海底捞穿越周期赎买”作评价性表述，属媒体观点，未提供可核验的信用记录或协议。 [E-PDB6D7882EEA962]",
+    "sampling": "all_high_risk_chapter_analyses",
+    "source_support": [
+      {
+        "evidence_id": "E-PDB6D7882EEA962",
+        "source_url": "https://www.tmtpost.com/7936124.html",
+        "quote": "这是商业上的断舍离，也是张勇在用自己的个人信用，为海底捞穿越周期进行“赎买”。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [],
+          "direct_person_link": true,
+          "source_url": "https://www.tmtpost.com/7936124.html",
+          "evidence_id": "E-PDB6D7882EEA962",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      }
+    ],
+    "independent_review_status": "pending",
+    "source_truth_or_responsibility_confirmed": false
+  },
+  {
+    "review_id": "C9-0",
+    "chapter": 9,
+    "claim": "- 研究判断（待人工复核）：来源载张勇为海底捞控股股东、执行董事、董事会主席兼首席执行官，自1月13日起获委任CEO、苟轶群同日辞任（年份未明），未载具体决策权限。 [E-P796DB84FA6879C] [E-P68BFD29CFC1350]",
+    "sampling": "all_high_risk_chapter_analyses",
+    "source_support": [
+      {
+        "evidence_id": "E-P68BFD29CFC1350",
+        "source_url": "https://www.stcn.com/article/detail/3592830.html",
+        "quote": "公告显示，因服务于公司战略发展的董事会组成及角色调整，自1月13日起，苟轶群辞任公司执行董事及首席执行官，董事会主席及执行董事张勇获委任为首席执行官，形成创始人兼任董事会主席和CEO的治理结构。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [],
+          "direct_person_link": true,
+          "source_url": "https://www.stcn.com/article/detail/3592830.html",
+          "evidence_id": "E-P68BFD29CFC1350",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      },
+      {
+        "evidence_id": "E-P796DB84FA6879C",
+        "source_url": "https://news.futunn.com/post/71320252/haidilao-06862-hk-chairman-plans-to-purchase-at-least-hkd",
+        "quote": "海底捞(06862.HK)公布，控股股东、执行董事、董事会主席兼首席执行官张勇，计划自今日(10日)起的12个月内，在公开市场以其自有资金直接或透过其控制的实体增持公司股份，以增加其持股，金额不少于1亿元。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [
+            "holding"
+          ],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [],
+          "direct_person_link": true,
+          "source_url": "https://news.futunn.com/post/71320252/haidilao-06862-hk-chairman-plans-to-purchase-at-least-hkd",
+          "evidence_id": "E-P796DB84FA6879C",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      }
+    ],
+    "independent_review_status": "pending",
+    "source_truth_or_responsibility_confirmed": false
+  },
+  {
+    "review_id": "C9-1",
+    "chapter": 9,
+    "claim": "- 研究判断（待人工复核）：来源分别载其持20.82亿股约占37.36%、33.64亿股占37.35%，基准日未明；研报另载个人权益44.01%、夫妇经ZY NP及SP NP直接持34.61%，均属不同时点口径，不合并。 [E-P1E19390D5856E2] [E-P78B30ED07BE0FE] [E-PABB44EDE9176D9]",
+    "sampling": "all_high_risk_chapter_analyses",
+    "source_support": [
+      {
+        "evidence_id": "E-P1E19390D5856E2",
+        "source_url": "https://news.futunn.com/post/71320255/haidilao-06862-zhang-yong-controlling-shareholder-executive-director-chairman-of",
+        "quote": "截至本公告日期，张勇先生直接及间接透过其控制的实体持有公司合共20.82亿股股份，占公司已发行股份(不包括库存股份)约37.36%。根据公司可得资料及就董事所知和所信，倘增持计划实施，公司仍将维持已发行股份的足够公众持股量。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [
+            "holding"
+          ],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [
+            {
+              "metric": "share_count",
+              "value": "20.82",
+              "unit": "亿股",
+              "source_literal": "20.82亿股",
+              "period": "",
+              "subject": "张勇",
+              "issuer": ""
+            },
+            {
+              "metric": "holding_ratio",
+              "value": "37.36",
+              "unit": "%",
+              "source_literal": "37.36%",
+              "period": "",
+              "subject": "张勇",
+              "issuer": ""
+            }
+          ],
+          "direct_person_link": true,
+          "source_url": "https://news.futunn.com/post/71320255/haidilao-06862-zhang-yong-controlling-shareholder-executive-director-chairman-of",
+          "evidence_id": "E-P1E19390D5856E2",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      },
+      {
+        "evidence_id": "E-P78B30ED07BE0FE",
+        "source_url": "https://www.21jingji.com/article/20260114/herald/d7d49f1f85762afe45a877b04b6af5cd.html",
+        "quote": "目前，张勇持有海底捞股票33.64亿股，持股占比37.35%。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [
+            "holding"
+          ],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [
+            {
+              "metric": "share_count",
+              "value": "33.64",
+              "unit": "亿股",
+              "source_literal": "33.64亿股",
+              "period": "",
+              "subject": "张勇",
+              "issuer": ""
+            },
+            {
+              "metric": "holding_ratio",
+              "value": "37.35",
+              "unit": "%",
+              "source_literal": "37.35%",
+              "period": "",
+              "subject": "张勇",
+              "issuer": ""
+            }
+          ],
+          "direct_person_link": true,
+          "source_url": "https://www.21jingji.com/article/20260114/herald/d7d49f1f85762afe45a877b04b6af5cd.html",
+          "evidence_id": "E-P78B30ED07BE0FE",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      },
+      {
+        "evidence_id": "E-PABB44EDE9176D9",
+        "source_url": "http://pdf.dfcfw.com/pdf/H3_AP201812121267801920_1.pdf",
+        "quote": "1.3、股权结构：创始人控股，经营稳健 \n公司股权结构清晰。海底捞控股股东为创始人张勇，张勇个人拥有公司发行股份\n44.01%的权益。张勇夫妇通过 ZY NP Ltd. 及 SP NP Ltd. 直接持股 34.61%。施永\n宏夫妇通过 SYH NP Ltd. 及 LHY NP Ltd. 直接持股 16.40%。NP United Holding \nLtd.（张勇夫妇持有该公司 67.85%权益）持股 34.00%。经历二十余年的运营，创\n始人积累了丰富的市场及管理经验。全球发行完成后，张勇和施永宏仍担任执行\n董事，负责统筹公司管理及战略发展。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [
+            "appointment",
+            "holding"
+          ],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "张勇夫妇",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [
+            {
+              "metric": "holding_ratio",
+              "value": "44.01",
+              "unit": "%",
+              "source_literal": "44.01%",
+              "period": "",
+              "subject": "张勇",
+              "issuer": ""
+            },
+            {
+              "metric": "holding_ratio",
+              "value": "34.61",
+              "unit": "%",
+              "source_literal": "34.61%",
+              "period": "",
+              "subject": "张勇夫妇",
+              "issuer": ""
+            },
+            {
+              "metric": "holding_ratio",
+              "value": "16.40",
+              "unit": "%",
+              "source_literal": "16.40%",
+              "period": "",
+              "subject": "施永宏夫妇",
+              "issuer": ""
+            },
+            {
+              "metric": "holding_ratio",
+              "value": "67.85",
+              "unit": "%",
+              "source_literal": "67.85%",
+              "period": "",
+              "subject": "张勇夫妇",
+              "issuer": ""
+            },
+            {
+              "metric": "holding_ratio",
+              "value": "34.00",
+              "unit": "%",
+              "source_literal": "34.00%",
+              "period": "",
+              "subject": "NP United Holding Ltd.",
+              "issuer": ""
+            }
+          ],
+          "direct_person_link": true,
+          "source_url": "http://pdf.dfcfw.com/pdf/H3_AP201812121267801920_1.pdf",
+          "evidence_id": "E-PABB44EDE9176D9",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      }
+    ],
+    "independent_review_status": "pending",
+    "source_truth_or_responsibility_confirmed": false
+  },
+  {
+    "review_id": "C9-2",
+    "chapter": 9,
+    "claim": "- 研究判断（待人工复核）：2017年年报所列：张勇2016年3月7日获委任为颐海国际非执行董事，2015年12月起任董事；来源另载其为颐海最大股东，海底捞为颐海关联方及大客户。 [E-PF58356C6C8B670] [E-P77703357D2CEE0] [E-P20C51228B02967]",
+    "sampling": "all_high_risk_chapter_analyses",
+    "source_support": [
+      {
+        "evidence_id": "E-P20C51228B02967",
+        "source_url": "https://www.hkexnews.hk/listedco/listconews/SEHK/2018/0403/LTN201804032445.pdf",
+        "quote": "張勇先生，47崴，於2016年3月7日獲\nDirector on7 March2016.Mr.Zhangis one of thefounders of the\n委任為本公司非執行董事。張先生為海\nHaidilaoGroup andhasover 21years of food industry and management\n底捞集團的創辦人之一亚於海底捞集團\nexperiencewithintheHaidilaoGroup.HehasbeenaDirectorsince\n积累逾21年食品行業及管理經驗。自\nDecember 2015 and isprimarilyresponsibleforparticipating inmaking\n2015年12月起任本公司董事，主要負\nmajor decisionsfor theCompany.Mr.Zhangservedas thegeneral\n责参與作出本公司的重要决策。張先生\nmanagerofSichuanHaidilaofromApril1994toMarch2001.Between\n於1994年4月至2001年3月任四川海\nApril 2001 and June 2009,Mr.Zhang servedasboth theexecutive\n底捞的總經理。2001年4月至2009年6\ndirectorandthegeneralmanagerofSichuanHaidilao.SinceJuly\n月，張先生任四川海底捞的執行董事\n2009,Mr.Zhanghasserved as the director and chairmanof Sichuan\n兼總經理。自2009年7月起，張先生\nHaidilao. Mr. Zhang also serves as a director and member of senior\n任四川海底捞的董事兼董事長。張先生\n亦於本公司控股股东聯繁人任董事及\n高級管理層成員·张先生分别於2011年\nprogram and completed thefinance master of business administration\n10月及2012年8月分别完成長江商學院\nprogramfromCheungKongGraduateSchoolofBusiness（長江商學院）\n高级管理人員工商管理硕土課程及長江\nin October2011and August 2012,respectively.\n商學院金融工商管理硕士課程。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [
+            "holding"
+          ],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [
+            {
+              "kind": "appointment",
+              "date_literal": "2015年12月",
+              "source_quote": "2015年12月起任本公司"
+            }
+          ],
+          "metrics": [],
+          "direct_person_link": true,
+          "source_url": "https://www.hkexnews.hk/listedco/listconews/SEHK/2018/0403/LTN201804032445.pdf",
+          "evidence_id": "E-P20C51228B02967",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      },
+      {
+        "evidence_id": "E-P77703357D2CEE0",
+        "source_url": "https://s.askci.com/stock/executives/HK6862/99adee0fb6f95d21.shtml",
+        "quote": "个人简介： \n 张勇先生，于2016年3月7日获委任为颐海国际控股有限公司的非执行董事。张先生为海底捞集团的创办人之一，于海底捞集团积累逾20年食品行业及管理经验。自2015年12月起担任颐海国际董事，主要负责参与作出公司的重要决策。张先生于1994年4月至2001年3月担任四川海底捞的总经理。2001年4月至2009年6月，张先生担任四川海底捞的执行董事兼总经理。自2009年7月起，张先生担任四川海底捞的董事兼董事长。张先生亦于颐海国际的控股股东联系人担任董事及高级管理层成员；进一步详情请参阅‘与控股股东的关系-独立于控股股东-管理层独立’。张先生分别于2011年10月及2012年8月分别完成长江商学院高级管理人员工商管理硕士课程及长江商学院金融工商管理硕士课程。于2018年5月2日担任海底捞的执行董事。于2026年1月13日担任海底捞国际控股有限公司的首席执行官。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [
+            "appointment",
+            "holding"
+          ],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [
+            {
+              "kind": "appointment",
+              "date_literal": "2016年3月7日",
+              "source_quote": "2016年3月7日获委任"
+            },
+            {
+              "kind": "appointment",
+              "date_literal": "2015年12月",
+              "source_quote": "2015年12月起担任"
+            },
+            {
+              "kind": "appointment",
+              "date_literal": "1994年4月至2001年3月",
+              "source_quote": "1994年4月至2001年3月担任"
+            },
+            {
+              "kind": "appointment",
+              "date_literal": "2018年5月2日",
+              "source_quote": "2018年5月2日担任"
+            },
+            {
+              "kind": "appointment",
+              "date_literal": "2026年1月13日",
+              "source_quote": "2026年1月13日担任"
+            }
+          ],
+          "metrics": [],
+          "direct_person_link": true,
+          "source_url": "https://s.askci.com/stock/executives/HK6862/99adee0fb6f95d21.shtml",
+          "evidence_id": "E-P77703357D2CEE0",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      },
+      {
+        "evidence_id": "E-PF58356C6C8B670",
+        "source_url": "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html",
+        "quote": "海底捞创始人张勇是颐海国际的最大股东，任职非执行董事。海底捞是颐海国际的关联方加大客户。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [
+            "appointment",
+            "holding"
+          ],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [],
+          "direct_person_link": true,
+          "source_url": "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html",
+          "evidence_id": "E-PF58356C6C8B670",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      }
+    ],
+    "independent_review_status": "pending",
+    "source_truth_or_responsibility_confirmed": false
+  },
+  {
+    "review_id": "C9-3",
+    "chapter": 9,
+    "claim": "- 研究判断（待人工复核）：公告载公司向张勇提供不超1亿港元无担保贷款，期限30天，限个人财务安排、不得购股；减持后夫妇控制集团持股45.49%，是否发放或偿还未载。 [E-PFC734E428933C0] [E-PB482C46A3D79A3] [E-P516966F9464ADE]",
+    "sampling": "all_high_risk_chapter_analyses",
+    "source_support": [
+      {
+        "evidence_id": "E-P516966F9464ADE",
+        "source_url": "https://www.jwview.com/jingwei/html/m/09-11/687434.shtml",
+        "quote": "交易完成后，张勇夫妇控制的控股集团持股降至45.49%，仍为公司控股股东。海底捞公告称，据SP NP Ltd.告知，“该项出售纯粹出于其自身资金需要及财务安排而作出，与海底捞业务、营运、财务状况或发展前景概无任何关系。”",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [
+            "holding"
+          ],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "张勇夫妇",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [
+            {
+              "metric": "holding_ratio",
+              "value": "45.49",
+              "unit": "%",
+              "source_literal": "45.49%",
+              "period": "",
+              "subject": "张勇夫妇",
+              "issuer": ""
+            }
+          ],
+          "direct_person_link": true,
+          "source_url": "https://www.jwview.com/jingwei/html/m/09-11/687434.shtml",
+          "evidence_id": "E-P516966F9464ADE",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      },
+      {
+        "evidence_id": "E-PB482C46A3D79A3",
+        "source_url": "https://www.chnfund.com/article/ARf2234aad-823a-c536-cb9a-3a24455e7331",
+        "quote": "公告明确限定，这笔贷款只能用于张勇的个人财务安排，且不得用于任何非法活动、购买海底捞股份，或向任何第三方提供贷款、担保或财务资助。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [],
+          "direct_person_link": true,
+          "source_url": "https://www.chnfund.com/article/ARf2234aad-823a-c536-cb9a-3a24455e7331",
+          "evidence_id": "E-PB482C46A3D79A3",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      },
+      {
+        "evidence_id": "E-PFC734E428933C0",
+        "source_url": "https://www.chnfund.com/article/ARf2234aad-823a-c536-cb9a-3a24455e7331",
+        "quote": "10月12日晚间，海底捞（06862.HK）发布公告，披露了一项与控股股东、董事会主席兼CEO张勇之间的贷款协议。根据公告，海底捞同意向张勇提供不超过1亿港元的无担保贷款融资，贷款期限仅30天，利率为一月期港元同业拆息加60个基点。该贷款将于协议签订后的三个营业日内一次性发放至张勇指定账户。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [
+            "holding"
+          ],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [],
+          "direct_person_link": true,
+          "source_url": "https://www.chnfund.com/article/ARf2234aad-823a-c536-cb9a-3a24455e7331",
+          "evidence_id": "E-PFC734E428933C0",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      }
+    ],
+    "independent_review_status": "pending",
+    "source_truth_or_responsibility_confirmed": false
+  },
+  {
+    "review_id": "C9-4",
+    "chapter": 9,
+    "claim": "- 研究判断（待人工复核）：2016年12月，用友与海底捞集团旗下上海海悦投资管理有限公司发起成立红火台餐饮云服务有限公司，张勇担任副董事长；该表述系报道所载，未列任职起止。 [E-P007AD80EBDD9FD]",
+    "sampling": "all_high_risk_chapter_analyses",
+    "source_support": [
+      {
+        "evidence_id": "E-P007AD80EBDD9FD",
+        "source_url": "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html",
+        "quote": "2016年12月，用友与海底捞集团旗下的上海海悦投资管理有限公司发起成立红火台餐饮云服务有限公司，主要做餐饮企业信息化与互联网餐饮服务，张勇担任副董事长。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [
+            "appointment"
+          ],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [],
+          "direct_person_link": true,
+          "source_url": "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html",
+          "evidence_id": "E-P007AD80EBDD9FD",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      }
+    ],
+    "independent_review_status": "pending",
+    "source_truth_or_responsibility_confirmed": false
+  },
+  {
+    "review_id": "C9-5",
+    "chapter": 9,
+    "claim": "- 研究判断（待人工复核）：媒体回顾2007年张勇以原始出资额购施永宏夫妇18%股权，张勇夫妇成海底捞68%绝对控股股东；胞弟张硕轶持静海优鼎、优鼎壹号股权，静远投资由张勇舒萍持68%。 [E-P249FD1EF4660A7] [E-PD40DE8F3FFC51D] [E-P692DFE593EDD78]",
+    "sampling": "all_high_risk_chapter_analyses",
+    "source_support": [
+      {
+        "evidence_id": "E-P249FD1EF4660A7",
+        "source_url": "https://www.gelonghui.com/p/201997",
+        "quote": "张勇随后又在2007年让施永宏也离开海底捞，并以原始出资额的价格从施永宏夫妻手中购买了18%的股权。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [
+            "holding"
+          ],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [],
+          "direct_person_link": true,
+          "source_url": "https://www.gelonghui.com/p/201997",
+          "evidence_id": "E-P249FD1EF4660A7",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      },
+      {
+        "evidence_id": "E-P692DFE593EDD78",
+        "source_url": "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html",
+        "quote": "张硕轶是以一万元成为静海优鼎、优鼎壹号的股东。静海优鼎和优鼎壹号的最大股东是简阳市静海投资有限公司，张硕轶的兄长张勇及其妻子舒萍持有简阳市静远投资有限公司68%股权。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [
+            "holding"
+          ],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [
+            {
+              "metric": "holding_ratio",
+              "value": "68",
+              "unit": "%",
+              "source_literal": "68%",
+              "period": "",
+              "subject": "张勇",
+              "issuer": ""
+            }
+          ],
+          "direct_person_link": true,
+          "source_url": "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html",
+          "evidence_id": "E-P692DFE593EDD78",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      },
+      {
+        "evidence_id": "E-PD40DE8F3FFC51D",
+        "source_url": "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html",
+        "quote": "施永宏和李海燕是张勇的创业早期伙伴。2007年，张勇在让施永宏下岗的同时，还以原始出资额的价格，从施永宏夫妇的手中购买了18%的股权，张勇夫妇成了海底捞68%（超过三分之二）的绝对控股股东。",
+        "exact_original_match": true,
+        "scope": "person",
+        "event_date": "未披露",
+        "observation": {
+          "subject": "张勇",
+          "source_named_person": "",
+          "subject_scope": "person",
+          "issuer": "",
+          "relations": [
+            "holding"
+          ],
+          "period": "",
+          "period_basis": "",
+          "ownership_subject": "",
+          "role_date_fields": [],
+          "source_events": [],
+          "metrics": [
+            {
+              "metric": "holding_ratio",
+              "value": "68",
+              "unit": "%",
+              "source_literal": "68%",
+              "period": "",
+              "subject": "张勇夫妇",
+              "issuer": ""
+            }
+          ],
+          "direct_person_link": true,
+          "source_url": "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html",
+          "evidence_id": "E-PD40DE8F3FFC51D",
+          "gaps": [
+            "事件或数据基准时期未明确，禁止用采集日期补齐"
+          ],
+          "verification": "source_statement_requires_review"
+        }
+      }
+    ],
+    "independent_review_status": "pending",
+    "source_truth_or_responsibility_confirmed": false
+  }
+]

@@ -95,6 +95,8 @@ class PersonResearchStrategy(BaseResearchStrategy):
 
     def expand_search_queries(self, plan, intake):
         rows = super().expand_search_queries(plan, intake)
+        from person_requirements import query_rows, bind_query_requirements
+        rows = query_rows(intake) + rows
         try:
             from ..person_evidence import TOPICS, EN_TOPICS
             from ..person_commission import search_rows as commission_search_rows
@@ -139,7 +141,7 @@ class PersonResearchStrategy(BaseResearchStrategy):
             if key not in seen:
                 result.append(row)
                 seen.add(key)
-        return result
+        return bind_query_requirements(result, intake)
 
     def required_source_types(self, module: str) -> list[str]:
         if module in {"司法信用", "司法负面与诉讼核查", "个人信用与财务风险", "专项风险"}:

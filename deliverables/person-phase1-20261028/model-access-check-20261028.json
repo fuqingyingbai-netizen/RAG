@@ -1,0 +1,42 @@
+{
+  "status": "blocked_by_official_service_activation",
+  "date": "2026-10-28",
+  "configured_endpoint": "https://maas.qianwenaiapi.com/compatible-mode/v1",
+  "endpoint_basis": "User identified platform.qianwenai.com; current official first-call documentation specifies this endpoint.",
+  "manual_legacy_endpoint": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "manual_legacy_endpoint_tested": false,
+  "configuration_scope": "This task worktree .env only; ignored by Git. Main workspace untouched.",
+  "default_model": "qwen3.8-max",
+  "credential_saved_in_this_artifact": false,
+  "attempts": [
+    {
+      "model": "qwen3.8-max",
+      "actual_model_requests": 1,
+      "http_status": 403,
+      "provider_code": "AccessDenied.Unpurchased",
+      "provider_request_id": "60155251-1e71-925c-9d25-36903ee62d48",
+      "receipt_directory": "work/person-phase1-20261028/round3-official-qwen-ch2",
+      "usable_response_returned": false
+    },
+    {
+      "model": "qwen-flash",
+      "authorization": "User explicitly requested one credential validation using qwen-flash.",
+      "actual_model_requests": 1,
+      "http_status": 403,
+      "provider_code": "AccessDenied.Unpurchased",
+      "provider_request_id": "27f26b70-55df-90fb-82ba-7d965abd9320",
+      "receipt_directory": "work/person-phase1-20261028/round4-official-qwen-flash-key-check",
+      "usable_response_returned": false,
+      "model_override_scope": "Validation process only; default model unchanged."
+    }
+  ],
+  "official_error_meaning": "Qianwen AI Platform service has not been activated. A single-model entitlement diagnosis is not justified by this error code.",
+  "credential_usability": "Not established; no successful model response.",
+  "next_action": "Account owner checks service activation, agreements and certification prompts in the console associated with this key; verify the API Host shown there before another request.",
+  "official_sources": [
+    "https://platform.qianwenai.com/docs/developer-guides/getting-started/first-api-call",
+    "https://platform.qianwenai.com/docs/api-reference/preparation/error-messages"
+  ],
+  "report_accepted": false,
+  "billing_receipt_available": false
+}

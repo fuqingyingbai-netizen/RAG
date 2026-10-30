@@ -1,0 +1,24 @@
+{
+  "report_sha256": "47a3192bb514ed0e107fef272ac77d4149d5dfea6b2859b3463ce70abf9911d5",
+  "source_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+  "sources": 53,
+  "admitted_records": 415,
+  "record_destinations": {
+    "analysis_support": 17,
+    "structured_table": 65,
+    "supporting_appendix": 307,
+    "original_excerpt": 26
+  },
+  "gap_categories": {
+    "summary_or_index_requires_original": 6,
+    "subject_unresolved": 1,
+    "no_admitted_statement": 3,
+    "admitted_not_in_body_requires_importance_review": 307,
+    "model_or_review_failure": 8
+  },
+  "independent_review_claims_planned": 8,
+  "independent_review_claims_completed": 0,
+  "full_report_accepted": false,
+  "report_hash_basis": "legacy_utf8_text_after_universal_newline_normalization",
+  "do_not_reuse_for_raw_file_version_binding": true
+}

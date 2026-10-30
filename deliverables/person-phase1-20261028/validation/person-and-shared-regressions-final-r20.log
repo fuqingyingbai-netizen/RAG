@@ -1,0 +1,74 @@
+........................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................Search engine tavily unavailable: HTTP 433; continuing with fallback engines
+Search engine tavily unavailable: TavilyKeysUnavailable; continuing with fallback engines
+...........
+============================== warnings summary ===============================
+test/test_person_context_routing.py: 43 warnings
+test/test_person_reputation_peers.py: 28 warnings
+test/test_person_template_workflow.py: 16 warnings
+test/test_personal_home.py: 79 warnings
+test/test_assistant_online.py: 5 warnings
+test/test_assistant_memory.py: 223 warnings
+test/test_assistant_images.py: 8 warnings
+  E:\projects\RAG\.venv\Lib\site-packages\sqlalchemy\sql\schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+test/test_person_context_routing.py::test_abbreviated_api_resume_preserves_saved_context_and_explicit_clear_works
+test/test_person_context_routing.py::test_abbreviated_api_resume_preserves_saved_context_and_explicit_clear_works
+test/test_person_context_routing.py::test_abbreviated_api_resume_preserves_saved_context_and_explicit_clear_works
+  C:\Users\wangli\.codex\worktrees\f19b\RAG\backend\research_api.py:889: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    project.updated_at = datetime.utcnow()
+
+test/test_person_context_routing.py::test_actual_web_pipeline_retains_context_budget_and_all_15_diagnostics
+test/test_person_context_routing.py::test_actual_web_pipeline_retains_context_budget_and_all_15_diagnostics
+test/test_person_template_workflow.py::test_real_workflow_persists_all_chapters_ledger_and_review_status_on_resume
+test/test_person_template_workflow.py::test_real_workflow_persists_all_chapters_ledger_and_review_status_on_resume
+  C:\Users\wangli\.codex\worktrees\f19b\RAG\backend\research_workflow.py:847: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    project.updated_at = datetime.utcnow()
+
+test/test_person_context_routing.py: 16 warnings
+test/test_person_reputation_peers.py: 4 warnings
+test/test_person_template_workflow.py: 12 warnings
+  C:\Users\wangli\.codex\worktrees\f19b\RAG\backend\research_workflow.py:8708: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    project.updated_at = datetime.utcnow()
+
+test/test_person_context_routing.py: 20 warnings
+  C:\Users\wangli\.codex\worktrees\f19b\RAG\backend\research_workflow.py:214: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y%m%d%H%M%S")
+
+test/test_person_context_routing.py: 64 warnings
+test/test_person_model_generation.py: 3 warnings
+test/test_person_template_workflow.py: 26 warnings
+  C:\Users\wangli\.codex\worktrees\f19b\RAG\backend\research_workflow.py:278: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.utcnow().isoformat(),
+
+test/test_person_context_routing.py::test_actual_web_pipeline_retains_context_budget_and_all_15_diagnostics
+test/test_person_context_routing.py::test_actual_web_pipeline_retains_context_budget_and_all_15_diagnostics
+test/test_person_template_workflow.py::test_real_workflow_persists_all_chapters_ledger_and_review_status_on_resume
+test/test_person_template_workflow.py::test_real_workflow_persists_all_chapters_ledger_and_review_status_on_resume
+  C:\Users\wangli\.codex\worktrees\f19b\RAG\backend\research_workflow.py:1680: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    project.updated_at = datetime.utcnow()
+
+test/test_assistant_online.py: 1 warning
+test/test_assistant_memory.py: 12 warnings
+test/test_assistant_images.py: 1 warning
+  C:\Users\wangli\.codex\worktrees\f19b\RAG\backend\assistant_memory.py:151: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+test/test_assistant_online.py: 1 warning
+test/test_assistant_memory.py: 9 warnings
+test/test_assistant_images.py: 1 warning
+  C:\Users\wangli\.codex\worktrees\f19b\RAG\backend\assistant_memory.py:254: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'summary': memory['summary'], 'summary_through': memory['through'], 'updated_at': datetime.utcnow()},
+
+test/test_assistant_online.py: 1 warning
+test/test_assistant_memory.py: 26 warnings
+test/test_assistant_images.py: 3 warnings
+  C:\Users\wangli\.codex\worktrees\f19b\RAG\backend\assistant_memory.py:83: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+test/test_assistant_memory.py::test_lease_blocks_overlapping_and_duplicate_turns_and_recovers_expiry
+  C:\Users\wangli\.codex\worktrees\f19b\RAG\test\test_assistant_memory.py:156: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    db.query(Thread).filter(Thread.id == sid).update({'busy_until': datetime.utcnow() - timedelta(seconds=1)})
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1139 passed, 614 warnings in 113.95s (0:01:53)
