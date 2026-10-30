@@ -55,8 +55,12 @@ class IndustryReportAgent:
         emit: Callable[..., None],
         trace_emit: Any = None,
     ) -> str:
+        from copy import deepcopy
+        recovery = getattr(project, 'industry_recovery_seed', None)
+        retry_chapters = set((getattr(project, 'industry_recovery_plan', {}) or {}).get('chapters', [])) if recovery else set()
         sections_by_index: dict[int, str] = {}
-        setattr(project, 'industry_report_degradations', [])
+        setattr(project, 'industry_report_degradations', [deepcopy(n) for n in recovery.get('industry_report_degradations', [])
+            if n.get('chapter') not in retry_chapters | {1,14,16}] if recovery else [])
         section_fact_counts: dict[int, int] = {}
         emit(trace_emit, "report", self.trace_agent, "目标行业报告团队启动", f"sections={len(self.outline)}", status="running")
         # Allocate by chapter relevance; distinct facts from one URL can be reused.
@@ -64,7 +68,11 @@ class IndustryReportAgent:
         section_packages: dict[int, str] = {}
         payload = json.loads(cleaned_json)
         project.industry_statement_mode = bool(payload.get('fact_contract_version'))
-        project.industry_statement_plans = {}
+        project.industry_statement_plans = {int(k): deepcopy(v) for k,v in recovery.get('industry_statement_plans', {}).items()
+            if int(k) not in retry_chapters | {1,14,15,16}} if recovery else {}
+        # New executions compile independent question jobs. Legacy saved-plan
+        # replays can still use the old private section entry point.
+        project.industry_question_jobs_enabled = project.industry_statement_mode
         project.industry_analysis_repair_budget = {'requests_used': 0, 'chapters': []}
         risk = json.loads(risk_json)
         for index, (section_title, requirements) in enumerate(self.outline, 1):
@@ -74,14 +82,13 @@ class IndustryReportAgent:
                 section_packages[index] = bounded_package(json.loads(package))
                 section_fact_counts[index] = len(json.loads(section_packages[index])['facts'])
                 continue
-            package = _focused_cleaned_json(
-                cleaned_json,
-                section_title,
-                requirements,
-                str(project.target_name or ""),
-                "industry",
-
-            )
+            if project.industry_statement_mode:
+                from industry_research import select_chapter_evidence
+                package = json.dumps(select_chapter_evidence(payload, section_title, requirements, max_facts=24,
+                    deduplicate_statements=True), ensure_ascii=False)
+            else:
+                package = _focused_cleaned_json(cleaned_json, section_title, requirements,
+                    str(project.target_name or ""), "industry")
             try:
                 package_facts = json.loads(package).get("facts", [])
             except (TypeError, ValueError, json.JSONDecodeError):
@@ -94,11 +101,43 @@ class IndustryReportAgent:
             package, _ = package_risk_evidence(json.loads(package), payload, risk, include_all=index in {1, 13, 14})
             from industry_reasoning import prioritize_questions
             package = prioritize_questions(package, index)
-            section_packages[index] = bounded_package(package)
+            if project.industry_statement_mode:
+                from industry_fact_contracts import bounded_writer_package
+                from industry_question_generation import CHAPTERS
+                # The role-specific prompts enforce their own actual-input
+                # budgets. Do not pre-trim cards against the old combined task.
+                section_packages[index] = json.dumps(package, ensure_ascii=False) if index in CHAPTERS else bounded_writer_package(package, index)
+            else:
+                section_packages[index] = bounded_package(package)
             section_fact_counts[index] = len(json.loads(section_packages[index])['facts'])
         emit(trace_emit, "report", self.trace_agent, "行业章节证据包已按章节分桶", f"unique_sources={len(used_urls)}, evidence_chapters=14", unique_sources=len(used_urls), status="done")
 
         setattr(project, "industry_section_packages", section_packages)
+        if recovery:
+            project.industry_question_order = deepcopy(recovery.get('industry_question_order', {}))
+            project.industry_question_planning = deepcopy(recovery.get('industry_question_planning', {}))
+            for k, section in recovery.get('industry_generated_sections', {}).items():
+                index = int(k)
+                if index not in retry_chapters | {1,14,15,16}:
+                    sections_by_index[index] = section
+                    section_packages[index] = recovery['industry_section_packages'][index]
+                    section_fact_counts[index] = len(json.loads(section_packages[index]).get('facts', []))
+            # Preserve every old valid premise in chapters being repaired;
+            # re-selection must not silently invalidate a successful sibling.
+            all_cards = {f['evidence_id']: f for f in payload.get('facts', [])}
+            for index in retry_chapters:
+                package = json.loads(section_packages[index])
+                ids = {f['evidence_id'] for f in package.get('facts', [])}
+                for claim in recovery.get('industry_statement_plans', {}).get(index, {}).get('analysis_claims', []):
+                    for eid in claim.get('evidence_ids', []):
+                        if eid in all_cards and eid not in ids:
+                            package['facts'].append(all_cards[eid]); ids.add(eid)
+                section_packages[index] = json.dumps(package, ensure_ascii=False)
+                section_fact_counts[index] = len(package['facts'])
+        elif project.industry_question_jobs_enabled:
+            from industry_research_stages import plan_questions
+            project.industry_question_order, project.industry_question_planning = plan_questions(
+                {i: json.loads(p) for i, p in section_packages.items()}, project, invoke, emit, trace_emit)
 
         # Chapter 9: when capital_market is "none", skip the model call.
         industry_scope = getattr(project, "industry_scope", {}) or {}
@@ -165,8 +204,20 @@ class IndustryReportAgent:
                 if section.strip():
                     sections_by_index[index] = section
         if project.industry_statement_mode:
-            self._write_synthesis(project, payload, section_packages, sections_by_index, industry_scope, invoke, emit, trace_emit)
+            defer_synthesis = recovery and getattr(project,'industry_recovery_plan',{}).get('defer_synthesis')
+            if defer_synthesis:
+                if 14 in recovery.get('industry_statement_plans',{}):
+                    project.industry_statement_plans[14] = deepcopy(recovery['industry_statement_plans'][14])
+                    section_packages[14] = recovery['industry_section_packages'][14]
+                    sections_by_index[14] = recovery['industry_generated_sections'][14]
+            else:
+                self._write_synthesis(project, payload, section_packages, sections_by_index, industry_scope, invoke, emit, trace_emit)
             self._review_statement_claims(project, payload, section_packages, sections_by_index, invoke, emit, trace_emit)
+            if recovery and not defer_synthesis:
+                self._preserve_supported_synthesis(project,payload,section_packages,sections_by_index,recovery)
+        # Capture structured sections before summary/editor rendering; a bounded
+        # recovery pass can reuse unaffected chapters without calling them again.
+        project.industry_generated_sections = dict(sections_by_index)
         summary_title, summary_requirements = self.outline[0]
         # Only cited, budgeted cards enter the summary and its chapter digest.
         summary_cards = summary_package(section_packages, sections_by_index, industry_scope)
@@ -300,44 +351,137 @@ class IndustryReportAgent:
         if index == 1:
             facts = [f for f in facts if f.get('summary_lineage')]
         admitted = {**package, 'facts': facts}
-        ids, failures, proposed_analyses = [], [], []
+        ids, failures, proposed_analyses, plan_errors = [], [], [], []
+        recovery = getattr(project,'industry_recovery_seed',None)
+        previous_plan = (recovery or {}).get('industry_statement_plans',{}).get(index,{})
+        updated_questions = set()
+        attempts, plan_valid = 0, False
+        from industry_chapter_batches import plan_batches, generate_batches
+        from industry_question_generation import CHAPTERS, generate_questions
+        question_jobs = getattr(project, 'industry_question_jobs_enabled', False) and index in CHAPTERS
+        batches = [] if question_jobs else plan_batches(admitted, index)
+        batch_result = None
         if index == 1 or not facts:
             ids = [f['evidence_id'] for f in facts[:5]]
         else:
-            prompt = plan_prompt(admitted, index)
-            for attempt in range(2):
-                try:
-                    raw = invoke(f'{self.report_kind}章节' + ('修复' if attempt else '编排') + f' Agent - {title}',
-                                 prompt + ('\n上次计划格式或编号无效，请仅返回规定JSON；本次修复最多3段分析，每段60至180字，未回答的问题保留缺口。' if attempt else ''), trace_emit)
-                    ids, proposed_analyses = parse_chapter_response(raw, admitted, index)
-                    break
-                except Exception as exc:
-                    failures.append(type(exc).__name__)
+            if question_jobs:
+                retry_questions = [t['question'] for t in getattr(project, 'industry_recovery_plan', {}).get('tasks', [])
+                                   if t['chapter'] == index] if recovery else None
+                batch_result = generate_questions(admitted, index, title, invoke, emit, trace_emit,
+                    question_order=getattr(project, 'industry_question_order', {}).get(index),
+                    retry_questions=retry_questions, retry_deadline=getattr(project, 'industry_recovery_deadline', None),
+                    retry_tasks=getattr(project, 'industry_recovery_plan', {}).get('tasks'),
+                    recovery_round=getattr(project, 'industry_recovery_plan', {}).get('round', 0))
+                ids, proposed_analyses = batch_result['ids'], batch_result['analyses']
+                if recovery:
+                    from industry_conclusion_recovery import finding_issue
+                    previous_decisions = recovery.get('industry_statement_plans', {}).get(index, {}).get('generation_batches', {}).get('questions', [])
+                    updated_decisions = {d['question']: d for d in batch_result['diagnostic'].get('questions', [])}
+                    updated_questions = {q for q,d in updated_decisions.items() if d.get('status') not in {
+                        'material_gap','deferred_request_budget','deferred_input_budget','selector_abstained'}}
+                    # Keep questions outside this pass's request budget visible.
+                    batch_result['diagnostic']['questions'] = [updated_decisions.pop(d['question'], d)
+                        for d in previous_decisions] + list(updated_decisions.values())
+                    from industry_draft_policy import CLAIM_FIELDS,AUDIT_FIELDS,usable_analysis,consolidate_drafts
+                    old = [{k:v for k,v in c.items() if k in CLAIM_FIELDS|AUDIT_FIELDS}
+                           for c in recovery.get('industry_statement_plans', {}).get(index, {}).get('analysis_claims', [])
+                           if usable_analysis(c)]
+                    # Keep one best old fallback and one new revision per repeated
+                    # judgment for review; distinct independent siblings survive.
+                    # The post-review consolidation chooses the current draft.
+                    proposed_analyses = consolidate_drafts(old, proposed_analyses)
+                    ids = list(dict.fromkeys(ids + [eid for c in old for eid in c.get('evidence_ids', [])]))
+                attempts, plan_valid, plan_errors = batch_result['attempts'], batch_result['valid'], batch_result['errors']
+                if recovery and old:
+                    plan_valid = True
+                    batch_result['diagnostic']['partial_failure'] = bool(plan_errors)
+                failures = [r['code'] for r in plan_errors]
+            elif batches:
+                batch_result = generate_batches(batches, index, title, invoke, emit, trace_emit)
+                ids, proposed_analyses = batch_result['ids'], batch_result['analyses']
+                attempts, plan_valid, plan_errors = batch_result['attempts'], batch_result['valid'], batch_result['errors']
+                failures = [r['code'] for r in plan_errors]
             else:
+                prompt = plan_prompt(admitted, index)
+                for attempt in range(2):
+                    try:
+                        attempts += 1
+                        raw = invoke(f'{self.report_kind}章节' + ('修复' if attempt else '编排') + f' Agent - {title}',
+                                     prompt + ('\n上次计划格式或编号无效，请仅返回规定JSON；本次修复最多3段分析，每段60至180字，未回答的问题保留缺口。' if attempt else ''), trace_emit)
+                        ids, proposed_analyses = parse_chapter_response(raw, admitted, index)
+                        plan_valid = True
+                        break
+                    except Exception as exc:
+                        failures.append(type(exc).__name__)
+                        from industry_model_output import IndustryModelOutputError
+                        code = exc.code if isinstance(exc, IndustryModelOutputError) else str(exc) if type(exc) is ValueError and str(exc) in {
+                            'invalid_statement_plan', 'unauthorized_statement_plan', 'empty_statement_plan', 'invalid_analysis_plan'} else type(exc).__name__
+                        plan_errors.append({'attempt': attempt + 1, 'code': code,
+                                            'kind': 'generation_failure' if isinstance(exc, IndustryModelOutputError) else 'format_failure'})
+                        if isinstance(exc, IndustryModelOutputError):
+                            break
+            if not plan_valid:
                 ids = [f['evidence_id'] for f in facts[:8]]
+                generation_failure = next((r['code'] for r in reversed(plan_errors) if r['kind'] == 'generation_failure'), '')
+                failure_labels = {'truncated_model_output': '模型输出额度耗尽，未取得完整正文',
+                    'model_request_timeout': '模型正文请求超时', 'model_connection_failed': '模型服务连接失败',
+                    'empty_model_output': '模型没有返回正文', 'refused_model_output': '模型未提供可用正文',
+                    'industry_model_not_configured': '模型尚未配置'}
+                message = (f'第{index}章' + failure_labels.get(generation_failure, '模型正文生成失败')
+                    + '，保留来源资料；未形成有效模型分析。') if generation_failure else f'第{index}章编排计划未通过，保留已准入陈述的顺序；综合分析待复核。'
+                if attempts:
+                    getattr(project, 'industry_report_degradations', []).append({'chapter': index,
+                        'message': message,
+                        'initial_validation_reasons': [r['code'] for r in plan_errors], 'attempt_failures': failures})
+            elif batch_result and batch_result['diagnostic']['partial_failure']:
                 getattr(project, 'industry_report_degradations', []).append({'chapter': index,
-                    'message': f'第{index}章编排计划未通过，保留已准入陈述的顺序；综合分析待复核。',
-                    'initial_validation_reasons': ['invalid_statement_plan'], 'attempt_failures': failures})
+                    'message': f'第{index}章部分研究问题生成未完成，已保留其他分段通过校验的分析；缺失部分待复核。',
+                    'initial_validation_reasons': [r['code'] for r in plan_errors]})
+        from industry_draft_policy import CLAIM_FIELDS,preserve_audit,merge_rejections,current_revision_state
+        original_proposed = proposed_analyses
+        proposed_analyses = [{k:v for k,v in c.items() if k in CLAIM_FIELDS} for c in proposed_analyses]
         model_ids = list(ids)
         prelim_analyses, _ = validate_analyses(proposed_analyses, admitted, index, model_ids)
         if index != 1:
             from industry_analysis import complete_plan
-            ids = complete_plan(admitted, index, ids, prelim_analyses)
+            ids = complete_plan(admitted, index, ids, prelim_analyses,
+                **({'max_facts':16, 'preserve_premises_first':True} if batch_result else {}))
         analyses, analysis_rejections = validate_analyses(proposed_analyses, admitted, index, ids)
+        preserve_audit(analyses,original_proposed)
+        analyzed_questions={c['question'] for c in analyses if not c.get('source_observation_only')}
+        analyses=[c for c in analyses if not c.get('source_observation_only') or c['question'] not in analyzed_questions]
+        if batch_result:
+            analysis_rejections += batch_result['rejections']
+        if recovery and question_jobs:
+            analysis_rejections=merge_rejections(previous_plan.get('analysis_rejections',[]),analysis_rejections,updated_questions)
         from industry_analysis_repair import repair_analyses
-        analyses, analysis_rejections, analysis_repair = repair_analyses(
-            project, admitted, index, ids, analyses, analysis_rejections, invoke, emit, trace_emit,
-            f'{self.report_kind}章节分析局部修复 Agent - {title}')
+        if question_jobs:
+            analysis_repair = {'attempted': False, 'reason': 'independent_question_budget_no_implicit_retry'}
+        else:
+            analyses, analysis_rejections, analysis_repair = repair_analyses(
+                project, admitted, index, ids, analyses, analysis_rejections, invoke, emit, trace_emit,
+                f'{self.report_kind}章节分析局部修复 Agent - {title}')
+        if question_jobs and not analyses:
+            from industry_draft_policy import source_observations
+            analyses=source_observations(admitted,index,ids)
         from industry_reasoning import question_ledger
         from industry_reader import analysis_balance
         ledger = question_ledger(admitted, index, ids, analyses)
         coverage = ledger['questions']
         plans = getattr(project, 'industry_statement_plans', None)
         if plans is not None:
-            plans[index] = {'version': PLAN_VERSION, 'evidence_ids': ids, 'model_attempts': (len(failures) if len(failures) == 2 else len(failures)+1) if index != 1 and facts else 0,
-                            'fallback': len(failures) == 2, 'semantic_status': 'not_evaluated',
-                            'analysis_method': 'evidence_bounded_model_analysis' if analyses else 'deterministic_evidence_operations',
+            plans[index] = {'version': PLAN_VERSION, 'evidence_ids': ids, 'model_attempts': attempts,
+                            'fallback': bool(attempts and not plan_valid), 'semantic_status': 'not_evaluated',
+                            'analysis_method': ('source_observation_pending_revision' if analyses and all(c.get('source_observation_only') for c in analyses)
+                                else 'evidence_bounded_model_analysis' if analyses else 'deterministic_evidence_operations'),
                             'analysis_claims': analyses, 'analysis_rejections': analysis_rejections,
+                            **({'generation_history': previous_plan.get('generation_history',[]) + [{
+                                'round':batch_result['diagnostic'].get('recovery_attempt',0),
+                                'requests':batch_result['diagnostic'].get('requests',[]),
+                                'rejections':analysis_rejections,'failures':plan_errors}]} if batch_result else {}),
+                            **({'generation_batches': batch_result['diagnostic']} if batch_result else {}),
+                            **({'question_planning': getattr(project, 'industry_question_planning', {})} if question_jobs else {}),
+                            'plan_validation_failures': plan_errors,
                             'analysis_repair': analysis_repair,
                             'reader_balance': analysis_balance(admitted, index, ids, analyses),
                             'selection_alignment': {'model_evidence_ids': model_ids,
@@ -346,12 +490,14 @@ class IndustryReportAgent:
                                 'premise_ids_not_retained': list(dict.fromkeys(eid for c in prelim_analyses for eid in c['evidence_ids'] if eid not in ids))},
                             'question_ledger': ledger,
                             'content_coverage': coverage}
+            current_revision_state(plans[index])
         # This mode produces auditable source statements, not a certified analyst
         # synthesis. Keep that limitation visible in delivery state and tasks.
         if index not in {1, 15, 16}:
             from industry_fact_contracts import chapter_coverage
             getattr(project, 'industry_report_degradations', []).append({'chapter': index,
-                'message': f'第{index}章已完成' + ('受证据约束的分析' if analyses else '来源陈述编排；尚缺有效模型分析') + '，结论尚待语义复核。', 'review_type': 'statement_synthesis_review',
+                'message': f'第{index}章已完成' + ('受证据约束的分析' if any(not c.get('source_observation_only') for c in analyses)
+                    else '来源观察整理；综合分析仍待修订') + '，结论尚待语义复核。', 'review_type': 'statement_synthesis_review',
                 'evidence_ids': list(ids), 'content_coverage': coverage})
         emit(trace_emit, 'report', self.trace_agent, '章节陈述编排完成', f'chapter={index}; statements={len(ids)}', status='done')
         return render_plan(admitted, index, title, ids, analyses=analyses, ledger=ledger)
@@ -385,56 +531,168 @@ class IndustryReportAgent:
         plan = {'version': PLAN_VERSION, 'evidence_ids': ids, 'analysis_claims': claims,
             'analysis_rejections': rejected, 'model_attempts': attempts, 'fallback': not bool(claims),
             'analysis_method': 'chapter_analysis_reuse' if reused else 'cross_chapter_synthesis' if claims else 'synthesis_not_completed',
+            'reused_existing_analyses': reused,
             'question_ledger': ledger, 'content_coverage': ledger['questions'], 'error_type': error}
         bind_plan(plan, package)
         project.industry_statement_plans[14] = plan
         project.industry_report_degradations.append({'chapter': 14, 'review_type': 'statement_synthesis_review',
-            'message': '阶段性综合判断待人工复核。' if claims else '阶段性综合未形成有效分析，保留原章节依据和风险状态。',
+            'message': ('阶段性综合未产生有效新判断，已复用本轮有效章节判断；仍待人工复核。' if reused
+                        else '阶段性综合判断待人工复核。' if claims
+                        else '阶段性综合未形成有效分析，保留原章节依据和风险状态。'),
             'evidence_ids': ids, 'content_coverage': ledger['questions'], 'error_type': error})
         sections[14] = render_plan(package, 14, self.outline[13][0], ids, claims, ledger)
 
     def _review_statement_claims(self, project, payload, packages, sections, invoke, emit, trace_emit):
         """One bounded second pass; reject claims without erasing valid sources."""
-        from industry_reasoning import claim_id, question_ledger, run_support_review
+        from industry_reasoning import claim_id, question_ledger, run_support_review, _pending_review
         from industry_fact_contracts import render_plan
         plans = getattr(project, 'industry_statement_plans', {})
         claims = []
-        for chapter in [14, 13, 10, 7, 4, 6, 11, 3, 2, 5]:
+        priority = [14, 13, 10, 7, 4, 6, 11, 3, 2, 5]
+        for chapter in priority + sorted(set(plans) - set(priority)):
             plan = plans.get(chapter, {})
             for claim in plan.get('analysis_claims', []):
                 claims.append({**claim, 'chapter': chapter, 'claim_id': claim_id(claim, chapter)})
+        recovery = getattr(project, 'industry_recovery_seed', None)
+        previous_reviews = (recovery or {}).get('industry_claim_support_review', {}).get('reviews', {})
+        previous_claims = {claim_id(c,int(ch)): c for ch,p in (recovery or {}).get('industry_statement_plans',{}).items()
+                           for c in p.get('analysis_claims',[])}
+        from industry_answer_quality import same_premises
+        previous_cards = {f['evidence_id']:f for p in (recovery or {}).get('industry_section_packages',{}).values()
+                          for f in (json.loads(p) if isinstance(p,str) else p).get('facts',[])}
+        current_cards = {f['evidence_id']:f for f in payload.get('facts',[])}
+        final_review = getattr(project,'industry_recovery_plan',{}).get('finalize_synthesis')
+        preserved = {c['claim_id']: previous_reviews[c['claim_id']] for c in claims
+                     if (previous_reviews.get(c['claim_id'], {}).get('status') == 'supported' or
+                         (not final_review and previous_reviews.get(c['claim_id'],{}).get('status') in {'uncertain','not_evaluated'}))
+                     and previous_claims.get(c['claim_id'],{}).get('conclusion') == c.get('conclusion')
+                     and same_premises(c,previous_cards,current_cards)}
+        for c in claims:
+            if c.get('source_observation_only'):
+                preserved[c['claim_id']]={**_pending_review('source_observation_only'),
+                    'method':'exact_source_observation','reason':'保留本轮准入原文观察；综合分析仍待修订。'}
+        review_claims = [c for c in claims if c['claim_id'] not in preserved]
         if os.getenv('INDUSTRY_CLAIM_REVIEW_ENABLED', 'true').lower() in {'0', 'false', 'no', 'off'}:
             review = {'attempts': 0, 'reviews': {}, 'status': 'disabled', 'human_review_required': True}
+        elif getattr(project, 'industry_question_jobs_enabled', False):
+            from industry_research_stages import review_in_groups
+            review = review_in_groups(review_claims, payload.get('facts', []),
+                lambda prompt: invoke('行业分组支持复核 Agent', prompt, trace_emit))
         else:
-            review = run_support_review(claims, payload.get('facts', []),
+            review = run_support_review(review_claims, payload.get('facts', []),
                 lambda prompt: invoke('行业结论支持复核 Agent', prompt, trace_emit))
+        if preserved:
+            review.setdefault('reviews', {}).update(preserved)
+            review['reused_supported_claim_ids'] = [k for k,v in preserved.items() if v.get('status')=='supported']
+            review['reused_review_claim_ids'] = list(preserved)
+        from industry_conclusion_recovery import vague_rejection, refresh_review_counts
+        vague = [c for c in claims if vague_rejection(review.get('reviews',{}).get(c['claim_id'],{}))]
+        independent = getattr(project, 'industry_independent_review', {}) or {}
+        if vague and not independent.get('attempted'):
+            # One independent context per report run, at most five exact claims.
+            # Original verdicts are audit data and are not sent to the second reader.
+            project.industry_independent_review = {'attempted':True}
+            checked = run_support_review(vague[:5], payload.get('facts',[]),
+                lambda prompt: invoke('行业分组支持复核 Agent', prompt, trace_emit), max_chars=9000, max_claims=5)
+            review['attempts'] += checked.get('attempts', 0)
+            review['max_requests'] = review.get('max_requests', 0) + 1
+            project.industry_independent_review = {'attempted':True, 'initial_reviews':{
+                c['claim_id']:review['reviews'][c['claim_id']] for c in vague}, 'result':checked}
+            for c in vague[:5]:
+                cid = c['claim_id']
+                review['reviews'][cid] = checked.get('reviews',{}).get(cid, _pending_review('independent_review_incomplete'))
+        for c in vague:
+            verdict = review['reviews'][c['claim_id']]
+            if vague_rejection(verdict):
+                review['reviews'][c['claim_id']] = {**verdict, 'status':'uncertain',
+                    'diagnostic':'rejection_without_specific_reason_requires_human_review'}
+        review['independent_review'] = getattr(project, 'industry_independent_review', {})
+        refresh_review_counts(review, claims)
         project.industry_claim_support_review = review
+        fragment_claims=[]
         for chapter, plan in plans.items():
             kept = []
+            package = json.loads(packages[chapter])
             for claim in plan.get('analysis_claims', []):
-                verdict = review.get('reviews', {}).get(claim_id(claim, chapter), {'status': 'not_evaluated'})
+                cid = claim_id(claim, chapter)
+                verdict = review.get('reviews', {}).get(cid, _pending_review(
+                    review.get('exclusion_reasons', {}).get(cid, 'outside_review_packet')))
                 checked = {**claim, 'support_review': verdict}
+                if claim.get('source_observation_only'):
+                    kept.append(checked)
+                    continue
+                from industry_answer_quality import contribution_issue, quality_feedback
+                quality = contribution_issue(claim) or ('scope_only_answer' if verdict.get('answer_quality')=='scope_only' else None)
+                if verdict.get('status')=='supported' and verdict.get('answer_quality')=='answered':
+                    quality=None
+                    checked.pop('answer_quality_warning',None)
+                    if not claim.get('partial_parent_claim_id'):checked.pop('partial_answer',None)
                 if verdict['status'] in {'partial', 'unsupported', 'contradicted'}:
                     plan['analysis_rejections'].append({'question': claim['question'], 'issues': ['claim_support_'+verdict['status']],
                         'original_analysis': dict(claim), 'support_review': verdict})
+                    if verdict['status']=='partial':
+                        from industry_draft_policy import supported_fragments
+                        fragments=supported_fragments(claim,verdict,package,chapter)
+                        for fragment in fragments:
+                            kept.append(fragment)
+                            fid=claim_id(fragment,chapter)
+                            review.setdefault('reviews',{})[fid]=fragment['support_review']
+                            review.setdefault('reused_review_claim_ids',[]).append(fid)
+                            fragment_claims.append({**fragment,'chapter':chapter,'claim_id':fid})
+                elif quality:
+                    checked['answer_quality_warning']=quality
+                    checked['partial_answer']=True
+                    plan['analysis_rejections'].append({'question':claim['question'],'issues':['answer_quality_'+quality],
+                        'quality_reason':verdict.get('answer_quality_reason') or quality_feedback(quality),
+                        'severity':'improvement','original_analysis':dict(claim),'support_review':verdict})
+                    kept.append(checked)
                 else:
                     kept.append(checked)
+            if not kept and getattr(project,'industry_question_jobs_enabled',False):
+                from industry_draft_policy import source_observations
+                kept=source_observations(package,chapter,plan['evidence_ids']) if chapter!=14 else []
+            from industry_draft_policy import consolidate_drafts,current_revision_state
+            kept=consolidate_drafts([],kept,final=True)
             plan['analysis_claims'] = kept
-            package = json.loads(packages[chapter])
             plan['question_ledger'] = question_ledger(package, chapter, plan['evidence_ids'], kept, plan['analysis_rejections'])
             plan['content_coverage'] = plan['question_ledger']['questions']
-            plan['analysis_method'] = 'evidence_bounded_model_analysis' if kept else 'deterministic_evidence_operations'
+            current_revision_state(plan)
+            if chapter != 14 or not kept:
+                plan['analysis_method'] = ('source_observation_pending_revision' if kept and all(c.get('source_observation_only') for c in kept)
+                    else 'evidence_bounded_model_analysis' if kept else 'deterministic_evidence_operations')
             from industry_reader import analysis_balance
             plan['reader_balance'] = analysis_balance(package, chapter, plan['evidence_ids'], kept)
             sections[chapter] = render_plan(package, chapter, self.outline[chapter-1][0], plan['evidence_ids'], kept, plan['question_ledger'])
             for note in project.industry_report_degradations:
                 if note.get('chapter') == chapter and note.get('review_type') == 'statement_synthesis_review':
                     note['content_coverage'] = plan['content_coverage']
-                    note['analysis_rejections'] = plan['analysis_rejections']
-                    if any(r.get('support_review') for r in plan['analysis_rejections']):
+                    note['active_analysis_rejections'] = plan['active_analysis_rejections']
+                    note['analysis_rejections'] = plan['active_analysis_rejections']
+                    if any(r.get('support_review') for r in plan['active_analysis_rejections']):
                         note['message'] = f'第{chapter}章部分判断未通过结论支持复核，已保留有效来源与可保留分析；需核对适用范围和推理。'
+        # Coverage describes current retained statements, not every historical
+        # parent or draft that was sent for review during recovery.
+        current_claims=[{**c,'chapter':chapter,'claim_id':claim_id(c,chapter)}
+                        for chapter,plan in plans.items() for c in plan.get('analysis_claims',[])]
+        review['retained_fragment_count']=sum(bool(c.get('partial_parent_claim_id')) for c in current_claims)
+        refresh_review_counts(review,current_claims)
         emit(trace_emit, 'report', self.trace_agent, '关键分析支持关系复核完成',
-            f'claims={len(claims)}; reviewed={len(review.get("reviews", {}))}; attempts={review["attempts"]}', status='done')
+            f'分析{len(claims)}条；送审{review.get("submitted_claim_count", 0)}条；'
+            f'有效复核{review.get("valid_review_count", 0)}条；支持{review.get("supported_claim_count", 0)}条；'
+            f'待人工核对{review.get("pending_claim_count", len(claims))}条；请求{review["attempts"]}次', status='done')
+
+    def _preserve_supported_synthesis(self, project, payload, packages, sections, seed):
+        """Current chapter judgments govern synthesis; old E-IDs are not new consent.
+
+        _write_synthesis already reuses current retained chapter judgments if the
+        new synthesis call fails. Re-inserting a seed's aggregate here can revive
+        an older, stronger reading of the same facts after chapters were revised.
+        Keep historical synthesis in the recovery seed for audit only.
+        """
+        plan = project.industry_statement_plans.get(14)
+        if plan is not None:
+            plan['synthesis_policy'] = 'current_chapter_judgments_only'
+            plan['historical_synthesis_ignored'] = len(seed.get('industry_statement_plans', {}).get(14, {}).get('analysis_claims', []))
 
     def _fallback_section(self, package, index, title):
         if any(f.get('fact_contract') for f in package.get('facts', [])):

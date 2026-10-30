@@ -38,7 +38,8 @@ from research_schemas import (
     ResearchSourceResponse,
     ResearchUploadResponse,
 )
-from research_store import research_store
+from research_store import ResearchObjectStore, research_store
+from upload_limits import read_upload, validate_filename
 from source_retention import external_url
 from research_workflow import (
     FIXED_AI_SEARCH_ENABLED,
@@ -57,17 +58,52 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 UPLOAD_DIR = BASE_DIR / "data" / "research_uploads"
 loader = DocumentLoader()
 RUNNING_PROJECT_IDS: set[int] = set()
+RUNNING_PROJECT_OWNERS: dict[int, int | None] = {}
 PAUSE_REQUESTED_PROJECT_IDS: set[int] = set()
 RUNNING_PROJECT_LOCK = threading.Lock()
 RUNNING_PROJECT_EVENTS: dict[int, list[dict]] = {}
 RUNNING_PROJECT_SUBSCRIBERS: dict[int, list[tuple[asyncio.AbstractEventLoop, asyncio.Queue]]] = {}
 RUNNING_EVENT_BUFFER_LIMIT = 500
 
+SOURCE_FILE_METADATA = {'local_path', 'original_object_key', 'original_filename', 'upload_id',
+                        'review_original_object_key', 'docx_object_key', 'markdown_object_key',
+                        'raw_markdown_object_key', 'raw_response_key', 'images', 'extraction_status'}
+ARTIFACT_FILE_METADATA = ('docx_object_key', 'markdown_object_key', 'raw_markdown_object_key',
+                          'raw_response_key', 'pdf_object_key', 'review_original_object_key')
+
+
+def _project_file_key(key, project_id):
+    try:
+        return ResearchObjectStore.project_key(key, project_id)
+    except (ValueError, TypeError):
+        raise HTTPException(404, '文件不存在或不属于该项目') from None
+
+
+def _delete_project_file(key, project_id):
+    if key:
+        try:
+            research_store.delete_object(ResearchObjectStore.project_key(key, project_id))
+        except (ValueError, TypeError):
+            pass  # Old client-supplied metadata is never an authority to delete a file.
+
+
+def _file_referenced(db, project_id, key, *, source_id=None, artifact_id=None):
+    if not key:
+        return False
+    for row in db.query(ResearchSource.id, ResearchSource.object_key, ResearchSource.source_metadata).filter(
+            ResearchSource.project_id == project_id).all():
+        if row.id != source_id and key in (row.object_key, (row.source_metadata or {}).get('original_object_key')):
+            return True
+    for row in db.query(ResearchArtifact.id, ResearchArtifact.object_key, ResearchArtifact.artifact_metadata).filter(
+            ResearchArtifact.project_id == project_id).all():
+        meta = row.artifact_metadata or {}
+        if row.id != artifact_id and (row.object_key == key or any(meta.get(field) == key for field in ARTIFACT_FILE_METADATA)):
+            return True
+    return False
+
 
 def recover_stale_research_projects() -> int:
     """Make interrupted in-process workflows resumable after a backend restart."""
-    stale_minutes = max(5, min(1440, int(os.getenv("RESEARCH_STALE_RUN_MINUTES", "15"))))
-    cutoff = datetime.utcnow() - timedelta(minutes=stale_minutes)
     active_statuses = {
         "planning", "searching", "source_assessing", "cleaning", "risk_assessing",
         "report_generating", "proposal_generating", "pausing",
@@ -76,7 +112,7 @@ def recover_stale_research_projects() -> int:
     try:
         stale = (
             db.query(ResearchProject)
-            .filter(ResearchProject.status.in_(active_statuses), ResearchProject.updated_at < cutoff)
+            .filter(ResearchProject.status.in_(active_statuses))
             .all()
         )
         for project in stale:
@@ -92,11 +128,17 @@ def recover_stale_research_projects() -> int:
         db.close()
 
 
-def _mark_project_running(project_id: int) -> bool:
+def _mark_project_running(project_id: int, user_id: int | None = None) -> bool:
     with RUNNING_PROJECT_LOCK:
         if project_id in RUNNING_PROJECT_IDS:
             return False
+        maximum = max(1, int(os.getenv('RESEARCH_MAX_CONCURRENT_RUNS', '1')))
+        per_user = max(1, int(os.getenv('RESEARCH_MAX_RUNS_PER_USER', '1')))
+        if (len(RUNNING_PROJECT_IDS) >= maximum or (user_id is not None and
+                sum(RUNNING_PROJECT_OWNERS.get(pid) == user_id for pid in RUNNING_PROJECT_IDS) >= per_user)):
+            raise HTTPException(429, '研究任务名额已占用，请等待现有任务完成后再试', headers={'Retry-After': '30'})
         RUNNING_PROJECT_IDS.add(project_id)
+        RUNNING_PROJECT_OWNERS[project_id] = user_id
         PAUSE_REQUESTED_PROJECT_IDS.discard(project_id)
         RUNNING_PROJECT_EVENTS[project_id] = []
         return True
@@ -105,6 +147,7 @@ def _mark_project_running(project_id: int) -> bool:
 def _unmark_project_running(project_id: int) -> None:
     with RUNNING_PROJECT_LOCK:
         RUNNING_PROJECT_IDS.discard(project_id)
+        RUNNING_PROJECT_OWNERS.pop(project_id, None)
 
 
 def _is_project_running(project_id: int) -> bool:
@@ -403,12 +446,12 @@ def _general_research_overview(question: str) -> str:
 [2] 内置研究资料：脑机接口产业链、临床与合规框架"""
     return ""
 
-def _delete_local_upload(path_value: str | None) -> None:
+def _delete_local_upload(path_value: str | None, project_id: int) -> None:
     if not path_value:
         return
     try:
         path = Path(path_value).resolve()
-        root = UPLOAD_DIR.resolve()
+        root = (UPLOAD_DIR / str(project_id)).resolve()
         if root in path.parents and path.is_file():
             path.unlink(missing_ok=True)
     except Exception:
@@ -416,6 +459,8 @@ def _delete_local_upload(path_value: str | None) -> None:
 
 
 def _project_response(project: ResearchProject) -> ResearchProjectResponse:
+    from personal_home import project_state
+    running = _is_project_running(project.id)
     return ResearchProjectResponse(
         id=project.id,
         title=project.title,
@@ -424,6 +469,8 @@ def _project_response(project: ResearchProject) -> ResearchProjectResponse:
         industry=project.industry,
         description=project.description,
         status=project.status,
+        is_running=running,
+        state_label=project_state(project.status, running),
         created_at=project.created_at.isoformat(),
         updated_at=project.updated_at.isoformat(),
     )
@@ -453,7 +500,7 @@ def _source_response(source: ResearchSource) -> ResearchSourceResponse:
     )
 
 
-def _artifact_response(artifact: ResearchArtifact, include_content: bool = True) -> ResearchArtifactResponse:
+def _artifact_response(artifact: ResearchArtifact, include_content: bool = True, *, summary_only: bool = False) -> ResearchArtifactResponse:
     metadata = dict(artifact.artifact_metadata or {})
     if metadata.get('knowledge_document_id'):
         from sqlalchemy.orm import object_session
@@ -463,6 +510,29 @@ def _artifact_response(artifact: ResearchArtifact, include_content: bool = True)
             doc = session.get(CompanyDocument, metadata['knowledge_document_id'])
             if doc:
                 metadata.update(knowledge_sync_status=doc.state, knowledge_review=doc.review)
+    if summary_only:
+        # Task views need status and counts, not historical statement plans,
+        # raw review responses, evidence bodies or generation diagnostics.
+        full = metadata
+        metadata = {key: full[key] for key in (
+            'run_id', 'run_status', 'report_pipeline_version', 'proposal_confirmation_status',
+            'proposal_template_version', 'proposal_content_summary',
+            'quality_warning', 'delivery_status', 'docx_integrity_status', 'docx_render_status',
+            'knowledge_document_id', 'knowledge_sync_status', 'knowledge_review',
+            'vector_index_status', 'vector_indexed_count', 'risk_transparency') if key in full}
+        metadata['docx_export_error'] = bool(full.get('docx_export_error'))
+        for key in ('delivery_review_reasons', 'generation_degradations', 'quality_issues'):
+            if isinstance(full.get(key), list):
+                metadata[key] = [{k: issue[k] for k in ('message', 'chapter', 'review_type') if k in issue}
+                                 for issue in full[key] if isinstance(issue, dict)]
+        diagnostic = full.get('industry_evidence_diagnostic') or {}
+        if isinstance(diagnostic, dict) and diagnostic.get('fact_quality'):
+            metadata['industry_evidence_diagnostic'] = {'fact_quality': diagnostic['fact_quality']}
+        review = full.get('claim_support_review') or {}
+        if isinstance(review, dict):
+            metadata['claim_support_review'] = {k: review[k] for k in (
+                'attempts', 'total_claim_count', 'submitted_claim_count', 'valid_review_count',
+                'supported_claim_count', 'pending_claim_count', 'coverage_by_chapter') if k in review}
     return ResearchArtifactResponse(
         id=artifact.id,
         project_id=artifact.project_id,
@@ -768,6 +838,17 @@ def _latest_workflow_trace(artifacts: list[ResearchArtifact]) -> list[dict]:
     return []
 
 
+def _trace_activity(artifacts: list[ResearchArtifact], trace: list[dict]) -> dict:
+    traces = [a for a in artifacts if a.artifact_type == 'workflow_trace']
+    latest = max(traces, key=_workflow_trace_sort_key, default=None)
+    meta = (latest.artifact_metadata or {}) if latest else {}
+    actual = [e for e in trace if isinstance(e, dict) and not e.get('heartbeat')
+              and e.get('type') != 'heartbeat' and e.get('stage') != 'heartbeat']
+    return {"run_id": meta.get('run_id'), "run_started_at": meta.get('run_started_at'),
+            "last_backend_event_timestamp": meta.get('last_backend_event_timestamp') or
+                max((str(e.get('timestamp') or '') for e in actual), default='')}
+
+
 def _workflow_trace_sort_key(artifact: ResearchArtifact) -> tuple[str, str, int, int]:
     metadata = artifact.artifact_metadata or {}
     latest_timestamp = str(metadata.get("last_event_timestamp") or "")
@@ -958,20 +1039,21 @@ async def _store_uploaded_research_source(
     credibility_score: int,
     metadata: dict | None = None,
 ) -> ResearchSource:
-    filename = Path(file.filename or "").name
+    filename = validate_filename(file.filename or "")
     if not filename:
         raise HTTPException(status_code=400, detail="文件名不能为空")
     allowed = (".pdf", ".docx", ".doc", ".xlsx", ".xls", ".txt", ".md", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp")
     if not filename.lower().endswith(allowed):
         raise HTTPException(status_code=400, detail="仅支持 PDF、Word、Excel、TXT、Markdown、图片文件")
 
-    project_dir = UPLOAD_DIR / str(project.id)
-    project_dir.mkdir(parents=True, exist_ok=True)
+    payload = await read_upload(file)
+    upload_id = uuid4().hex
+    project_dir = UPLOAD_DIR / str(project.id) / upload_id
+    project_dir.mkdir(parents=True, exist_ok=False)
     file_path = project_dir / filename
-    payload = await file.read()
-    file_path.write_bytes(payload)
-    original_object_key = research_store.put_bytes(
-        f"projects/{project.id}/uploads/original/{filename}",
+    await run_in_threadpool(file_path.write_bytes, payload)
+    original_object_key = await run_in_threadpool(research_store.put_bytes,
+        f"projects/{project.id}/uploads/{upload_id}/original/{filename}",
         payload,
         mimetypes.guess_type(filename)[0] or "application/octet-stream",
     )
@@ -983,10 +1065,12 @@ async def _store_uploaded_research_source(
     if not text.strip():
         raise HTTPException(status_code=400, detail="未能从文件中提取文本")
 
-    object_key = research_store.put_text(f"projects/{project.id}/uploads/{filename}.txt", text)
+    object_key = await run_in_threadpool(research_store.put_text,
+        f"projects/{project.id}/uploads/{upload_id}/text.txt", text)
     extraction_failed = text.startswith("[解析失败") or text.startswith("[待解析")
     source_metadata = {
         "original_filename": filename,
+        "upload_id": upload_id,
         "local_path": str(file_path),
         "original_object_key": original_object_key,
         "module": module,
@@ -1028,7 +1112,7 @@ async def _store_uploaded_research_source(
     identity_updates = _merge_upload_identity_into_intake(db, project, "" if extraction_failed else text)
     if identity_updates:
         source_metadata["intake_identity_updates"] = identity_updates
-    index_result = _index_source_for_rag(project, source)
+    index_result = await run_in_threadpool(_index_source_for_rag, project, source)
     source_metadata.update(index_result)
     source.source_metadata = source_metadata
     db.commit()
@@ -1300,7 +1384,8 @@ def _refresh_failed_upload_ocr(db: Session, project: ResearchProject) -> dict[st
         if str(meta.get("extraction_status") or "").lower() != "failed":
             continue
         local_path = Path(str(meta.get("local_path") or ""))
-        if not local_path.exists() or local_path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}:
+        if ((UPLOAD_DIR / str(project.id)).resolve() not in local_path.resolve().parents
+                or not local_path.is_file() or local_path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}):
             continue
         try:
             text = _ocr_local_image_with_fallback(local_path).strip()
@@ -1312,7 +1397,7 @@ def _refresh_failed_upload_ocr(db: Session, project: ResearchProject) -> dict[st
             continue
         source.content = text
         source.summary = text[:500]
-        source.object_key = research_store.put_text(f"projects/{project.id}/uploads/{source.title}.txt", text)
+        source.object_key = research_store.put_text(f"projects/{project.id}/uploads/{uuid4().hex}/text.txt", text)
         meta["extraction_status"] = "ocr_done"
         meta["ocr_retry_error"] = ""
         quality = dict(meta.get("quality") or {})
@@ -1367,7 +1452,16 @@ def list_projects(
     if current_user.role != "admin":
         query = query.filter(ResearchProject.created_by_id == current_user.id)
     projects = query.order_by(ResearchProject.updated_at.desc()).all()
-    return ResearchProjectListResponse(projects=[_project_response(item) for item in projects])
+    rows = [_project_response(item) for item in projects]
+    source_query = db.query(func.count(ResearchSource.id)).join(
+        ResearchProject, ResearchSource.project_id == ResearchProject.id)
+    if current_user.role != "admin":
+        source_query = source_query.filter(ResearchProject.created_by_id == current_user.id)
+    return ResearchProjectListResponse(projects=rows, summary={
+        "total": len(rows), "running": sum(row.is_running for row in rows),
+        "completed": sum(row.status == 'completed' and not row.is_running for row in rows),
+        "source_count": source_query.scalar() or 0,
+    })
 
 
 @router.get("/projects/{project_id}", response_model=ResearchProjectResponse)
@@ -1384,6 +1478,7 @@ def get_project_detail(
     project_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    latest_only: bool = False,
 ):
     project = _get_project(db, project_id, current_user)
     sources = (
@@ -1395,14 +1490,23 @@ def get_project_detail(
     )
     artifacts = (
         db.query(ResearchArtifact)
-        .options(defer(ResearchArtifact.content))
+        .options(defer(ResearchArtifact.content), defer(ResearchArtifact.artifact_metadata))
         .filter(ResearchArtifact.project_id == project.id)
         .order_by(ResearchArtifact.created_at.desc())
         .all()
     )
     from research_recovery import build_recovery
     trace = _latest_workflow_trace(artifacts)
-    artifact_rows = [_artifact_response(item, include_content=False).model_dump() for item in artifacts]
+    visible = artifacts
+    if latest_only:
+        # The recovery calculation still sees every persisted record, while the
+        # task panel transports only the newest record of each downloadable type.
+        latest = {}
+        for item in sorted(artifacts, key=lambda a: (a.created_at, a.version, a.id), reverse=True):
+            if item.artifact_type not in {'project_intake', 'workflow_trace'}:
+                latest.setdefault(item.artifact_type, item)
+        visible = list(latest.values())
+    artifact_rows = [_artifact_response(item, include_content=False, summary_only=latest_only).model_dump() for item in visible]
     # Determine whether saved report text exists in SQL, without transporting
     # whole historical reports merely to test content.strip().
     whitespace = ''.join(chr(value) for value in range(0x3001) if chr(value).isspace())
@@ -1418,9 +1522,13 @@ def get_project_detail(
         "intake": _project_intake(project),
         "source_count": len(sources),
         "artifact_count": len(artifacts),
+        "downloadable_artifact_count": sum(a.artifact_type not in {'project_intake', 'workflow_trace'} for a in artifacts),
+        "upload_count": sum(s.source_type == 'upload' for s in sources),
         "artifacts": artifact_rows,
-        "sources": [_source_response(item).model_dump() for item in sources],
-        "trace": trace,
+        "sources": [_source_response(item).model_dump() for item in (sources[:50] if latest_only else sources)],
+        "sources_truncated": latest_only and len(sources) > 50,
+        "trace": _compact_workflow_trace(trace) if latest_only else trace,
+        "activity": _trace_activity(artifacts, trace),
         "recovery": recovery,
     }
 
@@ -1456,9 +1564,11 @@ def get_project_progress(
         .order_by(ResearchArtifact.created_at.desc())
     )
     trace_artifacts = trace_query.limit(1).all() if project.target_type == 'industry' else trace_query.all()
+    trace = _latest_workflow_trace(trace_artifacts)
     return {
         "project": _project_response(project).model_dump(),
-        "trace": _latest_workflow_trace(trace_artifacts),
+        "trace": trace,
+        "activity": _trace_activity(trace_artifacts, trace),
     }
 
 
@@ -1475,10 +1585,10 @@ async def delete_project(
     artifacts = db.query(ResearchArtifact).filter(ResearchArtifact.project_id == project.id).all()
     for source in sources:
         metadata = source.source_metadata or {}
-        _delete_local_upload(metadata.get("local_path"))
+        _delete_local_upload(metadata.get("local_path"), project.id)
         for key in {source.object_key, metadata.get("original_object_key")}:
             try:
-                research_store.delete_object(key)
+                _delete_project_file(key, project.id)
             except Exception:
                 pass
     for artifact in artifacts:
@@ -1490,7 +1600,7 @@ async def delete_project(
             metadata.get("raw_markdown_object_key"),
         }:
             try:
-                research_store.delete_object(key)
+                _delete_project_file(key, project.id)
             except Exception:
                 pass
     try:
@@ -1525,7 +1635,7 @@ async def add_manual_source(
         object_key=object_key,
         content=content,
         summary=request.summary.strip(),
-        source_metadata=request.metadata,
+        source_metadata={key: value for key, value in request.metadata.items() if key not in SOURCE_FILE_METADATA},
         credibility_score=max(0, min(100, request.credibility_score)),
     )
     project.updated_at = datetime.utcnow()
@@ -1567,7 +1677,10 @@ def download_source(
     object_key = metadata.get("original_object_key") or source.object_key
     if not object_key:
         raise HTTPException(status_code=404, detail="来源文件不存在")
-    payload = research_store.get_bytes(object_key)
+    try:
+        payload = research_store.get_bytes(_project_file_key(object_key, source.project_id))
+    except (FileNotFoundError, ValueError):
+        raise HTTPException(404, '来源文件不存在') from None
     if not payload.strip():
         fallback_text = "\n".join(
             part
@@ -1599,10 +1712,16 @@ async def delete_source(
     if not source:
         raise HTTPException(status_code=404, detail="资料来源不存在")
     _get_project(db, source.project_id, current_user)
-    research_store.delete_object(source.object_key)
     metadata = source.source_metadata or {}
-    research_store.delete_object(metadata.get("original_object_key"))
-    _delete_local_upload(metadata.get("local_path"))
+    for key in {source.object_key, metadata.get('original_object_key')}:
+        if not _file_referenced(db, source.project_id, key, source_id=source.id):
+            _delete_project_file(key, source.project_id)
+    local_path = metadata.get('local_path')
+    other_local_refs = any(row.id != source.id and (row.source_metadata or {}).get('local_path') == local_path
+                          for row in db.query(ResearchSource.id, ResearchSource.source_metadata).filter(
+                              ResearchSource.project_id == source.project_id).all())
+    if not other_local_refs:
+        _delete_local_upload(local_path, source.project_id)
     db.delete(source)
     db.commit()
     return {"message": "research source deleted", "source_id": source_id}
@@ -1690,14 +1809,14 @@ async def replace_project_artifact(
 
 
 @router.post("/projects/{project_id}/run", response_model=ResearchRunResponse)
-async def run_research_project(
+def run_research_project(
     project_id: int,
     request: ResearchRunRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     project = _get_project(db, project_id, current_user)
-    if not _mark_project_running(project_id):
+    if not _mark_project_running(project_id, current_user.id):
         raise HTTPException(status_code=409, detail="该项目已有工作流正在后台运行，请稍后查看进度")
     try:
         intake = _locked_run_intake(request, target_type=project.target_type)
@@ -1749,7 +1868,12 @@ async def run_research_project_stream(
     is_admin = current_user.role == "admin"
 
     async def event_generator():
-        if not _mark_project_running(project_id):
+        try:
+            admitted = _mark_project_running(project_id, current_user.id)
+        except HTTPException as exc:
+            yield f"data: {json.dumps({'type': 'error', 'content': exc.detail}, ensure_ascii=False)}\n\n"
+            return
+        if not admitted:
             loop = asyncio.get_running_loop()
             queue: asyncio.Queue = asyncio.Queue()
             _subscribe_running_project(project_id, loop, queue)
@@ -1934,7 +2058,12 @@ async def run_second_stage_stream(
     is_admin = current_user.role == "admin"
 
     async def event_generator():
-        if not _mark_project_running(project_id):
+        try:
+            admitted = _mark_project_running(project_id, current_user.id)
+        except HTTPException as exc:
+            yield f"data: {json.dumps({'type': 'error', 'content': exc.detail}, ensure_ascii=False)}\n\n"
+            return
+        if not admitted:
             yield f"data: {json.dumps({'type': 'trace_step', 'stage': 'workflow', 'agent': 'workflow', 'label': '工作流已在后台运行', 'detail': '无需重复启动，刷新项目详情查看进度', 'status': 'skipped', 'timestamp': datetime.utcnow().isoformat()}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
             return
@@ -2059,6 +2188,26 @@ def list_artifacts(
     return [_artifact_response(item, include_content=include_content) for item in artifacts]
 
 
+@router.get("/projects/{project_id}/artifact-history")
+def artifact_history(
+    project_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=50),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    project = _get_project(db, project_id, current_user)
+    query = db.query(ResearchArtifact).filter(
+        ResearchArtifact.project_id == project.id,
+        ~ResearchArtifact.artifact_type.in_(['project_intake', 'workflow_trace']))
+    total = query.count()
+    records = query.options(defer(ResearchArtifact.content)).order_by(
+        ResearchArtifact.created_at.desc(), ResearchArtifact.version.desc(), ResearchArtifact.id.desc()
+    ).offset((page - 1) * page_size).limit(page_size).all()
+    return {"records": [_artifact_response(a, include_content=False, summary_only=True).model_dump() for a in records],
+            "total": total, "page": page, "page_size": page_size}
+
+
 @router.post("/artifacts/{artifact_id}/reindex", response_model=ResearchArtifactResponse)
 async def reindex_industry_artifact(
     artifact_id: int,
@@ -2100,7 +2249,8 @@ async def delete_artifact(
         metadata.get("review_original_object_key"),
     }:
         try:
-            research_store.delete_object(key)
+            if not _file_referenced(db, artifact.project_id, key, artifact_id=artifact.id):
+                _delete_project_file(key, artifact.project_id)
         except Exception:
             pass
     db.delete(artifact)
@@ -2358,7 +2508,7 @@ def download_artifact(
     review_original_key = metadata.get("review_original_object_key")
     if artifact.created_by == "human_review" and review_original_key:
         try:
-            payload = research_store.get_bytes(review_original_key)
+            payload = research_store.get_bytes(_project_file_key(review_original_key, artifact.project_id))
             filename = metadata.get("original_filename") or f"{_safe_download_name(artifact.title, artifact.artifact_type)}_v{artifact.version}"
             return Response(
                 content=payload,
@@ -2377,7 +2527,7 @@ def download_artifact(
     docx_key = metadata.get("docx_object_key")
     if docx_key and artifact.artifact_type in {"desktop_report", "proposal"}:
         try:
-            payload = research_store.get_bytes(docx_key)
+            payload = research_store.get_bytes(_project_file_key(docx_key, artifact.project_id))
             filename = f"{_safe_download_name(artifact.title, artifact.artifact_type)}_v{artifact.version}.docx"
             return Response(
                 content=payload,
@@ -2390,7 +2540,7 @@ def download_artifact(
     content = artifact.content
     if artifact.object_key:
         try:
-            content = research_store.get_text(artifact.object_key)
+            content = research_store.get_text(_project_file_key(artifact.object_key, artifact.project_id))
         except Exception:
             content = artifact.content
 

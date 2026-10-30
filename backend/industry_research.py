@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import urlsplit, parse_qsl, urlencode
 
 INDUSTRY_POLICY_VERSION = 'industry-scope-v3'
-INDUSTRY_RISK_VERSION = 'industry-risk-v21-claim-support'
+INDUSTRY_RISK_VERSION = 'industry-risk-v22-support-diagnostics'
 INDUSTRY_RISK_DIMENSIONS = (
     '政策与监管风险', '市场增长与需求风险', '竞争格局与集中度风险',
     '商业化与盈利模式风险', '技术迭代与替代风险', '资本热度与估值风险', '数据口径与证据可靠性风险',
@@ -368,7 +368,8 @@ CHAPTER_MODULES = {
 }
 
 
-def select_chapter_evidence(payload: dict, title: str, requirements: list[str], excluded_urls=None) -> dict:
+def select_chapter_evidence(payload: dict, title: str, requirements: list[str], excluded_urls=None, *, max_facts: int = 12,
+                            deduplicate_statements: bool = False) -> dict:
     from industry_fact_contracts import chapter_admitted
     from report_agents.industry_template import INDUSTRY_REPORT_OUTLINE
     chapter_index = next((i for i, (t, _) in enumerate(INDUSTRY_REPORT_OUTLINE, 1) if t == title), 0)
@@ -415,6 +416,28 @@ def select_chapter_evidence(payload: dict, title: str, requirements: list[str], 
             continue
         seen.add(key)
         focused.append(fact)
+    duplicate_groups = {}
+    if deduplicate_statements:
+        unique, representatives = [], {}
+        for fact in focused:
+            contract = fact.get('fact_contract') or {}
+            if not contract.get('statement'):
+                unique.append(fact)
+                continue
+            key = json.dumps({'statement': re.sub(r'\s+', '', contract['statement']),
+                'source_role': contract.get('source_role'), 'material_kind': contract.get('material_kind'),
+                'sample_boundary': contract.get('sample_boundary'), 'evidence_scope': fact.get('evidence_scope'),
+                'industry_name': fact.get('industry_name'), 'segment_name': fact.get('segment_name'),
+                'numeric_context': fact.get('numeric_context'), 'comparator': contract.get('comparator'),
+                'policy_document': [source_document_key(fact.get('source_url', '')),
+                    ((fact.get('provenance') or {}).get('locator') or {}).get('body_sha256')]
+                    if contract.get('source_role') == 'policy_primary' else ''}, sort_keys=True, ensure_ascii=False)
+            if key in representatives:
+                duplicate_groups.setdefault(representatives[key], []).append(fact['evidence_id'])
+                continue
+            representatives[key] = fact['evidence_id']
+            unique.append(fact)
+        focused = unique
     try:
         from .industry_evidence import diverse_evidence
     except ImportError:
@@ -443,13 +466,15 @@ def select_chapter_evidence(payload: dict, title: str, requirements: list[str], 
         question_cards = [next(f for f in contracted if f['evidence_id']==eid) for eid in question_ids]
         reserved = question_cards + [f for f in reserved if f not in question_cards]
     remaining = [f for f in focused if f not in reserved]
-    focused = reserved + diverse_evidence(remaining,payload.get('evidence_requirements') or [],max(0,12-len(reserved)))
+    focused = reserved + diverse_evidence(remaining,payload.get('evidence_requirements') or [],max(0,max_facts-len(reserved)))
     # Put evidence first and omit the full ledger; bounded model prompts must not
     # be consumed by metadata before the actual fact cards are reached.
     coverage=(payload.get('evidence_coverage') or {}).get('requirements',[])
     questions=[{'question':r['question'],'status':r['status'],'verified_fact_count':len(r.get('verified_evidence_ids',[]))}
                for r in coverage if r['module'] in expected or title in {'摘要','综合评估','后续研究点'}]
     return {'facts': focused, 'industry_scope': payload.get('industry_scope') or {},
+            'duplicate_statement_groups': [{'representative_id': eid, 'duplicate_ids': duplicates,
+                'basis': 'same_statement_and_scope_not_independent_corroboration'} for eid, duplicates in duplicate_groups.items()],
             'selection_coverage': {'candidate_count':len(candidates), 'selected_count':len(focused),
                 'task_candidates': {name:sum(name in passage_tasks(row[-1]) for row in candidates) for name in sorted(task_names)},
                 'task_selected': {name:sum(name in passage_tasks(f) for f in focused) for name in sorted(task_names)},
@@ -826,6 +851,17 @@ def source_document_key(url: str) -> str:
         return ''
 
 
+def _forecast_number_only_in_denied_comparison(clause, number):
+    """A forecast quoted only as the object of an explicit prohibition is not
+    an assertion that the value was realized. A later assertion still fails.
+    """
+    spans=[m.span('objects') for m in re.finditer(
+        r'(?:不能|不可|不应|不得|无法|不宜)(?:把|将)(?P<objects>[^。；;，]{1,140}?)'
+        r'(?:当作|作为|视为|等同于|混同为|合并为|直接用于|用于|代替|替代)',clause)]
+    hits=[m for m in re.finditer(NUMBER_PATTERN,clause) if number_key(m[0])==number_key(number)]
+    return bool(hits) and all(any(a<=m.start() and m.end()<=b for a,b in spans) for m in hits)
+
+
 def claim_semantic_issues(text: str, facts: list[dict]) -> list[dict]:
     """Conservative claim checks; passing is not proof of all prose semantics."""
     by_id = {f['evidence_id']: f for f in facts if f.get('evidence_id')}
@@ -840,7 +876,8 @@ def claim_semantic_issues(text: str, facts: list[dict]) -> list[dict]:
             for number in numeric_mentions(clause):
                 supporting = [f for f in rows if numeric_supported(number, f['evidence_id'], numeric)]
                 if (supporting and all((f.get('numeric_context') or {}).get('is_forecast') is True for f in supporting)
-                        and not re.search(r'预测|预计|预估|估计|有望|或将|情景|假设|目标|锚定|力争|争取|forecast|projected|estimated', clause, re.I)):
+                        and not re.search(r'预测|预计|预估|估计|有望|或将|情景|假设|目标|锚定|力争|争取|forecast|projected|estimated', clause, re.I)
+                        and not _forecast_number_only_in_denied_comparison(clause,number)):
                     issues.append({'code':'forecast_presented_as_actual', 'number':number,
                         'evidence_ids':[f['evidence_id'] for f in supporting],
                         'message':f'预测值{number}未在同一分句保留预测、预估或目标标记。'})
@@ -1213,9 +1250,11 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
                       'publisher':numeric.get(eid,{}).get('publisher'),
                       'numeric_context':numeric.get(eid, {}).get('context') or {},
                       'numeric_validation':numeric.get(eid, {}).get('validation') or {}} for eid in line_ids]
-            for issue in claim_semantic_issues(line, cards):
+            from industry_answer_quality import without_document_titles
+            checked_line = without_document_titles(line, cards)
+            for issue in claim_semantic_issues(checked_line, cards):
                 errors.append(f'第{chapter}章语义核验：' + issue['message'])
-            numbers = numeric_mentions(line)
+            numbers = numeric_mentions(checked_line)
             if not numbers:
                 continue
             for number in numbers:

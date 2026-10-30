@@ -26,12 +26,12 @@ def read_api(tmp_path,monkeypatch):
         for id,kind,body,metadata in [
             (1,'project_intake','{}',{'company_name':'Synthetic subject'}),
             (2,'cleaned_facts','PRIVATE_FACT_BODY'*10000,{}),
-            (3,'desktop_report','SAVED_REPORT_BODY'*10000,{'docx_object_key':'synthetic/report.docx'}),
+            (3,'desktop_report','SAVED_REPORT_BODY'*10000,{'docx_object_key':'projects/1/report.docx'}),
             (4,'workflow_trace',json.dumps([{'stage':'report','status':'running'}]),{'last_event_timestamp':'2026-10-21T01:00:00'}),
             (5,'proposal','\n\t\u3000 ',{}),
         ]:
             db.add(ResearchArtifact(id=id,project_id=1,artifact_type=kind,title=kind,content=body,artifact_metadata=metadata))
-        db.add(ResearchSource(project_id=1,source_type='upload',title='Source',content='PRIVATE_SOURCE_BODY'*10000,summary='Summary',object_key='synthetic/source.txt'))
+        db.add(ResearchSource(project_id=1,source_type='upload',title='Source',content='PRIVATE_SOURCE_BODY'*10000,summary='Summary',object_key='projects/1/source.txt'))
         db.commit()
     app=FastAPI();app.include_router(api.router)
     @app.get('/responsive-check')
@@ -136,8 +136,8 @@ def test_metadata_only_artifact_list_is_opt_in_and_never_loads_bodies(read_api):
 
 
 @pytest.mark.parametrize('path,expected_key',[
-    ('/research/artifacts/3/download','synthetic/report.docx'),
-    ('/research/sources/1/download','synthetic/source.txt'),
+    ('/research/artifacts/3/download','projects/1/report.docx'),
+    ('/research/sources/1/download','projects/1/source.txt'),
 ])
 def test_original_downloads_skip_text_bodies_and_keep_owner_checks(read_api,monkeypatch,path,expected_key):
     client,headers,statements=read_api

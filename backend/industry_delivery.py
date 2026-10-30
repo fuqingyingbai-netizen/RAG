@@ -2,7 +2,7 @@
 import hashlib
 import re
 
-VERIFICATION_TASK_VERSION = 'industry-verification-v8-task-criteria'
+VERIFICATION_TASK_VERSION = 'industry-verification-v10-current-question-tasks'
 
 # These are follow-up destinations, not permission to score a dimension.
 RISK_TASK_SCOPE = {
@@ -14,6 +14,77 @@ RISK_TASK_SCOPE = {
     '资本热度与估值风险': ([8, 9, 14], ['capital']),
     '数据口径与证据可靠性风险': ([15, 14], []),
 }
+
+
+def verification_task_chapters(task):
+    """Bind missing metrics by their structured requirement, even without a chapter."""
+    chapters = {int(c) for c in (task.get('chapters') or ([task['chapter']] if task.get('chapter') else []))
+                if str(c).isdigit()}
+    if not chapters:
+        chapters = {int(sub['chapter']) for sub in task.get('subtasks') or []
+                    if isinstance(sub, dict) and str(sub.get('chapter')).isdigit()}
+    requirements = set(task.get('requirement_ids') or [])
+    if not chapters and requirements:
+        for destinations, names in RISK_TASK_SCOPE.values():
+            if requirements.intersection(names):
+                chapters.update(c for c in destinations if c != 14)
+    return sorted(chapters)
+
+
+def _question_topic(topic):
+    return re.sub(r'^结论支持复核\s*[：:]\s*', '', str(topic or '')).strip()
+
+
+def consolidate_verification_tasks(tasks):
+    """One current task per chapter/question; revisions remain audit data.
+
+    This also normalizes saved legacy task lists on reexport. It never mutates
+    the stored task input or interprets an old rejected claim as new evidence.
+    Distinct defects, completion conditions and candidate references are kept
+    together rather than emitted as another task for each attempted draft.
+    """
+    from copy import deepcopy
+    result = []
+    for original in tasks:
+        if not isinstance(original, dict):
+            continue
+        task = deepcopy(original)
+        task['chapters'] = verification_task_chapters(task)
+        current = {}
+        for source in task.get('subtasks') or []:
+            if not isinstance(source, dict):
+                continue
+            sub = deepcopy(source)
+            topic = _question_topic(sub.get('topic'))
+            key = (sub.get('chapter'), topic)
+            if key not in current:
+                current[key] = {**sub, 'topic': topic, 'audit_merged_task_ids': [],
+                                'audit_revision_history': [], 'issue_codes': [], 'review_reasons': []}
+            target = current[key]
+            for tid in [sub.get('task_id'), *sub.get('audit_merged_task_ids', [])]:
+                if tid and tid not in target['audit_merged_task_ids']:
+                    target['audit_merged_task_ids'].append(tid)
+            for field in ('evidence_ids', 'issue_codes', 'review_reasons'):
+                target.setdefault(field, [])
+                target[field] = list(dict.fromkeys([*target[field], *(sub.get(field) or [])]))
+            for event in sub.get('audit_revision_history') or []:
+                if event not in target['audit_revision_history']:
+                    target['audit_revision_history'].append(event)
+            if str(sub.get('topic') or '').startswith('结论支持复核') or sub.get('support_review_required'):
+                target['support_review_required'] = True
+            if sub.get('status') in {'contradicted', 'unsupported', 'partial', 'uncertain'}:
+                target['status'] = sub['status']
+            # Different source/number corrections are one question with all of
+            # its completion conditions, not silently discarded duplicate work.
+            for field in ('completion', 'action', 'materials'):
+                value = str(sub.get(field) or '').strip()
+                old = str(target.get(field) or '').strip()
+                if value and value not in old:
+                    target[field] = (old + ' ' + value).strip()
+        if task.get('subtasks') is not None:
+            task['subtasks'] = list(current.values())
+        result.append(task)
+    return result
 
 
 def _cell(value):
@@ -41,8 +112,36 @@ def review_reason_summary(reasons):
     return '；'.join(parts) + ('。完整原因及核验任务见报告质量诊断和第16章。' if parts else '')
 
 
-def assessment_review_plan(cause):
+def assessment_review_plan(cause, dimension=''):
     """Match the correction task to the rejected claim instead of buying more data."""
+    if cause == 'claim_support_rejected':
+        plans = {
+            '政策与监管风险':(
+                '核对具体义务的对象和适用场景，分别标出提供者、审查机构和地方政府职责；删除跨主体或跨场景的推论，执行效果另核验。',
+                '所引政策原文、义务主体、适用范围、有效版本及本轮支持复核记录。',
+                '条款、对象与适用范围逐项对应；文本义务与执行效果分开，未支持的影响判断收窄后重新评估。'),
+            '市场增长与需求风险':(
+                '对齐指标、地域、期间与数值性质，区分单期增长、下限值和持续需求判断；逐项核对评分推理。',
+                '原始统计、比较符、期间与定义、预测属性及本轮支持复核记录。',
+                '增长判断只覆盖有证据的期间和指标；不由两个下限或预测证明实际增长，复核后再评估。'),
+            '竞争格局与集中度风险':(
+                '分别核对玩家类型、样本排名、市场份额和集中度；人才与平台优势不直接证明准入壁垒。',
+                '玩家分层原文、份额与分母、壁垒的直接材料及本轮支持复核记录。',
+                '定性分层、量化集中度和进入壁垒分别有依据；未支持的行业格局判断收窄，不用企业数或样本代替份额。'),
+            '商业化与盈利模式风险':(
+                '区分所引材料未披露与行业整体未披露，核对收费方式、实际收入成本和盈利兑现之间的推理。',
+                '原始收费及经营披露、行业与企业样本边界、本轮支持复核记录。',
+                '收费机制不代替盈利结果；缺披露限定为本轮所引材料，不由统计缺口推导经营恶化。'),
+            '技术迭代与替代风险':(
+                '逐条绑定具体路线的优化目标、测试阶段和供应依赖；不同路线的性能、成本或自主性主张不能相互借用。',
+                '路线原文、测试配置与阶段、依赖约束及本轮支持复核记录。',
+                '路线、条件和推论一一对应；测试导入不等于规模部署，自主性讨论不直接证明供应受限。'),
+            '数据口径与证据可靠性风险':(
+                '分别复核原始出处与转载链、统计口径可比性和风险评级依据；字段完整或引用可定位不能证明评级可靠。',
+                '原始报告及转载关系、统计方法、可比性对照和本轮支持复核记录。',
+                '口径问题与真实经营风险分开，评级有独立适用依据；未完成校准和概率解释继续保留原限制。'),
+        }
+        return plans.get(dimension)
     if cause == 'ranking_source_missing':
         return ('回到排名正文或原始表，逐项核对主体、细分市场、统计期间、指标和名次；报告标题、发布消息和选样名单不能替代排名结果。',
                 '原始排名表或完整正文、排序方法、统计期间和市场边界；本轮引用及评分诊断。',
@@ -164,6 +263,14 @@ def verification_tasks(payload, risk, degradations, scope):
                        and not (scope.get('capital_market') == 'none' and facts[eid].get('evidence_scope') == 'capital_market')
                        and (facts[eid].get('provenance') or {}).get('locator', {}).get('status') == 'verified'))
 
+    def review_reference(eid):
+        fact = facts[eid]
+        locator = (fact.get('provenance') or {}).get('locator') or {}
+        return {'evidence_id':eid, 'title':fact.get('source_display_title') or fact.get('source_title') or '保存来源',
+                'sample_boundary':(fact.get('fact_contract') or {}).get('sample_boundary') or '',
+                'url':fact.get('source_url') or '', 'start':locator.get('start'), 'end':locator.get('end'),
+                'body_sha256':locator.get('body_sha256')}
+
     def add(key,topic,reason,kind=None,chapter=None,task_type='evidence_gap',ids=(),chapters=(),requirements=(),candidate_count=None,reference_limit=6,validation_cause=''):
         if key in keys:return
         keys.add(key)
@@ -177,7 +284,9 @@ def verification_tasks(payload, risk, degradations, scope):
             action='先对照已保存原文和授权指标，修正证据归属、数值及预测属性，再独立复核；确有资料缺口时再确认补采。'
             materials='本轮评分输入、已保存原文、授权指标与校验诊断；失败理由仅用于纠错，不作为事实。'
             completion='引用归属、单项指标和预测属性复核通过后再评估；未通过继续保留未知，不强行补分。'
-            specific = assessment_review_plan(validation_cause)
+            if validation_cause=='claim_support_rejected':
+                reason='评分理由的支持关系未通过，需按本维度核对原文及推理；不表示行业经营恶化。'
+            specific = assessment_review_plan(validation_cause,topic)
             if specific:
                 action, materials, completion = specific
         elif task_type == 'assessment_abstained':
@@ -212,19 +321,15 @@ def verification_tasks(payload, risk, degradations, scope):
         for eid in ranked:
             if len(refs)>=reference_limit:break
             if eid not in refs:refs.append(eid)
+        assigned_chapters = verification_task_chapters({'chapter':chapter, 'chapters':chapters,
+                                                       'requirement_ids':requirements})
         tasks.append({'key':key,'task_id':'V-'+hashlib.sha256(key.encode()).hexdigest()[:8].upper(),
                       'version':VERIFICATION_TASK_VERSION,'task_type':task_type,'validation_cause':validation_cause,
                       'topic':topic,'reason':reason,'action':action,'priority':'高' if key.startswith('risk:') else priority,
-                      'materials':materials,'chapter':chapter,'chapters':sorted(set(chapters or ([chapter] if chapter else []))),
+                      'materials':materials,'chapter':chapter,'chapters':assigned_chapters,
                       'requirement_ids':sorted(set(requirements)), 'review_evidence_ids':refs,
                       'audit_review_evidence_ids':all_refs, 'review_candidate_count':len(all_refs),
-                      'review_references':[{'evidence_id':eid,'title':facts[eid].get('source_display_title') or facts[eid].get('source_title') or '保存来源',
-                          'sample_boundary':(facts[eid].get('fact_contract') or {}).get('sample_boundary') or '',
-                          'url':facts[eid].get('source_url') or '',
-                          'start':((facts[eid].get('provenance') or {}).get('locator') or {}).get('start'),
-                          'end':((facts[eid].get('provenance') or {}).get('locator') or {}).get('end'),
-                          'body_sha256':((facts[eid].get('provenance') or {}).get('locator') or {}).get('body_sha256')}
-                          for eid in refs],
+                      'review_references':[review_reference(eid) for eid in refs],
                       'candidate_evidence_count':candidate_count,'completion':completion})
     for row in risk.get('dimensions') or []:
         if (row.get('name') not in active_risk_dimensions(scope) or row.get('score') is not None
@@ -255,6 +360,9 @@ def verification_tasks(payload, risk, degradations, scope):
             reason=str(row.get('reason') or cause)
         add('risk:'+row['name'],row['name'],reason,
             task_type=task_type,ids=ids,chapters=chapters,requirements=reqs,candidate_count=row.get('candidate_evidence_count'),validation_cause=cause)
+        if cause=='claim_support_rejected':
+            review=diagnostic.get('support_review') or row.get('claim_support_review') or {}
+            tasks[-1]['support_review_diagnostic']={k:review[k] for k in ('status','reason','diagnostic_code') if k in review}
         covered_requirements.update(reqs)
     for row in coverage:
         if row.get('status')=='verified':continue
@@ -264,16 +372,19 @@ def verification_tasks(payload, risk, degradations, scope):
             '已有候选原文，但口径或适用性未核验。' if row.get('status')=='candidate' else '本轮保留的事实包尚无适用证据。',
             ids=row.get('candidate_evidence_ids') or [],requirements=[row['requirement_id']] if row.get('requirement_id') else [],
             candidate_count=len(row.get('candidate_evidence_ids') or []))
-    synthesis = []
+    synthesis_by_chapter = {}
     for note in degradations:
         if not isinstance(note,dict):continue
         chapter = note.get('chapter')
         if chapter in ({8,9} if scope.get('capital_market')=='none' else set()) or (chapter==12 and not scope.get('named_companies')):continue
         if note.get('review_type') == 'statement_synthesis_review':
-            synthesis.append(note)
+            # Later notes describe the current chapter. Older attempts already
+            # live in the plan/recovery journal and must not create more work.
+            synthesis_by_chapter[chapter] = note
             continue
         add('chapter:'+str(chapter),'第'+str(chapter)+'章综合写作复核' if chapter else '报告综合写作复核',str(note.get('message') or '生成校验未完成'),
             kind='章节写作复核',chapter=chapter,task_type='generation_review',ids=note.get('evidence_ids') or [])
+    synthesis = list(synthesis_by_chapter.values())
     if synthesis:
         chapters=sorted({n['chapter'] for n in synthesis if isinstance(n.get('chapter'),int)})
         ids=[eid for n in synthesis for eid in review_ids(n.get('evidence_ids') or [])[:2]]
@@ -287,26 +398,60 @@ def verification_tasks(payload, risk, degradations, scope):
                     chapter_questions=[{'chapter':n['chapter'],'coverage':n.get('content_coverage') or []} for n in synthesis])
         task['subtasks'] = []
         for n in synthesis:
+            covered_questions = {}
             for number, question in enumerate(n.get('content_coverage') or [], 1):
                 topic = str(question.get('question') or '')
+                if not topic:
+                    continue
+                covered_questions[topic] = question
+                if question.get('answer_verified') is True:
+                    continue
                 criteria = task_criteria(topic)
                 completion = ('；'.join(question['criteria'])+'；逐项核对并记录适用范围及原文位置。'
                               if question.get('criteria') else criteria[2] if criteria else
                               '逐项核对所引材料与本问题的关系；有依据的分析经复核保留，缺少的材料明确登记。')
-                task['subtasks'].append({'task_id':task['task_id']+f'-C{n["chapter"]}-Q{number}',
+                question_key = f'{n["chapter"]}:{topic}'
+                task['subtasks'].append({'task_id':task['task_id']+f'-C{n["chapter"]}-Q'+hashlib.sha256(question_key.encode()).hexdigest()[:8].upper(),
                     'question_id': question.get('question_id'),
                     'chapter':n['chapter'], 'topic':topic, 'status':question.get('evidence_state', question.get('status')),
+                    'material_status':question.get('evidence_state', question.get('status')),
                     'evidence_ids':question.get('evidence_ids') or [],
                     'next_action': question.get('next_action'), 'claim_support_states': question.get('claim_support_states', []),
+                    'model_revision_complete': question.get('model_revision_complete') is True,
+                    'action': criteria[0] if criteria else '核对本题已选原文与当前判断，记录仍缺的条件及材料。',
+                    'materials': criteria[1] if criteria else '本题当前正文、已选原文、来源位置及复核记录。',
                     'completion':completion})
-        for note in synthesis:
-            for number, rejection in enumerate(note.get('analysis_rejections', []), 1):
+            rejections = n.get('active_analysis_rejections', n.get('analysis_rejections', []))
+            for number, rejection in enumerate(rejections, 1):
                 if not rejection.get('support_review'): continue
-                task['subtasks'].append({'task_id': task['task_id']+f'-C{note["chapter"]}-R{number}',
-                    'chapter': note['chapter'], 'topic': '结论支持复核：'+str(rejection.get('question') or ''),
-                    'status': rejection['support_review']['status'], 'evidence_ids': [],
+                topic = _question_topic(rejection.get('question'))
+                question = covered_questions.get(topic, {})
+                if question.get('model_revision_complete') or question.get('answer_verified'):
+                    continue
+                review = rejection['support_review']
+                reason = str(review.get('reason') or rejection.get('quality_reason') or '')
+                issue_codes = list(dict.fromkeys(str(code) for code in rejection.get('issues', []) if isinstance(code, str)))
+                criteria = task_criteria(topic)
+                raw_ids = list(rejection.get('evidence_ids') or [])
+                original = rejection.get('original_analysis')
+                if isinstance(original, dict):
+                    raw_ids += original.get('evidence_ids') or []
+                task['subtasks'].append({'task_id': task['task_id']+f'-C{n["chapter"]}-R{number}',
+                    'chapter': n['chapter'], 'topic': '结论支持复核：'+topic,
+                    'status': rejection['support_review']['status'],
+                    'evidence_ids':review_ids(raw_ids), 'issue_codes':issue_codes,
+                    'review_reasons':[reason] if reason else [], 'support_review_required':True,
+                    'audit_revision_history':[{'issue_codes':issue_codes, 'review':dict(review),
+                        'claim_id':rejection.get('claim_id'), 'question':topic}],
                     'next_action': 'review_claim_support',
+                    'action': criteria[0] if criteria else '对照已保存前提核对主体、期间、适用范围和推理缺口；先修正判断，确有资料缺口再补采。',
+                    'materials': criteria[1] if criteria else '本题当前正文、原始出处与具体复核诊断。',
                     'completion': '对照已保存前提核对主体、期间、适用范围和推理缺口；先收窄或修正判断，确有材料缺口再确认补采。'})
+    tasks = consolidate_verification_tasks(tasks)
+    for task in tasks:
+        for sub in task.get('subtasks') or []:
+            sub['evidence_ids'] = review_ids(sub.get('evidence_ids') or [])
+            sub['review_references'] = [review_reference(eid) for eid in sub['evidence_ids']]
     return tasks
 
 
@@ -365,6 +510,7 @@ def evaluation_inputs(payload):
 
 def tasks_section(tasks, title='后续研究点'):
     from industry_reader import task_brief
+    tasks = consolidate_verification_tasks(tasks)
     return ('## 16. '+title+'\n\n以下为待完成的核验任务；未表示已补搜、访谈或采购，也不预设人员、工期及费用。\n\n'
             +task_brief(tasks)+'\n')
 
@@ -375,6 +521,7 @@ def verification_task_table(tasks, include_reference_index=True, reference_index
     Review links are a route to inspect a candidate, not scoring citations.
     Keep six columns: adding provenance must not create unheaded note cells.
     """
+    tasks = consolidate_verification_tasks(tasks)
     if not tasks:
         return '本轮未记录额外结构化核验任务，仍需人工核对原文和交付内容。'
     labels={'evidence_gap':'资料缺口','assessment_validation':'评分校验复核',
@@ -442,8 +589,32 @@ def verification_task_table(tasks, include_reference_index=True, reference_index
         rows.append('| '+' | '.join(map(_cell,fields))+' |')
         for sub in task.get('subtasks') or []:
             state = '缺少适用材料' if sub.get('status') == 'missing' else '仅有背景材料' if sub.get('status') == 'background_only' else '材料及分析待复核'
-            fields=(sub['task_id']+' '+sub['topic'], '第'+str(sub['chapter'])+'章；见本章材料覆盖表', state,
-                    '对照本问题、已选陈述及原文位置核验，按完成条件处理。', '中', sub['completion'])
+            if sub.get('model_revision_complete'):
+                state = '当前判断已完成模型修订，仍待人工确认'
+            elif sub.get('support_review_required'):
+                state = '结论支持复核：'+{'unsupported':'未获支持','contradicted':'与材料冲突',
+                    'partial':'仅部分支持','uncertain':'支持关系未确定'}.get(sub.get('status'),'支持关系待确认')
+            reasons = list(dict.fromkeys(sub.get('review_reasons') or []))
+            details = '；'.join(reasons[:3])
+            if len(reasons)>3:
+                details += '；其余具体诊断见关联审计记录。'
+            action = sub.get('action') or '核对本题当前判断及已选原文，按完成条件处理。'
+            if details:
+                action = '当前需修订：'+details+' '+action
+            if sub.get('materials'):
+                action += ' 所需材料：'+sub['materials']
+            related = '第'+str(sub['chapter'])+'章；见本章材料覆盖表'
+            if sub.get('evidence_ids'):
+                sub_refs = {r['evidence_id']:r for r in sub.get('review_references') or [] if r.get('evidence_id')}
+                refs.update(sub_refs)
+                related += '；原文入口 '+' '.join(reference(eid) for eid in sub['evidence_ids'][:6])
+                for eid, ref in sub_refs.items():
+                    document=linked_documents.setdefault((ref.get('url') or eid,ref.get('body_sha256') or ''),{'tasks':set(),'refs':{}})
+                    document['tasks'].add(str(sub['task_id']))
+                    position=('；位置 '+str(ref['start'])+'–'+str(ref.get('end'))) if ref.get('start') is not None else ''
+                    if ref.get('body_sha256'):position+=' / 指纹前缀 '+ref['body_sha256'][:12]
+                    document['refs'][eid]=(reference(eid,True),reference(eid)+position)
+            fields=(sub['task_id']+' '+sub['topic'], related, state, action, '中', sub['completion'])
             rows.append('| '+' | '.join(map(_cell,fields))+' |')
     for document in linked_documents.values():
         refs=list(document['refs'].values())
@@ -546,7 +717,7 @@ def finalize_synthesis(report, payload, risk, degradations, scope, plans=None):
     section=tasks_section(tasks,titles.get(16,'后续研究点'))
     report=replace_chapter(report,16,titles.get(16,'后续研究点'),section.split('\n',1)[1])
     report=refresh_summary_readiness(report,risk,degradations,scope)
-    report=refresh_conclusion_summary(report,claims)
+    report=refresh_conclusion_summary(report,claims,scope)
     return reader_cleanup(report),tasks
 
 

@@ -104,6 +104,12 @@
 
 
 /* Immediate, persistent feedback for user-requested operations. */
+.artifact-title > .table-subtext { display: block; font-weight: 400; }
+.trace-history .live-dot { animation: none; background: var(--muted); box-shadow: none; }
+.artifact-history-panel { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); min-width: 0; }
+.artifact-history-panel .artifact-item { align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.artifact-history-panel .artifact-actions { flex-shrink: 0; }
+.artifact-history-panel .el-pagination { margin-top: 12px; max-width: 100%; overflow-x: auto; }
 .operation-feedback { display: grid; gap: 8px; margin-bottom: 16px; min-width: 0; }
 .operation-pending, .operation-error { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: #f0f7fc; color: var(--brand); font-size: 13px; line-height: 1.6; }
 .operation-pending span, .operation-error > div { min-width: 0; overflow-wrap: anywhere; }

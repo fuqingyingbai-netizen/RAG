@@ -18,11 +18,16 @@ from models import ParentChunk
 
 class ParentChunkStore:
     """
+
     父级分块存储核心类
     基于 PostgreSQL（持久化存储） + Redis（缓存加速）实现：
     - PostgreSQL：长期保存所有父级分块数据，不怕重启丢失
     - Redis：缓存高频访问的分块数据，减少数据库查询，提升速度
     """
+
+    def contains_filename(self, filename: str) -> bool:
+        with SessionLocal() as db:
+            return db.query(ParentChunk.chunk_id).filter(ParentChunk.filename == filename).first() is not None
 
     @staticmethod
     def _to_dict(item: ParentChunk) -> dict:

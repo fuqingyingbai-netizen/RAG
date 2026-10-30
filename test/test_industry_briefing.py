@@ -117,7 +117,7 @@ def test_synthesis_failure_reuses_a_current_chapter_judgment_and_makes_only_one_
     previous = {**plan['analysis_claims'][0], 'question': '路线及适用场景'}
     project = SimpleNamespace(industry_statement_plans={7: {'analysis_claims': [previous]}}, industry_report_degradations=[])
     packages = {7: json.dumps({'facts': [f]})}
-    sections = {7: render_plan({'facts': [f]}, 7, '技术路线对比', [EID])}
+    sections = {7: render_plan({'facts': [f]}, 7, '技术路线对比', [EID], [previous])}
     calls = []
     def invoke(role, prompt, trace):
         calls.append(role)
@@ -187,10 +187,12 @@ def test_word_findings_have_native_emphasis_and_heading_stays_with_content():
             assert p.find(w+'pPr/'+w+'keepNext') is not None
 
 
-def test_runtime_synthesis_has_one_short_budget_without_sdk_retries(monkeypatch):
+def test_runtime_synthesis_uses_writer_budget_without_sdk_retries(monkeypatch):
     import research_workflow
     monkeypatch.setenv('ARK_API_KEY', 'synthetic')
     monkeypatch.setenv('MODEL', 'synthetic')
+    monkeypatch.delenv('INDUSTRY_CONCLUSION_MAX_OUTPUT_TOKENS',raising=False)
+    monkeypatch.delenv('INDUSTRY_WRITER_TIMEOUT_SECONDS',raising=False)
     configured = []
     def model(**kwargs):
         configured.append(kwargs)
@@ -198,8 +200,8 @@ def test_runtime_synthesis_has_one_short_budget_without_sdk_retries(monkeypatch)
     monkeypatch.setattr(research_workflow, 'init_chat_model', model)
     workflow = research_workflow.ResearchWorkflow.__new__(research_workflow.ResearchWorkflow)
     workflow._invoke_industry_report('行业阶段性综合 Agent', 'synthetic')
-    assert configured[0]['timeout'] == 45 and configured[0]['max_retries'] == 0
-    assert configured[0]['max_tokens'] == 6000
+    assert configured[0]['timeout'] == 360 and configured[0]['max_retries'] == 0
+    assert 'max_tokens' not in configured[0]
 
 
 def test_unreviewed_risk_is_labelled_preliminary_without_deleting_its_score():

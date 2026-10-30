@@ -175,6 +175,14 @@ def test_search_pool_can_replace_single_key_without_exposing_credentials(good_co
     assert any(level == 'ERROR' and field == 'TAVILY_API_KEYS' for level, field, _ in config.check_config(good_config))
 
 
+def test_multi_search_mode_keeps_existing_engine_selection(good_config):
+    good_config['WEB_SEARCH_PROVIDER'] = 'multi'
+    assert not any(level == 'ERROR' for level, _, _ in config.check_config(good_config))
+    del good_config['TAVILY_API_KEY']
+    assert any(level == 'ERROR' and key == 'WEB_SEARCH_PROVIDER'
+               for level, key, _ in config.check_config(good_config))
+
+
 @pytest.mark.parametrize('key,value', [
     ('JWT_SECRET_KEY', 'change-this-secret'),
     ('DATABASE_URL', 'postgresql://postgres:postgres@localhost/test'),
@@ -185,6 +193,11 @@ def test_search_pool_can_replace_single_key_without_exposing_credentials(good_co
     ('BM25_STATE_PATH', '/opt/supermew/releases/old/bm25.json'),
     ('DENSE_EMBEDDING_DIM', 'not-a-number'),
     ('TAVILY_API_KEY', 'REPLACE_WITH_SEARCH_API_KEY'),
+    ('MAX_UPLOAD_BYTES', '0'),
+    ('MAX_JSON_BYTES', 'unlimited'),
+    ('RESEARCH_MAX_CONCURRENT_RUNS', '999'),
+    ('CORS_ALLOWED_ORIGINS', '*'),
+    ('CORS_ALLOWED_ORIGINS', 'https://trusted.invalid/path'),
     ('DOCX_RENDER_QA_REQUIRED', 'false'),
     ('RESEARCH_DEMO_ENABLED', 'true'),
     ('ASSISTANT_MODEL', 'REPLACE_WITH_ASSISTANT_MODEL'),

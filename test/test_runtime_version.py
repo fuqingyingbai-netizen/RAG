@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from runtime_version import create_version_router
 
 
-VERSIONS = {'cleaning': 'cleaning-loaded-v12', 'risk': 'risk-loaded-v8', 'report': 'report-loaded-v20'}
+VERSIONS = {'cleaning': 'cleaning-loaded-v12', 'risk': 'risk-loaded-v8', 'report': 'report-loaded-v20', 'proposal': 'proposal-loaded-v1'}
 
 
 def test_version_is_public_read_only_and_not_cached():
@@ -76,12 +76,21 @@ def test_real_app_registers_version_before_static_without_business_calls(monkeyp
         router=knowledge_router, KnowledgeError=type('KnowledgeError', (Exception,), {})))
     monkeypatch.setitem(sys.modules, 'database', SimpleNamespace(init_db=no_business))
     monkeypatch.setitem(sys.modules, 'research_workflow', SimpleNamespace(
-        INDUSTRY_CLEANING_VERSION=VERSIONS['cleaning'], INDUSTRY_REPORT_VERSION=VERSIONS['report']))
+        INDUSTRY_CLEANING_VERSION=VERSIONS['cleaning'], INDUSTRY_REPORT_VERSION=VERSIONS['report'],
+        INDUSTRY_PROPOSAL_VERSION=VERSIONS['proposal']))
     monkeypatch.setitem(sys.modules, 'industry_research', SimpleNamespace(INDUSTRY_RISK_VERSION=VERSIONS['risk']))
     namespace = runpy.run_path(str(Path(__file__).resolve().parents[1]/'backend/app.py'), run_name='version_endpoint_test')
     app = namespace['app']
     response = TestClient(app).get('/version')
     assert response.status_code == 200 and response.json()['industry'] == VERSIONS
+    assert response.headers['x-frame-options']=='DENY'
+    assert response.headers['x-content-type-options']=='nosniff'
+    untrusted=TestClient(app).options('/version',headers={'Origin':'https://untrusted.invalid',
+        'Access-Control-Request-Method':'GET','Access-Control-Request-Headers':'authorization'})
+    assert untrusted.status_code==400 and 'access-control-allow-origin' not in untrusted.headers
+    trusted=TestClient(app).options('/version',headers={'Origin':'http://127.0.0.1:18010',
+        'Access-Control-Request-Method':'GET','Access-Control-Request-Headers':'authorization'})
+    assert trusted.status_code==200 and trusted.headers['access-control-allow-origin']=='http://127.0.0.1:18010'
     paths = [getattr(r, 'path', None) for r in app.routes]
     assert paths.index('/version') < paths.index('')  # Root static mount cannot swallow it.
     assert paths.index('/company-knowledge-test') < paths.index('')

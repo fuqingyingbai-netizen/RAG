@@ -13,7 +13,8 @@ VERSION = 'industry-run-journal-v1'
 STAGES = ('init', 'planning', 'web_search', 'quality', 'cleaning', 'risk', 'report', 'proposal')
 OUTPUTS = {'planning': ('research_plan',), 'quality': ('source_quality',),
            'cleaning': ('cleaned_facts',), 'risk': ('risk_assessment',),
-           'report': ('desktop_report', 'report_quality_diagnostic', 'industry_claim_ledger'),
+           'report': ('desktop_report', 'report_quality_diagnostic', 'industry_claim_ledger',
+                      'industry_conclusion_recovery', 'cleaned_facts', 'risk_assessment'),
            'proposal': ('proposal',)}
 
 

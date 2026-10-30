@@ -122,7 +122,14 @@ def main(argv=None):
         files = (sorted((ROOT / 'test').glob('test_industry_*.py')) + [ROOT / 'test/test_runtime_version.py'] if args.full else
                  [ROOT / 'test' / name for name in ['test_runtime_version.py','test_industry_template_analysis.py','test_industry_fact_contracts.py','test_industry_decision_readiness.py','test_industry_observed_inputs.py','test_industry_v12_acceptance.py','test_industry_v13_acceptance.py','test_industry_v14_acceptance.py','test_industry_evidence_contract.py','test_industry_runs.py','test_industry_delivery_contracts.py','test_industry_synthesis_contracts.py','test_industry_verification_tasks.py','test_industry_assertion_boundaries.py','test_industry_fallback.py','test_industry_risk_support.py','test_industry_claim_semantics.py', 'test_industry_risk_repair.py']])
         if not args.full:
-            files += [ROOT / 'test' / name for name in ['test_industry_reasoning.py', 'test_industry_cleaning_retrieval.py', 'test_industry_analysis_repair.py', 'test_industry_briefing.py', 'test_industry_analysis_selection.py', 'test_industry_reader.py']]
+            files.append(ROOT / 'test/test_industry_proposal_contract.py')
+            files += [ROOT / 'test/test_industry_question_jobs.py', ROOT / 'test/test_industry_conclusion_recovery.py']
+            files.append(ROOT / 'test/test_industry_v35_revision.py')
+            files += [ROOT / 'test' / name for name in ['test_industry_v36_review.py',
+                'test_industry_v36_draft_merge.py', 'test_industry_v36_briefing.py', 'test_industry_v36_tasks.py']]
+            files.append(ROOT / 'test/test_industry_v37_recovery.py')
+            files.append(ROOT / 'test/test_industry_developed_writing.py')
+            files += [ROOT / 'test' / name for name in ['test_industry_reasoning.py', 'test_industry_cleaning_retrieval.py', 'test_industry_analysis_repair.py', 'test_industry_briefing.py', 'test_industry_analysis_selection.py', 'test_industry_reader.py', 'test_industry_v27_regressions.py', 'test_industry_balanced_review.py', 'test_industry_v28_failure.py', 'test_industry_stage_cache.py', 'test_industry_conclusion_generation.py', 'test_industry_v30_inputs.py', 'test_industry_v31_generation.py', 'test_industry_chapter_batches.py']]
         env = {**os.environ, 'PYTHONUTF8':'1', 'PYTHONPATH':str(ROOT / 'backend')}
         code = subprocess.run([sys.executable, '-m', 'pytest', *map(str, files), '-q', '--tb=short'], cwd=ROOT, env=env).returncode
         if code:

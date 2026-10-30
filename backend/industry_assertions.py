@@ -50,7 +50,7 @@ def observation_key(fact):
     number = number_key(str(ctx.get('value')) + str(ctx.get('unit')))
     if number is None:
         return None
-    definition = re.sub(r'20\d{2}年?|\s|[，,。；;：:]', '', str(ctx['definition'])).replace('我国', '中国')
+    definition = re.sub(r'20\d{2}年?|[，,。；;：:]', '', re.sub(r'\s+', '', str(ctx['definition']))).replace('我国', '中国')
     comparator = (fact.get('fact_contract') or {}).get('comparator') or ctx.get('comparator') or '='
     return (str(ctx['metric']), definition, str(ctx['geography']), number[1],
             ctx.get('value_nature') or ('forecast' if ctx.get('is_forecast') is True else 'reported'),
@@ -110,6 +110,8 @@ def claims_observed_growth(text):
         prefix = re.split(r'[，,。！？；;|]', text[:match.start()])[-1]
         suffix = text[match.end():]
         if (_qualified(prefix) or _qualified(match[0])
+                or re.search(r'而非\s*$', prefix)
+                or re.search(r'而非(?:持续(?:稳定)?增长|高增长)', match[0])
                 or re.search(r'尚未|未经|未获|未被|没有', match[0])
                 or re.search(r'删除|移除|撤回|纠正|避免|不再保留|暂不保留', prefix[-12:])
                 or re.search(r'预计|预测|有望|或将|情景', prefix)):
@@ -170,6 +172,33 @@ def bounded_conflict_unsupported(text, facts):
     return compatible_bounded
 
 
+def bounds_used_as_direction(text, facts):
+    """Two lower (or upper) bounds do not order the underlying observations."""
+    amounts=[f for f in facts if (f.get('numeric_validation') or {}).get('passed') is True
+        and (f.get('numeric_context') or {}).get('is_forecast') is False
+        and re.search(r'规模',str((f.get('numeric_context') or {}).get('metric') or ''))]
+    if len({str(f['numeric_context'].get('period') or '') for f in amounts})<2:
+        return False
+    # Unrelated exact observations must not disable a bounded series check.
+    groups={}
+    for fact in amounts:
+        key=observation_key(fact)
+        if key is not None:
+            # Same explicit definition/region/unit can use synonymous metric labels.
+            groups.setdefault(key[1:4],[]).append(key)
+    bounded=[g for g in groups.values() if len({k[5] for k in g})>=2
+             and (set(k[7] for k in g)<={'>','>='} or set(k[7] for k in g)<={'<','<='})]
+    if not bounded:
+        return False
+    for clause in re.split(r'[，,。；;！？\n]',text):
+        pattern=(r'规模(?:水平)?(?:呈|呈现|有所|持续|明显|已|保持)?(?:上升|下降|扩大|缩小|增长|提高|降低)'
+                 r'|(?:20\d{2}年)?(?:超过|高于|低于|不足).{1,20}较.{1,35}(?:扩大|缩小|增长|下降)')
+        for match in re.finditer(pattern,clause):
+            if not re.search(r'不能|无法|不足以|不代表|不构成|不宜|不应|尚不|假设',clause[max(0,match.start()-22):match.start()]):
+                return True
+    return False
+
+
 def assertion_issues(text, facts):
     from industry_research import EVIDENCE_ID_PATTERN, numeric_scan_text, numeric_supported, number_key
     issues = []
@@ -192,6 +221,8 @@ def assertion_issues(text, facts):
             add('absence_as_low_risk', '未见限制或处罚材料不能证明政策影响较低或属于常规风险，需对应义务、适用范围和执行证据。')
         if claims_observed_growth(line) and not observed_growth_series(rows):
             add('growth_trend_not_comparable', '不同市场、不同统计口径、单期增速与未来预测不能拼成已实现的持续增长证据，需同口径的历史时间序列。')
+        if bounds_used_as_direction(line,rows):
+            add('bounded_levels_as_growth','两个下限或两个上限不能证明实际规模的升降；应分别列示来源阈值，增长结论须有适用的可比观察。')
         internal = re.search(r'(?<![A-Za-z0-9_])(?:numeric_validation|allowed_numbers|eligible_for_(?:report|risk_scoring)|source_provenance_verified|(?:report|risk)_admitted)(?![A-Za-z0-9_])', line, re.I)
         validation_premise = re.search(r'(?:数值|字段|引用|定位).{0,16}(?:校验通过|检查通过|验证通过|通过.{0,8}(?:校验|检查|验证))', line)
         reliability_conclusion = re.search(r'可靠|可信|风险(?:较低|可控)|属.{0,6}(?:低|中度)', line)
@@ -204,7 +235,10 @@ def assertion_issues(text, facts):
                 add('ranking_source_missing', '排名判断缺少授权正文或原始排名表；来源标题、报告发布消息或选样名单不能证明名次。')
         # An author's preferred charging model is not a universal eligibility rule.
         billing = re.search(r'token|词元|按需调用|按量计费|计量化|定制算法|离线SDK', line, re.I)
-        mandatory = re.search(r'硬性门槛|必须|须具备|需支持|必要条件|明确排除|不符合|规避信号|仅限', line)
+        # A limitation of this statement's scope is not an investment rule.
+        screening_text = re.sub(r'仅限(?:于)?(?:所引|本次|当前|上述|这些|所列|现有)(?:的)?'
+            r'(?:材料|证据|研究|分析|样本|案例|观点)(?:所述|的)?(?:范围|场景|条件|口径)', '', line)
+        mandatory = re.search(r'硬性门槛|必须|须具备|需支持|必要条件|明确排除|不符合|规避信号|仅限', screening_text)
         if billing and (mandatory or exclusion) and not _qualified(line):
             direct = [f for f in rows if f.get('evidence_scope') in {'industry_level', 'segment_level'}
                       and re.search(r'必须|应当|强制|禁止', str(f.get('evidence_quote') or ''))

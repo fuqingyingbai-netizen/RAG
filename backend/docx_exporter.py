@@ -517,7 +517,8 @@ def _cover(title: str, headings: list[tuple[int, str]], review_draft: bool = Tru
     )
 
 
-def _toc(headings: list[tuple[int, str]], chapter_bookmarks: dict[str, tuple[int, str]] | None = None) -> str:
+def _toc(headings: list[tuple[int, str]], chapter_bookmarks: dict[str, tuple[int, str]] | None = None,
+         *, show_page_numbers: bool = True) -> str:
     # Keep the generated front-matter directory readable while preserving the
     # same chapter/subtitle hierarchy that Word shows in its navigation pane.
     items = ([(level,text) for level,text in headings if level==2] if chapter_bookmarks is not None
@@ -530,9 +531,10 @@ def _toc(headings: list[tuple[int, str]], chapter_bookmarks: dict[str, tuple[int
         bookmark = (chapter_bookmarks or {}).get(text)
         content = _run(text)
         if bookmark:
-            content = (f'<w:hyperlink w:anchor="{bookmark[1]}" w:history="1">{content}</w:hyperlink>'
-                       + '<w:r><w:t xml:space="preserve">  </w:t></w:r>'
-                       + f'<w:fldSimple w:instr=" PAGEREF {bookmark[1]} \\h "><w:r><w:t>—</w:t></w:r></w:fldSimple>')
+            content = f'<w:hyperlink w:anchor="{bookmark[1]}" w:history="1">{content}</w:hyperlink>'
+            if show_page_numbers:
+                content += ('<w:r><w:t xml:space="preserve">  </w:t></w:r>'
+                            + f'<w:fldSimple w:instr=" PAGEREF {bookmark[1]} \\h "><w:r><w:t>—</w:t></w:r></w:fldSimple>')
         xml.append(
             f'<w:p><w:pPr><w:ind w:left="{left}"/><w:spacing w:after="80"/></w:pPr>'
             f'{content}</w:p>'
@@ -729,7 +731,7 @@ def markdown_to_docx_bytes(
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <w:body>
     {_cover(visible_title, headings, review_draft=review_draft, document_kind=document_kind)}
-    {_toc(headings, chapter_bookmarks)}
+    {_toc(headings, chapter_bookmarks, show_page_numbers=not document_kind.startswith('industry_'))}
     {''.join(body) or _paragraph(visible_title, style="ReportTitle")}
     <w:sectPr><w:footerReference w:type="default" r:id="rId2" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:footer="720"/></w:sectPr>
   </w:body>

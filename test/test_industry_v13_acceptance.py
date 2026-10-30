@@ -193,7 +193,7 @@ def test_evidence_operations_add_market_comparison_boundary_without_new_growth()
         f['numeric_context'].update(period=year, definition='中国机器人市场规模')
         fs.append(attach_contract(f, SCOPE))
     body = render_plan({'facts': fs}, 4, '市场', [f['evidence_id'] for f in fs])
-    assert '材料支持的分析与边界' in body and '不能用下限变化代替实际增长率' in body
+    assert '材料整理与口径说明' in body and '不能用下限变化代替实际增长率' in body
     assert '50%' not in body
 
 

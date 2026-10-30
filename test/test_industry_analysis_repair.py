@@ -40,10 +40,10 @@ def test_deterministic_format_edits_preserve_prose_values_and_source():
 
 
 @pytest.mark.parametrize('text,detail', [
-    ('材料' * 220, 'text_length_out_of_range'),
+    ('材料' * 1300, 'text_length_out_of_range'),
     (ANALYSIS + ' [E-FFFFFFFFFFFF]', 'text_contains_inline_evidence_id'),
     (ANALYSIS + ' https://invalid.example', 'text_contains_url'),
-    (ANALYSIS + '<script>bad</script>', 'text_contains_markup')])
+    (ANALYSIS + '<script>bad</script>', 'text_contains_markup')],ids=['oversized','wrong_id','url','markup'])
 def test_rejections_always_retain_original_and_specific_diagnostic(text, detail):
     raw = claim(text)
     accepted, rejected = validate_analyses([raw], {'facts': [chain()]}, 2, [EID])
