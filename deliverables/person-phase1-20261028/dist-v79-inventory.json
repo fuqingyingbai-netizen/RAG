@@ -1,0 +1,50 @@
+[
+  {
+    "path": "deliverables\\person-delivery-cycle-20261023\\dist-v79\\index.html",
+    "bytes": 137300
+  },
+  {
+    "path": "deliverables\\person-delivery-cycle-20261023\\dist-v79\\metrics.json",
+    "bytes": 4302303
+  },
+  {
+    "path": "deliverables\\person-delivery-cycle-20261023\\dist-v79\\static-qa-results.json",
+    "bytes": 705
+  },
+  {
+    "path": "deliverables\\person-delivery-cycle-20261023\\dist-v79\\wang3-v45\\acceptance-results.json",
+    "bytes": 260763
+  },
+  {
+    "path": "deliverables\\person-delivery-cycle-20261023\\dist-v79\\wang3-v45\\desktop_report.md",
+    "bytes": 258011
+  },
+  {
+    "path": "deliverables\\person-delivery-cycle-20261023\\dist-v79\\wang3-v45\\evidence-appendix.md",
+    "bytes": 1055118
+  },
+  {
+    "path": "deliverables\\person-delivery-cycle-20261023\\dist-v79\\wang5-v45\\acceptance-results.json",
+    "bytes": 237302
+  },
+  {
+    "path": "deliverables\\person-delivery-cycle-20261023\\dist-v79\\wang5-v45\\desktop_report.md",
+    "bytes": 252353
+  },
+  {
+    "path": "deliverables\\person-delivery-cycle-20261023\\dist-v79\\wang5-v45\\evidence-appendix.md",
+    "bytes": 1053816
+  },
+  {
+    "path": "deliverables\\person-delivery-cycle-20261023\\dist-v79\\zhang5-v45\\acceptance-results.json",
+    "bytes": 242730
+  },
+  {
+    "path": "deliverables\\person-delivery-cycle-20261023\\dist-v79\\zhang5-v45\\desktop_report.md",
+    "bytes": 95371
+  },
+  {
+    "path": "deliverables\\person-delivery-cycle-20261023\\dist-v79\\zhang5-v45\\evidence-appendix.md",
+    "bytes": 276090
+  }
+]

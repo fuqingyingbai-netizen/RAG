@@ -1,0 +1,1260 @@
+{
+  "runs": [
+    {
+      "run": "round1-zhang-ch2",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round1-zhang-ch2",
+      "run_kind": "chapter_replay",
+      "summary_sha256": "6d7607cc314fc787600e8ab1a4cd9c8ad612fd0a12322dd0b63fbe46fc4ac289",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": "eca1e6a4888e6fa5a51bcd4dce609650fab3e94ab67067680d281da4ae185a08",
+      "code_unchanged_during_run": true,
+      "model_context": {
+        "model": "qwen3.8-max",
+        "endpoint_sha256": "f150bc566660d2ab4f87b073c0f0374b543ae8a492765ca3a0072f758039b4f0",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "requests": 1,
+      "returned": 0,
+      "failed": 1,
+      "exact_input_reused": 0,
+      "review_code_sha256": null,
+      "review_batches_planned": null,
+      "review_batches_returned": null,
+      "elapsed_seconds": 158.625,
+      "failure_types": [
+        "EmptyPersonModelResponse"
+      ],
+      "returned_usage_only": {
+        "input_tokens": 6789,
+        "output_tokens": 8192,
+        "reasoning_tokens": 0,
+        "total_tokens": 14981
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "107fcfd61c566a0f43e43c875f97c7122976c16818b15edb52c8f7d9d85c964a",
+      "degradations": [
+        {
+          "chapter": 2,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 3,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 4,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 5,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 9,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        },
+        {
+          "chapter": 10,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 11,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 12,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        }
+      ],
+      "report_accepted": false
+    },
+    {
+      "run": "round10-qwen-nonthinking-ch2",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round10-qwen-nonthinking-ch2",
+      "run_kind": "chapter_replay",
+      "summary_sha256": "6f0b853d609667a6af0f94497d6ed4edb721e3741344366e79861764e76c838d",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": "6d97a39bc0142a131193a0cabdd7bde3117432aa7c90f8c259effee398c44fea",
+      "code_unchanged_during_run": true,
+      "model_context": {
+        "model": "qwen3.8-max",
+        "endpoint_sha256": "9045dc7291bc66c59a061290cfba595238ba3f290d762e4a8f03b05937ddd4ec",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192,
+          "extra_body": {
+            "enable_thinking": false
+          }
+        }
+      },
+      "requests": 2,
+      "returned": 0,
+      "failed": 2,
+      "exact_input_reused": 0,
+      "review_code_sha256": null,
+      "review_batches_planned": null,
+      "review_batches_returned": null,
+      "elapsed_seconds": 224.125,
+      "failure_types": [
+        "APIConnectionError",
+        "EmptyPersonModelResponse"
+      ],
+      "returned_usage_only": {
+        "input_tokens": 6840,
+        "output_tokens": 8192,
+        "reasoning_tokens": 8192,
+        "total_tokens": 15032
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "7276163f3df9b20592ad64730121f657b6d863957846e3bb8fcb9ad1ae3202ce",
+      "degradations": [
+        {
+          "chapter": 2,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 3,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 4,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 5,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 9,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        },
+        {
+          "chapter": 10,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 11,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 12,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        }
+      ],
+      "report_accepted": false
+    },
+    {
+      "run": "round11-streaming-ch2",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round11-streaming-ch2",
+      "run_kind": "chapter_replay",
+      "summary_sha256": "466a651238e706962e7a580cc6d50579ef0b9dfe5dafd894f8ffdb2cd1230e2e",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": "544481512d6945d7e63ec9ebd0feaa8d44e84810c5dcbbffafe450b09f867f03",
+      "code_unchanged_during_run": true,
+      "model_context": {
+        "model": "qwen3.8-max",
+        "endpoint_sha256": "9045dc7291bc66c59a061290cfba595238ba3f290d762e4a8f03b05937ddd4ec",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192,
+          "streaming": true,
+          "extra_body": {
+            "enable_thinking": false
+          }
+        }
+      },
+      "requests": 1,
+      "returned": 0,
+      "failed": 1,
+      "exact_input_reused": 0,
+      "review_code_sha256": null,
+      "review_batches_planned": null,
+      "review_batches_returned": null,
+      "elapsed_seconds": 37.125,
+      "failure_types": [
+        "RemoteProtocolError"
+      ],
+      "returned_usage_only": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "total_tokens": 0
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "7276163f3df9b20592ad64730121f657b6d863957846e3bb8fcb9ad1ae3202ce",
+      "degradations": [
+        {
+          "chapter": 2,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 3,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 4,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 5,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 9,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        },
+        {
+          "chapter": 10,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 11,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 12,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        }
+      ],
+      "report_accepted": false
+    },
+    {
+      "run": "round12-glm53-ch2",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round12-glm53-ch2",
+      "run_kind": "chapter_replay",
+      "summary_sha256": "a734b7e2adecce1198e67172823da8fdc704cb6268a55c89c4329fa1664337e5",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": "62904afc30a3638f90b9a759cf933a18bc2545b395ee05cbbe415f2cd219cabb",
+      "code_unchanged_during_run": true,
+      "model_context": {
+        "model": "glm-5.3",
+        "endpoint_sha256": "9045dc7291bc66c59a061290cfba595238ba3f290d762e4a8f03b05937ddd4ec",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "requests": 3,
+      "returned": 1,
+      "failed": 2,
+      "exact_input_reused": 0,
+      "review_code_sha256": null,
+      "review_batches_planned": null,
+      "review_batches_returned": null,
+      "elapsed_seconds": 221.797,
+      "failure_types": [
+        "APIConnectionError"
+      ],
+      "returned_usage_only": {
+        "input_tokens": 6836,
+        "output_tokens": 1932,
+        "reasoning_tokens": 965,
+        "total_tokens": 8768
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "7276163f3df9b20592ad64730121f657b6d863957846e3bb8fcb9ad1ae3202ce",
+      "degradations": [
+        {
+          "chapter": 2,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 3,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 4,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 5,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 9,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        },
+        {
+          "chapter": 10,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 11,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 12,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        }
+      ],
+      "report_accepted": false
+    },
+    {
+      "run": "round13-glm53-smaller-ch2",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round13-glm53-smaller-ch2",
+      "run_kind": "chapter_replay",
+      "summary_sha256": "a19847704713c9a2b12827577c1e7f87f0f6ac6c6a87d6165d9b6299c2ca4865",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": "62904afc30a3638f90b9a759cf933a18bc2545b395ee05cbbe415f2cd219cabb",
+      "code_unchanged_during_run": true,
+      "model_context": {
+        "model": "glm-5.3",
+        "endpoint_sha256": "9045dc7291bc66c59a061290cfba595238ba3f290d762e4a8f03b05937ddd4ec",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "requests": 5,
+      "returned": 2,
+      "failed": 3,
+      "exact_input_reused": 0,
+      "review_code_sha256": null,
+      "review_batches_planned": null,
+      "review_batches_returned": null,
+      "elapsed_seconds": 243.188,
+      "failure_types": [
+        "APIConnectionError",
+        "InternalServerError"
+      ],
+      "returned_usage_only": {
+        "input_tokens": 5537,
+        "output_tokens": 2540,
+        "reasoning_tokens": 1862,
+        "total_tokens": 8077
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "7276163f3df9b20592ad64730121f657b6d863957846e3bb8fcb9ad1ae3202ce",
+      "degradations": [
+        {
+          "chapter": 2,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 3,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 4,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 5,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 9,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        },
+        {
+          "chapter": 10,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 11,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 12,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        }
+      ],
+      "report_accepted": false
+    },
+    {
+      "run": "round14-glm53-independent-ch9",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round14-glm53-independent-ch9",
+      "run_kind": "independent_prose_review",
+      "summary_sha256": "3338a2e14ef8e3d5a5ed5a4ce55ff2605c35138f2e0b40182ce5130f30c4b9e2",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": null,
+      "code_unchanged_during_run": null,
+      "model_context": {
+        "model": "glm-5.3",
+        "endpoint_sha256": "9045dc7291bc66c59a061290cfba595238ba3f290d762e4a8f03b05937ddd4ec",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "requests": 4,
+      "returned": 1,
+      "failed": 3,
+      "exact_input_reused": 0,
+      "review_code_sha256": "98a70370b58d58d41a6ac565e695e56cfb0783d89174fbadd7b0b6119bf924da",
+      "review_batches_planned": 4,
+      "review_batches_returned": 1,
+      "elapsed_seconds": null,
+      "failure_types": [
+        "APIConnectionError",
+        "APITimeoutError"
+      ],
+      "returned_usage_only": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "total_tokens": 0
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "7276163f3df9b20592ad64730121f657b6d863957846e3bb8fcb9ad1ae3202ce",
+      "degradations": [],
+      "report_accepted": false
+    },
+    {
+      "run": "round15-glm53-independent-ch9-resume",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round15-glm53-independent-ch9-resume",
+      "run_kind": "independent_prose_review",
+      "summary_sha256": "5ee2323a3b097bb4f63c83db549185f84305375baa7dddc28a33e119089689ab",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": null,
+      "code_unchanged_during_run": null,
+      "model_context": {
+        "model": "glm-5.3",
+        "endpoint_sha256": "9045dc7291bc66c59a061290cfba595238ba3f290d762e4a8f03b05937ddd4ec",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "requests": 5,
+      "returned": 1,
+      "failed": 4,
+      "exact_input_reused": 1,
+      "review_code_sha256": "98a70370b58d58d41a6ac565e695e56cfb0783d89174fbadd7b0b6119bf924da",
+      "review_batches_planned": 4,
+      "review_batches_returned": 2,
+      "elapsed_seconds": null,
+      "failure_types": [
+        "APIConnectionError",
+        "APITimeoutError"
+      ],
+      "returned_usage_only": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "total_tokens": 0
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "7276163f3df9b20592ad64730121f657b6d863957846e3bb8fcb9ad1ae3202ce",
+      "degradations": [],
+      "report_accepted": false
+    },
+    {
+      "run": "round16-glm53-backup-independent-ch9",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round16-glm53-backup-independent-ch9",
+      "run_kind": "independent_prose_review",
+      "summary_sha256": "37ac0b4510cacd1060e1ffd4f9a9ac64dd16ef2d15c5f8734b479fc5dfe2430c",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": null,
+      "code_unchanged_during_run": null,
+      "model_context": {
+        "model": "glm-5.3",
+        "endpoint_sha256": "ca39687d6dbed96a650a887e60ff2aa46fe101e8d02f39ac9d30497659f71b8e",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "requests": 6,
+      "returned": 2,
+      "failed": 4,
+      "exact_input_reused": 0,
+      "review_code_sha256": "98a70370b58d58d41a6ac565e695e56cfb0783d89174fbadd7b0b6119bf924da",
+      "review_batches_planned": 4,
+      "review_batches_returned": 2,
+      "elapsed_seconds": null,
+      "failure_types": [
+        "APIConnectionError",
+        "APITimeoutError",
+        "EmptyPersonModelResponse"
+      ],
+      "returned_usage_only": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "total_tokens": 0
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "7276163f3df9b20592ad64730121f657b6d863957846e3bb8fcb9ad1ae3202ce",
+      "degradations": [],
+      "report_accepted": false
+    },
+    {
+      "run": "round2-zhang-ch2",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round2-zhang-ch2",
+      "run_kind": "chapter_replay",
+      "summary_sha256": "f1bd0854260554d28bb74b1b4ee1a32b9a9822a5ad7cbb7b9479021053552a18",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": "aba2e30432c90de87e54602caa8034d12a6bcc3496a30b87c12cb1e0bbfa21d9",
+      "code_unchanged_during_run": true,
+      "model_context": {
+        "model": "qwen3.8-max",
+        "endpoint_sha256": "f150bc566660d2ab4f87b073c0f0374b543ae8a492765ca3a0072f758039b4f0",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "requests": 1,
+      "returned": 0,
+      "failed": 1,
+      "exact_input_reused": 0,
+      "review_code_sha256": null,
+      "review_batches_planned": null,
+      "review_batches_returned": null,
+      "elapsed_seconds": 33.719,
+      "failure_types": [
+        "AuthenticationError"
+      ],
+      "returned_usage_only": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "total_tokens": 0
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "6dc92b082c17358ca594eb42a4c61c2fbf98948fa3751941d7135b88228f8e47",
+      "degradations": [
+        {
+          "chapter": 2,
+          "reasons": [
+            "api_failed:unauthorized"
+          ]
+        },
+        {
+          "chapter": 3,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 4,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 5,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 9,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        },
+        {
+          "chapter": 10,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 11,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 12,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        }
+      ],
+      "report_accepted": false
+    },
+    {
+      "run": "round3-official-qwen-ch2",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round3-official-qwen-ch2",
+      "run_kind": "chapter_replay",
+      "summary_sha256": "a109eb45e872263c78b9f40815b11a360be837ab99097cfa483e84750a08465c",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": "c35790f5ce2c8f465b2877856d918778c09d0ab4d11172a9cd353c8ce9f40a83",
+      "code_unchanged_during_run": true,
+      "model_context": {
+        "model": "qwen3.8-max",
+        "endpoint_sha256": "aebde9d32c41ca5aff41444d1ef2feaa0f3574a19195d60c588f826a6ea88c01",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "requests": 1,
+      "returned": 0,
+      "failed": 1,
+      "exact_input_reused": 0,
+      "review_code_sha256": null,
+      "review_batches_planned": null,
+      "review_batches_returned": null,
+      "elapsed_seconds": 20.531,
+      "failure_types": [
+        "PermissionDeniedError"
+      ],
+      "returned_usage_only": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "total_tokens": 0
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "6dc92b082c17358ca594eb42a4c61c2fbf98948fa3751941d7135b88228f8e47",
+      "degradations": [
+        {
+          "chapter": 2,
+          "reasons": [
+            "api_failed:access_denied"
+          ]
+        },
+        {
+          "chapter": 3,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 4,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 5,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 9,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        },
+        {
+          "chapter": 10,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 11,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 12,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        }
+      ],
+      "report_accepted": false
+    },
+    {
+      "run": "round4-official-qwen-flash-key-check",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round4-official-qwen-flash-key-check",
+      "run_kind": "chapter_replay",
+      "summary_sha256": "f514ecb8d2253af72ed4f8aea73710420ec0f900d56bc965d98b039cf61c2df3",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": "c35790f5ce2c8f465b2877856d918778c09d0ab4d11172a9cd353c8ce9f40a83",
+      "code_unchanged_during_run": true,
+      "model_context": {
+        "model": "qwen-flash",
+        "endpoint_sha256": "aebde9d32c41ca5aff41444d1ef2feaa0f3574a19195d60c588f826a6ea88c01",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "requests": 1,
+      "returned": 0,
+      "failed": 1,
+      "exact_input_reused": 0,
+      "review_code_sha256": null,
+      "review_batches_planned": null,
+      "review_batches_returned": null,
+      "elapsed_seconds": 12.281,
+      "failure_types": [
+        "PermissionDeniedError"
+      ],
+      "returned_usage_only": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "total_tokens": 0
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "6dc92b082c17358ca594eb42a4c61c2fbf98948fa3751941d7135b88228f8e47",
+      "degradations": [
+        {
+          "chapter": 2,
+          "reasons": [
+            "api_failed:access_denied"
+          ]
+        },
+        {
+          "chapter": 3,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 4,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 5,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 9,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        },
+        {
+          "chapter": 10,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 11,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 12,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        }
+      ],
+      "report_accepted": false
+    },
+    {
+      "run": "round5-goaichat-qwen-ch2",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round5-goaichat-qwen-ch2",
+      "run_kind": "chapter_replay",
+      "summary_sha256": "b20e2c9b48d8b7f6e954e84f7a904b1b572973b3496c8ecccdf175ac4251e8ed",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": "c35790f5ce2c8f465b2877856d918778c09d0ab4d11172a9cd353c8ce9f40a83",
+      "code_unchanged_during_run": true,
+      "model_context": {
+        "model": "qwen3.8-max",
+        "endpoint_sha256": "9045dc7291bc66c59a061290cfba595238ba3f290d762e4a8f03b05937ddd4ec",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "requests": 1,
+      "returned": 1,
+      "failed": 0,
+      "exact_input_reused": 0,
+      "review_code_sha256": null,
+      "review_batches_planned": null,
+      "review_batches_returned": null,
+      "elapsed_seconds": 62.516,
+      "failure_types": [],
+      "returned_usage_only": {
+        "input_tokens": 2612,
+        "output_tokens": 2383,
+        "reasoning_tokens": 0,
+        "total_tokens": 4995
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "107fcfd61c566a0f43e43c875f97c7122976c16818b15edb52c8f7d9d85c964a",
+      "degradations": [
+        {
+          "chapter": 2,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 3,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 4,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 5,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 9,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        },
+        {
+          "chapter": 10,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 11,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 12,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        }
+      ],
+      "report_accepted": false
+    },
+    {
+      "run": "round6-goaichat-affected-chapters",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round6-goaichat-affected-chapters",
+      "run_kind": "chapter_replay",
+      "summary_sha256": "60b9f5e1ef38e05a743bf9513f0426d4ecdb36519f315b162eadd1e104b21f72",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": "ab4290f7878e95e4df5d64f6b79cad581e3e13157d94bbda88cf10f8ed60c625",
+      "code_unchanged_during_run": true,
+      "model_context": {
+        "model": "qwen3.8-max",
+        "endpoint_sha256": "9045dc7291bc66c59a061290cfba595238ba3f290d762e4a8f03b05937ddd4ec",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "requests": 6,
+      "returned": 3,
+      "failed": 3,
+      "exact_input_reused": 1,
+      "review_code_sha256": null,
+      "review_batches_planned": null,
+      "review_batches_returned": null,
+      "elapsed_seconds": 179.453,
+      "failure_types": [
+        "APIConnectionError",
+        "InternalServerError"
+      ],
+      "returned_usage_only": {
+        "input_tokens": 8819,
+        "output_tokens": 9778,
+        "reasoning_tokens": 0,
+        "total_tokens": 18597
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "ba85ca29290d9ab287b512939385026b61b7865d8c07adedbe631ee657392cfe",
+      "degradations": [
+        {
+          "chapter": 2,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 3,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 4,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 5,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 9,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        },
+        {
+          "chapter": 10,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 11,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 12,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        }
+      ],
+      "report_accepted": false
+    },
+    {
+      "run": "round7-kimitk-affected-chapters",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round7-kimitk-affected-chapters",
+      "run_kind": "chapter_replay",
+      "summary_sha256": "cf23fbc46ba4a624e27d5224e719959959158b1037b80daebbdf0001d6c8e449",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": "ab4290f7878e95e4df5d64f6b79cad581e3e13157d94bbda88cf10f8ed60c625",
+      "code_unchanged_during_run": true,
+      "model_context": {
+        "model": "qwen3.8-max",
+        "endpoint_sha256": "ca39687d6dbed96a650a887e60ff2aa46fe101e8d02f39ac9d30497659f71b8e",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "requests": 3,
+      "returned": 0,
+      "failed": 3,
+      "exact_input_reused": 0,
+      "review_code_sha256": null,
+      "review_batches_planned": null,
+      "review_batches_returned": null,
+      "elapsed_seconds": 117.359,
+      "failure_types": [
+        "APIConnectionError"
+      ],
+      "returned_usage_only": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "total_tokens": 0
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "ba85ca29290d9ab287b512939385026b61b7865d8c07adedbe631ee657392cfe",
+      "degradations": [
+        {
+          "chapter": 2,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 3,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 4,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 5,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 9,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        },
+        {
+          "chapter": 10,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 11,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 12,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        }
+      ],
+      "report_accepted": false
+    },
+    {
+      "run": "round8-source-context-resume",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round8-source-context-resume",
+      "run_kind": "chapter_replay",
+      "summary_sha256": "c8f65de3398ac395f96359a18d1f4b1f30fef49ec4865f6d4940ad469cd70db4",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": "aac3670442e923cf11b302d604cdc5430a5e6d3b04ed1487ae832da724497ebc",
+      "code_unchanged_during_run": true,
+      "model_context": {
+        "model": "qwen3.8-max",
+        "endpoint_sha256": "9045dc7291bc66c59a061290cfba595238ba3f290d762e4a8f03b05937ddd4ec",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "requests": 5,
+      "returned": 2,
+      "failed": 3,
+      "exact_input_reused": 4,
+      "review_code_sha256": null,
+      "review_batches_planned": null,
+      "review_batches_returned": null,
+      "elapsed_seconds": 349.985,
+      "failure_types": [
+        "APIConnectionError"
+      ],
+      "returned_usage_only": {
+        "input_tokens": 6596,
+        "output_tokens": 5501,
+        "reasoning_tokens": 0,
+        "total_tokens": 12097
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "7276163f3df9b20592ad64730121f657b6d863957846e3bb8fcb9ad1ae3202ce",
+      "degradations": [
+        {
+          "chapter": 2,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 3,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 4,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 5,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 9,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        },
+        {
+          "chapter": 10,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 11,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 12,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        }
+      ],
+      "report_accepted": false
+    },
+    {
+      "run": "round9-bounded-transport-diagnostic",
+      "run_directory": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round9-bounded-transport-diagnostic",
+      "run_kind": "chapter_replay",
+      "summary_sha256": "9cb281fcec874971b57415b740fd28a620a7ea88342a5078ea0f5adc1f207de6",
+      "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+      "generation_code_sha256": "a6d9f8a16c368c1a3d67e13b3c748ce4f76a286eda476d61b7db3fde5e1cb453",
+      "code_unchanged_during_run": true,
+      "model_context": {
+        "model": "qwen3.8-max",
+        "endpoint_sha256": "9045dc7291bc66c59a061290cfba595238ba3f290d762e4a8f03b05937ddd4ec",
+        "temperature": 0.2,
+        "request_options": {
+          "max_tokens": 8192
+        }
+      },
+      "requests": 2,
+      "returned": 2,
+      "failed": 0,
+      "exact_input_reused": 6,
+      "review_code_sha256": null,
+      "review_batches_planned": null,
+      "review_batches_returned": null,
+      "elapsed_seconds": 141.453,
+      "failure_types": [],
+      "returned_usage_only": {
+        "input_tokens": 5899,
+        "output_tokens": 8021,
+        "reasoning_tokens": 0,
+        "total_tokens": 13920
+      },
+      "provider_actual_charge": null,
+      "report_raw_sha256": "7276163f3df9b20592ad64730121f657b6d863957846e3bb8fcb9ad1ae3202ce",
+      "degradations": [
+        {
+          "chapter": 2,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 3,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 4,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 5,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 9,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        },
+        {
+          "chapter": 10,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 11,
+          "reasons": [
+            "api_failed:request_failed"
+          ]
+        },
+        {
+          "chapter": 12,
+          "reasons": [
+            "material_disposition_review_incomplete"
+          ]
+        }
+      ],
+      "report_accepted": false
+    }
+  ],
+  "boundary": "Returned usage omits failed requests without usage receipts. No billing estimate or report acceptance is inferred."
+}

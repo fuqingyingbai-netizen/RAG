@@ -1,0 +1,3267 @@
+{
+  "version": "person-risk-evidence-v1-no-automatic-score",
+  "overall_score": null,
+  "overall_severity": "not_assessed",
+  "items": [
+    {
+      "item_id": "RISK-REVIEW-c6f0f3112b2901f1fc09a9cf",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P796DB84FA6879C"
+      ],
+      "source_urls": [
+        "https://news.futunn.com/post/71320252/haidilao-06862-hk-chairman-plans-to-purchase-at-least-hkd"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "B",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-62be9e8eed406219501d5141",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PE322C8EA8ACD29"
+      ],
+      "source_urls": [
+        "https://news.futunn.com/post/71320252/haidilao-06862-hk-chairman-plans-to-purchase-at-least-hkd"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "B",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-8f7bcdb28c0b614c6a17bdbe",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PF8797F7801B4BC"
+      ],
+      "source_urls": [
+        "https://www.21jingji.com/article/20260114/herald/d7d49f1f85762afe45a877b04b6af5cd.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-efcb51eb8b8d7cbe22fc6052",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P78B30ED07BE0FE"
+      ],
+      "source_urls": [
+        "https://www.21jingji.com/article/20260114/herald/d7d49f1f85762afe45a877b04b6af5cd.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-bc33494463eb52a2c70a8d13",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PC3ABD1ABFC153E"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/live/2462477"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-98f0efa4b98a4bf36a679ee6",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P4C3F3C112C376D"
+      ],
+      "source_urls": [
+        "https://wiki.mbalib.com/wiki/%E5%BC%A0%E5%8B%87%EF%BC%88%E6%B5%B7%E5%BA%95%E6%8D%9E%E5%88%9B%E5%A7%8B%E4%BA%BA%EF%BC%89"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-ee53cdb4deace0c4f9dc59f2",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PB37D0FE3093E1A"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-82cc24f75c68363eb8252503",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P5837D3D089EC89"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-ade27b94a9b54ecea537511a",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P2BD15B3227C0AA"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-19e8bceec021244729521721",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P48C2DCB8B20E63"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-0f622d6ea4a3f6e8f100d17c",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P507F7720C9CF22"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-d5dc8b26ccf70bb811a93726",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P0076689294E5DD"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-bb0455dc8ff348d06ec7fbeb",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PFA2FCBE11D008C"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-4b8ae7e71836759f2970433c",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P249FD1EF4660A7"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-ec743cc2d88ed75e724fba3e",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PE45B6D2CFC13DB"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "媒体争议性描述或提问，不能当作当事人明确表态或司法事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-11b3fda8e080f7b7195fdced",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PE45B6D2CFC13DB"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "媒体争议性描述或提问，不能当作当事人明确表态或司法事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-568011bdb4cb0b2ce363577b",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PFBB4FD13D8A3EE"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-7a7d4703be216cfd314d9a39",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PA9E3AD8A8ED415"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-fe286b0db63eb2a54ca8de6e",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P9B2864180BD442"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-675f525c2e08498a84eef0ea",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PA2B6118E7B5504"
+      ],
+      "source_urls": [
+        "https://www.sem.tsinghua.edu.cn/info/1322/32837.htm"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-c9e7c8c038ef3b4767d35c52",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P4E66FB6086998C"
+      ],
+      "source_urls": [
+        "https://stcn.com/article/detail/887066.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-ce3eba37c348c4c34023481d",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PB4DCE9E0C3D624"
+      ],
+      "source_urls": [
+        "https://stcn.com/article/detail/887066.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-7dc8bc874cf589b1dcdda355",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P515822CAC4BF5E"
+      ],
+      "source_urls": [
+        "https://stcn.com/article/detail/887066.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-bc810cae888149c6aea106bf",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P8F243F8F9E7403"
+      ],
+      "source_urls": [
+        "https://stcn.com/article/detail/887066.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-e5720bd3c9bc3471ed65ebdd",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PD0693F2CB55FA0"
+      ],
+      "source_urls": [
+        "https://zh.wikipedia.org/zh-hans/%E5%BC%A0%E5%8B%87_(%E5%9B%9B%E5%B7%9D%E4%BC%81%E4%B8%9A%E5%AE%B6)"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-049dc67f7c50aabba375a813",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PED2349EB855EF4"
+      ],
+      "source_urls": [
+        "http://pdf.dfcfw.com/pdf/H3_AP201812121267801920_1.pdf"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-514c9e58ace03280cc9a7a26",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PA0606B89D011D5"
+      ],
+      "source_urls": [
+        "http://pdf.dfcfw.com/pdf/H3_AP201812121267801920_1.pdf"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-c3d560a8fd46379a2aa65b86",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PA9891BBB389CF6"
+      ],
+      "source_urls": [
+        "http://pdf.dfcfw.com/pdf/H3_AP201812121267801920_1.pdf"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-c9f3730388ce42e53b893c3f",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P88D20AE1AEFA6E"
+      ],
+      "source_urls": [
+        "http://pdf.dfcfw.com/pdf/H3_AP201812121267801920_1.pdf"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-b90acab41edd5cdda91dc88c",
+      "domain": "specific_reported_behavior",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PA922054DC5E4DD"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-866bac4a88336fd6e0da464e",
+      "domain": "specific_reported_behavior",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PED11AE249D87ED"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-db924432a3b6b3e7a9092192",
+      "domain": "specific_reported_behavior",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P779AA95AD748A0"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-055663f4d6f36c9a1394fdfd",
+      "domain": "specific_reported_behavior",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P701B77182CE5F7"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-965c1307d3ee22d0e917b1c3",
+      "domain": "specific_reported_behavior",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P5B5763E4D93E6D"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-31ffc3d85ff73b8520ffca63",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PF18F8C49CEB7F6"
+      ],
+      "source_urls": [
+        "https://www.zwfhao.com/news/630.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-07e612866351598038cf0909",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P78583116FB0A62"
+      ],
+      "source_urls": [
+        "https://www.zwfhao.com/news/630.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-79dad05e963ed2f44000b27a",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P025CE8B223F2D6"
+      ],
+      "source_urls": [
+        "https://www.zwfhao.com/news/630.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-143dc91dcfbda4248840a526",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P6813D1B6298C1B"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/live/2462477"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-c842c4907441cd0b77d077f8",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P083F09DDECAA63"
+      ],
+      "source_urls": [
+        "https://news.futunn.com/post/71320252/haidilao-06862-hk-chairman-plans-to-purchase-at-least-hkd"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-b657f383500b29504ddc7b26",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P33C63E1B9158AC"
+      ],
+      "source_urls": [
+        "https://www.zhitongcaijing.com/content/detail/1445144.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-e89c3ee54594cb234f9350ca",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PD67DBF1C22B083"
+      ],
+      "source_urls": [
+        "https://news.qq.com/rain/a/20260525A06N2300"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-684dcff33bd43d6f636deba0",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P0B3D60A58C34E8"
+      ],
+      "source_urls": [
+        "https://finance.sina.com.cn/stock/bxjj/2026-05-22/doc-inhyumqk5188908.shtml"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-1cbe0cf4be1a93ba417c3832",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PABB9DF99ADBB6C"
+      ],
+      "source_urls": [
+        "https://news.futunn.com/post/71320255/haidilao-06862-zhang-yong-controlling-shareholder-executive-director-chairman-of"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-21626e1f68c9558e22b62786",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PE419420CA2AE6D"
+      ],
+      "source_urls": [
+        "https://news.futunn.com/post/71320255/haidilao-06862-zhang-yong-controlling-shareholder-executive-director-chairman-of"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-2bfaa14af59f827595bf19de",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P1E19390D5856E2"
+      ],
+      "source_urls": [
+        "https://news.futunn.com/post/71320255/haidilao-06862-zhang-yong-controlling-shareholder-executive-director-chairman-of"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-f59da8138b6cf1e5ee1c0876",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P6D39480D0C3F3F"
+      ],
+      "source_urls": [
+        "https://www.21jingji.com/article/20260114/herald/d7d49f1f85762afe45a877b04b6af5cd.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-cd8c49e7c3158a8ef6bbd40e",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P2BE74A20F3714D"
+      ],
+      "source_urls": [
+        "https://m.thepaper.cn/newsDetail_forward_32391915"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-ad1075d1a278a0a614436037",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PA742F1237D0CED"
+      ],
+      "source_urls": [
+        "https://m.thepaper.cn/newsDetail_forward_32391915"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-de92c4c37ffe38a1395005e8",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P8DD284A022E198"
+      ],
+      "source_urls": [
+        "https://m.thepaper.cn/newsDetail_forward_32391915"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-ae056d5ad6e76303bcf90ea6",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PA33EDD1E0EFE85"
+      ],
+      "source_urls": [
+        "https://www.jwview.com/jingwei/html/m/09-11/687434.shtml"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-35d409cde61ac40358ed4ec3",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P516966F9464ADE"
+      ],
+      "source_urls": [
+        "https://www.jwview.com/jingwei/html/m/09-11/687434.shtml"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-a8d42f586732ac673d20e3ea",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PBA2CC1A07780B6"
+      ],
+      "source_urls": [
+        "https://www.jwview.com/jingwei/html/m/09-11/687434.shtml"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-ecf00a37aca0024981a8806d",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PC1CC69897C3B4B"
+      ],
+      "source_urls": [
+        "https://www.jwview.com/jingwei/html/m/09-11/687434.shtml"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-89d2c2b4fa464fa36cdef44e",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PFC734E428933C0"
+      ],
+      "source_urls": [
+        "https://www.chnfund.com/article/ARf2234aad-823a-c536-cb9a-3a24455e7331"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-8786534a11337a11895c01a1",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PFA5841156D6D61"
+      ],
+      "source_urls": [
+        "https://www.chnfund.com/article/ARf2234aad-823a-c536-cb9a-3a24455e7331"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-c1de34b2f0d8a3504692117c",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P7CF174FE656499"
+      ],
+      "source_urls": [
+        "https://www.chnfund.com/article/ARf2234aad-823a-c536-cb9a-3a24455e7331"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-c94b079b21f175b8cf6f9f9b",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P6886D1CD2803FF"
+      ],
+      "source_urls": [
+        "https://www.chnfund.com/article/ARf2234aad-823a-c536-cb9a-3a24455e7331"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-cf079846983bfd4433c6c584",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P77703357D2CEE0"
+      ],
+      "source_urls": [
+        "https://s.askci.com/stock/executives/HK6862/99adee0fb6f95d21.shtml"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-bab9babdd29a300c6e050eec",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PC12F028A054669"
+      ],
+      "source_urls": [
+        "https://www.ourchinastory.com/cn/10653/%E6%B5%B7%E5%BA%95%E6%8D%9E%E5%BC%A0%E5%8B%87%E4%BB%8E%E8%A1%97%E8%BE%B9%E6%A1%A3%E5%88%B0%E6%88%90%E5%8A%9F%E4%B8%8A%E5%B8%82-%E9%A4%90%E9%A5%AE%E7%A5%9E%E8%AF%9D%E6%BA%90%E8%87%AA%E2%80%9C%E9%80%86%E5%A4%A9%E2%80%9D%E5%88%9B%E6%96%B0%E6%9C%8D%E5%8A%A1"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-ee073a21d49e5d1d63cc115f",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P6CF0D0B0F75AAD"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-d6ce4bcb8a08f45fb62cae1b",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P14743FE8CB2810"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-3a51abaadd02d03d20b94336",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P326F11FF0EE64D"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-44cf96e488a72e2ba639a4dd",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P248778EFB25DA3"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-8f25dab4e55187e3fcd466b2",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P978BF576A906DC"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-ed9fe2ae346aac39b1d79ea8",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P78265637F5E87B"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-170d6d7f9624cce1eac51d3c",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PDA9163C9DD6C79"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-12a33c027e610010f6498008",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PDA2A235ABE3DBF"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-e3f0d11bba7e001b720c87af",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PD97BA004BEB975"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-38f816700a4b67517782aa6e",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PAD14FC5D9D64DB"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-e33fdccf27b10c7421951a62",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P8B0499FE28E819"
+      ],
+      "source_urls": [
+        "https://www.gelonghui.com/p/201997"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-8eeb6bab3bb33e939cb421ca",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P9C0BD1D28FCAE4"
+      ],
+      "source_urls": [
+        "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-7d3c23ad8f0e881df9aefd29",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PF58356C6C8B670"
+      ],
+      "source_urls": [
+        "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-327c8b20e8f5a76d5ead3930",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P1B28DDBABBC8F3"
+      ],
+      "source_urls": [
+        "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-ab9c1f991ee428c6f6af4497",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P692DFE593EDD78"
+      ],
+      "source_urls": [
+        "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-86981e56cf62a11aecf666e6",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PD40DE8F3FFC51D"
+      ],
+      "source_urls": [
+        "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-878e78b0e08bb35b33b53e5b",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PC7AC0461428DA3"
+      ],
+      "source_urls": [
+        "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-7b616a64a07e35c392837f08",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P007AD80EBDD9FD"
+      ],
+      "source_urls": [
+        "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-dcb1754c6f1bb754b7528254",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PFAE3FF02A805E2"
+      ],
+      "source_urls": [
+        "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-a108b4bceb2930f568a6989b",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PABB44EDE9176D9"
+      ],
+      "source_urls": [
+        "http://pdf.dfcfw.com/pdf/H3_AP201812121267801920_1.pdf"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-92734f789e3c1eebbf84cc54",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P59C2FD0E69E56A"
+      ],
+      "source_urls": [
+        "https://www.tmtpost.com/7936124.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-a5c5a01780a034ed94b7987f",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P1EB0D6FBC0789D"
+      ],
+      "source_urls": [
+        "https://www.sem.tsinghua.edu.cn/info/1322/32837.htm"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-ac28f337d36c4ca7ce98060c",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P367F863664FAD8"
+      ],
+      "source_urls": [
+        "https://stcn.com/article/detail/887066.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-c3164e37140127473c915f4c",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PBFA5CE6D1056BB"
+      ],
+      "source_urls": [
+        "https://stcn.com/article/detail/887066.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-4aa6758af191341b6186e2a1",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P5CA3046774ECE6"
+      ],
+      "source_urls": [
+        "https://stcn.com/article/detail/887066.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-751bb2d1ed3b07f6ef2c3828",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P715C1F94001324"
+      ],
+      "source_urls": [
+        "https://stcn.com/article/detail/887066.html"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-a6e09bf6d03d76dce8704b2c",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PDC6B4201EFF8F5"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-ed3deada84834fdf613bbca3",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P251B068F797CF0"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-a7cbea39fcb961dced1b7bc9",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PC463417E05C78E"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-ec8c93ecf1a2ea77f60d9d51",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P19251BB81D1AE3"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-7b77163289126830f7e25d20",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PF5DBECF29B4C61"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-18e6dddea2b0b069d58e10e1",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PFCB446477D692C"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-e762148d54db16f77cecc57c",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P606E1004641F65"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-c120c7074a88448efefe4640",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P72DBE1330531D9"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-ff05f12700f18537c0651506",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P54801847AF3FD3"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-7239fbc85dcc39936ca184c8",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PDE4A2EBAEF1C38"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-efd88be0008bd558b45e6f72",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PC5DFCF526A9315"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-63acf07c75ebeb51cc5267f1",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P710D43608C0BE3"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-d792cb5d18869836eb73563e",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P48106FA9C44EC4"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-72e67dbdc0a1e684982aa992",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P6DBBE3B35B1FD2"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-a300da0d7edd7a696a32ab35",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P380C8D3678E7DA"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-7a93139a1e9d4ad8e8420627",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PF139302F5EB9C3"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-c5a162b297471040d11110ec",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P92929998A16D84"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-2f73acb2ba65d628ccf7c233",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P4AE52620A95478"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-f5f008b5b7673824eb3e1d10",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P5053C2AA6CA60C"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-2766d96336c5cfa85ddd545d",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P9CBA0C17FC8901"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-60ac4ddabbe1c297ee4a4303",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P9E0720E216EAF4"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-2d075cd11770f1e40edaa8ec",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P26B88CE591C4C2"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-05cd0e1bfdb2abc578a64c0f",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PA8C401B77EE80E"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-77790be947ebd0b938a292c5",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P72408B0F0FC03C"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-98501dfbc18d70e1d9712856",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P77D4492456DBB0"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-7209f76f1f03a92c91659f81",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P196C50B1B74D6E"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-2053bf969815f2c91a989bf7",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PEAA415B4F34932"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-90d3c8eaab64e6e431e4d181",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P61F5410A09848E"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-f4609b5d9dd1a09307e2d705",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P19BBC71E80AED0"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-98e5827481d372d259c36e69",
+      "domain": "named_or_attributed_evaluation_not_fact",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-PA44DB4D20D3E8C"
+      ],
+      "source_urls": [
+        "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    },
+    {
+      "item_id": "RISK-REVIEW-15a3b12ce129fd16655173c2",
+      "domain": "interest_relationship_not_conflict_finding",
+      "subject": "张勇",
+      "subject_scope": "person",
+      "evidence_ids": [
+        "E-P20C51228B02967"
+      ],
+      "source_urls": [
+        "https://www.hkexnews.hk/listedco/listconews/SEHK/2018/0403/LTN201804032445.pdf"
+      ],
+      "evidence_presence": "admitted_source_statement",
+      "evidence_reliability": {
+        "source_grade": "C",
+        "literal_match": true,
+        "independent_verification": "pending"
+      },
+      "risk_severity": "not_assessed",
+      "risk_score": null,
+      "responsibility": "not_determined",
+      "attribution_boundary": "来源陈述，尚未经人工独立核验；观点不等于事实。",
+      "event_period": "",
+      "source_role_dates": [],
+      "review_status": "pending",
+      "boundary": "来源线索不等于事件成立、责任认定或个人失信。"
+    }
+  ],
+  "collection_outcomes": [
+    {
+      "provider": "qcc",
+      "tool": "get_executive_positions",
+      "subject": "海底捞国际控股有限公司",
+      "status": "failed",
+      "reason": "access_denied",
+      "error_code": 403,
+      "retrieved_at": "2026-10-20T23:20:14"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_positions",
+      "subject": "海底捞国际控股有限公司",
+      "status": "failed",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:20:14"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_related_companies",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:20:14"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_risk_scan",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:20:14"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_dishonest",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:20:14"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_judgment_debtor",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:20:14"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_judicial_docs",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:20:14"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_historical_related_companies",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:20:14"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_historical_positions",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:20:14"
+    },
+    {
+      "provider": "xiniu",
+      "tool": "get_company_info:融资状况分析",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "identity_not_verified",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:20:14"
+    },
+    {
+      "provider": "xiniu",
+      "tool": "get_company_info:团队人物及招聘分析",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "identity_not_verified",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:20:14"
+    },
+    {
+      "provider": "xiniu",
+      "tool": "get_project_events",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "identity_not_verified",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:20:14"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_positions",
+      "subject": "海底捞国际控股有限公司",
+      "status": "failed",
+      "reason": "access_denied",
+      "error_code": 403,
+      "retrieved_at": "2026-10-20T23:46:01"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_positions",
+      "subject": "海底捞国际控股有限公司",
+      "status": "failed",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:46:01"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_related_companies",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:46:01"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_risk_scan",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:46:01"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_dishonest",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:46:01"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_judgment_debtor",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:46:01"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_judicial_docs",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:46:01"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_historical_related_companies",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:46:01"
+    },
+    {
+      "provider": "qcc",
+      "tool": "get_executive_historical_positions",
+      "subject": "海底捞国际控股有限公司",
+      "status": "not_queried",
+      "reason": "regional_restriction",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:46:01"
+    },
+    {
+      "provider": "xiniu",
+      "tool": "get_company_info:融资状况分析",
+      "subject": "海底捞国际控股有限公司",
+      "status": "failed",
+      "reason": "provider_entity_not_found",
+      "error_code": "tool_execution_error",
+      "retrieved_at": "2026-10-20T23:46:02"
+    },
+    {
+      "provider": "xiniu",
+      "tool": "get_company_info:融资状况分析",
+      "subject": "海底捞国际控股有限公司",
+      "status": "failed",
+      "reason": "provider_entity_not_found",
+      "error_code": "tool_execution_error",
+      "retrieved_at": "2026-10-20T23:46:02"
+    },
+    {
+      "provider": "xiniu",
+      "tool": "get_company_info:团队人物及招聘分析",
+      "subject": "海底捞国际控股有限公司",
+      "status": "failed",
+      "reason": "provider_entity_not_found",
+      "error_code": "tool_execution_error",
+      "retrieved_at": "2026-10-20T23:46:02"
+    },
+    {
+      "provider": "xiniu",
+      "tool": "get_company_info:团队人物及招聘分析",
+      "subject": "海底捞国际控股有限公司",
+      "status": "failed",
+      "reason": "provider_entity_not_found",
+      "error_code": "tool_execution_error",
+      "retrieved_at": "2026-10-20T23:46:03"
+    },
+    {
+      "provider": "xiniu",
+      "tool": "get_project_events",
+      "subject": "海底捞国际控股有限公司",
+      "status": "empty_result",
+      "reason": "explicit_empty_record_list",
+      "error_code": null,
+      "retrieved_at": "2026-10-20T23:46:03"
+    }
+  ],
+  "policy": {
+    "weights": null,
+    "score_formula": null,
+    "no_result_interpretation": "限定查询范围内没有取得可引用材料，不等于安全或无风险。",
+    "provider_failure_interpretation": "采集能力缺口，不进入个人风险、信用或责任判断。",
+    "company_boundary": "关联公司的事项、诉讼或处罚不直接归给个人。",
+    "opinion_boundary": "评价者观点、当事人陈述与已经证明的事实分开。"
+  }
+}

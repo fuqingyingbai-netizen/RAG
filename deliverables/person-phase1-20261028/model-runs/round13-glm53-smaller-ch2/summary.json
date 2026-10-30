@@ -1,0 +1,265 @@
+{
+  "baseline": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\frozen\\zhang",
+  "sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+  "generation_code_sha256": "62904afc30a3638f90b9a759cf933a18bc2545b395ee05cbbe415f2cd219cabb",
+  "previous_replay": "work\\person-phase1-20261028\\round12-glm53-ch2",
+  "comparison_scope": "same_retained_corpus",
+  "prior_sources_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+  "prior_supplement_calls": {
+    "new_search_calls": 0,
+    "new_fetch_calls": 35,
+    "new_professional_calls": 0
+  },
+  "feedback_records": "work\\person-phase1-20261028\\frozen\\zhang-feedback.json",
+  "prior_analysis_coverage_reminders": false,
+  "intake_sha256": "419b91a1c7d19701f0d6e3fba21d0ef040dda2c13f4ec836356442f2162b65f3",
+  "material_changed_chapters": [],
+  "rewrite_requested": [
+    2
+  ],
+  "outside_request": [],
+  "retained_after_compatible_narrowing": [],
+  "research_scope": {
+    "2": {
+      "admitted_facts": 58,
+      "admitted_sources": 23,
+      "personal_analysis_candidates": 56
+    }
+  },
+  "new_search_calls": 0,
+  "new_fetch_calls": 0,
+  "new_professional_calls": 0,
+  "model_request_timeout_seconds": 120,
+  "model_context": {
+    "model": "glm-5.3",
+    "endpoint_sha256": "9045dc7291bc66c59a061290cfba595238ba3f290d762e4a8f03b05937ddd4ec",
+    "temperature": 0.2,
+    "request_options": {
+      "max_tokens": 8192
+    }
+  },
+  "model_requests": 5,
+  "model_requests_returned": 2,
+  "code_unchanged_during_run": true,
+  "exact_input_responses_reused": 0,
+  "model_requests_failed": 3,
+  "elapsed_seconds": 243.188,
+  "unchanged_body_chapters": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
+  "comparisons": [
+    {
+      "chapter": 1,
+      "text_changed": false,
+      "before_sha256": "8e5739855f7e02fbe458c62586a69a896d68a665dc4eddf8a500b373ce0712e5",
+      "after_sha256": "8e5739855f7e02fbe458c62586a69a896d68a665dc4eddf8a500b373ce0712e5",
+      "before_chars": 1034,
+      "after_chars": 1034,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    },
+    {
+      "chapter": 2,
+      "text_changed": false,
+      "before_sha256": "03394ebfa70401c27b5978f802910f9153c185b853333f9a6d82249c6d432e50",
+      "after_sha256": "03394ebfa70401c27b5978f802910f9153c185b853333f9a6d82249c6d432e50",
+      "before_chars": 2721,
+      "after_chars": 2721,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    },
+    {
+      "chapter": 3,
+      "text_changed": false,
+      "before_sha256": "6fb04aa88377c04043352a5e79b7b7db7c1f34068936b44b78fd867a1069810e",
+      "after_sha256": "6fb04aa88377c04043352a5e79b7b7db7c1f34068936b44b78fd867a1069810e",
+      "before_chars": 1981,
+      "after_chars": 1981,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    },
+    {
+      "chapter": 4,
+      "text_changed": false,
+      "before_sha256": "d9b2b0bf3599c3852455bc4d8c2da6dae8731425ce2a0b15d127853288522b90",
+      "after_sha256": "d9b2b0bf3599c3852455bc4d8c2da6dae8731425ce2a0b15d127853288522b90",
+      "before_chars": 1943,
+      "after_chars": 1943,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    },
+    {
+      "chapter": 5,
+      "text_changed": false,
+      "before_sha256": "476753ac812e04b0561982da5ae21e3f175751eefb395407c1f546bbbf295664",
+      "after_sha256": "476753ac812e04b0561982da5ae21e3f175751eefb395407c1f546bbbf295664",
+      "before_chars": 2830,
+      "after_chars": 2830,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    },
+    {
+      "chapter": 6,
+      "text_changed": false,
+      "before_sha256": "fd5c39220ae926345a6a87b102816304a4ba6c62668ea77a686c4b11a94a5683",
+      "after_sha256": "fd5c39220ae926345a6a87b102816304a4ba6c62668ea77a686c4b11a94a5683",
+      "before_chars": 3100,
+      "after_chars": 3100,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    },
+    {
+      "chapter": 7,
+      "text_changed": false,
+      "before_sha256": "5d1513ec2aac7ff5ddccb805e0e502861ebf062e3269b1c78bda1b3574b6a267",
+      "after_sha256": "5d1513ec2aac7ff5ddccb805e0e502861ebf062e3269b1c78bda1b3574b6a267",
+      "before_chars": 1694,
+      "after_chars": 1694,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    },
+    {
+      "chapter": 8,
+      "text_changed": false,
+      "before_sha256": "d6dc2e18e23342715f3a599bf5bf282d2657acc878175594ee2c2297caa88974",
+      "after_sha256": "d6dc2e18e23342715f3a599bf5bf282d2657acc878175594ee2c2297caa88974",
+      "before_chars": 376,
+      "after_chars": 376,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    },
+    {
+      "chapter": 9,
+      "text_changed": false,
+      "before_sha256": "94b81af5a369405fc159e9cde1786854a1727875791db38bb8f6aebf43fb98f8",
+      "after_sha256": "94b81af5a369405fc159e9cde1786854a1727875791db38bb8f6aebf43fb98f8",
+      "before_chars": 5138,
+      "after_chars": 5138,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    },
+    {
+      "chapter": 10,
+      "text_changed": false,
+      "before_sha256": "5a637ac3cb4f6b6ee60add8a43268eb4041042df01d99b8e1079b23e07ffbb05",
+      "after_sha256": "5a637ac3cb4f6b6ee60add8a43268eb4041042df01d99b8e1079b23e07ffbb05",
+      "before_chars": 2466,
+      "after_chars": 2466,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    },
+    {
+      "chapter": 11,
+      "text_changed": false,
+      "before_sha256": "d880e2b7128bcab958acc49b41be17596c84c2d05230594b088fefcf42d94140",
+      "after_sha256": "d880e2b7128bcab958acc49b41be17596c84c2d05230594b088fefcf42d94140",
+      "before_chars": 1853,
+      "after_chars": 1853,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    },
+    {
+      "chapter": 12,
+      "text_changed": false,
+      "before_sha256": "fb617469b54297e9120f40285fcc71f8fc29747feb63bfe3ddc25ab84d7e1011",
+      "after_sha256": "fb617469b54297e9120f40285fcc71f8fc29747feb63bfe3ddc25ab84d7e1011",
+      "before_chars": 1987,
+      "after_chars": 1987,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    },
+    {
+      "chapter": 13,
+      "text_changed": false,
+      "before_sha256": "c390a5e5151a239c0f4e39a2c7771718f8d58b625a20744fc4aec8844774b38d",
+      "after_sha256": "c390a5e5151a239c0f4e39a2c7771718f8d58b625a20744fc4aec8844774b38d",
+      "before_chars": 1612,
+      "after_chars": 1612,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    },
+    {
+      "chapter": 14,
+      "text_changed": false,
+      "before_sha256": "56ee10ed7248a08967b832ee87044707938886e2719264087dab99e8392a0e54",
+      "after_sha256": "56ee10ed7248a08967b832ee87044707938886e2719264087dab99e8392a0e54",
+      "before_chars": 19093,
+      "after_chars": 19093,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    },
+    {
+      "chapter": 15,
+      "text_changed": false,
+      "before_sha256": "00023b60823e76669050cc705de579842ad58d50a5542df6fff43e89dc2d52e1",
+      "after_sha256": "00023b60823e76669050cc705de579842ad58d50a5542df6fff43e89dc2d52e1",
+      "before_chars": 3246,
+      "after_chars": 3246,
+      "added_evidence_ids": [],
+      "removed_evidence_ids": []
+    }
+  ],
+  "actual_cost_available": false,
+  "cost_note": "No billing response supplied by provider; no price or cost estimated",
+  "audit": {
+    "degradations": [
+      {
+        "chapter": 2,
+        "reasons": [
+          "api_failed:request_failed"
+        ]
+      },
+      {
+        "chapter": 3,
+        "reasons": [
+          "api_failed:request_failed"
+        ]
+      },
+      {
+        "chapter": 4,
+        "reasons": [
+          "api_failed:request_failed"
+        ]
+      },
+      {
+        "chapter": 5,
+        "reasons": [
+          "api_failed:request_failed"
+        ]
+      },
+      {
+        "chapter": 9,
+        "reasons": [
+          "material_disposition_review_incomplete"
+        ]
+      },
+      {
+        "chapter": 10,
+        "reasons": [
+          "api_failed:request_failed"
+        ]
+      },
+      {
+        "chapter": 11,
+        "reasons": [
+          "api_failed:request_failed"
+        ]
+      },
+      {
+        "chapter": 12,
+        "reasons": [
+          "material_disposition_review_incomplete"
+        ]
+      }
+    ]
+  }
+}

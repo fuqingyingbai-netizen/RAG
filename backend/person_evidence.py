@@ -166,7 +166,7 @@ def compact_dimension_gaps(gaps):
     return result
 
 
-def normalize_facts(payload, target, aliases=(), sources=()):
+def normalize_facts(payload, target, aliases=(), sources=(), *, validated_peer_subject=None):
     """Keep rejected facts auditable; create fact-level, stable citation identities."""
     facts, rejected, seen = [], [], set()
     if isinstance(aliases, str):
@@ -212,9 +212,20 @@ def normalize_facts(payload, target, aliases=(), sources=()):
                 and compact(text) in compact(originals[url]))
             if not explicit_colleague and not retained_context and (f.get('claim_type') != 'person_management_event' or not management_event(text, raw_names, event_orgs)):
                 reason = 'feedback_source_requires_attribution_record'
+        # Extraction labels cannot override the source's identity quarantine.
+        # A literal quote from a namesake page is still about the wrong person.
+        # Peer material has its own independently source-validated identity.
+        # The exception is an internal call context, never a model payload flag.
+        peer_identity_scope = (validated_peer_subject == target
+            and f.get('claim_type') == 'person_peer_record'
+            and f.get('comparison_subject') == target)
+        source_identity_quarantined = (source_meta.get(url, {}).get('identity_status') == 'quarantined'
+            and not peer_identity_scope)
         rejected_company_source = (f.get("claim_type")=="person_company_record" and (source_meta.get(url,{}).get("entity_validation")=="rejected" or source_meta.get(url,{}).get("identity_confidence") in {"low","rejected"}))
-        if rejected_company_source or f.get("eligible_for_report") is False or identity in {"ambiguous", "mismatch"} or confidence in {"low", "rejected"} or f.get("usable_as") == "identity_quarantine":
+        if source_identity_quarantined or rejected_company_source or f.get("eligible_for_report") is False or identity in {"ambiguous", "mismatch"} or confidence in {"low", "rejected"} or f.get("usable_as") == "identity_quarantine":
             reason = "identity_quarantine"
+            if source_identity_quarantined:
+                f['source_identity_quarantine_reason'] = source_meta[url].get('identity_reason', '')
         elif not text or not url.startswith(("https://", "http://", "structured://")):
             reason = "missing_source_or_statement"
         elif any(x in compact(text) for x in ("errorcallingtool", "requesttimedout", "上一页下一页", "空结果：", "insufficient_quota")):
@@ -285,7 +296,13 @@ def normalize_facts(payload, target, aliases=(), sources=()):
             f['attribution_boundary'] += ' 原文中股东术语疑有字形转录异常，保留原句待核物理原页，不据此认定控股身份。'
             f['eligible_for_risk_scoring']=False
         f["eligible_for_risk_scoring"] = not affiliated and f.get("eligible_for_risk_scoring") is not False and f.get("category") != "personal_background"
-        f['observation'] = observation(f, target, raw_names)
+        f['observation'] = observation(f, target, raw_names, source_text=original)
+        from person_source_context import signature_only_context
+        if signature_only_context(text, raw_names):
+            f['personal_attribution_pending'] = True
+            f['eligible_for_risk_scoring'] = False
+            f['observation']['direct_person_link'] = False
+            f['attribution_boundary'] = '目标姓名仅位于签署或末尾董事名单，前文事项不得自动归到本人；完整页面仅供来源上下文复核。'
         if f['observation']['subject_scope'] == 'other_person':
             f['subject_scope'] = 'other_person'
             f['subject'] = f['observation']['subject']
@@ -347,7 +364,9 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
     known = {f['evidence_id'] for f in facts}
     for raw in supplements:
         subject = raw.get('comparison_subject') or target
-        extra, _ = normalize_facts({'facts': [raw]}, subject, sources=sources)
+        extra, extra_rejected = normalize_facts({'facts': [raw]}, subject, sources=sources,
+            validated_peer_subject=subject if raw.get('comparison_subject') else None)
+        rejected.extend(extra_rejected)
         for f in extra:
             if raw.get('feedback_record') and raw['feedback_record']['kind'] == 'attributed_opinion':
                 f.update(opinion_only=True, eligible_for_risk_scoring=False,
@@ -379,6 +398,8 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
     conflicts = temporal_conflicts(facts)
     conflicting = {eid for row in conflicts for eid in row["evidence_ids"]}
     commissioned = commission_requirements({**intake, 'target_name': target})
+    from person_requirements import requirements as person_form_requirements
+    user_requirements = person_form_requirements({**intake, 'target_name': target})
     packages = {}
     for chapter, (title, requirements) in enumerate(outline, 1):
         terms = TOPICS.get(chapter, ())
@@ -543,6 +564,7 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
                 if not any(any(compact(t) in compact(f['fact']) for t in terms) for f in selected):
                     gaps.append(f'研究维度“{view}”缺少能回答问题的原文、个人角色或时期证据。')
         packages[chapter] = {"chapter": chapter, "title": title, "requirements": requirements,
+                             "user_requirements": [r for r in user_requirements if chapter in r['chapters']],
                              "task": TASKS[chapter], "identity_clues_not_facts": intake.get("person_anchor") or {}, "facts": selected, "information_gaps": gaps,
                              "commission_coverage": commission_coverage,
                              "material_coverage": coverage, "selection_audit": selection_audit,
@@ -550,7 +572,14 @@ def build_packages(payload, target, outline, intake=None, sources=(), platform_a
                              "routing_audit": routing_audit,
                              "query_coverage": query_coverage,
                              "conflicts": [r for r in conflicts if set(r["evidence_ids"]) & {f["evidence_id"] for f in selected}]}
+    from person_provenance import build_provenance_index
+    provenance = build_provenance_index(target, intake, sources, facts, rejected, packages)
+    from person_risk_evidence import build_register
+    risk_register = build_register(facts, conflicts, platform_attempts)
     return {"version": VERSION, "target_name": target, "as_of_date": cutoff, "facts": facts, "rejected": rejected,
+            "provenance_index": provenance,
+            "form_requirements": user_requirements,
+            "risk_evidence_register": risk_register,
             "commission_requirements": commissioned, "team_material_audit": team_material_audit,
             "source_material_audit": source_material_audit,
             "conflicts": conflicts, "chapters": packages}
@@ -978,19 +1007,28 @@ def report_audit(report, contract, degradations=()):
             "conflicts": contract["conflicts"], "semantic_verification": "requires_human_review"}
 
 
-def normalize_person_risk(payload):
+def normalize_person_risk(payload, *, target='', aliases=(), sources=()):
     """Missing disclosure and failed collection must not become a risk score."""
     result = {"overall_score": None, "risk_level": "unknown", "scoring_methodology": "公开来源线索底稿，未建立可复核量表，不自动评分。",
             "dimensions": [{"name": name, "score": None, "level": "unknown", "reason": "需按原始证据逐项核查，缺口不计为风险。", "evidence_ids": []} for name in RISK_TOPICS],
             "unknowns": list(payload.get("information_gaps") or [])}
+    facts = payload.get('facts', [])
+    rejected = []
+    if target:
+        facts, rejected = normalize_facts(payload, target, aliases, sources)
+    result['rejected_risk_leads'] = [{'source_url': f.get('source_url'),
+        'reason': f.get('rejection_reason')} for f in rejected]
     result["source_signals"] = [
         {"statement": f.get("fact"), "evidence_id": f.get("evidence_id"),
          "scope": f.get("subject_scope") or ("affiliated_company" if f.get("person_affiliation") else "person"),
-         "status": "source_signal_requires_review"}
-        for f in payload.get("facts", []) if isinstance(f, dict)
+         "status": "admitted_source_requires_independent_review" if target else "unadmitted_lead_requires_identity_and_source_review",
+         "evidence_reliability": "not_independently_verified", "risk_severity": "not_assessed"}
+        for f in facts if isinstance(f, dict)
         and any(t in str(f.get("fact") or "") for t in TOPICS[12])
         and f.get("eligible_for_report") is not False
-        and f.get('subject_scope') != 'other_person'
+        and f.get('subject_scope') not in {'other_person', 'comparison_person'}
+        and f.get('identity_match') not in {'ambiguous', 'mismatch'}
+        and f.get('identity_confidence') not in {'low', 'rejected'}
     ]
     return result
 

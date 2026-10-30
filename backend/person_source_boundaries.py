@@ -127,10 +127,35 @@ def collective_retirement_scope_errors(analysis, supports):
     return []
 
 
+def holding_snapshot_explanation_errors(analysis, supports):
+    """An unknown snapshot date cannot explain away conflicting holdings."""
+    text = folded(analysis)
+    explanation = r'(?:均|都|分别)?(?:属|系|为|是)(?:于)?(?:不同|各自)(?:时点|时期|年份|年度)(?:的)?(?:口径|数据|快照)?'
+    claims = list(re.finditer(explanation, text))
+    if not claims or not re.search(r'持股|持有|股权|权益|控股', text):
+        return []
+    holdings = [f for f in supports if any(m.get('metric') in {'holding_ratio', 'share_count'}
+        for m in (f.get('observation') or {}).get('metrics', []))]
+    if len({f.get('source_url') for f in holdings}) < 2:
+        return []
+    undated = [f for f in holdings if not (f.get('observation') or {}).get('period')]
+    if not undated:
+        return []
+    originals = folded(' '.join(f.get('fact') or '' for f in supports))
+    for claim in claims:
+        prefix = text[max(0, claim.start()-18):claim.start()]
+        if re.search(r'不能|不可|尚不能|未能|无法|是否|可能|或许|待核', prefix):
+            continue
+        if claim[0] not in originals:
+            return ['undated_holdings_explained_as_different_snapshots']
+    return []
+
+
 def source_context_errors(analysis, supports, context_facts=()):
     text = folded(analysis)
     original = folded(' '.join(str(f.get('fact') or '') for f in supports))
-    errors = conditional_contribution_errors(analysis,supports)+annual_meeting_year_errors(analysis,supports)+joint_participant_duplicate_errors(analysis,supports)
+    errors = (conditional_contribution_errors(analysis,supports)+annual_meeting_year_errors(analysis,supports)
+        +joint_participant_duplicate_errors(analysis,supports)+holding_snapshot_explanation_errors(analysis,supports))
     from person_text import numeric_literals
     for fact in supports:
         name = folded(fact.get('subject') or (fact.get('observation') or {}).get('subject') or '')

@@ -1,0 +1,124 @@
+{
+  "review_kind": "agent_source_bound_wording_review",
+  "review_plan_sha256": "20a146d5022ba64061291b214dfa3df0c3593320465f6456db4d511115d6ac7b",
+  "report_raw_sha256": "ba85ca29290d9ab287b512939385026b61b7865d8c07adedbe631ee657392cfe",
+  "scope": "8 high-risk chapter analysis statements against retained cited passages; no independent truth certification",
+  "items": [
+    {
+      "review_id": "C7-0",
+      "claim": "- 研究判断（待人工复核）：来源载明董事会将增持计划表述为对集团前景的长期承诺及坚定信心，并称体现其对中国经济及相关消费领域的正面预期；属董事会评价，不能直接作为个人信用已核实的结论。 [E-P9631719F3EBCEC]",
+      "claim_sha256": "b664a4195bbb7950184515de428f1054eef6e4c54b9c0ab1b7f3b6cd25c3338a",
+      "status": "source_attribution_preserved",
+      "finding": "董事会评价的归属保留；未把信心评价写成个人信用核实。",
+      "checked_evidence_ids": [
+        "E-P9631719F3EBCEC"
+      ],
+      "literal_support_only": true,
+      "source_truth_or_responsibility_confirmed": false,
+      "human_signoff": false
+    },
+    {
+      "review_id": "C7-1",
+      "claim": "- 研究判断（待人工复核）：来源以“用个人信用为海底捞穿越周期赎买”作评价性表述，属媒体观点，未提供可核验的信用记录或协议。 [E-PDB6D7882EEA962]",
+      "claim_sha256": "c358a7846a0d68640420ec077bceeef38b3f91b367aab1a941a5f77496c321c4",
+      "status": "source_attribution_preserved",
+      "finding": "媒体评价的归属保留；本次仅检查引用与行文，不核实个人信用记录。",
+      "checked_evidence_ids": [
+        "E-PDB6D7882EEA962"
+      ],
+      "literal_support_only": true,
+      "source_truth_or_responsibility_confirmed": false,
+      "human_signoff": false
+    },
+    {
+      "review_id": "C9-0",
+      "claim": "- 研究判断（待人工复核）：来源载张勇为海底捞控股股东、执行董事、董事会主席兼首席执行官，自1月13日起获委任CEO、苟轶群同日辞任（年份未明），未载具体决策权限。 [E-P796DB84FA6879C] [E-P68BFD29CFC1350]",
+      "claim_sha256": "b607af7f923b9ebcd788c053b42897e092a7ae5e7dfa8af901cdfc0294cd83ae",
+      "status": "source_time_gap_pending",
+      "finding": "媒体引文未明年份，正文保留该缺口；独立取得的新公告尚未通过文本抽取，未用于消除缺口。",
+      "checked_evidence_ids": [
+        "E-P68BFD29CFC1350",
+        "E-P796DB84FA6879C"
+      ],
+      "literal_support_only": true,
+      "source_truth_or_responsibility_confirmed": false,
+      "human_signoff": false
+    },
+    {
+      "review_id": "C9-1",
+      "claim": "- 研究判断（待人工复核）：来源分别载其持20.82亿股约占37.36%、33.64亿股占37.35%，基准日未明；研报另载个人权益44.01%、夫妇经ZY NP及SP NP直接持34.61%，均属不同时点口径，不合并。 [E-P1E19390D5856E2] [E-P78B30ED07BE0FE] [E-PABB44EDE9176D9]",
+      "claim_sha256": "e552715ca694664e6f86282fe725d4896d210e437f23173bc863a56b4f340398",
+      "status": "revision_required",
+      "finding": "正文一面说基准日未明，一面断言均属不同时点口径，给出了未经证明的差异原因。应保留时间和口径冲突，不能直接用不同时点解释。",
+      "checked_evidence_ids": [
+        "E-P1E19390D5856E2",
+        "E-P78B30ED07BE0FE",
+        "E-PABB44EDE9176D9"
+      ],
+      "literal_support_only": true,
+      "source_truth_or_responsibility_confirmed": false,
+      "human_signoff": false
+    },
+    {
+      "review_id": "C9-2",
+      "claim": "- 研究判断（待人工复核）：2017年年报所列：张勇2016年3月7日获委任为颐海国际非执行董事，2015年12月起任董事；来源另载其为颐海最大股东，海底捞为颐海关联方及大客户。 [E-PF58356C6C8B670] [E-P77703357D2CEE0] [E-P20C51228B02967]",
+      "claim_sha256": "3b982e0242b6b32f7c4b8d42b89a8aba4b6edce03968aa03f3317fc6908001ee",
+      "status": "literal_support_with_verification_pending",
+      "finding": "任命日与起任董事月份分别有年报原文支持；最大股东与关联客户部分仍是媒体陈述，真实性与当前状态未核实。",
+      "checked_evidence_ids": [
+        "E-P20C51228B02967",
+        "E-P77703357D2CEE0",
+        "E-PF58356C6C8B670"
+      ],
+      "literal_support_only": true,
+      "source_truth_or_responsibility_confirmed": false,
+      "human_signoff": false
+    },
+    {
+      "review_id": "C9-3",
+      "claim": "- 研究判断（待人工复核）：公告载公司向张勇提供不超1亿港元无担保贷款，期限30天，限个人财务安排、不得购股；减持后夫妇控制集团持股45.49%，是否发放或偿还未载。 [E-PFC734E428933C0] [E-PB482C46A3D79A3] [E-P516966F9464ADE]",
+      "claim_sha256": "72f0fb0dabac67fc170128a9915f7b8e126f98d51e7036fe6a577334fcd7da99",
+      "status": "source_level_clarification_required",
+      "finding": "实际引用为媒体转述公告，未留存对应贷款公告原件；正文直接写公告载容易抬高核验层级，应明确为媒体转述并保留发放及偿还缺口。",
+      "checked_evidence_ids": [
+        "E-P516966F9464ADE",
+        "E-PB482C46A3D79A3",
+        "E-PFC734E428933C0"
+      ],
+      "literal_support_only": true,
+      "source_truth_or_responsibility_confirmed": false,
+      "human_signoff": false
+    },
+    {
+      "review_id": "C9-4",
+      "claim": "- 研究判断（待人工复核）：2016年12月，用友与海底捞集团旗下上海海悦投资管理有限公司发起成立红火台餐饮云服务有限公司，张勇担任副董事长；该表述系报道所载，未列任职起止。 [E-P007AD80EBDD9FD]",
+      "claim_sha256": "4a5c69cf4c064eafd59b4c919a94523055d0d26a5b3168d847a01aac27a1fb8e",
+      "status": "historical_scope_preserved",
+      "finding": "报道中的历史职务保留，未写成当前职务；起止时间仍待核验。",
+      "checked_evidence_ids": [
+        "E-P007AD80EBDD9FD"
+      ],
+      "literal_support_only": true,
+      "source_truth_or_responsibility_confirmed": false,
+      "human_signoff": false
+    },
+    {
+      "review_id": "C9-5",
+      "claim": "- 研究判断（待人工复核）：媒体回顾2007年张勇以原始出资额购施永宏夫妇18%股权，张勇夫妇成海底捞68%绝对控股股东；胞弟张硕轶持静海优鼎、优鼎壹号股权，静远投资由张勇舒萍持68%。 [E-P249FD1EF4660A7] [E-PD40DE8F3FFC51D] [E-P692DFE593EDD78]",
+      "claim_sha256": "b7c7a0352f209d9fd60044f52ec2a2203511c4a4d4fc885b43234df65d56e784",
+      "status": "relative_and_joint_ownership_boundary_pending",
+      "finding": "夫妻合计持股没有写成单人独有；亲属公司及静海/静远不同公司名仍需原始工商或公告核对，不能推定为同一主体。",
+      "checked_evidence_ids": [
+        "E-P249FD1EF4660A7",
+        "E-P692DFE593EDD78",
+        "E-PD40DE8F3FFC51D"
+      ],
+      "literal_support_only": true,
+      "source_truth_or_responsibility_confirmed": false,
+      "human_signoff": false
+    }
+  ],
+  "reviewed_statements": 8,
+  "report_accepted": false,
+  "not_reusable_for_changed_report": true
+}

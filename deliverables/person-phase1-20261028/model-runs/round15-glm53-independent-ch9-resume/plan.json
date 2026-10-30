@@ -1,0 +1,19 @@
+{
+  "run": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round13-glm53-smaller-ch2",
+  "report_sha256": "7276163f3df9b20592ad64730121f657b6d863957846e3bb8fcb9ad1ae3202ce",
+  "review_code_sha256": "98a70370b58d58d41a6ac565e695e56cfb0783d89174fbadd7b0b6119bf924da",
+  "planned_model_requests": 4,
+  "new_search_calls": 0,
+  "new_fetch_calls": 0,
+  "new_professional_calls": 0,
+  "deadline_utc": "2026-10-28T12:24:40Z",
+  "review_scope": "actual_chapter_citations",
+  "model_context": {
+    "model": "glm-5.3",
+    "endpoint_sha256": "9045dc7291bc66c59a061290cfba595238ba3f290d762e4a8f03b05937ddd4ec",
+    "temperature": 0.2,
+    "request_options": {
+      "max_tokens": 8192
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "provider_queries": 2,
+  "original_fetches": 2,
+  "search_outcomes": [
+    {
+      "preferred_providers": [
+        "bocha"
+      ],
+      "person_search_status": "returned",
+      "person_search_error_type": null,
+      "person_search_error_reason": null,
+      "search_result_audit": {
+        "method": "single_provider_or_external_results",
+        "kept_count": 3
+      }
+    },
+    {
+      "preferred_providers": [
+        "exa"
+      ],
+      "person_search_status": "returned",
+      "person_search_error_type": null,
+      "person_search_error_reason": null,
+      "search_result_audit": {
+        "method": "single_provider_or_external_results",
+        "kept_count": 3
+      }
+    }
+  ],
+  "unique_discovery_urls": 4,
+  "retained_originals": 2,
+  "elapsed_seconds": 90.813,
+  "model_calls": 0,
+  "professional_calls": 0,
+  "actual_account_charge": null,
+  "account_charge_note": "Provider receipt did not supply an account charge.",
+  "historical_corpus_modified": false,
+  "facts_added_to_report": 0
+}

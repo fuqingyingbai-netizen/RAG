@@ -1,0 +1,785 @@
+{
+  "run": "C:\\Users\\wangli\\.codex\\worktrees\\person-evidence-audit\\RAG\\work\\person-delivery-cycle-20261023\\fresh-zhang-v96-generated",
+  "report_sha256": "47a3192bb514ed0e107fef272ac77d4149d5dfea6b2859b3463ce70abf9911d5",
+  "chapter_count": 15,
+  "chapters": [
+    {
+      "chapter": 1,
+      "title": "摘要",
+      "chars": 1034,
+      "research_facts": 369,
+      "research_source_urls": 42,
+      "displayed_original_records": [],
+      "cited_fact_count": 18,
+      "cited_source_urls": 14,
+      "unknown_evidence_ids": [],
+      "model_input_count": 0,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": null,
+      "batch_input_accounted_for": true,
+      "research_request_status": "no_model_research_stage",
+      "research_scopes": {
+        "person": 369
+      },
+      "analyses": [
+        {
+          "analysis": "来源载张勇为海底捞控股股东、执行董事、董事会主席兼首席执行官，自1月13日起获委任CEO、苟轶群同日辞任（年份未明），未载具体决策权限。",
+          "evidence_ids": [
+            "E-P68BFD29CFC1350",
+            "E-P796DB84FA6879C"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "来源分别载其持20.82亿股约占37.36%、33.64亿股占37.35%，基准日未明；研报另载个人权益44.01%、夫妇经ZY NP及SP NP直接持34.61%，均属不同时点口径，不合并。",
+          "evidence_ids": [
+            "E-P1E19390D5856E2",
+            "E-P78B30ED07BE0FE",
+            "E-PABB44EDE9176D9"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "2017年年报所列：张勇2016年3月7日获委任为颐海国际非执行董事，2015年12月起任董事；来源另载其为颐海最大股东，海底捞为颐海关联方及大客户。",
+          "evidence_ids": [
+            "E-P20C51228B02967",
+            "E-P77703357D2CEE0",
+            "E-PF58356C6C8B670"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "来源以“用个人信用为海底捞穿越周期赎买”作评价性表述，属媒体观点，未提供可核验的信用记录或协议。",
+          "evidence_ids": [
+            "E-PDB6D7882EEA962"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        }
+      ],
+      "analysis_chars": 287,
+      "unresolved_validation_rejections": [],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 2,
+      "title": "创始人底色画像",
+      "chars": 2721,
+      "research_facts": 79,
+      "research_source_urls": 28,
+      "displayed_original_records": [
+        "E-PFA9F64D96A15A5",
+        "E-P77703357D2CEE0",
+        "E-P20C51228B02967",
+        "E-P2A58A051C20FB5",
+        "E-P5837D3D089EC89",
+        "E-P2BE74A20F3714D"
+      ],
+      "cited_fact_count": 8,
+      "cited_source_urls": 7,
+      "unknown_evidence_ids": [],
+      "model_input_count": 79,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "person": 79
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 3,
+      "title": "人格特质风险",
+      "chars": 1981,
+      "research_facts": 80,
+      "research_source_urls": 27,
+      "displayed_original_records": [
+        "E-PED2349EB855EF4",
+        "E-P9631719F3EBCEC",
+        "E-PB4DCE9E0C3D624",
+        "E-PC828DA9E80E05C",
+        "E-P8E846B3936243A",
+        "E-PF0E568AF9D0D53",
+        "E-P2F1587D085F22B",
+        "E-PD5B11ED89C92B3",
+        "E-P41E45B38709173",
+        "E-P3CEA8008E7543D",
+        "E-P9466BAB6054E9F",
+        "E-P0576A54BBCFA5A"
+      ],
+      "cited_fact_count": 17,
+      "cited_source_urls": 9,
+      "unknown_evidence_ids": [],
+      "model_input_count": 80,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "person": 80
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": [
+        "E-PC828DA9E80E05C",
+        "E-P2F1587D085F22B",
+        "E-PD5B11ED89C92B3"
+      ]
+    },
+    {
+      "chapter": 4,
+      "title": "经营胜任力、持续创新与迭代能力验证",
+      "chars": 1943,
+      "research_facts": 94,
+      "research_source_urls": 25,
+      "displayed_original_records": [
+        "E-P09E1AF88A4D6C9",
+        "E-PB8CA6D1CA6E963",
+        "E-PE54788B479297E",
+        "E-PE30F10D02C1646",
+        "E-P2F6F9CEEC5743A",
+        "E-PD18ECAE741A41D",
+        "E-P99F43CB3B9840E",
+        "E-PA5D35B72A39C76",
+        "E-P420E6D73B79793",
+        "E-P19443E59A2D3B7",
+        "E-P4C3F3C112C376D"
+      ],
+      "cited_fact_count": 17,
+      "cited_source_urls": 12,
+      "unknown_evidence_ids": [],
+      "model_input_count": 94,
+      "model_returned_input_count": 33,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "person": 94
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": [
+        "E-PA5D35B72A39C76",
+        "E-P19443E59A2D3B7",
+        "E-P4C3F3C112C376D"
+      ]
+    },
+    {
+      "chapter": 5,
+      "title": "识人用人、统筹管理及核心经营管控能力",
+      "chars": 2931,
+      "research_facts": 173,
+      "research_source_urls": 37,
+      "displayed_original_records": [
+        "E-P779AA95AD748A0",
+        "E-P5B5763E4D93E6D",
+        "E-PA922054DC5E4DD",
+        "E-PED11AE249D87ED",
+        "E-PD27CA928B6F795",
+        "E-PF127B231227BC3",
+        "E-P25DE389FC2334A",
+        "E-P98B00C9500455D",
+        "E-P9021C40556E327"
+      ],
+      "cited_fact_count": 13,
+      "cited_source_urls": 8,
+      "unknown_evidence_ids": [],
+      "model_input_count": 173,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "other_person": 6,
+        "person": 167
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": [
+        "E-PD27CA928B6F795"
+      ]
+    },
+    {
+      "chapter": 6,
+      "title": "核心管理团队背景调研",
+      "chars": 3100,
+      "research_facts": 18,
+      "research_source_urls": 10,
+      "displayed_original_records": [
+        "E-P08503195723567",
+        "E-P710D43608C0BE3",
+        "E-PE14E3AB5218B21",
+        "E-P51D7FCEEEC09E2",
+        "E-P0539592158310A",
+        "E-PC32749A6D257C4",
+        "E-P0791F9922059F7",
+        "E-P6FF83F0E2CDD3A"
+      ],
+      "cited_fact_count": 17,
+      "cited_source_urls": 9,
+      "unknown_evidence_ids": [],
+      "model_input_count": 0,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 18,
+      "all_research_records_accounted_for": true,
+      "batch_input_accounted_for": true,
+      "research_request_status": "deterministic_attributed_records",
+      "research_scopes": {
+        "other_person": 17,
+        "person": 1
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [],
+      "facts_with_literal_dates_but_unlabelled_event_time": [
+        "E-P0539592158310A",
+        "E-PC32749A6D257C4"
+      ]
+    },
+    {
+      "chapter": 7,
+      "title": "商业操守与个人信用风险核查",
+      "chars": 1694,
+      "research_facts": 5,
+      "research_source_urls": 4,
+      "displayed_original_records": [
+        "E-PDB6D7882EEA962",
+        "E-PDA9163C9DD6C79",
+        "E-P19251BB81D1AE3"
+      ],
+      "cited_fact_count": 4,
+      "cited_source_urls": 4,
+      "unknown_evidence_ids": [],
+      "model_input_count": 5,
+      "model_returned_input_count": 5,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": true,
+      "batch_input_accounted_for": true,
+      "research_request_status": "returned",
+      "research_scopes": {
+        "person": 5
+      },
+      "analyses": [
+        {
+          "analysis": "来源载明董事会将增持计划表述为对集团前景的长期承诺及坚定信心，并称体现其对中国经济及相关消费领域的正面预期；属董事会评价，不能直接作为个人信用已核实的结论。",
+          "evidence_ids": [
+            "E-P9631719F3EBCEC"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "来源以“用个人信用为海底捞穿越周期赎买”作评价性表述，属媒体观点，未提供可核验的信用记录或协议。",
+          "evidence_ids": [
+            "E-PDB6D7882EEA962"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        }
+      ],
+      "analysis_chars": 126,
+      "unresolved_validation_rejections": [],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 8,
+      "title": "同业对标下综合能力与品行隐患评估",
+      "chars": 376,
+      "research_facts": 0,
+      "research_source_urls": 0,
+      "displayed_original_records": [],
+      "cited_fact_count": 0,
+      "cited_source_urls": 0,
+      "unknown_evidence_ids": [],
+      "model_input_count": 0,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": true,
+      "batch_input_accounted_for": true,
+      "research_request_status": "no_model_research_stage",
+      "research_scopes": {},
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 9,
+      "title": "关联利益冲突及司法负面核查",
+      "chars": 5138,
+      "research_facts": 108,
+      "research_source_urls": 27,
+      "displayed_original_records": [
+        "E-PFA2FCBE11D008C",
+        "E-PC3ABD1ABFC153E",
+        "E-PA33EDD1E0EFE85",
+        "E-PC12F028A054669",
+        "E-P78265637F5E87B",
+        "E-PBA2CC1A07780B6",
+        "E-PFCB446477D692C",
+        "E-PFBB4FD13D8A3EE",
+        "E-PF8797F7801B4BC",
+        "E-PC7AC0461428DA3",
+        "E-PB37D0FE3093E1A",
+        "E-PA742F1237D0CED",
+        "E-PABB9DF99ADBB6C",
+        "E-P0B3D60A58C34E8",
+        "E-PD67DBF1C22B083",
+        "E-P07BE6123DEED96",
+        "E-P14743FE8CB2810",
+        "E-P083F09DDECAA63",
+        "E-PB482C46A3D79A3",
+        "E-P796DB84FA6879C",
+        "E-P1E19390D5856E2",
+        "E-PF58356C6C8B670",
+        "E-P007AD80EBDD9FD"
+      ],
+      "cited_fact_count": 39,
+      "cited_source_urls": 18,
+      "unknown_evidence_ids": [],
+      "model_input_count": 108,
+      "model_returned_input_count": 108,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": true,
+      "batch_input_accounted_for": true,
+      "research_request_status": "all_batches_returned",
+      "research_scopes": {
+        "person": 108
+      },
+      "analyses": [
+        {
+          "analysis": "来源载张勇为海底捞控股股东、执行董事、董事会主席兼首席执行官，自1月13日起获委任CEO、苟轶群同日辞任（年份未明），未载具体决策权限。",
+          "evidence_ids": [
+            "E-P68BFD29CFC1350",
+            "E-P796DB84FA6879C"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "来源分别载其持20.82亿股约占37.36%、33.64亿股占37.35%，基准日未明；研报另载个人权益44.01%、夫妇经ZY NP及SP NP直接持34.61%，均属不同时点口径，不合并。",
+          "evidence_ids": [
+            "E-P1E19390D5856E2",
+            "E-P78B30ED07BE0FE",
+            "E-PABB44EDE9176D9"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "2017年年报所列：张勇2016年3月7日获委任为颐海国际非执行董事，2015年12月起任董事；来源另载其为颐海最大股东，海底捞为颐海关联方及大客户。",
+          "evidence_ids": [
+            "E-P20C51228B02967",
+            "E-P77703357D2CEE0",
+            "E-PF58356C6C8B670"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "公告载公司向张勇提供不超1亿港元无担保贷款，期限30天，限个人财务安排、不得购股；减持后夫妇控制集团持股45.49%，是否发放或偿还未载。",
+          "evidence_ids": [
+            "E-P516966F9464ADE",
+            "E-PB482C46A3D79A3",
+            "E-PFC734E428933C0"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "2016年12月，用友与海底捞集团旗下上海海悦投资管理有限公司发起成立红火台餐饮云服务有限公司，张勇担任副董事长；该表述系报道所载，未列任职起止。",
+          "evidence_ids": [
+            "E-P007AD80EBDD9FD"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "媒体回顾2007年张勇以原始出资额购施永宏夫妇18%股权，张勇夫妇成海底捞68%绝对控股股东；胞弟张硕轶持静海优鼎、优鼎壹号股权，静远投资由张勇舒萍持68%。",
+          "evidence_ids": [
+            "E-P249FD1EF4660A7",
+            "E-P692DFE593EDD78",
+            "E-PD40DE8F3FFC51D"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        }
+      ],
+      "analysis_chars": 460,
+      "unresolved_validation_rejections": [
+        "material_disposition_review_incomplete"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": [
+        "E-PFA2FCBE11D008C",
+        "E-PC12F028A054669",
+        "E-P78265637F5E87B",
+        "E-PF8797F7801B4BC",
+        "E-PA742F1237D0CED",
+        "E-P0B3D60A58C34E8",
+        "E-PD67DBF1C22B083",
+        "E-P14743FE8CB2810",
+        "E-P007AD80EBDD9FD"
+      ]
+    },
+    {
+      "chapter": 10,
+      "title": "专项调研",
+      "chars": 2602,
+      "research_facts": 146,
+      "research_source_urls": 38,
+      "displayed_original_records": [
+        "E-P48FD96293245E7",
+        "E-PD55BFE4F36C05C",
+        "E-PEF37A7D6BF1C38",
+        "E-P5B359794AA8396"
+      ],
+      "cited_fact_count": 16,
+      "cited_source_urls": 11,
+      "unknown_evidence_ids": [],
+      "model_input_count": 146,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "person": 146
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": [
+        "E-PD55BFE4F36C05C"
+      ]
+    },
+    {
+      "chapter": 11,
+      "title": "投后治理及退出风险研判",
+      "chars": 1853,
+      "research_facts": 85,
+      "research_source_urls": 34,
+      "displayed_original_records": [
+        "E-P4E66FB6086998C",
+        "E-PD37776FE86F3AD",
+        "E-P1011A797F7C9F0",
+        "E-PDF08D60E54F096",
+        "E-P7CF174FE656499"
+      ],
+      "cited_fact_count": 16,
+      "cited_source_urls": 12,
+      "unknown_evidence_ids": [],
+      "model_input_count": 85,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": false,
+      "batch_input_accounted_for": false,
+      "research_request_status": "failed",
+      "research_scopes": {
+        "person": 85
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "api_failed:request_failed"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": [
+        "E-PD37776FE86F3AD"
+      ]
+    },
+    {
+      "chapter": 12,
+      "title": "风险核查",
+      "chars": 1987,
+      "research_facts": 2,
+      "research_source_urls": 1,
+      "displayed_original_records": [
+        "E-PDE4A2EBAEF1C38",
+        "E-P380C8D3678E7DA"
+      ],
+      "cited_fact_count": 2,
+      "cited_source_urls": 1,
+      "unknown_evidence_ids": [],
+      "model_input_count": 0,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 2,
+      "all_research_records_accounted_for": true,
+      "batch_input_accounted_for": true,
+      "research_request_status": "deterministic_attributed_records",
+      "research_scopes": {
+        "person": 2
+      },
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [
+        "material_disposition_review_incomplete"
+      ],
+      "facts_with_literal_dates_but_unlabelled_event_time": [
+        "E-P380C8D3678E7DA"
+      ]
+    },
+    {
+      "chapter": 13,
+      "title": "综合评估",
+      "chars": 1612,
+      "research_facts": 369,
+      "research_source_urls": 42,
+      "displayed_original_records": [],
+      "cited_fact_count": 25,
+      "cited_source_urls": 16,
+      "unknown_evidence_ids": [],
+      "model_input_count": 0,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": null,
+      "batch_input_accounted_for": true,
+      "research_request_status": "no_model_research_stage",
+      "research_scopes": {
+        "person": 369
+      },
+      "analyses": [
+        {
+          "analysis": "来源载明董事会将增持计划表述为对集团前景的长期承诺及坚定信心，并称体现其对中国经济及相关消费领域的正面预期；属董事会评价，不能直接作为个人信用已核实的结论。",
+          "evidence_ids": [
+            "E-P9631719F3EBCEC"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "来源以“用个人信用为海底捞穿越周期赎买”作评价性表述，属媒体观点，未提供可核验的信用记录或协议。",
+          "evidence_ids": [
+            "E-PDB6D7882EEA962"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "来源载张勇为海底捞控股股东、执行董事、董事会主席兼首席执行官，自1月13日起获委任CEO、苟轶群同日辞任（年份未明），未载具体决策权限。",
+          "evidence_ids": [
+            "E-P68BFD29CFC1350",
+            "E-P796DB84FA6879C"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "来源分别载其持20.82亿股约占37.36%、33.64亿股占37.35%，基准日未明；研报另载个人权益44.01%、夫妇经ZY NP及SP NP直接持34.61%，均属不同时点口径，不合并。",
+          "evidence_ids": [
+            "E-P1E19390D5856E2",
+            "E-P78B30ED07BE0FE",
+            "E-PABB44EDE9176D9"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "2017年年报所列：张勇2016年3月7日获委任为颐海国际非执行董事，2015年12月起任董事；来源另载其为颐海最大股东，海底捞为颐海关联方及大客户。",
+          "evidence_ids": [
+            "E-P20C51228B02967",
+            "E-P77703357D2CEE0",
+            "E-PF58356C6C8B670"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "公告载公司向张勇提供不超1亿港元无担保贷款，期限30天，限个人财务安排、不得购股；减持后夫妇控制集团持股45.49%，是否发放或偿还未载。",
+          "evidence_ids": [
+            "E-P516966F9464ADE",
+            "E-PB482C46A3D79A3",
+            "E-PFC734E428933C0"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "2016年12月，用友与海底捞集团旗下上海海悦投资管理有限公司发起成立红火台餐饮云服务有限公司，张勇担任副董事长；该表述系报道所载，未列任职起止。",
+          "evidence_ids": [
+            "E-P007AD80EBDD9FD"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        },
+        {
+          "analysis": "媒体回顾2007年张勇以原始出资额购施永宏夫妇18%股权，张勇夫妇成海底捞68%绝对控股股东；胞弟张硕轶持静海优鼎、优鼎壹号股权，静远投资由张勇舒萍持68%。",
+          "evidence_ids": [
+            "E-P249FD1EF4660A7",
+            "E-P692DFE593EDD78",
+            "E-PD40DE8F3FFC51D"
+          ],
+          "explicit_source_boundary_issues": [],
+          "complete_guard_rejections": []
+        }
+      ],
+      "analysis_chars": 586,
+      "unresolved_validation_rejections": [],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 14,
+      "title": "信息来源",
+      "chars": 19588,
+      "research_facts": 0,
+      "research_source_urls": 0,
+      "displayed_original_records": [],
+      "cited_fact_count": 120,
+      "cited_source_urls": 31,
+      "unknown_evidence_ids": [],
+      "model_input_count": 0,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": null,
+      "batch_input_accounted_for": true,
+      "research_request_status": "no_model_research_stage",
+      "research_scopes": {},
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    },
+    {
+      "chapter": 15,
+      "title": "后续研究点",
+      "chars": 3246,
+      "research_facts": 0,
+      "research_source_urls": 0,
+      "displayed_original_records": [],
+      "cited_fact_count": 0,
+      "cited_source_urls": 0,
+      "unknown_evidence_ids": [],
+      "model_input_count": 0,
+      "model_returned_input_count": 0,
+      "deterministically_processed_fact_count": 0,
+      "all_research_records_accounted_for": null,
+      "batch_input_accounted_for": true,
+      "research_request_status": "no_model_research_stage",
+      "research_scopes": {},
+      "analyses": [],
+      "analysis_chars": 0,
+      "unresolved_validation_rejections": [],
+      "facts_with_literal_dates_but_unlabelled_event_time": []
+    }
+  ],
+  "repeated_originals_across_body_chapters": [],
+  "repeated_original_character_excess": 0,
+  "contained_original_review_targets": [],
+  "displayed_original_literal_mismatches": [
+    {
+      "chapter": 6,
+      "evidence_id": "E-P08503195723567",
+      "source_url": "https://news.mbalib.com/story/258032",
+      "literal_matches_fact": false
+    },
+    {
+      "chapter": 6,
+      "evidence_id": "E-P710D43608C0BE3",
+      "source_url": "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4",
+      "literal_matches_fact": false
+    },
+    {
+      "chapter": 9,
+      "evidence_id": "E-PC3ABD1ABFC153E",
+      "source_url": "https://www.gelonghui.com/live/2462477",
+      "literal_matches_fact": false
+    },
+    {
+      "chapter": 9,
+      "evidence_id": "E-PC12F028A054669",
+      "source_url": "https://www.ourchinastory.com/cn/10653/%E6%B5%B7%E5%BA%95%E6%8D%9E%E5%BC%A0%E5%8B%87%E4%BB%8E%E8%A1%97%E8%BE%B9%E6%A1%A3%E5%88%B0%E6%88%90%E5%8A%9F%E4%B8%8A%E5%B8%82-%E9%A4%90%E9%A5%AE%E7%A5%9E%E8%AF%9D%E6%BA%90%E8%87%AA%E2%80%9C%E9%80%86%E5%A4%A9%E2%80%9D%E5%88%9B%E6%96%B0%E6%9C%8D%E5%8A%A1",
+      "literal_matches_fact": false
+    },
+    {
+      "chapter": 9,
+      "evidence_id": "E-P78265637F5E87B",
+      "source_url": "https://www.gelonghui.com/p/201997",
+      "literal_matches_fact": false
+    },
+    {
+      "chapter": 9,
+      "evidence_id": "E-PBA2CC1A07780B6",
+      "source_url": "https://www.jwview.com/jingwei/html/m/09-11/687434.shtml",
+      "literal_matches_fact": false
+    },
+    {
+      "chapter": 9,
+      "evidence_id": "E-PFCB446477D692C",
+      "source_url": "https://finance.sina.cn/chanjing/gsxw/2022-04-06/detail-imcwipii2628820.d.html?vt=4",
+      "literal_matches_fact": false
+    },
+    {
+      "chapter": 9,
+      "evidence_id": "E-PC7AC0461428DA3",
+      "source_url": "https://m.21jingji.com/article/20170903/herald/3c3cbb278630ec43ba5d3f2d8278145c.html",
+      "literal_matches_fact": false
+    },
+    {
+      "chapter": 9,
+      "evidence_id": "E-PB37D0FE3093E1A",
+      "source_url": "https://www.gelonghui.com/p/201997",
+      "literal_matches_fact": false
+    },
+    {
+      "chapter": 9,
+      "evidence_id": "E-PA742F1237D0CED",
+      "source_url": "https://m.thepaper.cn/newsDetail_forward_32391915",
+      "literal_matches_fact": false
+    },
+    {
+      "chapter": 9,
+      "evidence_id": "E-PABB9DF99ADBB6C",
+      "source_url": "https://news.futunn.com/post/71320255/haidilao-06862-zhang-yong-controlling-shareholder-executive-director-chairman-of",
+      "literal_matches_fact": false
+    },
+    {
+      "chapter": 9,
+      "evidence_id": "E-P0B3D60A58C34E8",
+      "source_url": "https://finance.sina.com.cn/stock/bxjj/2026-05-22/doc-inhyumqk5188908.shtml",
+      "literal_matches_fact": false
+    },
+    {
+      "chapter": 9,
+      "evidence_id": "E-P07BE6123DEED96",
+      "source_url": "https://www.gelonghui.com/p/201997",
+      "literal_matches_fact": false
+    },
+    {
+      "chapter": 9,
+      "evidence_id": "E-P14743FE8CB2810",
+      "source_url": "https://www.gelonghui.com/p/201997",
+      "literal_matches_fact": false
+    },
+    {
+      "chapter": 9,
+      "evidence_id": "E-P083F09DDECAA63",
+      "source_url": "https://news.futunn.com/post/71320252/haidilao-06862-hk-chairman-plans-to-purchase-at-least-hkd",
+      "literal_matches_fact": false
+    }
+  ],
+  "repeated_analyses_across_body_chapters": [],
+  "boundary": "Flags identify review targets; counts do not measure independent accuracy or research completeness."
+}

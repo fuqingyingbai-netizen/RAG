@@ -4,6 +4,27 @@ from functools import lru_cache
 from person_text import folded
 
 
+def signature_only_context(text, names):
+    """A closing signature/board roster cannot own the preceding page's facts."""
+    compact = lambda value: re.sub(r'\s+', '', folded(value))
+    material = compact(text)
+    closing = re.search(r'承董事会命|截至本公告日期[，,]?本公司董事会包括', material)
+    if not closing:
+        return False
+    before = material[:closing.start()]
+    if len(before) < 80:
+        return False
+    for name in names:
+        name = compact(name)
+        if not name:
+            continue
+        if name in before:
+            return False
+        if re.fullmatch(r'[\u4e00-\u9fff]{2,4}', name) and re.search(re.escape(name[0])+r'(?:先生|女士)', before):
+            return False
+    return True
+
+
 def document_issuer(source):
     """Read a literal cover company name, never infer issuer from mentions."""
     pages = (getattr(source, 'source_metadata', None) or {}).get('document_pages') or []
@@ -13,7 +34,7 @@ def document_issuer(source):
     body = cover.get('ocr_text') or cover.get('text') or ''
     for line in body.splitlines():
         line = line.strip()
-        if re.fullmatch(r'[\u4e00-\u9fff]{2,35}(?:股份有限公司|控股有限公司|有限公司)', folded(line)):
+        if re.fullmatch(r'[\u4e00-\u9fff]{2,35}(?:股份有限公司|控股有限公司|有限公司)', re.sub(r'\s+', '', folded(line))):
             return line
     return ''
 

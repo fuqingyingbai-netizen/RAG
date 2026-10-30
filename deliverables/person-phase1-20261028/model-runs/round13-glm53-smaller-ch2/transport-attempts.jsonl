@@ -1,0 +1,3 @@
+{"role": "BDD目标人物章节 Agent - 创始人底色画像资料研读1/16", "transport": {"attempts": [{"status": "returned"}], "exhausted": false}}
+{"role": "BDD目标人物章节 Agent - 创始人底色画像资料研读2/16", "transport": {"attempts": [{"status": "failed", "exception_type": "InternalServerError", "failure_kind": "request_failed"}, {"status": "returned"}], "exhausted": false}}
+{"role": "BDD目标人物章节 Agent - 创始人底色画像资料研读3/16", "transport": {"attempts": [{"status": "failed", "exception_type": "APIConnectionError", "failure_kind": "request_failed"}, {"status": "failed", "exception_type": "APIConnectionError", "failure_kind": "request_failed"}], "exhausted": true}}

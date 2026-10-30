@@ -46,7 +46,8 @@ def read(root, name):
 def generation_code_snapshot():
     files=[*ROOT.joinpath('backend').glob('person*.py'),
         ROOT/'backend/research_workflow.py',ROOT/'backend/report_agents/person_report_agent.py',
-        ROOT/'backend/company_ocr.py',ROOT/'backend/company_platform.py',ROOT/'scripts/replay_person_chapters.py',ROOT/'scripts/person_iteration.py']
+        ROOT/'backend/company_ocr.py',ROOT/'backend/company_platform.py',ROOT/'backend/research_strategies/person.py',
+        ROOT/'scripts/replay_person_chapters.py',ROOT/'scripts/person_iteration.py']
     return {str(path.relative_to(ROOT)).replace('\\','/'):hashlib.sha256(path.read_bytes()).hexdigest()
             for path in sorted(files) if path.is_file()}
 
@@ -156,7 +157,7 @@ def main():
                 'gaps':next(r for r in ledger['diagnostic']['chapters'] if r['chapter']==n).get('gaps',[])}
     from dotenv import load_dotenv
     load_dotenv(ROOT/'.env')
-    from person_model_transport import section_model_context
+    from person_model_transport import section_model_context, invoke_same_input
     model_context = section_model_context()
     plan['model_context'] = model_context
     os.environ.update(PERSON_REPORT_SECTION_TIMEOUT_SECONDS=str(args.timeout_seconds), PERSON_REPORT_SECTION_MAX_RETRIES='0',
@@ -174,6 +175,10 @@ def main():
     def bounded(role,prompt,emit=None):
         if len(calls)>=args.max_model_calls:
             raise RuntimeError('Explicit replay model-call cap reached')
+        if args.deadline_utc:
+            deadline = datetime.fromisoformat(args.deadline_utc.replace('Z', '+00:00'))
+            if (deadline - datetime.now(timezone.utc)).total_seconds() < args.timeout_seconds + 5:
+                raise RuntimeError('Bounded replay deadline reached; no new provider request started')
         event={'role':role,'status':'started','started_utc':datetime.now(timezone.utc).isoformat()}
         calls.append(event)
         started=time.monotonic()
@@ -183,11 +188,26 @@ def main():
             return answer
         except Exception as exc:
             event.update(status='failed',exception_type=type(exc).__name__)
+            causes, current, visited = [], exc, set()
+            while current is not None and id(current) not in visited:
+                visited.add(id(current))
+                causes.append({'type':type(current).__name__,'message':str(current)})
+                current = current.__cause__
+            event['exception_chain'] = causes
             raise
         finally:
             event['elapsed_seconds']=round(time.monotonic()-started,3)
-            (output/'request-status.json').write_text(json.dumps(calls,ensure_ascii=False,indent=2),encoding='utf-8')
-    invoke=ChapterInvoker(bounded,output,safe,reuse=args.reuse_model_run,rewrite=args.chapters,
+            (output/'request-status.json').write_text(json.dumps(safe(calls),ensure_ascii=False,indent=2),encoding='utf-8')
+    def replay_transport(role,prompt,emit=None):
+        audit = {}
+        try:
+            # The SDK retry count is explicitly zero above. Both visible
+            # attempts consume the same real-request cap and deadline.
+            return invoke_same_input(bounded,role,prompt,emit,audit,'transport')
+        finally:
+            with (output/'transport-attempts.jsonl').open('a',encoding='utf-8') as handle:
+                handle.write(json.dumps(safe({'role':role,**audit}),ensure_ascii=False)+'\n')
+    invoke=ChapterInvoker(replay_transport,output,safe,reuse=args.reuse_model_run,rewrite=args.chapters,
         deadline=args.deadline_utc,force_rewrite=False,min_start_seconds=args.timeout_seconds+5,model_context=model_context)
     def emit(trace,*a,**kw):
         if isinstance(trace,dict):

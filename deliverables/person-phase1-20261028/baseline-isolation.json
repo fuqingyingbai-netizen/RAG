@@ -1,0 +1,36 @@
+{
+  "base_commit": "7cc0752c15a052bf606135a7a1e39553ccb23863",
+  "branch": "codex/person-phase1-20261028",
+  "workspace": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG",
+  "no_applicable_agents_found": true,
+  "environment_independent_copy": true,
+  "environment_values_not_published": true,
+  "runtime_overrides": {
+    "DATABASE_URL": "sqlite:///C:/Users/wangli/.codex/worktrees/f19b/RAG/work/person-phase1-20261028/acceptance.sqlite",
+    "RESEARCH_OBJECT_STORE": "local",
+    "RESEARCH_LOCAL_STORE": "C:/Users/wangli/.codex/worktrees/f19b/RAG/work/person-phase1-20261028/objects",
+    "COMPANY_KNOWLEDGE_OBJECT_STORE": "local",
+    "COMPANY_KNOWLEDGE_LOCAL_STORE": "C:/Users/wangli/.codex/worktrees/f19b/RAG/work/person-phase1-20261028/company-objects",
+    "BM25_STATE_PATH": "C:/Users/wangli/.codex/worktrees/f19b/RAG/work/person-phase1-20261028/bm25.json",
+    "REDIS_KEY_PREFIX": "person_phase1_01a18168",
+    "MILVUS_COLLECTION": "person_phase1_01a18168",
+    "RESEARCH_LEGACY_RAG_ENABLED": "false",
+    "REPORT_SECTION_MAX_WORKERS": "1",
+    "CLEANING_MAX_WORKERS": "1",
+    "WEB_SEARCH_QUERY_CONCURRENCY": "2"
+  },
+  "sqlite_integrity": "ok",
+  "model_configuration": {
+    "MODEL": "qwen3.8-max",
+    "GRADE_MODEL": "qwen3.8-max",
+    "FAST_MODEL": null,
+    "PERSON_REPORT_SECTION_MODEL": null,
+    "PERSON_REPORT_SECTION_THINKING": null,
+    "PERSON_REPORT_SECTION_MAX_OUTPUT_TOKENS": null
+  },
+  "endpoint_sha256": "f150bc566660d2ab4f87b073c0f0374b543ae8a492765ca3a0072f758039b4f0",
+  "tavily_configured_key_count": 10,
+  "port_reserved": 8028,
+  "external_accounts_and_computer_resources_shared": true,
+  "historical_report_acceptance_not_assumed": true
+}

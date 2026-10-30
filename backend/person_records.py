@@ -19,6 +19,47 @@ def compact(value):
     return re.sub(r'\s+', '', str(value or '')).lower()
 
 
+def relative_pronoun_context(text, target, aliases, original):
+    """Conservatively bind a pronoun to a retained adjacent source sentence.
+
+    This only removes permission to analyse the target. It does not verify the
+    relative's name or real-world identity, and model-provided context is ignored.
+    """
+    clean = folded(text)
+    if not original or not re.search(r'(?<!其)[他她](?:在[^。；;，,]{0,18})?'
+            r'(?:被称为|被叫作|被称作|被聘任|获委任|加入|出任|担任|完成|毕业|就读)', clean):
+        return {}
+    names = list(dict.fromkeys(folded(n) for n in [target, *aliases] if n))
+    relation_pattern = r'(之子(?!公司)|之女|的儿子|的女儿|的配偶|的父亲|的母亲|的兄长|的弟弟|的姐姐|的妹妹)'
+    contexts = []
+    matches = 0
+    for paragraph in re.split(r'\n\s*\n', original):
+        normalized = folded(paragraph)
+        if clean not in normalized:
+            continue
+        matches += 1
+        before = normalized[:normalized.find(clean)]
+        for name in names:
+            relatives = list(re.finditer(re.escape(name) + r'(?:先生|女士)?' + relation_pattern, before))
+            if not relatives:
+                continue
+            relative = relatives[-1]
+            following = before[relative.end():]
+            # Stay within the immediately preceding sentence and refuse a new
+            # explicit target mention that could have changed the antecedent.
+            if (len(re.findall(r'[。！？；;]', following)) > 1
+                    or any(n in following for n in names)):
+                continue
+            relation = {'之子': '儿子', '之女': '女儿'}.get(relative[1], relative[1].removeprefix('的'))
+            contexts.append({'relation': relation, 'context_quote': paragraph,
+                'match_basis': 'same_original_paragraph_adjacent_relative_sentence',
+                'verification': 'source_context_requires_review'})
+            break
+    if contexts and len(contexts) == matches and len({c['relation'] for c in contexts}) == 1:
+        return contexts[0]
+    return {}
+
+
 def payload(text):
     start = text.find('{')
     if start >= 0:
@@ -60,7 +101,7 @@ def source_events(text):
     return rows
 
 
-def observation(fact, target, aliases=()):
+def observation(fact, target, aliases=(), *, source_text=''):
     text = str(fact.get('fact') or '')
     data = payload(text)
     context = fact.get('person_affiliation')
@@ -81,6 +122,10 @@ def observation(fact, target, aliases=()):
         return bool(len(parts) == 2 and all(re.fullmatch(r"[A-Za-z'-]+", p) for p in parts)
                     and re.fullmatch(re.escape(parts[0]) + r'\s+(?:[A-Z]\.\s*|[A-Z]\s+){0,2}' + re.escape(parts[1]), plain, re.I))
     other = bool(named_person and not same_person(named_person))
+    actor_context = relative_pronoun_context(text, target, aliases, source_text)
+    if actor_context and not named_person:
+        other = True
+        named_person = f"{target}的{actor_context['relation']}（原文相邻主语，代词指代待核）"
     honorific = re.match(r'^([\u4e00-\u9fff]{1,3})(?:先生|女士|老师|教授|律师)', folded(text))
     if honorific and not folded(target).startswith(folded(honorific[1])):
         other = True
@@ -88,6 +133,24 @@ def observation(fact, target, aliases=()):
     # A shared surname is not identity. Listed-company bios often describe a
     # sibling as "王先生...为...王某某先生的兄长" in the same excerpt.
     for form in forms:
+        if not form:
+            continue
+        # A possessive mention names the relative as the actor. In particular,
+        # "X之子...毕业/加入公司" does not describe X's education or appointment.
+        # Keep the unsplit original as background; do not invent a verified name.
+        normalized_text = compact(folded(text))
+        kin = re.search(re.escape(compact(folded(form))) + r'(?:先生|女士)?'
+            r'(?P<relation>之子(?!公司)|之女|的儿子|的女儿|的配偶|的父亲|的母亲|的兄长|的弟弟|的姐姐|的妹妹)', normalized_text)
+        if kin:
+            relative_clause = re.split(r'[。；;]', normalized_text[kin.end():], maxsplit=1)[0]
+            repeated_target = re.search('|'.join(re.escape(compact(folded(n))) for n in forms if n), relative_clause)
+            if repeated_target:
+                relative_clause = relative_clause[:repeated_target.start()]
+            if re.search(r'毕业|留学|就读|入学|获.{0,12}学位|加入|出任|担任|获委任|被聘任|被执行|被处罚|被判|刑拘', relative_clause):
+                relation = {'之子': '儿子', '之女': '女儿'}.get(kin['relation'], kin['relation'].removeprefix('的'))
+                other = True
+                named_person = named_person or f'{target}的{relation}（原文亲属称谓，姓名待核）'
+                break
         relative = re.search(r'([\u4e00-\u9fff]{1,4}(?:先生|女士)).{0,100}?为.{0,100}?'
                              + re.escape(compact(form)) + r'(?:先生|女士)?的(兄长|弟弟|姐姐|妹妹|配偶|父亲|母亲|儿子|女儿)', compact(text))
         if relative and compact(relative[1]).removesuffix('先生').removesuffix('女士') != compact(form):
@@ -201,6 +264,7 @@ def observation(fact, target, aliases=()):
                 and event.get('date_literal') and compact(event['date_literal']) in compact(event['source_quote'])):
             events.append(event)
     return {'subject': issuer if company_field else target if scope == 'person' else named_person or issuer, 'source_named_person': named_person, 'subject_scope': scope,
+            'actor_context': actor_context,
             'issuer': issuer, 'relations': relations, 'period': period, 'period_basis': period_basis, 'ownership_subject': ownership_subject,
             'role_date_fields': dates, 'source_events': events, 'metrics': metrics, 'direct_person_link': bool(direct_link),
             'source_url': fact.get('source_url', ''), 'evidence_id': fact.get('evidence_id', ''),
@@ -456,4 +520,5 @@ def mixed_biographical_context(fact):
 def personal_analysis_allowed(fact, conflicting=()):
     """Topic routing never changes the original source permission checks."""
     return (fact.get("subject_scope")=="person" and not fact.get("opinion_only")
-            and not fact.get("source_text_issue") and fact.get("evidence_id") not in conflicting)
+            and not fact.get("source_text_issue") and not fact.get('personal_attribution_pending')
+            and fact.get("evidence_id") not in conflicting)

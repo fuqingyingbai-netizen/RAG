@@ -1,0 +1,24 @@
+{
+  "selection_date": "2026-10-28",
+  "development": [
+    {"name": "王传福", "affiliation": "比亚迪股份有限公司", "corpus": "frozen/wang", "historically_tuned": true},
+    {"name": "张勇", "affiliation": "海底捞", "corpus": "frozen/zhang", "historically_tuned": true}
+  ],
+  "holdout": {
+    "name": "李飞飞",
+    "affiliation": "Stanford University",
+    "profession": "高校人工智能研究者",
+    "selected_before_holdout_collection": true,
+    "historical_tuning_check": "pending repository and retained artifact search",
+    "use_policy": "开发样本通用逻辑冻结后再执行保留验证；如因保留结果调整逻辑，明确披露并另选保留样本。",
+    "collection": "not_started"
+  },
+  "full_report_acceptance": "pending",
+  "git_integration": {
+    "target_branch": "codex/company",
+    "merge_base": "7cc0752c15a052bf606135a7a1e39553ccb23863",
+    "target_is_ancestor": true,
+    "integration_owner_thread": "01a18168-9f28-7ae3-aba2-405e5834c7b9",
+    "policy": "本分支保存验收成果，由指定公司任务串行集成；不并行写目标分支，不更新main、不强推、不部署。"
+  }
+}

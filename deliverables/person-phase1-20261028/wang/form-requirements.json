@@ -1,0 +1,432 @@
+[
+  {
+    "requirement_id": "R-P-BIOGRAPHY",
+    "origin": "frontend_selection",
+    "selected_labels": [
+      "身份核验",
+      "基础履历",
+      "教育与履历",
+      "个人背景"
+    ],
+    "target_name": "王传福",
+    "question": "哪些原文能核对目标身份、教育和历次任职，矛盾发生在哪个机构和时期？",
+    "identity_anchors": {
+      "target_person": "王传福",
+      "aliases": [
+        "王传福"
+      ],
+      "known_affiliations": [
+        "比亚迪股份有限公司"
+      ],
+      "identity_anchors": [],
+      "roles": [],
+      "raw_context": "比亚迪股份有限公司",
+      "supplementary_context": "定位线索为与比亚迪股份有限公司有关的王传福。职务、任职时期、学校与其他履历均需来源核对，同名其他人的记录不得归给目标。",
+      "focus_questions": [
+        "核对教育与职业履历，区分历史任职与现任职责",
+        "核对本人持股、关联企业和公开司法事项",
+        "经营、管理及同业比较分别列证据与缺口"
+      ],
+      "special_requirements": "专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项。",
+      "uploaded_identity_clues": [],
+      "provenance": "user_supplied_clues_not_verified_facts",
+      "anchor_status": "user_seeded",
+      "version": "person-identity-v6-article-and-actor-context"
+    },
+    "query_terms": "官方 简历 教育 任职 起止日期",
+    "tool_capabilities": [
+      "original_web",
+      "person_professional_identity",
+      "person_roles_current_and_historical"
+    ],
+    "expected_evidence": [
+      "official_biography",
+      "education_and_role_periods"
+    ],
+    "chapters": [
+      2
+    ],
+    "completion": "原文、主体、角色、有效时期及相反材料已核对；工具返回和网页命中不等于完成",
+    "state": "planned_not_verified"
+  },
+  {
+    "requirement_id": "R-P-BEHAVIOR",
+    "origin": "frontend_selection",
+    "selected_labels": [
+      "公开表达与采访"
+    ],
+    "target_name": "王传福",
+    "question": "有哪些可定位的公开表达与具体行为，来源立场和相反材料是什么？",
+    "identity_anchors": {
+      "target_person": "王传福",
+      "aliases": [
+        "王传福"
+      ],
+      "known_affiliations": [
+        "比亚迪股份有限公司"
+      ],
+      "identity_anchors": [],
+      "roles": [],
+      "raw_context": "比亚迪股份有限公司",
+      "supplementary_context": "定位线索为与比亚迪股份有限公司有关的王传福。职务、任职时期、学校与其他履历均需来源核对，同名其他人的记录不得归给目标。",
+      "focus_questions": [
+        "核对教育与职业履历，区分历史任职与现任职责",
+        "核对本人持股、关联企业和公开司法事项",
+        "经营、管理及同业比较分别列证据与缺口"
+      ],
+      "special_requirements": "专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项。",
+      "uploaded_identity_clues": [],
+      "provenance": "user_supplied_clues_not_verified_facts",
+      "anchor_status": "user_seeded",
+      "version": "person-identity-v6-article-and-actor-context"
+    },
+    "query_terms": "采访 原文 公开信 具体行为 回应",
+    "tool_capabilities": [
+      "original_web"
+    ],
+    "expected_evidence": [
+      "dated_behavior",
+      "literal_attribution",
+      "counterevidence"
+    ],
+    "chapters": [
+      3
+    ],
+    "completion": "原文、主体、角色、有效时期及相反材料已核对；工具返回和网页命中不等于完成",
+    "state": "planned_not_verified"
+  },
+  {
+    "requirement_id": "R-P-OPERATIONS",
+    "origin": "frontend_selection",
+    "selected_labels": [
+      "经营业绩",
+      "企业经营与战略事件"
+    ],
+    "target_name": "王传福",
+    "question": "目标在具体经营或创新事件中承担何种职责，结果对应什么期间和口径？",
+    "identity_anchors": {
+      "target_person": "王传福",
+      "aliases": [
+        "王传福"
+      ],
+      "known_affiliations": [
+        "比亚迪股份有限公司"
+      ],
+      "identity_anchors": [],
+      "roles": [],
+      "raw_context": "比亚迪股份有限公司",
+      "supplementary_context": "定位线索为与比亚迪股份有限公司有关的王传福。职务、任职时期、学校与其他履历均需来源核对，同名其他人的记录不得归给目标。",
+      "focus_questions": [
+        "核对教育与职业履历，区分历史任职与现任职责",
+        "核对本人持股、关联企业和公开司法事项",
+        "经营、管理及同业比较分别列证据与缺口"
+      ],
+      "special_requirements": "专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项。",
+      "uploaded_identity_clues": [],
+      "provenance": "user_supplied_clues_not_verified_facts",
+      "anchor_status": "user_seeded",
+      "version": "person-identity-v6-article-and-actor-context"
+    },
+    "query_terms": "公告 职责 创新 决策 结果 报告期",
+    "tool_capabilities": [
+      "original_web",
+      "affiliated_company_records"
+    ],
+    "expected_evidence": [
+      "personal_role",
+      "event_period",
+      "comparable_metrics"
+    ],
+    "chapters": [
+      4
+    ],
+    "completion": "原文、主体、角色、有效时期及相反材料已核对；工具返回和网页命中不等于完成",
+    "state": "planned_not_verified"
+  },
+  {
+    "requirement_id": "R-P-TEAM",
+    "origin": "frontend_selection",
+    "selected_labels": [
+      "团队与治理"
+    ],
+    "target_name": "王传福",
+    "question": "各团队成员的姓名、机构、职责及任职时期分别是什么？",
+    "identity_anchors": {
+      "target_person": "王传福",
+      "aliases": [
+        "王传福"
+      ],
+      "known_affiliations": [
+        "比亚迪股份有限公司"
+      ],
+      "identity_anchors": [],
+      "roles": [],
+      "raw_context": "比亚迪股份有限公司",
+      "supplementary_context": "定位线索为与比亚迪股份有限公司有关的王传福。职务、任职时期、学校与其他履历均需来源核对，同名其他人的记录不得归给目标。",
+      "focus_questions": [
+        "核对教育与职业履历，区分历史任职与现任职责",
+        "核对本人持股、关联企业和公开司法事项",
+        "经营、管理及同业比较分别列证据与缺口"
+      ],
+      "special_requirements": "专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项。",
+      "uploaded_identity_clues": [],
+      "provenance": "user_supplied_clues_not_verified_facts",
+      "anchor_status": "user_seeded",
+      "version": "person-identity-v6-article-and-actor-context"
+    },
+    "query_terms": "管理团队 董事 高管 简历 任职 期间",
+    "tool_capabilities": [
+      "original_web",
+      "affiliated_company_records"
+    ],
+    "expected_evidence": [
+      "member_identity",
+      "member_roles_and_dates"
+    ],
+    "chapters": [
+      6
+    ],
+    "completion": "原文、主体、角色、有效时期及相反材料已核对；工具返回和网页命中不等于完成",
+    "state": "planned_not_verified"
+  },
+  {
+    "requirement_id": "R-P-REPUTATION",
+    "origin": "frontend_selection",
+    "selected_labels": [
+      "口碑与操守"
+    ],
+    "target_name": "王传福",
+    "question": "谁对目标作了何种具名评价，利益关系、原话、时期及目标回应是什么？",
+    "identity_anchors": {
+      "target_person": "王传福",
+      "aliases": [
+        "王传福"
+      ],
+      "known_affiliations": [
+        "比亚迪股份有限公司"
+      ],
+      "identity_anchors": [],
+      "roles": [],
+      "raw_context": "比亚迪股份有限公司",
+      "supplementary_context": "定位线索为与比亚迪股份有限公司有关的王传福。职务、任职时期、学校与其他履历均需来源核对，同名其他人的记录不得归给目标。",
+      "focus_questions": [
+        "核对教育与职业履历，区分历史任职与现任职责",
+        "核对本人持股、关联企业和公开司法事项",
+        "经营、管理及同业比较分别列证据与缺口"
+      ],
+      "special_requirements": "专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项。",
+      "uploaded_identity_clues": [],
+      "provenance": "user_supplied_clues_not_verified_facts",
+      "anchor_status": "user_seeded",
+      "version": "person-identity-v6-article-and-actor-context"
+    },
+    "query_terms": "具名 评价 采访 合同 履约 原文 回应",
+    "tool_capabilities": [
+      "original_web"
+    ],
+    "expected_evidence": [
+      "named_evaluator",
+      "relationship",
+      "original_quote",
+      "response"
+    ],
+    "chapters": [
+      7
+    ],
+    "completion": "原文、主体、角色、有效时期及相反材料已核对；工具返回和网页命中不等于完成",
+    "state": "planned_not_verified"
+  },
+  {
+    "requirement_id": "R-P-COMPARISON",
+    "origin": "frontend_selection",
+    "selected_labels": [
+      "同业对标"
+    ],
+    "target_name": "王传福",
+    "question": "对标人物的行业、发展阶段、职责、期间和指标是否可比？",
+    "identity_anchors": {
+      "target_person": "王传福",
+      "aliases": [
+        "王传福"
+      ],
+      "known_affiliations": [
+        "比亚迪股份有限公司"
+      ],
+      "identity_anchors": [],
+      "roles": [],
+      "raw_context": "比亚迪股份有限公司",
+      "supplementary_context": "定位线索为与比亚迪股份有限公司有关的王传福。职务、任职时期、学校与其他履历均需来源核对，同名其他人的记录不得归给目标。",
+      "focus_questions": [
+        "核对教育与职业履历，区分历史任职与现任职责",
+        "核对本人持股、关联企业和公开司法事项",
+        "经营、管理及同业比较分别列证据与缺口"
+      ],
+      "special_requirements": "专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项。",
+      "uploaded_identity_clues": [],
+      "provenance": "user_supplied_clues_not_verified_facts",
+      "anchor_status": "user_seeded",
+      "version": "person-identity-v6-article-and-actor-context"
+    },
+    "query_terms": "同行 创始人 董事长 同期 职责 指标 原文",
+    "tool_capabilities": [
+      "original_web"
+    ],
+    "expected_evidence": [
+      "peer_identity",
+      "industry_stage_role_period",
+      "comparable_metric"
+    ],
+    "chapters": [
+      8
+    ],
+    "completion": "原文、主体、角色、有效时期及相反材料已核对；工具返回和网页命中不等于完成",
+    "state": "planned_not_verified"
+  },
+  {
+    "requirement_id": "R-P-RELATIONS",
+    "origin": "frontend_selection",
+    "selected_labels": [
+      "关联利益"
+    ],
+    "target_name": "王传福",
+    "question": "目标与组织的任职、持股或控制关系有何原文和有效期间，是否存在具体利益冲突？",
+    "identity_anchors": {
+      "target_person": "王传福",
+      "aliases": [
+        "王传福"
+      ],
+      "known_affiliations": [
+        "比亚迪股份有限公司"
+      ],
+      "identity_anchors": [],
+      "roles": [],
+      "raw_context": "比亚迪股份有限公司",
+      "supplementary_context": "定位线索为与比亚迪股份有限公司有关的王传福。职务、任职时期、学校与其他履历均需来源核对，同名其他人的记录不得归给目标。",
+      "focus_questions": [
+        "核对教育与职业履历，区分历史任职与现任职责",
+        "核对本人持股、关联企业和公开司法事项",
+        "经营、管理及同业比较分别列证据与缺口"
+      ],
+      "special_requirements": "专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项。",
+      "uploaded_identity_clues": [],
+      "provenance": "user_supplied_clues_not_verified_facts",
+      "anchor_status": "user_seeded",
+      "version": "person-identity-v6-article-and-actor-context"
+    },
+    "query_terms": "任职 持股 关联交易 披露 生效 日期",
+    "tool_capabilities": [
+      "person_roles_current_and_historical",
+      "affiliated_company_records",
+      "original_web"
+    ],
+    "expected_evidence": [
+      "person_organization_relation",
+      "effective_period",
+      "conflict_event"
+    ],
+    "chapters": [
+      9
+    ],
+    "completion": "原文、主体、角色、有效时期及相反材料已核对；工具返回和网页命中不等于完成",
+    "state": "planned_not_verified"
+  },
+  {
+    "requirement_id": "R-P-JUDICIAL",
+    "origin": "frontend_selection",
+    "selected_labels": [
+      "司法信用"
+    ],
+    "target_name": "王传福",
+    "question": "司法或信用记录的当事人是否为目标，角色、案号、程序、日期和结果是什么？",
+    "identity_anchors": {
+      "target_person": "王传福",
+      "aliases": [
+        "王传福"
+      ],
+      "known_affiliations": [
+        "比亚迪股份有限公司"
+      ],
+      "identity_anchors": [],
+      "roles": [],
+      "raw_context": "比亚迪股份有限公司",
+      "supplementary_context": "定位线索为与比亚迪股份有限公司有关的王传福。职务、任职时期、学校与其他履历均需来源核对，同名其他人的记录不得归给目标。",
+      "focus_questions": [
+        "核对教育与职业履历，区分历史任职与现任职责",
+        "核对本人持股、关联企业和公开司法事项",
+        "经营、管理及同业比较分别列证据与缺口"
+      ],
+      "special_requirements": "专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项。",
+      "uploaded_identity_clues": [],
+      "provenance": "user_supplied_clues_not_verified_facts",
+      "anchor_status": "user_seeded",
+      "version": "person-identity-v6-article-and-actor-context"
+    },
+    "query_terms": "当事人 案号 裁判文书 决定书 日期 结果",
+    "tool_capabilities": [
+      "person_judicial_records",
+      "original_web"
+    ],
+    "expected_evidence": [
+      "party_identity",
+      "case_number",
+      "procedural_role",
+      "disposition"
+    ],
+    "chapters": [
+      9,
+      12
+    ],
+    "completion": "原文、主体、角色、有效时期及相反材料已核对；工具返回和网页命中不等于完成",
+    "state": "planned_not_verified"
+  },
+  {
+    "requirement_id": "R-P-PERSONAL_CREDIT",
+    "origin": "frontend_selection",
+    "selected_labels": [
+      "专项风险"
+    ],
+    "target_name": "王传福",
+    "question": "有哪些能直接归属目标的债务、担保或履约事项，哪些只是关联企业背景？",
+    "identity_anchors": {
+      "target_person": "王传福",
+      "aliases": [
+        "王传福"
+      ],
+      "known_affiliations": [
+        "比亚迪股份有限公司"
+      ],
+      "identity_anchors": [],
+      "roles": [],
+      "raw_context": "比亚迪股份有限公司",
+      "supplementary_context": "定位线索为与比亚迪股份有限公司有关的王传福。职务、任职时期、学校与其他履历均需来源核对，同名其他人的记录不得归给目标。",
+      "focus_questions": [
+        "核对教育与职业履历，区分历史任职与现任职责",
+        "核对本人持股、关联企业和公开司法事项",
+        "经营、管理及同业比较分别列证据与缺口"
+      ],
+      "special_requirements": "专项核查公开披露中的历史持股及任职变化，区分本人行为与关联企业事项。",
+      "uploaded_identity_clues": [],
+      "provenance": "user_supplied_clues_not_verified_facts",
+      "anchor_status": "user_seeded",
+      "version": "person-identity-v6-article-and-actor-context"
+    },
+    "query_terms": "本人 债务 担保 履约 协议 期间 原文",
+    "tool_capabilities": [
+      "person_judicial_records",
+      "person_roles_current_and_historical",
+      "original_web"
+    ],
+    "expected_evidence": [
+      "direct_person_obligation",
+      "conditions_and_period",
+      "company_boundary"
+    ],
+    "chapters": [
+      9,
+      10,
+      12
+    ],
+    "completion": "原文、主体、角色、有效时期及相反材料已核对；工具返回和网页命中不等于完成",
+    "state": "planned_not_verified"
+  }
+]

@@ -18,7 +18,7 @@ def test_login_home_and_account_management_start_without_vector_model(tmp_path):
                COMPANY_KNOWLEDGE_LOCAL_STORE=str(tmp_path / 'knowledge'),
                LANGSMITH_TRACING='false', LANGCHAIN_TRACING_V2='false')
     code = '''
-import ipaddress, socket, time, json
+import ipaddress, socket, time, json, sys
 started = time.perf_counter()
 lookup = socket.getaddrinfo
 def offline_lookup(host, *args, **kwargs):
@@ -49,10 +49,11 @@ with TestClient(app) as client:
     assert client.get('/research/home', headers=headers).status_code == 200
     assert client.get('/admin/users', headers=headers).status_code == 200
     assert embedding.embedding_service._embedder is None
-print(json.dumps({'model_unloaded': True, 'login_home_accounts_ok': True, 'seconds': round(time.perf_counter()-started, 2)}))
+    assert 'pymilvus' not in sys.modules and 'grpc' not in sys.modules
+print(json.dumps({'model_unloaded': True, 'vector_sdk_unloaded': True, 'login_home_accounts_ok': True, 'seconds': round(time.perf_counter()-started, 2)}))
 '''
     result = subprocess.run([sys.executable, '-c', code], cwd=root, env=env, text=True,
                             encoding='utf-8', errors='replace', capture_output=True, timeout=90)
     assert result.returncode == 0, result.stderr
     state = json.loads(result.stdout.strip().splitlines()[-1])
-    assert state['model_unloaded'] and state['login_home_accounts_ok']
+    assert state['model_unloaded'] and state['vector_sdk_unloaded'] and state['login_home_accounts_ok']

@@ -1,0 +1,57 @@
+{
+  "review_kind": "agent_physical_page_and_literal_source_review",
+  "human_signoff": false,
+  "report_accepted": false,
+  "original_pdf_files_unchanged": true,
+  "items": [
+    {
+      "url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0113/2026011300560_c.pdf",
+      "binary_sha256": "10f2e63538a31b12ab62d0769f72840afd79e1f5e06f2655cb96f4106d6e3835",
+      "physical_pages_viewed": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "findings": [
+        "第1至2页明确CEO任命自2026年1月13日起生效。",
+        "第2页披露主席与CEO兼任偏离守则条文及董事会说明；说明不等于个人违法认定或治理有效性已核实。",
+        "第3至5页列出其他新任董事履历、期限与酬金，不能归到目标人物名下。"
+      ]
+    },
+    {
+      "url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0410/2026041000189_c.pdf",
+      "binary_sha256": "245080e5cc3a9eb0ae281d772c4c160834a5766f7532b6f5474abe1d178ab243",
+      "physical_pages_viewed": [
+        1,
+        2
+      ],
+      "findings": [
+        "第1页为拟增持计划及截至本公告日期的持股快照；第2页明示2026年4月10日。",
+        "第2页明确计划可能不会全面实施，不得将拟增持一亿港元改成已经完成。"
+      ]
+    },
+    {
+      "url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0522/2026052201151_c.pdf",
+      "binary_sha256": "735b073d5976e76e250ef7925d1c026c32de58a821d54dd4a179da8ded4ec977",
+      "physical_pages_viewed": [
+        1
+      ],
+      "findings": [
+        "第1页披露2026年5月21日至22日的购买、增持后数量及比例。",
+        "这份后续披露与4月拟增持计划分别保留；不能由此推定整项计划已全部完成。"
+      ]
+    }
+  ],
+  "extraction_status": "production_native_fallback_complete_all_8_physical_pages",
+  "admitted_to_current_model_report": false,
+  "extraction_diagnostics": {
+    "pypdf": "mixed_script_character_map",
+    "pdfminer": "clean_native_text_all_8_pages",
+    "original_visual_pages": "same_raw_pdf_sha256_as_prior_8_page_visual_review"
+  },
+  "source_truth_or_responsibility_confirmed": false,
+  "text_review_scope": "All eight extracted pages read; appointment, dual-role disclosure, dated share counts, plan-versus-execution and other-director boundaries compared with unchanged page review.",
+  "source_snapshot_sha256": "71054092f1bc7ac373c222235b3135208d0ee5d85c8c7521d8d84615c84cd60f"
+}

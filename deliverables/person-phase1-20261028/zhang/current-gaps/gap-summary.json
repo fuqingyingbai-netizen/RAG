@@ -1,0 +1,26 @@
+{
+  "report_sha256": "ba85ca29290d9ab287b512939385026b61b7865d8c07adedbe631ee657392cfe",
+  "report_hash_basis": "raw_file_bytes",
+  "report_file": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round7-kimitk-affected-chapters\\desktop_report.md",
+  "source_sha256": "7879a535eb8794dc27317923cdd272e43a152cc6182bb45491d62b32f48e964c",
+  "sources": 53,
+  "admitted_records": 415,
+  "record_destinations": {
+    "analysis_support": 17,
+    "structured_table": 65,
+    "supporting_appendix": 310,
+    "original_excerpt": 23
+  },
+  "gap_categories": {
+    "summary_or_index_requires_original": 6,
+    "subject_unresolved": 1,
+    "no_admitted_statement": 3,
+    "admitted_not_in_body_requires_importance_review": 310,
+    "model_or_review_failure": 8,
+    "professional_platform_failure": 8,
+    "professional_tool_not_run": 17
+  },
+  "independent_review_claims_planned": 8,
+  "independent_review_claims_completed": 0,
+  "full_report_accepted": false
+}

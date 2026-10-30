@@ -9,17 +9,15 @@
 # 用途：RAG 系统的向量存储与检索核心模块
 
 
+from __future__ import annotations
+
 # 操作系统交互：读取环境变量
 import os
+from typing import TYPE_CHECKING
 # 读取 .env 文件里的配置（地址、端口、集合名、向量维度等）
 from dotenv import load_dotenv
-# Milvus 官方 Python 客户端
-from pymilvus import (
-    MilvusClient,        # 客户端主类
-    DataType,            # 字段类型（int、string、vector等）
-    AnnSearchRequest,    # 向量检索请求
-    RRFRanker            # 结果融合排序算法（RRF）
-)
+if TYPE_CHECKING:
+    from pymilvus import MilvusClient
 
 # 加载 .env 环境变量
 load_dotenv()
@@ -82,6 +80,9 @@ class MilvusManager:
         """
         # 如果还没创建客户端
         if self.client is None:
+            # The SDK imports native gRPC modules. Login/account-only startup
+            # must not load that runtime before a vector operation is requested.
+            from pymilvus import MilvusClient
             # 创建连接
             self.client = MilvusClient(uri=self.uri)
         # 返回客户端对象
@@ -103,6 +104,7 @@ class MilvusManager:
 
         # 如果集合不存在，才创建
         if not client.has_collection(self.collection_name):
+            from pymilvus import DataType
             # 创建表结构：自动ID + 允许动态新增字段
             schema = client.create_schema(auto_id=True, enable_dynamic_field=True)
 
@@ -290,6 +292,7 @@ class MilvusManager:
         混合检索 = 密集向量（语义） + 稀疏向量（关键词）
         使用 RRF 算法融合两个检索结果 → 最强检索效果
         """
+        from pymilvus import AnnSearchRequest, RRFRanker
         # 要返回的字段
         output_fields = [
             "text", "filename", "file_type", "page_number",

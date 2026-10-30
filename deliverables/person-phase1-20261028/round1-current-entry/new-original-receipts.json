@@ -1,0 +1,37 @@
+[
+  {
+    "url": "https://www.lwinst.com/Liems/web/expert/detail.htm?id=900208155080785974",
+    "title": "专家详情",
+    "content_sha256": "33ead76a5cddc4ceec26459a19da3ddbcff1b135b293a40586064da9569a8b97",
+    "content_chars": 820,
+    "fetch_status": "done",
+    "identity": {
+      "confidence": "high",
+      "reason": "目标姓名与已知关联机构近邻共现",
+      "matched_anchors": [
+        "海底捞"
+      ],
+      "identity_policy_version": "person-identity-v4-context"
+    },
+    "event_and_current_tenure": "not_verified",
+    "report_admission": "pending_source_and_event_review"
+  },
+  {
+    "url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0113/2026011300596_c.pdf",
+    "title": "海 底 撈 國 際 控 股 有 限 公 司 董事名單及其角色和職能",
+    "content_sha256": "379cec55c41a3e5c738be4bddb7d6e7c5f5c23c1ffa38216d53b52bf2859c7a3",
+    "content_chars": 882,
+    "fetch_status": "done",
+    "identity": {
+      "confidence": "high",
+      "reason": "目标姓名与已知关联机构近邻共现",
+      "matched_anchors": [
+        "海底捞",
+        "海底捞国际控股有限公司"
+      ],
+      "identity_policy_version": "person-identity-v4-context"
+    },
+    "event_and_current_tenure": "not_verified",
+    "report_admission": "pending_source_and_event_review"
+  }
+]

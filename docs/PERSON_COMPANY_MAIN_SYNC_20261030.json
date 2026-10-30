@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-30",
+  "purpose": "Person/company integration and cold-start fix handoff; final publication owned by company chat",
+  "person_source": "dd258ada57edf2c8a874ac66aca34031890bc08f",
+  "company_source": "079218f1ab723c2ef562a0e72731b75c09505b04",
+  "main_at_fetch": "7cc0752c15a052bf606135a7a1e39553ccb23863",
+  "merge_commit": "d90a67ae69671f0684d6b925691619747a7b5f7e",
+  "merge_conflicts": false,
+  "candidate_branch": "codex/person-company-main-sync-20261030",
+  "publication_owner_thread": "01a18168-9f28-7ae3-aba2-405e5834c7b9",
+  "user_handoff_authorization": "授权交接，由公司聊天统一推送",
+  "remote_publication_at_handoff": "pending_company_chat",
+  "report_acceptance": false,
+  "validation": {
+    "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -s -q -p anyio.pytest_plugin test/test_milvus_lazy_loading.py test/test_startup_without_embedding.py test/test_research_indexing.py test/test_document_loader_lifecycle.py --junitxml=work/person-main-sync-20261030/startup-focused.xml",
+    "tests": 20,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 199.479,
+    "original_startup_deadline_seconds": 90,
+    "startup_test_seconds": 70.573,
+    "scope": "focused integration checks; final joint regression remains company chat responsibility"
+  },
+  "before_fix_diagnostic": {
+    "returncode": null,
+    "timed_out": true,
+    "seconds": 90.22,
+    "original_test_timeout_seconds": 90,
+    "external_network_allowed": false,
+    "code_modified": false
+  },
+  "protected": {
+    "primary_dirty_checkout": "E:/projects/RAG",
+    "primary_worktree_modified": false,
+    "credentials_modified": false,
+    "business_database_modified": false,
+    "deployed": false,
+    "model_api_called": false
+  },
+  "sha256": {
+    "backend/milvus_client.py": "e58edf2e7fcecba9d3595ecb32c02ca98aba79f4039707d71ef08d43ce764244",
+    "test/test_milvus_lazy_loading.py": "9f616e8902bcfa4b0cf20b6bf2a7f995ecb5b308821fd6deaaf79c9cfd1f2f65",
+    "test/test_startup_without_embedding.py": "85c16fd5cf881e6c2e1a409075999b40fa24907f9c839d7044e8165e98ba1c7d",
+    "deliverables/person-main-sync-20261030/startup-before-fix.json": "cf25862efbdf75ec270efb5b5657503384d64341ea25212ade58157e8ae3b483",
+    "deliverables/person-main-sync-20261030/startup-focused.log": "18f54a0d2f680bab6bbe3c51040ecd0bc639d74d1c87b4e325f0f952dfb2c3cd",
+    "deliverables/person-main-sync-20261030/startup-focused.xml": "01ca366d08a9bcb9a80ca49c666bfe92cf57b5fb4bb00015d61465b49fe052c4"
+  }
+}

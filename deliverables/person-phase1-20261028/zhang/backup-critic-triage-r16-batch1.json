@@ -1,0 +1,199 @@
+{
+  "review_kind": "agent_triage_of_model_candidates",
+  "review_source": "C:\\Users\\wangli\\.codex\\worktrees\\f19b\\RAG\\work\\person-phase1-20261028\\round16-glm53-backup-independent-ch9\\review.json",
+  "report_sha256": "7276163f3df9b20592ad64730121f657b6d863957846e3bb8fcb9ad1ae3202ce",
+  "model_context": {
+    "model": "glm-5.3",
+    "endpoint_sha256": "ca39687d6dbed96a650a887e60ff2aa46fe101e8d02f39ac9d30497659f71b8e",
+    "temperature": 0.2,
+    "request_options": {
+      "max_tokens": 8192
+    }
+  },
+  "scope": "First returned backup review batch only; other batches not covered by this triage.",
+  "items": [
+    {
+      "batch": 1,
+      "issue": 1,
+      "raw_candidate_sha256": "7c7cc1aa04239de49fd4d09b9ba2720e93dc789aba700cddb64cb4a9caab7f17",
+      "report_excerpt": "自1月13日起获委任CEO、苟轶群同日辞任（年份未明）",
+      "agent_triage_status": "rejected_cross_batch_false_alarm",
+      "agent_reason": "完整判断同时引用E-P68BFD29CFC1350，已留存任免日期及苟轶群辞任句；不能要求单个引用独自覆盖组合判断全部内容。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 2,
+      "raw_candidate_sha256": "afc3d104b8ac098ec39b13cc244f3871356c7593064610805bd77e867d459af9",
+      "report_excerpt": "33.64亿股占37.35%",
+      "agent_triage_status": "rejected_reviewer_says_no_change",
+      "agent_reason": "候选理由明确说与原文一致并建议无需修改。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 3,
+      "raw_candidate_sha256": "d4b77b7fd2f1dc3bcb27f2957117ff1d63e5c66c3c711752857b80d8ad73975d",
+      "report_excerpt": "来源分别载其持20.82亿股约占37.36%、33.64亿股占37.35%，基准日未明；研报另载个人权益44.01%、夫妇经ZY NP及SP NP直接持34.61%，均属不同时点口径，不合并。",
+      "agent_triage_status": "pending_importance_review",
+      "agent_reason": "5月增持后数量在正文来源表已有，初步分析未合并；新取得5月22日原件也有同一时点信息，应在新语料写作时核对实质采用。当前候选引用未直接支持其提到的全部更新数据，不能自动认定为漏项。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 4,
+      "raw_candidate_sha256": "b7439acac6ec54748cd4afea0b1b053ebddc537ab9e16c4111f1ddbdfad16dbf",
+      "report_excerpt": "媒体回顾2007年张勇以原始出资额购施永宏夫妇18%股权，张勇夫妇成海底捞68%绝对控股股东",
+      "agent_triage_status": "rejected_supported_combined_citations",
+      "agent_reason": "完整判断引用E-PD40DE8F3FFC51D，原句同时写购买18%及夫妻合计68%；组合引用并非错误归属。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 5,
+      "raw_candidate_sha256": "56e59fa55a4cd22b04a38979c067d03caea8341f597cf38f967a954fdb106aad",
+      "report_excerpt": "胞弟张硕轶持静海优鼎、优鼎壹号股权，静远投资由张勇舒萍持68%",
+      "agent_triage_status": "rejected_cross_batch_false_alarm",
+      "agent_reason": "完整判断引用E-P692DFE593EDD78，其原句载亲属股权及张勇舒萍持有静远68%；本批未出现不等于全稿无支持。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 6,
+      "raw_candidate_sha256": "9b81b2c48a3e88eef665eb4f1f8fcfbf8ce13e390508b98ef20a6bd3de497672",
+      "report_excerpt": "9月8日，海底捞创始人张勇的妻子舒萍，通过信托平台SP NP Ltd.以每股10.62港元的价格出售2.59亿股，套现约27.5亿港元。",
+      "agent_triage_status": "rejected_reviewer_says_no_change",
+      "agent_reason": "候选自身称内容一致、没有重复或矛盾，建议无需修改。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 7,
+      "raw_candidate_sha256": "9186974d1f0bf6bc2c9bcea84cd4a0e9e9e26569f2bea831146b3e3faae16382",
+      "report_excerpt": "2018年，海底捞在港交所上市，张勇担任公司首席执行官，后于2022年3月卸任。",
+      "agent_triage_status": "rejected_reviewer_says_no_change",
+      "agent_reason": "候选自身称来源一致且未作时间性误判。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 8,
+      "raw_candidate_sha256": "ecb1be072ad7f3ee9d9acdaff2f0a92a9fadd08f493e5035b4e7507ad538f9e2",
+      "report_excerpt": "公告载公司向张勇提供不超1亿港元无担保贷款，期限30天，限个人财务安排、不得购股；减持后夫妇控制集团持股45.49%，是否发放或偿还未载。",
+      "agent_triage_status": "not_confirmed_as_stated",
+      "agent_reason": "正文中的减持后修饰持股比例，并未明示贷款由减持导致；不同事件宜分列的编辑建议可保留，不能据此断言已写成因果。媒体转述与原公告层级另有独立待修订项。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 9,
+      "raw_candidate_sha256": "7dce35c19e62d25280aa1ae5c1afb3262cdb723961190e91177969d107234e49",
+      "report_excerpt": "2016年12月，用友与海底捞集团旗下上海海悦投资管理有限公司发起成立红火台餐饮云服务有限公司，张勇担任副董事长；该表述系报道所载，未列任职起止。",
+      "agent_triage_status": "rejected_reviewer_says_no_change",
+      "agent_reason": "候选称报告与原文一致且没有超出推断。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 10,
+      "raw_candidate_sha256": "044610a6813df0c60c72021151abb29c4b010d7023debf5b2a3a7373264eecbd",
+      "report_excerpt": "研究判断（待人工复核）：研究判断（待人工复核）：来源载张勇为海底捞控股股东、执行董事、董事会主席兼首席执行官，自1月13日起获委任CEO、苟轶群同日辞任（年份未明），未载具体决策权限。",
+      "agent_triage_status": "rejected_unlocated_and_cross_batch",
+      "agent_reason": "问题片段重复了研究判断标签，未逐字定位；任免内容另有实际组合引用支持。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 11,
+      "raw_candidate_sha256": "a2de44e359c9a94ee91313e59ec9d736ed1021a63ecb90c92cfbc357b0c818ca",
+      "report_excerpt": "2022年3月1日，海底捞发布管理层人事任命公告，董事会主席兼前首席执行官张勇将继续担任董事会主席及执行董事。",
+      "agent_triage_status": "rejected_unlocated_no_change",
+      "agent_reason": "未逐字定位，且候选理由明确没有日期矛盾。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 12,
+      "raw_candidate_sha256": "a60a211019089c83d41cdcab6bafcd3398c3ac188a6d7025130f815c9982db0e",
+      "report_excerpt": "来源记录 6　张勇 [E-PBA2CC1A07780B6]",
+      "agent_triage_status": "rejected_batch_absence_as_error",
+      "agent_reason": "缺少本批材料只是批次范围，候选未指出具体行文错误。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 13,
+      "raw_candidate_sha256": "f3d345919a94b22c314c9d5da0ace047f374044861d07945c1e3db466c876a55",
+      "report_excerpt": "来源记录 15　张勇 [E-PABB9DF99ADBB6C]",
+      "agent_triage_status": "rejected_batch_absence_as_error",
+      "agent_reason": "缺少本批材料只是批次范围，候选未指出具体行文错误。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 14,
+      "raw_candidate_sha256": "029da8d0d86addf2b0c35d7e681af664a0243f87e5357516f8f5c64398c0caf5",
+      "report_excerpt": "来源记录 19　张勇 [E-P14743FE8CB2810]",
+      "agent_triage_status": "rejected_batch_absence_as_error",
+      "agent_reason": "本批无法核对不构成事实或推断错误，完整原文仍保留。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 15,
+      "raw_candidate_sha256": "228514f29f0f10232b53f2bb290dc0384cb424b09bc200ef9649bcc53767344d",
+      "report_excerpt": "来源记录 20　张勇 [E-P083F09DDECAA63]",
+      "agent_triage_status": "rejected_batch_absence_as_error",
+      "agent_reason": "候选仅因不在本批而要求补入，且说未发现具体错误。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 16,
+      "raw_candidate_sha256": "e3475d6e533318cc7c792ac17f4e8e65d0678953eb3fe0c4e97373ff24264c87",
+      "report_excerpt": "研究判断（待人工复核）：2017年年报所列：张勇2016年3月7日获委任为颐海国际非执行董事，2015年12月起任董事",
+      "agent_triage_status": "rejected_cross_batch_false_alarm",
+      "agent_reason": "完整判断还引用E-P20C51228B02967年报与E-P77703357D2CEE0，二者包含任命及起任日期。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 17,
+      "raw_candidate_sha256": "e73b7eca4bc7a189a05dfd725150da5a4bbfe29ed22fb5db0052126259ef42c9",
+      "report_excerpt": "来源记录 24　张勇 [E-PF58356C6C8B670]",
+      "agent_triage_status": "rejected_reviewer_says_no_change",
+      "agent_reason": "候选自身确认已提及关联方及大客户，不属于遗漏。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 18,
+      "raw_candidate_sha256": "ebe59c09936bd89dcf4e18e23fc5eba6b5f73b4937b53c5f5f055833e8edcfc5",
+      "report_excerpt": "来源记录 7　张勇 [E-PFCB446477D692C]",
+      "agent_triage_status": "rejected_batch_absence_as_error",
+      "agent_reason": "本批未含该记录不能推出整章有误，候选未指出具体错误。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 19,
+      "raw_candidate_sha256": "67423fdeeabc232eeef7e04ab9b262e3d5fc5f03cd6dd647c2c8ce2cced00b8e",
+      "report_excerpt": "来源记录 11　张勇 [E-P4C3F3C112C376D]；同一原文已列第4章",
+      "agent_triage_status": "rejected_unlocated_no_change",
+      "agent_reason": "候选片段未逐字定位，且理由明确体例一致、未发现具体错误。",
+      "accepted_as_true_issue": false
+    },
+    {
+      "batch": 1,
+      "issue": 20,
+      "raw_candidate_sha256": "8e1bfd2b8c7841cab433f135324c4a2fda89531307ee565caceeadf46d179e52",
+      "report_excerpt": "来源记录 16　张勇 [E-P0B3D60A58C34E8]",
+      "agent_triage_status": "duplicate_pending_importance_review",
+      "agent_reason": "与候选3为同一采用问题；没有本批逐字支持引文，保留为人工重要性复核目标，不能记为第二个已证实错误。",
+      "accepted_as_true_issue": false
+    }
+  ],
+  "source_truth_or_responsibility_confirmed": false,
+  "human_signoff": false,
+  "report_accepted": false
+}
