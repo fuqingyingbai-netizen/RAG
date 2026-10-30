@@ -1,0 +1,112 @@
+{
+  "schema": "supermew-server-release-verification-v1",
+  "verified_at_beijing": "2026-10-30T11:45:44.730596+08:00",
+  "source_thread": {
+    "id": "01a18168-9f28-7ae3-aba2-405e5834c7b9",
+    "title": "公司链路：开源对标与第一阶段交付迭代"
+  },
+  "source_main_commit": "d316e1f8dc2bd5afca73f92f154b56e2a89fa001",
+  "deployed_commit": "39e9d35c21d3575cf01e0adc2f6d0259ac55859c",
+  "source_integration_base": "17108f8865d424e69b8d04732cb37340426a527b",
+  "deployment": {
+    "commit": "39e9d35c21d3575cf01e0adc2f6d0259ac55859c",
+    "old_release": "/opt/supermew/releases/55672243-editorial-20261030T020510Z",
+    "new_release": "/opt/supermew/releases/39e9d35c21d3575cf01e0adc2f6d0259ac55859c",
+    "backup": "/opt/supermew/backups/release-20261030T033902Z-39e9d35c",
+    "started_at_utc": "2026-10-30T03:39:02.607086+00:00",
+    "status": "verified",
+    "backend_tests_passed": 2537,
+    "frontend_tests_passed": 126,
+    "database_restore_verified": true,
+    "checksums": {
+      "milvus.tar.gz": "b075957b370ddef71689b5f71d61fe587f7d109b6953d1aa7258c012247bd233",
+      "database.dump": "1917e6d9d7a4d623bad163d5612395fae07643e18450c3d453e2bf3f8212deef",
+      "old-source.tar.gz": "0ba05d7bf1c0d0a04ef5685bb6fdc25c871e02d7086b40d8b33f7713868aea03",
+      "task-state.json": "2d4ecad3e6b7087022f236c5440787d54e33b48edade128fc416b2dba8032aaa",
+      "data.tar.gz": "2044dcf668a2cb8035ed9af443f7b300acb6ed1a0f6a317dde8aff12451520d8",
+      "old-release-manifest.json": "592d62f21f3fef57d79a68ebb67f841130789b4dfa13053d84d320590540e199",
+      "app.env": "547399cde60b51dfe43225d75e3e91bbb1200f9c6d1de9e0cd3bbad9d4211443"
+    },
+    "instance_id": "a5e9a8cc-4e07-406c-bf9a-eed415ff10fa",
+    "verification": {
+      "commit": "39e9d35c21d3575cf01e0adc2f6d0259ac55859c",
+      "instance_id": "a5e9a8cc-4e07-406c-bf9a-eed415ff10fa",
+      "frontend_assets_checked": 15,
+      "authenticated_endpoints_checked": 6,
+      "anonymous_access_denied": true,
+      "original_download_bytes": 164926,
+      "knowledge_qa": {
+        "complete": true,
+        "citations": 12,
+        "answer_chars": 147,
+        "citation_marker": true
+      },
+      "word_exports_rendered": 3,
+      "dependencies": [
+        "active",
+        "active",
+        "active"
+      ],
+      "milvus": "healthy"
+    },
+    "research_tasks_after_update": [
+      {
+        "id": 3,
+        "status": "collecting",
+        "is_running": true
+      }
+    ]
+  },
+  "scope": [
+    "Retain the complete company/person main update",
+    "Preserve the newer server industry v55 and frontend assets",
+    "Correct the knowledge error provider label",
+    "Keep question payload JSON boundaries intact",
+    "Bind editorial/revision requests to remaining deadlines and JSON response mode"
+  ],
+  "tests": {
+    "linux_backend": {
+      "passed": 2537,
+      "failed": 0,
+      "skipped": 0,
+      "test_files": 182
+    },
+    "frontend": {
+      "passed": 126,
+      "failed": 0
+    },
+    "proof_sha256": {
+      "backend-linux.log": "5c9430b7cfa4a226bd72dc5dcbac612df0ca88bb03f31d6f269eefcc7ef0d810",
+      "backend.xml": "a57bd65dc9e746cec9ec9d3a67ed2109290055e2819c25cc7c4549d76040853d",
+      "deployment.json": "b55b0f67cc6b545cc10ae10a3ce850714d524f3c68399c124c1fe58cc89b9402",
+      "status.json": "f833e01775bafd600c6c7a84e2ab260c6c6bd2da6c6d0b424e4a024c2dcf6390"
+    }
+  },
+  "interruption": {
+    "explicitly_authorized_by_user": true,
+    "saved_records": {
+      "sources": 727,
+      "artifacts": 7,
+      "knowledge_documents": 6
+    },
+    "resume_confirmed": true,
+    "latest_observed_status": "cleaning",
+    "latest_observed_running": true
+  },
+  "preserved": {
+    "production_configuration_unchanged": true,
+    "previous_release_retained": true,
+    "other_business_container_not_stopped": true
+  },
+  "verification_limits": [
+    "Automated regressions and bounded live functional smoke tests passed. This is not an acceptance of every future full report or of report factual quality.",
+    "Three Word export smoke documents contained synthetic text and were rendered to PDF.",
+    "The interrupted research task was restarted with its saved intake and retained data; its new report was still being generated."
+  ],
+  "reproduction": {
+    "automated_test_selection": "work/server-release/backend-selection.json",
+    "linux_test_xml": "work/server-release/proof/backend.xml",
+    "frontend_log": "work/server-release/frontend.log",
+    "release_manifest": "work/server-release/package-final/supermew-39e9d35c21d3.manifest.json"
+  }
+}
