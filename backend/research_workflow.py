@@ -401,7 +401,9 @@ class ResearchWorkflow:
         selection = role.startswith('行业证据筛选 Agent')
         question_retry = role.startswith('行业问题结论重试 Agent')
         question_answer = role.startswith('行业问题结论 Agent') or question_retry
-        staged = planning or selection or question_answer
+        editorial_review = role.startswith('行业报告质量编辑')
+        editorial_revision = role.startswith('行业报告局部修订写作者')
+        staged = planning or selection or question_answer or editorial_review or editorial_revision
         repair = '修复 Agent' in role
         analysis_repair = '分析局部修复 Agent' in role
         synthesis = role == '行业阶段性综合 Agent'
@@ -414,6 +416,8 @@ class ResearchWorkflow:
             attribute = '_industry_question_planner_model' if planning else '_industry_evidence_selector_model' if selection else '_industry_question_answer_model'
             if question_retry:
                 attribute = '_industry_question_retry_model'
+            elif editorial_review or editorial_revision:
+                attribute = '_industry_editorial_review_model' if editorial_review else '_industry_editorial_revision_model'
         model = getattr(self, attribute, None)
         if model is None:
             if not os.getenv('ARK_API_KEY') or not os.getenv('MODEL'):
