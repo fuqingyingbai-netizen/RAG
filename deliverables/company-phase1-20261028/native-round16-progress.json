@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-30T15:34:34.591747+00:00",
+  "observed_at": "2026-10-30T15:50:43.779330+00:00",
   "native_session_id": 29017,
   "case": "haitian",
   "native_plan": "bounded-plan-20261030T145059173514.json",
@@ -45,26 +45,26 @@
       "detail": "cached_information=9363; changed or unbound inputs are reviewed again"
     }
   ],
-  "ledger_sha256": "a1315b77ad94a747fddb2a602dcc8175bd7de6c99cd23953c27cb0efb0aa05f4",
+  "ledger_sha256": "1678b46f38f2276d64b5d5d9dbb5d2af0b43f26fd8ab7ed72a29d7b1746defab",
   "ignored_partial_lines": 0,
   "event_counts": {
     "http_returned": 1,
-    "model_started": 15,
-    "model_http_started": 15,
-    "model_http_headers": 15,
-    "model_returned": 13,
+    "model_started": 22,
+    "model_http_started": 22,
+    "model_http_headers": 22,
+    "model_returned": 20,
     "model_failed": 1
   },
   "completed_model_finish_reasons": {
-    "stop": 13
+    "stop": 20
   },
   "unfinished_logical_model_numbers": [
-    15
+    22
   ],
   "latest_event": {
-    "at": "2026-10-30T15:34:30.234308+00:00",
+    "at": "2026-10-30T15:50:41.107061+00:00",
     "stage": "report",
-    "label": "当前章节仍在处理，正在核对原件并生成报告",
+    "label": "报告生成心跳正常",
     "current_label": "正在调用公司报告分批主编模型"
   },
   "new_final_report_accepted": false,
