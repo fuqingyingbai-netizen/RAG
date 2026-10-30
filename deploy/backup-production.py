@@ -12,7 +12,8 @@ import subprocess
 import tarfile
 
 ROOT = Path('/opt/supermew')
-ACTIVE = ('planning','searching','source_assessing','cleaning','risk_assessing',
+ACTIVE = ('queued','running','researching','processing','collecting',
+          'planning','searching','source_assessing','cleaning','risk_assessing',
           'report_generating','proposal_generating','pausing')
 
 
@@ -28,6 +29,17 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def busy_workloads():
+    states = ','.join("'"+state+"'" for state in ACTIVE)
+    queries = {
+        'research': 'SELECT count(*) FROM research_projects WHERE status IN ('+states+')',
+        'assistant': "SELECT count(*) FROM assistant_threads WHERE busy_until > (now() AT TIME ZONE 'UTC')",
+        'ingestion': "SELECT count(*) FROM company_documents WHERE state IN ('queued','uploading','parsing','indexing')",
+    }
+    return {name: int(run(['runuser','-u','postgres','--','psql','-d','supermew','-At','-c',query]).strip())
+            for name, query in queries.items()}
+
+
 def backup(retain=7):
     import fcntl
     if os.geteuid() != 0 or not (ROOT/'.deployment-owned').is_file():
@@ -39,10 +51,8 @@ def backup(retain=7):
         except BlockingIOError:return {'status':'skipped_existing_backup'}
         if subprocess.run(['systemctl','is-active','--quiet','supermew']).returncode:
             return {'status':'skipped_application_inactive'}
-        states = ','.join("'"+state+"'" for state in ACTIVE)
-        count = run(['runuser','-u','postgres','--','psql','-d','supermew','-At','-c',
-                     'SELECT count(*) FROM research_projects WHERE status IN ('+states+')']).strip()
-        if int(count):return {'status':'skipped_busy'}
+        busy = busy_workloads()
+        if any(busy.values()):return {'status':'skipped_busy', 'workloads':busy}
         folder = parent/datetime.now(timezone.utc).strftime('backup-%Y%m%dT%H%M%SZ')
         folder.mkdir(mode=0o700)
         app_was_active = vector_was_active = False
