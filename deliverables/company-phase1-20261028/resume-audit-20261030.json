@@ -1,7 +1,7 @@
 {
-  "at": "2026-10-30T12:04:03.297759+00:00",
-  "current_code_commit": "60d7aca0fbdf7f17ad85f5c8fdeb3d95c6de6dc3",
-  "tested_code_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04",
+  "at": "2026-10-30T13:55:27.644092+00:00",
+  "current_code_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+  "tested_code_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
   "runtime_tests_frontend_unchanged_from_full_regression": true,
   "shared_search_patch_ancestor": "cb9f7bfd640e425ed6617fe4d83b9435d24e5bad",
   "upstream_pinned_files_reverified": [
@@ -199,7 +199,7 @@
       "case": "haitian",
       "latest_plan": "bounded-plan-20261030T114510735901.json",
       "latest_round_has_end_record": false,
-      "persisted_acceptance_status": "checkpoint_saved_before_financial_field_fix",
+      "persisted_acceptance_status": "checkpoint_saved_before_routing_journal_fix",
       "final_report_acceptance_proven": false,
       "note": "A persisted stage or a prior report is not proof of a live worker or final acceptance."
     },
@@ -221,11 +221,11 @@
     }
   ],
   "regression": {
-    "passed": 4724,
+    "passed": 4738,
     "failures": 0,
     "errors": 0,
-    "skipped": 0,
-    "platform": "Linux Python 3.12.3",
+    "skipped": 4,
+    "platform": "Windows Python 3.12.14",
     "frontend_passed": 126,
     "evidence": {
       "test-results/full-regression-66bd061-linux.log": {
@@ -239,8 +239,42 @@
       "test-results/frontend-regression-60d7aca.log": {
         "sha256": "0e25bd8ec223f4af370a5277ea362cdf7a1acea6852f2467f03f5afdf18446e7",
         "bytes": 12465
+      },
+      "test-results/routing-recovery-full-20261030.log": {
+        "sha256": "18625155d7eb6f62ab4ce222f1ef514005773a093c120b011e6cd1e0cbbe3b8d",
+        "bytes": 31076
+      },
+      "test-results/routing-recovery-full-20261030.xml": {
+        "sha256": "5d5102586188d1846d2a2736b49da9a4e4decccacdf8e639a3f12f695a89c33f",
+        "bytes": 860770
       }
-    }
+    },
+    "skipped_tests": [
+      {
+        "classname": "test.test_backup_busy_workloads",
+        "name": "test_busy_job_skips_before_stopping_any_service[research]",
+        "reason": "Real flock and service guard run on Linux",
+        "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+      },
+      {
+        "classname": "test.test_backup_busy_workloads",
+        "name": "test_busy_job_skips_before_stopping_any_service[assistant]",
+        "reason": "Real flock and service guard run on Linux",
+        "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+      },
+      {
+        "classname": "test.test_backup_busy_workloads",
+        "name": "test_busy_job_skips_before_stopping_any_service[ingestion]",
+        "reason": "Real flock and service guard run on Linux",
+        "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+      },
+      {
+        "classname": "test.test_release_preparation",
+        "name": "test_first_start_allows_missing_bm25_file_when_parent_exists",
+        "reason": "Actual Linux path checks run on the target platform.",
+        "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+      }
+    ]
   },
   "unfinished_requirements": [
     "source-to-implementation mapping with final case and regression evidence for adopted designs",

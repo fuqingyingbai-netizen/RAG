@@ -1,0 +1,687 @@
+{
+  "at": "2026-10-30T13:53:30.581888+00:00",
+  "scope": "engineering source/implementation/test correspondence only",
+  "generator_sha256": "b853b9fc6bb49e4aed7879aa69ac8579c08610302e7071a980a1875bc788e530",
+  "candidate_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+  "candidate_promoted": true,
+  "rows": [
+    {
+      "repository": "https://github.com/alephdata/followthemoney",
+      "upstream_commit": "c70a89ffa59ea785956f6095643310da3735b7fb",
+      "pinned_files_reverified": [
+        {
+          "kind": "license_files",
+          "path": "LICENSE",
+          "sha256": "ded7e69a4f51b53d5e87aedaf8d0d1c1c98e2f3ced6c2b6a9475ba3b553dd990"
+        },
+        {
+          "kind": "selected_files",
+          "path": "followthemoney/proxy.py",
+          "sha256": "3c8ba8dfc7affcc2716a63bfd0c18a87631d8098b06a57ad65bab7b8a3b762fe"
+        },
+        {
+          "kind": "selected_files",
+          "path": "followthemoney/schema/Company.yaml",
+          "sha256": "a335cffcf1e5cbf70e6b7c632a4c5a5279705dcfb48ec2d8b7febcd80baa978f"
+        },
+        {
+          "kind": "selected_files",
+          "path": "followthemoney/schema/Ownership.yaml",
+          "sha256": "b4b584484f555f4694ba17ba0b5a53a2adbe6ae3d5641744df1bc199345f98f7"
+        },
+        {
+          "kind": "selected_files",
+          "path": "followthemoney/schema/Directorship.yaml",
+          "sha256": "04cc760104cbcb9b5afe558f9d82a3ecb1636564f0b6ed618169dc21274a7f6f"
+        },
+        {
+          "kind": "selected_files",
+          "path": "followthemoney/schema/Document.yaml",
+          "sha256": "300faf66b2bf2267761ee22127b73f047f42a5e72ff837b05c985f8c40978eec"
+        }
+      ],
+      "design": "主体、关系、时间与文档证据分层；不由股权或交易对手关系推断目标公司的保证义务。",
+      "native_origin_and_change_boundary": "沿用原生治理与证据图谱，本目标收紧短别名、目标主体和交易对手混淆的边界。",
+      "implementations": [
+        {
+          "path": "backend/report_agents/company_governance.py",
+          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "sha256": "6a6bc31cf5b0882bad28ad3e9a8432a802d1d788e64870fbe31604f30ce99e96",
+          "symbols": [
+            {
+              "symbol": "build_governance_package",
+              "start_line": 288,
+              "end_line": 510
+            }
+          ]
+        },
+        {
+          "path": "backend/report_agents/company_issuer_identity.py",
+          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "sha256": "3746f091d93ccf06ce6349b6380a0508433d791baf729392dcecc5d2e39748a2",
+          "symbols": [
+            {
+              "symbol": "build_issuer_identity",
+              "start_line": 41,
+              "end_line": 54
+            }
+          ]
+        }
+      ],
+      "specific_passed_test_cases": [
+        {
+          "classname": "test.test_company_governance",
+          "name": "test_duplicate_snapshot_removed_but_distinct_dates_remain",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_governance",
+          "name": "test_subsidiary_statement_and_generic_charter_rules_never_create_control_edges",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_governance",
+          "name": "test_uncompleted_capital_reduction_is_not_reported_as_completed_event",
+          "result": "passed"
+        }
+      ],
+      "remaining_evidence": [
+        "关系有效期、责任主体及完整报告判断仍需真实原件和最终正文复核。"
+      ],
+      "real_case_acceptance": {
+        "haitian": false,
+        "kingsoft": false,
+        "holdout": false
+      }
+    },
+    {
+      "repository": "https://github.com/assafelovic/gpt-researcher",
+      "upstream_commit": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+      "pinned_files_reverified": [
+        {
+          "kind": "license_files",
+          "path": "LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "kind": "selected_files",
+          "path": "multi_agents/agent.py",
+          "sha256": "cc74caada782db63307b78a3e9e26a9c204a8c7ea174ad0010a64a34b1d514a8"
+        },
+        {
+          "kind": "selected_files",
+          "path": "multi_agents/agents/orchestrator.py",
+          "sha256": "cda492d11159aae0858545d36905e8d4d91a9964bcbc45c33ccef3a0e090eef1"
+        },
+        {
+          "kind": "selected_files",
+          "path": "multi_agents/agents/editor.py",
+          "sha256": "ecf5148927bafb5751a95860c07bab36254cda14669e331e5022b638eb5aa903"
+        },
+        {
+          "kind": "selected_files",
+          "path": "multi_agents/agents/reviewer.py",
+          "sha256": "f508c6075b7c8fad00cbeacce301ac067ffde2e883c0e12f3c3be3844a47853e"
+        },
+        {
+          "kind": "selected_files",
+          "path": "multi_agents/agents/reviser.py",
+          "sha256": "4ecfb41e131ce5be14726e499f1f8f582c4dc3087048adf871984a88670af138"
+        }
+      ],
+      "design": "研究、编写、独立审稿和修订分离；本项目不采用修订次数耗尽即接受。",
+      "native_origin_and_change_boundary": "已有原生双审与修复机制，经对标沿用；不宣称本轮复制上游实现。",
+      "implementations": [
+        {
+          "path": "backend/report_agents/company_editorial.py",
+          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "sha256": "079d6290aacb6d981d1cd1de755fcfdf49e1cf24e6be17a21e97179f1a57e23e",
+          "symbols": [
+            {
+              "symbol": "build_editorial_package",
+              "start_line": 996,
+              "end_line": 1169
+            },
+            {
+              "symbol": "validate_audit",
+              "start_line": 830,
+              "end_line": 892
+            },
+            {
+              "symbol": "document_review",
+              "start_line": 1262,
+              "end_line": 1334
+            }
+          ]
+        },
+        {
+          "path": "backend/report_agents/company_delivery_contract.py",
+          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "sha256": "722d272fc3de1b54db4792581c9871a570584a92c8f96f8c06f9c71ae74a7fc5",
+          "symbols": [
+            {
+              "symbol": "assess_delivery",
+              "start_line": 321,
+              "end_line": 417
+            }
+          ]
+        }
+      ],
+      "specific_passed_test_cases": [
+        {
+          "classname": "test.test_company_editorial",
+          "name": "test_partial_coverage_and_falsified_review_cannot_pass",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_editorial",
+          "name": "test_persistent_model_failure_remains_pending_and_never_fabricates_prose",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_editorial",
+          "name": "test_final_document_review_cannot_pass_on_invalid_or_unbound_issue",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_editorial",
+          "name": "test_final_editorial_receipts_are_rechecked_instead_of_trusting_green_counts",
+          "result": "passed"
+        }
+      ],
+      "remaining_evidence": [
+        "三份真实报告的独立复核与全篇阅读证据尚未完成。"
+      ],
+      "real_case_acceptance": {
+        "haitian": false,
+        "kingsoft": false,
+        "holdout": false
+      }
+    },
+    {
+      "repository": "https://github.com/duhu2000/financial-services-qcc",
+      "upstream_commit": "fb1289cf1c58fa99a3af37d594488400a22974b7",
+      "pinned_files_reverified": [
+        {
+          "kind": "license_files",
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "kind": "selected_files",
+          "path": "commands/qcc-kyb-profile.md",
+          "sha256": "39ec3b097472c08fc397562f51bbf36dcab9e14accf02bab28e51401a3201762"
+        },
+        {
+          "kind": "selected_files",
+          "path": "skills/kyb-verification-qcc/SKILL.md",
+          "sha256": "1cfefdd0a76f0f0560ecb91c52b689406c52e2f93a3b346b80e882c2d3db7b22"
+        }
+      ],
+      "design": "将主体、治理和风险问题映射到工具参数、预期原件字段和章节；不把第三方技能示例视为官方能力或既成事实。",
+      "native_origin_and_change_boundary": "本目标需求 ID 到已有工具精确参数和调用回执的关联。",
+      "implementations": [
+        {
+          "path": "backend/company_requirements.py",
+          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "sha256": "cc513af723cd6ce448995817bc9a1f0b770f97a8291a202fdabb7b8b7d2087dc",
+          "symbols": [
+            {
+              "symbol": "build_requirements",
+              "start_line": 92,
+              "end_line": 132
+            },
+            {
+              "symbol": "platform_requirement_ids",
+              "start_line": 150,
+              "end_line": 160
+            }
+          ]
+        }
+      ],
+      "specific_passed_test_cases": [
+        {
+          "classname": "test.test_company_requirements",
+          "name": "test_platform_mapping_requires_the_actual_target_and_aspect",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_requirements",
+          "name": "test_actual_xiniu_aspect_label_binds_only_matching_arguments_and_preserves_the_label",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_requirements",
+          "name": "test_unexecuted_planned_tools_remain_requirement_gaps_without_invented_arguments",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_requirements",
+          "name": "test_platform_quota_failure_remains_a_collection_gap_linked_to_the_question",
+          "result": "passed"
+        }
+      ],
+      "remaining_evidence": [
+        "工具与模型的真实可用性仍须由当前三个真实运行回执分别证明。"
+      ],
+      "real_case_acceptance": {
+        "haitian": false,
+        "kingsoft": false,
+        "holdout": false
+      }
+    },
+    {
+      "repository": "https://github.com/langchain-ai/open_deep_research",
+      "upstream_commit": "1b7d2e80db9faa586165c60e09096dbbfd483a64",
+      "pinned_files_reverified": [
+        {
+          "kind": "license_files",
+          "path": "LICENSE",
+          "sha256": "3404cb66935968edefe1149c9bfcb44bd8532c437c01ac095ec53b6e195ce110"
+        },
+        {
+          "kind": "selected_files",
+          "path": "src/open_deep_research/deep_researcher.py",
+          "sha256": "af128d5d8773008d021b6ef7562e9fb90a45f7eb5e886483d1e6e835223275e0"
+        },
+        {
+          "kind": "selected_files",
+          "path": "src/open_deep_research/state.py",
+          "sha256": "7a03f4a1d5132573ed306d403fd3478fe8916d955f3caa44a8d365877ac35d0e"
+        },
+        {
+          "kind": "selected_files",
+          "path": "src/open_deep_research/configuration.py",
+          "sha256": "61e1a62ada20d16cb7b876c10b15a3ddb71f61248a53a05d7511ca6930af98da"
+        }
+      ],
+      "design": "研究问题、工具参数与停止条件绑定；单次恢复只补具体缺口，预算停止不授予通过。",
+      "native_origin_and_change_boundary": "本目标已增加需求合同和专项恢复约束；跨轮无进展持久化门禁仍待接入。",
+      "implementations": [
+        {
+          "path": "backend/company_requirements.py",
+          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "sha256": "cc513af723cd6ce448995817bc9a1f0b770f97a8291a202fdabb7b8b7d2087dc",
+          "symbols": [
+            {
+              "symbol": "build_requirements",
+              "start_line": 92,
+              "end_line": 132
+            },
+            {
+              "symbol": "resume_gap_intake",
+              "start_line": 163,
+              "end_line": 172
+            }
+          ]
+        }
+      ],
+      "specific_passed_test_cases": [
+        {
+          "classname": "test.test_company_requirements",
+          "name": "test_every_real_company_checkbox_has_a_specific_question_and_original_contract",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_requirements",
+          "name": "test_resume_uses_only_specific_gaps_without_mutating_intake_or_claiming_acceptance",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_requirements",
+          "name": "test_real_resume_and_collector_pass_only_gap_queries_with_requirement_ids[False]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_requirements",
+          "name": "test_real_resume_and_collector_pass_only_gap_queries_with_requirement_ids[True]",
+          "result": "passed"
+        }
+      ],
+      "remaining_evidence": [
+        "跨轮无进展的持久化门禁尚未实现。",
+        "真实问题与原件采用回执仍须在三个最终报告中核对。"
+      ],
+      "real_case_acceptance": {
+        "haitian": false,
+        "kingsoft": false,
+        "holdout": false
+      }
+    },
+    {
+      "repository": "https://github.com/openaleph/openaleph",
+      "upstream_commit": "ef41665db5e8c8e9b563ba61036ea9842f8c4dec",
+      "pinned_files_reverified": [
+        {
+          "kind": "license_files",
+          "path": "LICENSE.txt",
+          "sha256": "dbedcaa72fa2f5dea4fbaaddd9bf506c31b1142cd24b19aef811e075e536b4a7"
+        },
+        {
+          "kind": "selected_files",
+          "path": "aleph/model/document.py",
+          "sha256": "887325dfb9093fef745701afbfa6cef83ab8805f2400ffaa1e82b285f0377d4b"
+        },
+        {
+          "kind": "selected_files",
+          "path": "aleph/model/entity.py",
+          "sha256": "aebdbdc069293a03ca56d07badf4f5a0460294ee993f615836cb303c9e983145"
+        },
+        {
+          "kind": "selected_files",
+          "path": "aleph/model/entityset.py",
+          "sha256": "509e385785dd3ec314a088fcec02cc6e139d077e18bc234e1520bde0bc2a832b"
+        }
+      ],
+      "design": "内容哈希与文档版本索引；原件、发现与结论保持可追溯，不宣称自动风险评级。",
+      "native_origin_and_change_boundary": "沿用原生内容哈希检查点；本目标新增逐信息原生用途判定回执的内容索引与严格恢复。",
+      "implementations": [
+        {
+          "path": "backend/report_agents/company_checkpoint.py",
+          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "sha256": "b4e3ede38e67693c68003b3cad0638082317767b11156690476642ef39ed9511",
+          "symbols": [
+            {
+              "symbol": "save_generation_checkpoint",
+              "start_line": 45,
+              "end_line": 72
+            },
+            {
+              "symbol": "read_generation_checkpoint",
+              "start_line": 75,
+              "end_line": 114
+            }
+          ]
+        },
+        {
+          "path": "backend/report_agents/company_information_journal.py",
+          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "sha256": "1f84b2c0f6310d87fec6c877708ff126b22f1999e7d5c5858ddda5f767ddb3c1",
+          "symbols": [
+            {
+              "symbol": "checkpoint_batch",
+              "start_line": 40,
+              "end_line": 76
+            },
+            {
+              "symbol": "read_decisions",
+              "start_line": 79,
+              "end_line": 128
+            }
+          ]
+        }
+      ],
+      "specific_passed_test_cases": [
+        {
+          "classname": "test.test_company_checkpoint",
+          "name": "test_immutable_payload_must_match_pointer_hash",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_checkpoint",
+          "name": "test_changed_original_or_research_scope_does_not_load_checkpoint[target]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_checkpoint",
+          "name": "test_changed_original_or_research_scope_does_not_load_checkpoint[project]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_checkpoint",
+          "name": "test_changed_original_or_research_scope_does_not_load_checkpoint[body]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_checkpoint",
+          "name": "test_changed_original_or_research_scope_does_not_load_checkpoint[metadata]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_checkpoint",
+          "name": "test_changed_original_or_research_scope_does_not_load_checkpoint[date]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_checkpoint",
+          "name": "test_changed_original_or_research_scope_does_not_load_checkpoint[industry]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_checkpoint",
+          "name": "test_changed_original_or_research_scope_does_not_load_checkpoint[questions]",
+          "result": "passed"
+        },
+        {
+          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "name": "test_completed_batch_survives_without_whole_stage_or_delivery_approval",
+          "result": "passed"
+        },
+        {
+          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "name": "test_current_input_scope_and_template_are_revalidated[text]",
+          "result": "passed"
+        },
+        {
+          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "name": "test_current_input_scope_and_template_are_revalidated[context]",
+          "result": "passed"
+        },
+        {
+          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "name": "test_current_input_scope_and_template_are_revalidated[provenance]",
+          "result": "passed"
+        },
+        {
+          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "name": "test_current_input_scope_and_template_are_revalidated[evidence_ids]",
+          "result": "passed"
+        },
+        {
+          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "name": "test_current_input_scope_and_template_are_revalidated[target]",
+          "result": "passed"
+        },
+        {
+          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "name": "test_current_input_scope_and_template_are_revalidated[date]",
+          "result": "passed"
+        },
+        {
+          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "name": "test_current_input_scope_and_template_are_revalidated[outline]",
+          "result": "passed"
+        },
+        {
+          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "name": "test_real_builder_resumes_completed_batch_after_phase_interrupt_without_recalling_it",
+          "result": "passed"
+        }
+      ],
+      "remaining_evidence": [
+        "逐批恢复机制的真实恢复运行与原生回执观察尚待完成。",
+        "最终报告的事实与引用定位、逐条采用及全部导出验证待完成。"
+      ],
+      "real_case_acceptance": {
+        "haitian": false,
+        "kingsoft": false,
+        "holdout": false
+      }
+    },
+    {
+      "repository": "https://github.com/rgerjeki/Dossier",
+      "upstream_commit": "512b121739a8c95ec5015dcee337fefc48da1105",
+      "pinned_files_reverified": [
+        {
+          "kind": "license_files",
+          "path": "LICENSE",
+          "sha256": "fb9530c1aafa9e3a80a6721fc7ed2665169140a3af476d3a75dffd40f1de0a71"
+        },
+        {
+          "kind": "selected_files",
+          "path": "src/dossier/models.py",
+          "sha256": "a36f41a0984b486d582a3962a04f6bf79957dcd717f272c9d8bd8d11481aba75"
+        },
+        {
+          "kind": "selected_files",
+          "path": "src/dossier/case.py",
+          "sha256": "2cfd1a9055aa9ac02b46091208ce7b259ee4bbf49c7defe02bd282149210aaad"
+        },
+        {
+          "kind": "selected_files",
+          "path": "src/dossier/ui/report_editor.py",
+          "sha256": "5ac448ee66493c1642645609a88df7f57da0e21270365c0fffa3b3f74025077a"
+        }
+      ],
+      "design": "采集归档状态、来源评价与采用去向分列；included 或已归档不等同于事实或报告通过。",
+      "native_origin_and_change_boundary": "沿用原生采集去向审计和逐信息采用账本；人工复核定位仍须真实交付补齐。",
+      "implementations": [
+        {
+          "path": "backend/company_collection_audit.py",
+          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "sha256": "c4527b867700b1e31b167c8beb2cb362460fcb2b08f69e85c33907f3fa1e9d14",
+          "symbols": [
+            {
+              "symbol": "CollectionAudit.candidate",
+              "start_line": 52,
+              "end_line": 59
+            },
+            {
+              "symbol": "CollectionAudit.observe",
+              "start_line": 61,
+              "end_line": 73
+            },
+            {
+              "symbol": "CollectionAudit.snapshot",
+              "start_line": 75,
+              "end_line": 82
+            }
+          ]
+        },
+        {
+          "path": "backend/report_agents/company_information_usage.py",
+          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "sha256": "f4935684a8c3d74fee57890b7360ec40cd9b1d2026aa449092e1d9d294ebe672",
+          "symbols": [
+            {
+              "symbol": "finalize_usage",
+              "start_line": 308,
+              "end_line": 372
+            }
+          ]
+        }
+      ],
+      "specific_passed_test_cases": [
+        {
+          "classname": "test.test_company_collection_audit",
+          "name": "test_deferred_candidate_remains_auditable_and_is_not_labelled_irrelevant",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_collection_audit",
+          "name": "test_real_collector_can_admit_a_primary_for_an_uncovered_module_after_another_module_deferred_it[False]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_collection_audit",
+          "name": "test_real_collector_can_admit_a_primary_for_an_uncovered_module_after_another_module_deferred_it[True]",
+          "result": "passed"
+        }
+      ],
+      "remaining_evidence": [
+        "人工复核清单的来源到正文定位，以及三份完整报告复核尚待实际完成。"
+      ],
+      "real_case_acceptance": {
+        "haitian": false,
+        "kingsoft": false,
+        "holdout": false
+      }
+    },
+    {
+      "repository": "https://github.com/stanford-oval/storm",
+      "upstream_commit": "fb951af7744dab086e34962e9bc6fe878e145f83",
+      "pinned_files_reverified": [
+        {
+          "kind": "license_files",
+          "path": "LICENSE",
+          "sha256": "88241386c28ff04821832762714c9ff0d22c4de6b0633d11554e69a968a718e0"
+        },
+        {
+          "kind": "selected_files",
+          "path": "knowledge_storm/storm_wiki/modules/knowledge_curation.py",
+          "sha256": "c3f037dc808287631825e6e9bb4dd0b51b9ca43f1c790a713d41513b7ae2c7e0"
+        }
+      ],
+      "design": "问题驱动查询、去重和有界深入；不采用首条摘要或固定字数裁剪代替全报告采用核查。",
+      "native_origin_and_change_boundary": "本目标需求查询绑定与去重，保留项目既有完整原文及字段语义审核。",
+      "implementations": [
+        {
+          "path": "backend/company_requirements.py",
+          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "sha256": "cc513af723cd6ce448995817bc9a1f0b770f97a8291a202fdabb7b8b7d2087dc",
+          "symbols": [
+            {
+              "symbol": "bind_queries",
+              "start_line": 135,
+              "end_line": 147
+            },
+            {
+              "symbol": "resume_gap_intake",
+              "start_line": 163,
+              "end_line": 172
+            }
+          ]
+        },
+        {
+          "path": "backend/report_agents/company_information_usage.py",
+          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "sha256": "f4935684a8c3d74fee57890b7360ec40cd9b1d2026aa449092e1d9d294ebe672",
+          "symbols": [
+            {
+              "symbol": "information_records",
+              "start_line": 66,
+              "end_line": 94
+            },
+            {
+              "symbol": "routing_fingerprint",
+              "start_line": 173,
+              "end_line": 181
+            }
+          ]
+        }
+      ],
+      "specific_passed_test_cases": [
+        {
+          "classname": "test.test_company_requirements",
+          "name": "test_resume_uses_only_specific_gaps_without_mutating_intake_or_claiming_acceptance",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_information_usage",
+          "name": "test_same_text_different_url_is_one_information_with_every_source",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_information_usage",
+          "name": "test_different_fields_periods_and_numeric_precision_are_not_fuzzy_duplicates",
+          "result": "passed"
+        }
+      ],
+      "remaining_evidence": [
+        "两个开发报告及保留样本中限定语、相反信息和财务期间的最终正文核验待完成。"
+      ],
+      "real_case_acceptance": {
+        "haitian": false,
+        "kingsoft": false,
+        "holdout": false
+      }
+    }
+  ],
+  "regression_xml_sha256": "5d5102586188d1846d2a2736b49da9a4e4decccacdf8e639a3f12f695a89c33f",
+  "network_calls": 0,
+  "model_calls": 0,
+  "third_party_runtime_dependency_added": false,
+  "upstream_source_copied_into_runtime": false,
+  "full_report_acceptance": false,
+  "goal_complete": false
+}

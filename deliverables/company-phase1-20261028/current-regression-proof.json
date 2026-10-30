@@ -1,13 +1,13 @@
 {
-  "backend_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04",
-  "checked_repository_commit": "60d7aca0fbdf7f17ad85f5c8fdeb3d95c6de6dc3",
+  "backend_product_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+  "checked_repository_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
   "backend_test_frontend_files_unchanged_since_test_commit": true,
   "backend": {
-    "passed": 4724,
+    "passed": 4738,
     "failures": 0,
     "errors": 0,
-    "skipped": 0,
-    "platform": "Linux Python 3.12.3",
+    "skipped": 4,
+    "platform": "Windows Python 3.12.14",
     "frontend_passed": 126,
     "evidence": {
       "test-results/full-regression-66bd061-linux.log": {
@@ -21,15 +21,56 @@
       "test-results/frontend-regression-60d7aca.log": {
         "sha256": "0e25bd8ec223f4af370a5277ea362cdf7a1acea6852f2467f03f5afdf18446e7",
         "bytes": 12465
+      },
+      "test-results/routing-recovery-full-20261030.log": {
+        "sha256": "18625155d7eb6f62ab4ce222f1ef514005773a093c120b011e6cd1e0cbbe3b8d",
+        "bytes": 31076
+      },
+      "test-results/routing-recovery-full-20261030.xml": {
+        "sha256": "5d5102586188d1846d2a2736b49da9a4e4decccacdf8e639a3f12f695a89c33f",
+        "bytes": 860770
       }
     },
+    "skipped_tests": [
+      {
+        "classname": "test.test_backup_busy_workloads",
+        "name": "test_busy_job_skips_before_stopping_any_service[research]",
+        "reason": "Real flock and service guard run on Linux",
+        "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+      },
+      {
+        "classname": "test.test_backup_busy_workloads",
+        "name": "test_busy_job_skips_before_stopping_any_service[assistant]",
+        "reason": "Real flock and service guard run on Linux",
+        "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+      },
+      {
+        "classname": "test.test_backup_busy_workloads",
+        "name": "test_busy_job_skips_before_stopping_any_service[ingestion]",
+        "reason": "Real flock and service guard run on Linux",
+        "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+      },
+      {
+        "classname": "test.test_release_preparation",
+        "name": "test_first_start_allows_missing_bm25_file_when_parent_exists",
+        "reason": "Actual Linux path checks run on the target platform.",
+        "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+      }
+    ],
     "scope": "full automated regression; not real-report acceptance"
+  },
+  "historical_linux_base": {
+    "product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04",
+    "passed": 4724,
+    "skipped": 0,
+    "scope": "base product before the routing candidate; not a Linux full run of the candidate"
   },
   "frontend": {
     "passed": 126,
     "failures": 0,
     "skipped": 0,
     "tested_commit": "60d7aca0fbdf7f17ad85f5c8fdeb3d95c6de6dc3",
+    "current_frontend_sources_unchanged_since_test": true,
     "command": "bundled node --test test/*.cjs"
   },
   "historical_proof": {
@@ -49,6 +90,14 @@
     "test-results/frontend-regression-60d7aca.log": {
       "sha256": "0e25bd8ec223f4af370a5277ea362cdf7a1acea6852f2467f03f5afdf18446e7",
       "bytes": 12465
+    },
+    "test-results/routing-recovery-full-20261030.log": {
+      "sha256": "18625155d7eb6f62ab4ce222f1ef514005773a093c120b011e6cd1e0cbbe3b8d",
+      "bytes": 31076
+    },
+    "test-results/routing-recovery-full-20261030.xml": {
+      "sha256": "5d5102586188d1846d2a2736b49da9a4e4decccacdf8e639a3f12f695a89c33f",
+      "bytes": 860770
     }
   },
   "real_report_acceptance": "pending for all three cases"
