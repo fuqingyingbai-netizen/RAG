@@ -1,173 +1,55 @@
 {
-  "backend_product_commit": "a7aaf283c8f7103ebe564f4f0da7eb8a285a4a70",
-  "checked_repository_commit": "ceac976dfc381d4266b7bb6f0cd564bd5016aee7",
-  "backend_test_frontend_files_unchanged_since_test_commit": false,
+  "backend_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04",
+  "checked_repository_commit": "60d7aca0fbdf7f17ad85f5c8fdeb3d95c6de6dc3",
+  "backend_test_frontend_files_unchanged_since_test_commit": true,
   "backend": {
-    "tested_commit": "079218f1ab723c2ef562a0e72731b75c09505b04",
-    "status": "completed",
-    "tests": 4252,
-    "passed": 4251,
+    "passed": 4724,
     "failures": 0,
     "errors": 0,
-    "skipped": 1,
-    "warnings": 2340,
-    "seconds": 2502.196,
-    "reported_wall_seconds": 2502.27,
-    "result": "passed",
-    "scope": "full backend on company source079218f before person/Milvus handoff; not a full run on final joint code",
-    "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -p anyio.pytest_plugin --junitxml=work/company-phase1-20261028/full-regression-079218f.xml"
+    "skipped": 0,
+    "platform": "Linux Python 3.12.3",
+    "frontend_passed": 126,
+    "evidence": {
+      "test-results/full-regression-66bd061-linux.log": {
+        "sha256": "bf5fb2dbc9865300eec344323d924a07d511735cd1f20e716fa186204cc0a88b",
+        "bytes": 31329
+      },
+      "test-results/full-regression-66bd061-linux.xml": {
+        "sha256": "7f9288c58b07a2f3b89542f587ea04594238863efa331ec6f6e40455bdee2491",
+        "bytes": 856117
+      },
+      "test-results/frontend-regression-60d7aca.log": {
+        "sha256": "0e25bd8ec223f4af370a5277ea362cdf7a1acea6852f2467f03f5afdf18446e7",
+        "bytes": 12465
+      }
+    },
+    "scope": "full automated regression; not real-report acceptance"
   },
   "frontend": {
-    "passed": 118,
+    "passed": 126,
     "failures": 0,
     "skipped": 0,
-    "milliseconds": 821.5022,
-    "command": "node --test test/*.cjs",
-    "tested_commit": "079218f1ab723c2ef562a0e72731b75c09505b04",
-    "unchanged_frontend_and_js_tests": true
+    "tested_commit": "60d7aca0fbdf7f17ad85f5c8fdeb3d95c6de6dc3",
+    "command": "bundled node --test test/*.cjs"
+  },
+  "historical_proof": {
+    "commit": "60d7aca0fbdf7f17ad85f5c8fdeb3d95c6de6dc3",
+    "path": "deliverables/company-phase1-20261028/current-regression-proof.json",
+    "git_blob": "678d542cd56951a36521d1844b4c09cd04a5ac4b"
   },
   "files": {
-    "deliverables/company-phase1-20261028/test-results/full-regression-6e6bf3b.xml": {
-      "sha256": "7e333aa928406293da094ec22d306855cf09691839d5440c88f402b8961d374e",
-      "bytes": 766794,
-      "native_log": "work/company-phase1-20261028/full-regression-6e6bf3b.xml"
+    "test-results/full-regression-66bd061-linux.log": {
+      "sha256": "bf5fb2dbc9865300eec344323d924a07d511735cd1f20e716fa186204cc0a88b",
+      "bytes": 31329
     },
-    "deliverables/company-phase1-20261028/test-results/full-regression-6e6bf3b.txt": {
-      "sha256": "9614bd0a4b35d2a007775eedc19856a144f24c29feb7a4602c2c1af6ac7c44ef",
-      "bytes": 28609,
-      "native_log": "work/company-phase1-20261028/full-regression-6e6bf3b.log"
+    "test-results/full-regression-66bd061-linux.xml": {
+      "sha256": "7f9288c58b07a2f3b89542f587ea04594238863efa331ec6f6e40455bdee2491",
+      "bytes": 856117
     },
-    "deliverables/company-phase1-20261028/test-results/frontend-regression-d8d4d77.txt": {
-      "sha256": "306173ec566947f3b6a488285eef96c48c150adfad9b7ad24a3eb78e2909ace4",
-      "bytes": 11728,
-      "native_log": "work/company-phase1-20261028/frontend-regression-d8d4d77.log"
-    },
-    "deliverables/company-phase1-20261028/test-results/chapter-encoding-regression.xml": {
-      "sha256": "23bf3720246baabc26220f37cd60e3d4307931c70b29c0ca573291d94bfe59ed",
-      "bytes": 15374,
-      "native_log": "work/company-phase1-20261028/chapter-encoding-regression.xml"
-    },
-    "deliverables/company-phase1-20261028/test-results/chapter-encoding-regression.txt": {
-      "sha256": "2cc2d11ae44a7c14289db94450a3d992598469dc1567dbb1429a8de0eb0c29a5",
-      "bytes": 182,
-      "native_log": "work/company-phase1-20261028/chapter-encoding-regression.log"
-    },
-    "deliverables/company-phase1-20261028/test-results/full-regression-2099cd3.xml": {
-      "sha256": "53d7cf900acad155a32a6185b56f07dfa616c85fcb55cbe85e2437e9c5afd739",
-      "bytes": 767979,
-      "native_log": "work/company-phase1-20261028/full-regression-2099cd3-run2.xml"
-    },
-    "deliverables/company-phase1-20261028/test-results/full-regression-2099cd3.txt": {
-      "sha256": "f1850b5b26c58ec302a25d90caad7c5cb51fe1e3e91157c500ef44edd689d35b",
-      "bytes": 28609,
-      "native_log": "work/company-phase1-20261028/full-regression-2099cd3-run2.log"
-    },
-    "deliverables/company-phase1-20261028/test-results/financial-boundary-focused-final.log": {
-      "sha256": "a3ce0e2a0e425baf723df7120acf18b95b560f53a1a2fa8ad4d2c2a5d9f8d8fb",
-      "bytes": 183
-    },
-    "deliverables/company-phase1-20261028/test-results/financial-boundary-focused-final.xml": {
-      "sha256": "2342c3f5a7488704f5ce1ed5e8b50b3589ed5fc56120a5141fc91f04d92ac1a9",
-      "bytes": 21708
-    },
-    "deliverables/company-phase1-20261028/test-results/full-regression-f0395c9-failed.log": {
-      "sha256": "145712ea65c3df76cf5c08ed7cf82e985b0b0fbc5f5aa7a6d7c6be08ffc3d0b3",
-      "bytes": 36256
-    },
-    "deliverables/company-phase1-20261028/test-results/full-regression-f0395c9-failed.xml": {
-      "sha256": "c5c0175ea3f441c1e69af42a67b63009cd73bc74990946a89e854cfc10271473",
-      "bytes": 782006
-    },
-    "deliverables/company-phase1-20261028/test-results/startup-recheck-f0395c9-failed.log": {
-      "sha256": "f93ad86421eb437d6fe11d5853d1f9868af9bc891f8741b1fba83511f9ed36a2",
-      "bytes": 7748
-    },
-    "deliverables/company-phase1-20261028/test-results/startup-recheck-f0395c9-failed.xml": {
-      "sha256": "0d992428df6188856d83c9733b07c07ee13aa3836c063040dbc1d6140d1bf619",
-      "bytes": 9531
-    },
-    "deliverables/main-sync-20261030/full-regression-079218f.log": {
-      "sha256": "50d2cdcf32fdbc778c5c1f1098796b8b99fea8126b4df9e48082c5543e9c8421",
-      "bytes": 28690
-    },
-    "deliverables/main-sync-20261030/full-regression-079218f.xml": {
-      "sha256": "9991e8ca1c91769a63a03908efcbbabfc3306c232e76182d236ca30cc933d297",
-      "bytes": 776624
+    "test-results/frontend-regression-60d7aca.log": {
+      "sha256": "0e25bd8ec223f4af370a5277ea362cdf7a1acea6852f2467f03f5afdf18446e7",
+      "bytes": 12465
     }
   },
-  "full_report_accepted": false,
-  "real_browser_and_word_all_pages_review": "pending_final_candidate",
-  "latest_product_full_regression": "Full company-source079218f run completed; exact scope/result below. Final combined code separately passed joint affected-suite regression; not labelled a full combined run.",
-  "frontend_files_unchanged_since_d8d4d77": true,
-  "last_completed_backend_full_regression": {
-    "tested_commit": "079218f1ab723c2ef562a0e72731b75c09505b04",
-    "status": "completed",
-    "tests": 4252,
-    "passed": 4251,
-    "failures": 0,
-    "errors": 0,
-    "skipped": 1,
-    "warnings": 2340,
-    "seconds": 2502.196,
-    "reported_wall_seconds": 2502.27,
-    "result": "passed",
-    "scope": "full backend on company source079218f before person/Milvus handoff; not a full run on final joint code",
-    "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -p anyio.pytest_plugin --junitxml=work/company-phase1-20261028/full-regression-079218f.xml"
-  },
-  "focused_legacy_audit_regression": {
-    "passed": 49,
-    "failures": 0,
-    "seconds": 4.53,
-    "files": [
-      "test-results/legacy-audit-ocr-regression.log",
-      "test-results/legacy-audit-ocr-regression.xml"
-    ]
-  },
-  "previous_completed_backend_full_regression": {
-    "tested_commit": "f0395c996c3ea17ced292cab441387611b274d24",
-    "passed": 4233,
-    "skipped": 1,
-    "failures": 1,
-    "errors": 0,
-    "warnings": 2340,
-    "pytest_reported_wall_seconds": 1984.97,
-    "result": "failed: isolated startup subprocess exceeded 90s",
-    "standalone_recheck": "also timed out; no timeout extension or test skip applied"
-  },
-  "previous_successful_backend_full_regression": {
-    "tested_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
-    "passed": 4213,
-    "skipped": 1,
-    "failures": 0,
-    "errors": 0,
-    "warnings": 2340,
-    "seconds": 1988.724,
-    "network_allowed": false,
-    "plugin_autoload": false,
-    "pytest_reported_wall_seconds": 1988.92
-  },
-  "financial_boundary_focused": {
-    "passed": 132,
-    "failures": 0,
-    "seconds": 6.47,
-    "files": [
-      "test-results/financial-boundary-focused-final.log",
-      "test-results/financial-boundary-focused-final.xml"
-    ]
-  },
-  "latest_joint_regression": {
-    "tested_commit": "a7aaf283c8f7103ebe564f4f0da7eb8a285a4a70",
-    "tests": 1345,
-    "passed": 1344,
-    "skipped": 1,
-    "failures": 0,
-    "errors": 0,
-    "warnings": 670,
-    "seconds": 263.769,
-    "reported_wall_seconds": 263.99,
-    "startup_test_seconds": 38.417,
-    "startup_deadline_seconds": 90,
-    "skipped_reason": "Actual Linux path checks run on the target platform.",
-    "scope": "all person tests and selected affected company/industry/assistant/search/export/startup/indexing suites; selection file retained; not a full backend run"
-  }
+  "real_report_acceptance": "pending for all three cases"
 }

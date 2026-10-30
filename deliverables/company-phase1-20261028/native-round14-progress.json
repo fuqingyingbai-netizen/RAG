@@ -1,0 +1,58 @@
+{
+  "observed_at_utc": "2026-10-30T12:15:04.021533+00:00",
+  "case": "haitian",
+  "native_session_id": 72343,
+  "observed_live_processes": [
+    {
+      "ProcessId": 11880,
+      "ParentProcessId": 41020,
+      "CreationDate": "2026-10-30T19:44:48.77704+08:00"
+    },
+    {
+      "ProcessId": 65284,
+      "ParentProcessId": 11880,
+      "CreationDate": "2026-10-30T19:44:48.791293+08:00"
+    }
+  ],
+  "code_commit": "60d7aca0fbdf7f17ad85f5c8fdeb3d95c6de6dc3",
+  "runtime_source_unchanged_since_start": true,
+  "stage": "frozen-report",
+  "new_collection_acceptance": false,
+  "event_counts": {
+    "http_returned": 1,
+    "model_started": 11,
+    "model_http_started": 12,
+    "model_http_headers": 11,
+    "model_failed": 3,
+    "model_http_failed": 1,
+    "model_returned": 7
+  },
+  "finish_reasons": {
+    "stop": 7
+  },
+  "unfinished_logical_model_numbers": [
+    11
+  ],
+  "reported_tokens": {
+    "input_tokens": 42705,
+    "output_tokens": 56221,
+    "total_tokens": 98926
+  },
+  "latest_stage": {
+    "stage": "report",
+    "label": "报告生成心跳正常",
+    "status": "running",
+    "current_label": "信息逐条用途核对完成",
+    "current_section": ""
+  },
+  "ledger_snapshot": "work/company-phase1-20261028/round14-ledger-snapshot-20261030T121503Z.jsonl",
+  "ledger_snapshot_sha256": "b6d9fc8f8d19a925507c94d59b875ae16afea3e31fc6045533353cd407574420",
+  "ignored_partial_lines": 0,
+  "report_accepted": false,
+  "currency_cost_unknown": true,
+  "notes": [
+    "HTTP 200 headers are not stream completion.",
+    "A stop response is not a semantic approval.",
+    "Read-only process observation and source hashes do not grant final report acceptance."
+  ]
+}
