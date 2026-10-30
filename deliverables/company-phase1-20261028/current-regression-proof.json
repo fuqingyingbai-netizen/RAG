@@ -1,18 +1,17 @@
 {
-  "backend_product_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
+  "backend_product_commit": "pending financial-field-boundary commit",
   "checked_repository_commit": "04486c43af2230b2c0c836988cb6c653f540fc0c",
-  "backend_test_frontend_files_unchanged_since_test_commit": true,
+  "backend_test_frontend_files_unchanged_since_test_commit": false,
   "backend": {
-    "tested_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
-    "passed": 4213,
+    "tested_commit": "f0395c996c3ea17ced292cab441387611b274d24",
+    "passed": 4233,
     "skipped": 1,
-    "failures": 0,
+    "failures": 1,
     "errors": 0,
     "warnings": 2340,
-    "seconds": 1988.724,
-    "network_allowed": false,
-    "plugin_autoload": false,
-    "pytest_reported_wall_seconds": 1988.92
+    "pytest_reported_wall_seconds": 1984.97,
+    "result": "failed: isolated startup subprocess exceeded 90s",
+    "standalone_recheck": "also timed out; no timeout extension or test skip applied"
   },
   "frontend": {
     "passed": 118,
@@ -55,23 +54,46 @@
       "sha256": "f1850b5b26c58ec302a25d90caad7c5cb51fe1e3e91157c500ef44edd689d35b",
       "bytes": 28609,
       "native_log": "work/company-phase1-20261028/full-regression-2099cd3-run2.log"
+    },
+    "deliverables/company-phase1-20261028/test-results/financial-boundary-focused-final.log": {
+      "sha256": "a3ce0e2a0e425baf723df7120acf18b95b560f53a1a2fa8ad4d2c2a5d9f8d8fb",
+      "bytes": 183
+    },
+    "deliverables/company-phase1-20261028/test-results/financial-boundary-focused-final.xml": {
+      "sha256": "2342c3f5a7488704f5ce1ed5e8b50b3589ed5fc56120a5141fc91f04d92ac1a9",
+      "bytes": 21708
+    },
+    "deliverables/company-phase1-20261028/test-results/full-regression-f0395c9-failed.log": {
+      "sha256": "145712ea65c3df76cf5c08ed7cf82e985b0b0fbc5f5aa7a6d7c6be08ffc3d0b3",
+      "bytes": 36256
+    },
+    "deliverables/company-phase1-20261028/test-results/full-regression-f0395c9-failed.xml": {
+      "sha256": "c5c0175ea3f441c1e69af42a67b63009cd73bc74990946a89e854cfc10271473",
+      "bytes": 782006
+    },
+    "deliverables/company-phase1-20261028/test-results/startup-recheck-f0395c9-failed.log": {
+      "sha256": "f93ad86421eb437d6fe11d5853d1f9868af9bc891f8741b1fba83511f9ed36a2",
+      "bytes": 7748
+    },
+    "deliverables/company-phase1-20261028/test-results/startup-recheck-f0395c9-failed.xml": {
+      "sha256": "0d992428df6188856d83c9733b07c07ee13aa3836c063040dbc1d6140d1bf619",
+      "bytes": 9531
     }
   },
   "full_report_accepted": false,
   "real_browser_and_word_all_pages_review": "pending_final_candidate",
-  "latest_product_full_regression": "passed; full-regression-2099cd3.xml/txt",
+  "latest_product_full_regression": "pending; previous f0395c9 run FAILED, not passed",
   "frontend_files_unchanged_since_d8d4d77": true,
   "last_completed_backend_full_regression": {
-    "tested_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
-    "passed": 4213,
+    "tested_commit": "f0395c996c3ea17ced292cab441387611b274d24",
+    "passed": 4233,
     "skipped": 1,
-    "failures": 0,
+    "failures": 1,
     "errors": 0,
     "warnings": 2340,
-    "seconds": 1988.724,
-    "network_allowed": false,
-    "plugin_autoload": false,
-    "pytest_reported_wall_seconds": 1988.92
+    "pytest_reported_wall_seconds": 1984.97,
+    "result": "failed: isolated startup subprocess exceeded 90s",
+    "standalone_recheck": "also timed out; no timeout extension or test skip applied"
   },
   "focused_legacy_audit_regression": {
     "passed": 49,
@@ -93,5 +115,26 @@
     "plugin_autoload": false,
     "pytest_reported_wall_seconds": 1287.33,
     "tested_commit": "6e6bf3b5423e75b343d15fc7ad5731c914d823fa"
+  },
+  "previous_successful_backend_full_regression": {
+    "tested_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
+    "passed": 4213,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "warnings": 2340,
+    "seconds": 1988.724,
+    "network_allowed": false,
+    "plugin_autoload": false,
+    "pytest_reported_wall_seconds": 1988.92
+  },
+  "financial_boundary_focused": {
+    "passed": 132,
+    "failures": 0,
+    "seconds": 6.47,
+    "files": [
+      "test-results/financial-boundary-focused-final.log",
+      "test-results/financial-boundary-focused-final.xml"
+    ]
   }
 }
