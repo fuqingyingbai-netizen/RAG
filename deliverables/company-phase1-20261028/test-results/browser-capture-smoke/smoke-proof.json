@@ -1,0 +1,120 @@
+{
+  "at": "2026-10-30T15:58:34.955Z",
+  "scope": "synthetic long-page capture and rejection smoke only",
+  "script_sha256": "bc6f57623b662d8b9c6274b2a94f9ebc2a4d561b94c5fffe60338ff7eb7cba27",
+  "smoke_script_sha256": "257e81da5f57def6100dcc3b9f96fc83d3500224bab3b80c958c43cfd2504509",
+  "browser_version": "149.0.7827.55",
+  "views": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "document_height": 4401,
+      "coverage_verified": true,
+      "screenshots": [
+        {
+          "name": "desktop-0001.png",
+          "scroll_y": 0,
+          "sha256": "bdabe33be2d0182d24a2bad447216953d88613a18abc0c51cb140a4c4277c912",
+          "visual_review": "pending"
+        },
+        {
+          "name": "desktop-0002.png",
+          "scroll_y": 900,
+          "sha256": "fc2ecf8f4e523c15fd4aa17698ed5a7353ea27cd6dce6cf8fab0d3297a52f2d3",
+          "visual_review": "pending"
+        },
+        {
+          "name": "desktop-0003.png",
+          "scroll_y": 1800,
+          "sha256": "6ee1792031c3963d855b7364f7f73c7f57491df6d1a8f8675d6202dd3f0687e7",
+          "visual_review": "pending"
+        },
+        {
+          "name": "desktop-0004.png",
+          "scroll_y": 2700,
+          "sha256": "f1107f21ecb99dfb8dab01aff164a26e0e6d2033645aba66896854005d1adf99",
+          "visual_review": "pending"
+        },
+        {
+          "name": "desktop-0005.png",
+          "scroll_y": 3401,
+          "sha256": "12f71f460c361dd8a0791da4fad0ca423b28d63a2bade0946d54d5d8f3ec630d",
+          "visual_review": "pending"
+        }
+      ]
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "document_height": 4401,
+      "coverage_verified": true,
+      "screenshots": [
+        {
+          "name": "mobile-0001.png",
+          "scroll_y": 0,
+          "sha256": "cb20220254daf5eefe0fced9911a61b2fe119766e8e07b36a0b558f99033f987",
+          "visual_review": "pending"
+        },
+        {
+          "name": "mobile-0002.png",
+          "scroll_y": 744,
+          "sha256": "e1ec098fc72755fa35a2f8b0bb6a18835733d065bab008acf4936b4ff6884f27",
+          "visual_review": "pending"
+        },
+        {
+          "name": "mobile-0003.png",
+          "scroll_y": 1488,
+          "sha256": "3a1ede608c96eaaa7b64fda7a8a7114e5ffefc25d1cdd1230cff3b7c74cdd18b",
+          "visual_review": "pending"
+        },
+        {
+          "name": "mobile-0004.png",
+          "scroll_y": 2232,
+          "sha256": "9a26e5b9d7a534c9fa3704121627eadc2ec2443fb7ea3a0186711995a1365ea0",
+          "visual_review": "pending"
+        },
+        {
+          "name": "mobile-0005.png",
+          "scroll_y": 2976,
+          "sha256": "a5f06e6ac8e17068718cce57d0f8a461eb52d1fa793cb656261f661e24e027d8",
+          "visual_review": "pending"
+        },
+        {
+          "name": "mobile-0006.png",
+          "scroll_y": 3557,
+          "sha256": "f180e287998997107a1c31c83949846401d29b2b59110ae00fe0947edc3ffa82",
+          "visual_review": "pending"
+        }
+      ]
+    }
+  ],
+  "candidate_outside_root_rejected": true,
+  "unapproved_candidate_rejected": true,
+  "native_business_files_modified": false,
+  "final_report_capture_executed": false,
+  "final_report_accepted": false,
+  "visual_review": {
+    "scope": "Only first and last desktop/mobile smoke screenshots inspected at original resolution; other smoke tiles not manually reviewed.",
+    "inspected_files": [
+      {
+        "name": "desktop-0001.png",
+        "sha256": "bdabe33be2d0182d24a2bad447216953d88613a18abc0c51cb140a4c4277c912"
+      },
+      {
+        "name": "desktop-0005.png",
+        "sha256": "12f71f460c361dd8a0791da4fad0ca423b28d63a2bade0946d54d5d8f3ec630d"
+      },
+      {
+        "name": "mobile-0001.png",
+        "sha256": "cb20220254daf5eefe0fced9911a61b2fe119766e8e07b36a0b558f99033f987"
+      },
+      {
+        "name": "mobile-0006.png",
+        "sha256": "f180e287998997107a1c31c83949846401d29b2b59110ae00fe0947edc3ffa82"
+      }
+    ],
+    "result": "Chinese text visible and page start/end captured; no final report reviewed."
+  }
+}
