@@ -1,0 +1,10 @@
+........................................................................ [ 83%]
+..............                                                           [100%]
+============================== warnings summary ===============================
+test/test_company_governance.py::test_graph_uses_checked_company_package_without_raw_fallback
+test/test_company_governance_graph_delivery.py::test_real_svg_has_disclosed_interest_date_and_boundary
+  C:\Users\wangli\.codex\worktrees\05ec\RAG\backend\research_workflow.py:216: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y%m%d%H%M%S")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+86 passed, 2 warnings in 4.49s

@@ -1,0 +1,34 @@
+{
+  "at": "2026-10-30T16:26:18.571720+00:00",
+  "scope": "isolated candidate module loaded at its production module name inside the guarded test process; active native backend is unchanged",
+  "base_product_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
+  "targeted_counts": {
+    "tests": 86,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "new_candidate_tests_included": 34,
+  "real_input_replay": "replay-proof.json",
+  "full_regression": {
+    "status": "running",
+    "observed_live_exec_session": 92135,
+    "requires_fresh_handle_check": true
+  },
+  "files_sha256": {
+    "candidate.json": "893aaf4ee595316c9dfd5e22565e1988cf6e4fea2a439a1af9c935d571f6feeb",
+    "company_governance.py": "6b161d79a5096566816829311551f12a576d939ea4fd3ba46334901bf1d094f2",
+    "governance-values.patch": "acc9cb748181d71d01b4278dd9818c9cc8dd7111077834004ff4d5ae8e88670d",
+    "test_governance_values.py": "1a34bceb34bed13f5323d4316a37cfa44adc6c213da29d2635c79b39b45586db",
+    "run_candidate_tests.py": "0fa599e5e21138bed93e6c9bcc3621fa5eb6a34ab13845c3b0330a30c47ab88c",
+    "replay_candidate.py": "f2911b0ad3e6d30d4ceba4f7eed68d51ec1efa7aa69e5f36e681ac8bc059f834",
+    "replay-proof.json": "684b0ea65b67970810b49d1c179d34f2f4f990c60b687f7e8146669ab14d6170",
+    "targeted.xml": "0e4a1e74a651aa05a61685d85b37b1b0c7d412f6ef8f4dc5429aee1eca93cb24",
+    "targeted.log": "8286f60c3878bbc476cff9dbdf7f8edfb71b603da7c52c38bb122eeefb0ce5df"
+  },
+  "promoted": false,
+  "runtime_backend_modified": false,
+  "three_final_reports_accepted": false,
+  "goal_complete": false,
+  "targeted_runner_includes_final_module_binding_assertion": true
+}

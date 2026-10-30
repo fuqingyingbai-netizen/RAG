@@ -1,0 +1,17 @@
+{
+  "state": "model_call_budget_exhausted",
+  "counts": {
+    "model_calls": 0,
+    "model_failures": 0,
+    "http_calls": 0,
+    "http_failures": 0,
+    "http_error_responses": 0,
+    "model_http_calls": 0
+  },
+  "stage": "frozen-report",
+  "new_collection_acceptance": false,
+  "runtime_code_unchanged": true,
+  "delivery_accepted": false,
+  "manual_review": "pending",
+  "actual_cost": null
+}
