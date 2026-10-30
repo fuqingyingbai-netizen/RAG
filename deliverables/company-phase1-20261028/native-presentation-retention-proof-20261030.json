@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-30T15:36:56.182289+00:00",
+  "native_plan": "bounded-plan-20261030T145059173514.json",
+  "native_session_id": 29017,
+  "product_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
+  "retained_native_candidate_entries": 328,
+  "new_native_accepted_batch_receipts": 3,
+  "current_index_sha256": "5f34c78607146177ed2d6b6b43269bc00df9d8fee1ef645f6e6c604167bfaf4a",
+  "candidate_input_revalidation_required": true,
+  "all_retained_candidates_approved_for_current_input": false,
+  "model_or_cache_calls_by_this_audit": 0,
+  "native_cache_modified_by_audit": false,
+  "full_report_accepted": false,
+  "goal_complete": false
+}

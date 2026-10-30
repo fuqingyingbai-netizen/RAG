@@ -1,7 +1,7 @@
 {
-  "at": "2026-10-30T13:55:27.644092+00:00",
-  "current_code_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
-  "tested_code_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+  "at": "2026-10-30T15:22:26.483740+00:00",
+  "current_code_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
+  "tested_code_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
   "runtime_tests_frontend_unchanged_from_full_regression": true,
   "shared_search_patch_ancestor": "cb9f7bfd640e425ed6617fe4d83b9435d24e5bad",
   "upstream_pinned_files_reverified": [
@@ -197,7 +197,7 @@
   "cases": [
     {
       "case": "haitian",
-      "latest_plan": "bounded-plan-20261030T114510735901.json",
+      "latest_plan": "bounded-plan-20261030T145059173514.json",
       "latest_round_has_end_record": false,
       "persisted_acceptance_status": "checkpoint_saved_before_routing_journal_fix",
       "final_report_acceptance_proven": false,
@@ -221,7 +221,7 @@
     }
   ],
   "regression": {
-    "passed": 4738,
+    "passed": 4754,
     "failures": 0,
     "errors": 0,
     "skipped": 4,
@@ -240,39 +240,35 @@
         "sha256": "0e25bd8ec223f4af370a5277ea362cdf7a1acea6852f2467f03f5afdf18446e7",
         "bytes": 12465
       },
-      "test-results/routing-recovery-full-20261030.log": {
-        "sha256": "18625155d7eb6f62ab4ce222f1ef514005773a093c120b011e6cd1e0cbbe3b8d",
-        "bytes": 31076
+      "test-results/full-regression-ee16e90-windows.log": {
+        "sha256": "fc8eb07bfc3a8053704f10355d6032f344b71b80a4d94d984de7d89dd963873f",
+        "bytes": 31157
       },
-      "test-results/routing-recovery-full-20261030.xml": {
-        "sha256": "5d5102586188d1846d2a2736b49da9a4e4decccacdf8e639a3f12f695a89c33f",
-        "bytes": 860770
+      "test-results/full-regression-ee16e90-windows.xml": {
+        "sha256": "6c516c49f941771b7f7fad016f784086e0a8b1eeffb3680fc3dce9951fe5d846",
+        "bytes": 862579
       }
     },
     "skipped_tests": [
       {
         "classname": "test.test_backup_busy_workloads",
         "name": "test_busy_job_skips_before_stopping_any_service[research]",
-        "reason": "Real flock and service guard run on Linux",
-        "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+        "reason": "Real flock and service guard run on Linux"
       },
       {
         "classname": "test.test_backup_busy_workloads",
         "name": "test_busy_job_skips_before_stopping_any_service[assistant]",
-        "reason": "Real flock and service guard run on Linux",
-        "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+        "reason": "Real flock and service guard run on Linux"
       },
       {
         "classname": "test.test_backup_busy_workloads",
         "name": "test_busy_job_skips_before_stopping_any_service[ingestion]",
-        "reason": "Real flock and service guard run on Linux",
-        "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+        "reason": "Real flock and service guard run on Linux"
       },
       {
         "classname": "test.test_release_preparation",
         "name": "test_first_start_allows_missing_bm25_file_when_parent_exists",
-        "reason": "Actual Linux path checks run on the target platform.",
-        "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+        "reason": "Actual Linux path checks run on the target platform."
       }
     ]
   },

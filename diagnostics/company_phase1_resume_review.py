@@ -13,7 +13,7 @@ def write(path,data):path.write_text(json.dumps(data,ensure_ascii=False,indent=2
 def git(*args):return subprocess.check_output(['git',*args],cwd=ROOT,text=True).strip()
 
 def main():
-    head=git('rev-parse','HEAD');tested='c881cfe163f2f0d81b508469a4a80cc07101e96f'
+    head=git('rev-parse','HEAD');tested='ee16e907d7a72d109fa413ad74531e5ab3920fd7'
     linux_base='66bd061582d1066a8b9f8ef91af356c25c315f04'
     unchanged=subprocess.run(['git','diff','--quiet',tested,'--','backend','test','frontend'],cwd=ROOT).returncode==0
     assert not git('ls-files','--others','--exclude-standard','--','backend','test','frontend'), 'Untracked runtime or tests need separate verification'
@@ -33,11 +33,11 @@ def main():
                 assert sha(path)==item['sha256'],repository+':'+item['path']
                 verified.append({'kind':kind,'path':item['path'],'sha256':item['sha256']})
         pins.append({'repository':row['repository'],'commit':row['commit'],'verified_files':verified})
-    suites=ET.parse(OUT/'test-results/routing-recovery-full-20261030.xml').getroot().findall('testsuite')
+    suites=ET.parse(OUT/'test-results/full-regression-ee16e90-windows.xml').getroot().findall('testsuite')
     assert all(s.get('failures')=='0' and s.get('errors')=='0' for s in suites)
-    candidate_proof=read(OUT/'routing-recovery-full-regression-proof.json')
+    candidate_proof=read(OUT/'presentation-cache-full-regression-proof.json')
     for name,expected in candidate_proof['evidence_sha256'].items():assert sha(ROOT/name)==expected
-    for name,item in candidate_proof['exact_candidate_paths'].items():
+    for name,item in candidate_proof['changed_product_paths'].items():
         assert sha(ROOT/name)==item['candidate_utf8_sha256']
     release_proof=read(ROOT/'docs/UNIFIED_SERVER_SYNC_20261030.json')
     assert release_proof['deployed_code_commit']==linux_base
@@ -51,8 +51,8 @@ def main():
     assert not git('diff','--name-only',frontend_tested,'--','frontend','test/*.cjs')
     evidence={}
     for source in [ROOT/'work/server-update-20261030/pytest.log',ROOT/'work/server-update-20261030/pytest.xml',
-                   RUN/'frontend-regression-60d7aca.log',OUT/'test-results/routing-recovery-full-20261030.log',
-                   OUT/'test-results/routing-recovery-full-20261030.xml']:
+                   RUN/'frontend-regression-60d7aca.log',OUT/'test-results/full-regression-ee16e90-windows.log',
+                   OUT/'test-results/full-regression-ee16e90-windows.xml']:
         name=('full-regression-66bd061-linux'+source.suffix) if source.name.startswith('pytest.') else source.name
         destination=OUT/'test-results'/name
         if destination.exists():assert sha(destination)==sha(source),'Immutable regression evidence differs'

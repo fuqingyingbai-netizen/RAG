@@ -1,8 +1,8 @@
 {
-  "at": "2026-10-30T13:53:30.581888+00:00",
+  "at": "2026-10-30T15:39:27.756785+00:00",
   "scope": "engineering source/implementation/test correspondence only",
-  "generator_sha256": "b853b9fc6bb49e4aed7879aa69ac8579c08610302e7071a980a1875bc788e530",
-  "candidate_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+  "generator_sha256": "bc79c59f9b9b05bd829da7bf03c6388dc01c586b79e9786d38f3cfd80f421dc9",
+  "candidate_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
   "candidate_promoted": true,
   "rows": [
     {
@@ -45,7 +45,7 @@
       "implementations": [
         {
           "path": "backend/report_agents/company_governance.py",
-          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "git_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
           "sha256": "6a6bc31cf5b0882bad28ad3e9a8432a802d1d788e64870fbe31604f30ce99e96",
           "symbols": [
             {
@@ -57,7 +57,7 @@
         },
         {
           "path": "backend/report_agents/company_issuer_identity.py",
-          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "git_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
           "sha256": "3746f091d93ccf06ce6349b6380a0508433d791baf729392dcecc5d2e39748a2",
           "symbols": [
             {
@@ -134,7 +134,7 @@
       "implementations": [
         {
           "path": "backend/report_agents/company_editorial.py",
-          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "git_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
           "sha256": "079d6290aacb6d981d1cd1de755fcfdf49e1cf24e6be17a21e97179f1a57e23e",
           "symbols": [
             {
@@ -156,7 +156,7 @@
         },
         {
           "path": "backend/report_agents/company_delivery_contract.py",
-          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "git_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
           "sha256": "722d272fc3de1b54db4792581c9871a570584a92c8f96f8c06f9c71ae74a7fc5",
           "symbols": [
             {
@@ -223,7 +223,7 @@
       "implementations": [
         {
           "path": "backend/company_requirements.py",
-          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "git_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
           "sha256": "cc513af723cd6ce448995817bc9a1f0b770f97a8291a202fdabb7b8b7d2087dc",
           "symbols": [
             {
@@ -300,7 +300,7 @@
       "implementations": [
         {
           "path": "backend/company_requirements.py",
-          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "git_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
           "sha256": "cc513af723cd6ce448995817bc9a1f0b770f97a8291a202fdabb7b8b7d2087dc",
           "symbols": [
             {
@@ -378,7 +378,7 @@
       "implementations": [
         {
           "path": "backend/report_agents/company_checkpoint.py",
-          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "git_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
           "sha256": "b4e3ede38e67693c68003b3cad0638082317767b11156690476642ef39ed9511",
           "symbols": [
             {
@@ -395,7 +395,7 @@
         },
         {
           "path": "backend/report_agents/company_information_journal.py",
-          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "git_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
           "sha256": "1f84b2c0f6310d87fec6c877708ff126b22f1999e7d5c5858ddda5f767ddb3c1",
           "symbols": [
             {
@@ -407,6 +407,28 @@
               "symbol": "read_decisions",
               "start_line": 79,
               "end_line": 128
+            }
+          ]
+        },
+        {
+          "path": "backend/report_agents/company_presentation.py",
+          "git_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
+          "sha256": "277fd8d00a3fa5f37f57f7a04c9815a33cf0893c483ca98c070312e69d38327b",
+          "symbols": [
+            {
+              "symbol": "journal_index",
+              "start_line": 48,
+              "end_line": 61
+            },
+            {
+              "symbol": "read_journal",
+              "start_line": 64,
+              "end_line": 76
+            },
+            {
+              "symbol": "receipt_aware_jobs",
+              "start_line": 302,
+              "end_line": 312
             }
           ]
         }
@@ -453,60 +475,153 @@
           "result": "passed"
         },
         {
-          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "classname": "test.test_company_information_journal",
           "name": "test_completed_batch_survives_without_whole_stage_or_delivery_approval",
           "result": "passed"
         },
         {
-          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "classname": "test.test_company_information_journal",
           "name": "test_current_input_scope_and_template_are_revalidated[text]",
           "result": "passed"
         },
         {
-          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "classname": "test.test_company_information_journal",
           "name": "test_current_input_scope_and_template_are_revalidated[context]",
           "result": "passed"
         },
         {
-          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "classname": "test.test_company_information_journal",
           "name": "test_current_input_scope_and_template_are_revalidated[provenance]",
           "result": "passed"
         },
         {
-          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "classname": "test.test_company_information_journal",
           "name": "test_current_input_scope_and_template_are_revalidated[evidence_ids]",
           "result": "passed"
         },
         {
-          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "classname": "test.test_company_information_journal",
           "name": "test_current_input_scope_and_template_are_revalidated[target]",
           "result": "passed"
         },
         {
-          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "classname": "test.test_company_information_journal",
           "name": "test_current_input_scope_and_template_are_revalidated[date]",
           "result": "passed"
         },
         {
-          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "classname": "test.test_company_information_journal",
           "name": "test_current_input_scope_and_template_are_revalidated[outline]",
           "result": "passed"
         },
         {
-          "classname": "work.company-phase1-20261028.routing-candidate-overlay.test.test_company_information_journal",
+          "classname": "test.test_company_information_journal",
           "name": "test_real_builder_resumes_completed_batch_after_phase_interrupt_without_recalling_it",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_unrelated_source_revision_reuses_only_exact_inputs_and_does_not_approve_a_report",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_changed_record_reopens_both_current_reviews_even_when_the_index_is_a_candidate[text]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_changed_record_reopens_both_current_reviews_even_when_the_index_is_a_candidate[context]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_changed_record_reopens_both_current_reviews_even_when_the_index_is_a_candidate[provenance]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_changed_record_reopens_both_current_reviews_even_when_the_index_is_a_candidate[evidence_ids]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_changed_record_reopens_both_current_reviews_even_when_the_index_is_a_candidate[decision]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_project_scope_version_and_native_provenance_are_never_inferred[project]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_project_scope_version_and_native_provenance_are_never_inferred[target]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_project_scope_version_and_native_provenance_are_never_inferred[date]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_project_scope_version_and_native_provenance_are_never_inferred[question]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_project_scope_version_and_native_provenance_are_never_inferred[version]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_project_scope_version_and_native_provenance_are_never_inferred[missing_source_binding]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_rehashed_but_invalid_independent_witnesses_are_rechecked_not_trusted[review]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_rehashed_but_invalid_independent_witnesses_are_rechecked_not_trusted[native_witness]",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_new_receipt_keeps_prior_candidates_while_every_batch_is_validated_again",
+          "result": "passed"
+        },
+        {
+          "classname": "test.test_company_presentation_cache_revalidation",
+          "name": "test_changed_whole_source_still_rejects_the_whole_stage_cache",
           "result": "passed"
         }
       ],
       "remaining_evidence": [
-        "逐批恢复机制的真实恢复运行与原生回执观察尚待完成。",
         "最终报告的事实与引用定位、逐条采用及全部导出验证待完成。"
       ],
       "real_case_acceptance": {
         "haitian": false,
         "kingsoft": false,
         "holdout": false
-      }
+      },
+      "native_component_evidence": [
+        {
+          "path": "native-routing-journal-proof-20261030.json",
+          "sha256": "877aef7afafb6fc35ba8a82171b37aa0f52ece20f356f9c56495a662d3cd1803"
+        },
+        {
+          "path": "presentation-cache-readback-20261030.json",
+          "sha256": "6e100ddbce6fa8c2cdb6ac992829ad4aa0d3a8d471c9391b8a5942327590099d"
+        },
+        {
+          "path": "native-presentation-retention-proof-20261030.json",
+          "sha256": "ab42c85c6914a951206c44c26b54064d7e9969155d7c1be7b42ef9663f820d3d"
+        }
+      ]
     },
     {
       "repository": "https://github.com/rgerjeki/Dossier",
@@ -538,7 +653,7 @@
       "implementations": [
         {
           "path": "backend/company_collection_audit.py",
-          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "git_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
           "sha256": "c4527b867700b1e31b167c8beb2cb362460fcb2b08f69e85c33907f3fa1e9d14",
           "symbols": [
             {
@@ -560,7 +675,7 @@
         },
         {
           "path": "backend/report_agents/company_information_usage.py",
-          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "git_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
           "sha256": "f4935684a8c3d74fee57890b7360ec40cd9b1d2026aa449092e1d9d294ebe672",
           "symbols": [
             {
@@ -617,7 +732,7 @@
       "implementations": [
         {
           "path": "backend/company_requirements.py",
-          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "git_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
           "sha256": "cc513af723cd6ce448995817bc9a1f0b770f97a8291a202fdabb7b8b7d2087dc",
           "symbols": [
             {
@@ -634,7 +749,7 @@
         },
         {
           "path": "backend/report_agents/company_information_usage.py",
-          "git_commit": "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+          "git_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
           "sha256": "f4935684a8c3d74fee57890b7360ec40cd9b1d2026aa449092e1d9d294ebe672",
           "symbols": [
             {
@@ -677,7 +792,7 @@
       }
     }
   ],
-  "regression_xml_sha256": "5d5102586188d1846d2a2736b49da9a4e4decccacdf8e639a3f12f695a89c33f",
+  "regression_xml_sha256": "6c516c49f941771b7f7fad016f784086e0a8b1eeffb3680fc3dce9951fe5d846",
   "network_calls": 0,
   "model_calls": 0,
   "third_party_runtime_dependency_added": false,

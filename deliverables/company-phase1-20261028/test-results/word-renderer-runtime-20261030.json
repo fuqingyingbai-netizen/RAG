@@ -1,0 +1,37 @@
+{
+  "at": "2026-10-30T15:11:59.717599+00:00",
+  "scope": "historical one-page renderer smoke only; not any shipping report",
+  "input_sha256": "ae070df40453751dc56d07d90aff88cb7aeb6b35437ef329b08a6a0fa67df7ea",
+  "input_unchanged": true,
+  "packaged_renderer": "C:\\Users\\wangli\\.codex\\plugins\\cache\\openai-primary-runtime\\documents\\26.1029.11837\\skills\\documents\\render_docx.py",
+  "packaged_renderer_sha256": "8b48b8f05f30cc6c7b5a7bd8e18e7ea93a61aec1ea601026a3358b2105f0903a",
+  "adapter_sha256": "73557c3ec474573d85d0a8984a131858e61c44df7d77711f35d5ec76d53831c7",
+  "windows_console": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\render-runtime\\libreoffice\\program\\soffice.com",
+  "console_sha256": "d17799d6f148c5d3d0cd9b1c12d5e1457280e63fd2c1f2aa434568c7ebd6a27c",
+  "portable_exe_sha256": "7c655a8ac9cee21e4bca713d5384507004b2d9f6389cf441840f10c921e31a3a",
+  "portable_origin": "E:\\projects\\output\\公司材料消化迭代_20261021_1849\\render-runtime\\libreoffice-extracted",
+  "not_a_loader_bundled_libreoffice": true,
+  "personal_desktop_installation_used": false,
+  "official_console_reference": "https://help.libreoffice.org/latest/en-GB/text/shared/guide/start_parameters.html?DbPAR=WRITER&System=WIN",
+  "task_scratch": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\loqa_4fc54e3c",
+  "dpi": 144,
+  "pages": [
+    {
+      "name": "page-1.png",
+      "sha256": "cff88e12d3d8ae9efbb93dc914694072931fcf059800760dfa99ace982af75c9"
+    }
+  ],
+  "visual_review": {
+    "reviewer": "primary_agent",
+    "method": "view_image original resolution",
+    "pages_inspected": [
+      "page-1.png"
+    ],
+    "observed": "Chinese text and both table headings are legible; no clipping or overlap in the smoke document."
+  },
+  "shipping_report_acceptance": false,
+  "portable_exe_signature": {
+    "status": "Valid",
+    "signer": "The Document Foundation"
+  }
+}

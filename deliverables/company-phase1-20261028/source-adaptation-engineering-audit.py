@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 
 ROOT=Path(__file__).resolve().parents[2];RUN=ROOT/'work/company-phase1-20261028'
 OUT=ROOT/'deliverables/company-phase1-20261028'
-COMMIT='c881cfe163f2f0d81b508469a4a80cc07101e96f'
+COMMIT='ee16e907d7a72d109fa413ad74531e5ab3920fd7'
 def sha(data):return hashlib.sha256(data).hexdigest()
 def blob(path):return subprocess.check_output(['git','show',COMMIT+':'+path],cwd=ROOT)
 
@@ -70,18 +70,26 @@ MAP={
   'design':'内容哈希与文档版本索引；原件、发现与结论保持可追溯，不宣称自动风险评级。',
   'origin':'沿用原生内容哈希检查点；本目标新增逐信息原生用途判定回执的内容索引与严格恢复。',
   'implementations':{'backend/report_agents/company_checkpoint.py':['save_generation_checkpoint','read_generation_checkpoint'],
-                     'backend/report_agents/company_information_journal.py':['checkpoint_batch','read_decisions']},
+                     'backend/report_agents/company_information_journal.py':['checkpoint_batch','read_decisions'],
+                     'backend/report_agents/company_presentation.py':['journal_index','read_journal','receipt_aware_jobs']},
   'tests':{'test_company_checkpoint':['test_immutable_payload_must_match_pointer_hash',
        'test_changed_original_or_research_scope_does_not_load_checkpoint'],
        'test_company_information_journal':['test_completed_batch_survives_without_whole_stage_or_delivery_approval',
        'test_current_input_scope_and_template_are_revalidated',
-       'test_real_builder_resumes_completed_batch_after_phase_interrupt_without_recalling_it']},
-  'open':['逐批恢复机制的真实恢复运行与原生回执观察尚待完成。','最终报告的事实与引用定位、逐条采用及全部导出验证待完成。']},
+       'test_real_builder_resumes_completed_batch_after_phase_interrupt_without_recalling_it'],
+       'test_company_presentation_cache_revalidation':[
+       'test_unrelated_source_revision_reuses_only_exact_inputs_and_does_not_approve_a_report',
+       'test_changed_record_reopens_both_current_reviews_even_when_the_index_is_a_candidate',
+       'test_project_scope_version_and_native_provenance_are_never_inferred',
+       'test_rehashed_but_invalid_independent_witnesses_are_rechecked_not_trusted',
+       'test_new_receipt_keeps_prior_candidates_while_every_batch_is_validated_again',
+       'test_changed_whole_source_still_rejects_the_whole_stage_cache']},
+  'open':['最终报告的事实与引用定位、逐条采用及全部导出验证待完成。']},
 }
 
 def functions(path,names):
     data=blob(path);tree=ast.parse(data.decode('utf-8'));result=[]
-    actual=(RUN/'routing-candidate-overlay'/path) if (RUN/'routing-candidate-overlay'/path).is_file() else ROOT/path
+    actual=ROOT/path
     assert sha(actual.read_bytes())==sha(data), 'Tested implementation differs: '+path
     for name in names:
         nodes=tree.body
@@ -93,7 +101,7 @@ def functions(path,names):
     return {'path':path,'git_commit':COMMIT,'sha256':sha(data),'symbols':result}
 
 def main():
-    xml_path=OUT/'test-results/routing-recovery-full-20261030.xml'
+    xml_path=OUT/'test-results/full-regression-ee16e90-windows.xml'
     xml=ET.parse(xml_path).getroot();cases=list(xml.iter('testcase'));rows=[]
     for pin in json.loads((OUT/'upstream-source-index.json').read_text(encoding='utf-8')):
         repository=pin['repository'].removeprefix('https://github.com/');entry=MAP[repository]
@@ -116,6 +124,10 @@ def main():
             'implementations':[functions(path,names) for path,names in entry['implementations'].items()],
             'specific_passed_test_cases':tests,'remaining_evidence':entry['open'],
             'real_case_acceptance':{'haitian':False,'kingsoft':False,'holdout':False}})
+        if repository=='openaleph/openaleph':
+            paths=['native-routing-journal-proof-20261030.json','presentation-cache-readback-20261030.json',
+                   'native-presentation-retention-proof-20261030.json']
+            rows[-1]['native_component_evidence']=[{'path':p,'sha256':sha((OUT/p).read_bytes())} for p in paths]
     result={'at':datetime.now(timezone.utc).isoformat(),'scope':'engineering source/implementation/test correspondence only',
         'generator_sha256':sha(Path(__file__).read_bytes()),
         'candidate_commit':COMMIT,
