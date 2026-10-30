@@ -1,0 +1,47 @@
+{
+  "case": "haitian",
+  "checkpoint_sha256": "4b8ebdd525dda4ba06a019d066c92ee2aea9fa2cb2ae8999e792f1ec23eb1ef4",
+  "code_commit": "d8d4d771fa058316a406d31424839e4e7a193818",
+  "code_sha256": {
+    "backend/research_workflow.py": "faa8fe07e98d1c20381c83145355e6664b4e636afdf875f9e9c9b34641a1c860",
+    "backend/report_agents/company_main_focus.py": "c5bbd1e001cc909422be59649042997dcae90297c85e397118e906322356ddc2",
+    "diagnostics/company_phase1_focus_probe.py": "da72d15a6b9fd918d313b1d6093ae207868928db79051a7c51efc8cc2988180c"
+  },
+  "batch_count": 64,
+  "optional_records": 2763,
+  "probe_records": 48,
+  "prompt_characters": 105236,
+  "input_sha256": "ca3a0402c8f8588187602155e75d383a5b36b2b5e81ca8b37e1c789123099feb",
+  "logical_model_calls": 1,
+  "wire": [
+    {
+      "settings": {
+        "model": "qwen3.8-max",
+        "stream": true,
+        "max_completion_tokens": 32768,
+        "reasoning_effort": "low"
+      },
+      "headers_http_status": 200
+    }
+  ],
+  "response_transplanted": false,
+  "independent_semantic_review": "not_performed",
+  "production_cache_modified": false,
+  "report_accepted": false,
+  "finish_reason": "stop",
+  "usage": {
+    "input_tokens": 46467,
+    "output_tokens": 30962,
+    "total_tokens": 77429,
+    "input_token_details": {
+      "cache_read": 0
+    },
+    "output_token_details": {
+      "reasoning": 24124
+    }
+  },
+  "format_and_literal_errors": [],
+  "checked_records": 48,
+  "format_and_literal_status": "passed",
+  "elapsed_seconds": 294.156
+}

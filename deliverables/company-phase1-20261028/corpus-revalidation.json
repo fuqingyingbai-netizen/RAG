@@ -1,0 +1,2208 @@
+{
+  "case": "haitian",
+  "previous_version": "company-corpus-v11-bounded-industry-and-standard-roles",
+  "current_version": "company-corpus-v12-audited-chapter-encoding",
+  "checkpoint_sha256": "aed1523c00b41701f0fd4c446277e50250c53ce181b36c2d586bee4888956658",
+  "previous_facts": 9849,
+  "current_facts": 9952,
+  "removed_statement_ids": [],
+  "new_statements": [
+    {
+      "statement_id": "Q-c28cfdf61dba6434",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 2,
+      "fact": "The implementation of dividend distribution for subsequent years will be carried out in accordance with the Shareholder return plan for the next three years and determined based on the Company’s operating performance and capital utilisation for the relevant year.",
+      "original_offset": 15646,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-f8c6fb8760c65152",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 2,
+      "fact": "Cash dividends (if considered and approved) will be denominated and declared in RMB, and will be paid to A Share Shareholders in RMB and to H Share Shareholders in HKD. The actual distribution amount in HKD shall be calculated with reference to the average of the central parity rate of HKD against RMB published by the People’s Bank of China every day during the one week prior to considering and approving the Final Dividend for 2025 at the 2025 ASM.",
+      "original_offset": 16323,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-03429daa5fceceec",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 2,
+      "fact": "Based on the actual needs of the work related to the Final Dividend for 2025, it is proposed at the shareholders’ meeting to give the Board an authority to authorize persons (the chairwoman of the Company and her authorized persons) to determine relevant dates, such as the payment date for the cash dividend, record date, closure of register of members, as well as other necessary matters for facilitating the smooth implementation of the Final Dividend for 2025.",
+      "original_offset": 16777,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-f08bdf7b5ac5145b",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 2,
+      "fact": "To determine the entitlement of H Share Shareholders to the Final Dividend for 2025, the register of H Share Shareholders of the Company will be closed from Friday, May 15, 2026 to Monday, May 18, 2026 (both days inclusive), during which period no transfer of H Shares will be registered. Shareholders whose names appear on the register of H Share Shareholders on Monday, May 18, 2026 are entitled to the Final Dividend for 2025. To be eligible, H Share Shareholders are required to lodge all transfer documents with the relevant share certificates at the H Share registrar of the Company, Tricor Investor Services Limited at 17/F, Far East Finance Centre, 16 Harcourt Road, Hong Kong, no later than 4:30 p.m. on Thursday, May 14, 2026.",
+      "original_offset": 17243,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-8004eb57ba43b7d0",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 2,
+      "fact": "The Company will pay the Final Dividend for 2025 on Monday, June 15, 2026 to Shareholders whose names appear on the H Share register of the Company on Monday, May 18, 2026.",
+      "original_offset": 17981,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-cf35ef7da449a4b0",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 2,
+      "fact": "To facilitate the insurance process, the shareholders’ meeting is requested to authorize the Board of Directors and its authorized persons (the Chairman and her authorized persons) to determine specific matters related to the purchase of liability insurance, provided that such actions comply with relevant regulatory requirements and resolutions of the shareholders’ meeting.",
+      "original_offset": 20445,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-e610f163b429aec8",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 2,
+      "fact": "(四) 其他重大合同 \n√适用 □不适用 \n于 2022 年，本公司根据经营发展需要，与红河宏斌订立协议，拟以不高于人民币 \n666,010,000.00 元的价格取得红河宏斌 67%的股权，该交易已于 2022 年 5 月完成。",
+      "original_offset": 69723,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-27944bc5c78baae4",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 2,
+      "fact": "二、 证券发行与上市情况 \n(一)截至报告期内证券发行情况 \n□适用 √不适用 \n截至报告期内证券发行情况的说明（存续期内利率不同的债券，请分别说明）： \n□适用 √不适用 \n(二)公司股份总数及股东结构变动及公司资产和负债结构的变动情况 \n□适用 √不适用 \n(三)现存的内部职工股情况 \n□适用 √不适用",
+      "original_offset": 71200,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-0cb011d1e59f2b5a",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 2,
+      "fact": "| 截至报告期末普通股股东总数(户) | 156,565 |\n| --- | --- |\n| 年度报告披露日前上一月末的普通股股东总数(户) | 164,568 |",
+      "original_offset": 71381,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-2bff74803c98bd2a",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 2,
+      "fact": "| 名称 | 广东海天集团股份有限公司 |\n| --- | --- |\n| 单位负责人或法定代表人 | 庞康 |\n| 成立日期 | 2000 年 3 月 6 日 |\n| 主要经营业务 | 调味品、食品、饮料、豆制品、农副产品、酒、包装材料的生产、加工 和销售（仅限分支机构经营）；经销：塑料制品、纸制品、玻璃制品、 五金、百货、普通机械、钢材、建筑材料、化工产品（不含危险品）； 饮食、货运、信息咨询服务；对外投资；房地产开发（持资质证经营）。 |\n| 报告期内控股和参股的其他 境内外上市公司的股权情况 | 无 |\n| 其他情况说明 | 无 |",
+      "original_offset": 73326,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-7b5a8163ed17cebd",
+      "source_id": "254",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 2,
+      "fact": "| 母公司名称 | 注册地 | 法人代表 | 业务性质 | 注册资本 | 母公司对本公司的 持股比例 | (%) | 母公司对本公司的 表决权比例 | (%) | 组织机构代码 |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| | | | | 人民币 | | 55.47 | | 55.52 | |\n| 1) 海天集团 (注 | 中国佛山市 | 庞康 | 股权投资管理 | | | | | | 72290637-3 |\n| | | | 841,780,664 | 元 | | 2) (注 | | 2) (注 | |",
+      "original_offset": 108042,
+      "scope": "group",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-6381c6339d3d9e68",
+      "source_id": "254",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 2,
+      "fact": "注 1： 于 2023 年 12 月 27 日，海天集团股东庞康、程雪、管江华、陈军阳、文志州及廖长辉六人签署《一致行动协议》，确认该六人同意按照 该协议的约定在行使各自持有的海天集团股权的表决权时采取一致行动。于 2025 年末，该六人合计持有海天集团 71.80%的股份，为海天 集团的实际控制人，并直接及通过海天集团间接合计持有本公司 52.58%的股份，为本公司的实际控制人。",
+      "original_offset": 108342,
+      "scope": "group",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-ee23b475a0f5efce",
+      "source_id": "254",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 2,
+      "fact": "注 2： 于 2025 年末海天集团直接持有本公司 55.36%的股权，并通过海天集团的全资子公司佛山市海鹏贸易发展有限公司 (以下简称“佛山海 鹏”) 间接持有本公司 0.11%的股权，因此持股比例为 55.47% 。于 2025 年 12 月 31 日，本公司累计库存股为 11,069,391 股，其中 已 过户至“佛山市海天调味食品股份有限公司 - 2024 年员工持股计划”及“佛山市海天调味食品股份有限公司 - 2025 年员工持股计划” 专 用证券账户的 5,779,900 股享有表决权，剩余已回购的 5,289,491 股不享有表决权。剔除不享有表决权的 5,289,491 股库存股后，海天 集",
+      "original_offset": 108536,
+      "scope": "group",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-a0682a4fed904897",
+      "source_id": "301",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 2,
+      "fact": "| 母公司名称 | 注册地 | 法人代表 | 业务性质 | 注册资本 | 母公司对本公司的 持股比例 | (%) | 母公司对本公司的 表决权比例 | (%) | 组织机构代码 |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| | | | | 人民币 | | 55.47 | | 55.52 | |\n| 1) 海天集团 (注 | 中国佛山市 | 庞康 | 股权投资管理 | | | | | | 72290637-3 |\n| | | | 841,780,664 | 元 | | 2) (注 | | 2) (注 | |",
+      "original_offset": 108042,
+      "scope": "group",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-0dacd8e9e5bce7b2",
+      "source_id": "301",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 2,
+      "fact": "注 1： 于 2023 年 12 月 27 日，海天集团股东庞康、程雪、管江华、陈军阳、文志州及廖长辉六人签署《一致行动协议》，确认该六人同意按照 该协议的约定在行使各自持有的海天集团股权的表决权时采取一致行动。于 2025 年末，该六人合计持有海天集团 71.80%的股份，为海天 集团的实际控制人，并直接及通过海天集团间接合计持有本公司 52.58%的股份，为本公司的实际控制人。",
+      "original_offset": 108342,
+      "scope": "group",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-0703fdc106349506",
+      "source_id": "301",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 2,
+      "fact": "注 2： 于 2025 年末海天集团直接持有本公司 55.36%的股权，并通过海天集团的全资子公司佛山市海鹏贸易发展有限公司 (以下简称“佛山海 鹏”) 间接持有本公司 0.11%的股权，因此持股比例为 55.47% 。于 2025 年 12 月 31 日，本公司累计库存股为 11,069,391 股，其中 已 过户至“佛山市海天调味食品股份有限公司 - 2024 年员工持股计划”及“佛山市海天调味食品股份有限公司 - 2025 年员工持股计划” 专 用证券账户的 5,779,900 股享有表决权，剩余已回购的 5,289,491 股不享有表决权。剔除不享有表决权的 5,289,491 股库存股后，海天 集",
+      "original_offset": 108536,
+      "scope": "group",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-a7ad83d32dcb8a6e",
+      "source_id": "429",
+      "source_url": "http://money.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?stockid=603288&id=12024823",
+      "chapter": 2,
+      "fact": "责任。第一百八十九条公司为增加注册资本发行新股时，股东不享有优先认购权，本",
+      "original_offset": 33903,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-a419c502099d2c54",
+      "source_id": "429",
+      "source_url": "http://money.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?stockid=603288&id=12024823",
+      "chapter": 2,
+      "fact": "与公司及公司主要股东、实际控制人不存在直接或者间接利害关系，或者其他可能影响其进行独立客观判断关系的董事。本章程所称“独立董事”亦应符合《香港上市规则》中关于“独立非执行董事”的规定。",
+      "original_offset": 36270,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-31b64e6b757df719",
+      "source_id": "437",
+      "source_url": "https://www.sohu.com/a/884803768_122014422",
+      "chapter": 2,
+      "fact": "机构持仓方面，截止2024年12月31日，海天味业十大流通股东中，香港中央结算有限公司位居第三大流动股东，持股2.08亿股，相比上期增加279.92万股。华夏上证50ETF（510050）位居第九大流动股东，持股3134.59万股，相比上期减少205.74万股。华泰柏瑞沪深300ETF（510300）退出十大流通股东之列。 返回搜狐，查看更多",
+      "original_offset": 1106,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-2c971aa512f4529a",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 2,
+      "fact": "(五) 投资状况分析 \n对外股权投资总体分析 \n√适用 □不适用  \n于 2025 年 3 月 19 日，本公司的子公司海天国际投资有限公司于香港设立全资子公司 Haday \nFood(AM）Holding Limited，注册资本为 100,000.00 港元。 \n于 2025 年 4 月 1 日，本公司的子公司 Haday Food (AM) Holding Limited 于美国设立全资\n子公司 Haday US Inc.，注册资本为 2,500,000.00 美元。 \n于 2025 年 4 月 24 日，本公司的子公司海天国际投资有限公司于印度尼西亚设立全资子公司\nPT HADAY GROUP INDONESIA，注册资本为 20,000,000,000.00 印尼盾。 \n于 2025 年 8 月 28 日，本公司的子公司 Haday Food (AM) Holding Limited 于墨西哥设立子\n公司 Haday Mexico Food, S.A. de C.V. ，注册资本为 50,000.00 比索。 \n于 2025 年 10 月 8 日，本公司的子公司海天国际投资有限公司于荷兰设立全资子公司 Haday \nNetherlands B.V. ，注册资本为 100,000.00 欧元。",
+      "original_offset": 36031,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "2",
+          "accepted": 2,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-c25db95add08776d",
+      "source_id": "437",
+      "source_url": "https://www.sohu.com/a/884803768_122014422",
+      "chapter": 3,
+      "fact": "资料显示，佛山市海天调味食品股份有限公司位于广东省佛山市文沙路16号,香港湾仔皇后大道东248号大新金融中心40楼，成立日期2000年4月8日，上市日期2014年2月11日，公司主营业务涉及调味品的生产和销售。主营业务收入构成为：酱油51.14%，蚝油17.16%，其他15.19%，调味酱9.92%，其他(补充)6.59%。",
+      "original_offset": 768,
+      "scope": "target",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "3",
+          "accepted": 3,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-c53de482c42073a3",
+      "source_id": "437",
+      "source_url": "https://www.sohu.com/a/884803768_122014422",
+      "chapter": 3,
+      "fact": "分红方面，海天味业A股上市后累计派现264.18亿元。近三年，累计派现101.06亿元。",
+      "original_offset": 1059,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "3",
+          "accepted": 3,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-8fc3de33463ea67a",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 4,
+      "fact": "KPMG Huazhen LLP and KPMG provided quality audit services for the Company’s A Shares and H Shares respectively for the year 2025, which objectively and fairly reflected the financial position and operating results of the Company. In order to maintain the stability and continuity of the Company’s external audit work, the Company proposes to re-appoint KPMG Huazhen LLP as the accounting firm for the Company’s A Shares for the year 2026 and KPMG as the independent external auditor for the Company’s H Shares for the year 2026. They shall be responsible for the audit of the financial statements of the Company for the year 2026, the special explanation on the occupation of non-operating funds and other related party transactions, and the internal control audit, etc. Having considered factors including the business situation of the Group, expected audit scope, audit timetable and auditors’ resources, the fees shall not exceed RMB6.22 million, and the Board is authorized to determine the specific remuneration.",
+      "original_offset": 18415,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "4",
+          "accepted": 4,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-a3063b8c8085f396",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 4,
+      "fact": "1. The initial term of the Plan is 36 months, commencing from the date of the Company’s announcement of the transfer of the last batch of Underlying Shares to the name of the Plan. The Plan will be automatically terminated upon the expiry of the term if no extension is entered into, or may be extended after being reviewed and approved by the Board as proposed by the Management Committee of the Plan.",
+      "original_offset": 78719,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "4",
+          "accepted": 4,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-363894ac9f65208f",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 4,
+      "fact": "2. If the Shares held under the Plan cannot be fully realized prior to the expiry of the term due to the suspension of trading in the Company’s Shares, blackout periods or other circumstances, the term may be extended after being reviewed and approved by the Board as proposed by the Management Committee.",
+      "original_offset": 79123,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "4",
+          "accepted": 4,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-adf44fff15681697",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 4,
+      "fact": "The Plan will be automatically terminated upon the expiry of its term, or may be extended after being reviewed and approved by the Board as proposed by the Management Committee of the Plan.",
+      "original_offset": 81222,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "4",
+          "accepted": 4,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-95b6fda2c4cbe221",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 4,
+      "fact": "Any remaining Underlying Shares and their corresponding dividends (if any) under the Plan that have not been vested to the Holders’ names shall be forfeited without compensation by the Management Committee of the Stock Ownership Scheme and may be disposed of in the following ways: (1) continue to be used for the Employee Stock Ownership Scheme during its valid term; (2) being handled in accordance with the applicable laws and regulations in effect before the expiration of the Plan.",
+      "original_offset": 82009,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "4",
+          "accepted": 4,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-0261feffd3c85b0b",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 4,
+      "fact": "2. During the term of the Stock Ownership Scheme, in addition to the above circumstances, any unvested equity interests in the Underlying Shares caused by other circumstances (including resignation, retirement, death, or other reasons rendering the Holder unsuitable to participate in the Stock Ownership Scheme), shall be forfeited by the Management Committee without compensation or allocated to other Holders at its discretion.",
+      "original_offset": 85275,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "4",
+          "accepted": 4,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-7dc9f673100a437b",
+      "source_id": "135",
+      "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=E116673E3350A3B7E05397BE0A0AC6BF",
+      "chapter": 5,
+      "fact": "##### General rule for the quality of soy sauce\n\n 国家标准计划 修订 推荐性 \n\n国家标准计划《酱油质量通则》由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。 拟实施日期：发布后18个月正式实施。 \n\n主要起草单位 佛山市海天调味食品股份有限公司 、烟台欣和企业食品有限公司 、李锦记（新会）食品有限公司 、天津科技大学食品科学与工程学院 、千禾味业食品股份有限公司 、江苏恒顺醋业股份有限公司 、中国食品发酵工业研究院有限公司 、广东美味鲜调味食品有限公司 、华东理工大学 、广东珠江桥生物科技股份有限公司 。",
+      "original_offset": 23,
+      "scope": "industry_context",
+      "boundary": "政府网站公开表述；仅支持引文所述对象及事项，不扩大为目标企业违法、无风险或商标权完整归属结论。；标准起草或外部委员会参与仅按原字段归因；不等于认证、合规、独占技术或公司内部任职。保留计划、发布、实施及个人履历的各自时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "5",
+          "accepted": 5,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-4222abc7ba077dd1",
+      "source_id": "147",
+      "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=5A13050B023F303FE06397BE0A0ADA7D",
+      "chapter": 5,
+      "fact": "##### Technical specification for soy sauce processing\n\n 国家标准 推荐性 即将实施 \n\n国家标准《酱油工艺技术规范》 由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。\n\n主要起草单位 中国调味品协会 、佛山市海天调味食品股份有限公司 、新疆维吾尔自治区产品质量监督检验研究院 。",
+      "original_offset": 21,
+      "scope": "industry_context",
+      "boundary": "政府网站公开表述；仅支持引文所述对象及事项，不扩大为目标企业违法、无风险或商标权完整归属结论。；标准起草或外部委员会参与仅按原字段归因；不等于认证、合规、独占技术或公司内部任职。保留计划、发布、实施及个人履历的各自时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "5",
+          "accepted": 5,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-72a06bd6f4f9614e",
+      "source_id": "169",
+      "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=36DE96AA3F5FCD71E06397BE0A0A23D9",
+      "chapter": 5,
+      "fact": "##### General rule for the quality of soy sauce\n\n 国家标准 推荐性 即将实施 \n\n国家标准《酱油质量通则》 由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。\n\n主要起草单位 佛山市海天调味食品股份有限公司 、烟台欣和企业食品有限公司 、李锦记（新会）食品有限公司 、天津科技大学食品科学与工程学院 、千禾味业食品股份有限公司 、江苏恒顺醋业股份有限公司 、中国食品发酵工业研究院有限公司 、广东美味鲜调味食品有限公司 、华东理工大学 、广东珠江桥生物科技股份有限公司 。",
+      "original_offset": 21,
+      "scope": "industry_context",
+      "boundary": "政府网站公开表述；仅支持引文所述对象及事项，不扩大为目标企业违法、无风险或商标权完整归属结论。；标准起草或外部委员会参与仅按原字段归因；不等于认证、合规、独占技术或公司内部任职。保留计划、发布、实施及个人履历的各自时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "5",
+          "accepted": 5,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-3bb8a5884e309424",
+      "source_id": "178",
+      "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=8tnR4p3fQAw%3D&mode=plan",
+      "chapter": 5,
+      "fact": "##### General rule for the quality of soy sauce\n\n 国家标准计划 修订 推荐性 \n\n国家标准计划《酱油质量通则》由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。 拟实施日期：发布后18个月正式实施。 \n\n主要起草单位 佛山市海天调味食品股份有限公司 、烟台欣和企业食品有限公司 、李锦记（新会）食品有限公司 、天津科技大学食品科学与工程学院 、千禾味业食品股份有限公司 、江苏恒顺醋业股份有限公司 、中国食品发酵工业研究院有限公司 、广东美味鲜调味食品有限公司 、华东理工大学 、广东珠江桥生物科技股份有限公司 。",
+      "original_offset": 23,
+      "scope": "industry_context",
+      "boundary": "政府网站公开表述；仅支持引文所述对象及事项，不扩大为目标企业违法、无风险或商标权完整归属结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "5",
+          "accepted": 5,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-d3cdc18d52b6ce58",
+      "source_id": "190",
+      "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=49FD1852CA3CC31FE06397BE0A0A1304",
+      "chapter": 5,
+      "fact": "国家标准 - 全国标准信息公共服务平台\n\n 国家标准 指导性技术文件 现行 \n\n国家标准《食品企业社会责任指南》 由 TC313（全国食品质量控制与管理标准化技术委员会）归口 ，主管部门为市场监管总局（食品生产经营）。\n\n主要起草单位 中国标准化研究院 、华中农业大学 、佛山市海天调味食品股份有限公司 、上海康识食品科技有限公司 、东鹏饮料（集团）股份有限公司 、中国贵州茅台酒厂（集团）有限责任公司 、安徽省产品质量监督检验研究院 、宜宾五粮液股份有限公司 、安徽老乡鸡餐饮有限公司 、南京市产品质量监督检验院(南京市质量发展与先进技术应用研究院) 、内蒙古伊利实业集团股份有限公司 、中国农业大学 、新希望乳业股份有限公司 、白象食品股份有限公司 、茶姬（上海）品牌管理有限公司 、江西省质量和标准化研究院 、黑龙江飞鹤乳业有限公司 。",
+      "original_offset": 0,
+      "scope": "industry_context",
+      "boundary": "政府网站公开表述；仅支持引文所述对象及事项，不扩大为目标企业违法、无风险或商标权完整归属结论。；标准起草或外部委员会参与仅按原字段归因；不等于认证、合规、独占技术或公司内部任职。保留计划、发布、实施及个人履历的各自时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "5",
+          "accepted": 5,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-b8dda943dd828008",
+      "source_id": "197",
+      "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=N0b4qkvswmM%3D&mode=plan",
+      "chapter": 5,
+      "fact": "##### General quality for chicken powder seasoning\n\n 国家标准计划 制定 推荐性 \n\n国家标准计划《鸡粉调味料质量通则》由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。 拟实施日期：发布后18个月正式实施。 \n\n主要起草单位 上海太太乐食品有限公司 、东莞市永益食品有限公司 、四川金宫川派味业有限公司 、广东佳隆食品股份有限公司 、广东百味佳味业科技股份有限公司 、联合利华食品（中国）有限公司 、广东厨邦食品有限公司 、佛山市海天调味食品股份有限公司 、雀巢（中国）有限公司 、四川豪吉食品有限公司 、华测检测认证集团北京有限公司 。",
+      "original_offset": 23,
+      "scope": "industry_context",
+      "boundary": "政府网站公开表述；仅支持引文所述对象及事项，不扩大为目标企业违法、无风险或商标权完整归属结论。；标准起草或外部委员会参与仅按原字段归因；不等于认证、合规、独占技术或公司内部任职。保留计划、发布、实施及个人履历的各自时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "5",
+          "accepted": 5,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-5e6cd58f88722ca6",
+      "source_id": "234",
+      "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=E579E44B64FB6BC5E05397BE0A0A04A2",
+      "chapter": 5,
+      "fact": "##### General quality for chicken powder seasoning\n\n 国家标准计划 制定 推荐性 \n\n国家标准计划《鸡粉调味料质量通则》由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。 拟实施日期：发布后18个月正式实施。 \n\n主要起草单位 上海太太乐食品有限公司 、东莞市永益食品有限公司 、四川金宫川派味业有限公司 、广东佳隆食品股份有限公司 、广东百味佳味业科技股份有限公司 、联合利华食品（中国）有限公司 、广东厨邦食品有限公司 、佛山市海天调味食品股份有限公司 、雀巢（中国）有限公司 、四川豪吉食品有限公司 、华测检测认证集团北京有限公司 。",
+      "original_offset": 23,
+      "scope": "industry_context",
+      "boundary": "政府网站公开表述；仅支持引文所述对象及事项，不扩大为目标企业违法、无风险或商标权完整归属结论。；本条来自既有检索服务留存文本，本轮未独立回取原页。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "5",
+          "accepted": 5,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-461604ed6ee1ecdb",
+      "source_id": "294",
+      "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=8tnR4p3fQAw%3D&mode=p",
+      "chapter": 5,
+      "fact": "##### General rule for the quality of soy sauce\n\n 国家标准 推荐性 即将实施 \n\n国家标准《酱油质量通则》 由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。\n\n主要起草单位 佛山市海天调味食品股份有限公司 、烟台欣和企业食品有限公司 、李锦记（新会）食品有限公司 、天津科技大学食品科学与工程学院 、千禾味业食品股份有限公司 、江苏恒顺醋业股份有限公司 、中国食品发酵工业研究院有限公司 、广东美味鲜调味食品有限公司 、华东理工大学 、广东珠江桥生物科技股份有限公司 。",
+      "original_offset": 21,
+      "scope": "industry_context",
+      "boundary": "政府网站公开表述；仅支持引文所述对象及事项，不扩大为目标企业违法、无风险或商标权完整归属结论。；本条来自既有检索服务留存文本，本轮未独立回取原页。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "5",
+          "accepted": 5,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-ce33c92db9d5d06f",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 5,
+      "fact": "(3).情况说明 \n√适用 □不适用  \n报告期内，公司研发投入总额为 9.15 亿元，研发投入占年度营业收入比例 3.17%。公司保\n持在科研上的投入定力，推动传统酿造工艺与人工智能、大数据等技术深度融合，在发酵核心技\n术、菌种选育、酿造关键装备、极致检测技术等关键领域持续突破，核心竞争优势不断巩固。",
+      "original_offset": 31856,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "5",
+          "accepted": 5,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-0d6c4c1f1e5f5861",
+      "source_id": "758",
+      "source_url": "https://www.hanghangcha.com/cms/detail/21520.html",
+      "chapter": 5,
+      "fact": "2019年调味品行业市场规模1282亿_行行查_行业研究数据库 \n\n数据精选 \n 行业图谱 \n 数据概览 \n\n收藏 \n 会员 \n 登录 \n\n查一下 \n\n行业研究数据库 \n 行业图谱研究 行业深度新闻 \n\n创业投资数据库 \n 知名创投机构 重点项目动态 \n\n证券研究数据库 \n 中国宏观数据 区域上市企业 \n\n2019年调味品行业市场规模1282亿 \n 2020-11-09 大消费 | 市场容量 \n 根据欧睿数据，2014年至2019年，调味品市场规模由852亿增至1282亿，年复合增速为8.2%，该口径包括酱醋、酱料、蚝油等，品类少于统计局口径。",
+      "original_offset": 113,
+      "scope": "industry_context",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "5",
+          "accepted": 5,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-7fdd4034d73eab4f",
+      "source_id": "807",
+      "source_url": "https://www.hanghangcha.com/cms/detail/29285.html",
+      "chapter": 5,
+      "fact": "行行查为用户提供海量行业研究数据和报告：调味品市场规模和增速_ ,包含 市场容量大消费,食品 等相关数据，本数据编号为 29285,搜索行业数据和行业报告就来行行查(www.hanghangcha.com)。 调味品市场规模和增速__行行查_行业研究数据库",
+      "original_offset": 0,
+      "scope": "industry_context",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "5",
+          "accepted": 5,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-ba89157330d663b3",
+      "source_id": "81",
+      "source_url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=E116673E56A9A3B7E05397BE0A0AC6BF",
+      "chapter": 5,
+      "fact": "##### Technical specification for soy sauce processing\n\n 国家标准计划 制定 推荐性 \n\n国家标准计划《酱油工艺技术规范》由 TC398（全国调味品标准化技术委员会）归口 ，主管部门为中国商业联合会。 拟实施日期：发布后18个月正式实施。 \n\n主要起草单位 中国调味品协会 、佛山市海天调味食品股份有限公司 、新疆维吾尔自治区产品质量监督检验研究院 。",
+      "original_offset": 23,
+      "scope": "industry_context",
+      "boundary": "政府网站公开表述；仅支持引文所述对象及事项，不扩大为目标企业违法、无风险或商标权完整归属结论。；标准起草或外部委员会参与仅按原字段归因；不等于认证、合规、独占技术或公司内部任职。保留计划、发布、实施及个人履历的各自时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "5",
+          "accepted": 5,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-cdb083c957504976",
+      "source_id": "831",
+      "source_url": "https://m.docin.com/touch_new/preview_new.do?id=4690371497",
+      "chapter": 5,
+      "fact": "豆丁网是面向全球的中文社会化阅读分享平台，拥有商业,教育,研究报告,行业资料,学术论文,认证考试,星座,心理学等数亿实用文档和书刊杂志。 中国调味品市场规模达3300亿元，细分产品市场格局不尽相同 中国调味品市场规模达3300亿元，细分产品市场格局不尽相同 - 豆丁网",
+      "original_offset": 0,
+      "scope": "industry_context",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "5",
+          "accepted": 5,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-2db69eef77a08a79",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 6,
+      "fact": "2、 收入和成本分析 \n√适用 □不适用  \n报告期内，公司营业收入 288.73 亿元，同比增加 7.32%；营业成本 172.60 亿元，同比增加\n1.79%。",
+      "original_offset": 26006,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "6",
+          "accepted": 6,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-654ce824e8c3ce53",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 6,
+      "fact": "产销量情况说明 \n报告期内，公司加快向数字 AI 新质生产力的转型，有效提升了供应链的协同效应,产销率、\n库存周转率均保持在较高水平，并实现期末产成品库存的良性下降。",
+      "original_offset": 28116,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "6",
+          "accepted": 6,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-9bf73ce30fdcdaf9",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 6,
+      "fact": "D. 报告期内公司存在贸易业务收入 \n√适用□不适用  \n单位：元  币种：人民币  \n贸易业务开展情况 本期营业收入 上期营业收入 本期营业收入比上年\n同期增减（%） \n商品贸易业务 426,390,513.18  571,268,686.34 -25.36",
+      "original_offset": 30504,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "6",
+          "accepted": 6,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-741502d4e913999b",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 6,
+      "fact": "其他说明： \n公司前五名客户的销售情况如下： \n单位：元 币种：人民币 \n客户名称 营业收入 占营业收入总额的比例（%） \n第一名 175,983,950.24 0.61 \n第二名 164,765,739.73 0.57 \n第三名 156,668,920.90 0.54 \n第四名 142,618,660.53 0.49 \n第五名 101,796,958.57 0.35 \n合计 741,834,229.97 2.56",
+      "original_offset": 30773,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "6",
+          "accepted": 6,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-a722f8c92086a045",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 6,
+      "fact": "4、 研发投入 \n(1).研发投入情况表 \n√适用 □不适用  \n单位：元  币种：人民币 \n本期费用化研发投入 914,986,298.30 \n研发投入合计 914,986,298.30 \n研发投入总额占营业收入比例（%） 3.17 \n研发投入资本化的比重（%）",
+      "original_offset": 31375,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "6",
+          "accepted": 6,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-2c5839c595aee1a9",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 7,
+      "fact": "Purchase of Liability Insurance for Directors and Senior Management",
+      "original_offset": 19434,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "7",
+          "accepted": 7,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-3e78e1470664aa8d",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 7,
+      "fact": "To further enhance the Company’s risk management system, mitigate the risks arising from the performance of duties by directors and senior management, and encourage them to perform their duties with integrity and diligence, the Company proposes to purchase liability insurance for its directors and senior management in accordance with the Hong Kong Stock Exchange Listing Rules and other relevant regulations.",
+      "original_offset": 19503,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "7",
+          "accepted": 7,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-4523252dedf9f8f5",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 7,
+      "fact": "All directors, senior management, and relevant personnel of the Company (subject to the final insurance contract).",
+      "original_offset": 19977,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "7",
+          "accepted": 7,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-adb0fd0922353a6c",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 7,
+      "fact": "Remuneration Plan for Directors for the Year 2026",
+      "original_offset": 20823,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "7",
+          "accepted": 7,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-ff8a5d00649f4922",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 7,
+      "fact": "1. If the Holder experiences any of the following circumstances, the Management Committee will, without compensation, reclaim all of the Holder’s equity interests in the Underlying Shares (whether or not such equity interests have been transferred to the Holder’s name, or whether the Holder is currently employed or has resigned) : (1) being sanctioned for violating laws; (2) violating professional ethics, disclosing confidential information of the Company, negligence or dereliction of duty, or committing serious violations of Company’s rules and regulations, or causing significant losses to the Company; (3) violating non-compete restrictions and harming the Company’s interests or reputation; (4) other circumstances determined by the Management Committee.",
+      "original_offset": 84509,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "7",
+          "accepted": 7,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-304c1dfcb4121011",
+      "source_id": "183",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2022-03-25/1212671753.PDF",
+      "chapter": 7,
+      "fact": "| 会计政策变更的内容和原因 | 审批程序 | 备注(受重要影响的报表项目 名称和金额) |\n| --- | --- | --- |\n| 执行《企业会计准则第 租赁（修订）》(财会 号) | 2021 年 3 月 31 日，公司第四届 21 号 董事会第十二次会议、公司第四 [2018] 35 届监事会第六次会议审议并通 过了《关于公司会计政策变更的 议案》 | 本公司根据(财会 [2018] 35 号)的租赁准则解读编制 2021 年度财务报告，相关列报调整 见其他说明 |",
+      "original_offset": 120837,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "7",
+          "accepted": 7,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-75ce7b7c79613501",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 8,
+      "fact": "3. The Lock-up period for the Plan is designed to balance incentives and constraints. In compliance with laws and regulations, the Lock-up Period can effectively motivate employees while imposing corresponding constraints on them. This effectively aligns the interests of Holders with those of the Company and its Shareholders, achieving the purpose of the Plan and driving further growth for the Company.",
+      "original_offset": 80475,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "8",
+          "accepted": 8,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-9b7fb26eaa1f3438",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 9,
+      "fact": "1. The Plan is subject to a 12-month lock-up period from the date when the Company announces the completion of the transfer of the repurchased Underlying Shares from the designated securities repurchase account of the Company. During the lock-up period, no transactions shall be conducted, including but not limited to transfer, mortgage/pledge, provision of loans or provision of guarantees. Upon the expiration of the lock-up period, the Plan shall strictly comply with market trading rules, as well as the securities regulatory rules of the place where the Company’s shares are listed regarding the prohibition of share trading during insider trading blackout periods.",
+      "original_offset": 79476,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "9",
+          "accepted": 9,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-74df5c149dc8a493",
+      "source_id": "116",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0417/2026041701933.pdf",
+      "chapter": 9,
+      "fact": "Holders shall strictly abide by market trading rules and comply with the securities regulatory rules of the place where the Company’s shares are listed regarding the prohibition of share trading during insider trading blackout periods. Holders who wish to trade shares shall conduct such transactions through their personal securities accounts. Matters such as finance, accounting treatment and taxation of the Plan will be handled pursuant to relevant laws, regulations and normative documents. Holders are solely responsible for their individual income tax.",
+      "original_offset": 83903,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "9",
+          "accepted": 9,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-0f85538591dd25ba",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 9,
+      "fact": "九、重大诉讼、仲裁事项 □本年度公司有重大诉讼、仲裁事项 √本年度公司无重大诉讼、仲裁事项",
+      "original_offset": 62699,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "9",
+          "accepted": 9,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-dc0763161917af77",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 9,
+      "fact": "十、上市公司及其董事、监事、高级管理人员、控股股东、实际控制人涉嫌违法违规、受到处罚 \n及整改情况 \n□适用 √不适用",
+      "original_offset": 62746,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "9",
+          "accepted": 9,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-b21570e74e2d6107",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 9,
+      "fact": "公司及控股股东、实际控制人不存在未履行法院生效判决、所负数额较大的债务到期未清偿 等情况。",
+      "original_offset": 62867,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "9",
+          "accepted": 9,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-cb567e45d6678ae4",
+      "source_id": "433",
+      "source_url": "https://www.tmkoo.com/detail/291a7bf405bd74b5/39",
+      "chapter": 9,
+      "fact": "佛山市海天调味食品股份有限公司于2003年01月27日申请了名称为海天的第39类商标，商标注册号为3448523，由北京中北知识产权代理有限公司代理申请。 佛山市海天调味食品股份有限公司于2003年01月27日申请了名称为海天的第39类商标，商标注册号为3448523，由北京中北知识产权代理有限公司代理申请。 商标名称海天、商标申请人佛山市海天调味食品股份有限公司的商标详情 - 标库网官网商标查询",
+      "original_offset": 0,
+      "scope": "target",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "9",
+          "accepted": 9,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-83d683dac3b7e887",
+      "source_id": "433",
+      "source_url": "https://www.tmkoo.com/detail/291a7bf405bd74b5/39",
+      "chapter": 9,
+      "fact": "商 \n 品 \n / \n 服 \n 务 \n 列 \n 表 \n 3901—— 商品包装 \n 3901—— 送货 \n 3901—— 运输经纪 \n 3902—— 海上运输 \n 3903—— 汽车运输 \n 3904—— 空中运输 \n 3908—— 能源分配 \n 3910—— 递送(信件和商品) \n 3911—— 旅游安排 \n 3912—— 管道运输 具体核准商品/服务以商标公告为准，点击查看！ \n 划横线表示：可能因被驳回、被撤销、被无效、已撤回、已注销、不予注册等原因，此条目已被剔除。",
+      "original_offset": 763,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "9",
+          "accepted": 9,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-d11ee80c03491706",
+      "source_id": "433",
+      "source_url": "https://www.tmkoo.com/detail/291a7bf405bd74b5/39",
+      "chapter": 9,
+      "fact": "专用权期限： 2014年12月21日至2024年12月20日 是否共有商标： 否",
+      "original_offset": 1073,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "9",
+          "accepted": 9,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-ca35961ddbb3d567",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 10,
+      "fact": "十二、重大关联交易 \n(一)与日常经营相关的关联交易 \n1、 已在临时公告披露且后续实施无进展或变化的事项 \n□适用 √不适用",
+      "original_offset": 62914,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-5ff1ed2c37f830df",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 10,
+      "fact": "| 1、 托管情况 | |\n| --- | --- |\n| □适用 | √不适用 |\n| 2、 承包情况 | |\n| □适用 | √不适用 |\n| 3、 租赁情况 | |\n| □适用 | √不适用 |\n| (二) 担保情况 | |\n| □适用 | √不适用 |",
+      "original_offset": 63522,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-0a9d292f7b9fca73",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 10,
+      "fact": "| 类型 | 资金来源 | 发生额 | 未到期余额 逾期未收回金额 |\n| --- | --- | --- | --- |\n| 银行理财 | 自有资金 | 7,681,000,000.00 | 6,049,000,000.00 |",
+      "original_offset": 63724,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-2a35d40ea67ed11c",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 10,
+      "fact": "（6）减值 \n本集团以预期信用损失为基础，对下列项目进行减值会计处理并确认损失准备： \n- 以摊余成本计量的金融资产； \n- 以公允价值计量且其变动计入其他综合收益的债权投资； \n- 租赁应收款。",
+      "original_offset": 105563,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-64852bd390629c27",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 10,
+      "fact": "本集团基于历史信用损失经验、使用准备矩阵计算上述金融资产的预期信用损失，相关历史经验 \n根据资产负债表日借款人的特定因素、以及对当前状况和未来经济状况预测的评估进行调整。",
+      "original_offset": 106152,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-272b072b7d5c3f62",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 10,
+      "fact": "已发生信用减值的金融资产 \n本集团在资产负债表日评估以摊余成本计量的金融资产和以公允价值计量且其变动计入其他 \n综合收益的债权投资是否已发生信用减值。",
+      "original_offset": 106987,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-a03dbfe5c1248739",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 10,
+      "fact": "金融资产已发生信用减值的证 \n据包括下列可观察信息： \n- 发行方或债务人发生重大财务困难； \n- 债务人违反合同，如偿付利息或本金违约或逾期等； \n- 本集团出于与债务人财务困难有关的经济或合同考虑，给予债务人在任何其他情况下都 \n不会做出的让步； \n- 债务人很可能破产或进行其他财务重组； \n- 发行方或债务人财务困难导致该金融资产的活跃市场消失。",
+      "original_offset": 107116,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-96d12041cc7ff1e4",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 10,
+      "fact": "预期信用损失准备的列报 \n为反映金融工具的信用风险自初始确认后的变化，本集团在每个资产负债表日重新计量预期 \n信用损失，由此形成的损失准备的增加或转回金额，应当作为减值损失或利得计入当期损益。",
+      "original_offset": 107295,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-1c4ccf1ad11c7c04",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 10,
+      "fact": "核销 \n如果本集团不再合理预期金融资产合同现金流量能够全部或部分收回，则直接减记该金融资 \n产的账面余额。",
+      "original_offset": 107500,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-30421cddbe5bf0d3",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 10,
+      "fact": "没有资产或收入来源可产生足够的现金流量以偿还将被减记的金额。但是，被减记的金融资产仍 \n可能受到本集团催收到期款项相关执行活动的影响。 \n已减记的金融资产以后又收回的，作为减值损失的转回计入收回当期的损益。 \n（7）权益工具 \n本公司发行权益工具收到的对价扣除交易费用后，计入股东权益。回购本公司权益工具支付 \n的对价和交易费用，减少股东权益。 \n回购本公司股份时，回购的股份作为库存股管理，回购股份的全部支出转为库存股成本，同 \n时进行备查登记。库存股不参与利润分配，在资产负债表中作为股东权益的备抵项目列示。 \n库存股注销时，按注销股票面值总额减少股本，库存股成本超过面值总额的部分，应依次冲 \n减资本公积 (股本溢价) 、盈余公积和未分配利润；库存股成本低于面值总额的，低于面值总额 \n的部分增加资本公积 (股本溢价) 。 \n库存股转让时，转让收入高于库存股成本的部分，增加资本公积 (股本溢价)；低于库存股成 \n本的部分，依次冲减资本公积 (股本溢价) 、盈余公积、未分配利润。 \n11. 应收票据 \n应收票据的预期信用损失的确定方法及会计处理方法 \n□适用 √不适用 \n12. 应收账款 \n应收账款的预期信用损失的确定方法及会计处理方法 \n√适用 □不适用 \n对于应收账款，本集团始终按照相当于整个存续期内预期信用损失的金额计量其损失准备。 \n本集团基于历史信用损失经验、使用准备矩阵计算上述金融资产的预期信用损失，相关历史经验 \n根据资产负债表日借款人的特定因素、以及对当前状况和未来经济状况预测的评估进行调整。",
+      "original_offset": 107601,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-f3b0f90f94c28358",
+      "source_id": "183",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2022-03-25/1212671753.PDF",
+      "chapter": 10,
+      "fact": "• 2021 年 1 月 1 日执行新租赁准则对财务报表的影响 在计量租赁负债时，本集团使用 2021 年 1 月 1 日的增量借款利率对租赁付款额进行折现。本 集团和本公司使用的加权平均利率分别为 4.81%和 4.78% 。 2020 年 12 月 31 日披露的重大经营租赁的尚未支付的最低租赁付款额与 2021 年 1 月 1 日租 赁负债的调节表：",
+      "original_offset": 121907,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-d4af4b1edf16c59b",
+      "source_id": "254",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 10,
+      "fact": "| 项目 | 1 年内或 实时偿付 | 1 2 年至 年 | 2025 年 2 5 年至 年 | 5 | 年以上 | | 资产负债表 合计 账面价值 |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| 短期借款 | (142,380,404.01) | - | - | | - | (142,380,404.01) | (140,850,000.00) |\n| 衍生金融负债 | (359,670.58) | - | - | | - | (359,670.58) | (359,670.58) |\n| 应付账款 | (1,505,924,425.92) | - | - | | - (1,505,924,425.92) | | (1,505,924,425.92) |\n| 应付票据 | (1,266,872,211.16) | - | - | | - (1,266,872,211.16) | | (1,266,872,211.16) |\n| 其他应付款 | (882,591,441.68) | - | - | | - | (882,591,441.68) | (882,591,441.68) |\n| 一年内到期的非流动负债 | (80,284,761.19) | - | - | | - | (80,284,761.19) | (77,674,512.86) |\n| 租赁负债 | - | (27,980,871.69) | (17,807,958.89) | (21,341,511.71) | | (67,130,342.29) | (60,632,747.12) |\n| 其他非流动负债 | (162,000.00) | (162,000.00) | (5,562,000.00) | | - | (5,886,000.00) | (5,400,000.00) |\n| 合计 | (3,878,574,914.54) | (28,142,871.69) | (23,369,958.89) | (21,341,511.71) | (3,951,429,256.83) | | (3,940,305,009.32) |",
+      "original_offset": 100578,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-a3f7d31b7a078a88",
+      "source_id": "254",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 10,
+      "fact": "| 项目 | | 1 年内或 1 2 年至 年 实时偿付 | 2 5 年至 | 2024 年 (已重述) 年 | 5 年以上 | | 资产负债表 合计 账面价值 |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| 短期借款 | (295,598,395.69) | | - | - | - | (295,598,395.69) | (293,464,953.68) |\n| 应付账款 | (1,360,229,054.27) | | - | - | - | (1,360,229,054.27) | (1,360,229,054.27) |\n| 应付票据 | (586,477,410.32) | | - | - | - | (586,477,410.32) | (586,477,410.32) |\n| 其他应付款 | (879,756,035.68) | | - | - | - | (879,756,035.68) | (879,756,035.68) |\n| 一年内到期的非流动负债 | | (33,529,163.02) | - | - | - | (33,529,163.02) | (30,769,896.77) |\n| 长期借款 | | - (33,702,910.82) | | - | - | (33,702,910.82) | (33,200,000.00) |\n| 租赁负债 | | - (6,201,132.84) | (7,846,648.07) | (23,072,698.17) | | (37,120,479.08) | (28,591,445.31) |\n| 其他非流动负债 | | (1,140,000.00) (19,757,709.59) | | - | - | (20,897,709.59) | (19,000,000.00) |\n| 合计 | (3,156,730,058.98) | (59,661,753.25) | (7,846,648.07) | (23,072,698.17) | | (3,247,311,158.47) | (3,231,488,796.03) |\n| 3 利率风险 固定利率和浮动利率的带息金融工具分别使本集团面临公允价值利率风险及现金流量利率风 险。",
+      "original_offset": 101523,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-b4ba47d696b2d13c",
+      "source_id": "254",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 10,
+      "fact": "2 持续和非持续第二层次公允价值计量项目，采用的估值技术和重要参数的定性及定量信息 本集团持有的交易性金融资产为一年期保本浮动收益的银行理财产品，其公允价值是采用约定 的预期收益率计算的未来现金流量折现的方法来确定。",
+      "original_offset": 107725,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-ca051f556215a87a",
+      "source_id": "254",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 10,
+      "fact": "3 不以公允价值计量的金融资产和金融负债的公允价值情况 本集团其他金融资产和负债主要包括：货币资金、应收款项和应付款项等。由于上述金融资产 和负债预计变现时限较短，因此其账面价值与公允价值差异不重大。",
+      "original_offset": 107870,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-bef82f9566ca56fd",
+      "source_id": "254",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 10,
+      "fact": "注 2： 鉴于关联方往来资金流动频繁，本公司在关联方交易额及现金流量表中对于上述交易以 净变动额列示。",
+      "original_offset": 121435,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-e9d6be1070e4baec",
+      "source_id": "254",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 10,
+      "fact": "于 2025 年，本集团的关联方嘉兴海天使用自有资金向提出贷款申请的本集团的部分经销商借 款人提供授信、贷款服务，嘉兴海天自行决定贷款额度及贷款利率。就上述交易，本集团不对 经销商提供任何担保，本集团与嘉兴海天无需相互支付费用。",
+      "original_offset": 121488,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-67820cf3af7449c5",
+      "source_id": "301",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 10,
+      "fact": "| 项目 | 1 年内或 实时偿付 | 1 2 年至 年 | 2025 年 2 5 年至 年 | 5 | 年以上 | | 资产负债表 合计 账面价值 |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| 短期借款 | (142,380,404.01) | - | - | | - | (142,380,404.01) | (140,850,000.00) |\n| 衍生金融负债 | (359,670.58) | - | - | | - | (359,670.58) | (359,670.58) |\n| 应付账款 | (1,505,924,425.92) | - | - | | - (1,505,924,425.92) | | (1,505,924,425.92) |\n| 应付票据 | (1,266,872,211.16) | - | - | | - (1,266,872,211.16) | | (1,266,872,211.16) |\n| 其他应付款 | (882,591,441.68) | - | - | | - | (882,591,441.68) | (882,591,441.68) |\n| 一年内到期的非流动负债 | (80,284,761.19) | - | - | | - | (80,284,761.19) | (77,674,512.86) |\n| 租赁负债 | - | (27,980,871.69) | (17,807,958.89) | (21,341,511.71) | | (67,130,342.29) | (60,632,747.12) |\n| 其他非流动负债 | (162,000.00) | (162,000.00) | (5,562,000.00) | | - | (5,886,000.00) | (5,400,000.00) |\n| 合计 | (3,878,574,914.54) | (28,142,871.69) | (23,369,958.89) | (21,341,511.71) | (3,951,429,256.83) | | (3,940,305,009.32) |",
+      "original_offset": 100578,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-e2d790537272c872",
+      "source_id": "301",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 10,
+      "fact": "| 项目 | | 1 年内或 1 2 年至 年 实时偿付 | 2 5 年至 | 2024 年 (已重述) 年 | 5 年以上 | | 资产负债表 合计 账面价值 |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| 短期借款 | (295,598,395.69) | | - | - | - | (295,598,395.69) | (293,464,953.68) |\n| 应付账款 | (1,360,229,054.27) | | - | - | - | (1,360,229,054.27) | (1,360,229,054.27) |\n| 应付票据 | (586,477,410.32) | | - | - | - | (586,477,410.32) | (586,477,410.32) |\n| 其他应付款 | (879,756,035.68) | | - | - | - | (879,756,035.68) | (879,756,035.68) |\n| 一年内到期的非流动负债 | | (33,529,163.02) | - | - | - | (33,529,163.02) | (30,769,896.77) |\n| 长期借款 | | - (33,702,910.82) | | - | - | (33,702,910.82) | (33,200,000.00) |\n| 租赁负债 | | - (6,201,132.84) | (7,846,648.07) | (23,072,698.17) | | (37,120,479.08) | (28,591,445.31) |\n| 其他非流动负债 | | (1,140,000.00) (19,757,709.59) | | - | - | (20,897,709.59) | (19,000,000.00) |\n| 合计 | (3,156,730,058.98) | (59,661,753.25) | (7,846,648.07) | (23,072,698.17) | | (3,247,311,158.47) | (3,231,488,796.03) |\n| 3 利率风险 固定利率和浮动利率的带息金融工具分别使本集团面临公允价值利率风险及现金流量利率风 险。",
+      "original_offset": 101523,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-05aafec75ac25b82",
+      "source_id": "301",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 10,
+      "fact": "2 持续和非持续第二层次公允价值计量项目，采用的估值技术和重要参数的定性及定量信息 本集团持有的交易性金融资产为一年期保本浮动收益的银行理财产品，其公允价值是采用约定 的预期收益率计算的未来现金流量折现的方法来确定。",
+      "original_offset": 107725,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-2d46c740069ab506",
+      "source_id": "301",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 10,
+      "fact": "3 不以公允价值计量的金融资产和金融负债的公允价值情况 本集团其他金融资产和负债主要包括：货币资金、应收款项和应付款项等。由于上述金融资产 和负债预计变现时限较短，因此其账面价值与公允价值差异不重大。",
+      "original_offset": 107870,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-b39027b0fe261b33",
+      "source_id": "301",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 10,
+      "fact": "注 2： 鉴于关联方往来资金流动频繁，本公司在关联方交易额及现金流量表中对于上述交易以 净变动额列示。",
+      "original_offset": 121435,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-811295d54f02a73d",
+      "source_id": "301",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 10,
+      "fact": "于 2025 年，本集团的关联方嘉兴海天使用自有资金向提出贷款申请的本集团的部分经销商借 款人提供授信、贷款服务，嘉兴海天自行决定贷款额度及贷款利率。就上述交易，本集团不对 经销商提供任何担保，本集团与嘉兴海天无需相互支付费用。",
+      "original_offset": 121488,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-feacf0fe1715108a",
+      "source_id": "437",
+      "source_url": "https://www.sohu.com/a/884803768_122014422",
+      "chapter": 10,
+      "fact": "融券方面，海天味业4月15日融券偿还3.53万股，融券卖出4.79万股，按当日收盘价计算，卖出金额204.97万元；融券余量16.51万股，融券余额706.15万元，超过近一年50%分位水平，处于较高位。2… 融券方面，海天味业4月15日融券偿还3.53万股，融券卖出4.79万股，按当日收盘价计算，卖出金额204.97万元；融券余量16.51万股，融券余额706.15万元，超过近一年50%分位水平，处于较高位。机构… 海天味业4月15日获融资买入2699.87万元，融资余额7.23亿元_方面_佛山市_股东",
+      "original_offset": 0,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-47af7005f8c4d003",
+      "source_id": "437",
+      "source_url": "https://www.sohu.com/a/884803768_122014422",
+      "chapter": 10,
+      "fact": "4月15日，海天味业涨1.45%，成交额6.00亿元。两融数据显示，当日海天味业获融资买入额2699.87万元，融资偿还3218.03万元，融资净买入-518.16万元。截至4月15日，海天味业融资融券余额合计7.30亿元。",
+      "original_offset": 473,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-481b6863f8dab646",
+      "source_id": "437",
+      "source_url": "https://www.sohu.com/a/884803768_122014422",
+      "chapter": 10,
+      "fact": "融资方面，海天味业当日融资买入2699.87万元。当前融资余额7.23亿元，占流通市值的0.30%，融资余额低于近一年20%分位水平，处于低位。",
+      "original_offset": 588,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-8d1f55dd9bdaa37d",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 10,
+      "fact": "5、 现金流 \n√适用 □不适用  \n项目 本期金额 上期金额 \n较上期变动比\n例（%） \n经营活动现金流入小计 33,326,873,172.49 30,616,199,008.59 8.85 \n经营活动现金流出小计 25,580,922,218.70 23,775,997,439.48 7.59 \n经营活动产生的现金流量净额 7,745,950,953.79 6,840,201,569.11 13.24 \n投资活动现金流入小计 14,620,670,424.46 14,788,657,020.72 -1.14 \n投资活动现金流出小计 28,350,426,573.00 18,560,976,804.19 52.74 \n投资活动产生的现金流量净额 -13,729,756,148.54 -3,772,319,783.47 不适用 \n筹资活动现金流入小计 13,217,215,007.49 1,842,983,239.09 617.16 \n筹资活动现金流出小计 9,553,777,799.42 5,845,378,440.52 63.44 \n筹资活动产生的现金流量净额 3,663,437,208.07 -4,002,395,201.43 不适用 \n相关数据标定 30%以上原因说明： \n投资活动现金流出增加的原因：主要是本期投资支付的现金增加所致。 \n筹资活动现金流入增加的原因：主要是本期 H 股发行收到募集资金所致。 \n筹资活动现金流出增加的原因：主要是本期支付股利增加所致。",
+      "original_offset": 32058,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-5054c251a93cab94",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 10,
+      "fact": "(三) 资产、负债情况分析 \n√适用 □不适用  \n1、 资产及负债状况 \n单位：元  币种：人民币 \n项目名称 本期期末数 \n本期期末\n数占总资\n产的比例\n（%） \n上期期末数 \n上期期末\n数占总资\n产的比例\n（%） \n本期期末金\n额较上期期\n末变动比例\n（%） \n情况说明 \n交易性金融资\n产 \n10,105,463,050.02 19.37 7,617,576,114.87 18.64 32.66 \n主要是本期购入的银行理财增加所\n致。",
+      "original_offset": 32802,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-e1af9a1af22f4fcf",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 10,
+      "fact": "其他非流动资\n产 \n5,912,028,459.99\n 11.33 61,219,495.69 0.15 9,557.10 \n主要是本期基于资金规划对长期定\n存拟持有至到期所致。",
+      "original_offset": 33374,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-fef5e7195dba611a",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 10,
+      "fact": "短期借款 140,850,000.00  0.27 293,464,953.68 0.72 -52.00 主要是短期借款到期偿还所致。",
+      "original_offset": 33465,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-1ece0de9346615ad",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 10,
+      "fact": "一年内到期的\n非流动负债 \n77,674,512.86\n 0.15 30,769,896.77 0.08 152.44 \n主要是一年内到期的租赁负债和长\n期借款增加所致。",
+      "original_offset": 33741,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-21777a7ad3c56817",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 10,
+      "fact": "长期借款 0.00  0.00 33,200,000.00 0.08 -100.00 \n主要是长期借款变为一年内到期的\n非流动负债所致。",
+      "original_offset": 33828,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-0a3361eefc03c149",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 10,
+      "fact": "其他非流动负\n债 \n5,400,000.00\n 0.01 19,000,000.00 0.05 -71.58 \n主要是子公司其他长期借款变为一\n年内到期的其他非流动负债所致。",
+      "original_offset": 33967,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-206cd08deb6f6b32",
+      "source_id": "74",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032602772_c.pdf",
+      "chapter": 10,
+      "fact": "3、 以公允价值计量的金融资产 \n√适用 □不适用  \n单位：元  币种：人民币 \n资产类别 期初数 本期公允价值变\n动损益 \n计入权益的累计\n公允价值变动 \n本期计提\n的减值 本期购买金额 本期出售/赎回金额 其他\n变动 期末数 \n其他 7,617,676,114.87  235,727,052.17   12,053,000,000.00 9,800,840,117.02  10,105,563,050.02 \n合计 7,617,676,114.87  235,727,052.17   12,053,000,000.00 9,800,840,117.02  10,105,563,050.02",
+      "original_offset": 36703,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "10",
+          "accepted": 10,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-3e16605330218055",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 11,
+      "fact": "除应收账款外，本集团对满足下列情形的金融工具按照相当于未来 12 个月内预期信用损失的 \n金额计量其损失准备，对其他金融工具按照相当于整个存续期内预期信用损失的金额计量其损失 \n准备： \n- 该金融工具在资产负债表日只具有较低的信用风险；或 \n- 该金融工具的信用风险自初始确认后并未显著增加。",
+      "original_offset": 106239,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "11",
+          "accepted": 11,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-2f9eaf25865012d4",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 11,
+      "fact": "信用风险显著增加 \n本集团通过比较金融工具在资产负债表日发生违约的风险与在初始确认日发生违约的风险， \n以确定金融工具预计存续期内发生违约风险的相对变化，以评估金融工具的信用风险自初始确认 \n后是否已显著增加。",
+      "original_offset": 106521,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "11",
+          "accepted": 11,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-aeae1d929a9c7697",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 11,
+      "fact": "根据金融工具的性质，本集团以单项金融工具或金融工具组合为基础评估信用风险是否显著 \n增加。",
+      "original_offset": 106849,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "11",
+          "accepted": 11,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-09061a4688d63ceb",
+      "source_id": "176",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2023-04-26/1216595423.PDF",
+      "chapter": 11,
+      "fact": "以金融工具组合为基础进行评估时，本集团可基于共同信用风险特征对金融工具进行分类， \n例如逾期信息和信用风险评级。",
+      "original_offset": 106894,
+      "scope": "group",
+      "boundary": "原站公开表述，按发布者及文中主体归因；来源身份、报道内容和独立核实分别保留，不提升为目标公司官方披露或确定的财务、控制、违法结论。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "11",
+          "accepted": 11,
+          "reason": "canonical_numeric_chapter_encoding"
+        },
+        {
+          "field": "scope",
+          "proposed": "target",
+          "accepted": "group",
+          "reason": "brand_reference_not_single_legal_entity"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-21393e7d2cc8d0d6",
+      "source_id": "254",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 11,
+      "fact": "对于不是以记账本位币计价的货币资金等外币资产，如果出现短期的失衡情况，本集团会在必 要时按市场汇率买卖外币，以确保将净风险敞口维持在可接受的水平。",
+      "original_offset": 104163,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "11",
+          "accepted": 11,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-be144e382635e300",
+      "source_id": "254",
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 11,
+      "fact": "(1) 本集团于资产负债表日的各外币资产负债项目汇率风险敞口如下。下述外币风险敞口所列示的 项目主要包括记账本位币为人民币的子公司所持有的外币项目 (外币资产的计价货币主要为美 元、欧元和港元)，以及记账本位币为美元、港币的子公司所持有的外币项目 (外币资产的计价 货币主要为人民币) 。出于列报考虑，风险敞口金额以人民币列示，以资产负债表日即期汇率",
+      "original_offset": 104238,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "11",
+          "accepted": 11,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-05f1125faf6c5ce4",
+      "source_id": "301",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 11,
+      "fact": "对于不是以记账本位币计价的货币资金等外币资产，如果出现短期的失衡情况，本集团会在必 要时按市场汇率买卖外币，以确保将净风险敞口维持在可接受的水平。",
+      "original_offset": 104163,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "11",
+          "accepted": 11,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    },
+    {
+      "statement_id": "Q-e8e0f01fa87a779c",
+      "source_id": "301",
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0326/2026032603064_c.pdf",
+      "chapter": 11,
+      "fact": "(1) 本集团于资产负债表日的各外币资产负债项目汇率风险敞口如下。下述外币风险敞口所列示的 项目主要包括记账本位币为人民币的子公司所持有的外币项目 (外币资产的计价货币主要为美 元、欧元和港元)，以及记账本位币为美元、港币的子公司所持有的外币项目 (外币资产的计价 货币主要为人民币) 。出于列报考虑，风险敞口金额以人民币列示，以资产负债表日即期汇率",
+      "original_offset": 104238,
+      "scope": "target",
+      "boundary": "公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。；本条来自既有检索服务留存文本，本轮未独立回取原页。",
+      "selection_corrections": [
+        {
+          "field": "chapter",
+          "proposed": "11",
+          "accepted": 11,
+          "reason": "canonical_numeric_chapter_encoding"
+        }
+      ]
+    }
+  ],
+  "diagnostic": {
+    "source_records": 1246,
+    "candidate_originals": 547,
+    "review_batches": 952,
+    "model_requests": 0,
+    "cached_review_batches": 952,
+    "provider_deferred_batches": 0,
+    "all_candidate_windows_reviewed": true,
+    "accepted_claims": 9952,
+    "accepted_sources": 369,
+    "professional_platform_sources": 52,
+    "accepted_professional_sources": 13,
+    "states": {
+      "native_windows_require_structural_or_scope_review": 10,
+      "reviewed_literal_claims": 350,
+      "reviewed_no_accepted_claim": 106,
+      "no_literal_topic_window": 25,
+      "no_target_or_industry_evidence_window": 400,
+      "exact_original_corroboration": 19,
+      "reviewed_selections_rejected": 91,
+      "original_not_available_discovery_only": 153,
+      "exact_original_without_accepted_claim": 91,
+      "after_research_cutoff": 1
+    }
+  },
+  "old_receipts_sha256_before_and_after": "aec967a975795a32dbe1e2af04cf9e0d4c41ca6e77bb90d8527ae319c3831b7d",
+  "raw_receipts_modified": false,
+  "production_cache_modified": false,
+  "new_model_calls": 0,
+  "new_search_calls": 0,
+  "full_report_accepted": false,
+  "independent_full_report_semantic_review": "not_performed",
+  "fact_count_definition": "Model-proposed literal records passing current selection guards, including corroborating copies; not a count of independently verified business conclusions or unique events.",
+  "production_source_sha256": {
+    "backend/report_agents/company_corpus.py": "489ec599c8de63e84e3a74111e5d1383589b2304c58e27f7f6c7b51c3fb117fe",
+    "backend/report_agents/company_source_review.py": "94a5d95de62a139519400f9bcd9831c532a44e27be5cc566d984e4b7be975dd4"
+  }
+}

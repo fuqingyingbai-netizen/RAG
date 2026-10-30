@@ -8,7 +8,7 @@ import pytest
 
 from report_agents.company_event_evidence import (
     VERSION, REVIEW_CRITERIA, BOUNDARIES, case_state_errors, event_period,
-    review_primary_events, reviewed_event_records, validate_event,
+    review_primary_events, reviewed_event_records, validate_event, independent_check_witness,
 )
 from report_agents.company_risk_register import build_risk_register, render_risk_register
 from report_agents.company_corpus_writer import collect_statements
@@ -44,6 +44,7 @@ def selection(s=None):
            'original_sha256': hashlib.sha256(raw.encode()).hexdigest(), 'independent_check': check()}
     for key in ('quote', 'subject_quote', 'date_quote'):
         row[key + '_offset'] = raw.find(row[key])
+    row['independent_check_witness']=independent_check_witness(row,row['independent_check'],TARGET,AS_OF)
     return row
 
 
@@ -75,7 +76,7 @@ def test_explicit_publication_date_and_document_date_keep_their_own_meaning():
     s = source(); s['content'] = '发布日期：2026-10-24\n' + BODY
     row = selection(s); row.update(source_date_role='publication', publication_date='2026-10-24',
                                    date_quote='发布日期：2026-10-24', date_quote_offset=0)
-    assert not validate_event(row, s, TARGET, AS_OF)
+    assert not validate_event(row, s, TARGET, AS_OF, require_independent=False)
     assert event_period(row).startswith('资料发布日期2026-10-24')
     assert 'after_research_cutoff' in validate_event(row, s, TARGET, '2026-10-23')
     row.update(source_date_role='document_date', publication_date=None)
@@ -86,7 +87,7 @@ def test_explicit_publication_date_and_document_date_keep_their_own_meaning():
 def test_undated_event_does_not_require_a_made_up_date_quote():
     s = source(); row = selection(s)
     row.update(source_date_role='unknown', source_date=None, publication_date=None, date_quote=None, date_quote_offset=-1)
-    assert not validate_event(row, s, TARGET, AS_OF)
+    assert not validate_event(row, s, TARGET, AS_OF, require_independent=False)
 
 
 @pytest.mark.parametrize('changes,error', [
@@ -149,7 +150,7 @@ def test_requests_qualifications_and_future_conditions_remain_allowed(summary):
 ])
 def test_explanation_of_distinct_states_is_not_a_completed_act(scope):
     row = selection(); row['subject_scope'] += scope
-    assert not validate_event(row, source(), TARGET, AS_OF)
+    assert not validate_event(row, source(), TARGET, AS_OF, require_independent=False)
     assert row['subject_scope'].endswith(scope)
 
 

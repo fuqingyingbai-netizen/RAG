@@ -1,0 +1,101 @@
+{
+  "observed_at": "2026-10-28T18:27:42.034852+00:00",
+  "backend_product_commit": "f0395c9",
+  "case": "haitian",
+  "previous_checkpoint_sha256": "1e6e268e6fc67f2a3ddeaf779a48309756551f21517b23affe07d469f5ce7e3c",
+  "new_event_checkpoint_sha256": "1c71ef9f358871b932cfea2d35ac3f0c35a490e3cafc28a163bc01c66636cca4",
+  "version": "company-event-evidence-v7-local-absence-state-claims",
+  "source_url": "https://www.shzcfy.gov.cn/detail.jhtml?id=349956",
+  "original_text_sha256": "3fe889b8bd55baaaee63d5256a17831da037bb39a675183fb3d20473835c2f2b",
+  "cached_proposal_witness": {
+    "cache_version": "company-event-evidence-v6-qualified-state-scope",
+    "current_literal_validation_errors": [],
+    "input_sha256": "0967d116b5deff11c23c7ca172090055fcd1cf2d8a39725d20f9822591bd7e9c",
+    "original_sha256": "3fe889b8bd55baaaee63d5256a17831da037bb39a675183fb3d20473835c2f2b",
+    "previous_receipt_sha256": "15acca1226c0eeedaa8ec5c9a1b9a9032ec7014ae1fdefe5f3c730df3a1d7caf",
+    "raw_response_sha256": "9d6ddba2807675aeab81d05a9ad572bbdf7bad5869cacdcf35866d8eae63525c",
+    "role": "公司监管原件提取修复"
+  },
+  "restored_proposal_fields_unchanged": true,
+  "raw_original_response_sha_verified": true,
+  "current_event_validation_errors": [],
+  "accepted_events": 1,
+  "fresh_independent_review_attempts": [
+    {
+      "attempt": 1,
+      "status": "supported",
+      "literal_review_errors": [
+        "independent_reason_unsupported_quantity:+300万",
+        "independent_reason_unsupported_quantity:+5万",
+        "independent_reason_unsupported_quantity:350万"
+      ]
+    },
+    {
+      "attempt": 2,
+      "status": "supported",
+      "literal_review_errors": []
+    }
+  ],
+  "fresh_model_returns": [
+    {
+      "at": "2026-10-28T18:22:31.015636+00:00",
+      "kind": "model_returned",
+      "number": 1,
+      "elapsed_seconds": 65.953,
+      "finish_reason": "stop",
+      "usage": {
+        "input_tokens": 2583,
+        "output_tokens": 3674,
+        "total_tokens": 6257,
+        "input_token_details": {
+          "cache_read": 0
+        },
+        "output_token_details": {
+          "reasoning": 3318
+        }
+      }
+    },
+    {
+      "at": "2026-10-28T18:22:50.470200+00:00",
+      "kind": "model_returned",
+      "number": 2,
+      "elapsed_seconds": 19.375,
+      "finish_reason": "stop",
+      "usage": {
+        "input_tokens": 2583,
+        "output_tokens": 1179,
+        "total_tokens": 3762,
+        "input_token_details": {
+          "cache_read": 2048
+        },
+        "output_token_details": {
+          "reasoning": 866
+        }
+      }
+    }
+  ],
+  "reused_cleaned_artifact_id": 201,
+  "new_cleaning_model_calls": 0,
+  "new_extraction_model_calls": 0,
+  "chapter11_errors": [],
+  "chapter11_degraded": false,
+  "first_review_boundary": "Equivalent-looking monetary abbreviations and plus signs did not pass the literal quantity gate; the original failure is retained and a second bounded review used original full units. Not an unsupported event or rewritten extraction.",
+  "actual_currency_cost": null,
+  "full_report_accepted": false,
+  "complete_body_and_exports_review": "pending",
+  "chapter11_diagnostic": {
+    "at": "2026-10-28T18:23:53.180674+00:00",
+    "version": "company-risk-register-v5-primary-regulatory-events",
+    "entries": 3,
+    "by_kind": {
+      "external_impersonation": 1,
+      "payment_pending": 1,
+      "related_funding": 1
+    },
+    "template_items": 75
+  },
+  "model_roles_before_chapter11_result": [
+    "公司监管原件独立核对",
+    "公司监管原件独立核对"
+  ]
+}

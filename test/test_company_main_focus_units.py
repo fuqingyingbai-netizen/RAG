@@ -5,9 +5,35 @@ import pytest
 
 from report_agents.company_main_focus import (
     CRITERIA, expanded_unit_ids, focus_prompt, mandatory_full_record, mandatory_unit_ids,
-    source_focus, source_units, validate_focus_answers,
+    source_focus, source_units, validate_focus_answers, focus_batches,
 )
 from test_company_presentation import record, TARGET, SCOPE
+
+
+def test_larger_focus_batches_preserve_every_complete_record_and_both_readers(monkeypatch):
+    rows=[record('I-'+str(i),text=('甲'*1400)+'。\n本期数据未审计，尚未完成登记。') for i in range(30)]
+    before=deepcopy(rows)
+    monkeypatch.delenv('COMPANY_MAIN_FOCUS_BATCH_RECORDS',raising=False)
+    monkeypatch.delenv('COMPANY_MAIN_FOCUS_BATCH_CHARS',raising=False)
+    old=list(focus_batches(rows))
+    monkeypatch.setenv('COMPANY_MAIN_FOCUS_BATCH_RECORDS','48')
+    monkeypatch.setenv('COMPANY_MAIN_FOCUS_BATCH_CHARS','104000')
+    new=list(focus_batches(rows))
+    assert len(new)<len(old)
+    assert sorted(r['information_id'] for batch in new for r in batch)==sorted(r['information_id'] for r in rows)
+    for batch in new:
+        for independent in (False,True):
+            prompt=focus_prompt(batch,TARGET,SCOPE,independent=independent)
+            assert all(r['text'].replace('\n','\\n') in prompt for r in batch)
+    assert rows==before
+
+
+def test_oversize_focus_record_is_never_truncated_to_fit_a_batch(monkeypatch):
+    monkeypatch.setenv('COMPANY_MAIN_FOCUS_BATCH_RECORDS','48')
+    monkeypatch.setenv('COMPANY_MAIN_FOCUS_BATCH_CHARS','104000')
+    row=record('I-large',text='甲'*110000+'。本项尚未完成登记。')
+    batches=list(focus_batches([row]))
+    assert batches==[[row]] and batches[0][0]['text']==row['text']
 
 
 def answer(row,ids):

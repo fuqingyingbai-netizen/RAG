@@ -1,0 +1,123 @@
+{
+  "documents": [
+    {
+      "case": "haitian",
+      "source_id": 25,
+      "title": "佛山市海天调味食品股份有限公司证券代码6032882025年年度报告",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225038237.PDF",
+      "baseline_text_sha256": "6c9e43ab88b8fabeb97f252e98a628163ec77928691991d9eb2c0ac0e1e7dfc7",
+      "baseline_pdf_sha256": "2c7fba45257decc8edc4a0d8462c51accf146593f8c6097b26ed5ad52cf4115e",
+      "baseline_content_origin": "provider_text",
+      "baseline_extraction_status": "done",
+      "attempts": [
+        {
+          "url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225038237.PDF",
+          "at": "2026-10-28T11:36:56.352333+00:00",
+          "sdk_retries": 0,
+          "http_status": 200,
+          "bytes": 3366549,
+          "final_url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225038237.PDF",
+          "content_type": "application/pdf",
+          "elapsed_seconds": 0.188
+        }
+      ],
+      "current_pdf_sha256": "2c7fba45257decc8edc4a0d8462c51accf146593f8c6097b26ed5ad52cf4115e",
+      "local_pdf": "work/company-phase1-20261028/financial-pdf-review/haitian-25.pdf",
+      "downloaded": true,
+      "matches_baseline_pdf_bytes": true,
+      "report_accepted": false,
+      "visual_review": "pending",
+      "production_source_records_modified": false
+    },
+    {
+      "case": "haitian",
+      "source_id": 165,
+      "title": "佛山市海天调味食品股份有限公司 2026 年半年度报告摘要",
+      "source_url": "https://static.cninfo.com.cn/finalpage/2026-08-27/1225510978.PDF",
+      "baseline_text_sha256": "6f4ccce2626d695e740f0a23ce21a2c53094c9b57b3169ce3a7c499a7f72ffc2",
+      "baseline_pdf_sha256": null,
+      "baseline_content_origin": "provider_text",
+      "baseline_extraction_status": "search_content",
+      "attempts": [
+        {
+          "url": "https://static.cninfo.com.cn/finalpage/2026-08-27/1225510978.PDF",
+          "at": "2026-10-28T11:36:56.545925+00:00",
+          "sdk_retries": 0,
+          "http_status": 200,
+          "bytes": 463316,
+          "final_url": "https://static.cninfo.com.cn/finalpage/2026-08-27/1225510978.PDF",
+          "content_type": "application/pdf",
+          "elapsed_seconds": 0.375
+        }
+      ],
+      "current_pdf_sha256": "efc576f813b5376d8a2840977f9acfc0959e0b2eb8d389e7359dbe3c93a151ed",
+      "local_pdf": "work/company-phase1-20261028/financial-pdf-review/haitian-165.pdf",
+      "downloaded": true,
+      "matches_baseline_pdf_bytes": null,
+      "report_accepted": false,
+      "visual_review": "pending",
+      "production_source_records_modified": false
+    },
+    {
+      "case": "kingsoft",
+      "source_id": 2,
+      "title": "北京金山办公软件股份有限公司",
+      "source_url": "http://star.sse.com.cn/disclosure/listedinfo/announcement/c/new/2026-08-20/688111_20260820_J3TC.pdf",
+      "baseline_text_sha256": "4fa7a755f534738044fe8250543f061412a687adfbdbc6254a86fd939e3b0685",
+      "baseline_pdf_sha256": "ec2322dc3a4461eef43045361391c0efe5673794302e329d03c7bbb8a3ad15a4",
+      "baseline_content_origin": "provider_text",
+      "baseline_extraction_status": "done",
+      "attempts": [
+        {
+          "url": "http://star.sse.com.cn/disclosure/listedinfo/announcement/c/new/2026-08-20/688111_20260820_J3TC.pdf",
+          "at": "2026-10-28T11:36:56.928627+00:00",
+          "sdk_retries": 0,
+          "http_status": 200,
+          "bytes": 1332059,
+          "final_url": "http://star.sse.com.cn/disclosure/listedinfo/announcement/c/new/2026-08-20/688111_20260820_J3TC.pdf",
+          "content_type": "application/pdf",
+          "elapsed_seconds": 0.766
+        }
+      ],
+      "current_pdf_sha256": "ec2322dc3a4461eef43045361391c0efe5673794302e329d03c7bbb8a3ad15a4",
+      "local_pdf": "work/company-phase1-20261028/financial-pdf-review/kingsoft-2.pdf",
+      "downloaded": true,
+      "matches_baseline_pdf_bytes": true,
+      "report_accepted": false,
+      "visual_review": "pending",
+      "production_source_records_modified": false
+    },
+    {
+      "case": "kingsoft",
+      "source_id": 30,
+      "title": "北京金山办公软件股份有限公司 2026 年半年度报告摘要",
+      "source_url": "http://static.cninfo.com.cn/finalpage/2026-08-20/1225482695.PDF",
+      "baseline_text_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "baseline_pdf_sha256": "d17587d3449bc1e977b70f199118b1bf7da31c22b5446da07aba991aaed984c7",
+      "baseline_content_origin": "provider_text",
+      "baseline_extraction_status": "done",
+      "attempts": [
+        {
+          "url": "http://static.cninfo.com.cn/finalpage/2026-08-20/1225482695.PDF",
+          "at": "2026-10-28T11:36:57.690814+00:00",
+          "sdk_retries": 0,
+          "http_status": 200,
+          "bytes": 157538,
+          "final_url": "http://static.cninfo.com.cn/finalpage/2026-08-20/1225482695.PDF",
+          "content_type": "application/pdf",
+          "elapsed_seconds": 0.093
+        }
+      ],
+      "current_pdf_sha256": "d17587d3449bc1e977b70f199118b1bf7da31c22b5446da07aba991aaed984c7",
+      "local_pdf": "work/company-phase1-20261028/financial-pdf-review/kingsoft-30.pdf",
+      "downloaded": true,
+      "matches_baseline_pdf_bytes": true,
+      "report_accepted": false,
+      "visual_review": "pending",
+      "production_source_records_modified": false
+    }
+  ],
+  "new_model_calls": 0,
+  "scope": "Manual QA retrieval, counted separately from the bounded production runner. No response or source transplantation.",
+  "report_accepted": false
+}

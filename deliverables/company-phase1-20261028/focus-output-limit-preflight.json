@@ -1,0 +1,28 @@
+{
+  "scope": "Minimal output-parameter preflight only, not full-context or report acceptance.",
+  "wire": [
+    {
+      "settings": {
+        "model": "qwen3.8-max",
+        "stream": true,
+        "max_completion_tokens": 65536,
+        "reasoning_effort": "low"
+      },
+      "headers_http_status": 200
+    }
+  ],
+  "report_accepted": false,
+  "transplanted": false,
+  "finish_reason": "stop",
+  "usage": {
+    "input_tokens": 139,
+    "output_tokens": 22,
+    "total_tokens": 161,
+    "input_token_details": {},
+    "output_token_details": {
+      "reasoning": 20
+    }
+  },
+  "content_is_ok": true,
+  "elapsed_seconds": 18.0
+}

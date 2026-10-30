@@ -83,6 +83,30 @@ def test_nonstreaming_compatibility_still_requires_complete_response(monkeypatch
         client.close()
 
 
+def test_focus_profile_budget_reaches_the_actual_sdk_wire_without_changing_the_editor(monkeypatch):
+    workflow, requests, client = workflow_with_transport(monkeypatch)
+    monkeypatch.setenv('COMPANY_MAIN_FOCUS_MAX_COMPLETION_TOKENS','32768')
+    monkeypatch.setenv('COMPANY_MAIN_FOCUS_REASONING_EFFORT','low')
+    try:
+        assert workflow._invoke_company_report_editor('公司主报告事实选择','核对全部原文')=='{"status":"通过"}'
+        assert requests[0]['max_completion_tokens']==32768
+        assert requests[0]['reasoning_effort']=='low'
+        assert requests[0]['stream'] is True
+        assert workflow._get_company_report_editor_model() is not workflow._get_company_report_editor_model(profile='main_focus')
+    finally:client.close()
+
+
+def test_focus_thinking_budget_uses_compatible_extra_body_and_keeps_thinking_enabled(monkeypatch):
+    workflow, requests, client = workflow_with_transport(monkeypatch)
+    monkeypatch.setenv('COMPANY_MAIN_FOCUS_THINKING_BUDGET','8192')
+    monkeypatch.delenv('COMPANY_MAIN_FOCUS_REASONING_EFFORT',raising=False)
+    try:
+        assert workflow._invoke_company_report_editor('公司主报告事实选择','核对全部原文')=='{"status":"通过"}'
+        assert requests[0]['thinking_budget']==8192 and requests[0]['enable_thinking'] is True
+        assert 'reasoning_effort' not in requests[0]
+    finally:client.close()
+
+
 def test_nonstreaming_compatibility_does_not_accept_missing_finish_reason(monkeypatch):
     workflow, requests, client = workflow_with_transport(monkeypatch, streaming=False, finish=None)
     try:

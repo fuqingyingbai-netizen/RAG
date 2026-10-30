@@ -20,7 +20,7 @@ from .company_governance import get, _table, refs, cited_evidence_ids
 from .company_issuer_identity import build_issuer_identity, publisher_anchor
 from .company_text import match_compact, match_text,issuer_response_title
 
-VERSION = 'company-source-review-v5-contained-quotation'
+VERSION = 'company-source-review-v6-canonical-chapter-encoding'
 FAILURES = {'empty','empty_pdf','invalid_pdf_response','blocked_or_challenge','unsupported_content_type',
             'fetch_timeout','timeout','failed','fetch_failed','skipped'}
 TOPICS = {
@@ -50,6 +50,19 @@ ENGLISH_TOPICS = {
     11: r'\b(?:risk|infringement|security|privacy|impersonation|vulnerability|data protection)\b',
 }
 TOPICS = {chapter: pattern + '|' + ENGLISH_TOPICS[chapter] for chapter,pattern in TOPICS.items()}
+
+
+def external_standard_participation(quote, target):
+    """Bind a native drafting/employer field, without inferring company governance."""
+    text=match_text(quote)
+    name=re.escape(match_text(target).strip())
+    # A target mentioned elsewhere in the document does not bind this list.
+    drafting=re.search(r'(?:主要)?起草单位\s*[:：]?\s*([^。；;\n]+)',text)
+    if (drafting and re.search(r'(?:国家|行业|团体|地方)标准|标准计划|标准化技术委员会',text)
+            and re.search(r'(?:^|[\s、，,：:])'+name+r'(?=$|[\s、，,。；;])',drafting[1])):
+        return True
+    employer=re.search(r'工作单位\s*[:：]?\s*'+name+r'\s+委员会职务\s*[:：]?\s*[^\s。；;]+',text)
+    return bool(employer and re.search(r'标准化技术委员会',text))
 BOUNDARIES = {
     'issuer_disclosure': '公司原始披露；保留原时点及主体范围，计划、制度和宣传不等于实际完成、独立验证或公司评分。',
     'attributed_issuer_reply':'发行人或中介机构反馈回复；按回复所载归因，目标与发行人对应关系另核。政府网站存放该回复不等于监管机关认可、处罚原件或整改验收。',
@@ -258,6 +271,11 @@ def validate_selection(row, documents, target, as_of=''):
     # Model text is never copied into the report when selecting by ID.
     quote=chosen['quote'] if chosen else str(row.get('quote') or '').strip()
     chapter=row.get('chapter')
+    chapter_encoding=None
+    if isinstance(chapter,str) and chapter in {str(n) for n in TOPICS}:
+        chapter_encoding={'field':'chapter','proposed':chapter,'accepted':int(chapter),
+                          'reason':'canonical_numeric_chapter_encoding'}
+        chapter=int(chapter)
     if type(chapter) is not int or chapter not in TOPICS:return None,'invalid_chapter'
     window=next((w for w in doc['windows'] if quote and quote in w['quote'] and chapter in w['candidate_chapters']),None)
     if not window or not 35<=len(quote)<=1200:return None,'nonliteral_or_unrouted_quote'
@@ -272,7 +290,7 @@ def validate_selection(row, documents, target, as_of=''):
     from .company_reputation import _mentions
     local_alias=bool(corpus_aliases and _mentions(normal,corpus_aliases))
     industry_only=window.get('subject_reference')=='industry_context_only'
-    corrections=[]
+    corrections=[chapter_encoding] if chapter_encoding else []
     row=dict(row)
     related=binding.get('entity_validation')=='related_entity_context'
     if related and row.get('scope')!='industry_context':
@@ -320,7 +338,11 @@ def validate_selection(row, documents, target, as_of=''):
         chapter=6
     pattern=TOPICS[chapter]
     if corpus_mode and chapter==8:pattern+=r'|参保人数|人员规模|职工人数'
-    if corpus_mode and chapter==5:pattern+=r'|评测|测评|benchmark|行业地位|行业影响|广泛应用|主流模型'
+    if corpus_mode and chapter==5:
+        pattern+=r'|评测|测评|benchmark|行业地位|行业影响|广泛应用|主流模型'
+        if window.get('extended_scope_recovery'):
+            pattern+=r'|市场规模|竞争格局|市场排名|同业对比|基准测试|MMLU|SWE-bench'
+        if external_standard_participation(quote,target):pattern+=r'|起草单位|委员会职务'
     if not re.search(pattern,normal,re.I):return None,'topic_mismatch'
     financial_context=bool(re.search(r'截至\s*20\d{2}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日\s*止(?:季度|年度|报告期)',window.get('context_quote','')))
     financial_only=chapter==2 and re.search(r'净利润|经营利润|营业收入|EBITA',normal,re.I) and not re.search(r'注册资本|统一社会信用代码|法定代表人|股东名单|股权结构|持股比例|股权变更|股份变动',normal)
@@ -372,7 +394,7 @@ def validate_selection(row, documents, target, as_of=''):
             'period':stamp or ('原页署明日期'+doc['document_date_proof']['date']+'；事实时点见引文' if doc.get('document_date_proof') else '原页时点待核对'),
             'document_date_proof':doc.get('document_date_proof',{}),'context_quote':window.get('context_quote',''),'relevance':row['relevance'],
             'eligible_for_risk_scoring':False,'original_offset':window['start'],'selection_corrections':corrections,
-            'boundary':BOUNDARIES[doc['source_kind']]+('；匹配为关联企业候选资料，主体与具体关联关系另核，不作为目标直接经营、股权、任职或责任结论。' if related else '')+('；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。' if binding.get('retained_provider_receipt') else '')},''
+            'boundary':BOUNDARIES[doc['source_kind']]+('；标准起草或外部委员会参与仅按原字段归因；不等于认证、合规、独占技术或公司内部任职。保留计划、发布、实施及个人履历的各自时点。' if external_standard_participation(quote,target) else '')+('；匹配为关联企业候选资料，主体与具体关联关系另核，不作为目标直接经营、股权、任职或责任结论。' if related else '')+('；本条来自既有检索服务留存文本，本轮未独立回取原页；不以请求URL日期代替文本事实时点。' if binding.get('retained_provider_receipt') else '')},''
 
 
 def consolidate_reviewed_statements(records,source_status):
@@ -513,10 +535,14 @@ def build_source_review(project, cleaned, sections, invoke, emit, trace_emit=Non
                 else:rejected.append({'evidence_id':row.get('evidence_id') if isinstance(row,dict) else '', 'reason':reason or 'source_claim_budget'})
             for doc in batch:
                 info=status[doc['source_id']];decision=decisions.get(doc['evidence_id'],{})
+                validation_rejections=[r['reason'] for r in rejected if r['evidence_id']==doc['evidence_id']]
                 info.update(state='review_call_failed' if error else 'reviewed_literal_claims' if accepted[doc['evidence_id']] else
+                            'reviewed_selections_rejected' if validation_rejections else
                             'reviewed_no_accepted_claim' if decision else 'review_response_missing_source',
                             review_reason=str(decision.get('reason') or ''),accepted_claims=accepted[doc['evidence_id']])
-                info['validation_rejections']=[r['reason'] for r in rejected if r['evidence_id']==doc['evidence_id']]
+                info['validation_rejections']=validation_rejections
+                if info['state']=='reviewed_selections_rejected':
+                    info['reason']='模型提出的条目未通过原文、范围或格式校验；不代表没有找到资料，具体拒绝原因另列。'
             receipts.append({'evidence_ids':list(lookup),'error':error,'response':result})
             emit(trace_emit,'report','company_source_review','原文批次复核完成',
                  f'reviewed={sum(len(r["evidence_ids"]) for r in receipts)}, literal_claims={len(facts)}',status='running')

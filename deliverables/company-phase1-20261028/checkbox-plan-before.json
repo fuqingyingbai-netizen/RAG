@@ -1,0 +1,215 @@
+{
+  "sample_kind": "synthetic_structural_probe",
+  "rows": [
+    {
+      "checkbox": "公司背景",
+      "questions": [
+        "示例制造股份有限公司 的业务、产品、官网和客户是否清晰？",
+        "主体信息是否能被一手来源验证？"
+      ],
+      "query_templates": [
+        "{target}",
+        "{target} 官网",
+        "{target} 公司简介",
+        "{target} 产品 客户 合作伙伴",
+        "{target} {industry}"
+      ],
+      "checkbox_query_count": 5,
+      "queries_with_requirement_ids": 0,
+      "queries_with_purpose": 0,
+      "all_expanded_query_count": 52
+    },
+    {
+      "checkbox": "负面新闻",
+      "questions": [
+        "示例制造股份有限公司 在 负面新闻 维度有哪些可验证事实？",
+        "负面新闻 维度还缺哪些关键证据？"
+      ],
+      "query_templates": [
+        "{target} 负面 新闻",
+        "{target} 风险 舆情",
+        "{target} 投诉",
+        "{target} fraud lawsuit scandal"
+      ],
+      "checkbox_query_count": 4,
+      "queries_with_requirement_ids": 0,
+      "queries_with_purpose": 0,
+      "all_expanded_query_count": 51
+    },
+    {
+      "checkbox": "诉讼/制裁",
+      "questions": [
+        "示例制造股份有限公司 是否存在诉讼、处罚、制裁、失信或监管记录？",
+        "是否存在需要重点关注的合规风险？"
+      ],
+      "query_templates": [
+        "{target} 诉讼",
+        "{target} 法院 判决",
+        "{target} 裁判文书",
+        "{target} 行政处罚",
+        "{target} 制裁 黑名单"
+      ],
+      "checkbox_query_count": 6,
+      "queries_with_requirement_ids": 0,
+      "queries_with_purpose": 0,
+      "all_expanded_query_count": 52
+    },
+    {
+      "checkbox": "股东高管",
+      "questions": [
+        "示例制造股份有限公司 在 股东高管 维度有哪些可验证事实？",
+        "股东高管 维度还缺哪些关键证据？"
+      ],
+      "query_templates": [
+        "{target} 股东",
+        "{target} 高管",
+        "{target} 董事 监事",
+        "{target} 融资 投资方"
+      ],
+      "checkbox_query_count": 4,
+      "queries_with_requirement_ids": 0,
+      "queries_with_purpose": 0,
+      "all_expanded_query_count": 51
+    },
+    {
+      "checkbox": "融资情报",
+      "questions": [
+        "示例制造股份有限公司 在 融资情报 维度有哪些可验证事实？",
+        "融资情报 维度还缺哪些关键证据？"
+      ],
+      "query_templates": [
+        "{target} 融资",
+        "{target} 投资方",
+        "{target} 股权融资",
+        "{target} IPO 上市",
+        "{target} 估值 投融资"
+      ],
+      "checkbox_query_count": 5,
+      "queries_with_requirement_ids": 0,
+      "queries_with_purpose": 0,
+      "all_expanded_query_count": 52
+    },
+    {
+      "checkbox": "管理团队",
+      "questions": [
+        "示例制造股份有限公司 在 管理团队 维度有哪些可验证事实？",
+        "管理团队 维度还缺哪些关键证据？"
+      ],
+      "query_templates": [
+        "{target} 管理团队",
+        "{target} 高管 团队",
+        "{target} 董事 监事 经理",
+        "{target} 核心团队"
+      ],
+      "checkbox_query_count": 4,
+      "queries_with_requirement_ids": 0,
+      "queries_with_purpose": 0,
+      "all_expanded_query_count": 51
+    },
+    {
+      "checkbox": "创始人背景",
+      "questions": [
+        "示例制造股份有限公司 在 创始人背景 维度有哪些可验证事实？",
+        "创始人背景 维度还缺哪些关键证据？"
+      ],
+      "query_templates": [
+        "示例制造股份有限公司 创始人背景",
+        "示例制造股份有限公司 创始人背景 风险"
+      ],
+      "checkbox_query_count": 2,
+      "queries_with_requirement_ids": 0,
+      "queries_with_purpose": 0,
+      "all_expanded_query_count": 49
+    },
+    {
+      "checkbox": "竞品公司",
+      "questions": [
+        "示例制造股份有限公司 在 竞品公司 维度有哪些可验证事实？",
+        "竞品公司 维度还缺哪些关键证据？"
+      ],
+      "query_templates": [
+        "示例制造股份有限公司 竞品公司",
+        "示例制造股份有限公司 竞品公司 风险"
+      ],
+      "checkbox_query_count": 2,
+      "queries_with_requirement_ids": 0,
+      "queries_with_purpose": 0,
+      "all_expanded_query_count": 49
+    },
+    {
+      "checkbox": "上下游业务",
+      "questions": [
+        "示例制造股份有限公司 在 上下游业务 维度有哪些可验证事实？",
+        "上下游业务 维度还缺哪些关键证据？"
+      ],
+      "query_templates": [
+        "示例制造股份有限公司 上下游业务",
+        "示例制造股份有限公司 上下游业务 风险"
+      ],
+      "checkbox_query_count": 2,
+      "queries_with_requirement_ids": 0,
+      "queries_with_purpose": 0,
+      "all_expanded_query_count": 49
+    },
+    {
+      "checkbox": "竞品情况",
+      "questions": [
+        "示例制造股份有限公司 在 竞品情况 维度有哪些可验证事实？",
+        "竞品情况 维度还缺哪些关键证据？"
+      ],
+      "query_templates": [
+        "示例制造股份有限公司 竞品情况",
+        "示例制造股份有限公司 竞品情况 风险"
+      ],
+      "checkbox_query_count": 2,
+      "queries_with_requirement_ids": 0,
+      "queries_with_purpose": 0,
+      "all_expanded_query_count": 49
+    },
+    {
+      "checkbox": "收入情况",
+      "questions": [
+        "示例制造股份有限公司 在 收入情况 维度有哪些可验证事实？",
+        "收入情况 维度还缺哪些关键证据？"
+      ],
+      "query_templates": [
+        "示例制造股份有限公司 收入情况",
+        "示例制造股份有限公司 收入情况 风险"
+      ],
+      "checkbox_query_count": 2,
+      "queries_with_requirement_ids": 0,
+      "queries_with_purpose": 0,
+      "all_expanded_query_count": 49
+    },
+    {
+      "checkbox": "行业政策",
+      "questions": [
+        "示例制造股份有限公司 在 行业政策 维度有哪些可验证事实？",
+        "行业政策 维度还缺哪些关键证据？"
+      ],
+      "query_templates": [
+        "示例制造股份有限公司 行业政策",
+        "示例制造股份有限公司 行业政策 风险"
+      ],
+      "checkbox_query_count": 2,
+      "queries_with_requirement_ids": 0,
+      "queries_with_purpose": 0,
+      "all_expanded_query_count": 49
+    },
+    {
+      "checkbox": "舆情",
+      "questions": [
+        "示例制造股份有限公司 在 舆情 维度有哪些可验证事实？",
+        "舆情 维度还缺哪些关键证据？"
+      ],
+      "query_templates": [
+        "示例制造股份有限公司 舆情",
+        "示例制造股份有限公司 舆情 风险"
+      ],
+      "checkbox_query_count": 2,
+      "queries_with_requirement_ids": 0,
+      "queries_with_purpose": 0,
+      "all_expanded_query_count": 49
+    }
+  ]
+}

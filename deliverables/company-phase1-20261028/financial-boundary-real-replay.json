@@ -1,0 +1,133 @@
+{
+  "observed_at": "2026-10-30T01:32:52.929814+00:00",
+  "previous_commit": "d03e31f",
+  "current_version": "company-diligence-v4-financial-field-boundaries",
+  "model_calls": 0,
+  "http_calls": 0,
+  "database_mode": "read_only",
+  "originals_modified": false,
+  "production_cache_modified": false,
+  "full_report_accepted": false,
+  "records": [
+    {
+      "source_id": 25,
+      "source_url": "http://static.cninfo.com.cn/finalpage/2026-03-27/1225038237.PDF",
+      "physical_page": 156,
+      "original_page_sha256": "e12a43eb5f3b3c205cbe75d32000b8577afa603559378e86126da8b5f45f0c37",
+      "before": [
+        {
+          "kind": "payment_pending",
+          "page": 156,
+          "evidence_quote": "于 2025 年，本集团与本集团的关联方广东海天商业保理有限公司（以下简称“海天保理”） 签订合作协议以协助供应商向海天保理融资。",
+          "mode": "未付/未使用，不能写成已全部支付；到期未付需先核对披露原因及后续兑付，不直接等同违约"
+        }
+      ],
+      "after": []
+    },
+    {
+      "source_id": 34,
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0826/2026082601103_c.pdf",
+      "physical_page": 114,
+      "original_page_sha256": "6a83ce8c3783b2ec7cf7b53677f6a3fae5e7419d9b73fea92cb1675386ddd8c4",
+      "before": [
+        {
+          "kind": "payment_pending",
+          "page": 114,
+          "evidence_quote": "到期未付的原因是：不适用 36、 应付账款 (1) 应付账款列示 √适用 □不适用单位：元币种：人民币项目期末余额期初余额原材料 826,279,089.64 787,041,403.34 包装物 735,716,528.15 718,883,022.58 合计 1,561,995,617.79 1,505,924,425.92",
+          "mode": "未付/未使用，不能写成已全部支付；到期未付需先核对披露原因及后续兑付，不直接等同违约"
+        }
+      ],
+      "after": []
+    },
+    {
+      "source_id": 34,
+      "source_url": "https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0826/2026082601103_c.pdf",
+      "physical_page": 118,
+      "original_page_sha256": "ab8275991e5e54e4b870480bac7c71454e059906839df05b0d962155b7f17cb6",
+      "before": [
+        {
+          "kind": "related_funding",
+          "page": 118,
+          "evidence_quote": "截至 2026 年 6 月 30 日，丹和醋业已偿还人民币 7,000,000.00 元，剩余借款余额人民币 8,000,000 元将在 2026 年 12 月到期，年利率 2.50%~2.60%。",
+          "mode": "主体/额度/余额/提款和用途分开；未自动归入本次收购"
+        }
+      ],
+      "after": [
+        {
+          "kind": "related_funding",
+          "page": 118,
+          "evidence_quote": "截至 2026 年 6 月 30 日，丹和醋业已偿还人民币 7,000,000.00 元，剩余借款余额人民币 8,000,000 元将在 2026 年 12 月到期，年利率 2.50%~2.60%。",
+          "mode": "主体/额度/余额/提款和用途分开；未自动归入本次收购"
+        }
+      ]
+    },
+    {
+      "source_id": 46,
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0826/2026082601103_c.pdf",
+      "physical_page": 114,
+      "original_page_sha256": "6a83ce8c3783b2ec7cf7b53677f6a3fae5e7419d9b73fea92cb1675386ddd8c4",
+      "before": [
+        {
+          "kind": "payment_pending",
+          "page": 114,
+          "evidence_quote": "到期未付的原因是：不适用 36、 应付账款 (1) 应付账款列示 √适用 □不适用单位：元币种：人民币项目期末余额期初余额原材料 826,279,089.64 787,041,403.34 包装物 735,716,528.15 718,883,022.58 合计 1,561,995,617.79 1,505,924,425.92",
+          "mode": "未付/未使用，不能写成已全部支付；到期未付需先核对披露原因及后续兑付，不直接等同违约"
+        }
+      ],
+      "after": []
+    },
+    {
+      "source_id": 46,
+      "source_url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0826/2026082601103_c.pdf",
+      "physical_page": 118,
+      "original_page_sha256": "ab8275991e5e54e4b870480bac7c71454e059906839df05b0d962155b7f17cb6",
+      "before": [
+        {
+          "kind": "related_funding",
+          "page": 118,
+          "evidence_quote": "截至 2026 年 6 月 30 日，丹和醋业已偿还人民币 7,000,000.00 元，剩余借款余额人民币 8,000,000 元将在 2026 年 12 月到期，年利率 2.50%~2.60%。",
+          "mode": "主体/额度/余额/提款和用途分开；未自动归入本次收购"
+        }
+      ],
+      "after": [
+        {
+          "kind": "related_funding",
+          "page": 118,
+          "evidence_quote": "截至 2026 年 6 月 30 日，丹和醋业已偿还人民币 7,000,000.00 元，剩余借款余额人民币 8,000,000 元将在 2026 年 12 月到期，年利率 2.50%~2.60%。",
+          "mode": "主体/额度/余额/提款和用途分开；未自动归入本次收购"
+        }
+      ]
+    },
+    {
+      "source_id": 121,
+      "source_url": "http://big5.sse.com.cn/site/cht/www.sse.com.cn/disclosure/listedinfo/announcement/c/new/2024-08-30/603288_20240830_FA2R.pdf",
+      "physical_page": 31,
+      "original_page_sha256": "13cfaccf7b1edf442bb0925b19fa416db27e10f259d3734700d8ac9d0c2ff6fd",
+      "before": [],
+      "after": []
+    },
+    {
+      "source_id": 121,
+      "source_url": "http://big5.sse.com.cn/site/cht/www.sse.com.cn/disclosure/listedinfo/announcement/c/new/2024-08-30/603288_20240830_FA2R.pdf",
+      "physical_page": 86,
+      "original_page_sha256": "c8498d2b41d0f1041eff403403885688e3bb92eb7e1abf70eddff0f36a0ea257",
+      "before": [],
+      "after": []
+    },
+    {
+      "source_id": 121,
+      "source_url": "http://big5.sse.com.cn/site/cht/www.sse.com.cn/disclosure/listedinfo/announcement/c/new/2024-08-30/603288_20240830_FA2R.pdf",
+      "physical_page": 87,
+      "original_page_sha256": "d99a207d4db0f47db825fe03f258851b5ce6f3fd50663ad786d6b261c3a7fa7a",
+      "before": [
+        {
+          "kind": "related_funding",
+          "page": 87,
+          "evidence_quote": "佛山市海天调味食品股份有限公司 2024 年半年度报告 87 / 172 应收利息 (1). 应收利息分类 √适用 □不适用单位：元币种：人民币项目期末余额期初余额定期存款 1,124,166.67 13,650,000.00 委托贷款债券投资合计 1,124,166.67 13,650,000.00 (2). 重要逾期利息 □适用 √不适用 (3). 按坏账计提方法分类披露 □适用 √不适用按单项计提坏账准备： □适用 √不适用按单项计提坏账准备的说明： □适用 √不适用按组合计提坏账准备： □适用 √不适用 (4). 按预期信用损失一般模型计提坏账准备 □适用 √不适用 (5). 坏账准备的情况 □适用 √不适用其中本期坏账准备收回或转回金额重要的： □适用 √不适用其他说明：",
+          "mode": "主体/额度/余额/提款和用途分开；未自动归入本次收购"
+        }
+      ],
+      "after": []
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "case": "haitian",
+  "version": "company-event-evidence-v6-qualified-state-scope",
+  "checkpoint_sha256": "4b8ebdd525dda4ba06a019d066c92ee2aea9fa2cb2ae8999e792f1ec23eb1ef4",
+  "events": [
+    {
+      "source_id": 492,
+      "source_url": "https://www.shzcfy.gov.cn/detail.jhtml?id=349956",
+      "native_event_sha256": "4577a221055e4b25af4ae22acb6aaf7eba009678c21b78e10d91a39c79972ae2",
+      "original_sha256": "3fe889b8bd55baaaee63d5256a17831da037bb39a675183fb3d20473835c2f2b",
+      "witness": {
+        "input_sha256": "30216e48ff20313f76e128667dad5ac4d5dfecc8d6a2e0bd2f4473f71877b212",
+        "response_sha256": "f02e92b9e0e2652da5d518275aaac386798e15c288b54bded18a04c7cd5f426c",
+        "version": "company-event-evidence-v6-qualified-state-scope"
+      },
+      "kind": "external_impersonation",
+      "source_date_role": "unverified_display",
+      "validation_errors": [],
+      "independent_check": {
+        "criteria": {
+          "actors_and_obligations": true,
+          "counterevidence": true,
+          "date_meaning": true,
+          "factual_support": true,
+          "procedure_and_receipt_state": true,
+          "responsibility_and_impact": true
+        },
+        "reason": "逐项核对后，提取与原文一致：目标公司海天公司为原告/商标权利人，一审义务主体为威极公司；摘要所述停止突出使用“威极”二字、停止使用含“威极”字号企业名称并限期变更、登报道歉消除影响、赔偿655万元（其中销量下降利润损失350万元、广告费300万元、律师费5万元）以及工业盐水事件曝光后海天公司商誉和销量受损的表述，均能在原文中找到直接对应。页面时间2026-10-24 11:46:49未标明性质，source_date_role使用unverified_display、publication_date为null，未误作发布日期。摘要明确为一审判决后威极公司上诉并在二审阶段主动申请撤回上诉，未说明二审裁定、判决生效或履行情况，提取未把一审判决升级为终审或推定赔款到账。原文虽记载股东攀附恶意，但未判令股东个人赔偿或罚款，提取未增设股东义务；外部侵权方责任不否定原审认定的海天公司商誉和销量损失。未发现已整改、恢复或否认等相反证据。故六项均通过。",
+        "status": "supported"
+      }
+    }
+  ],
+  "new_model_calls": 0,
+  "new_search_calls": 0,
+  "receipt_or_source_modified": false,
+  "full_report_accepted": false
+}

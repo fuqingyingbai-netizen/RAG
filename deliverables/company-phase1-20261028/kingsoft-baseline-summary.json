@@ -1,0 +1,94 @@
+{
+  "case": "kingsoft",
+  "target_name": "北京金山办公软件股份有限公司",
+  "as_of": "2026-10-24",
+  "sample": "real_public_legacy_development",
+  "source_count": 1459,
+  "exact_nonempty_content_groups_and_empty_records": 1360,
+  "exact_content_duplicate_records": 99,
+  "sources_with_native_mapping": 422,
+  "source_review_states": {
+    "native_windows_require_structural_or_scope_review": 26,
+    "reviewed_literal_claims": 394,
+    "reviewed_no_accepted_claim": 213,
+    "no_target_or_industry_evidence_window": 497,
+    "original_not_available_discovery_only": 217,
+    "no_literal_topic_window": 14,
+    "exact_original_corroboration": 20,
+    "exact_original_without_accepted_claim": 78
+  },
+  "source_disposition_review_pending": 1037,
+  "native_information_records": 8026,
+  "usage_diagnostic": {
+    "cached_information_records": 8009,
+    "exact_distinct_information_records": 8026,
+    "excluded_information_is_not_used": true,
+    "literal_sentence_or_field_atoms": 13986,
+    "native_statement_records": 8732,
+    "pending_information_ids": {
+      "count": 0,
+      "examples": []
+    },
+    "prior_group_association_is_not_semantic_coverage": true,
+    "review_batches": 1,
+    "review_batches_with_errors": 0,
+    "semantic_deduplication_complete": false,
+    "states": {
+      "excluded_with_reason": 17,
+      "used_in_chapter_detail": 8009
+    },
+    "unmapped_statements": {
+      "count": 0,
+      "examples": []
+    }
+  },
+  "journal_entries": {
+    "main-focus": 40,
+    "editorial": 518,
+    "presentation": 296
+  },
+  "main_focus_journal_versions": {
+    "unknown": 40
+  },
+  "checkpoint_package_versions": {
+    "company_corpus_analysis_cache": "company-corpus-v10-issuer-reply-authorship",
+    "company_editorial_cache": "company-editorial-v2-bidirectional-provenance-repair",
+    "company_event_review_cache": "company-event-evidence-v4-complete-object-responses",
+    "company_information_usage_cache": "company-information-usage-v3-bound-routing-cache",
+    "company_presentation_cache": "company-presentation-v2-independent-materiality-context"
+  },
+  "historical_report_sha256": "594884b6b486b466511b815bce0a402eba3a21fae7299b2448a73b18c6c63a76",
+  "historical_report_chapters_observed": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14
+  ],
+  "literal_match_information_records": 45,
+  "semantic_adoption_rate": null,
+  "semantic_adoption_rate_reason": "尚未对同一最终正文逐命题独立审阅，引用出现率不替代采用率",
+  "delivery_accepted": false,
+  "new_model_calls": 0,
+  "new_search_calls": 0,
+  "gap_taxonomy": {
+    "qualified_evidence_not_adopted": "已有证据但未在所需正文中完成采用/独立核对",
+    "summary_requires_original": "仅摘要或平台计数，需要原件",
+    "conflicting_or_ambiguous_scope": "原件冲突或主体/时期不明",
+    "platform_failure": "专业平台调用失败，不属于公司风险",
+    "public_information_not_found": "有明确检索记录，尚未找到公开资料",
+    "model_or_transport_failure": "模型或网络调用失败，不属于资料不存在",
+    "unclassified_pending_review": "待逐条核对，不依据空值自动归因"
+  },
+  "baseline_only": true,
+  "v1_journals_are_not_v2_acceptance": true
+}

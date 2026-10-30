@@ -1,0 +1,33 @@
+{
+  "source_id": 109,
+  "source_url": "http://static.cninfo.com.cn/finalpage/2014-01-24/63518237.PDF",
+  "pdf_sha256": "6a748d2ba4fb8a2a5e36e860ad0376e057dda8a7b6dbcecbaf0303fe37c1b7b5",
+  "document_title_verified_from_pdf": "佛山市海天调味食品股份有限公司首次公开发行股票招股说明书摘要",
+  "document_publication_date": "not_verified_do_not_infer_from_url",
+  "source_boundary": "Issuer disclosure quoting reported court results; not the actual judgment/order or payment receipt.",
+  "viewed_pages": [
+    {
+      "page": 60,
+      "sha256": "3157a364deafde155fab177a57bed83b27f35dd3ad9e809e241efa9f90f7265a",
+      "detail": "original",
+      "complete_page_viewed": true
+    },
+    {
+      "page": 61,
+      "sha256": "3a207368423b42012ff542ac7a185f5d2cbd01129ef62320f4942173150a2b30",
+      "detail": "original",
+      "complete_page_viewed": true
+    }
+  ],
+  "review_requirements": [
+    "商标案：发行人披露2012-11-28一审，679197号“威极”注册商标，2012-12-10上诉、2013-04-12申请撤回、2013-04-17法院准许撤回；这些有日期信息与无日期法院案例摘要分别归因。",
+    "655万元赔偿在该发行人引用中明确为人民币；网页自身没有写币种时不单独补写。",
+    "同页第2项是另一宗控股股东股权诉讼：不得将其一审生效、诉讼请求金额或费用义务移给威极商标案或直接当成已发生的公司资本变更。",
+    "股权诉讼：发行人记载陈顺金撤诉获准、何火炉诉请被驳回及未预缴上诉费后自动撤回，一审生效属于该股权案件；费用承担主体为原告何火炉。",
+    "两种来源均不能替代赔偿实际收款或名称实际变更的履行原件。"
+  ],
+  "production_source_modified": false,
+  "model_response_transplanted": false,
+  "final_report_semantic_review": "pending_same_final_report",
+  "report_accepted": false
+}

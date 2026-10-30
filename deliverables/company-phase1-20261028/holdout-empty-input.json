@@ -1,0 +1,18 @@
+{
+  "kind": "empty_registered_holdout_input_not_a_historical_sample",
+  "registration_sha256": "e092252f8ca0cac2e22e1d83d9085a24cfb7c63c03422b66e981222c4e9fb2c0",
+  "target_name": "美的集团股份有限公司",
+  "as_of_date": "2026-10-24",
+  "identity_is_user_input_not_verified": true,
+  "database": {
+    "sha256": "e99e7d05a492c6cb33c1c36911290b895fc79fdb4104b8a622762cf755cdede4"
+  },
+  "source_count": 0,
+  "checkpoint_count": 0,
+  "model_response_count": 0,
+  "new_model_calls": 0,
+  "new_search_calls": 0,
+  "collected": false,
+  "evaluated": false,
+  "report_accepted": false
+}

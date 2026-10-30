@@ -1,0 +1,13 @@
+{
+  "registered_on": "2026-10-28",
+  "target_name": "美的集团股份有限公司",
+  "target_type": "company",
+  "as_of_date": "2026-10-24",
+  "state": "registered_not_collected_not_evaluated",
+  "selection_reason": "公开披露较充分；在本轮已读交接、既有样本清单及仓库相关代码/文档检索中，未发现该公司用于针对性修复。比亚迪已用于旧迭代，故不作为保留样本。",
+  "novelty_scope": "无已知针对性调参记录，不声称穷尽所有历史聊天或所有本机文件。",
+  "pre_registration_code": "7b9ffe90353735c5d5083ae4971358e0e95af1f6",
+  "evaluation_policy": "在开发样本改动冻结后，通过同一通用链路进行真实全流程验证；不按本公司名称或金额设置规则。若根据其失败结果再次针对性修改，则它转为开发样本，另选新保留样本。",
+  "identity_status": "待以权威原件/实际平台回执核实全称与信用代码",
+  "report_accepted": false
+}

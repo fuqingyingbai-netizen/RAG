@@ -1,0 +1,12 @@
+{
+  "purpose": "Renderer runtime smoke only",
+  "input_document_kind": "historical_renderer_smoke",
+  "shipping_report_acceptance": false,
+  "pngs": [
+    {
+      "path": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\render-runtime\\smoke-render\\page-1.png",
+      "sha256": "83930019aed767e401029d42b34d9544ed4107ee645b5d48585982a905f6f7d3",
+      "primary_agent_full_resolution_viewed": true
+    }
+  ]
+}

@@ -5,6 +5,7 @@ complete independent focus decision and a full-source semantic prose audit.
 """
 import hashlib
 import json
+import os
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -238,10 +239,16 @@ def validate_focus_batch(rows,batch,target,scope):
 
 
 def focus_batches(rows):
+    def limit(name, default, minimum, maximum):
+        try: value = int(os.getenv(name, str(default)))
+        except (TypeError, ValueError): value = default
+        return max(minimum, min(maximum, value))
+    max_records = limit('COMPANY_MAIN_FOCUS_BATCH_RECORDS',12,1,48)
+    max_chars = limit('COMPANY_MAIN_FOCUS_BATCH_CHARS',26000,26000,104000)
     batch=[];size=0
     for row in sorted(rows,key=lambda r:(r['decision']['chapter'],r['decision']['aspect'],r['information_id'])):
         amount=len(json.dumps(focus_payload(row),ensure_ascii=False))
-        if batch and (len(batch)>=12 or size+amount>26000):yield batch;batch=[];size=0
+        if batch and (len(batch)>=max_records or size+amount>max_chars):yield batch;batch=[];size=0
         batch.append(row);size+=amount
     if batch:yield batch
 

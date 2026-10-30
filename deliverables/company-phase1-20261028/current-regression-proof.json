@@ -1,0 +1,140 @@
+{
+  "backend_product_commit": "pending financial-field-boundary commit",
+  "checked_repository_commit": "04486c43af2230b2c0c836988cb6c653f540fc0c",
+  "backend_test_frontend_files_unchanged_since_test_commit": false,
+  "backend": {
+    "tested_commit": "f0395c996c3ea17ced292cab441387611b274d24",
+    "passed": 4233,
+    "skipped": 1,
+    "failures": 1,
+    "errors": 0,
+    "warnings": 2340,
+    "pytest_reported_wall_seconds": 1984.97,
+    "result": "failed: isolated startup subprocess exceeded 90s",
+    "standalone_recheck": "also timed out; no timeout extension or test skip applied"
+  },
+  "frontend": {
+    "passed": 118,
+    "skipped": 0,
+    "failures": 0,
+    "milliseconds": 2942.6294
+  },
+  "files": {
+    "deliverables/company-phase1-20261028/test-results/full-regression-6e6bf3b.xml": {
+      "sha256": "7e333aa928406293da094ec22d306855cf09691839d5440c88f402b8961d374e",
+      "bytes": 766794,
+      "native_log": "work/company-phase1-20261028/full-regression-6e6bf3b.xml"
+    },
+    "deliverables/company-phase1-20261028/test-results/full-regression-6e6bf3b.txt": {
+      "sha256": "9614bd0a4b35d2a007775eedc19856a144f24c29feb7a4602c2c1af6ac7c44ef",
+      "bytes": 28609,
+      "native_log": "work/company-phase1-20261028/full-regression-6e6bf3b.log"
+    },
+    "deliverables/company-phase1-20261028/test-results/frontend-regression-d8d4d77.txt": {
+      "sha256": "306173ec566947f3b6a488285eef96c48c150adfad9b7ad24a3eb78e2909ace4",
+      "bytes": 11728,
+      "native_log": "work/company-phase1-20261028/frontend-regression-d8d4d77.log"
+    },
+    "deliverables/company-phase1-20261028/test-results/chapter-encoding-regression.xml": {
+      "sha256": "23bf3720246baabc26220f37cd60e3d4307931c70b29c0ca573291d94bfe59ed",
+      "bytes": 15374,
+      "native_log": "work/company-phase1-20261028/chapter-encoding-regression.xml"
+    },
+    "deliverables/company-phase1-20261028/test-results/chapter-encoding-regression.txt": {
+      "sha256": "2cc2d11ae44a7c14289db94450a3d992598469dc1567dbb1429a8de0eb0c29a5",
+      "bytes": 182,
+      "native_log": "work/company-phase1-20261028/chapter-encoding-regression.log"
+    },
+    "deliverables/company-phase1-20261028/test-results/full-regression-2099cd3.xml": {
+      "sha256": "53d7cf900acad155a32a6185b56f07dfa616c85fcb55cbe85e2437e9c5afd739",
+      "bytes": 767979,
+      "native_log": "work/company-phase1-20261028/full-regression-2099cd3-run2.xml"
+    },
+    "deliverables/company-phase1-20261028/test-results/full-regression-2099cd3.txt": {
+      "sha256": "f1850b5b26c58ec302a25d90caad7c5cb51fe1e3e91157c500ef44edd689d35b",
+      "bytes": 28609,
+      "native_log": "work/company-phase1-20261028/full-regression-2099cd3-run2.log"
+    },
+    "deliverables/company-phase1-20261028/test-results/financial-boundary-focused-final.log": {
+      "sha256": "a3ce0e2a0e425baf723df7120acf18b95b560f53a1a2fa8ad4d2c2a5d9f8d8fb",
+      "bytes": 183
+    },
+    "deliverables/company-phase1-20261028/test-results/financial-boundary-focused-final.xml": {
+      "sha256": "2342c3f5a7488704f5ce1ed5e8b50b3589ed5fc56120a5141fc91f04d92ac1a9",
+      "bytes": 21708
+    },
+    "deliverables/company-phase1-20261028/test-results/full-regression-f0395c9-failed.log": {
+      "sha256": "145712ea65c3df76cf5c08ed7cf82e985b0b0fbc5f5aa7a6d7c6be08ffc3d0b3",
+      "bytes": 36256
+    },
+    "deliverables/company-phase1-20261028/test-results/full-regression-f0395c9-failed.xml": {
+      "sha256": "c5c0175ea3f441c1e69af42a67b63009cd73bc74990946a89e854cfc10271473",
+      "bytes": 782006
+    },
+    "deliverables/company-phase1-20261028/test-results/startup-recheck-f0395c9-failed.log": {
+      "sha256": "f93ad86421eb437d6fe11d5853d1f9868af9bc891f8741b1fba83511f9ed36a2",
+      "bytes": 7748
+    },
+    "deliverables/company-phase1-20261028/test-results/startup-recheck-f0395c9-failed.xml": {
+      "sha256": "0d992428df6188856d83c9733b07c07ee13aa3836c063040dbc1d6140d1bf619",
+      "bytes": 9531
+    }
+  },
+  "full_report_accepted": false,
+  "real_browser_and_word_all_pages_review": "pending_final_candidate",
+  "latest_product_full_regression": "pending; previous f0395c9 run FAILED, not passed",
+  "frontend_files_unchanged_since_d8d4d77": true,
+  "last_completed_backend_full_regression": {
+    "tested_commit": "f0395c996c3ea17ced292cab441387611b274d24",
+    "passed": 4233,
+    "skipped": 1,
+    "failures": 1,
+    "errors": 0,
+    "warnings": 2340,
+    "pytest_reported_wall_seconds": 1984.97,
+    "result": "failed: isolated startup subprocess exceeded 90s",
+    "standalone_recheck": "also timed out; no timeout extension or test skip applied"
+  },
+  "focused_legacy_audit_regression": {
+    "passed": 49,
+    "failures": 0,
+    "seconds": 4.53,
+    "files": [
+      "test-results/legacy-audit-ocr-regression.log",
+      "test-results/legacy-audit-ocr-regression.xml"
+    ]
+  },
+  "previous_completed_backend_full_regression": {
+    "passed": 4205,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "warnings": 2340,
+    "seconds": 1287.301,
+    "network_allowed": false,
+    "plugin_autoload": false,
+    "pytest_reported_wall_seconds": 1287.33,
+    "tested_commit": "6e6bf3b5423e75b343d15fc7ad5731c914d823fa"
+  },
+  "previous_successful_backend_full_regression": {
+    "tested_commit": "2099cd3e281a2f13a8a26ab800fd38d27f726237",
+    "passed": 4213,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "warnings": 2340,
+    "seconds": 1988.724,
+    "network_allowed": false,
+    "plugin_autoload": false,
+    "pytest_reported_wall_seconds": 1988.92
+  },
+  "financial_boundary_focused": {
+    "passed": 132,
+    "failures": 0,
+    "seconds": 6.47,
+    "files": [
+      "test-results/financial-boundary-focused-final.log",
+      "test-results/financial-boundary-focused-final.xml"
+    ]
+  }
+}
