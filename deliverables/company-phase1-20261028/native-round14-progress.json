@@ -1,5 +1,5 @@
 {
-  "observed_at_utc": "2026-10-30T12:36:43.209724+00:00",
+  "observed_at_utc": "2026-10-30T12:59:40.253327+00:00",
   "case": "haitian",
   "native_session_id": 72343,
   "observed_live_processes": [
@@ -20,33 +20,33 @@
   "new_collection_acceptance": false,
   "event_counts": {
     "http_returned": 1,
-    "model_started": 25,
-    "model_http_started": 26,
-    "model_http_headers": 25,
+    "model_started": 42,
+    "model_http_started": 45,
+    "model_http_headers": 41,
     "model_failed": 5,
-    "model_http_failed": 1,
-    "model_returned": 19
+    "model_http_failed": 3,
+    "model_returned": 36
   },
   "finish_reasons": {
-    "stop": 19
+    "stop": 36
   },
   "unfinished_logical_model_numbers": [
-    25
+    42
   ],
   "reported_tokens": {
-    "input_tokens": 95114,
-    "output_tokens": 139405,
-    "total_tokens": 234519
+    "input_tokens": 183294,
+    "output_tokens": 236952,
+    "total_tokens": 420246
   },
   "latest_stage": {
     "stage": "report",
-    "label": "报告生成心跳正常",
+    "label": "信息逐条用途核对完成",
     "status": "running",
-    "current_label": "信息逐条用途核对完成",
-    "current_section": ""
+    "current_label": null,
+    "current_section": null
   },
-  "ledger_snapshot": "work/company-phase1-20261028/round14-ledger-snapshot-20261030T123638Z.jsonl",
-  "ledger_snapshot_sha256": "5873c3bb853f7ddb67ca87cbca75910b6398760f1f815da5284da8bc6cacffc1",
+  "ledger_snapshot": "work/company-phase1-20261028/round14-ledger-snapshot-20261030T125938Z.jsonl",
+  "ledger_snapshot_sha256": "3b5fcb026c46b04c5d9d39d7366236b525bb1b1719817153f04e63309046532f",
   "ignored_partial_lines": 0,
   "report_accepted": false,
   "currency_cost_unknown": true,

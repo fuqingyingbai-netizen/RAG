@@ -1,19 +1,28 @@
 {
-  "recorded_at": "2026-10-30T12:37:36.559817+00:00",
+  "recorded_at": "2026-10-30T12:48:45.035810+00:00",
   "scope": "isolated prototype and existing targeted recovery regressions; pending runtime integration",
-  "passed": 105,
+  "passed": 106,
   "applied_to_backend": false,
   "production_changed": false,
   "real_report_accepted": false,
+  "exact_candidate_overlay": {
+    "new_tests_passed": 18,
+    "scope": "exact patch module paths and real caller in an isolated process",
+    "full_regression": "running; no result asserted"
+  },
   "files_sha256": {
-    "routing-recovery-candidate.patch": "f308a04fb8e871cb5186ed48ce3f067ee010f8f7b5b1681e3931b3d45b650ac7",
-    "candidate-manifest.json": "131eda738538a3ae8967b7f2e629cb6ebe62e934f3e6f387e6311bcbb0ee3e09",
-    "regression.xml": "fdda374212d16d4d4465bff4a5f905460fdcbeee74007b693cd212b98ebfbf3a",
-    "regression.log": "f0aeb0f360a1e8ecb0bcbc95be19bf2b174bfece8d7b1ef1bceebe2892347293",
+    "routing-recovery-candidate.patch": "c8757d0621a35d8875a76e2517cc717d90f918a9bcdc976dd6a8bacbc6466e3d",
+    "candidate-manifest.json": "45be533bc121e08428b19d0a0c010d5d8b42ab7023bc77e4567035666a49e227",
+    "regression.xml": "49ae99b706edd56d46973935149b0625bdfd2d47b269d19e38c577b6f6e309f6",
+    "regression.log": "d640f18f2a26c66d59830460bd5317855d1101ed6bbc32733ae4491a78e7bf39",
     "prepare_usage_prototype.py": "4ad1eb863f217aa585107cd4e7f39b3357eb330b36517594bd4957e9398a91f2",
-    "prepare_candidate.py": "d29d1500fa130beed456a072d76c295c804450e6e9a16be180858de2c09ba46c",
+    "prepare_candidate.py": "988f2bc115f249aa77a037e08830708ecd49a79c99e14c872b20a6744bc20c24",
     "company_information_journal.py": "1f84b2c0f6310d87fec6c877708ff126b22f1999e7d5c5858ddda5f767ddb3c1",
-    "test_routing_journal.py": "3d5f2188047740d02fe8d935a4ed208771f315163523813f5c02156064a6f83f"
+    "test_routing_journal.py": "3d5f2188047740d02fe8d935a4ed208771f315163523813f5c02156064a6f83f",
+    "test_production_wiring_prototype.py": "880a980b8d5a8915cc556ae2c5e9a7ec5565858af8ee661c2d13473756de6057",
+    "stage_candidate_overlay.py": "435472d44673843337eb9a0354926914bd1122556cd466b55d3a7be59d62134b",
+    "run_overlay_tests.py": "88daafefd87fb4a825b0fb6df132de5b69ba5b9f247bbe70e44578364f42369b",
+    "overlay-runtime-proof.json": "a379fbbdce13cea72627abb4472956b2b07042133f47e5f7ce3ed392d370625f"
   },
   "pending": [
     "verified native whole-routing-stage checkpoint and owned-run stop proof",

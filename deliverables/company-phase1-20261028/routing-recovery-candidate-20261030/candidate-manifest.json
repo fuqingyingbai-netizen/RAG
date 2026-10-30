@@ -1,6 +1,6 @@
 {
-  "base_commit": "df5419c6e86cb1632602bd2cf66ffe275bc14016",
-  "patch_sha256": "f308a04fb8e871cb5186ed48ce3f067ee010f8f7b5b1681e3931b3d45b650ac7",
+  "base_commit": "0c7f4aac19b7dc62a4d5674e85e00e48a5f561cd",
+  "patch_sha256": "c8757d0621a35d8875a76e2517cc717d90f918a9bcdc976dd6a8bacbc6466e3d",
   "paths": {
     "backend/report_agents/company_information_journal.py": {
       "base_sha256": null,
@@ -17,6 +17,10 @@
     "test/test_company_information_journal.py": {
       "base_sha256": null,
       "candidate_utf8_sha256": "19f500d9b7bb76c579167a1f4d8e1ecc3e0c728f56ff7ef560d6fc1e469b2499"
+    },
+    "test/test_company_information_journal_wiring.py": {
+      "base_sha256": null,
+      "candidate_utf8_sha256": "36ac39681c016f627810d2cb699a31730acd1cf6660790b5f816668c1f609194"
     }
   },
   "applied_to_backend": false,

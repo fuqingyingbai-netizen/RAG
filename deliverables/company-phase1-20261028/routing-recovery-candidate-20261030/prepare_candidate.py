@@ -19,6 +19,7 @@ new="""            from .company_information_journal import checkpoint_batch as 
                 receipt_callback=lambda batch:checkpoint_routing(project,batch,self.outline,emit,trace_emit),
                 journal_loader=lambda rows:read_routing(project,rows,self.outline))"""
 assert caller.count(old)==1
+(here/'company_report_agent.py').write_text(caller.replace(old,new),encoding='utf-8')
 test=(here/'test_routing_journal.py').read_text(encoding='utf-8')
 start="""spec = importlib.util.spec_from_file_location('routing_journal_prototype', Path(__file__).with_name('company_information_journal.py'))
 journal = importlib.util.module_from_spec(spec)
@@ -30,11 +31,23 @@ old_builder="""    spec = importlib.util.spec_from_file_location('report_agents.
     return module.build_information_usage"""
 test=test.replace(old_builder,'    from report_agents.company_information_usage import build_information_usage\n    return build_information_usage')
 test=test.replace('import importlib.util\n','').replace('from pathlib import Path\n','')
+wiring=(here/'test_production_wiring_prototype.py').read_text(encoding='utf-8')
+wiring=wiring.replace('from test_routing_journal import','from test_company_information_journal import')
+load_start=wiring.index('def load(');load_end=wiring.index('def test_candidate_',load_start)
+wiring=wiring[:load_start]+wiring[load_end:]
+old_load="""    usage=load('report_agents._candidate_usage','company_information_usage.py')
+    monkeypatch.setitem(sys.modules,'report_agents.company_information_usage',usage)
+    monkeypatch.setitem(sys.modules,'report_agents.company_information_journal',journal)
+    caller=load('report_agents._candidate_caller','company_report_agent.py')"""
+assert old_load in wiring
+wiring=wiring.replace(old_load,'    from report_agents import company_information_usage as usage, company_report_agent as caller')
+wiring=wiring.replace('import importlib.util\n','').replace('from pathlib import Path\n','').replace('import sys\n','')
 changes={
     'backend/report_agents/company_information_journal.py':(here/'company_information_journal.py').read_text(encoding='utf-8'),
     'backend/report_agents/company_information_usage.py':(here/'company_information_usage.py').read_text(encoding='utf-8'),
     caller_path:caller.replace(old,new),
     'test/test_company_information_journal.py':test,
+    'test/test_company_information_journal_wiring.py':wiring,
 }
 patch=[]; hashes={}
 for path,after in changes.items():

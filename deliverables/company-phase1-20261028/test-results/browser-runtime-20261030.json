@@ -1,0 +1,11 @@
+{
+  "browser_version": "149.0.7827.55",
+  "executable": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG\\work\\company-phase1-20261028\\render-runtime\\playwright\\chromium-1228\\chrome-win64\\chrome.exe",
+  "node_executable": "C:\\Users\\wangli\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+  "script_sha256": "15cb1d9b35c59257569b869f152ff5d9aa116c0008a48ea815b4828dfd8038f2",
+  "executable_sha256": "b798f9e53a98d29eb7f36f8c409f905d3184780a04d2bcb56989067194784bd1",
+  "screenshot_sha256": "893904553af6c1fb78ec96f1455a98072517ff95d9ae5ac28c69c624d7f19e2f",
+  "displayed_text": "浏览器环境自检\n\n仅验证本地中文排版与截图功能，不是报告验收。\n\n数值与期间\t2025年 0元",
+  "report_acceptance": false,
+  "note": "Local runtime smoke only; no report or semantic quality approval."
+}
