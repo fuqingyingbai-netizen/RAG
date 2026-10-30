@@ -1,0 +1,78 @@
+{
+  "at": "2026-10-30T13:16:28.670266+00:00",
+  "scope": "complete backend test directory plus exact candidate tests",
+  "base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04",
+  "repository_head_during_audit": "da684a149b4055ef4d7e715927411722cd0a882f",
+  "platform": "Windows Python 3.12.14",
+  "passed": 4738,
+  "tests": 4742,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 4,
+  "elapsed_seconds": 1956.467,
+  "warnings": 2875,
+  "exact_candidate_patch_sha256": "c8757d0621a35d8875a76e2517cc717d90f918a9bcdc976dd6a8bacbc6466e3d",
+  "exact_candidate_paths": {
+    "backend/report_agents/company_information_journal.py": {
+      "base_sha256": null,
+      "candidate_utf8_sha256": "1f84b2c0f6310d87fec6c877708ff126b22f1999e7d5c5858ddda5f767ddb3c1"
+    },
+    "backend/report_agents/company_information_usage.py": {
+      "base_sha256": "6b95023df461d16410433fb06ed9dce73c586fa623f1afb05758041a1b36d0b9",
+      "candidate_utf8_sha256": "f4935684a8c3d74fee57890b7360ec40cd9b1d2026aa449092e1d9d294ebe672"
+    },
+    "backend/report_agents/company_report_agent.py": {
+      "base_sha256": "06f57f5ce145c92186cf45033d423f750a7750ea7dda5d9bf54c0528df8dc47c",
+      "candidate_utf8_sha256": "164fe2e40c52c0bfb172a95479fed4cb0ca1ee1e766c63f8989ea8b6b1bca4f0"
+    },
+    "test/test_company_information_journal.py": {
+      "base_sha256": null,
+      "candidate_utf8_sha256": "19f500d9b7bb76c579167a1f4d8e1ecc3e0c728f56ff7ef560d6fc1e469b2499"
+    },
+    "test/test_company_information_journal_wiring.py": {
+      "base_sha256": null,
+      "candidate_utf8_sha256": "36ac39681c016f627810d2cb699a31730acd1cf6660790b5f816668c1f609194"
+    }
+  },
+  "runtime_modules_loaded": {
+    "backend/report_agents/company_information_usage.py": "f4935684a8c3d74fee57890b7360ec40cd9b1d2026aa449092e1d9d294ebe672",
+    "backend/report_agents/company_information_journal.py": "1f84b2c0f6310d87fec6c877708ff126b22f1999e7d5c5858ddda5f767ddb3c1",
+    "backend/report_agents/company_report_agent.py": "164fe2e40c52c0bfb172a95479fed4cb0ca1ee1e766c63f8989ea8b6b1bca4f0"
+  },
+  "new_candidate_tests_passed": 18,
+  "skipped_tests": [
+    {
+      "classname": "test.test_backup_busy_workloads",
+      "name": "test_busy_job_skips_before_stopping_any_service[research]",
+      "reason": "Real flock and service guard run on Linux",
+      "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+    },
+    {
+      "classname": "test.test_backup_busy_workloads",
+      "name": "test_busy_job_skips_before_stopping_any_service[assistant]",
+      "reason": "Real flock and service guard run on Linux",
+      "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+    },
+    {
+      "classname": "test.test_backup_busy_workloads",
+      "name": "test_busy_job_skips_before_stopping_any_service[ingestion]",
+      "reason": "Real flock and service guard run on Linux",
+      "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+    },
+    {
+      "classname": "test.test_release_preparation",
+      "name": "test_first_start_allows_missing_bm25_file_when_parent_exists",
+      "reason": "Actual Linux path checks run on the target platform.",
+      "passed_on_linux_base_product_commit": "66bd061582d1066a8b9f8ef91af356c25c315f04"
+    }
+  ],
+  "all_other_backend_test_frontend_sources_unchanged_from_base": true,
+  "live_native_runtime_unchanged": true,
+  "evidence_sha256": {
+    "deliverables/company-phase1-20261028/test-results/routing-recovery-full-20261030.log": "18625155d7eb6f62ab4ce222f1ef514005773a093c120b011e6cd1e0cbbe3b8d",
+    "deliverables/company-phase1-20261028/test-results/routing-recovery-full-20261030.xml": "5d5102586188d1846d2a2736b49da9a4e4decccacdf8e639a3f12f695a89c33f"
+  },
+  "native_runtime_promoted": false,
+  "real_report_accepted": false,
+  "note": "Windows skips are reported separately. Prior Linux evidence covers unchanged deployment guards on the base product, not a Linux full run of this candidate."
+}

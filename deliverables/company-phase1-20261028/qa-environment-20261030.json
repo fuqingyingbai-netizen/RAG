@@ -1,0 +1,32 @@
+{
+  "recorded_at": "2026-10-30T13:05:05.537053+00:00",
+  "scope": "local QA prerequisites only; no report inspected",
+  "word_document_connector": {
+    "surface": "word",
+    "connected_executors": 0
+  },
+  "windows_application_interface": {
+    "operation": "sky.list_apps",
+    "attempts": 3,
+    "kernel_resets": 1,
+    "outcome": "computer-use request timed out: list_apps",
+    "ui_inputs_performed": 0,
+    "no_app_or_document_state_observed": true,
+    "helper_may_have_failed": true
+  },
+  "bundled_document_runtime": {
+    "version": "26.1029.11837",
+    "libreoffice_path_resolved_by_workspace_loader": false,
+    "user_desktop_libreoffice_used_for_this_probe": false
+  },
+  "browser_runtime": {
+    "version": "149.0.7827.55",
+    "local_download_completed": true,
+    "smoke_proof": "test-results/browser-runtime-20261030.json",
+    "screenshot_inspected": true,
+    "report_browser_review": "pending"
+  },
+  "final_word_pages_inspected": 0,
+  "final_report_acceptance": false,
+  "next_action": "Continue real workflows and candidate regressions; re-establish a supported Word/render interface before final all-page acceptance."
+}

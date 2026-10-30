@@ -8,7 +8,12 @@
   "exact_candidate_overlay": {
     "new_tests_passed": 18,
     "scope": "exact patch module paths and real caller in an isolated process",
-    "full_regression": "running; no result asserted"
+    "full_regression": {
+      "passed": 4738,
+      "skipped": 4,
+      "failures": 0,
+      "proof": "../routing-recovery-full-regression-proof.json"
+    }
   },
   "files_sha256": {
     "routing-recovery-candidate.patch": "c8757d0621a35d8875a76e2517cc717d90f918a9bcdc976dd6a8bacbc6466e3d",
