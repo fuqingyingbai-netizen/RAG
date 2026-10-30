@@ -115,8 +115,8 @@ def test_planning_and_selection_roles_cannot_invent_questions_or_promote_foreign
 
 
 def test_selection_failure_falls_back_and_one_writer_timeout_preserves_other_answer(monkeypatch):
-    # Isolate writer failure handling; editorial limits are tested separately.
-    monkeypatch.setenv('INDUSTRY_EDITORIAL_ENABLED', '0')
+    # Exercise the explicit editor after a successful sibling writer request.
+    monkeypatch.setenv('INDUSTRY_EDITORIAL_ENABLED', '1')
     calls=[]
     def invoke(role,prompt,trace):
         calls.append(role)
@@ -152,7 +152,7 @@ def test_writer_shared_deadline_never_starts_another_request_after_expiry(monkey
 
 
 def test_new_section_path_records_roles_without_hidden_analysis_repair(monkeypatch):
-    monkeypatch.setenv('INDUSTRY_EDITORIAL_ENABLED', '0')
+    monkeypatch.setenv('INDUSTRY_EDITORIAL_ENABLED', '1')
     from report_agents.industry_report_agent import IndustryReportAgent
     calls=[]
     def invoke(role,prompt,trace):
