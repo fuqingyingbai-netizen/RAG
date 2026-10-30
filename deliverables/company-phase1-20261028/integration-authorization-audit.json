@@ -10,8 +10,13 @@
     "Preserve source branches, existing target worktree changes and running tasks.",
     "No main push, force push or deployment."
   ],
-  "current_status": "Company engineering sync now directly authorized; protecting dirty main checkout. Integration and regressions in progress.",
+  "current_status": "Authorized company/person engineering integration and compatibility validation completed; normal push to company/main ready. Original report acceptances remain open.",
   "latest_direct_human_instruction": "那你总结一下拖到公司分支，然后，再拉去最新的main分支做兼容以后再本地合并并且更新到main分支然后推上去去更新一下main分支",
   "latest_instruction_recorded_at": "2026-10-30T01:34:27.499613+00:00",
-  "latest_instruction_scope": "Commit current company engineering progress, integrate codex/company with latest origin/main, merge locally in an isolated candidate and push main. Supersedes the prior no-main-push/complete-report prerequisite for this requested engineering sync; does not declare phase-one reports accepted or authorize unrelated person work, force push or deployment."
+  "latest_instruction_scope": "Commit current company engineering progress, integrate codex/company with latest origin/main, merge locally in an isolated candidate and push main. Supersedes the prior no-main-push/complete-report prerequisite for this requested engineering sync; does not declare phase-one reports accepted or authorize unrelated person work, force push or deployment.",
+  "person_handoff_authorization": {
+    "source_thread": "01a18168-9f36-7282-875c-961470f30972",
+    "human_reply": "授权交接，由公司聊天统一推送",
+    "verified_in_thread": true
+  }
 }

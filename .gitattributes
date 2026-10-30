@@ -7,3 +7,7 @@ test/fixtures/industry_acceptance/v1/*.json -text whitespace=blank-at-eol,blank-
 # Preserve byte-bound phase-one logs and final exports across Windows checkouts.
 deliverables/company-phase1-20261028/test-results/** -text -whitespace
 deliverables/company-phase1-20261028/reports/** -text -whitespace
+
+deliverables/person-main-sync-20261030/** -text -whitespace
+
+deliverables/main-sync-20261030/** -text -whitespace
