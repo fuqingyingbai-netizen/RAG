@@ -22,6 +22,12 @@ def public(prompt):
     return json.loads(prompt.split('\n', 1)[1])
 
 
+def keep_editorial(data):
+    return json.dumps({'reviews': [
+        {'draft_id': row['draft_id'], 'fingerprint': row['fingerprint'],
+         'decision': 'keep', 'issues': []} for row in data['drafts']]})
+
+
 def test_compiler_has_small_complete_cards_no_diagnostics_and_preserves_sources():
     p=rich_package(); old=deepcopy(p)
     jobs, d=compile_jobs(p, 2)
@@ -114,10 +120,14 @@ def test_selection_failure_falls_back_and_one_writer_timeout_preserves_other_ans
         calls.append(role)
         if '筛选' in role or len(calls)==2:
             raise IndustryModelOutputError('model_request_timeout')
+        if '质量编辑' in role:
+            return keep_editorial(public(prompt))
         body=public(prompt); q=body['questions'][0]
         return json.dumps({'answers':[answer(q['id'],q['allowed_refs'][0])]})
     r=generate_questions(rich_package(),2,'产业链',invoke,lambda *a,**k:None,None)
-    assert len(calls)==3 and r['attempts']==2 and len(r['analyses'])==1
+    assert len(calls)==4 and r['attempts']==2 and len(r['analyses'])==1
+    assert sum('质量编辑' in role for role in calls)==1
+    assert r['diagnostic']['editorial']['calls']==1
     assert r['diagnostic']['evidence_selection']['status']=='fallback_rule_selection'
     assert r['diagnostic']['partial_failure'] and remaining_request_timeout() is None
 
@@ -144,14 +154,17 @@ def test_new_section_path_records_roles_without_hidden_analysis_repair(monkeypat
     def invoke(role,prompt,trace):
         calls.append(role); data=public(prompt)
         if '筛选' in role:return json.dumps({'selections':[]})
+        if '质量编辑' in role:return keep_editorial(data)
         return json.dumps({'answers':[answer(q['id'],q['allowed_refs'][0]) for q in data['questions']]})
     p=SimpleNamespace(industry_question_jobs_enabled=True,industry_statement_plans={},industry_report_degradations=[])
     text=IndustryReportAgent()._write_statement_section(p,rich_package(),2,'产业链',invoke,lambda *a,**k:None,None)
     plan=p.industry_statement_plans[2]
     assert len(plan['analysis_claims'])==4 and '本章初步结论' in text
-    assert len(calls)==3 and all('修复' not in role for role in calls)
+    assert len(calls)==5 and all('修复' not in role for role in calls)
+    assert sum('质量编辑' in role for role in calls)==2
+    assert plan['generation_batches']['editorial']['calls']==2
     assert plan['analysis_repair']['attempted'] is False
-    assert plan['generation_batches']['version']=='industry-question-jobs-v4-developed-findings'
+    assert plan['generation_batches']['version']=='industry-question-jobs-v5-editorial-revision'
 
 
 def test_failure_usage_is_preserved_without_text_or_credentials():

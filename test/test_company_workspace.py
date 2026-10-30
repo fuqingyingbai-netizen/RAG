@@ -201,6 +201,61 @@ def test_retrieval_filters_and_postfilter_before_generation(setup, monkeypatch, 
     assert 'SECRET' not in result.text
 
 
+@pytest.mark.parametrize('local_model', [False, True])
+@pytest.mark.parametrize('status', [401, 403, 404])
+def test_generation_errors_identify_the_answer_provider(setup, monkeypatch, local_model, status):
+    if local_model:
+        monkeypatch.setenv('MODEL', 'qwen3.8-max')
+        monkeypatch.setenv('BASE_URL', 'https://relay.example.test/v1')
+        monkeypatch.setenv('ARK_API_KEY', 'relay-test-key')
+    doc_id = upload(setup).json()['id']
+    ready(setup, doc_id)
+
+    def handler(request):
+        if request.url.path.endswith('/retrieve'):
+            assert request.headers['Authorization'] == 'Bearer test-secret'
+            return httpx.Response(200, json={'data': {'nodes': [
+                {'metadata': {'doc_id': 'cloud-a', 'content': 'Authorized evidence'}}]}})
+        if request.url.path.endswith('/app/get'):
+            assert not local_model
+            return httpx.Response(200, json={'data': {'agent_details': [
+                {'agent_version': '1', 'agent_config': {'agent_model': 'test-model'}}]}})
+        assert request.url.path.endswith('/chat/completions')
+        return httpx.Response(status, json={'error': 'test-secret relay-test-key'})
+
+    transport(monkeypatch, handler)
+    response = setup.client.post('/company-knowledge/chat/stream', json={
+        'message': 'Summarize', 'document_ids': [doc_id]})
+    events = [json.loads(line[6:]) for line in response.text.splitlines() if line.startswith('data: ')]
+    assert any(event['type'] == 'citations' for event in events)
+    assert events[-1]['type'] == 'error'
+    assert ('回答模型' if local_model else '百炼') in events[-1]['message']
+    if local_model:
+        assert '百炼' not in events[-1]['message']
+    assert 'test-secret' not in response.text and 'relay-test-key' not in response.text
+    assert not any(event['type'] == 'done' for event in events)
+
+
+def test_retrieval_auth_error_still_identifies_bailian_with_external_answer_model(setup, monkeypatch):
+    monkeypatch.setenv('MODEL', 'qwen3.8-max')
+    monkeypatch.setenv('BASE_URL', 'https://relay.example.test/v1')
+    monkeypatch.setenv('ARK_API_KEY', 'relay-test-key')
+    doc_id = upload(setup).json()['id']
+    ready(setup, doc_id)
+    calls = []
+
+    def handler(request):
+        calls.append(request.url.path)
+        return httpx.Response(401, json={'error': 'test-secret'})
+
+    transport(monkeypatch, handler)
+    response = setup.client.post('/company-knowledge/chat/stream', json={
+        'message': 'Summarize', 'document_ids': [doc_id]})
+    assert calls == ['/api/v1/indices/rag/index/retrieve']
+    assert '百炼接口认证失败' in response.text and '回答模型' not in response.text
+    assert 'test-secret' not in response.text
+
+
 def test_empty_scope_and_no_hits_never_fall_back_to_unfiltered_agent(setup, monkeypatch):
     calls = []
     def handler(request):

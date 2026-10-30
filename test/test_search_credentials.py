@@ -1,4 +1,4 @@
-"""Credential fallback is not a retry for rate limits or request failures."""
+"""Public search behavior remains compatible with the shared bounded credential pool."""
 import json
 from concurrent.futures import ThreadPoolExecutor
 
@@ -6,6 +6,8 @@ import pytest
 import requests
 
 from web_search import WebSearchProvider
+import tavily_keys
+from tavily_keys import get_tavily_pool, tavily_api_keys, TavilyKeysUnavailable
 
 
 def response(status=200,body=None):
@@ -16,38 +18,39 @@ def response(status=200,body=None):
 
 @pytest.fixture
 def pool(monkeypatch):
+    monkeypatch.setattr(tavily_keys, '_pool', None)
     monkeypatch.setenv('TAVILY_API_KEY','synthetic-primary')
     monkeypatch.setenv('TAVILY_API_KEYS','synthetic-primary,synthetic-backup;synthetic-third')
     return WebSearchProvider()
 
 
-def test_pool_deduplicates_and_keeps_legacy_key_first(pool):
-    assert pool._tavily_api_keys()==['synthetic-primary','synthetic-backup','synthetic-third']
+def test_pool_deduplicates_and_keeps_configured_order(pool):
+    assert tavily_api_keys()==('synthetic-primary','synthetic-backup','synthetic-third')
 
 
 @pytest.mark.parametrize('code',[401,403,432])
 def test_bad_credential_is_skipped_later_and_not_logged(monkeypatch,pool,code,capsys):
     calls=[]
     def post(url,**kw):
-        key=kw['json']['api_key'];calls.append(key)
+        key=kw['headers']['Authorization'].removeprefix('Bearer ');calls.append(key)
         return response(code,{'error':'invalid_api_key'}) if key=='synthetic-primary' else response()
     monkeypatch.setattr(requests,'post',post)
     result=pool._search_tavily('offline query',1)
     assert calls==['synthetic-primary','synthetic-backup'] and len(result)==1
-    assert result.audit=={'http_attempts':2,'credential_switches':1}
+    assert result.audit['key_attempt_sequence']==[1,2] and result.audit['key_slot']==2
     pool._search_tavily('second offline query',1)
     assert calls[-1]=='synthetic-backup' and calls.count('synthetic-primary')==1
     public=json.dumps(result.audit)+capsys.readouterr().out
     assert 'synthetic-primary' not in public and 'synthetic-backup' not in public
 
 
-@pytest.mark.parametrize('code',[400,429,500])
+@pytest.mark.parametrize('code',[400,500])
 def test_request_and_rate_errors_do_not_rotate(monkeypatch,pool,code):
     calls=[]
     def post(*a,**k):calls.append(1);return response(code,{'error':'ordinary request failure'})
     monkeypatch.setattr(requests,'post',post)
     with pytest.raises(requests.HTTPError):pool._search_tavily('offline query',1)
-    assert len(calls)==1 and not pool._unavailable_tavily_keys
+    assert len(calls)==1 and not get_tavily_pool()._blocked
 
 
 def test_timeout_does_not_rotate_and_success_is_one_request(monkeypatch,pool):
@@ -55,9 +58,9 @@ def test_timeout_does_not_rotate_and_success_is_one_request(monkeypatch,pool):
     def post(*a,**k):calls.append(1);raise requests.Timeout('synthetic timeout')
     monkeypatch.setattr(requests,'post',post)
     with pytest.raises(requests.Timeout):pool._search_tavily('offline query',1)
-    assert len(calls)==1 and not pool._unavailable_tavily_keys
+    assert len(calls)==1 and not get_tavily_pool()._blocked
     monkeypatch.setattr(requests,'post',lambda *a,**k:response())
-    assert pool._search_tavily('offline query',1).audit['http_attempts']==1
+    assert pool._search_tavily('offline query',1).audit['key_attempt_sequence']==[1]
 
 
 def test_all_exhausted_keys_keep_quota_failure_without_more_requests(monkeypatch,pool):
@@ -67,8 +70,8 @@ def test_all_exhausted_keys_keep_quota_failure_without_more_requests(monkeypatch
     for _ in range(2):
         with pytest.raises(Exception) as exc:pool._search_tavily('offline query',1)
         assert pool._search_failure_reason(exc.value)=='quota_exceeded'
-    assert len(calls)==3
-    assert all('synthetic-' not in signature for signature in pool._unavailable_tavily_keys)
+    assert len(calls)==4  # One bounded first-key recovery probe after wraparound.
+    assert 'synthetic-' not in repr(get_tavily_pool()._blocked)
 
 
 def test_plural_only_credentials_work_for_single_and_multi_search(monkeypatch,pool):
@@ -82,8 +85,8 @@ def test_plural_only_credentials_work_for_single_and_multi_search(monkeypatch,po
 
 def test_concurrent_searches_keep_results_and_pool_state_consistent(monkeypatch,pool):
     def post(*a,**kw):
-        return response(432,{'error':'quota_exceeded'}) if kw['json']['api_key']=='synthetic-primary' else response()
+        return response(432,{'error':'quota_exceeded'}) if kw['headers']['Authorization'].removeprefix('Bearer ')=='synthetic-primary' else response()
     monkeypatch.setattr(requests,'post',post)
     with ThreadPoolExecutor(max_workers=4) as workers:
         results=list(workers.map(lambda i:pool._search_tavily('offline query',1),range(8)))
-    assert all(len(r)==1 for r in results) and len(pool._unavailable_tavily_keys)==1
+    assert all(len(r)==1 for r in results) and len(get_tavily_pool()._blocked)==1

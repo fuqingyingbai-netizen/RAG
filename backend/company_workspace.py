@@ -663,6 +663,7 @@ async def grounded_answer(cfg, question):
         if model and model_base and model_key:
             answer_url = model_base + '/chat/completions'
             answer_headers = kb.headers({'api_key': model_key})
+            answer_provider = '回答模型'
         else:
             info = await kb.cloud_rpc(client, cfg, '/api/v1/indices/rag/app/get', {'agent_id': cfg['agent_id']})
             versions = [row for row in info.get('agent_details', []) if str(row.get('agent_version', '')).isdigit()]
@@ -674,6 +675,7 @@ async def grounded_answer(cfg, question):
                 raise kb.KnowledgeError('已发布应用没有模型配置。')
             answer_url = cfg['base_url'] + '/compatible-mode/v1/chat/completions'
             answer_headers = kb.headers(cfg)
+            answer_provider = '百炼'
         evidence = '\n\n'.join(f'[id_{ref["id"]}] {ref["title"]} | V{ref["version"]} | {ref["review"]}'
             f' | 目录项目={ref["project"]} | 目录行业={ref["industry"]}\n{ref["text"]}' for ref in refs)
         system = ('你是公司内部知识库助手。可以自然回复问候。业务问题仅依据本轮提供的资料片段回答，每个关键结论标注[id_编号]。'
@@ -700,7 +702,7 @@ async def grounded_answer(cfg, question):
             headers=answer_headers, json={'model': model, 'messages': messages, 'stream': True,
                 'enable_thinking': False, 'stream_options': {'include_usage': True}}) as response:
             if response.status_code != 200:
-                raise kb.provider_error(response.status_code)
+                raise kb.provider_error(response.status_code, provider=answer_provider)
             usage = {}
             async for frame in kb.sse_frames(response.aiter_lines()):
                 if frame.get('error'):
