@@ -527,13 +527,17 @@ class ResearchWorkflow:
         try:
             result = model.invoke([{'role': 'system', 'content': '只用允许的证据与指标；评分理由简短，缺证返回unknown，输出完整JSON。'},
                                    {'role': 'user', 'content': prompt}])
-            content = str(result.content or '')
+            from industry_model_output import response_text
+            content, output_diagnostic = response_text(result)
             _emit(emit, 'llm', role, '行业风险模型调用完成', f'chars={len(content)}',
-                  duration_ms=int((time.monotonic()-started)*1000), status='done')
+                  duration_ms=int((time.monotonic()-started)*1000), output_diagnostic=output_diagnostic, status='done')
             return content
         except Exception as exc:
-            _emit(emit, 'llm', role, '行业风险模型超时或失败，保留待核验结果', str(exc)[:800],
-                  duration_ms=int((time.monotonic()-started)*1000), status='fallback')
+            from industry_model_output import generation_error_code, error_diagnostics
+            code = generation_error_code(exc)
+            _emit(emit, 'llm', role, '行业风险模型未返回有效正文，保留待核验结果', code,
+                  duration_ms=int((time.monotonic()-started)*1000), status='fallback',
+                  failure_code=code, error_type=type(exc).__name__, output_diagnostic=error_diagnostics(exc))
             return ''
 
     def _invoke_industry_cleaning(self, role: str, prompt: str, emit=None, timeout_seconds=60) -> str:
@@ -550,13 +554,17 @@ class ResearchWorkflow:
                 timeout=timeout_seconds, max_retries=0, max_tokens=2000, **generation_options(os.environ['MODEL']))
             result = model.invoke([{'role': 'system', 'content': '只提取可核验事实，输出完整JSON并保留来源和统计口径。'},
                                    {'role': 'user', 'content': prompt}])
-            content = str(result.content or '')
+            from industry_model_output import response_text
+            content, output_diagnostic = response_text(result)
             _emit(emit, 'llm', role, '行业清洗模型调用完成', f'chars={len(content)}',
-                  duration_ms=int((time.monotonic()-started)*1000), status='done')
+                  duration_ms=int((time.monotonic()-started)*1000), output_diagnostic=output_diagnostic, status='done')
             return content
         except Exception as exc:
-            _emit(emit, 'llm', role, '行业清洗模型失败，保留规则事实', str(exc)[:800],
-                  duration_ms=int((time.monotonic()-started)*1000), degraded=True, status='fallback')
+            from industry_model_output import generation_error_code, error_diagnostics
+            code = generation_error_code(exc)
+            _emit(emit, 'llm', role, '行业清洗模型失败，保留规则事实', code,
+                  duration_ms=int((time.monotonic()-started)*1000), degraded=True, status='fallback',
+                  failure_code=code, error_type=type(exc).__name__, output_diagnostic=error_diagnostics(exc))
             return ''
     def _invoke_company_summary(self, role: str, prompt: str, emit: TraceEmitter | None = None) -> str:
         """One bounded request per summary attempt, with no hidden SDK retries."""
