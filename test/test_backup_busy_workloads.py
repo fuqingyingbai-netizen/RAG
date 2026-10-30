@@ -1,5 +1,6 @@
 """Backups must not stop active collection, chat, or knowledge ingestion."""
 import importlib.util
+import ast
 from pathlib import Path
 import sys
 
@@ -10,6 +11,19 @@ spec = importlib.util.spec_from_file_location('production_backup_guard',
     Path(__file__).resolve().parents[1]/'deploy/backup-production.py')
 backup = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(backup)
+
+
+def test_guard_covers_every_active_state_written_by_the_workflow():
+    workflow = Path(__file__).resolve().parents[1]/'backend/research_workflow.py'
+    written = set()
+    for node in ast.walk(ast.parse(workflow.read_text(encoding='utf-8'))):
+        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Constant):
+            continue
+        for target in node.targets:
+            if (isinstance(target, ast.Attribute) and target.attr == 'status'
+                    and isinstance(target.value, ast.Name) and target.value.id == 'project'):
+                written.add(node.value.value)
+    assert written - {'completed', 'paused', 'failed'} <= set(backup.ACTIVE)
 
 
 @pytest.mark.skipif(sys.platform != 'linux', reason='Real flock and service guard run on Linux')

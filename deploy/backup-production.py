@@ -13,7 +13,7 @@ import tarfile
 
 ROOT = Path('/opt/supermew')
 ACTIVE = ('queued','running','researching','processing','collecting',
-          'planning','searching','source_assessing','cleaning','risk_assessing',
+          'planning','searching','source_assessing','cleaning','risk_scoring','risk_assessing',
           'report_generating','proposal_generating','pausing')
 
 
