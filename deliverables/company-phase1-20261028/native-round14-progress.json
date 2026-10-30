@@ -1,5 +1,5 @@
 {
-  "observed_at_utc": "2026-10-30T12:15:04.021533+00:00",
+  "observed_at_utc": "2026-10-30T12:36:43.209724+00:00",
   "case": "haitian",
   "native_session_id": 72343,
   "observed_live_processes": [
@@ -20,23 +20,23 @@
   "new_collection_acceptance": false,
   "event_counts": {
     "http_returned": 1,
-    "model_started": 11,
-    "model_http_started": 12,
-    "model_http_headers": 11,
-    "model_failed": 3,
+    "model_started": 25,
+    "model_http_started": 26,
+    "model_http_headers": 25,
+    "model_failed": 5,
     "model_http_failed": 1,
-    "model_returned": 7
+    "model_returned": 19
   },
   "finish_reasons": {
-    "stop": 7
+    "stop": 19
   },
   "unfinished_logical_model_numbers": [
-    11
+    25
   ],
   "reported_tokens": {
-    "input_tokens": 42705,
-    "output_tokens": 56221,
-    "total_tokens": 98926
+    "input_tokens": 95114,
+    "output_tokens": 139405,
+    "total_tokens": 234519
   },
   "latest_stage": {
     "stage": "report",
@@ -45,8 +45,8 @@
     "current_label": "信息逐条用途核对完成",
     "current_section": ""
   },
-  "ledger_snapshot": "work/company-phase1-20261028/round14-ledger-snapshot-20261030T121503Z.jsonl",
-  "ledger_snapshot_sha256": "b6d9fc8f8d19a925507c94d59b875ae16afea3e31fc6045533353cd407574420",
+  "ledger_snapshot": "work/company-phase1-20261028/round14-ledger-snapshot-20261030T123638Z.jsonl",
+  "ledger_snapshot_sha256": "5873c3bb853f7ddb67ca87cbca75910b6398760f1f815da5284da8bc6cacffc1",
   "ignored_partial_lines": 0,
   "report_accepted": false,
   "currency_cost_unknown": true,
