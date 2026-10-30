@@ -254,6 +254,22 @@ def test_check_paths_is_explicit_and_reports_only_field_names(good_config):
     assert good_config['RESEARCH_LOCAL_STORE'] not in json.dumps(issues)
 
 
+@pytest.mark.parametrize('key', ['BM25_STATE_PATH', 'RESEARCH_LOCAL_STORE',
+                               'LIBREOFFICE_SOFFICE_PATH', 'EMBEDDING_MODEL'])
+def test_path_permission_failure_is_reported_without_leaking_the_path(good_config, monkeypatch, key):
+    blocked = '/restricted-test-path-must-not-be-echoed'
+    good_config[key] = blocked
+    original = Path.stat
+    def stat(path, *args, **kwargs):
+        if path.as_posix() == blocked:
+            raise PermissionError(blocked)
+        return original(path, *args, **kwargs)
+    monkeypatch.setattr(Path, 'stat', stat)
+    issues = config.check_config(good_config, check_paths=True)
+    assert any(level == 'ERROR' and field == key for level, field, _ in issues)
+    assert blocked not in json.dumps(issues)
+
+
 def test_cli_failure_redacts_config_secrets(tmp_path, good_config):
     import sys
     secret = 'unit-test-super-sensitive-password-123456789'

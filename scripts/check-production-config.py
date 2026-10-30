@@ -165,19 +165,27 @@ def check_config(values, *, check_paths=False):
             issue('ERROR', key, 'Use persistent shared storage or a system binary, independent of the release directory.')
         elif value and check_paths:
             path = Path(value)
-            if key == 'BM25_STATE_PATH':
-                valid = path.is_file() or (not path.exists() and path.parent.is_dir())
-            elif key == 'LIBREOFFICE_SOFFICE_PATH':
-                valid = path.is_file() and os.access(path, os.X_OK)
-            else:
-                valid = path.is_dir()
+            try:
+                if key == 'BM25_STATE_PATH':
+                    valid = path.is_file() or (not path.exists() and path.parent.is_dir())
+                elif key == 'LIBREOFFICE_SOFFICE_PATH':
+                    valid = path.is_file() and os.access(path, os.X_OK)
+                else:
+                    valid = path.is_dir()
+            except OSError:
+                valid = False
             if not valid:
                 issue('ERROR', key, 'Configured directory or executable is unavailable on this machine.')
     embedding = values.get('EMBEDDING_MODEL', '')
     if '\\' in embedding or re.match(r'^[A-Za-z]:', embedding):
         issue('ERROR', 'EMBEDDING_MODEL', 'Windows model paths cannot be used on Linux.')
-    elif embedding.startswith('/') and check_paths and not Path(embedding).is_dir():
-        issue('ERROR', 'EMBEDDING_MODEL', 'Configured local model directory does not exist.')
+    elif embedding.startswith('/') and check_paths:
+        try:
+            model_available = Path(embedding).is_dir()
+        except OSError:
+            model_available = False
+        if not model_available:
+            issue('ERROR', 'EMBEDDING_MODEL', 'Configured local model directory is unavailable.')
     for key in ('RESEARCH_OBJECT_STORE', 'COMPANY_KNOWLEDGE_OBJECT_STORE'):
         if values.get(key) not in {'local', 'minio'}:
             issue('ERROR', key, 'Explicitly select local or minio storage.')
