@@ -173,7 +173,7 @@ def refine_packet(claims, packet, invoke, parse_answers, writer_prompt, budget, 
         budget['calls'] += 1; diagnostic['calls'] += 1
         if event:
             event(role)
-        with request_deadline(time.monotonic()+min(90, remaining)):
+        with request_deadline(time.monotonic()+min(_setting('INDUSTRY_EDITORIAL_REQUEST_TIMEOUT_SECONDS', 90, 300), remaining)):
             return invoke(role+' - '+title, prompt)
 
     try:
