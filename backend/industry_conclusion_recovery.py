@@ -192,9 +192,15 @@ def targeted_queries(plan, target, previous=()):
 def merge_evidence(original, addition):
     """Append new admitted facts; old E-IDs and original body snapshots are immutable."""
     from industry_evidence import fact_coverage
-    from industry_reasoning import question_ledger
+    from industry_reasoning import question_ledger, fingerprint
     from industry_fact_contracts import CHAPTER_QUESTIONS
-    merged = deepcopy(original)
+    # Old admitted facts/body versions are read-only. Copy containers, not the
+    # complete archive; new facts and new snapshots retain independent ownership.
+    merged = dict(original)
+    if 'facts' in original:
+        merged['facts'] = list(original['facts'])
+    if 'source_body_snapshots' in original:
+        merged['source_body_snapshots'] = dict(original['source_body_snapshots'])
     seen = {f.get('evidence_id') for f in merged.get('facts', [])}
     snapshots = addition.get('source_body_snapshots', {})
     old_snapshots = original.get('source_body_snapshots', {})
@@ -222,7 +228,9 @@ def merge_evidence(original, addition):
         'risk_admitted': sum(bool(f.get('fact_contract', {}).get('risk_admitted')) for f in facts),
         'held_for_review': sum(not f.get('fact_contract', {}).get('report_admitted') for f in facts),
         'semantic_status': 'not_evaluated'}
-    merged['research_questions'] = {str(i): question_ledger(merged, i, [f['evidence_id'] for f in facts]) for i in CHAPTER_QUESTIONS}
+    input_fingerprint = fingerprint({'facts': facts, 'scope': merged.get('industry_scope', {})})
+    merged['research_questions'] = {str(i): question_ledger(merged, i,
+        [f['evidence_id'] for f in facts], input_fingerprint=input_fingerprint) for i in CHAPTER_QUESTIONS}
     merged['conclusion_recovery'] = {'version': VERSION, 'added_fact_count': len(facts)-len(original.get('facts', [])),
         'incremental_cleaning_diagnostic': addition.get('cleaning_diagnostic', {})}
     return merged
@@ -384,4 +392,7 @@ def recovery_markdown(record):
 
 
 def digest(text):
-    return hashlib.sha256(text.encode('utf-8')).hexdigest()
+    digest = hashlib.sha256()
+    for offset in range(0, len(text), 65536):
+        digest.update(text[offset:offset+65536].encode('utf-8'))
+    return digest.hexdigest()

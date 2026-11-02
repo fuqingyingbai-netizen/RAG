@@ -17,8 +17,11 @@ STATE_LABELS = {'supported': '模型认为在所列范围内支持，仍需人�
 
 
 def fingerprint(value):
-    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True,
-                                    separators=(',', ':')).encode()).hexdigest()
+    digest = hashlib.sha256()
+    encoder = json.JSONEncoder(ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+    for chunk in encoder.iterencode(value):
+        digest.update(chunk.encode('utf-8'))
+    return digest.hexdigest()
 
 
 def completion_criteria(question):
@@ -41,7 +44,7 @@ def completion_criteria(question):
     return ['对应主体与研究范围', '原始材料及时间', '支持的问题', '适用条件与未覆盖部分']
 
 
-def question_ledger(package, chapter, ids, claims=(), rejections=()):
+def question_ledger(package, chapter, ids, claims=(), rejections=(), *, input_fingerprint=None):
     from industry_fact_contracts import chapter_coverage, chapter_admitted
     candidates = [f['evidence_id'] for f in package.get('facts', []) if chapter_admitted(f, chapter)]
     all_rows = {r['question']: r for r in chapter_coverage(package, chapter, candidates)}
@@ -70,7 +73,7 @@ def question_ledger(package, chapter, ids, claims=(), rejections=()):
                             'review_claim_support'),
             'answer_verified': False})
     return {'version': VERSION, 'chapter': chapter, 'questions': rows,
-            'input_fingerprint': fingerprint({'facts': package.get('facts', []), 'scope': package.get('industry_scope', {})}),
+            'input_fingerprint': input_fingerprint if input_fingerprint is not None else fingerprint({'facts': package.get('facts', []), 'scope': package.get('industry_scope', {})}),
             'summary': dict(Counter(r['evidence_state'] for r in rows)), 'human_review_required': True}
 
 

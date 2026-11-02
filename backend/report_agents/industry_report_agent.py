@@ -112,6 +112,10 @@ class IndustryReportAgent:
             section_fact_counts[index] = len(json.loads(section_packages[index])['facts'])
         emit(trace_emit, "report", self.trace_agent, "行业章节证据包已按章节分桶", f"unique_sources={len(used_urls)}, evidence_chapters=14", unique_sources=len(used_urls), status="done")
 
+        if getattr(project, 'industry_chapter_phase', False):
+            from industry_chapter_research import prepare_chapter_packages
+            prepare_chapter_packages(payload, section_packages, project)
+            section_fact_counts.update({i: len(json.loads(p).get('facts', [])) for i,p in section_packages.items()})
         setattr(project, "industry_section_packages", section_packages)
         if recovery:
             project.industry_question_order = deepcopy(recovery.get('industry_question_order', {}))
@@ -203,6 +207,14 @@ class IndustryReportAgent:
                     project.industry_report_degradations.append({'chapter': index, 'message': f'第{index}章写作异常，保留来源事实摘录；需人工复核。'})
                 if section.strip():
                     sections_by_index[index] = section
+        if getattr(project, 'industry_chapter_phase', False):
+            # Research and repair chapters before any cross-chapter synthesis or summary.
+            sections_by_index.pop(14, None)
+            sections_by_index.pop(16, None)
+            if project.industry_statement_mode:
+                self._review_statement_claims(project, payload, section_packages, sections_by_index, invoke, emit, trace_emit)
+            project.industry_generated_sections = dict(sections_by_index)
+            return '\n\n'.join(sections_by_index[i] for i in sorted(sections_by_index)) or '章节研究阶段：尚无可用正文。'
         if project.industry_statement_mode:
             defer_synthesis = recovery and getattr(project,'industry_recovery_plan',{}).get('defer_synthesis')
             if defer_synthesis:

@@ -56,8 +56,10 @@ def test_intake_read_filters_in_sql_instead_of_loading_the_relationship(read_api
     response=client.get('/research/projects/1/run-intake',headers=headers)
     assert response.status_code==200 and response.json()['intake']['company_name']=='Synthetic subject'
     queries=[(sql,params) for sql,params in statements if 'FROM research_artifacts' in sql]
-    assert len(queries)==1
-    assert 'project_intake' in queries[0][1] and 'LIMIT' in queries[0][0]
+    assert len(queries)==3
+    intake_queries=[(sql,params) for sql,params in queries if 'project_intake' in params]
+    assert len(intake_queries)==1 and 'LIMIT' in intake_queries[0][0]
+    assert all('research_artifacts.content AS' not in sql for sql,params in queries if 'project_intake' not in params)
     assert len(response.content)<1024
 
 

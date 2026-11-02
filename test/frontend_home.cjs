@@ -12,9 +12,7 @@ const context = {
   document: {visibilityState: 'visible'}, setInterval() {return 1;}, clearInterval() {},
 };
 vm.runInNewContext(fs.readFileSync('frontend/script.js', 'utf8'), context);
-const homeAsset = fs.readFileSync('frontend/index.html', 'utf8').match(/<script src="(personal-home(?:\.[a-f0-9]+)?\.js)"><\/script>/)?.[1];
-assert.ok(homeAsset, 'Homepage tests must load the component actually served by index.html');
-const homeDefinition = vm.runInNewContext(fs.readFileSync(`frontend/${homeAsset}`, 'utf8') + '\nPersonalHome;', context);
+const homeDefinition = vm.runInNewContext(fs.readFileSync('frontend/personal-home.js', 'utf8') + '\nPersonalHome;', context);
 function state(definition, props = {}) {
   const value = {...definition.data(), ...props};
   for (const [key, fn] of Object.entries(definition.methods)) value[key] = fn.bind(value);
@@ -27,6 +25,25 @@ const watchdog = setTimeout(() => {console.error('Personal home tests did not fi
 (async () => {
   const app = state(appDefinition);
   assert.equal(app.activeView, 'home'); // Ignore another account's last view.
+  const workspace = state(appDefinition);
+  workspace.loadProjects = async () => {}; workspace.refreshVisibleTaskProgress = () => {};
+  let repositoryLoads = 0; workspace.loadRepository = async () => { repositoryLoads++; };
+  workspace.switchView('submit');
+  assert.equal(workspace.activeView, 'tasks'); assert.equal(workspace.taskCreateOpen, true);
+  assert.equal(workspace.pageTitle, '尽调任务'); assert.equal(workspace.isTaskWorkspace, true);
+  workspace.switchView('review'); assert.equal(workspace.taskCreateOpen, false); assert.equal(workspace.pageTitle, '尽调任务');
+  workspace.switchView('sources'); assert.equal(repositoryLoads, 1); assert.equal(workspace.pageTitle, '尽调任务');
+  assert.equal(workspace.workspaceLinkLabel({view:'review',label:'复核与一手资料'}), '尽调任务 · 资料整理与复核');
+  workspace.switchView('home'); assert.equal(workspace.isTaskWorkspace, false);
+  for (const [view,title] of [['workbench','工作台'],['research','研究任务']]) {
+    workspace.switchView(view); assert.equal(workspace.activeView, view);
+    assert.equal(workspace.pageTitle, title); assert.equal(workspace.isTaskWorkspace, false);
+    workspace.ensureAllowedView(); assert.equal(workspace.activeView, view);
+  }
+  workspace.switchView('due-diligence'); assert.equal(workspace.activeView, 'tasks');
+  assert.equal(workspace.pageTitle, '尽调任务'); assert.equal(workspace.isTaskWorkspace, true);
+  workspace.activeView = 'due-diligence'; workspace.ensureAllowedView(); assert.equal(workspace.activeView, 'tasks');
+  workspace.switchView('submit'); workspace.handleLogout(); assert.equal(workspace.taskCreateOpen, false);
   app.activeView = 'accounts'; app.loadAssistantState = () => {}; app.loadProjects = async () => {};
   await app.acceptAuthentication({access_token: 'employee', username: 'employee', role: 'user'});
   assert.equal(app.activeView, 'home');
@@ -60,6 +77,24 @@ const watchdog = setTimeout(() => {console.error('Personal home tests did not fi
   const home = state(homeDefinition, {currentUser: {username: 'employee'}});
   home.request = async () => ({ok: true, json: async () => homeData(1)});
   await home.loadHome(); assert.equal(home.displayName, '同事'); assert.equal(home.home.summary.total, 0);
+  const tasks = [
+    {id:1,status:'completed',is_running:false}, {id:2,status:'paused',is_running:false},
+    {id:3,status:'searching',is_running:true}, {id:4,status:'failed',is_running:false},
+  ];
+  home.home.recent_projects = tasks;
+  assert.deepEqual(Array.from(home.priorityProjects, row => row.id), [3,2,4,1]);
+  assert.deepEqual(tasks.map(row => row.id), [1,2,3,4]); // Sorting must not mutate the response.
+  const metricApp = state(appDefinition); const views = [];
+  metricApp.projects = tasks; metricApp.switchView = view => views.push(view);
+  metricApp.taskSearch = 'old search'; metricApp.taskTargetFilter = 'company'; metricApp.taskPage = 5;
+  metricApp.openHomeTaskFilter('attention');
+  assert.equal(metricApp.taskSearch, ''); assert.equal(metricApp.taskTargetFilter, ''); assert.equal(metricApp.taskPage, 1);
+  assert.equal(metricApp.taskStatusFilter, 'attention');
+  assert.deepEqual(Array.from(metricApp.filteredProjects, row => row.id), [2,4]);
+  metricApp.openHomeTaskFilter('completed'); assert.deepEqual(Array.from(metricApp.filteredProjects, row => row.id), [1]);
+  metricApp.openHomeTaskFilter('running'); assert.deepEqual(Array.from(metricApp.filteredProjects, row => row.id), [3]);
+  metricApp.openHomeTaskFilter('total'); assert.equal(metricApp.filteredProjects.length, 4);
+  metricApp.openHomeTaskFilter('unknown'); assert.equal(views.length, 4);
   home.request = async () => {throw new Error('connection failed');};
   await home.loadHome(); assert.equal(home.home.id, 1); assert.match(home.error, /上次加载的数据/);
   const blank = state(homeDefinition, {currentUser: {username: 'employee'}});

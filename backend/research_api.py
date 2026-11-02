@@ -25,6 +25,8 @@ from database import SessionLocal
 from document_loader import DocumentLoader
 from models import ResearchArtifact, ResearchProject, ResearchSource, User
 from research_schemas import (
+    ClientRequirementsUpdate,
+    ProposalReviewUpdate,
     ResearchArtifactResponse,
     ResearchAssistantRequest,
     ResearchAssistantImport,
@@ -230,6 +232,9 @@ def _locked_run_intake(request: ResearchRunRequest, target_type: str = "") -> di
         else:
             intake.pop("ai_search_enabled", None)
         intake["max_search_rounds"] = min(3, max(1, request.max_search_rounds))
+    for key in ('client_requirements', 'proposal_review_notes'):
+        if key not in request.model_fields_set:
+            intake.pop(key, None)
     return intake
 
 def _clip_text(text: str, limit: int = 4000) -> str:
@@ -516,7 +521,8 @@ def _artifact_response(artifact: ResearchArtifact, include_content: bool = True,
         full = metadata
         metadata = {key: full[key] for key in (
             'run_id', 'run_status', 'report_pipeline_version', 'proposal_confirmation_status',
-            'proposal_template_version', 'proposal_content_summary',
+            'proposal_template_version', 'proposal_content_summary', 'business_stage',
+            'report_artifact_id', 'proposal_branch_version',
             'quality_warning', 'delivery_status', 'docx_integrity_status', 'docx_render_status',
             'knowledge_document_id', 'knowledge_sync_status', 'knowledge_review',
             'vector_index_status', 'vector_indexed_count', 'risk_transparency') if key in full}
@@ -911,6 +917,12 @@ def _workflow_failure_trace_event(exc: Exception) -> dict:
 
 def _save_project_intake(db: Session, project: ResearchProject, metadata: dict | None) -> None:
     intake = dict(metadata or {})
+    saved_proposal_inputs = _project_intake(project)
+    for key in ('client_requirements', 'proposal_review_notes'):
+        if key not in intake and key in saved_proposal_inputs:
+            intake[key] = saved_proposal_inputs[key]
+    if isinstance(metadata, dict):
+        metadata.update({key: intake[key] for key in ('client_requirements', 'proposal_review_notes') if key in intake})
     if project.target_type == "person":
         intake = {**_project_intake(project), **intake}
         if isinstance(metadata, dict):
@@ -1544,7 +1556,13 @@ def get_project_run_intake(
     This deliberately avoids loading sources, artifacts, and workflow traces.
     """
     project = _get_project(db, project_id, current_user)
-    return {"intake": _project_intake(project)}
+    documents = db.query(ResearchArtifact.id, ResearchArtifact.title, ResearchArtifact.created_at).filter(
+        ResearchArtifact.project_id == project_id, ResearchArtifact.artifact_type == 'client_requirements').order_by(ResearchArtifact.id).all()
+    report = db.query(ResearchArtifact.id, ResearchArtifact.created_by, ResearchArtifact.artifact_metadata).filter(
+        ResearchArtifact.project_id == project_id, ResearchArtifact.artifact_type == 'desktop_report').order_by(ResearchArtifact.version.desc()).first()
+    reviewed_id = report.id if report and (report.created_by == 'human_review' or (report.artifact_metadata or {}).get('stage') == 'human_review') else None
+    return {"intake": _project_intake(project), 'reviewed_report_id': reviewed_id, 'client_requirement_files': [
+        {'id': row.id, 'title': row.title, 'created_at': row.created_at.isoformat()} for row in documents]}
 
 
 @router.get("/projects/{project_id}/progress")
@@ -1725,6 +1743,75 @@ async def delete_source(
     db.delete(source)
     db.commit()
     return {"message": "research source deleted", "source_id": source_id}
+
+
+@router.put('/projects/{project_id}/client-requirements')
+def update_client_requirements(
+    project_id: int, request: ClientRequirementsUpdate,
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+):
+    project = _get_project(db, project_id, current_user)
+    with RUNNING_PROJECT_LOCK:
+        if project_id in RUNNING_PROJECT_IDS:
+            raise HTTPException(409, '请在当前生成结束后修改客户需求')
+        intake = {**_project_intake(project), 'client_requirements': request.client_requirements.strip()}
+        _save_project_intake(db, project, intake)
+    return {'message': '客户需求已保存', 'client_requirements': intake['client_requirements']}
+
+
+@router.post('/projects/{project_id}/client-requirements', response_model=ResearchArtifactResponse)
+async def upload_client_requirements(
+    project_id: int, file: UploadFile = File(...),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+):
+    import tempfile
+    from proposal_branch import DOCUMENT_LIMIT, FILE_LIMIT
+    project = _get_project(db, project_id, current_user)
+    if _is_project_running(project_id):
+        raise HTTPException(409, '请在当前生成结束后补充客户需求')
+    filename = validate_filename(file.filename or '')
+    if not filename or not filename.lower().endswith(('.pdf', '.docx', '.txt', '.md')):
+        raise HTTPException(400, '客户需求支持 PDF、DOCX、TXT、Markdown，请上传可提取文字的文件')
+    payload = await read_upload(file)
+    if len(payload) > 10 * 1024 * 1024:
+        raise HTTPException(413, '客户需求文件不能超过 10 MB')
+    with tempfile.TemporaryDirectory(prefix='client-requirements-') as directory:
+        path = Path(directory) / filename
+        path.write_bytes(payload)
+        try:
+            text = await run_in_threadpool(_extract_upload_text, path, filename)
+        except Exception as exc:
+            raise HTTPException(400, '客户需求解析失败，请换用文字版文件') from exc
+    text = text.strip()
+    if not text:
+        raise HTTPException(400, '未能提取客户需求，请换用文字版文件或直接填写需求')
+    with RUNNING_PROJECT_LOCK:
+        if project_id in RUNNING_PROJECT_IDS:
+            raise HTTPException(409, '当前生成已开始，请结束后补充客户需求')
+        documents = db.query(ResearchArtifact).filter(ResearchArtifact.project_id == project_id,
+            ResearchArtifact.artifact_type == 'client_requirements').all()
+        if len(documents) >= FILE_LIMIT or sum(len(d.content or '') for d in documents) + len(text) > DOCUMENT_LIMIT:
+            raise HTTPException(400, '客户需求最多 5 个附件，提取文字合计不超过 24000 字，请先整理或删除旧附件')
+        key = research_store.put_bytes(f'projects/{project_id}/client_requirements/{uuid4().hex}/{filename}',
+            payload, mimetypes.guess_type(filename)[0] or 'application/octet-stream')
+        artifact = research_workflow.save_artifact(db, project, 'client_requirements', filename, text,
+            {'business_stage': 'intake', 'original_filename': filename, 'original_object_key': key,
+             'proposal_only': True}, created_by='client')
+    return _artifact_response(artifact, include_content=False)
+
+
+@router.put('/projects/{project_id}/proposal-review')
+def save_proposal_review(
+    project_id: int, request: ProposalReviewUpdate,
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+):
+    project = _get_project(db, project_id, current_user)
+    with RUNNING_PROJECT_LOCK:
+        if project_id in RUNNING_PROJECT_IDS:
+            raise HTTPException(409, '请在当前生成结束后保存复核意见')
+        intake = {**_project_intake(project), 'proposal_review_notes': request.proposal_review_notes.strip()}
+        _save_project_intake(db, project, intake)
+    return {'message': '复核意见已保存'}
 
 
 @router.post("/projects/{project_id}/upload", response_model=ResearchUploadResponse)
@@ -2046,14 +2133,30 @@ async def run_research_project_stream(
     )
 
 
-@router.post("/projects/{project_id}/second-stage/run/stream")
+@router.post('/projects/{project_id}/second-stage/run/stream')
 async def run_second_stage_stream(
-    project_id: int,
-    request: ResearchRunRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    project_id: int, request: ResearchRunRequest,
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
-    _get_project(db, project_id, current_user)
+    return await _run_saved_proposal_stream(project_id, request, db, current_user, formal_plan=True)
+
+
+@router.post('/projects/{project_id}/proposal/run/stream')
+async def run_saved_proposal_stream(
+    project_id: int, request: ResearchRunRequest,
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+):
+    return await _run_saved_proposal_stream(project_id, request, db, current_user, formal_plan=False)
+
+
+async def _run_saved_proposal_stream(project_id, request, db, current_user, *, formal_plan):
+    project = _get_project(db, project_id, current_user)
+    reviewed = research_workflow._latest_artifact(project, 'desktop_report')
+    if reviewed is None:
+        raise HTTPException(409, '请先生成桌面研究报告，再生成建议书')
+    if formal_plan and (reviewed.created_by != 'human_review' and
+            (reviewed.artifact_metadata or {}).get('stage') != 'human_review'):
+        raise HTTPException(409, '请先上传并保存人工复核后的桌面研究报告，再生成正式方案')
     user_id = current_user.id
     is_admin = current_user.role == "admin"
 
@@ -2089,38 +2192,22 @@ async def run_second_stage_stream(
                 if not is_admin and project.created_by_id != user_id:
                     emit({"type": "error", "content": "无权访问该研究项目"})
                     return
-                intake = request.model_dump(exclude_unset=project.target_type in {"industry", "person"})
-                intake.update(
-                    {
-                        "ai_search_enabled": False,
-                        "generate_proposal": True,
-                        "stage": "second_stage",
-                        "special_requirements": request.special_requirements
-                        or "基于人工复核产物、专家访谈、走访记录和一手资料重新生成桌面研究报告与建议书。",
-                    }
-                )
+                intake = {**_project_intake(project), **request.model_dump(exclude_unset=True), 'stage': 'formal_plan' if formal_plan else 'proposal_only'}
                 _save_project_intake(worker_db, project, intake)
                 emit(
                     {
                         "type": "trace_step",
-                        "stage": "second_stage",
+                        "stage": "formal_plan",
                         "agent": "human_evidence_agent",
-                        "label": "二阶段再生成启动",
-                        "detail": "已关闭在线搜索，将优先利用人工复核产物和一手资料",
+                        "label": "人工复核完成，开始生成正式方案" if formal_plan else "依据已保存的报告更新建议书",
+                        "detail": "采用已保存的报告和客户需求，报告正文保持不变",
                         "status": "running",
                         "timestamp": datetime.utcnow().isoformat(),
                     }
                 )
-                artifacts, sources_added = research_workflow.run_project(
-                    worker_db,
-                    project,
-                    request.search_queries,
-                    request.focus_questions,
-                    FIXED_MAX_RESULTS_PER_QUERY,
-                    True,
-                    emit=emit,
-                    intake=intake,
-                )
+                proposal_runner = research_workflow.run_formal_proposal if formal_plan else research_workflow.run_saved_proposal
+                artifacts, sources_added = proposal_runner(
+                    worker_db, project, intake=intake, emit=emit)
                 _save_workflow_trace(worker_db, project, trace_events)
                 emit(
                     {
@@ -2240,9 +2327,12 @@ async def delete_artifact(
     if not artifact:
         raise HTTPException(status_code=404, detail="产物不存在")
     _get_project(db, artifact.project_id, current_user)
+    if artifact.artifact_type == 'client_requirements' and _is_project_running(artifact.project_id):
+        raise HTTPException(409, '请在当前生成结束后删除客户需求附件')
     metadata = artifact.artifact_metadata or {}
     for key in {
         artifact.object_key,
+        metadata.get("original_object_key") if artifact.artifact_type == "client_requirements" else None,
         metadata.get("docx_object_key"),
         metadata.get("markdown_object_key"),
         metadata.get("raw_markdown_object_key"),
