@@ -137,6 +137,9 @@ def test_industry_artifact_bodies_are_opt_in_and_metadata_never_loads_bodies(rea
     response=client.get('/research/projects/1/artifacts',headers=headers)
     assert all(row['content']=='' for row in response.json())
     response=client.get('/research/projects/1/artifacts?include_content=true',headers=headers)
+    assert response.status_code==400  # Industry lists cannot fetch all large report bodies at once.
+    response=client.get('/research/projects/1/artifacts?include_content=true&artifact_id=2',headers=headers)
+    assert response.status_code==200 and len(response.json())==1
     assert any(row['content'].startswith('PRIVATE_FACT_BODY') for row in response.json())
 
 
