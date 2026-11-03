@@ -23,6 +23,7 @@ class QuietHandler(SimpleHTTPRequestHandler):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--theme', choices=['light','dark'], default='light')
     parser.add_argument('--assets-dir', type=Path, default=ROOT / 'work/knowledge-redesign/vendor')
     parser.add_argument('--output-dir', type=Path, default=ROOT / 'work/knowledge-redesign')
     args = parser.parse_args()
@@ -140,6 +141,18 @@ def main():
         page.get_by_role('menuitem',name='公司知识库',exact=True).click()
         print('Company view opened',flush=True)
         expect(page.get_by_role('heading',name='让每一次研究，')).to_be_visible()
+        expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme','light')
+        page.get_by_role('button',name='夜晚',exact=True).click()
+        expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme','dark')
+        assert page.evaluate('localStorage.getItem("companyKnowledgeTheme")') == 'dark'
+        page.get_by_role('menuitem',name='个人首页',exact=True).click()
+        assert page.evaluate('document.documentElement.dataset.knowledgeTheme') is None
+        page.get_by_role('menuitem',name='公司知识库',exact=True).click()
+        expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme','dark')
+        page.get_by_role('button',name='白天' if args.theme == 'light' else '夜晚',exact=True).click()
+        expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme',args.theme)
+        assert page.locator('.ckb-mini-file').count() >= 4
+        assert page.locator('.ckb-mini-file .ckb-file-object').count() >= 4
         page.get_by_role('button',name='暂停动效',exact=True).click()
         assert page.locator('.ckb-orbit-runner').evaluate('(el)=>getComputedStyle(el).animationName') == 'none'
         page.get_by_role('button',name='开启动效',exact=True).click()
@@ -183,6 +196,8 @@ def main():
         page.get_by_role('button',name='Close this dialog').click()
         page.get_by_role('button',name='上传资料',exact=True).click()
         dialog=page.get_by_role('dialog',name='上传公司资料')
+        dialog_background = page.locator('.ckb-dialog:visible').evaluate('(el)=>getComputedStyle(el).backgroundColor')
+        assert dialog_background == ('rgb(255, 255, 255)' if args.theme == 'light' else 'rgb(16, 28, 48)'), dialog_background
         dialog.get_by_role('textbox',name='自定义标签',exact=True).fill('上传测试')
         dialog.get_by_role('textbox',name='文字说明',exact=True).fill('音频说明测试')
         dialog.get_by_label('选择上传资料',exact=True).set_input_files(str(args.output_dir/'synthetic-audio.wav'))
@@ -270,6 +285,12 @@ def main():
         page.screenshot(path=str(args.output_dir/'chat-mobile.png'),full_page=True,animations='disabled')
         assert page.evaluate('document.documentElement.scrollWidth') <= 390
         page.set_viewport_size({'width':1440,'height':900})
+        page.get_by_role('tab',name='研究首页',exact=True).click()
+        expect(page.locator('.ckb-mini-file')).not_to_have_count(4)
+        page.locator('.ckb-home-bottom').scroll_into_view_if_needed()
+        page.screenshot(path=str(args.output_dir/'home-files-desktop.png'),full_page=True,animations='disabled')
+        for card in page.locator('.ckb-mini-file').all():
+            assert card.bounding_box()['height'] >= 180
         page.get_by_role('tab',name='案例库').click()
         hide_cases = True
         page.get_by_role('button',name='刷新资料',exact=True).click()
