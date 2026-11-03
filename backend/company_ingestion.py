@@ -56,6 +56,9 @@ async def _process_document(doc_id):
                 await kb.cloud_rpc(client, cfg, '/api/v1/indices/rag/index/delete_file', {
                     'index_id': cfg['index_id'], 'doc_ids': [values['stale_cloud_id']]})
                 checkpoint(doc_id, token, stale_cloud_id='')
+            if media and not doc.description.strip():
+                checkpoint(doc_id, token, state='archived', cloud_id=None, status_message='音视频已归档，可播放与下载；未索引文字说明')
+                return
             if not values['cloud_id']:
                 checkpoint(doc_id, token, state='uploading', status_message='正在上传文字说明' if media else '正在上传至知识库')
                 payload = summary.encode('utf-8') if media else await asyncio.to_thread(document_store().get_bytes, values['object_key'])

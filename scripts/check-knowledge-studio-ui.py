@@ -49,6 +49,9 @@ def main():
             description='演示资料：记录项目背景、研究方法和可复用的交付经验。用于隔离界面验收，不代表真实业务结论。',
             status_message='文字说明已可检索；未自动转写' if i in (6,7) else '解析与索引完成', media_kind='audio' if i == 6 else 'video' if i == 7 else ''))
     docs[8].update(can_read=False,can_manage=False,is_owner=False,tags=[],description='',label='需授权',confidentiality='secret',confidentiality_label='机密')
+    projects=[dict(id=f'project-{i}',name=name,owner='preview',owner_user_id=1,industry='汽车与出行' if i==0 else '先进制造',category='项目经验' if i==0 else '方法与模板',review='待复核',confidentiality='internal',visibility='members',readers=[],tags=['行业背景'],description='将背景、访谈、研究成果归入同一个项目空间。',can_manage=True,created_at='2026-11-03T08:00:00Z',modified_at='2026-11-03T08:00:00Z') for i,name in enumerate(['示例汽车研究项目','示例制造业项目'])]
+    folders=[dict(id='folder-report',project_id='project-0',parent_id='',name='报告'),dict(id='folder-audio',project_id='project-0',parent_id='',name='录音')]
+    for i,doc in enumerate(docs):doc.update(knowledge_project_id=f'project-{i%2}',folder_id='',inherits_project=0)
     errors, unexpected, mutations, metrics = [], [], [], {}
     hide_cases = False
     assets = {'vue.global.prod.js':'vue.js', 'index.full.min.js':'element.js', 'index.css':'element.css', 'all.min.css':'icons.css'}
@@ -73,6 +76,7 @@ def main():
         def page_error(error):
             errors.append(str(error)); print('Browser error: '+str(error),flush=True)
         page.on('pageerror', page_error)
+        page.on('console',lambda msg: page_error(msg.text) if msg.type=='error' and not msg.text.startswith('Failed to load resource:') else None)
         page.add_init_script("localStorage.setItem('accessToken','synthetic-preview-only');localStorage.setItem('activeView','company-knowledge');")
 
         def route_request(route):
@@ -95,6 +99,30 @@ def main():
             if path == '/research/assistant/state': return route.fulfill(json={'session_id':'preview','sessions':[],'messages':[]})
             if path == '/company-knowledge/status':
                 return route.fulfill(json={'configured':True,'access_allowed':True,'is_admin':True,'username':'preview'})
+            if path == '/company-knowledge/projects':
+                if request.method=='GET':
+                    rows=[]
+                    for project in projects:
+                        if hide_cases and project['category'] in ('项目经验','案例复盘','方法与模板','培训分享'):continue
+                        project_docs=[d for d in docs if d.get('knowledge_project_id')==project['id']]
+                        rows.append(dict(project,document_count=len(project_docs),ready_count=sum(d['state']=='ready' for d in project_docs),media_count=sum(bool(d['media_kind']) for d in project_docs),folder_count=sum(f['project_id']==project['id'] for f in folders)))
+                    return route.fulfill(json={'projects':rows,'folders':deepcopy(folders)})
+                body=request.post_data_json
+                project=dict(body,id='project-'+str(len(projects)),owner='preview',owner_user_id=1,can_manage=True,created_at='2026-11-03T08:00:00Z',modified_at='2026-11-03T08:00:00Z',document_count=0,folder_count=0,ready_count=0,media_count=0)
+                projects.append(project);mutations.append({'path':path,'body':body})
+                return route.fulfill(status=201,json=project)
+            if path.startswith('/company-knowledge/projects/'):
+                bits=path.split('/');project_id=bits[3]
+                if len(bits)==4:
+                    project=next(p for p in projects if p['id']==project_id)
+                    project.update(request.post_data_json);mutations.append({'path':path,'body':request.post_data_json})
+                    return route.fulfill(json=project)
+                if request.method=='POST':
+                    body=request.post_data_json;folder=dict(id='folder-'+str(len(folders)),project_id=project_id,parent_id=body['parent_id'],name=body['name']);folders.append(folder)
+                    return route.fulfill(status=201,json=folder)
+                folder=next(f for f in folders if f['id']==bits[5])
+                if request.method=='DELETE':folders.remove(folder);return route.fulfill(json={'deleted':True})
+                folder['name']=request.post_data_json['name'];return route.fulfill(json=folder)
             if path == '/company-knowledge/documents':
                 rows = [d for d in docs if not hide_cases or d['category'] not in ('项目经验','案例复盘','方法与模板','培训分享')]
                 return route.fulfill(json={'documents':deepcopy(rows),'total_count':len(rows),'warning':''})
@@ -127,8 +155,18 @@ def main():
                 mutations.append({'path':path,'body':request.post_data_json})
                 return route.fulfill(json=deepcopy(doc))
             if path == '/company-knowledge/uploads':
-                mutations.append({'path':path,'method':'POST'})
-                doc = deepcopy(docs[6]); doc.update(id='uploaded',title='synthetic-audio.wav',tags=['上传测试'],description='音频说明测试')
+                from email.parser import BytesParser
+                from email.policy import default
+                message=BytesParser(policy=default).parsebytes(b'Content-Type: '+request.headers['content-type'].encode()+b'\r\n\r\n'+request.post_data_buffer)
+                values={};filename='synthetic-audio.wav'
+                for part in message.iter_parts():
+                    name=part.get_param('name',header='content-disposition')
+                    if name=='file':filename=part.get_filename()
+                    else:values[name]=part.get_payload(decode=True).decode('utf8')
+                project=next(p for p in projects if p['id']==values['project_id'])
+                mutations.append({'path':path,'method':'POST','body':values})
+                archive=not values.get('description','').strip()
+                doc=deepcopy(docs[6]);doc.update(id='uploaded-'+str(len(docs)),title=filename,tags=project['tags'],description=values.get('description',''),project=project['name'],industry=project['industry'],category=project['category'],confidentiality=project['confidentiality'],visibility=project['visibility'],readers=project['readers'],knowledge_project_id=project['id'],folder_id=values['folder_id'],inherits_project=1,state='archived' if archive else 'ready',label='已归档' if archive else '可检索')
                 docs.append(doc)
                 return route.fulfill(status=202,json=doc)
             if path.startswith('/company-knowledge/') or path.startswith('/research/'):
@@ -157,8 +195,8 @@ def main():
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme','dark')
         if args.theme == 'light': page.get_by_role('button',name='切换知识库主题',exact=True).click()
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme',args.theme)
-        assert page.locator('.ckb-mini-file').count() >= 4
-        assert page.locator('.ckb-mini-file .ckb-file-object').count() >= 4
+        expect(page.locator('.ckb-mini-file')).to_have_count(4)
+        expect(page.locator('.ckb-mini-file .ckb-file-object')).to_have_count(4)
         page.get_by_role('button',name='暂停动效',exact=True).click()
         assert page.locator('.ckb-orbit-runner').evaluate('(el)=>getComputedStyle(el).animationName') == 'none'
         page.get_by_role('button',name='开启动效',exact=True).click()
@@ -166,9 +204,41 @@ def main():
         assert page.locator('.ckb-orbit-runner').evaluate('(el)=>getComputedStyle(el).animationName') == 'none'
         page.emulate_media(reduced_motion='no-preference')
         page.screenshot(path=str(args.output_dir/'home-desktop.png'),full_page=True,animations='disabled')
+        page.get_by_role('tab',name='资料库',exact=True).click()
+        expect(page.locator('.ckb-project-directory')).to_have_count(2)
+        page.screenshot(path=str(args.output_dir/'projects-desktop.png'),full_page=True,animations='disabled')
+        page.get_by_role('button',name='创建项目',exact=True).click()
+        editor=page.get_by_role('dialog',name='创建项目',exact=True)
+        editor.get_by_role('textbox',name='项目名称',exact=True).fill('QA 项目空间')
+        editor.get_by_role('textbox',name='项目行业',exact=True).fill('AI Agent')
+        editor.get_by_role('textbox',name='项目标签',exact=True).fill('行业背景，项目方法')
+        editor.get_by_role('textbox',name='项目说明',exact=True).fill('用于检查空项目、子目录与属性继承。')
+        page.screenshot(path=str(args.output_dir/'project-create.png'),full_page=True,animations='disabled')
+        editor.get_by_role('button',name='创建空项目',exact=True).click()
+        expect(page.locator('.ckb-directory-path')).to_contain_text('QA 项目空间')
+        page.get_by_role('button',name='新建目录',exact=True).click()
+        folder_dialog=page.get_by_role('dialog',name='新建目录',exact=True)
+        folder_dialog.get_by_role('textbox',name='目录名称',exact=True).fill('录音')
+        page.screenshot(path=str(args.output_dir/'folder-create.png'),full_page=True,animations='disabled')
+        folder_dialog.get_by_role('button',name='创建目录',exact=True).click()
+        page.locator('.ckb-subfolder-card > button').first.click()
+        expect(page.locator('.ckb-directory-path')).to_contain_text('录音')
+        page.get_by_role('button',name='新建目录',exact=True).click()
+        folder_dialog.get_by_role('textbox',name='目录名称',exact=True).fill('访谈一')
+        folder_dialog.get_by_role('button',name='创建目录',exact=True).click()
+        page.get_by_role('button',name='编辑目录：访谈一',exact=True).click()
+        rename=page.get_by_role('dialog',name='编辑目录',exact=True)
+        rename.get_by_role('textbox',name='目录名称',exact=True).fill('访谈片段')
+        rename.get_by_role('button',name='保存目录',exact=True).click()
+        expect(rename).not_to_be_visible()
+        expect(page.locator('.ckb-subfolder-card')).to_contain_text('访谈片段')
+        page.screenshot(path=str(args.output_dir/'project-folders-desktop.png'),full_page=True,animations='disabled')
+        page.get_by_role('tab',name='研究首页',exact=True).click()
         page.get_by_role('button',name='查找历史案例',exact=True).click()
         expect(page.get_by_role('tab',name='案例库')).to_have_attribute('aria-selected','true')
+        page.get_by_role('button',name='浏览全部文件',exact=True).click()
         expect(page.locator('.ckb-case-card')).to_have_count(10)
+        page.locator('.ckb-case-grid').evaluate('(el)=>el.getAnimations().forEach(a=>a.finish())')
         assert page.locator('.ckb-case-card').first.bounding_box()['height'] >= 350
         assert page.locator('.ckb-case-cover').first.bounding_box()['height'] >= 100
         page.screenshot(path=str(args.output_dir/'cases-desktop.png'),full_page=True,animations='disabled')
@@ -186,7 +256,7 @@ def main():
         page.screenshot(path=str(args.output_dir/'audio-reader.png'),full_page=True,animations='disabled')
         page.get_by_role('button',name='Close this dialog').click()
         card.get_by_role('button',name='编辑信息',exact=True).click()
-        dialog = page.get_by_role('dialog',name='管理资料')
+        dialog = page.get_by_role('dialog',name='文件设置')
         dialog.get_by_role('textbox',name='自定义标签',exact=True).fill('修正标签，行业背景')
         dialog.get_by_role('textbox',name='文字说明',exact=True).fill('已经修正的说明，可供后续查找。')
         page.screenshot(path=str(args.output_dir/'metadata-desktop.png'),full_page=True,animations='disabled')
@@ -200,17 +270,19 @@ def main():
         assert page.locator('video').evaluate('(el)=>el.duration') > 0
         page.screenshot(path=str(args.output_dir/'video-reader.png'),full_page=True,animations='disabled')
         page.get_by_role('button',name='Close this dialog').click()
-        page.get_by_role('button',name='上传资料',exact=True).click()
-        dialog=page.get_by_role('dialog',name='上传公司资料')
+        page.locator('.ckb-directory-path').get_by_role('button',name='项目空间',exact=True).click()
+        page.locator('.ckb-project-directory').filter(has_text='示例汽车研究项目').locator('.ckb-project-door').click()
+        page.get_by_role('button',name='上传文件',exact=True).click()
+        dialog=page.get_by_role('dialog',name='上传到当前目录')
         dialog_background = page.locator('.ckb-dialog:visible').evaluate('(el)=>getComputedStyle(el).backgroundColor')
         assert dialog_background == ('rgb(255, 255, 255)' if args.theme == 'light' else 'rgb(16, 28, 48)'), dialog_background
-        dialog.get_by_role('textbox',name='自定义标签',exact=True).fill('上传测试')
         dialog.get_by_role('textbox',name='文字说明',exact=True).fill('音频说明测试')
         dialog.get_by_label('选择上传资料',exact=True).set_input_files(str(args.output_dir/'synthetic-audio.wav'))
         page.screenshot(path=str(args.output_dir/'upload-desktop.png'),full_page=True,animations='disabled')
-        dialog.get_by_role('button',name='上传并建立索引',exact=True).click()
+        dialog.get_by_role('button',name='上传并归档',exact=True).click()
         expect(dialog.get_by_role('button',name='完成，查看资料')).to_be_visible()
         dialog.get_by_role('button',name='完成，查看资料').click()
+        expect(dialog).not_to_be_visible()
         page.get_by_role('tab',name='研究首页',exact=True).click()
         page.get_by_role('button',name='比较资料结论',exact=True).click()
         expect(page.locator('.ckb-compare-intent')).to_be_visible()
@@ -239,6 +311,7 @@ def main():
         expect(page.locator('.ckb-message-assistant .ckb-service-error')).to_contain_text('模拟连接中断')
         page.screenshot(path=str(args.output_dir/'chat-error-desktop.png'),full_page=True,animations='disabled')
         page.get_by_role('tab',name='资料库').click()
+        page.get_by_role('button',name='浏览全部文件',exact=True).click()
         page.set_viewport_size({'width':1440,'height':900})
         page.screenshot(path=str(args.output_dir/'library-desktop.png'),full_page=True,animations='disabled')
         expect(page.locator('.ckb-file-card')).to_have_count(10)
@@ -265,6 +338,7 @@ def main():
         page.screenshot(path=str(args.output_dir/'library-list-desktop.png'),full_page=True,animations='disabled')
         expect(page.locator('.ckb-document-table')).to_be_visible()
         page.get_by_role('button',name='卡片',exact=True).click()
+        page.locator('.ckb-file-gallery').evaluate('(el)=>el.getAnimations().forEach(a=>a.finish())')
         metrics['desktop_table']=page.locator('.ckb-table-scroll').bounding_box()
         assert metrics['desktop_first_row']['y'] < 360,metrics
         page.set_viewport_size({'width':1366,'height':768})
@@ -300,9 +374,56 @@ def main():
         page.get_by_role('tab',name='案例库').click()
         hide_cases = True
         page.get_by_role('button',name='刷新资料',exact=True).click()
-        expect(page.locator('.ckb-case-empty')).to_be_visible()
-        expect(page.locator('.ckb-case-empty h3')).to_contain_text('第一份经验')
+        expect(page.locator('.ckb-project-directory')).to_have_count(0)
+        expect(page.locator('.ckb-create-project-tile')).to_be_visible()
         page.screenshot(path=str(args.output_dir/'cases-empty-desktop.png'),full_page=True,animations='disabled')
+        # Archive an audio file without repeating project metadata, then move/rename it in a nested folder.
+        hide_cases=False
+        page.get_by_role('tab',name='资料库',exact=True).click()
+        page.get_by_role('button',name='刷新资料',exact=True).click()
+        page.locator('.ckb-project-directory').filter(has_text='QA 项目空间').locator('.ckb-project-door').click()
+        page.locator('.ckb-subfolder-card > button').first.click()
+        expect(page.locator('.ckb-directory-path')).to_contain_text('录音')
+        page.get_by_role('button',name='上传文件',exact=True).click()
+        dialog=page.get_by_role('dialog',name='上传到当前目录')
+        expect(dialog.get_by_role('textbox',name='自定义标签',exact=True)).to_have_count(0)
+        dialog.get_by_label('选择上传资料',exact=True).set_input_files(str(args.output_dir/'synthetic-audio.wav'))
+        dialog.get_by_role('button',name='上传并归档',exact=True).click()
+        expect(dialog).to_contain_text('音视频已归档')
+        dialog.get_by_role('button',name='完成，查看资料',exact=True).click()
+        expect(dialog).not_to_be_visible()
+        card=page.locator('.ckb-file-card').filter(has_text='synthetic-audio.wav')
+        expect(card.locator('input[type=checkbox]')).to_be_disabled()
+        page.screenshot(path=str(args.output_dir/'audio-archive-folder.png'),full_page=True,animations='disabled')
+        card.get_by_role('button',name='播放',exact=True).click()
+        expect(page.locator('audio')).to_be_visible()
+        page.get_by_role('button',name='Close this dialog').click()
+        card.get_by_role('button',name='管理资料',exact=True).click()
+        editor=page.get_by_role('dialog',name='文件设置',exact=True)
+        expect(editor.get_by_role('textbox',name='自定义标签',exact=True)).to_have_count(0)
+        editor.get_by_role('textbox',name='文件名称',exact=True).fill('访谈归档.wav')
+        nested=next(folder for folder in folders if folder['name']=='访谈片段')
+        editor.get_by_role('combobox',name='归档目录',exact=True).select_option(nested['id'])
+        page.screenshot(path=str(args.output_dir/'file-settings-inherited.png'),full_page=True,animations='disabled')
+        editor.get_by_role('button',name='保存修改',exact=True).click()
+        expect(editor).not_to_be_visible()
+        page.locator('.ckb-subfolder-card > button').first.click()
+        expect(page.locator('.ckb-file-title')).to_contain_text('访谈归档.wav')
+        page.get_by_role('button',name='编辑项目',exact=True).click()
+        project_editor=page.get_by_role('dialog',name='项目设置',exact=True)
+        project_editor.get_by_role('textbox',name='项目名称',exact=True).fill('QA 项目空间 · 已编辑')
+        project_editor.get_by_role('textbox',name='项目标签',exact=True).fill('行业背景，修正标签')
+        project_editor.get_by_role('button',name='保存项目设置',exact=True).click()
+        expect(project_editor).not_to_be_visible()
+        expect(page.locator('.ckb-directory-path')).to_contain_text('已编辑')
+        page.get_by_role('tab',name='资料库',exact=True).click()
+        page.set_viewport_size({'width':390,'height':844})
+        page.screenshot(path=str(args.output_dir/'projects-mobile.png'),full_page=True,animations='disabled')
+        assert page.evaluate('document.documentElement.scrollWidth') <= 390
+        page.locator('.ckb-project-directory').filter(has_text='已编辑').locator('.ckb-project-door').click()
+        expect(page.locator('.ckb-directory-path')).to_contain_text('已编辑')
+        page.screenshot(path=str(args.output_dir/'project-folders-mobile.png'),full_page=True,animations='disabled')
+        assert page.evaluate('document.documentElement.scrollWidth') <= 390
         assert not errors,errors
         assert not unexpected,unexpected
         (args.output_dir/'browser-check.json').write_text(json.dumps({'errors':errors,'unexpected':unexpected,'mutations':mutations,'metrics':metrics},ensure_ascii=False,indent=2),encoding='utf-8')

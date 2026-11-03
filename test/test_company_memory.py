@@ -13,7 +13,7 @@ from sqlalchemy.orm import sessionmaker
 import company_knowledge as kb
 import company_memory as memory
 import company_workspace as ws
-from company_catalog import CompanyDocument
+from company_catalog import CompanyDocument, CompanyProject, CompanyFolder
 from models import User
 
 
@@ -24,10 +24,12 @@ def env(monkeypatch, tmp_path):
         monkeypatch.setenv('BAILIAN_KNOWLEDGE_'+key,value)
     monkeypatch.setenv('COMPANY_KNOWLEDGE_USERS','alice,bob')
     engine=create_engine('sqlite:///'+str(tmp_path/'memory.db'),connect_args={'check_same_thread':False})
-    for model in (User, CompanyDocument, memory.KnowledgeChatState, memory.KnowledgeChatThread, memory.KnowledgeChatMessage):
+    for model in (User, CompanyDocument, CompanyProject, CompanyFolder, memory.KnowledgeChatState, memory.KnowledgeChatThread, memory.KnowledgeChatMessage):
         model.__table__.create(engine)
     db=sessionmaker(engine,expire_on_commit=False)
     monkeypatch.setattr(ws,'SessionLocal',db)
+    import database
+    monkeypatch.setattr(database,'engine',engine)
     async def sync(*args,**kwargs): pass
     monkeypatch.setattr(ws,'sync_catalog',sync)
     with db() as session:

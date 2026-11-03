@@ -14,7 +14,7 @@ from sqlalchemy.orm import sessionmaker
 import company_knowledge as kb
 import company_workspace as ws
 import company_ingestion as ingestion
-from company_catalog import CompanyAccessRequest, CompanyDocument, document_store
+from company_catalog import CompanyAccessRequest, CompanyDocument, CompanyProject, CompanyFolder, document_store
 from models import User
 
 real_sync_catalog = ws.sync_catalog
@@ -34,8 +34,12 @@ def setup(monkeypatch, tmp_path):
     CompanyDocument.__table__.create(engine)
     User.__table__.create(engine)
     CompanyAccessRequest.__table__.create(engine)
+    CompanyProject.__table__.create(engine)
+    CompanyFolder.__table__.create(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(ws, 'SessionLocal', factory)
+    import company_projects
+    monkeypatch.setattr(company_projects, 'SessionLocal', factory)
     monkeypatch.setattr(ingestion, 'SessionLocal', factory)
     async def sync(*args, **kwargs):
         return
@@ -581,3 +585,172 @@ def test_conflicting_project_edit_returns_a_recoverable_error_and_preserves_orig
         doc = db.get(CompanyDocument, second['id'])
         assert doc.project == 'P2' and doc.tags == []
     assert setup.client.get('/company-knowledge/documents/' + second['id'] + '/original').content == b'Company knowledge evidence'
+
+
+def project(setup, name='AI Agent 研究', **values):
+    response = setup.client.post('/company-knowledge/projects', json={'name': name, **values})
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def folder(setup, project_id, name='录音', parent_id=''):
+    response = setup.client.post('/company-knowledge/projects/' + project_id + '/folders', json={'name':name,'parent_id':parent_id})
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def test_empty_project_persists_and_nested_folders_are_project_scoped(setup):
+    p = project(setup, industry='人工智能', tags=['行业背景'])
+    assert p['document_count'] == 0 and p['tags'] == ['行业背景']
+    root = folder(setup,p['id'])
+    child = folder(setup,p['id'],'访谈一',root['id'])
+    other = project(setup,'另一项目')
+    assert setup.client.post('/company-knowledge/projects/'+other['id']+'/folders',json={'name':'越界','parent_id':root['id']}).status_code == 404
+    assert setup.client.post('/company-knowledge/projects/'+p['id']+'/folders',json={'name':'录音'}).status_code == 409
+    assert setup.client.post('/company-knowledge/projects/'+p['id']+'/folders',json={'name':'../secret'}).status_code == 422
+    state=setup.client.get('/company-knowledge/projects').json()
+    assert next(row for row in state['projects'] if row['id']==p['id'])['folder_count']==2
+    assert next(row for row in state['folders'] if row['id']==child['id'])['parent_id']==root['id']
+    assert setup.client.delete('/company-knowledge/projects/'+p['id']+'/folders/'+root['id']).status_code == 409
+    assert setup.client.delete('/company-knowledge/projects/'+p['id']+'/folders/'+child['id']).status_code == 200
+
+
+def test_project_upload_inherits_metadata_and_versions_are_local_to_folder(setup):
+    p=project(setup,industry='AI',tags=['项目标签'],confidentiality='secret',readers=['bob'])
+    a=folder(setup,p['id'],'报告'); b=folder(setup,p['id'],'笔录')
+    first=upload(setup,project_id=p['id'],folder_id=a['id'],tags='["伪造标签"]',confidentiality='internal').json()
+    assert first['project']==p['name'] and first['industry']=='AI' and first['tags']==['项目标签']
+    assert first['confidentiality']=='secret' and first['visibility']=='restricted'
+    assert first['inherits_project']==1 and first['folder_id']==a['id'] and first['version']==1
+    assert upload(setup,project_id=p['id'],folder_id=a['id']).status_code==409
+    second=upload(setup,project_id=p['id'],folder_id=b['id']).json()
+    assert second['version']==1 and second['id']!=first['id']
+    newer=upload(setup,payload=b'new version',project_id=p['id'],folder_id=a['id']).json()
+    assert newer['version']==2
+    assert setup.client.patch('/company-knowledge/documents/'+first['id'],json={'tags':['changed']}).status_code==422
+    assert setup.client.patch('/company-knowledge/documents/'+first['id'],json={'title':'改名.pdf'}).status_code==422
+    moved=setup.client.patch('/company-knowledge/documents/'+first['id'],json={'title':'访谈.txt','folder_id':b['id']})
+    assert moved.status_code==200 and moved.json()['folder_id']==b['id']
+
+
+def test_project_access_cannot_be_bypassed_by_folder_or_file_requests(setup):
+    p=project(setup,confidentiality='secret',readers=[])
+    f=folder(setup,p['id'])
+    row=upload(setup,project_id=p['id'],folder_id=f['id']).json()
+    setup.user.id,setup.user.username=2,'bob'
+    assert setup.client.get('/company-knowledge/projects').json()['projects']==[]
+    assert upload(setup,project_id=p['id']).status_code==404
+    assert setup.client.post('/company-knowledge/projects/'+p['id']+'/folders',json={'name':'不能建'}).status_code==404
+    assert setup.client.get('/company-knowledge/documents/'+row['id']+'/original').status_code==404
+    setup.user.id,setup.user.username=1,'alice'
+    public=project(setup,'公开项目')
+    setup.user.id,setup.user.username=2,'bob'
+    assert upload(setup,project_id=public['id']).status_code==403
+
+
+def test_project_rename_and_acl_edits_update_inherited_files_without_losing_originals(setup):
+    p=project(setup,tags=['原标签'])
+    row=upload(setup,project_id=p['id']).json()
+    values={'name':'新的项目名称','industry':'新行业','tags':['修正标签'],'confidentiality':'confidential','readers':['bob']}
+    response=setup.client.patch('/company-knowledge/projects/'+p['id'],json=values)
+    assert response.status_code==200,response.text
+    with setup.db() as db:
+        doc=db.get(CompanyDocument,row['id'])
+        assert doc.project=='新的项目名称' and doc.industry=='新行业' and doc.tags==['修正标签']
+        assert doc.visibility=='restricted' and doc.readers==['bob']
+    assert setup.client.get('/company-knowledge/documents/'+row['id']+'/original').content==b'Company knowledge evidence'
+    setup.user.id,setup.user.username=3,'charlie'
+    assert setup.client.get('/company-knowledge/documents/'+row['id']+'/original').status_code==404
+
+
+def test_project_media_without_notes_is_archive_only_and_can_gain_or_remove_description_index(setup,monkeypatch):
+    p=project(setup)
+    audio=b'RIFF'+(40).to_bytes(4,'little')+b'WAVE'+b'original-fixture'
+    result=upload(setup,name='访谈.wav',payload=audio,project_id=p['id'])
+    assert result.status_code==202,result.text
+    row=result.json()
+    assert row['state']=='archived' and row['id'] not in setup.scheduled
+    assert setup.client.get('/company-knowledge/documents/'+row['id']+'/original').content==audio
+    changed=setup.client.patch('/company-knowledge/documents/'+row['id'],json={'description':'人工说明'})
+    assert changed.status_code==200 and changed.json()['state']=='queued' and row['id'] in setup.scheduled
+    ready(setup,row['id'],'media-cloud')
+    calls=[]
+    def handler(request):
+        calls.append(request.url.path)
+        return httpx.Response(200,json={'data':{}})
+    transport(monkeypatch,handler)
+    assert setup.client.patch('/company-knowledge/documents/'+row['id'],json={'description':''}).status_code==200
+    asyncio.run(ingestion.process_document(row['id']))
+    assert calls==['/api/v1/indices/rag/index/delete_file']
+    with setup.db() as db:
+        doc=db.get(CompanyDocument,row['id'])
+        assert doc.state=='archived' and doc.cloud_id is None and not doc.stale_cloud_id
+
+
+def test_project_migration_keeps_legacy_acl_and_can_repeat_without_duplicate_projects(setup):
+    from company_catalog import backfill_company_projects
+    secret=upload(setup,project='历史项目',visibility='restricted',readers='["bob"]').json()
+    with setup.db() as db: engine=db.get_bind()
+    backfill_company_projects(engine);backfill_company_projects(engine)
+    state=setup.client.get('/company-knowledge/projects').json()
+    assert len(state['projects'])==1
+    p=state['projects'][0]
+    with setup.db() as db:
+        doc=db.get(CompanyDocument,secret['id'])
+        assert doc.knowledge_project_id==p['id'] and doc.visibility=='restricted' and doc.readers==['bob']
+        assert not doc.inherits_project
+    assert setup.client.patch('/company-knowledge/documents/'+secret['id'],json={'project':'不能绕过目录修改'}).status_code==422
+
+
+def test_project_media_rename_requeues_index_and_empty_projects_count_in_my_projects(setup):
+    p=project(setup)
+    empty=setup.client.get('/company-knowledge/my-projects').json()
+    assert empty['project_count']==1 and empty['document_count']==0
+    audio=b'RIFF'+(40).to_bytes(4,'little')+b'WAVE'+b'original-fixture'
+    row=upload(setup,name='访谈.wav',payload=audio,project_id=p['id'],description='人工说明').json()
+    ready(setup,row['id'],'old-media-index')
+    response=setup.client.patch('/company-knowledge/projects/'+p['id'],json={'name':'改名项目'})
+    assert response.status_code==200,response.text
+    with setup.db() as db:
+        doc=db.get(CompanyDocument,row['id'])
+        assert doc.project=='改名项目' and doc.state=='queued' and doc.cloud_id is None
+        assert doc.stale_cloud_id=='old-media-index'
+    assert setup.scheduled.count(row['id'])==2
+
+
+def test_directory_upgrade_removes_legacy_global_file_uniqueness_without_losing_files(setup):
+    from company_catalog import ensure_company_schema
+    from sqlalchemy import inspect
+    row=upload(setup,project='历史升级项目').json()
+    with setup.db() as db:engine=db.get_bind()
+    with engine.begin() as connection:
+        for index in inspect(engine).get_indexes('company_documents'):
+            if set(index['column_names']) & {'knowledge_project_id','folder_id'}:
+                connection.exec_driver_sql('DROP INDEX '+index['name'])
+        for column in ('knowledge_project_id','folder_id','inherits_project'):
+            connection.exec_driver_sql('ALTER TABLE company_documents DROP COLUMN '+column)
+        connection.exec_driver_sql("CREATE UNIQUE INDEX uq_company_active_content ON company_documents (index_id,owner,project,title,sha256) WHERE sha256 != '' AND state != 'deleted'")
+        connection.exec_driver_sql("CREATE UNIQUE INDEX uq_company_file_version ON company_documents (index_id,owner,project,title,version) WHERE sha256 != ''")
+    ensure_company_schema(engine);ensure_company_schema(engine)
+    assert 'uq_company_active_content' not in {index['name'] for index in inspect(engine).get_indexes('company_documents')}
+    with setup.db() as db:
+        doc=db.get(CompanyDocument,row['id']);project_id=doc.knowledge_project_id
+        assert project_id and doc.folder_id==''
+    f=folder(setup,project_id,'报告')
+    assert upload(setup,project_id=project_id,folder_id=f['id']).status_code==202
+    assert setup.client.get('/company-knowledge/documents/'+row['id']+'/original').content==b'Company knowledge evidence'
+
+
+def test_migration_does_not_merge_unnamed_files_into_an_existing_named_project(setup):
+    from company_catalog import backfill_company_projects
+    named=project(setup,'未归档资料')
+    legacy=upload(setup,project='').json()
+    with setup.db() as db:engine=db.get_bind()
+    backfill_company_projects(engine);backfill_company_projects(engine)
+    state=setup.client.get('/company-knowledge/projects').json()
+    assert len(state['projects'])==2
+    with setup.db() as db:
+        doc=db.get(CompanyDocument,legacy['id'])
+        assert doc.knowledge_project_id!=named['id'] and doc.project==''
+    summary=setup.client.get('/company-knowledge/my-projects').json()
+    assert summary['project_count']==2 and summary['document_count']==1

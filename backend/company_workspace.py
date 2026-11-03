@@ -23,7 +23,7 @@ from sqlalchemy.exc import IntegrityError
 
 import company_knowledge as kb
 from company_catalog import (AUDIO_FORMATS, VIDEO_FORMATS, CONFIDENTIALITY_LABELS, CompanyAccessRequest,
-                             CompanyDocument, can_manage, can_read, document_store,
+                             CompanyDocument, CompanyProject, can_manage, can_read, document_store, backfill_company_projects,
                              ensure_company_schema, is_owner, media_kind, serialize)
 from database import SessionLocal
 from models import User
@@ -42,6 +42,9 @@ pdf_render_lock = threading.Lock()
 
 
 def find_doc(db, doc_id, user, manage=False):
+    existing = db.get(CompanyDocument, doc_id) if manage else None
+    if existing and existing.knowledge_project_id:
+        db.scalar(select(CompanyProject).where(CompanyProject.id == existing.knowledge_project_id).with_for_update())
     doc = (db.scalar(select(CompanyDocument).where(CompanyDocument.id == doc_id).with_for_update())
            if manage else db.get(CompanyDocument, doc_id))
     if not doc or doc.index_id != kb.settings()['index_id'] or doc.state == 'deleted' or not can_read(doc, user):
@@ -143,6 +146,8 @@ async def sync_catalog(cfg, force=False):
 
 async def prepare_scope(cfg, user, requested, scope='accessible'):
     await sync_catalog(cfg)
+    with SessionLocal() as migration_db:
+        backfill_company_projects(migration_db.get_bind())
     with SessionLocal() as db:
         docs = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == cfg['index_id'],
                                                             CompanyDocument.state != 'deleted')))
@@ -240,6 +245,7 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
                  review: str = Form('待复核'), visibility: str = Form('members'), readers: str = Form('[]'),
                  confidentiality: str = Form('internal'), tags: str = Form('[]'),
                  description: str = Form('', max_length=10000),
+                 project_id: str = Form('', max_length=64), folder_id: str = Form('', max_length=64),
                  user: User = Depends(kb.require_knowledge_user)):
     cfg = kb.settings()
     try:
@@ -259,7 +265,7 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
     extension = Path(title).suffix.lower().lstrip('.')
     if extension not in FORMATS:
         raise HTTPException(422, '不支持该格式，请上传文档、图片、MP3/WAV/M4A/OGG/FLAC 音频或 MP4/WebM 视频。')
-    if extension in MEDIA_FORMATS and not description.strip():
+    if extension in MEDIA_FORMATS and not description.strip() and not project_id:
         raise HTTPException(422, '请填写音视频的文字说明；本轮仅检索说明，不自动转写录音或视频。')
     limit = MAX_MEDIA_BYTES if extension in MEDIA_FORMATS else MAX_BYTES
     payload = await file.read(limit + 1)
@@ -268,23 +274,37 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
         raise HTTPException(413, '音视频请控制在 128 MB 以内，文档和图片请控制在 32 MB 以内。')
     validate_bytes(payload, extension)
     digest = hashlib.sha256(payload).hexdigest()
+    if folder_id and not project_id:
+        raise HTTPException(422, '请先选择所属项目。')
     with SessionLocal() as db:
+        owner, owner_id = user.username, getattr(user, 'id', None)
+        if project_id:
+            from company_projects import find_project, find_folder
+            directory = find_project(db, project_id, user, manage=True)
+            find_folder(db, directory.id, folder_id)
+            owner, owner_id = directory.owner, directory.owner_user_id
+            project, industry, category, review = directory.name, directory.industry, directory.category, directory.review
+            confidentiality, visibility, acl = directory.confidentiality, directory.visibility, list(directory.readers or [])
+            labels = list(directory.tags or [])
+            directory.updated_at = datetime.utcnow()
         # PostgreSQL serializes uploads from one user so concurrent submissions
         # cannot allocate the same version. Unique indexes are the second guard.
         db.execute(select(User).where(User.username == user.username).with_for_update())
         previous = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == cfg['index_id'],
-            CompanyDocument.owner == user.username, CompanyDocument.title == title,
+            CompanyDocument.owner == owner, CompanyDocument.title == title,
+            CompanyDocument.knowledge_project_id == project_id, CompanyDocument.folder_id == folder_id,
             CompanyDocument.project == project.strip())))
         duplicate = next((doc for doc in previous if doc.sha256 == digest and doc.state != 'deleted'), None)
         if duplicate:
             raise HTTPException(409, '相同内容已上传，请在资料列表查看原任务；如处理失败可点击重试。')
         doc = CompanyDocument(id=uuid.uuid4().hex, index_id=cfg['index_id'], title=title,
-            format=extension.upper(), size=len(payload), sha256=digest, owner=user.username,
-            owner_user_id=getattr(user, 'id', None), confidentiality=confidentiality,
+            format=extension.upper(), size=len(payload), sha256=digest, owner=owner,
+            owner_user_id=owner_id, knowledge_project_id=project_id, folder_id=folder_id, inherits_project=int(bool(project_id)), confidentiality=confidentiality,
             project=project.strip(), industry=industry.strip(), category=category, review=review,
             tags=labels, description=description.strip(),
             visibility=visibility, readers=acl, version=max((row.version for row in previous), default=0) + 1,
-            state='queued', status_message='原件已保存，等待上传与解析',
+            state='archived' if extension in MEDIA_FORMATS and not description.strip() else 'queued',
+            status_message='音视频已归档，可播放与下载；补充文字说明后可检索说明' if extension in MEDIA_FORMATS and not description.strip() else '原件已保存，等待上传与解析',
             object_key='originals/' + uuid.uuid4().hex + '.' + extension,
             parser='DOCMIND' if extension in ('pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png') else 'AUTO_SELECT')
         await asyncio.to_thread(document_store().put_bytes, doc.object_key, payload,
@@ -300,11 +320,14 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
             await asyncio.to_thread(document_store().delete_object, doc.object_key)
             raise
         result = serialize(doc, user)
-    schedule_document(doc.id)
+    if doc.state == 'queued':
+        schedule_document(doc.id)
     return result
 
 
 class DocumentMetadata(BaseModel):
+    folder_id: str = Field(default='', max_length=64)
+    title: str = Field(default='', max_length=255)
     project: str = Field(default='', max_length=200)
     industry: str = Field(default='', max_length=100)
     category: str = '项目原件'
@@ -321,13 +344,31 @@ async def edit_document(doc_id: str, values: DocumentMetadata, user: User = Depe
     with SessionLocal() as db:
         doc = find_doc(db, doc_id, user, manage=True)
         changed = values.model_dump(exclude_unset=True)
+        if 'title' in changed:
+            name = changed['title'].strip()
+            if (not name or any(ord(c) < 32 or c in '/\\' for c in name) or
+                    Path(name).suffix.lower().lstrip('.') != doc.format.lower()):
+                raise HTTPException(422, '文件名不能为空，且需保留原扩展名。')
+            changed['title'] = name
+        if doc.knowledge_project_id:
+            from company_projects import find_project, find_folder, restrict_to_project
+            if 'folder_id' in changed:
+                find_folder(db, doc.knowledge_project_id, changed['folder_id'])
+            directory = find_project(db, doc.knowledge_project_id, user, manage=True)
+            if 'project' in changed and changed['project'] != doc.project:
+                raise HTTPException(422, '项目名称请在项目设置中修改，归档位置请使用目录选择。')
+            if doc.inherits_project and any(key in changed and changed[key] != getattr(doc, key)
+                    for key in ('project', 'industry', 'tags', 'category', 'review', 'confidentiality', 'visibility', 'readers')):
+                raise HTTPException(422, '此文件继承项目属性，请在项目设置中修改。')
+            acl_values = {key: changed.get(key, getattr(doc, key)) for key in ('confidentiality', 'visibility', 'readers')}
+            changed.update(restrict_to_project(acl_values, directory))
         if 'tags' in changed:
             changed['tags'] = validate_tags(changed['tags'])
         if 'description' in changed:
             changed['description'] = changed['description'].strip()
         reindex = bool(media_kind(doc) and any(
-            key in changed and changed[key] != getattr(doc, key) for key in ('description', 'project', 'industry', 'tags')))
-        if media_kind(doc) and not changed.get('description', doc.description).strip():
+            key in changed and changed[key] != getattr(doc, key) for key in ('title', 'description', 'project', 'industry', 'tags')))
+        if media_kind(doc) and not changed.get('description', doc.description).strip() and not doc.knowledge_project_id:
             raise HTTPException(422, '音视频需要文字说明才能用于检索。')
         if reindex and (doc.state in ('queued', 'uploading', 'parsing', 'indexing', 'deleting') or
                         (doc.lease_until and doc.lease_until > datetime.utcnow())):
@@ -461,8 +502,17 @@ def my_projects(user: User = Depends(kb.require_knowledge_user)):
             CompanyDocument.index_id == kb.settings()['index_id'], CompanyDocument.state != 'deleted'))
             if is_owner(doc, user)]
         groups = {}
+        owned_directories = {}
+        for project_row in db.scalars(select(CompanyProject).where(CompanyProject.index_id == kb.settings()['index_id'])):
+            if is_owner(project_row, user):
+                owned_directories[project_row.id] = project_row
+                groups[project_row.name] = {'name': project_row.name, 'document_count': 0, 'ready_count': 0,
+                    'industries': {project_row.industry} if project_row.industry else set(),
+                    'categories': {project_row.category} if project_row.category else set(), 'document_ids': [],
+                    'updated_at': project_row.updated_at}
         for doc in docs:
-            name = doc.project.strip() or '未归类项目'
+            directory = owned_directories.get(doc.knowledge_project_id)
+            name = directory.name if directory else doc.project.strip() or '未归类项目'
             group = groups.setdefault(name, {'name': name, 'document_count': 0, 'ready_count': 0,
                 'industries': set(), 'categories': set(), 'document_ids': [], 'updated_at': doc.updated_at})
             group['document_count'] += 1
@@ -774,3 +824,7 @@ async def grounded_answer(cfg, question):
         if not received or not ended:
             raise kb.KnowledgeError('云端回答未完整返回，请重试。')
         yield {'type': 'done', 'usage': usage, 'model': model}
+
+
+from company_projects import projects_router
+workspace_router.include_router(projects_router)
