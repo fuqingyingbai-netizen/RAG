@@ -6,7 +6,7 @@ import json
 # 异步编程模块（流式对话核心）
 import asyncio
 # 初始化LangChain聊天模型
-from langchain.chat_models import init_chat_model
+from model_provider_options import init_chat_model
 # 创建LangChain Agent
 from langchain.agents import create_agent
 # 消息类型：用户消息、AI消息、AI消息片段、系统消息

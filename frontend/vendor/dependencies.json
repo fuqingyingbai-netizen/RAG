@@ -1,0 +1,112 @@
+{
+  "packages": {
+    "vue": {
+      "version": "3.5.44",
+      "license": "MIT"
+    },
+    "element-plus": {
+      "version": "2.14.7",
+      "license": "MIT"
+    },
+    "marked": {
+      "version": "18.1.2",
+      "license": "MIT"
+    },
+    "@fortawesome/fontawesome-free": {
+      "version": "6.4.0",
+      "license": "See fontawesome-free-6.4.0/LICENSE.txt (icons CC BY 4.0, fonts SIL OFL 1.1, code MIT)"
+    }
+  },
+  "files": [
+    {
+      "path": "vendor/vue-3.5.44/vue.global.prod.js",
+      "source": "https://cdn.jsdelivr.net/npm/vue@3.5.44/dist/vue.global.prod.js",
+      "bytes": 170605,
+      "sha256": "e0a2a0866a8de8887542e24f3c218aad3d907b88f30966068792ba992296dc9f"
+    },
+    {
+      "path": "vendor/vue-3.5.44/LICENSE",
+      "source": "https://cdn.jsdelivr.net/npm/vue@3.5.44/LICENSE",
+      "bytes": 1091,
+      "sha256": "1bb85cc9b13b81ef41c81c51866172fc345e0503c86726a6755b796590b70175"
+    },
+    {
+      "path": "vendor/element-plus-2.14.7/index.full.min.js",
+      "source": "https://cdn.jsdelivr.net/npm/element-plus@2.14.7/dist/index.full.min.js",
+      "bytes": 1057566,
+      "sha256": "7f38e2550c046e823d84ed16c2a70caaca6d7e7071b060c96526766d46d56ab1"
+    },
+    {
+      "path": "vendor/element-plus-2.14.7/index.css",
+      "source": "https://cdn.jsdelivr.net/npm/element-plus@2.14.7/dist/index.css",
+      "bytes": 361441,
+      "sha256": "d78229097f1ec25311afa285e86aa5af6e768d541a65dd0c6d4c7ac0831b02f0"
+    },
+    {
+      "path": "vendor/element-plus-2.14.7/LICENSE",
+      "source": "https://cdn.jsdelivr.net/npm/element-plus@2.14.7/LICENSE",
+      "bytes": 1077,
+      "sha256": "0790118bb4d66681db1d63181f72ef68e632d632f6db0373ef87cf328561af27"
+    },
+    {
+      "path": "vendor/marked-18.1.2/marked.umd.js",
+      "source": "https://cdn.jsdelivr.net/npm/marked@18.1.2/lib/marked.umd.js",
+      "bytes": 49207,
+      "sha256": "9eb730d2362ae1a8c6201698f17009e16671be6946d3d06503ddc0575283db7c"
+    },
+    {
+      "path": "vendor/marked-18.1.2/LICENSE",
+      "source": "https://cdn.jsdelivr.net/npm/marked@18.1.2/LICENSE",
+      "bytes": 2942,
+      "sha256": "8e3a3f82f59a60958f56ca08f445647c32a4733dc7ca6c2c46f6eb898471ab9c"
+    },
+    {
+      "path": "vendor/fontawesome-free-6.4.0/css/all.min.css",
+      "source": "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css",
+      "bytes": 102025,
+      "sha256": "1edb1725a9ea8ca4dcf2f5508cee183218aa1685e47c1b23056717f754f58ebf"
+    },
+    {
+      "path": "vendor/fontawesome-free-6.4.0/webfonts/fa-solid-900.woff2",
+      "source": "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/webfonts/fa-solid-900.woff2",
+      "bytes": 150124,
+      "sha256": "7152a6933ee3d690ec2af3d09da9d701723d16aa3410a6d80f28ff8866f3b880"
+    },
+    {
+      "path": "vendor/fontawesome-free-6.4.0/webfonts/fa-solid-900.ttf",
+      "source": "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/webfonts/fa-solid-900.ttf",
+      "bytes": 394628,
+      "sha256": "67a65763c7f80903d81603bbeb9049fc2bf28508479b83ed011fe24c71fa950a"
+    },
+    {
+      "path": "vendor/fontawesome-free-6.4.0/webfonts/fa-regular-400.woff2",
+      "source": "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/webfonts/fa-regular-400.woff2",
+      "bytes": 24948,
+      "sha256": "8e7e5ea1b15f62ab14dbd41768e8fbcd21cc859a4ea5da812457ee714299fb35"
+    },
+    {
+      "path": "vendor/fontawesome-free-6.4.0/webfonts/fa-regular-400.ttf",
+      "source": "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/webfonts/fa-regular-400.ttf",
+      "bytes": 63952,
+      "sha256": "528d022dce6725f8a0811fd91d8e6513445c81ef33353a5c3234eab932551abf"
+    },
+    {
+      "path": "vendor/fontawesome-free-6.4.0/webfonts/fa-brands-400.woff2",
+      "source": "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/webfonts/fa-brands-400.woff2",
+      "bytes": 108020,
+      "sha256": "748332090c4b8e20f95d0ff59f0be20fa9c889359d3b36d4b886d73376054207"
+    },
+    {
+      "path": "vendor/fontawesome-free-6.4.0/webfonts/fa-brands-400.ttf",
+      "source": "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/webfonts/fa-brands-400.ttf",
+      "bytes": 187208,
+      "sha256": "20c4a58bc9d1d69e935d06f1528923646a715be5e218665655cade8f5f1b8c00"
+    },
+    {
+      "path": "vendor/fontawesome-free-6.4.0/LICENSE.txt",
+      "source": "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/LICENSE.txt",
+      "bytes": 7427,
+      "sha256": "0aa8f86525273b2efa4f40f4272a188e187704252170e979dc06879adf68d43c"
+    }
+  ]
+}

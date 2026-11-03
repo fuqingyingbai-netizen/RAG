@@ -14,6 +14,7 @@ def create_version_router(industry_versions: dict[str, str]) -> APIRouter:
         'instance_id': str(uuid4()),
         'loaded_at_utc': datetime.now(timezone.utc).isoformat(),
         'industry': dict(industry_versions),
+        'workflow': {'version': 'due-diligence-three-step-v1', 'proposal': 'proposal-client-requirements-v1'},
     }
     router = APIRouter(tags=['system'])
 

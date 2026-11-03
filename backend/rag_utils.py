@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 from milvus_client import MilvusManager  # Milvus向量库管理客户端
 from embedding import embedding_service as _embedding_service  # 嵌入服务（稠密/稀疏向量）
 from parent_chunk_store import ParentChunkStore  # 父级Chunk存储（用于Chunk层级合并）
-from langchain.chat_models import init_chat_model  # LangChain聊天模型初始化工具
+from model_provider_options import init_chat_model  # LangChain聊天模型初始化工具
 
 # 加载.env环境变量文件
 load_dotenv()

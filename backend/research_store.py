@@ -71,7 +71,29 @@ class ResearchObjectStore:
 
         path = self._local_path(safe_key)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(payload)
+        import os
+        import stat
+        import tempfile
+        temporary = None
+        try:
+            mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else 0o600
+            with tempfile.NamedTemporaryFile(dir=path.parent, prefix='.'+path.name+'.', delete=False) as stream:
+                temporary = Path(stream.name)
+                os.chmod(temporary, mode)
+                stream.write(payload)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, path)
+            temporary = None
+            if os.name == 'posix':
+                descriptor = os.open(path.parent, os.O_RDONLY | getattr(os,'O_DIRECTORY',0))
+                try:
+                    os.fsync(descriptor)
+                finally:
+                    os.close(descriptor)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
         return safe_key
 
     def get_bytes(self, key: str) -> bytes:

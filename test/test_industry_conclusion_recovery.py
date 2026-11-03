@@ -98,6 +98,14 @@ def make_workflow(monkeypatch, *, collect_fails=False, generate_fails=False, new
         industry_section_packages={2:json.dumps(rich_package())},industry_generated_sections={2:'good old section'},
         industry_report_degradations=[],industry_claim_support_review={},industry_evidence_payload=rich_package())
     db=SimpleNamespace(commit=lambda:None,rollback=lambda:None,expire=lambda *a:None)
+    class RecoveryQuery:
+        def filter(self,*conditions): return self
+        def order_by(self,*columns): return self
+        def limit(self,count): return self
+        def all(self):
+            return [a for a in reversed(p.artifacts) if a.artifact_type == 'industry_conclusion_recovery'
+                    and a.artifact_metadata.get('run_id') == p.industry_run_id][:1]
+    db.query=lambda model:RecoveryQuery()
     calls=[]
     def save(db,p,kind,title,content,metadata):
         a=SimpleNamespace(id=len(p.artifacts)+10,artifact_type=kind,content=content,

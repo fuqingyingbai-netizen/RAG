@@ -26,7 +26,7 @@ function newResearchForm() {
     projectName: '', startDate: '', endDate: '', companyName: '', identifier: '',
     industry: '', region: '', targetType: 'company', ddType: '商业尽调', targetContext: '', personContext: '', personAliases: '',
     modules: ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], aiSearchEnabled: true,
-    searchQueries: '', focusQuestions: '', keyQuestions: '',
+    searchQueries: '', focusQuestions: '', keyQuestions: '', clientRequirements: '',
     industryFocus: '', excludedSegments: '', researchPurpose: '日常了解',
     includeCapitalMarkets: false, asOfDate: ''
   };
@@ -42,16 +42,18 @@ createApp({
       authForm: { username: '', password: '', confirm_password: '', invitation: '' },
       inviteStatus: '', inviteValid: false, inviteChecking: false, inviteRequestId: 0,
       passwordOpen: false, passwordLoading: false, passwordForm: { current_password: '', new_password: '', confirm_password: '' },
-      activeView: 'home', mobileNavOpen: false, projects: [], projectSummary: {}, projectMeta: {}, projectDetails: {}, artifactsByProject: {}, sourcesByProject: {}, traceByProject: {},
+      activeView: 'home', mobileNavOpen: false, taskCreateOpen: false, projects: [], projectSummary: {}, projectMeta: {}, projectDetails: {}, artifactsByProject: {}, sourcesByProject: {}, traceByProject: {},
       artifactHistory: {}, artifactHistoryRequests: {},
       traceActivityByProject: {},
-      taskSearch: '', taskStatusFilter: '', taskTargetFilter: '', selectedFiles: [], submitting: false, reindexing: false,
+      taskSearch: '', taskStatusFilter: '', taskTargetFilter: '', selectedFiles: [], clientRequirementFiles: [], submitting: false, reindexing: false,
+      requirementsOpen: false, requirementsProjectId: null, requirementsText: '', requirementsFiles: [], requirementsSources: [], requirementsDocuments: [], requirementsLoading: false, requirementsLoaded: false, requirementsError: '', requirementsSaving: false, requirementsRequestSeq: 0,
+      reviewedReports: {},
       startingProjects: {}, recoveryBusy: {}, taskUploadIssues: {},
       pendingActions: {}, actionPromises: {}, actionErrors: {}, actionSequence: 0,
       reviewIntakes: {}, reviewSelectionSeq: 0, detailLoadedAt: {}, repositoryRequestId: 0,
       taskStatusOptions: [{value: '', label: '全部状态'}, {value: 'draft', label: '未开始'},
         {value: 'active', label: '进行中'}, {value: 'paused', label: '已暂停'}, {value: 'completed', label: '已完成'},
-        {value: 'failed', label: '执行失败'}, {value: 'diagnostic', label: '待检查'}, {value: 'waiting', label: '待继续'}, {value: 'other', label: '其他状态'}],
+        {value: 'failed', label: '执行失败'}, {value: 'diagnostic', label: '待检查'}, {value: 'attention', label: '待处理'}, {value: 'waiting', label: '待继续'}, {value: 'other', label: '其他状态'}],
       reportVersionsOpen: false, reportVersionsProject: null, reportVersionsType: 'desktop_report',
       taskPage: 1, taskPageSize: 12, sourcePage: 1, sourcePageSize: 50,
       nowTick: Date.now(), nowTimer: null, taskRefreshTimer: null, taskRefreshBusy: false, taskRefreshTicks: 0,
@@ -80,20 +82,23 @@ createApp({
   computed: {
     visibleActions() { return Object.values(this.pendingActions).slice(0, 4); },
     visibleActionErrors() { return Object.entries(this.actionErrors).slice(-3); },
-    reviewWriteBusy() { return Object.keys(this.pendingActions).some(key => key.startsWith('review-upload:') || key.startsWith('field-upload:')); },
-    reviewInputsLocked() { return this.reviewWriteBusy || (this.secondStageRunning && this.secondStageProjectId === this.reviewProjectId); },
+    reviewWriteBusy() { return Object.keys(this.pendingActions).some(key => key.startsWith('review-upload:') || key.startsWith('field-upload:') || key.startsWith('review-notes:')); },
+    reviewInputsLocked() { return this.reviewWriteBusy || this.projectIsRunning(this.projects.find(p => p.id === this.reviewProjectId)) || (this.secondStageRunning && this.secondStageProjectId === this.reviewProjectId); },
     repositoryLoading() { return Object.keys(this.pendingActions).some(key => key.startsWith('repository:')); },
     isAuthenticated() { return !!this.token && !!this.currentUser; },
     authRoleLabel() { return this.authRole === 'admin' ? '管理员' : '普通用户'; },
-    pageTitle() { if (this.activeView === 'home') return '个人首页'; if (this.activeView === 'accounts') return '账号管理'; return this.activeView === 'company-knowledge' ? '公司知识库' : this.activeView === 'tasks' ? '任务管理' : this.activeView === 'sources' ? '溯源库' : this.activeView === 'review' ? '复核与一手资料' : '提交尽调任务'; },
+    isTaskWorkspace() { return ['tasks', 'intake', 'deliverables', 'review', 'sources', 'submit'].includes(this.activeView); },
+    isTaskListView() { return ['tasks', 'intake', 'deliverables'].includes(this.activeView); },
+    taskSectionTitle() { return ({tasks:'任务总览', intake:'需求与资料', deliverables:'报告与建议书'})[this.activeView] || '任务总览'; },
+    taskSectionHint() { return ({tasks:'查看全部尽调任务的状态与进度，选择任务进入对应工作环节。', intake:'仅显示尚未开始生成的任务，核对需求与资料后点击开始生成。', deliverables:'仅显示报告与建议书生成阶段的任务；生成完成后进入复核与正式方案。'})[this.activeView] || ''; },
+    pageTitle() { if (this.isTaskWorkspace) return '尽调任务'; return ({home: '个人首页', workbench: '工作台', 'due-diligence': '尽调任务', research: '研究任务', accounts: '账号管理', 'company-knowledge': '公司知识库'})[this.activeView] || '工作台'; },
     pageSubtitle() {
       if (this.activeView === 'home') return '查看自己的任务、研究成果与常用入口。';
       if (this.activeView === 'accounts') return '管理公司账号、管理员角色、知识库授权与注册邀请。';
       if (this.activeView === 'company-knowledge') return '让每一份资料，成为下一次决策的起点。';
-      if (this.activeView === 'tasks') return '查看任务成果、下载报告，并跟踪工作流 trace。';
-      if (this.activeView === 'sources') return '查看来源记录，打开原始网站核对；报告问答请前往公司知识库。';
-      if (this.activeView === 'review') return '上传人工修订报告、专家访谈和走访资料，触发二阶段再生成。';
-      return '填写核心输入，提交一个新的 AI 尽调任务。';
+      if (this.activeView === 'workbench') return '选择任务类型，进入你的工作空间。';
+      if (this.activeView === 'research') return '研究任务的独立工作空间。';
+      return '统一创建与管理尽调任务，整理资料、复核成果并查看来源。';
     },
     generatingCount() { return this.projects.filter(p => this.projectIsRunning(p)).length; },
     readyCount() { return this.projects.filter(p => p.status === 'completed').length; },
@@ -119,9 +124,17 @@ createApp({
     targetPrimaryLabel() { return this.form.targetType === 'person' ? '目标人物姓名' : this.form.targetType === 'industry' ? '目标行业 / 赛道' : '目标公司名称'; },
     targetSecondaryLabel() { return this.form.targetType === 'person' ? '身份与关联机构（选填）' : this.form.targetType === 'industry' ? '核心企业（选填，多个用顿号分隔）' : '官网 / 统一社会信用代码'; },
     targetSecondaryPlaceholder() { return this.form.targetType === 'person' ? '可填写现任或曾任机构及职位；多个机构用 / 分隔' : this.form.targetType === 'industry' ? '填写需开展公开资料尽调的公司名称；关注产品可写在重点问题中' : ''; },
+    stageProjects() {
+      return ['intake', 'deliverables', 'review'].includes(this.activeView)
+        ? this.projects.filter(project => this.projectWorkflowStage(project) === this.activeView) : this.projects;
+    },
+    taskEmptyText() {
+      return this.hasTaskFilters ? '暂无符合筛选条件的任务，请调整或清空筛选'
+        : ({intake:'暂无待完善需求的任务', deliverables:'暂无正在生成或待继续的任务', review:'暂无进入复核的任务'})[this.activeView] || '暂无任务';
+    },
     filteredProjects() {
       const keyword = this.taskSearch.trim().toLowerCase();
-      return this.projects.filter(p => (!this.taskStatusFilter || this.projectStatusGroup(p) === this.taskStatusFilter)
+      return this.stageProjects.filter(p => (!this.taskStatusFilter || (this.taskStatusFilter === 'attention' ? !this.projectIsRunning(p) && p.status !== 'completed' : this.projectStatusGroup(p) === this.taskStatusFilter))
         && (!this.taskTargetFilter || p.target_type === this.taskTargetFilter)
         && (!keyword || [p.title, p.target_name, p.industry, p.status, this.projectStateLabel(p),
           this.projectStatusGroup(p) === 'active' ? '进行中' : '',
@@ -271,7 +284,7 @@ createApp({
       }});
     },
     async fetchMe() { const r = await this.authFetch('/auth/me'); if (!r.ok) throw new Error('认证失败'); this.currentUser = await r.json(); },
-    ensureAllowedView() { if (!['home', 'submit', 'tasks', 'review', 'sources', 'company-knowledge', 'accounts'].includes(this.activeView) || (this.activeView === 'accounts' && this.currentUser?.role !== 'admin')) { this.activeView = 'home'; localStorage.setItem('activeView', 'home'); } },
+    ensureAllowedView() { if (this.activeView === 'due-diligence') { this.activeView = 'tasks'; localStorage.setItem('activeView', 'tasks'); } if (!['home', 'workbench', 'research', 'submit', 'tasks', 'intake', 'deliverables', 'review', 'sources', 'company-knowledge', 'accounts'].includes(this.activeView) || (this.activeView === 'accounts' && this.currentUser?.role !== 'admin')) { this.activeView = 'home'; localStorage.setItem('activeView', 'home'); } },
     readInvitationFromUrl() {
       const url = new URL(window.location.href);
       const invitation = new URLSearchParams(url.hash.slice(1)).get('invite') || url.searchParams.get('invite');
@@ -308,6 +321,7 @@ createApp({
     async acceptAuthentication(data, { openHome = true } = {}) {
       this.token = data.access_token; this.currentUser = {username:data.username, role:data.role, must_change_password:data.must_change_password};
       localStorage.setItem('accessToken', this.token);
+      if (openHome || data.must_change_password) this.taskCreateOpen = false;
       if (openHome) { this.activeView = 'home'; localStorage.setItem('activeView', 'home'); }
       this.ensureAllowedView();
       if (!data.must_change_password) { await this.loadAssistantState(); await this.loadProjects(); }
@@ -337,7 +351,7 @@ createApp({
     handleLogout() {
       this.resetAssistantImages();
       this.assistantEpoch++; this.assistantController?.abort(); this.assistantController = null; this.assistantSessionId = ''; this.assistantSessions = []; this.assistantReady = false; this.assistantSyncing = false; this.assistantMemoryStatus = ''; this.assistantHasMore = false;
-      this.activeView = 'home'; this.mobileNavOpen = false; localStorage.setItem('activeView', 'home');
+      this.activeView = 'home'; this.mobileNavOpen = false; this.taskCreateOpen = false; localStorage.setItem('activeView', 'home');
       this.token = ''; this.currentUser = null; this.authStep = 'role'; this.authMode = 'login';
       this.authForm = {username:'',password:'',confirm_password:'',invitation:''}; this.inviteStatus = ''; this.inviteValid = false; this.inviteRequestId++;
       this.passwordOpen = false; this.passwordForm = {current_password:'',new_password:'',confirm_password:''};
@@ -347,6 +361,10 @@ createApp({
       this.startingProjects = {}; this.secondStageRunning = false; this.secondStageProjectId = '';
       this.assistantMessages = []; this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantLoading = false; this.assistantNavigation = []; this.selectedFiles = [];
       this.form = newResearchForm(); this.resetTaskFilters();
+      ++this.requirementsRequestSeq;
+      this.clientRequirementFiles = []; this.requirementsFiles = []; this.requirementsSources = []; this.requirementsDocuments = [];
+      this.requirementsOpen = false; this.requirementsProjectId = null; this.requirementsText = ''; this.requirementsLoading = false; this.requirementsSaving = false; this.reviewedReports = {};
+      this.requirementsLoaded = false; this.requirementsError = ''; this.submitting = false;
       this.clearReviewSelection();
       this.closeReportVersions();
       this.knowledgeQuery = '';
@@ -366,11 +384,48 @@ createApp({
       } catch (e) { ElementPlus.ElMessage.error(e.message); } finally { this.passwordLoading = false; }
     },
     switchView(view) {
-      if (!['home', 'submit', 'tasks', 'review', 'sources', 'company-knowledge', 'accounts'].includes(view)) return;
+      if (!['home', 'workbench', 'due-diligence', 'research', 'submit', 'tasks', 'intake', 'deliverables', 'review', 'sources', 'company-knowledge', 'accounts'].includes(view)) return;
       if (view === 'accounts' && this.currentUser?.role !== 'admin') return;
+      if (view === 'submit') { this.taskCreateOpen = true; this.mobileNavOpen = false; return; }
+      this.taskCreateOpen = false;
+      if (view === 'due-diligence') view = 'tasks';
+      if (this.activeView !== view) this.taskPage = 1;
       this.activeView = view; this.mobileNavOpen = false; localStorage.setItem('activeView', view);
-      if (view === 'tasks' || view === 'review') { this.loadProjects().catch(() => null); this.refreshVisibleTaskProgress(); }
+      this.$nextTick?.(() => {
+        if (this.activeView === view && this.isTaskListView) this.$refs?.taskTable?.setScrollLeft?.(0);
+      });
+      if (['workbench', 'tasks', 'intake', 'deliverables', 'review'].includes(view)) this.loadProjects().catch(() => null);
+      if (['tasks', 'deliverables', 'review'].includes(view)) this.refreshVisibleTaskProgress();
       if (view === 'sources') this.loadRepository().catch(() => null);
+    },
+    workspaceLinkLabel(item) {
+      return ({submit: '尽调任务 · 新建任务', tasks: '尽调任务 · 任务总览', intake:'尽调任务 · 需求与资料', deliverables:'尽调任务 · 报告与建议书', review: '尽调任务 · 复核与正式方案', sources: '尽调任务 · 溯源库'})[item.view] || item.label;
+    },
+    async openTaskStage(project, view) {
+      if (!['intake', 'deliverables', 'review'].includes(view)) return;
+      const token = this.token;
+      view = this.projectWorkflowStage(project);
+      this.resetTaskFilters();
+      this.switchView(view);
+      await this.$nextTick();
+      if (token !== this.token || this.activeView !== view) return;
+      const index = this.filteredProjects.findIndex(row => row.id === project.id);
+      if (index < 0) return;
+      this.taskPage = Math.floor(index / this.taskPageSize) + 1;
+      await this.$nextTick();
+      if (token !== this.token || this.activeView !== view) return;
+      const current = this.filteredProjects.find(row => row.id === project.id);
+      if (!current) return;
+      if (view === 'intake') await this.openClientRequirements(current);
+      else if (view === 'review') await this.selectReviewProject(current);
+      else await this.viewProject(current);
+    },
+    openHomeTaskFilter(key) {
+      const filters = {total: '', running: 'active', completed: 'completed', attention: 'attention'};
+      if (!Object.hasOwn(filters, key)) return;
+      this.resetTaskFilters();
+      this.taskStatusFilter = filters[key];
+      this.switchView('tasks');
     },
     async openHomeProject(project) {
       const sentToken = this.token;
@@ -411,6 +466,67 @@ createApp({
     },
     handleFileChange(file, fileList) { this.selectedFiles = fileList.map(item => item.raw || item).filter(Boolean); },
     handleFileRemove(file, fileList) { this.selectedFiles = fileList.map(item => item.raw || item).filter(Boolean); },
+    handleClientRequirementFiles(file, files) { this.clientRequirementFiles = files.map(item => item.raw || item).filter(Boolean); },
+    handleRequirementsFiles(file, files) { this.requirementsFiles = files.map(item => item.raw || item).filter(Boolean); },
+    handleRequirementsSources(file, files) { this.requirementsSources = files.map(item => item.raw || item).filter(Boolean); },
+    async openClientRequirements(project, pending = null) {
+      if (this.requirementsSaving) return false;
+      const token = this.token, seq = ++this.requirementsRequestSeq;
+      const sameProject = this.requirementsProjectId === project.id;
+      const files = pending?.requirements || (sameProject ? this.requirementsFiles : []);
+      const sources = pending?.sources || (sameProject ? this.requirementsSources : []);
+      this.requirementsProjectId = project.id; this.requirementsOpen = true; this.requirementsLoading = true;
+      this.requirementsLoaded = false; this.requirementsError = '';
+      this.requirementsText = ''; this.requirementsFiles = files; this.requirementsSources = sources; this.requirementsDocuments = [];
+      try {
+        const data = await this.readJSON(`/research/projects/${project.id}/run-intake`, '读取客户需求失败');
+        if (token !== this.token || seq !== this.requirementsRequestSeq) return false;
+        this.requirementsText = data.intake?.client_requirements || '';
+        this.requirementsDocuments = data.client_requirement_files || [];
+        this.requirementsLoaded = true;
+        return true;
+      } catch (e) { if (token === this.token && seq === this.requirementsRequestSeq) this.requirementsError = e.message; return false; }
+      finally { if (token === this.token && seq === this.requirementsRequestSeq) this.requirementsLoading = false; }
+    },
+    async saveClientRequirements() {
+      if (this.requirementsSaving || this.requirementsLoading || !this.requirementsLoaded || !this.requirementsProjectId) return;
+      const token = this.token, id = this.requirementsProjectId, seq = this.requirementsRequestSeq;
+      const files = [...this.requirementsFiles], sources = [...this.requirementsSources];
+      this.requirementsSaving = true;
+      try {
+        const response = await this.authFetch(`/research/projects/${id}/client-requirements`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({client_requirements:this.requirementsText})});
+        const result = await response.json().catch(() => ({}));
+        if (token !== this.token) return;
+        if (!response.ok) throw new Error(result.detail || '客户需求保存失败');
+        for (const file of files) {
+          const data = new FormData(); data.append('file', file);
+          await this.postTaskUpload(id, `/research/projects/${id}/client-requirements`, data);
+          if (token !== this.token || seq !== this.requirementsRequestSeq) return;
+          this.requirementsFiles = this.requirementsFiles.filter(item => item !== file);
+        }
+        for (const file of sources) {
+          await this.uploadProjectFile(id, file);
+          if (token !== this.token || seq !== this.requirementsRequestSeq) return;
+          this.requirementsSources = this.requirementsSources.filter(item => item !== file);
+        }
+        const data = await this.readJSON(`/research/projects/${id}/run-intake`, '刷新客户需求失败');
+        if (token !== this.token || seq !== this.requirementsRequestSeq) return;
+        this.requirementsDocuments = data.client_requirement_files || [];
+        delete this.detailLoadedAt[id]; delete this.reviewIntakes[id];
+        ElementPlus.ElMessage.success('需求和资料已保存，可开始第二步生成');
+      } catch (e) { if (token === this.token) ElementPlus.ElMessage.error(e.message); }
+      finally { if (token === this.token && seq === this.requirementsRequestSeq) this.requirementsSaving = false; }
+    },
+    async removeClientRequirement(document) {
+      const id = this.requirementsProjectId, token = this.token;
+      if (this.requirementsSaving || !id) return;
+      try {
+        await this.deleteArtifact({id}, document);
+        if (token !== this.token || this.requirementsProjectId !== id) return;
+        const data = await this.readJSON(`/research/projects/${id}/run-intake`, '刷新需求附件失败');
+        if (token === this.token && this.requirementsProjectId === id) this.requirementsDocuments = data.client_requirement_files || [];
+      } catch (e) { ElementPlus.ElMessage.error(e.message); }
+    },
     async loadProjects() {
       return this.runAction('projects', '正在读取任务列表', async () => {
         const sentToken = this.token;
@@ -421,7 +537,11 @@ createApp({
       }, {readOnly: true});
     },
     async submitTask() {
+      if (this.submitting) return;
       if (!this.form.projectName.trim()) return ElementPlus.ElMessage.warning('请填写项目名称');
+      const sentToken = this.token;
+      let created = null;
+      const requirements = [...this.clientRequirementFiles], sources = [...this.selectedFiles];
       this.submitting = true;
       try {
         const createPayload = {
@@ -446,16 +566,38 @@ createApp({
             ai_search_enabled: this.form.aiSearchEnabled,
             search_queries: this.splitLines(this.form.searchQueries),
             focus_questions: this.splitLines(this.form.focusQuestions || this.form.keyQuestions),
-            special_requirements: this.form.keyQuestions
+            special_requirements: this.form.keyQuestions,
+            client_requirements: this.form.clientRequirements
           }
         };
         const r = await this.authFetch('/research/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(createPayload) });
-        const project = await r.json().catch(() => ({})); if (!r.ok) throw new Error(project.detail || '创建项目失败');
+        const project = await r.json().catch(() => ({}));
+        if (sentToken !== this.token) return;
+        if (!r.ok) throw new Error(project.detail || '创建项目失败');
+        created = project;
         this.projectMeta[project.id] = { startDate: this.form.startDate, endDate: this.form.endDate };
-        this.resetTaskFilters(); this.projects.unshift(project); this.switchView('tasks'); ElementPlus.ElMessage.success('任务已提交，正在上传资料并启动工作流');
-        for (const file of this.selectedFiles) await this.uploadProjectFile(project.id, file);
-        await this.runWorkflow(project);
-      } catch (e) { ElementPlus.ElMessage.error(e.message); } finally { this.submitting = false; }
+        this.resetTaskFilters(); this.projects.unshift(project); this.switchView('intake');
+        this.form = newResearchForm(); this.selectedFiles = []; this.clientRequirementFiles = [];
+        for (const file of [...requirements]) {
+          const data = new FormData(); data.append('file', file);
+          await this.postTaskUpload(project.id, `/research/projects/${project.id}/client-requirements`, data);
+          if (sentToken !== this.token) return;
+          requirements.splice(requirements.indexOf(file), 1);
+        }
+        for (const file of [...sources]) {
+          await this.uploadProjectFile(project.id, file);
+          if (sentToken !== this.token) return;
+          sources.splice(sources.indexOf(file), 1);
+        }
+        ElementPlus.ElMessage.success('第一步已完成：任务和资料已保存，点击“开始生成”进入第二步');
+      } catch (e) {
+        if (sentToken !== this.token) return;
+        if (created) {
+          await this.openClientRequirements(created, {requirements, sources});
+          if (sentToken !== this.token) return;
+          ElementPlus.ElMessage.error('任务已创建，部分资料未保存，请在当前窗口核对后补传：' + e.message);
+        } else ElementPlus.ElMessage.error(e.message);
+      } finally { if (sentToken === this.token) this.submitting = false; }
     },
     async uploadProjectFile(projectId, file) {
       const formData = new FormData(); formData.append('file', file);
@@ -488,7 +630,7 @@ createApp({
       }
     },
     async readWorkflowEvents(response, sentToken, onEvent) {
-      if (!response.body) throw new Error('浏览器未收到进度连接，请在任务管理核对状态，不要重复启动。');
+      if (!response.body) throw new Error('浏览器未收到进度连接，请在尽调任务核对状态，不要重复启动。');
       const reader = response.body.getReader(), decoder = new TextDecoder();
       let buffer = '';
       const consume = block => {
@@ -496,7 +638,7 @@ createApp({
         if (!data) return '';
         let event;
         try { event = JSON.parse(data); }
-        catch (_) { throw new Error('收到的进度消息不完整，请在任务管理核对状态，不要重复启动。'); }
+        catch (_) { throw new Error('收到的进度消息不完整，请在尽调任务核对状态，不要重复启动。'); }
         onEvent(event);
         return ['result','paused'].includes(event.type) ? event.type : '';
       };
@@ -531,7 +673,7 @@ createApp({
             person_context: this.form.targetType === 'person' ? this.form.personContext : '',
             person_aliases: this.form.targetType === 'person' ? this.splitLines(this.form.personAliases) : [], focus_entities: this.form.targetType === 'industry' ? this.form.targetContext : '',
         research_type: this.form.ddType || '商业尽调', focus_modules: this.form.modules, ai_search_enabled: this.form.aiSearchEnabled,
-        special_requirements: this.form.keyQuestions || '', generate_proposal: true
+        special_requirements: this.form.keyQuestions || '', client_requirements: this.form.clientRequirements || '', generate_proposal: true
       };
       const r = await this.authFetch(`/research/projects/${project.id}/run/stream`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || '工作流启动失败'); }
@@ -543,7 +685,7 @@ createApp({
             if (event.type === 'paused') { project.status = 'paused'; ElementPlus.ElMessage.info(event.content || '任务已暂停'); }
             if (event.type === 'error') throw new Error(event.content || '工作流失败');
         });
-        if (outcome === 'closed') throw new Error('进度连接已结束，尚未确认任务完成。请在任务管理核对状态，不要重复启动。');
+        if (outcome === 'closed') throw new Error('进度连接已结束，尚未确认任务完成。请在尽调任务核对状态，不要重复启动。');
       } finally { clearInterval(pollInterval); await this.refreshAfterWorkflow(project, sentToken); }
     },
     async rerunProject(project) {
@@ -551,20 +693,29 @@ createApp({
       const sentToken = this.token;
       this.startingProjects[project.id] = true;
       try {
-        await this.runAction(`rerun:${project.id}`, '正在读取重跑参数', async phase => {
-          const data = await this.readJSON(`/research/projects/${project.id}/run-intake`, '加载重跑参数失败');
-          phase('正在提交重跑请求，请勿重复点击', {readOnly:false, retryAdvice:''});
+        await this.runAction(`rerun:${project.id}`, '正在读取重新生成参数', async phase => {
+          const data = await this.readJSON(`/research/projects/${project.id}/run-intake`, '加载重新生成参数失败');
+          phase('正在提交重新生成请求，请勿重复点击', {readOnly:false, retryAdvice:''});
           await this.runExistingWorkflow(project, data.intake || {}, () => {
-            phase('重跑已在后台执行，可在任务管理查看进度');
-            ElementPlus.ElMessage.success('重跑请求已接收，正在更新任务进度');
-            this.refreshProjectProgress(project).catch(() => null);
+            phase(project.status === 'draft' ? '生成已在后台执行，可在尽调任务查看进度' : '重新生成已在后台执行，可在尽调任务查看进度');
+            ElementPlus.ElMessage.success(project.status === 'draft' ? '生成请求已接收，正在更新任务进度' : '重新生成请求已接收，正在更新任务进度');
+            this.refreshProjectProgress(project).then(() => {
+              if (sentToken !== this.token || !['intake', 'review'].includes(this.activeView)) return;
+              const current = this.projects.find(row => row.id === project.id);
+              if (current && this.projectWorkflowStage(current) === 'deliverables') this.switchView('deliverables');
+            }).catch(() => null);
           });
-        }, {readOnly:true, retryAdvice:'参数未读成功，本次未启动研究；重新点击“重跑”将在参数读取成功后提交研究请求。'});
+        }, {readOnly:true, retryAdvice:'参数未读成功，本次未启动研究；重新点击“重新生成”将在参数读取成功后提交研究请求。'});
       } catch (e) {
         if (sentToken === this.token) ElementPlus.ElMessage.error(e.message);
       } finally {
         if (sentToken === this.token) delete this.startingProjects[project.id];
       }
+    },
+    projectWorkflowStage(project) {
+      if (['intake', 'deliverables', 'review'].includes(project?.workflow_stage)) return project.workflow_stage;
+      if (project?.status === 'draft' && !this.projectIsRunning(project)) return 'intake';
+      return project?.status === 'completed' && !this.projectIsRunning(project) ? 'review' : 'deliverables';
     },
     projectIsRunning(project) {
       if (!project) return false;
@@ -594,11 +745,20 @@ createApp({
       this.loadProjects().catch(() => null);
       }); } catch (error) { ElementPlus.ElMessage.error(error.message); }
     },
-    async runExistingWorkflow(project, savedIntake = null, onConnected = null) {
+    async updateProposal(project) {
+      if (this.startingProjects[project.id] || this.projectIsRunning(project)) return;
+      const token = this.token;
+      this.startingProjects[project.id] = true;
+      try { await this.runAction(`proposal:${project.id}`, '正在根据已有报告和客户需求更新建议书', async () => {
+        await this.runExistingWorkflow(project, {}, () => ElementPlus.ElMessage.success('建议书更新已启动，报告保持原版本'), true);
+      }); } catch (e) { if (token === this.token) ElementPlus.ElMessage.error(e.message); }
+      finally { if (token === this.token) delete this.startingProjects[project.id]; }
+    },
+    async runExistingWorkflow(project, savedIntake = null, onConnected = null, proposalOnly = false) {
       const sentToken = this.token;
       this.traceByProject[project.id] = this.traceByProject[project.id] || [];
       const intake = savedIntake || this.intakeFor(project);
-      const payload = {
+      const payload = proposalOnly ? {} : {
         ...this.industryRunFields(project.target_type, intake),
         search_queries: intake.search_queries || [],
         focus_questions: intake.focus_questions || [],
@@ -617,9 +777,10 @@ createApp({
         focus_modules: intake.focus_modules || this.form.modules,
         ai_search_enabled: intake.ai_search_enabled !== false,
         special_requirements: intake.special_requirements || project.description || '',
+        client_requirements: intake.client_requirements || '',
         generate_proposal: true
       };
-      const r = await this.authFetch(`/research/projects/${project.id}/run/stream`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const r = await this.authFetch(`/research/projects/${project.id}/${proposalOnly ? 'proposal/run/stream' : 'run/stream'}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || '工作流启动失败'); }
       if (onConnected) onConnected();
       const pollInterval = setInterval(() => { if (sentToken === this.token) this.refreshProjectProgress(project).catch(() => null); }, 5000);
@@ -630,7 +791,7 @@ createApp({
             if (event.type === 'paused') { project.status = 'paused'; ElementPlus.ElMessage.info(event.content || '任务已暂停'); }
             if (event.type === 'error') throw new Error(event.content || '工作流失败');
         });
-        if (outcome === 'closed') throw new Error('进度连接已结束，尚未确认任务完成。请在任务管理核对状态，不要重复启动。');
+        if (outcome === 'closed') throw new Error('进度连接已结束，尚未确认任务完成。请在尽调任务核对状态，不要重复启动。');
       } finally { clearInterval(pollInterval); await this.refreshAfterWorkflow(project, sentToken); }
     },
     async refreshAfterWorkflow(project, sentToken) {
@@ -639,11 +800,21 @@ createApp({
       if (sentToken !== this.token || !this.projectDetails[project.id]) return;
       try { await this.loadProjectDetail(project, {force: true}); } catch (_) { /* The panel retains its last confirmed snapshot. */ }
     },
+    workflowText(value) { return typeof value === 'string' ? value.replaceAll('重跑', '重新生成') : value; },
     recoveryFor(project) {
       const detail = this.projectDetails[project.id];
       if (detail?.project?.status !== project.status || !detail.recovery) return null;
       const upload = this.taskUploadIssues[project.id];
-      return upload ? {...detail.recovery, issues: [upload, ...(detail.recovery.issues || [])]} : detail.recovery;
+      const recovery = detail.recovery;
+      const issues = upload ? [upload, ...(recovery.issues || [])] : recovery.issues;
+      return {...recovery,
+        run_notice: this.workflowText(recovery.run_notice),
+        retention_notice: this.workflowText(recovery.retention_notice),
+        ...(issues ? {issues: issues.map(issue => ({...issue,
+          title: this.workflowText(issue.title), stage: this.workflowText(issue.stage),
+          reason: this.workflowText(issue.reason), advice: this.workflowText(issue.advice),
+          ...(issue.actions ? {actions:issue.actions.map(action => ({...action,
+            label:this.workflowText(action.label), description:this.workflowText(action.description)}))} : {})}))} : {})};
     },
     async runRecoveryAction(project, action) {
       if (this.recoveryBusy[project.id] || this.startingProjects[project.id]) return;
@@ -653,8 +824,8 @@ createApp({
         if (action.kind === 'run') {
           if (this.recoveryFor(project)?.running) return;
           try {
-            await ElementPlus.ElMessageBox.confirm(action.description || this.recoveryFor(project)?.run_notice,
-              `确认${action.label || '继续任务'}`, {type: 'warning', confirmButtonText: action.label || '继续任务', cancelButtonText: '取消'});
+            await ElementPlus.ElMessageBox.confirm(this.workflowText(action.description || this.recoveryFor(project)?.run_notice),
+              `确认${this.workflowText(action.label) || '继续任务'}`, {type: 'warning', confirmButtonText: this.workflowText(action.label) || '继续任务', cancelButtonText: '取消'});
           } catch (_) { return; }
           if (sentToken === this.token) await this.rerunProject(project);
         } else if (action.kind === 'history') {
@@ -721,7 +892,7 @@ createApp({
       }, {readOnly:true, silent:true});
     },
     async refreshVisibleTaskProgress() {
-      if (!this.token || !this.currentUser || this.currentUser.must_change_password || !['tasks', 'review'].includes(this.activeView) || this.taskRefreshBusy) return;
+      if (!this.token || !this.currentUser || this.currentUser.must_change_password || !['tasks', 'deliverables', 'review'].includes(this.activeView) || this.taskRefreshBusy) return;
       const sentToken = this.token;
       const activeProjects = this.projects.filter(project => this.projectIsRunning(project));
       this.taskRefreshBusy = true;
@@ -772,7 +943,7 @@ createApp({
       this.traceByProject[projectId] = list.slice(first);
     },
     async loadProjectArtifacts(project) {
-      const r = await this.authFetch(`/research/projects/${project.id}/artifacts?include_content=false`); const data = await r.json().catch(() => []);
+      const r = await this.authFetch(`/research/projects/${project.id}/artifacts?include_content=false&latest_only=true&page_size=50`); const data = await r.json().catch(() => []);
       if (r.ok) this.artifactsByProject[project.id] = data;
     },
     intakeFor(project) { return this.projectDetails[project.id]?.intake || {}; },
@@ -932,8 +1103,10 @@ createApp({
       try {
         const data = await this.runAction(`review:${project.id}`, '正在准备复核资料',
           () => this.readJSON(`/research/projects/${project.id}/run-intake`, '加载复核参数失败'), {readOnly: true});
-        if (sentToken === this.token && selection === this.reviewSelectionSeq && this.reviewProjectId === project.id)
+        if (sentToken === this.token && selection === this.reviewSelectionSeq && this.reviewProjectId === project.id) {
           this.reviewIntakes[project.id] = data.intake || {};
+          this.reviewedReports[project.id] = data.reviewed_report_id || null;
+        }
       } catch (_) { /* The expanded panel contains the failure and retry action. */ }
     },
     async uploadReviewArtifact(type) {
@@ -949,8 +1122,9 @@ createApp({
           const formData = new FormData();
           formData.append('artifact_type', type);
           formData.append('file', file);
-          await this.postTaskUpload(projectId, `/research/projects/${projectId}/artifacts/replace`, formData);
+          const artifact = await this.postTaskUpload(projectId, `/research/projects/${projectId}/artifacts/replace`, formData);
           if (sentToken !== this.token) return;
+          if (type === 'desktop_report') this.reviewedReports[projectId] = artifact.id;
         }
         delete this.detailLoadedAt[projectId];
         ElementPlus.ElMessage.success('人工修订产物已覆盖为最新版本');
@@ -982,6 +1156,16 @@ createApp({
       });
       } catch (e) { ElementPlus.ElMessage.error(this.taskUploadIssues[projectId]?.title || e.message); }
     },
+    async saveReviewNotes() {
+      const id = this.reviewProjectId, token = this.token;
+      if (!id || this.reviewInputsLocked) return;
+      try { await this.runAction(`review-notes:${id}`, '正在保存复核意见', async () => {
+        const r = await this.authFetch(`/research/projects/${id}/proposal-review`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({proposal_review_notes:this.reviewIntakes[id]?.proposal_review_notes || ''})});
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.detail || '复核意见保存失败');
+        if (token === this.token) ElementPlus.ElMessage.success('复核意见已保存');
+      }); } catch (e) { if (token === this.token) ElementPlus.ElMessage.error(e.message); }
+    },
     async runSecondStage() {
       if (this.secondStageRunning || this.reviewWriteBusy || this.actionPending(`review:${this.reviewProjectId}`)) return;
       const sentToken = this.token;
@@ -993,37 +1177,25 @@ createApp({
       this.secondStageProjectId = project.id;
       this.traceByProject[project.id] = this.traceByProject[project.id] || [];
       let pollInterval = null;
-      try { await this.runAction(`second-stage:${project.id}`, '正在提交二阶段生成请求：' + (project.title || project.id), async phase => {
+      try { await this.runAction(`second-stage:${project.id}`, '正在提交正式方案生成请求：' + (project.title || project.id), async phase => {
         const intake = this.reviewIntakes[project.id] || this.projectDetails[project.id]?.intake || {};
-        const payload = {
-          ...this.industryRunFields(project.target_type, intake),
-          search_queries: [], focus_questions: [...(intake.focus_questions || []), '基于人工复核报告、专家访谈、走访纪要和一手资料更新核心事实、风险和建议'],
-          target_type: project.target_type, client_name: '', deadline: intake.deadline || '',
-          company_name: project.target_name || '', official_identifier: intake.official_identifier || '', region: intake.region || '',
-          affiliation: project.target_type === 'person' ? (intake.affiliation || '') : '',
-        person_context: intake.person_context || '', person_aliases: intake.person_aliases || [],
-        identity_anchors: intake.identity_anchors || '', uploaded_identity_clues: intake.uploaded_identity_clues || [],
-        ...(project.target_type === 'person' ? { as_of_date: intake.as_of_date || '' } : {}),
-          focus_entities: project.target_type === 'industry' ? (intake.focus_entities || '') : '',
-          research_type: intake.research_type || '二阶段复核', focus_modules: intake.focus_modules || this.form.modules,
-          ai_search_enabled: false, special_requirements: [intake.special_requirements, '二阶段：优先利用人工复核产物和一手资料，重写桌面研究报告与建议书。'].filter(Boolean).join('\n'), generate_proposal: true
-        };
+        const payload = {proposal_review_notes: intake.proposal_review_notes || ''};
         const r = await this.authFetch(`/research/projects/${project.id}/second-stage/run/stream`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || '二阶段生成启动失败'); }
-        phase('二阶段正在处理：' + (project.title || project.id) + '，可在任务管理查看进度');
-        ElementPlus.ElMessage.success('二阶段请求已接收，正在处理；进度会持续更新');
+        if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || '正式方案生成启动失败'); }
+        phase('正式方案正在生成：' + (project.title || project.id) + '，可在尽调任务查看进度');
+        ElementPlus.ElMessage.success('正式方案生成请求已接收，正在处理；进度会持续更新');
         pollInterval = setInterval(() => { if (sentToken === this.token) this.refreshProjectProgress(project).catch(() => null); }, 5000);
         const outcome = await this.readWorkflowEvents(r, sentToken, event => {
-            if (event.type === 'trace_step') { this.mergeTraceEvent(project.id, event); phase(event.label || '二阶段正在处理'); }
+            if (event.type === 'trace_step') { this.mergeTraceEvent(project.id, event); phase(event.label || '正式方案正在生成'); }
             if (event.type === 'result') { this.replaceProject(event.project); this.artifactsByProject[project.id] = event.artifacts || []; }
             if (event.type === 'paused') { project.status = 'paused'; ElementPlus.ElMessage.info(event.content || '任务已暂停'); }
-            if (event.type === 'error') throw new Error(event.content || '二阶段生成失败');
+            if (event.type === 'error') throw new Error(event.content || '正式方案生成失败');
         });
         if (sentToken !== this.token) return;
         if (outcome === 'paused') return;
-        if (outcome !== 'result') throw new Error('连接已结束，但尚未确认生成完成。请在任务管理核对状态，不要重复启动。');
+        if (outcome !== 'result') throw new Error('连接已结束，但尚未确认生成完成。请在尽调任务核对状态，不要重复启动。');
         delete this.detailLoadedAt[project.id];
-        ElementPlus.ElMessage.success('二阶段报告和建议书已生成');
+        ElementPlus.ElMessage.success('正式方案已生成');
         this.refreshAfterWorkflow(project, sentToken).catch(() => null);
       });
       } catch (e) {
@@ -1132,7 +1304,7 @@ createApp({
       }
       const result = await response.json();
       Object.assign(artifact, result);
-      ElementPlus.ElMessage.success('已单独启动事实索引，报告不会重跑');
+      ElementPlus.ElMessage.success('已单独启动事实索引，报告不会重新生成');
       }); } catch (error) { ElementPlus.ElMessage.error(error.message); }
     },
     async downloadArtifact(artifact) {
@@ -1405,7 +1577,7 @@ createApp({
       try {
         const controller = new AbortController(); this.assistantController = controller;
         timeout = setTimeout(() => controller.abort(), 135000);
-        const r = await this.authFetch('/research/assistant/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ message: text, ...(images.length ? {images: images.map(image => image.url)} : {}), current_page: this.activeView, session_id: sessionId, request_id: globalThis.crypto?.randomUUID?.() }) });
+        const r = await this.authFetch('/research/assistant/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ message: text, ...(images.length ? {images: images.map(image => image.url)} : {}), current_page: this.taskCreateOpen || this.activeView === 'intake' ? 'submit' : this.activeView === 'deliverables' ? 'tasks' : this.activeView, session_id: sessionId, request_id: globalThis.crypto?.randomUUID?.() }) });
         if (epoch !== this.assistantEpoch) return;
         if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(Array.isArray(data.detail) ? data.detail.map(item => item.msg).join('；') : data.detail || '助手请求失败'); }
         const reader = r.body.getReader(), decoder = new TextDecoder(); let buffer = '';
@@ -1421,7 +1593,7 @@ createApp({
             if (event.type === 'sources') bot.sources = (Array.isArray(event.sources) ? event.sources : []).filter(source => this.isExternalUrl(source.url)).slice(0, 10);
             if (event.type === 'memory') { saved = !!event.saved; userMessage.id = event.user_message_id; bot.id = event.assistant_message_id; const session = this.assistantSessions.find(item => item.id === sessionId); if (session && event.session_title) session.title = event.session_title; this.assistantMemoryStatus = event.status === 'deferred' ? '已保存 · 摘要暂未完成，当前仅参考部分历史，后续重试' : (event.summarized ? '已保存到账号 · 较早对话已整理为摘要' : '已保存到账号'); }
             if (event.type === 'navigation') this.assistantNavigation = (event.items || []).filter(item =>
-              ['home','submit','tasks','review','sources','company-knowledge'].includes(item.view) || (item.view === 'accounts' && this.currentUser?.role === 'admin'));
+              ['home','submit','tasks','intake','deliverables','review','sources','company-knowledge'].includes(item.view) || (item.view === 'accounts' && this.currentUser?.role === 'admin'));
             if (event.type === 'content') { if (bot._status) { bot.text = ''; bot._status = false; } bot.text += event.content; }
             if (event.type === 'error') { if (bot._status) { bot.text = ''; bot._status = false; } bot.text += `\n[Error: ${event.content}]`; }
             this.scrollAssistant();

@@ -97,10 +97,43 @@ def bounded_vectors(texts, embed, namespace, timeout):
     return future.result(timeout=max(0.01, timeout))
 
 
+def dense_memory_policy():
+    """Avoid starting a multi-GB model that a timeout cannot unload."""
+    from pathlib import Path
+    flag = os.getenv('INDUSTRY_CLEANING_DENSE_ENABLED', 'auto').lower()
+    if flag in {'0', 'false', 'no', 'off'}:
+        return False, 'dense_disabled_by_configuration'
+    try:
+        relative = next(line.split(':', 2)[2] for line in Path('/proc/self/cgroup').read_text().splitlines()
+                        if line.startswith('0::'))
+        folder = Path('/sys/fs/cgroup') / relative.lstrip('/')
+        limits = []
+        for parent in (folder, *folder.parents):
+            if parent == Path('/sys'):
+                break
+            maximum = parent / 'memory.max'
+            current = parent / 'memory.current'
+            if maximum.is_file() and current.is_file():
+                raw = maximum.read_text().strip()
+                if raw != 'max':
+                    limits.append((int(raw), int(current.read_text().strip())))
+        # Auto is deliberately conservative for the cached BGE-M3 backend.
+        minimum = max(512, int(os.getenv('INDUSTRY_CLEANING_DENSE_MIN_LIMIT_MB', '6144'))) * 1024**2
+        reserve = max(256, int(os.getenv('INDUSTRY_CLEANING_DENSE_MIN_HEADROOM_MB', '3072'))) * 1024**2
+        if any(limit < minimum or limit-used < reserve for limit, used in limits):
+            return False, 'dense_disabled_memory_budget'
+    except (OSError, ValueError, StopIteration):
+        # The fallback retains all rule facts and original source bodies.
+        return False, 'dense_memory_budget_unavailable'
+    return True, 'dense_memory_budget_available'
+
+
 class CleaningRetriever:
     def __init__(self, embed=None, *, dense=True, budget_seconds=30, source_seconds=8, namespace=None):
         self.embed = embed or local_vectors
-        self.dense = dense
+        enabled, memory_status = dense_memory_policy() if dense and embed is None else (dense, 'injected_or_disabled')
+        self.dense = bool(dense and enabled)
+        self.memory_status = memory_status
         self.deadline = time.monotonic()+budget_seconds
         self.source_seconds = source_seconds
         self.namespace = namespace or os.getenv('EMBEDDING_MODEL', 'BAAI/bge-m3')
@@ -216,6 +249,6 @@ class CleaningRetriever:
 
     def diagnostic(self):
         return {'version': VERSION, 'sources': self.audit, 'circuit_open': self.circuit,
-                'initialization': self.initialization,
+                'initialization': self.initialization, 'memory_policy': self.memory_status,
                 'dense_sources': sum(r['dense_applied'] for r in self.audit),
                 'original_sources_preserved': True, 'writes_approved_fact_index': False}

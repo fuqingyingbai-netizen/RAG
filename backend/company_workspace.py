@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
+from model_provider_options import official_deepseek
 import company_knowledge as kb
 from company_catalog import (AUDIO_FORMATS, VIDEO_FORMATS, CONFIDENTIALITY_LABELS, CompanyAccessRequest,
                              CompanyDocument, CompanyProject, can_manage, can_read, document_store, backfill_company_projects,
@@ -879,7 +880,7 @@ async def grounded_answer(cfg, question):
         received, ended = False, False
         async with client.stream('POST', answer_url,
             headers=answer_headers, json={'model': model, 'messages': messages, 'stream': True,
-                'enable_thinking': False, 'stream_options': {'include_usage': True}}) as response:
+                **({'thinking':{'type':'disabled'}} if official_deepseek(model, model_base) else {'enable_thinking':False}), 'stream_options': {'include_usage': True}}) as response:
             if response.status_code != 200:
                 raise kb.provider_error(response.status_code, provider=answer_provider)
             usage = {}

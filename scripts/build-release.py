@@ -58,6 +58,9 @@ def allowed(name):
         return False
     if name in TOP_FILES | SCRIPT_FILES | DOC_FILES:
         return True
+    if (len(path.parts) == 4 and path.parts[:2] == ('frontend', 'vendor')
+            and path.parts[-1] == 'LICENSE'):
+        return True
     return len(path.parts) > 1 and path.suffix.lower() in SUFFIXES.get(path.parts[0], set())
 
 

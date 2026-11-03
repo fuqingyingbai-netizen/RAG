@@ -15,6 +15,10 @@ class ResearchProjectCreate(BaseModel):
 
     @model_validator(mode="after")
     def valid_industry_intake(self):
+        for key in ('client_requirements', 'proposal_review_notes'):
+            value = self.metadata.get(key, '')
+            if not isinstance(value, str) or len(value) > 12000:
+                raise ValueError(f'{key} must be text of at most 12000 characters')
         if self.target_type in {"industry", "sector", "行业", "赛道"}:
             ResearchRunRequest.model_validate(self.metadata)
         return self
@@ -30,6 +34,7 @@ class ResearchProjectResponse(BaseModel):
     status: str
     is_running: bool = False
     state_label: str = ""
+    workflow_stage: str = ""
     created_at: str
     updated_at: str
 
@@ -94,6 +99,8 @@ class ResearchRunRequest(BaseModel):
     focus_modules: list[str] = Field(default_factory=list)
     ai_search_enabled: bool = True
     special_requirements: str = ""
+    client_requirements: str = Field(default="", max_length=12000)
+    proposal_review_notes: str = Field(default="", max_length=12000)
     # Optional, plain-language industry research inputs.  They deliberately do
     # not require users to understand research taxonomy; the workflow converts
     # them into a bounded ``industry_scope`` with explicit assumptions.
@@ -132,6 +139,14 @@ class ResearchRunRequest(BaseModel):
         if cutoff and (not isinstance(cutoff, str) or date.fromisoformat(cutoff).isoformat() != cutoff):
             raise ValueError("保存范围中的数据截止日必须为 YYYY-MM-DD")
         return value
+
+
+class ClientRequirementsUpdate(BaseModel):
+    client_requirements: str = Field(default="", max_length=12000)
+
+
+class ProposalReviewUpdate(BaseModel):
+    proposal_review_notes: str = Field(default="", max_length=12000)
 
 
 class ResearchRunResponse(BaseModel):

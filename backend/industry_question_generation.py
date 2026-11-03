@@ -386,7 +386,8 @@ def generate_questions(package, chapter, title, invoke, emit, trace_emit, *, clo
         if row['status'] != 'skipped':
             row['elapsed_ms'] = max(0, int((clock()-started)*1000)) - sum(r.get('elapsed_ms',0) for r in requests[:-1])
         emit(trace_emit, 'report', 'industry_report_agent', '本组局部判断处理完成',
-             f'chapter={chapter}; request={number}; retained={row.get("retained",0)}',
+             f'chapter={chapter}; request={number}; retained={row.get("retained",0)}; '
+             f'rejected={row.get("rejected",0)}; execution={row["status"]}; code={row.get("code","")}',
              status='done' if row['status']=='completed' else 'warning')
     for decision in diagnostic['questions']:
         decision.update(states.get(decision['question_id'], {}))

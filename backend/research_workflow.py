@@ -23,8 +23,8 @@ from types import SimpleNamespace
 
 import requests
 from dotenv import load_dotenv
-from langchain.chat_models import init_chat_model
-from sqlalchemy.orm import Session, object_session
+from model_provider_options import init_chat_model, request_body_options
+from sqlalchemy.orm import Session, object_session, defer
 
 try:
     from .person_retrieval import SearchSession as PersonSearchSession, coverage as person_retrieval_coverage, VERSION as PERSON_RETRIEVAL_VERSION
@@ -75,7 +75,7 @@ FIXED_AI_SEARCH_ENABLED = True
 FIXED_GENERATE_PROPOSAL = True
 PERSON_IDENTITY_POLICY_VERSION = "person-identity-v4-context"
 INDUSTRY_CLEANING_VERSION = "industry-evidence-v24-performance-boundaries"
-INDUSTRY_REPORT_VERSION = "industry-report-evidence-v56-editorial-protocol-and-active-budget"
+INDUSTRY_REPORT_VERSION = "industry-report-evidence-v61-bounded-recovery"
 COMPANY_REPORT_VERSION = 'company-report-evidence-v148-canonical-focus-witnesses'
 
 
@@ -833,7 +833,7 @@ class ResearchWorkflow:
                     emit,
                     "vision",
                     role,
-                    "正在调用 Qwen-VL 视觉模型",
+                    "正在调用视觉模型",
                     f"images={len(selected_urls)}, attempt={attempt + 1}/{max_retries + 1}, timeout={timeout_seconds}s",
                     status="running",
                 )
@@ -844,6 +844,7 @@ class ResearchWorkflow:
                         "model": model_name,
                         "messages": [{"role": "user", "content": content}],
                         "temperature": 0.1,
+                        **request_body_options(model_name, base_url),
                     },
                     timeout=(10, timeout_seconds),
                 )
@@ -870,6 +871,8 @@ class ResearchWorkflow:
             from .industry_runs import RunJournal, OUTPUTS
         except ImportError:
             from industry_runs import RunJournal, OUTPUTS
+        project.industry_pause_requested = pause_requested
+        project.industry_checkpoint_store = research_store
         previous = self._latest_artifact(project, 'industry_run')
         session = object_session(project)
         existing_ids = ([row[0] for row in session.query(ResearchArtifact.id).filter(ResearchArtifact.project_id == project.id).all()]
@@ -957,6 +960,8 @@ class ResearchWorkflow:
         project.updated_at = datetime.utcnow()
         db.commit()
 
+        from proposal_branch import load_context
+        load_context(db, project, intake)
         normalized_intake = self._normalize_intake(project, intake or {}, search_queries, focus_questions)
         standardized_type = normalized_intake["target_type"]
         if standardized_type == "person":
@@ -1031,7 +1036,9 @@ class ResearchWorkflow:
             and existing_report is not None
             and (existing_report.artifact_metadata or {}).get("report_pipeline_version") == report_pipeline_version
             and not (existing_report.artifact_metadata or {}).get("quality_warning")
-            and (not generate_proposal or existing_proposal is not None)
+            and (not generate_proposal or (existing_proposal is not None and
+                (existing_proposal.artifact_metadata or {}).get('proposal_input_fingerprint') ==
+                __import__('proposal_branch').dependencies(project, existing_report, existing_risk_for_reuse)['proposal_input_fingerprint']))
             and (
                 not generate_proposal
                 or not (existing_proposal.artifact_metadata or {}).get("quality_warning")
@@ -1060,7 +1067,8 @@ class ResearchWorkflow:
                     "proposal",
                     _project_doc_title(project, "项目建议书"),
                     existing_proposal.content,
-                    {"agent": "proposal_writer", "reused_from_artifact_id": existing_proposal.id},
+                    {**(existing_proposal.artifact_metadata or {}), "agent": "proposal_writer", "reused_from_artifact_id": existing_proposal.id,
+                     **__import__("proposal_branch").dependencies(project, report_artifact, existing_risk_for_reuse)},
                 )
                 artifacts.append(proposal_artifact)
             project.status = "completed"
@@ -1347,6 +1355,8 @@ class ResearchWorkflow:
             _emit(emit, "cleaning", "data_cleaning_agent", "开始清洗事实", "", status="running")
             try:
                 cleaned = self.clean_sources(project, emit=emit, plan=plan, quality=quality)
+            except WorkflowPaused:
+                raise
             except Exception as exc:
                 db.rollback()
                 if standardized_type == "person" and "人物报告事实质量闸门未通过" in str(exc):
@@ -1497,7 +1507,15 @@ class ResearchWorkflow:
             if standardized_type == 'industry':
                 project.industry_report_degradations = []
             try:
-                report = self.generate_report(project, cleaned, risk, emit=emit, intake=normalized_intake)
+                if standardized_type == 'industry':
+                    from industry_chapter_research import run_chapter_research
+                    report, cleaned, risk, cleaned_artifact, risk_artifact = run_chapter_research(
+                        self, db, project, cleaned, risk, cleaned_artifact, risk_artifact,
+                        plan, normalized_intake, emit, pause_requested, checkpoint)
+                else:
+                    report = self.generate_report(project, cleaned, risk, emit=emit, intake=normalized_intake)
+            except WorkflowPaused:
+                raise
             except Exception as exc:
                 db.rollback()
                 if os.getenv("REPORT_TEMPLATE_FALLBACK_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}:
@@ -1510,9 +1528,10 @@ class ResearchWorkflow:
                     _emit(emit, "report", "desktop_report_agent", "报告生成失败", str(exc), status="error")
                     raise
             if standardized_type == 'industry':
-                report, cleaned, risk, cleaned_artifact, risk_artifact = self._recover_industry_conclusions(
-                    db, project, report, cleaned, risk, cleaned_artifact, risk_artifact,
-                    plan, normalized_intake, emit, pause_requested, checkpoint)
+                if not getattr(project, 'industry_chapter_research_done', False):
+                    report, cleaned, risk, cleaned_artifact, risk_artifact = self._recover_industry_conclusions(
+                        db, project, report, cleaned, risk, cleaned_artifact, risk_artifact,
+                        plan, normalized_intake, emit, pause_requested, checkpoint)
                 industry_report_inputs = {'cleaned_artifact_id': cleaned_artifact.id,
                     'cleaned_sha256': hashlib.sha256(cleaned.encode()).hexdigest(),
                     'risk_artifact_id': risk_artifact.id, 'risk_sha256': hashlib.sha256(risk.encode()).hexdigest()}
@@ -1770,66 +1789,110 @@ class ResearchWorkflow:
         if quality_diagnostic_artifact is not None:
             artifacts.append(quality_diagnostic_artifact)
         if generate_proposal:
-            project.status = "proposal_generating"
-            db.commit()
-            existing_proposal = self._latest_artifact(project, "proposal")
-            if resume_enabled and use_existing_report and existing_proposal is not None and standardized_type != 'industry':
-                proposal_artifact = self.save_artifact(
-                    db,
-                    project,
-                    "proposal",
-                    _project_doc_title(project, "项目建议书"),
-                    existing_proposal.content,
-                    {"agent": "proposal_writer", "reexported_from_artifact_id": existing_proposal.id},
-                )
-                _emit(emit, "proposal", "proposal_agent", "阶段级续跑：复用项目建议书并重新导出 Word", f"from_artifact_id={existing_proposal.id}, new_artifact_id={proposal_artifact.id}", artifact_id=proposal_artifact.id, status="done")
-            else:
-                _emit(emit, "proposal", "proposal_agent", "开始生成项目建议书", "", status="running")
-                try:
-                    proposal = self.generate_proposal(project, report, risk, emit=emit)
-                except Exception as exc:
-                    db.rollback()
-                    _emit(emit, "proposal", "proposal_agent", "建议书生成失败，使用模板降级生成", str(exc), status="fallback")
-                    proposal = self._fallback_proposal(project, report)
-                proposal = self._normalize_proposal_placeholders(proposal)
-                proposal_quality_warning = self._proposal_quality_warning(proposal, target_type=standardized_type, project=project)
-                proposal_initial_quality_warning = proposal_quality_warning
-                if proposal_quality_warning:
-                    _emit(
-                        emit,
-                        "proposal",
-                        "proposal_agent",
-                        "建议书质量校验未通过，使用完整模板补齐",
-                        proposal_quality_warning,
-                        status="fallback",
-                    )
-                    proposal = self._fallback_proposal(project, report)
-                    if standardized_type == 'industry':
-                        # Diagnose the rebuilt body, not the discarded candidate.
-                        proposal = self._normalize_proposal_placeholders(proposal)
-                        proposal_quality_warning = self._proposal_quality_warning(proposal, target_type=standardized_type, project=project)
-                proposal_metadata = {"agent": "proposal_writer"}
-                if proposal_quality_warning:
-                    proposal_metadata["quality_warning"] = proposal_quality_warning
-                if standardized_type == 'industry' and proposal_initial_quality_warning:
-                    proposal_metadata["proposal_initial_quality_warning"] = proposal_initial_quality_warning
-                proposal_artifact = self.save_artifact(
-                    db,
-                    project,
-                    "proposal",
-                    _project_doc_title(project, "背景调查建议书"),
-                    proposal,
-                    proposal_metadata,
-                )
-                _emit(emit, "proposal", "proposal_agent", "项目建议书已生成", "", status="done")
-            artifacts.append(proposal_artifact)
-
+            # Report artifacts are saved/exported before the proposal-only branch begins.
+            artifacts.append(self._save_proposal_branch(db, project, report_artifact, risk_artifact,
+                emit=emit, reuse=resume_enabled))
         project.status = "completed"
         project.updated_at = datetime.utcnow()
         db.commit()
         self._finalize_source_records(db, project, emit)
         _emit(emit, "done", "workflow", "工作流完成", "", status="done")
         return artifacts, sources_added
+
+    def _save_proposal_branch(self, db, project, report_artifact, risk_artifact, emit=None, *, reuse=True):
+        """The report has already been committed; proposal errors cannot roll it back."""
+        from proposal_branch import dependencies
+        standardized_type = str(project.target_type or '').lower()
+        report = report_artifact.content
+        risk = risk_artifact.content if risk_artifact is not None else '{}'
+        dependency = dependencies(project, report_artifact, risk_artifact)
+        business_stage = dependency['business_stage']
+        project.status = 'proposal_generating'
+        project.updated_at = datetime.utcnow()
+        db.commit()
+        existing = self._latest_artifact(project, 'proposal')
+        if (reuse and existing is not None
+                and (existing.artifact_metadata or {}).get('proposal_input_fingerprint') == dependency['proposal_input_fingerprint']
+                and not (existing.artifact_metadata or {}).get('quality_warning')):
+            _emit(emit, 'proposal', 'proposal_agent', '报告和客户需求未变，复用建议书',
+                  f'from_artifact_id={existing.id}', status='skipped')
+            return self.save_artifact(db, project, 'proposal', existing.title, existing.content,
+                {**(existing.artifact_metadata or {}), **dependency, 'reused_from_artifact_id': existing.id})
+        _emit(emit, "proposal", "proposal_agent", "开始生成项目建议书", "", status="running")
+        try:
+            proposal = self.generate_proposal(project, report, risk, emit=emit)
+        except Exception as exc:
+            db.rollback()
+            _emit(emit, "proposal", "proposal_agent", "建议书生成失败，使用模板降级生成", str(exc), status="fallback")
+            proposal = self._fallback_proposal(project, report)
+        proposal = self._normalize_proposal_placeholders(proposal)
+        proposal_quality_warning = self._proposal_quality_warning(proposal, target_type=standardized_type, project=project)
+        proposal_initial_quality_warning = proposal_quality_warning
+        if proposal_quality_warning:
+            _emit(
+                emit,
+                "proposal",
+                "proposal_agent",
+                "建议书质量校验未通过，使用完整模板补齐",
+                proposal_quality_warning,
+                status="fallback",
+            )
+            proposal = self._fallback_proposal(project, report)
+            if standardized_type == 'industry':
+                # Diagnose the rebuilt body, not the discarded candidate.
+                proposal = self._normalize_proposal_placeholders(proposal)
+                proposal_quality_warning = self._proposal_quality_warning(proposal, target_type=standardized_type, project=project)
+        from proposal_branch import incorporate_requirements, draft_response
+        project.proposal_client_responses = draft_response(self, project, report, emit=emit)
+        proposal = incorporate_requirements(project, proposal)
+        if business_stage == "formal_plan":
+            proposal = re.sub(r"^# [^\n]*", "# " + project.title + "：正式方案（待确认稿）", proposal, count=1)
+        proposal_metadata = {"agent": "proposal_writer", **dependency}
+
+        if proposal_quality_warning:
+            proposal_metadata["quality_warning"] = proposal_quality_warning
+        if standardized_type == 'industry' and proposal_initial_quality_warning:
+            proposal_metadata["proposal_initial_quality_warning"] = proposal_initial_quality_warning
+        proposal_artifact = self.save_artifact(
+            db,
+            project,
+            "proposal",
+            _project_doc_title(project, "正式方案" if business_stage == "formal_plan" else "项目建议书"),
+            proposal,
+            proposal_metadata,
+        )
+        _emit(emit, "proposal", "proposal_agent", "项目建议书已生成", "", status="done")
+        return proposal_artifact
+
+    def run_formal_proposal(self, db, project, intake=None, emit=None):
+        return self.run_saved_proposal(db, project, intake=intake, emit=emit, formal_plan=True)
+
+    def run_saved_proposal(self, db, project, intake=None, emit=None, *, formal_plan=False):
+        """Step 3 consumes a human-reviewed report without rerunning desktop research."""
+        from proposal_branch import load_context
+        report_artifact = self._latest_artifact(project, 'desktop_report')
+        if report_artifact is None or not report_artifact.content.strip():
+            raise ValueError('请先生成桌面研究报告，再生成建议书')
+        if (formal_plan and report_artifact.created_by != 'human_review'
+                    and (report_artifact.artifact_metadata or {}).get('stage') != 'human_review'):
+            raise ValueError('请先上传并保存人工复核后的桌面研究报告，再生成正式方案')
+        load_context(db, project, intake, stage='formal_plan' if formal_plan else 'initial_proposal')
+        if project.target_type == 'industry':
+            saved = self._normalize_intake(project, intake or {}, [], [])
+            project.industry_scope = saved.get('industry_scope') or {}
+            project.industry_report_dependency = {'report_artifact_id': report_artifact.id,
+                'report_version': report_artifact.version, 'report_sha256': hashlib.sha256(report_artifact.content.encode()).hexdigest(),
+                'report_created_at': str(report_artifact.created_at)}
+        _emit(emit, 'init', 'workflow', '开始生成正式方案' if formal_plan else '依据已有报告更新建议书', '', status='running')
+        _emit(emit, 'report', 'human_review' if formal_plan else 'desktop_report_agent', '采用人工复核报告' if formal_plan else '采用已保存的桌面报告',
+              f'report_artifact_id={report_artifact.id}', artifact_id=report_artifact.id, status='done')
+        risk_artifact = self._latest_artifact(project, 'risk_assessment')
+        artifact = self._save_proposal_branch(db, project, report_artifact, risk_artifact, emit=emit)
+        project.status = 'completed'
+        project.updated_at = datetime.utcnow()
+        db.commit()
+        _emit(emit, 'done', 'workflow', '正式方案已生成，请确认交付范围及商务条款' if formal_plan else '项目建议书已更新', '', status='done')
+        return [report_artifact, artifact], 0
 
     def _recover_industry_conclusions(self, db, project, report, cleaned, risk, cleaned_artifact,
                                      risk_artifact, plan, intake, emit, pause_requested, checkpoint):
@@ -1850,8 +1913,11 @@ class ResearchWorkflow:
         run_id = getattr(project, 'industry_run_id', None)
         if not run_id or getattr(project, 'industry_recovery_spent', False):
             return current
-        prior = [a for a in project.artifacts if a.artifact_type == 'industry_conclusion_recovery'
-                 and (a.artifact_metadata or {}).get('run_id') == run_id]
+        prior = (db.query(ResearchArtifact)
+                 .filter(ResearchArtifact.project_id == project.id,
+                         ResearchArtifact.artifact_type == 'industry_conclusion_recovery',
+                         ResearchArtifact.artifact_metadata['run_id'].as_string() == run_id)
+                 .order_by(ResearchArtifact.id.desc()).limit(1).all())
         if prior:
             # In-process workers cannot safely resume an interrupted paid call.
             # Keep its full history and conservatively stop automatic recovery.
@@ -1923,7 +1989,7 @@ class ResearchWorkflow:
                     break
             if record['status']=='started':
                 record['status']='completed_with_gaps' if record.get('remaining_tasks') else 'completed'
-            if any(p.get('generation') for p in record['passes']):
+            if any(p.get('generation') for p in record['passes']) and not getattr(project, 'industry_chapter_phase', False):
                 # Synthesize once after local recovery; no empty-pass rerolls.
                 before_final = snapshot(project)
                 try:
@@ -2018,6 +2084,7 @@ class ResearchWorkflow:
                 proxy = SimpleNamespace(**{k:getattr(project,k,None) for k in (
                     'id','title','target_name','target_type','industry','description','industry_scope',
                     'industry_scope_fingerprint','industry_run_id')}, sources=new_sources)
+                proxy.industry_pause_requested = pause_requested
                 try:
                     addition = self.clean_sources(proxy, emit=emit, plan=plan,
                         quality=self.evaluate_source_quality(proxy, plan), incremental_max_batches=2)
@@ -2107,8 +2174,11 @@ class ResearchWorkflow:
     def _latest_artifact(self, project: ResearchProject, artifact_type: str) -> ResearchArtifact | None:
         session = object_session(project)
         if session is not None:
+            query = session.query(ResearchArtifact)
+            if project.target_type == 'industry':
+                query = query.options(defer(ResearchArtifact.content))
             return (
-                session.query(ResearchArtifact)
+                query
                 .filter(ResearchArtifact.project_id == project.id, ResearchArtifact.artifact_type == artifact_type)
                 .order_by(ResearchArtifact.version.desc(), ResearchArtifact.created_at.desc())
                 .first()
@@ -2122,7 +2192,7 @@ class ResearchWorkflow:
         session = object_session(project)
         if session is not None:
             artifacts = (
-                session.query(ResearchArtifact)
+                session.query(ResearchArtifact).options(*([defer(ResearchArtifact.content)] if project.target_type == 'industry' else []))
                 .filter(ResearchArtifact.project_id == project.id, ResearchArtifact.artifact_type == artifact_type)
                 .order_by(ResearchArtifact.version.desc(), ResearchArtifact.created_at.desc())
                 .all()
@@ -3551,11 +3621,13 @@ class ResearchWorkflow:
             (body_snapshots.get((fact.get('provenance') or {}).get('locator', {}).get('snapshot_key')) or {}).get('content', ''))
             for fact in payload['facts']]
         payload['fact_contract_version'] = FACT_CONTRACT_VERSION
-        from industry_reasoning import question_ledger, VERSION as REASONING_VERSION
+        from industry_reasoning import question_ledger, fingerprint, VERSION as REASONING_VERSION
         from industry_fact_contracts import CHAPTER_QUESTIONS
         payload['reasoning_version'] = REASONING_VERSION
+        input_fingerprint = fingerprint({'facts':payload['facts'],'scope':payload.get('industry_scope',{})})
         payload['research_questions'] = {str(index): question_ledger(payload, index,
-            [f['evidence_id'] for f in payload['facts']]) for index in CHAPTER_QUESTIONS}
+            [f['evidence_id'] for f in payload['facts']], input_fingerprint=input_fingerprint)
+            for index in CHAPTER_QUESTIONS}
         payload['fact_contract_summary'] = {
             'report_admitted': sum(f['fact_contract']['report_admitted'] for f in payload['facts']),
             'risk_admitted': sum(f['fact_contract']['risk_admitted'] for f in payload['facts']),
@@ -6353,6 +6425,8 @@ class ResearchWorkflow:
 
         def invoke_cleaning(batch_index: int, source_blocks: str, depth: int = 0) -> list[dict[str, Any]]:
             if industry_mode:
+                from industry_execution import check_pause
+                check_pause(project)
                 state = batch_states[batch_index]
                 with health_lock:
                     if health['circuit_open']:
@@ -6475,6 +6549,8 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                 if industry_mode:
                     batch_states[batch_index]['finished'] = time.monotonic()
 
+        from industry_execution import IndustryPauseSignal
+        cleaning_paused = False
         with ThreadPoolExecutor(max_workers=min(workers, len(batches))) as executor:
             futures = {
                 executor.submit(clean_one, idx, block): idx
@@ -6482,8 +6558,15 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
             }
             for future in as_completed(futures):
                 batch_index = futures[future]
+                if future.cancelled():
+                    continue
                 try:
                     _returned_index, parsed_rows = future.result()
+                except IndustryPauseSignal:
+                    cleaning_paused = True
+                    for pending in futures:
+                        pending.cancel()
+                    continue
                 except Exception as exc:
                     information_gaps.append(f"清洗批次 {batch_index} 失败：{type(exc).__name__}；已保留规则清洗事实，待人工复核。")
                     _emit(
@@ -6511,6 +6594,9 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                     information_gaps.extend(fallback.get("information_gaps", []))
                     _emit(emit, "cleaning", "data_cleaning_agent", "批次清洗失败，使用规则降级", f'batch={batch_index}', batch=batch_index, status="fallback")
 
+        if cleaning_paused:
+            _emit(emit, "cleaning", "workflow", "清洗调用已安全停止", "已停止后续批次及拆批重试；原始来源保留。", status="paused")
+            raise WorkflowPaused("任务已暂停，停止后续清洗请求")
         result = {"facts": all_facts, "discarded_patterns": discarded_patterns, "information_gaps": information_gaps}
         if industry_mode:
             for idx, state in sorted(batch_states.items()):
@@ -6548,7 +6634,10 @@ fact最长120字，不新增原文没有的数值或口径。企业个案保持r
                   json.dumps(package["diagnostic"], ensure_ascii=False),
                   risk_level=package["risk_level"], status="done")
             return json.dumps(package, ensure_ascii=False, indent=2)
-        risk_evidence = self._risk_evidence_payload(cleaned_json, target_type=target_type)
+        cleaned_payload = _plain_json(cleaned_json) if target_type == 'industry' else None
+        risk_evidence = (self._risk_evidence_payload(cleaned_json, target_type=target_type,
+            parsed_payload=cleaned_payload) if target_type == 'industry' else
+            self._risk_evidence_payload(cleaned_json, target_type=target_type))
         company_evidence_rule = ""
         evidence_id_field = ""
         if target_type == "company":
@@ -6600,7 +6689,6 @@ Do not infer controllable impact or low risk from absence of penalties. A single
             parsed = _plain_json(answer, allow_preface=False)
             # Support counts describe the exact bounded input even when the model abstains or returns invalid JSON.
             retained_ids = {f.get('evidence_id') for f in json.loads(risk_evidence).get('facts', [])}
-            cleaned_payload = _plain_json(cleaned_json)
             retained = [f for f in cleaned_payload.get('facts', []) if f.get('evidence_id') in retained_ids] if isinstance(cleaned_payload, dict) else []
             if isinstance(parsed, dict):
                 # Only facts actually sent within the model's budget can authorize scores.
@@ -6737,8 +6825,8 @@ Do not infer controllable impact or low risk from absence of penalties. A single
             from industry_risk import attach_risk_support
         return attach_risk_support(result, retained, scope)
 
-    def _risk_evidence_payload(self, cleaned_json: str, target_type: str = "") -> str:
-        parsed = _plain_json(cleaned_json)
+    def _risk_evidence_payload(self, cleaned_json: str, target_type: str = "", *, parsed_payload=None) -> str:
+        parsed = parsed_payload if target_type == "industry" and isinstance(parsed_payload,dict) else _plain_json(cleaned_json)
         if not isinstance(parsed, dict):
             return _clip(cleaned_json, 30000)
         rows = []
@@ -6987,6 +7075,8 @@ Do not infer controllable impact or low risk from absence of penalties. A single
 
         def report_invoke(role: str, prompt: str, trace_emit: TraceEmitter | None = None) -> str:
             if target_type == 'industry':
+                from industry_execution import check_pause
+                check_pause(project)
                 return self._invoke_industry_report(role, prompt, emit=trace_emit)
             if target_type == "company" and (role.endswith("摘要 Agent") or role.endswith("摘要修订 Agent")):
                 return self._invoke_company_summary(role, prompt, emit=trace_emit)
@@ -7027,6 +7117,7 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                     from person_content_acceptance import previous_analyses
                     writer_project.person_prior_analyses=previous_analyses(previous_report.content)
 
+        from industry_execution import IndustryPauseSignal
         def target() -> None:
             try:
                 final_text = agent.generate(
@@ -7039,6 +7130,8 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                     trace_emit=guarded_emit,
                 )
                 result_queue.put(("ok", final_text))
+            except IndustryPauseSignal:
+                result_queue.put(("paused", ""))
             except Exception as exc:
                 result_queue.put(("error", str(exc)))
 
@@ -7088,6 +7181,9 @@ Do not infer controllable impact or low risk from absence of penalties. A single
             for key in ("person_evidence_contract", "person_delivery_diagnostic", "person_section_packages", "person_evidence_appendix"):
                 if hasattr(writer_project, key):
                     setattr(project, key, getattr(writer_project, key))
+        if status == "paused":
+            _emit(emit, "report", "workflow", "章节调用已安全停止", "已完成的章节检查点保留；未启动后续模型请求。", status="paused")
+            raise WorkflowPaused("任务已暂停，保留已完成章节检查点")
         if status == "error":
             _emit(emit, "report", "desktop_report_agent", "报告 Agent 执行失败", "", status="error")
             raise RuntimeError(final)
@@ -8859,9 +8955,9 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                 if len(nodes) >= 10:
                     return nodes
         return nodes
-    def _cleaned_facts_to_markdown(self, project: ResearchProject, cleaned_json: str) -> str:
+    def _cleaned_facts_to_markdown(self, project: ResearchProject, cleaned_json: str, *, parsed_payload=None) -> str:
         try:
-            parsed = json.loads(cleaned_json)
+            parsed = parsed_payload if isinstance(parsed_payload,dict) and project.target_type == "industry" else json.loads(cleaned_json)
         except Exception:
             return cleaned_json
         facts = parsed.get("facts") if isinstance(parsed, dict) else []
@@ -9060,13 +9156,19 @@ Do not infer controllable impact or low risk from absence of penalties. A single
         metadata: dict[str, Any] | None = None,
         created_by: str = "agent",
     ) -> ResearchArtifact:
-        current = (
-            db.query(ResearchArtifact)
-            .filter(ResearchArtifact.project_id == project.id, ResearchArtifact.artifact_type == artifact_type)
-            .order_by(ResearchArtifact.version.desc())
-            .first()
-        )
-        version = (current.version + 1) if current else 1
+        if project.target_type == 'industry':
+            row = (db.query(ResearchArtifact.version)
+                .filter(ResearchArtifact.project_id == project.id, ResearchArtifact.artifact_type == artifact_type)
+                .order_by(ResearchArtifact.version.desc()).first())
+            version = (row[0]+1) if row else 1
+        else:
+            current = (
+                db.query(ResearchArtifact)
+                .filter(ResearchArtifact.project_id == project.id, ResearchArtifact.artifact_type == artifact_type)
+                .order_by(ResearchArtifact.version.desc())
+                .first()
+            )
+            version = (current.version + 1) if current else 1
         suffix = "html" if artifact_type=='company_evidence_annex' else "json" if artifact_type in {"research_plan", "source_quality", "cleaned_facts", "risk_assessment", "industry_claim_ledger", "industry_run", "industry_conclusion_recovery", "person_claim_ledger", "professional_platform_audit", "company_source_coverage", "company_collection_audit", "company_corpus_digest", "company_information_usage", "company_editorial", "company_presentation"} else "md"
         artifact_metadata = dict(metadata or {})
         if project.target_type == 'industry' and artifact_type in {'desktop_report', 'proposal'}:
@@ -9102,7 +9204,9 @@ Do not infer controllable impact or low risk from absence of penalties. A single
             "application/json; charset=utf-8" if suffix == "json" else "text/html; charset=utf-8" if suffix=='html' else "text/markdown; charset=utf-8",
         )
         if artifact_type == "cleaned_facts":
-            markdown = self._cleaned_facts_to_markdown(project, content)
+            industry_payload = _plain_json(content) if project.target_type == 'industry' else None
+            markdown = (self._cleaned_facts_to_markdown(project, content, parsed_payload=industry_payload)
+                if project.target_type == 'industry' else self._cleaned_facts_to_markdown(project, content))
             markdown_key = research_store.put_text(
                 f"projects/{project.id}/{artifact_type}/{artifact_type}_v{version}.md",
                 markdown,
@@ -9111,7 +9215,7 @@ Do not infer controllable impact or low risk from absence of penalties. A single
             artifact_metadata["markdown_object_key"] = markdown_key
             artifact_metadata["raw_markdown_object_key"] = markdown_key
             try:
-                index_payload = _plain_json(content)
+                index_payload = industry_payload if project.target_type == 'industry' else _plain_json(content)
                 if not isinstance(index_payload, dict) or not isinstance(index_payload.get("facts"), list):
                     raise ValueError("清洗事实 JSON 无效，未执行事实索引；请检查清洗产物后重试。")
                 sync = os.getenv("VECTOR_INDEX_SYNC", "false").strip().lower() in {"1", "true", "yes", "on"}
@@ -9206,7 +9310,13 @@ Do not infer controllable impact or low risk from absence of penalties. A single
         db.add(artifact)
         project.updated_at = datetime.utcnow()
         db.commit()
-        db.refresh(artifact)
+        if project.target_type == 'industry':
+            # Refresh only server-generated metadata. Historical bodies stay
+            # on disk and a caller can still explicitly request this content.
+            db.refresh(artifact,attribute_names=['id','project_id','artifact_type','title','version',
+                'object_key','artifact_metadata','created_by','created_at'])
+        else:
+            db.refresh(artifact)
         if artifact_type == "desktop_report":
             from report_knowledge import sync_report_safely
             sync_report_safely(db, project, artifact)
@@ -10108,6 +10218,7 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                 status="done",
             )
             return self._fallback_company_proposal(project)
+        from proposal_branch import context_text
         prompt = f"""
 请扮演咨询项目建议书总监。基于下方桌面研究报告和风险研判，生成可直接给客户沟通的项目建议书。
 
@@ -10132,6 +10243,14 @@ Do not infer controllable impact or low risk from absence of penalties. A single
 - 对象类型：{project.target_type}
 - 行业：{project.industry}
 - 项目背景：{project.description}
+
+客户需求及人工复核意见（客户输入，不是已核验事实；仅用于本建议书）：
+<client_requirements>
+{context_text(project) or '客户暂未填写需求，具体用途、范围与验收标准待确认。'}
+</client_requirements>
+请逐项响应客户需求，结合报告已有结论和证据缺口，说明工作范围、核验方法、交付物及验收方式。
+需求中的时间、费用、人员和付款条件均为待协商要求，不能表述为已经承诺或已经批准。
+若需求与报告证据冲突或超出范围，明确列为待确认；不要按客户期待改写报告事实。
 
 风险研判：
 {_clip(risk_json, 8000)}

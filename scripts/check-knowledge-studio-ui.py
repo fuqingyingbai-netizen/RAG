@@ -327,7 +327,9 @@ def main():
         page.get_by_role('button',name='上传文件',exact=True).click()
         dialog=page.get_by_role('dialog',name='上传到当前目录')
         dialog_background = page.locator('.ckb-dialog:visible').evaluate('(el)=>getComputedStyle(el).backgroundColor')
-        assert dialog_background == ('rgb(255, 255, 255)' if args.theme == 'light' else 'rgb(16, 28, 48)'), dialog_background
+        assert dialog_background == ('rgba(241, 248, 255, 0.79)' if args.theme == 'light' else 'rgba(19, 35, 57, 0.78)'), dialog_background
+        assert 'blur(' in page.locator('.ckb-dialog:visible').evaluate('(el)=>getComputedStyle(el).backdropFilter')
+        assert page.locator('.ckb-glass-overlay:visible').count() == 1
         dialog.get_by_role('textbox',name='文字说明',exact=True).fill('音频说明测试')
         dialog.get_by_label('选择上传资料',exact=True).set_input_files(str(args.output_dir/'synthetic-audio.wav'))
         page.screenshot(path=str(args.output_dir/'upload-desktop.png'),full_page=True,animations='disabled')

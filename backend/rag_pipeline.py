@@ -6,7 +6,7 @@ import os
 # 3. 加载 .env 文件中的环境变量：第三方库 python-dotenv 核心函数
 from dotenv import load_dotenv
 # 4. 初始化大语言模型：langchain 封装的统一模型初始化接口
-from langchain.chat_models import init_chat_model
+from model_provider_options import init_chat_model
 # 5. 状态图构建：langgraph 核心，用于构建有状态的多节点工作流
 from langgraph.graph import StateGraph, END
 # 6. 数据验证与模型定义：pydantic 核心，BaseModel(基础模型)、Field(字段描述)

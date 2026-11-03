@@ -3,6 +3,7 @@ import os
 from functools import lru_cache
 
 from langchain_openai import ChatOpenAI
+from model_provider_options import compatible_options
 
 
 @lru_cache(maxsize=1)
@@ -13,7 +14,8 @@ def configured_model():
         return None
     return ChatOpenAI(model=os.getenv('ASSISTANT_MODEL') or 'qwen3.5-flash', api_key=key,
         base_url=base, temperature=0.1, timeout=30, max_retries=0, max_tokens=1800,
-        extra_body={'enable_thinking': False})
+        extra_body=compatible_options(os.getenv('ASSISTANT_MODEL') or 'qwen3.5-flash',
+            {'base_url':base,'extra_body':{'enable_thinking':False}})['extra_body'])
 
 
 def assistant_model(workflow):

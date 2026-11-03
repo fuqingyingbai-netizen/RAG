@@ -112,6 +112,10 @@ class IndustryReportAgent:
             section_fact_counts[index] = len(json.loads(section_packages[index])['facts'])
         emit(trace_emit, "report", self.trace_agent, "行业章节证据包已按章节分桶", f"unique_sources={len(used_urls)}, evidence_chapters=14", unique_sources=len(used_urls), status="done")
 
+        if getattr(project, 'industry_chapter_phase', False):
+            from industry_chapter_research import prepare_chapter_packages
+            prepare_chapter_packages(payload, section_packages, project)
+            section_fact_counts.update({i: len(json.loads(p).get('facts', [])) for i,p in section_packages.items()})
         setattr(project, "industry_section_packages", section_packages)
         if recovery:
             project.industry_question_order = deepcopy(recovery.get('industry_question_order', {}))
@@ -170,6 +174,16 @@ class IndustryReportAgent:
                     "本章保留的原文证据尚不足以形成可引用结论；相关核验事项见第16章。"
                 )
 
+        from industry_execution import IndustryPauseSignal, check_pause
+        from industry_checkpoint import save_chapter, restore_chapters
+        if not recovery:
+            restored = restore_chapters(project, cleaned_json, risk_json, section_packages)
+            sections_by_index.update(restored)
+            if restored:
+                emit(trace_emit, "report", "industry_checkpoint", "已复用相同输入的章节检查点",
+                     "chapters=" + ",".join(str(i) for i in sorted(restored)) + "；仍需本轮支持复核", status="done")
+        check_pause(project)
+        paused = False
         workers = max(1, min(5, int(os.getenv("REPORT_SECTION_MAX_WORKERS", "3"))))
         with ThreadPoolExecutor(max_workers=min(workers, len(self.outline))) as executor:
             futures = {}
@@ -194,8 +208,15 @@ class IndustryReportAgent:
                 futures[future] = (index, section_title, requirements)
             for future in as_completed(futures):
                 index, section_title, requirements = futures[future]
+                if future.cancelled():
+                    continue
                 try:
                     section = future.result()
+                except IndustryPauseSignal:
+                    paused = True
+                    for pending in futures:
+                        pending.cancel()
+                    continue
                 except Exception as exc:
                     emit(trace_emit, "report", self.trace_agent, "章节写作失败，保留待核验章节", f"{index}. {section_title} | {exc}", section=section_title, status="fallback")
                     package = json.loads(section_packages[index])
@@ -203,6 +224,24 @@ class IndustryReportAgent:
                     project.industry_report_degradations.append({'chapter': index, 'message': f'第{index}章写作异常，保留来源事实摘录；需人工复核。'})
                 if section.strip():
                     sections_by_index[index] = section
+                    try:
+                        save_chapter(project, cleaned_json, risk_json, index, section,
+                                     section_packages[index])
+                    except Exception as exc:
+                        emit(trace_emit, "report", "industry_checkpoint", "章节检查点保存失败",
+                             type(exc).__name__, status="warning")
+        if paused:
+            project.industry_generated_sections = dict(sections_by_index)
+            raise IndustryPauseSignal()
+        check_pause(project)
+        if getattr(project, 'industry_chapter_phase', False):
+            # Research and repair chapters before any cross-chapter synthesis or summary.
+            sections_by_index.pop(14, None)
+            sections_by_index.pop(16, None)
+            if project.industry_statement_mode:
+                self._review_statement_claims(project, payload, section_packages, sections_by_index, invoke, emit, trace_emit)
+            project.industry_generated_sections = dict(sections_by_index)
+            return '\n\n'.join(sections_by_index[i] for i in sorted(sections_by_index)) or '章节研究阶段：尚无可用正文。'
         if project.industry_statement_mode:
             defer_synthesis = recovery and getattr(project,'industry_recovery_plan',{}).get('defer_synthesis')
             if defer_synthesis:

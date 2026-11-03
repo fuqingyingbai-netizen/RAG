@@ -56,8 +56,11 @@ def test_intake_read_filters_in_sql_instead_of_loading_the_relationship(read_api
     response=client.get('/research/projects/1/run-intake',headers=headers)
     assert response.status_code==200 and response.json()['intake']['company_name']=='Synthetic subject'
     queries=[(sql,params) for sql,params in statements if 'FROM research_artifacts' in sql]
-    assert len(queries)==1
-    assert 'project_intake' in queries[0][1] and 'LIMIT' in queries[0][0]
+    assert len(queries)==3  # Intake, client attachment metadata and reviewed-report identity.
+    assert {'project_intake','client_requirements','desktop_report'} == {
+        value for _,params in queries for value in params if isinstance(value,str)
+        and value in {'project_intake','client_requirements','desktop_report'}}
+    assert all('WHERE research_artifacts.project_id = ' in sql for sql,_ in queries)
     assert len(response.content)<1024
 
 
@@ -125,13 +128,15 @@ def test_source_list_never_transports_unused_full_text(read_api):
     assert all('research_sources.content AS' not in sql for sql,_ in statements)
 
 
-def test_metadata_only_artifact_list_is_opt_in_and_never_loads_bodies(read_api):
+def test_industry_artifact_bodies_are_opt_in_and_metadata_never_loads_bodies(read_api):
     client,headers,statements=read_api
     response=client.get('/research/projects/1/artifacts?include_content=false',headers=headers)
     assert response.status_code==200 and len(response.json())==5
     assert all(row['content']=='' for row in response.json())
     assert all('research_artifacts.content AS' not in sql for sql,_ in statements)
     response=client.get('/research/projects/1/artifacts',headers=headers)
+    assert all(row['content']=='' for row in response.json())
+    response=client.get('/research/projects/1/artifacts?include_content=true',headers=headers)
     assert any(row['content'].startswith('PRIVATE_FACT_BODY') for row in response.json())
 
 

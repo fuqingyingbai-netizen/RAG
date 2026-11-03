@@ -22,7 +22,8 @@ def test_version_is_public_read_only_and_not_cached():
     response = client.get('/version')
     assert response.status_code == 200
     data = response.json()
-    assert set(data) == {'service', 'instance_id', 'loaded_at_utc', 'industry'}
+    assert set(data) == {'service', 'instance_id', 'loaded_at_utc', 'industry', 'workflow'}
+    assert data['workflow']['version'] == 'due-diligence-three-step-v1'
     assert data['service'] == 'rag-backend' and data['industry'] == VERSIONS
     assert UUID(data['instance_id'])
     assert datetime.fromisoformat(data['loaded_at_utc']).utcoffset().total_seconds() == 0

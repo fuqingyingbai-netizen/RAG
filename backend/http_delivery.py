@@ -20,6 +20,9 @@ class RequestBodyLimit:
         setting = 'MAX_REQUEST_BYTES' if multipart else 'MAX_JSON_BYTES'
         default = 52 * 1024 * 1024 if multipart else 2 * 1024 * 1024
         limit = max(1, int(os.getenv(setting, str(default))))
+        if multipart and scope.get('path') == '/company-knowledge/uploads':
+            # Knowledge audio/video accept 128 MiB; leave the other upload routes unchanged.
+            limit = max(1, int(os.getenv('COMPANY_KNOWLEDGE_MAX_REQUEST_BYTES', str(130 * 1024 * 1024))))
         try:
             length = int(headers.get('content-length', '0'))
             if length < 0:

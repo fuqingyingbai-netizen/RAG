@@ -44,7 +44,13 @@ def generation_options(model):
 
     Do not send provider-specific options to unrelated model families.
     """
-    return {'extra_body': {'enable_thinking': False}} if 'qwen3' in str(model).lower() else {}
+    if 'qwen3' not in str(model).lower():
+        return {}
+    try:
+        budget = int(os.getenv('INDUSTRY_THINKING_BUDGET', '256'))
+    except ValueError:
+        budget = 256
+    return {'extra_body': {'enable_thinking': False, 'thinking_budget': max(0, min(2048, budget))}}
 
 
 def stage_output_options(stage, default):

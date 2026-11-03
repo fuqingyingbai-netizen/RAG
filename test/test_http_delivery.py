@@ -7,6 +7,25 @@ import pytest
 from http_delivery import ResearchReadCompression
 
 
+def test_media_body_budget_is_scoped_to_knowledge_uploads(monkeypatch):
+    from fastapi import FastAPI, Request
+    from fastapi.testclient import TestClient
+    from http_delivery import RequestBodyLimit
+    monkeypatch.setenv('MAX_REQUEST_BYTES','8')
+    monkeypatch.setenv('COMPANY_KNOWLEDGE_MAX_REQUEST_BYTES','20')
+    app=FastAPI()
+    @app.post('/company-knowledge/uploads')
+    @app.post('/research/projects/1/uploads')
+    async def upload(request:Request):
+        return {'bytes':len(await request.body())}
+    app.add_middleware(RequestBodyLimit)
+    client=TestClient(app)
+    headers={'Content-Type':'multipart/form-data; boundary=synthetic'}
+    assert client.post('/company-knowledge/uploads',content=b'x'*16,headers=headers).status_code==200
+    assert client.post('/company-knowledge/uploads',content=b'x'*21,headers=headers).status_code==413
+    assert client.post('/research/projects/1/uploads',content=b'x'*16,headers=headers).status_code==413
+
+
 PAYLOAD=json.dumps({'results':[{'title':'合成研究记录','summary':'合成内容'*100} for _ in range(100)]},ensure_ascii=False).encode()
 
 
