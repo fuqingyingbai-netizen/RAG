@@ -83,6 +83,18 @@ test('an already started original download survives ordinary navigation in the s
   assert.equal(f.downloads(),1);assert.ok(f.notices.some(n=>n.kind==='success'));
 });
 
+test('failed watermarked export clears progress and allows the next download',async()=>{
+  let calls=0;
+  const f=fixture(async()=>++calls===1
+    ? {status:503,ok:false,json:async()=>({detail:'转换失败'})}
+    : {status:200,ok:true,blob:async()=>new Blob(['marked'])});
+  await f.state.downloadOriginal({id:'doc',title:'sample.pdf'});
+  assert.equal(f.downloads(),0);assert.equal(Object.keys(f.state.downloadProgress).length,0);
+  assert.ok(f.notices.some(n=>n.kind==='error'&&/转换失败/.test(n.message)));
+  await f.state.downloadOriginal({id:'doc',title:'sample.pdf'});
+  assert.equal(f.downloads(),1);assert.equal(Object.keys(f.state.downloadProgress).length,0);
+});
+
 test('an in-flight write may confirm after navigation but the departed component cannot send another write',async()=>{
   const body=deferred();let calls=0;
   const f=fixture(async()=>{calls++;return {status:200,ok:true,json:()=>body.promise};});

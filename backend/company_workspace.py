@@ -16,7 +16,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import Response, JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -29,6 +29,7 @@ from database import SessionLocal
 from models import User
 from company_audit import record, snapshot, mark_modified, history
 from company_watermark import ExportIdentity, WatermarkError, export_copy
+import company_export_progress as export_progress
 
 workspace_router = APIRouter()
 
@@ -599,9 +600,19 @@ async def delete_document(doc_id: str, user: User = Depends(kb.require_knowledge
     return {'deleted': True}
 
 
+@workspace_router.get('/documents/{doc_id}/export-status')
+def export_status(doc_id: str, request_id: str = Query(min_length=8, max_length=64, pattern='^[a-f0-9-]+$'),
+                  user: User = Depends(kb.require_knowledge_user)):
+    with SessionLocal() as db:
+        find_doc(db, doc_id, user)
+    return JSONResponse(export_progress.status(user, doc_id, request_id), headers={'Cache-Control': 'private, no-store'})
+
+
 @workspace_router.get('/documents/{doc_id}/download')
 @workspace_router.get('/documents/{doc_id}/original')
-async def original(doc_id: str, request: Request, download: bool = False, user: User = Depends(kb.require_knowledge_user)):
+async def original(doc_id: str, request: Request, download: bool = False,
+                   request_id: str = Query('', max_length=64, pattern='^(?:[a-f0-9-]{8,64})?$'),
+                   user: User = Depends(kb.require_knowledge_user)):
     download = download or request.url.path.endswith('/download')
     trace_id = uuid.uuid4().hex
     identity = ExportIdentity(user.username, getattr(user, 'id', None), datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'), trace_id)
@@ -610,23 +621,36 @@ async def original(doc_id: str, request: Request, download: bool = False, user: 
         if not doc.object_key:
             raise HTTPException(404, '这份历史资料尚无受控原件，暂不能生成带水印副本。')
         object_key, fmt, title = doc.object_key, doc.format, doc.title
+    update = export_progress.begin(user, doc_id, request_id) if request_id else None
     try:
         data = await asyncio.to_thread(document_store().get_bytes, object_key)
-        result, mime, filename = await asyncio.to_thread(export_copy, data, fmt, title, identity)
+        if update:
+            result, mime, filename = await asyncio.to_thread(export_copy, data, fmt, title, identity, update)
+        else:
+            result, mime, filename = await asyncio.to_thread(export_copy, data, fmt, title, identity)
     except WatermarkError as error:
+        if update: update('failed')
         with SessionLocal() as db:
             doc = find_doc(db, doc_id, user)
             record(db, user, 'document.export_failed', doc, before=snapshot(doc),
                 details={'trace_id': trace_id, 'reason': str(error)})
             db.commit()
         raise HTTPException(error.status, str(error)) from None
+    except Exception:
+        if update: update('failed')
+        raise
     # Conversion may take time. Recheck the current ACL before issuing any bytes.
     with SessionLocal() as db:
-        doc = find_doc(db, doc_id, user)
+        try:
+            doc = find_doc(db, doc_id, user)
+        except HTTPException:
+            if update: update('failed')
+            raise
         record(db, user, 'document.download' if download else 'document.preview', doc, before=snapshot(doc),
             event_id=trace_id, details={'trace_id': trace_id, 'filename': filename, 'mime': mime,
                 'sha256': hashlib.sha256(result).hexdigest(), 'watermarked': True})
         db.commit()
+    if update: update('ready')
     return Response(result, media_type=mime, headers={
         'Content-Disposition': ('attachment' if download else 'inline') + "; filename*=UTF-8''" + quote(filename),
         'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff',

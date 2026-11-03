@@ -869,3 +869,9 @@ body:has(.ckb-workbench) .el-overlay { --el-mask-color:rgba(2,8,20,.74); }
 .ckb-audit-trace { font-family:monospace; }
 .ckb-audit-count { font-size:10px; color:var(--ku-day-muted,#8fa7c3); margin-right:15px; }
 @media(max-width:760px) { .ckb-audit-dialog { width:94vw!important; } .ckb-audit-list header { flex-wrap:wrap; } .ckb-audit-list dl { grid-template-columns:1fr; } .ckb-audit-count { display:block; margin:0 0 12px; } }
+
+.ckb-download-progress { display:flex; align-items:center; gap:10px 18px; flex-wrap:wrap; border:1px solid var(--ku-day-line,#31546f); border-radius:9px; background:var(--ku-day-glow,#25557030); color:var(--ku-day-link,#b9d9ed); padding:13px 15px; font-size:12px; margin:12px 0; }
+.ckb-download-progress span > i { margin-right:8px; color:var(--ku-day-accent,#8bdeeb); }
+.ckb-download-progress > time { margin-left:auto; color:var(--ku-day-muted,#93afc9); font-size:10px; }
+.ckb-download-progress progress { width:100%; height:6px; accent-color:var(--ku-day-accent,#7bd8e9); }
+.ckb-download-progress > small { width:100%; color:var(--ku-day-muted,#91abc5); font-size:10px; line-height:1.8; }

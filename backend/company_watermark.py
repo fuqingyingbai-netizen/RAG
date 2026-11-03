@@ -62,7 +62,7 @@ def wrapped_lines(draw, lines, font, width):
     return result
 
 
-def watermark_layer(size, identity):
+def watermark_layer(size, identity, footer=True):
     width, height = size
     if width < 16 or height < 16 or width * height > 40_000_000:
         raise WatermarkError('文件页面或图片尺寸不支持安全水印导出。', 422)
@@ -82,6 +82,8 @@ def watermark_layer(size, identity):
     if height > 700:
         output.alpha_composite(tile, (0, -height // 3))
         output.alpha_composite(tile, (0, height // 3))
+    if not footer:
+        return output
     footer_font = ImageFont.truetype(font_path(), max(9, min(14, width // 65)))
     footer = wrapped_lines(draw, [identity.lines[1], identity.timestamp + ' UTC | ID ' + identity.trace_id], footer_font, width - 20)
     footer_height = (footer_font.size + 4) * len(footer) + 10
@@ -92,14 +94,18 @@ def watermark_layer(size, identity):
     return output
 
 
-def stamp_pdf(data, identity):
+def stamp_pdf(data, identity, progress=None):
     reader = PdfReader(io.BytesIO(data), strict=False)
     if reader.is_encrypted and not reader.decrypt(''):
         raise WatermarkError('加密 PDF 无法加水印，请先上传可处理的版本。', 422)
     if not 0 < len(reader.pages) <= 1000:
         raise WatermarkError('PDF 页数超出水印导出范围（1–1000 页）。', 422)
     writer = PdfWriter()
-    for page in reader.pages:
+    overlays = {}
+    total = len(reader.pages)
+    if progress:
+        progress('stamping', 0, total)
+    for number, page in enumerate(reader.pages, 1):
         page.transfer_rotation_to_content()
         width, height = float(page.mediabox.width), float(page.mediabox.height)
         if not 0 < width <= 14400 or not 0 < height <= 14400:
@@ -107,22 +113,31 @@ def stamp_pdf(data, identity):
         # Stamp the visible crop box as well as the complete page, including offset crops.
         box = page.cropbox
         crop_width, crop_height = float(box.width), float(box.height)
-        scale = min(2, 1600 / max(crop_width, crop_height))
-        layer = watermark_layer((max(16, int(crop_width * scale)), max(16, int(crop_height * scale))), identity)
-        overlay = io.BytesIO()
-        pdf = canvas.Canvas(overlay, pagesize=(crop_width, crop_height))
-        pdf.drawImage(ImageReader(layer), 0, 0, crop_width, crop_height, mask='auto')
-        pdf.save()
-        page.merge_transformed_page(PdfReader(io.BytesIO(overlay.getvalue())).pages[0],
+        size = (crop_width, crop_height)
+        if size not in overlays:
+            scale = min(2, 1600 / max(crop_width, crop_height))
+            layer = watermark_layer((max(16, int(crop_width * scale)), max(16, int(crop_height * scale))), identity)
+            overlay = io.BytesIO()
+            pdf = canvas.Canvas(overlay, pagesize=size)
+            pdf.drawImage(ImageReader(layer), 0, 0, crop_width, crop_height, mask='auto')
+            pdf.save()
+            # Keep the same PDF object graph for this request's page size. This also
+            # lets PdfWriter share image streams rather than embedding them per page.
+            overlays[size] = PdfReader(io.BytesIO(overlay.getvalue()))
+        page.merge_transformed_page(overlays[size].pages[0],
             Transformation().translate(float(box.left), float(box.bottom)), over=True, expand=False)
         # Export copies do not carry an unmarked file inside PDF attachment annotations.
         if '/Annots' in page:
             from pypdf.generic import ArrayObject, NameObject
             page[NameObject('/Annots')] = ArrayObject([a for a in page['/Annots'] if a.get_object().get('/Subtype') != '/FileAttachment'])
         writer.add_page(page)
+        if progress:
+            progress('stamping', number, total)
     writer.add_metadata({'/Producer': 'Company Knowledge Watermarked Export', '/WatermarkTrace': identity.trace_id,
                          '/DownloadAccount': identity.username, '/DownloadTimeUTC': identity.timestamp})
     output = io.BytesIO()
+    if progress:
+        progress('packaging', total, total)
     writer.write(output)
     return output.getvalue()
 
@@ -138,6 +153,10 @@ def run(args, *, timeout=180, cwd=None, env=None):
 
 
 def office_to_pdf(data, fmt, directory):
+    return convert_office(data, fmt, 'pdf', directory)
+
+
+def convert_office(data, fmt, target_format, directory):
     binary = os.getenv('COMPANY_KNOWLEDGE_OFFICE_BINARY') or shutil.which('soffice') or shutil.which('libreoffice')
     if not binary:
         raise WatermarkError('Office 转换服务未配置，请联系管理员；不会提供无水印原件。')
@@ -149,10 +168,10 @@ def office_to_pdf(data, fmt, directory):
     (user_dir / 'registrymodifications.xcu').write_text('''<?xml version="1.0" encoding="UTF-8"?>
 <oor:items xmlns:oor="http://openoffice.org/2001/registry"><item oor:path="/org.openoffice.Office.Common/Security/Scripting"><prop oor:name="MacroSecurityLevel" oor:op="fuse"><value>3</value></prop></item><item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="UpdateDocMode" oor:op="fuse"><value>0</value></prop></item></oor:items>''', encoding='utf-8')
     run([binary, '-env:UserInstallation=' + profile.as_uri(), '--headless', '--nologo', '--nodefault',
-         '--norestore', '--convert-to', 'pdf', '--outdir', str(directory), str(source)])
-    output = directory / 'source.pdf'
+         '--norestore', '--convert-to', target_format, '--outdir', str(directory), str(source)])
+    output = directory / ('source.' + target_format)
     if not output.is_file():
-        raise WatermarkError('Office 文件无法转换，请确认文件未加密或损坏。', 422)
+        raise WatermarkError('Office 文件无法处理，请确认文件未加密或损坏。', 422)
     return output.read_bytes()
 
 
@@ -251,13 +270,14 @@ def marked_media(data, fmt, identity, directory):
     return output.read_bytes(), mime, extension
 
 
-def export_copy(data, fmt, title, identity):
+def export_copy(data, fmt, title, identity, progress=None):
     if not _slots.acquire(blocking=False):
         raise WatermarkError('水印导出正在处理中，请稍后重试。', 429)
     try:
         with tempfile.TemporaryDirectory(prefix='ckb-export-') as temporary:
             directory = Path(temporary)
             if fmt in IMAGE_FORMATS:
+                if progress: progress('stamping', 0, 1)
                 with Image.open(io.BytesIO(data)) as original:
                     from PIL import ImageOps
                     image = ImageOps.exif_transpose(original).convert('RGBA')
@@ -265,15 +285,20 @@ def export_copy(data, fmt, title, identity):
                     output = io.BytesIO(); image.save(output, format='PNG')
                 result, mime, extension = output.getvalue(), 'image/png', 'png'
             elif fmt in AUDIO_FORMATS or fmt in ('MP4', 'WEBM'):
+                if progress: progress('media', 0, 0)
                 result, mime, extension = marked_media(data, fmt, identity, directory)
+            elif fmt in OFFICE_FORMATS:
+                from company_office_watermark import mark_office
+                result, mime, extension = mark_office(data, fmt, identity, directory, progress)
+            elif fmt in ('TXT', 'MD'):
+                from company_office_watermark import mark_text
+                if progress: progress('stamping', 0, 1)
+                result, encoding = mark_text(data, fmt, identity)
+                mime, extension = ('text/markdown' if fmt == 'MD' else 'text/plain') + '; charset=' + encoding, fmt.lower()
             else:
-                if fmt in OFFICE_FORMATS:
-                    data = office_to_pdf(data, fmt, directory)
-                elif fmt in ('TXT', 'MD'):
-                    data = text_to_pdf(data)
-                elif fmt != 'PDF':
+                if fmt != 'PDF':
                     raise WatermarkError('该格式暂不支持带水印下载。', 422)
-                result, mime, extension = stamp_pdf(data, identity), 'application/pdf', 'pdf'
+                result, mime, extension = stamp_pdf(data, identity, progress), 'application/pdf', 'pdf'
             return result, mime, Path(title).stem + '_水印副本.' + extension
     except WatermarkError:
         raise

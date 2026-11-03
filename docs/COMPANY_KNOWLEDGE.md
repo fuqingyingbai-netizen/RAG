@@ -44,7 +44,7 @@ COMPANY_KNOWLEDGE_BUCKET=company-knowledge
 - 批量上传：支持 PDF、DOC/DOCX、XLS/XLSX、PPT/PPTX、TXT/MD、JPG/JPEG/PNG，每个文件最大 32 MiB。Word、PDF、图片使用智能文档解析，其他格式自动选择解析器。
 - 同上传者、项目和文件名下，相同内容返回重复提示；不同内容作为新版本保留。旧版本独立展示和授权，也参与检索，比较时需选择对应版本。
 - 状态：等待、上传、解析/OCR、建立索引、可检索、失败。浏览器每 6 秒刷新，只有文件状态 FINISH 才视为可检索。
-- 原件阅读：本系统上传的 PDF 逐页渲染原件（支持翻页），图片直接预览原件，Office 等展示云端解析片段并提供原件下载。解析文字不保证保留原件版式。历史云端文件的原件入口使用返回的临时链接。
+- 原件阅读：本系统上传的 PDF 逐页渲染原件（支持翻页），图片直接预览原件，Office 等展示云端解析片段并提供带水印的原格式副本下载。解析文字不保证保留原件版式。历史资料没有受控原件时暂不提供下载。
 - 全部资料或勾选最多 20 份已完成索引的文件提问；阅读区可围绕原件提问。范围变化开始新对话。
 - 上传者和管理员可管理分类、复核状态及可见范围，重试失败任务或删除资料。处理中的资料需等待完成后删除。
 
@@ -165,7 +165,7 @@ node --test test/company-knowledge-ui.test.cjs
 
 ## 下载水印与操作留痕
 
-所有知识库下载均由后端生成当前账号专属的副本，保留服务器原始归档文件与原件 SHA256，RAG 继续读取原件。PDF 每页加可见水印；DOC/DOCX/XLS/XLSX/PPT/PPTX 经 LibreOffice 转成 PDF 再加水印；TXT/MD 生成带水印 PDF；JPG/JPEG/PNG 生成带水印 PNG；录音统一生成带首尾身份提示的 MP3；视频统一生成烧录可见水印的 MP4。标记包含登录账号、UTC 时间与追踪编号，下载副本的哈希和追踪编号写入操作记录。音视频的格式、编码与录音首尾时长会随导出发生变化。
+所有知识库下载均由后端生成当前账号专属的副本，保留服务器原始归档文件与原件 SHA256，RAG 继续读取原件。PDF 每页加可见水印；DOCX 在各节的默认、首页和偶数页页眉添加浮动个人水印，PPTX 在每页添加水印图形，XLSX 添加工作表背景水印和每页打印页脚身份标记，保留原格式、正文、单元格、公式和现有页眉页脚。旧版 DOC/XLS/PPT 使用 LibreOffice 兼容处理后仍返回原扩展名；TXT/MD 保留原格式和原正文编码、字节，在首尾添加身份文字；JPG/JPEG/PNG 生成带水印 PNG；录音统一生成带首尾身份提示的 MP3；视频统一生成烧录可见水印的 MP4。标记包含登录账号、UTC 时间与追踪编号，下载副本的哈希和追踪编号写入操作记录。音视频的格式、编码与录音首尾时长会随导出发生变化。
 
 `GET /company-knowledge/documents/{id}/download` 为正式下载入口。旧 `/original`（包括 download=false）同样只能返回带标记副本；PDF 页面预览也带个人标记。引用及已保存会话不再返回可绕过此流程的云端原件链接。历史资料未归档受控原件时不能下载，转换失败、超时、缺少依赖时也不会返回无标记原件。完成转换后再次检查文件权限，防止处理期间被撤销权限后仍导出。单进程最多同时生成两个副本，处理繁忙返回 429，可手动稍后重试；前端不会自动重试下载。
 
@@ -175,17 +175,19 @@ node --test test/company-knowledge-ui.test.cjs
 
 ### 转换环境
 
-Python 依赖随 `pyproject.toml` / `uv.lock` 安装，新增 ReportLab；FFmpeg 优先使用系统或指定程序，否则使用 imageio-ffmpeg。Linux 部署需安装 LibreOffice、中文字体与 espeak-ng，例如 Debian/Ubuntu：
+Python 依赖随 `pyproject.toml` / `uv.lock` 安装，新增 ReportLab；FFmpeg 优先使用系统或指定程序，否则使用 imageio-ffmpeg。DOCX/XLSX/PPTX 不依赖 LibreOffice；旧版 DOC/XLS/PPT 需要 LibreOffice。Linux 部署建议安装中文字体、espeak-ng 和旧版兼容处理工具，例如 Debian/Ubuntu：
 
 ```sh
 sudo apt-get install --no-install-recommends libreoffice-writer libreoffice-calc libreoffice-impress fonts-noto-cjk espeak-ng ffmpeg
 ```
 
-可选配置：`COMPANY_KNOWLEDGE_OFFICE_BINARY`（soffice；Windows 建议 soffice.com）、`COMPANY_KNOWLEDGE_WATERMARK_FONT`（中文字体文件）、`COMPANY_KNOWLEDGE_FFMPEG_BINARY`、`COMPANY_KNOWLEDGE_SPEECH_BINARY`（Linux）。Windows 录音身份提示使用 System.Speech。Office 每次转换使用临时用户配置并禁用文档宏，临时文件在转换结束后清理；生产运行账号应继续使用服务专用的低权限账号。
+可选配置：`COMPANY_KNOWLEDGE_OFFICE_BINARY`（soffice；Windows 建议 soffice.com）、`COMPANY_KNOWLEDGE_WATERMARK_FONT`（中文字体文件）、`COMPANY_KNOWLEDGE_FFMPEG_BINARY`、`COMPANY_KNOWLEDGE_SPEECH_BINARY`（Linux）。Windows 录音身份提示使用 System.Speech。旧版 Office 的兼容转换使用临时用户配置并禁用文档宏，临时文件在转换结束后清理；生产运行账号应继续使用服务专用的低权限账号。
 
 导出限制：纯文字最多 2 MB，PDF 最多 1000 页，图片/页面图层最多 4000 万像素，音视频副本最多 512 MB。超出限制时要求拆分，保持失败时不返回原件的规则。
 
-验收：`python -m pytest test/test_company_watermark.py test/test_company_workspace.py`；配置 Office 路径后执行真实转换用例，并核对水印、副本播放、权限与原件不变。对外发布必须具备转换依赖，否则下载将按上述规则拒绝。
+长文档导出在单次请求内按页面尺寸复用个人水印图层和 PDF 图像对象，避免每页重新栅格化与嵌入同一水印；不同账号/不同下载不共享水印副本。前端为下载附带独立 request_id，通过 `/documents/{id}/export-status` 查看兼容处理、水印处理、整理与完成阶段（PDF/PPT 为页，Word/Excel 为处理项），并显示已等待时间。进度只在当前进程保留 15 分钟，不存文件内容，按当前账号与文件权限检查，同一 request_id 重复提交返回 409。读取进度不重新启动导出，成功、失败或超时都会释放前端下载状态。
+
+验收：`python -m pytest test/test_company_watermark.py test/test_company_workspace.py`；配置 Office 路径后执行旧版兼容和渲染用例，并核对水印、副本播放、权限与原件不变。旧版格式发布时必须具备兼容处理依赖，否则对应格式按上述规则拒绝；现代 Office 文件仍可原格式下载。
 
 文档与图片继续自动解析/OCR、建立 RAG 索引；单份 32 MB。录音/视频单份 128 MB，没有说明时以“已归档”状态保存，只播放与下载；填写说明后将人工说明作为独立文本建立索引。不自动转写或分析音视频内容。移除说明时先清除旧说明索引，再回到归档状态。
 

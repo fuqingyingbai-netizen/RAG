@@ -48,6 +48,7 @@ dependencies = [
     "tencentcloud-sdk-python>=3.1.129",
     "reportlab>=4.4,<5",
     "imageio-ffmpeg>=0.6,<0.7",
+    "lxml>=5.3,<7",
 ]
 
 [[tool.uv.index]]

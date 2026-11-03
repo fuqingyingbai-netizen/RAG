@@ -102,7 +102,9 @@ def test_audit_rolls_back_with_failed_project_changes(setup):
 def test_every_export_route_is_personalised_and_original_is_preserved(setup):
     import io
     from pypdf import PdfReader
-    row = upload(setup).json()
+    from company_watermark import text_to_pdf
+    source = text_to_pdf(b'Company knowledge evidence')
+    row = upload(setup, payload=source, name='evidence.pdf').json()
     traces = set()
     for suffix in ('/download', '/original', '/original?download=true', '/original?download=false'):
         response = setup.client.get('/company-knowledge/documents/' + row['id'] + suffix)
@@ -112,7 +114,7 @@ def test_every_export_route_is_personalised_and_original_is_preserved(setup):
         assert 'Company knowledge evidence' in pdf.pages[0].extract_text()
         assert response.headers['x-watermark-trace'] == pdf.metadata['/WatermarkTrace']
         traces.add(response.headers['x-watermark-trace'])
-    assert len(traces) == 4 and stored_original(setup, row['id']) == b'Company knowledge evidence'
+    assert len(traces) == 4 and stored_original(setup, row['id']) == source
     setup.user.id, setup.user.username = 2, 'bob'
     response = setup.client.get('/company-knowledge/documents/' + row['id'] + '/download')
     assert PdfReader(io.BytesIO(response.content)).metadata['/DownloadAccount'] == 'bob'
@@ -141,6 +143,38 @@ def test_export_failure_never_falls_back_to_original_and_rechecks_acl(setup, mon
         return b'%PDF-marked', 'application/pdf', 'marked.pdf'
     monkeypatch.setattr(ws, 'export_copy', revoked)
     assert setup.client.get('/company-knowledge/documents/' + row['id'] + '/download').status_code == 404
+
+
+def test_download_progress_is_account_scoped_and_duplicate_ids_do_not_repeat_exports(setup, monkeypatch):
+    row = upload(setup).json()
+    request_id = 'abcdef0123456789'
+    url = '/company-knowledge/documents/' + row['id']
+    observed = []
+    real_export = ws.export_copy
+    def generate(data, fmt, title, identity, progress):
+        progress('converting', 0, 0)
+        status = setup.client.get(url + '/export-status', params={'request_id': request_id})
+        assert status.status_code == 200 and status.json()['stage'] == 'converting'
+        observed.append(status.json())
+        return real_export(data, fmt, title, identity, progress)
+    monkeypatch.setattr(ws, 'export_copy', generate)
+    response = setup.client.get(url + '/download', params={'request_id': request_id})
+    assert response.status_code == 200 and observed
+    assert setup.client.get(url + '/export-status', params={'request_id': request_id}).json()['stage'] == 'ready'
+    assert setup.client.get(url + '/download', params={'request_id': request_id}).status_code == 409
+    assert len(observed) == 1
+    setup.user.id, setup.user.username = 2, 'bob'
+    assert setup.client.get(url + '/export-status', params={'request_id': request_id}).status_code == 404
+    assert setup.client.get(url + '/export-status', params={'request_id': 'unknown01'}).status_code == 422
+    from company_watermark import WatermarkError
+    def failure(*args):
+        raise WatermarkError('测试转换失败')
+    monkeypatch.setattr(ws, 'export_copy', failure)
+    failed_id = 'abcdef9876543210'
+    assert setup.client.get(url + '/download', params={'request_id': failed_id}).status_code == 503
+    failed = setup.client.get(url + '/export-status', params={'request_id': failed_id})
+    assert failed.status_code == 200 and failed.json()['stage'] == 'failed'
+    assert failed.headers['cache-control'] == 'private, no-store'
 
 
 def test_audit_schema_upgrade_retains_existing_records_and_is_repeatable(setup):
@@ -181,7 +215,7 @@ def test_upload_original_versions_duplicate_and_scope_acl(setup):
     assert row['state'] == 'queued' and row['has_original'] and row['version'] == 1
     assert row['id'] in setup.scheduled
     response = setup.client.get(f'/company-knowledge/documents/{row["id"]}/original')
-    assert response.status_code == 200 and response.content.startswith(b'%PDF') and response.headers['x-watermark-trace']
+    assert response.status_code == 200 and b'Company knowledge evidence' in response.content and response.headers['x-watermark-trace']
     assert stored_original(setup, row['id']) == b'Company knowledge evidence'
     assert upload(setup, project='P1').status_code == 409
     second = upload(setup, payload=b'New version', project='P1').json()

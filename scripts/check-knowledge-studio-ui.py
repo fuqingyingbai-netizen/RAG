@@ -54,6 +54,7 @@ def main():
     for i,doc in enumerate(docs):doc.update(knowledge_project_id=f'project-{i%2}',folder_id='',inherits_project=0)
     errors, unexpected, mutations, metrics = [], [], [], {}
     hide_cases = False
+    pending_export, export_polls = None, 0
     assets = {'vue.global.prod.js':'vue.js', 'index.full.min.js':'element.js', 'index.css':'element.css', 'all.min.css':'icons.css'}
     buffer = io.BytesIO()
     with wave.open(buffer, 'wb') as output:
@@ -80,6 +81,7 @@ def main():
         page.add_init_script("localStorage.setItem('accessToken','synthetic-preview-only');localStorage.setItem('activeView','company-knowledge');")
 
         def route_request(route):
+            nonlocal pending_export, export_polls
             request, url = route.request, route.request.url
             path = urlsplit(url).path
             if not url.startswith(base):
@@ -149,6 +151,12 @@ def main():
                 return route.fulfill(content_type='text/event-stream',body=''.join('data: '+json.dumps(e,ensure_ascii=False)+'\n\n' for e in events))
             if path.endswith('/preview'):
                 return route.fulfill(json={'references':[{'id':'1','text':'隔离测试的解析片段。','title':'示例资料'}],'total':1})
+            if path.endswith('/export-status'):
+                export_polls += 1
+                return route.fulfill(json={'stage':'converting' if export_polls == 1 else 'stamping','page':0 if export_polls == 1 else 89,'total_pages':0 if export_polls == 1 else 178})
+            if path.endswith('/download'):
+                pending_export = route
+                return
             if path.endswith('/original'):
                 doc = next(d for d in docs if d['id'] == path.split('/')[-2])
                 return route.fulfill(body=audio if doc['media_kind']=='audio' else video,content_type='audio/wav' if doc['media_kind']=='audio' else 'video/webm')
@@ -235,6 +243,18 @@ def main():
         existing_editor.get_by_role('button',name='取消',exact=True).click()
         page.get_by_role('tab',name='研究首页',exact=True).click()
         page.screenshot(path=str(args.output_dir/'home-desktop.png'),full_page=True,animations='disabled')
+        page.locator('.ckb-mini-file').nth(1).click()
+        page.get_by_role('button',name='下载水印副本',exact=True).click()
+        expect(page.locator('.ckb-download-progress')).to_contain_text('水印 89/178 项',timeout=10000)
+        expect(page.locator('.ckb-download-progress progress')).to_have_attribute('value','89')
+        page.screenshot(path=str(args.output_dir/'download-progress.png'),full_page=True,animations='disabled')
+        assert pending_export is not None
+        with page.expect_download() as exported:
+            pending_export.fulfill(body=b'PK-synthetic-watermarked-copy',content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',headers={'X-Download-Filename':'QA_watermarked.docx'})
+        assert exported.value.suggested_filename == 'QA_watermarked.docx'
+        expect(page.get_by_role('button',name='下载水印副本',exact=True)).to_be_enabled()
+        expect(page.locator('.ckb-download-progress')).to_have_count(0)
+        page.get_by_role('button',name='Close this dialog').click()
         page.get_by_role('tab',name='资料库',exact=True).click()
         expect(page.locator('.ckb-project-directory')).to_have_count(2)
         page.screenshot(path=str(args.output_dir/'projects-desktop.png'),full_page=True,animations='disabled')

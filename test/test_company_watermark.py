@@ -1,5 +1,6 @@
 import io
 import os
+import re
 import shutil
 import wave
 from pathlib import Path
@@ -28,6 +29,26 @@ def test_pdf_stamps_every_page_preserving_rotation_crop_and_text():
     assert mime == 'application/pdf' and name.endswith('.pdf')
 
 
+def test_long_pdf_reuses_watermark_stream_and_reports_real_page_progress(monkeypatch):
+    source = PdfWriter()
+    for _ in range(178):
+        source.add_blank_page(width=595, height=842)
+    data = io.BytesIO(); source.write(data)
+    calls, progress = [], []
+    real_layer = wm.watermark_layer
+    def layer(*args):
+        calls.append(args)
+        return real_layer(*args)
+    monkeypatch.setattr(wm, 'watermark_layer', layer)
+    result = wm.stamp_pdf(data.getvalue(), IDENTITY, lambda *args: progress.append(args))
+    reader = PdfReader(io.BytesIO(result))
+    assert len(reader.pages) == 178 and len(calls) == 1
+    images = {page['/Resources']['/XObject'][name].indirect_reference.idnum for page in reader.pages for name in page['/Resources']['/XObject']}
+    assert len(images) == 1 and len(result) < 1_000_000
+    assert progress[0] == ('stamping', 0, 178) and progress[-1] == ('packaging', 178, 178)
+    assert [step[1] for step in progress if step[0] == 'stamping'] == list(range(179))
+
+
 def test_image_watermark_changes_pixels_and_keeps_source_dimensions():
     source = io.BytesIO(); Image.new('RGB', (600,400), 'white').save(source, format='PNG')
     result, mime, name = wm.export_copy(source.getvalue(), 'PNG', '图片.png', IDENTITY)
@@ -47,15 +68,85 @@ def test_missing_converter_and_invalid_pdf_fail_closed(monkeypatch):
         wm.export_copy(b'a' * 2_000_001, 'TXT', 'large.txt', IDENTITY)
 
 
-@pytest.mark.skipif(not os.environ.get('COMPANY_KNOWLEDGE_OFFICE_BINARY') and not shutil.which('soffice'), reason='requires configured LibreOffice')
-def test_real_spreadsheet_conversion_preserves_cells():
-    from openpyxl import Workbook
-    workbook = Workbook(); workbook.active.append(['Revenue', 12345])
+def test_native_spreadsheet_preserves_cells_formulas_and_adds_view_and_print_markers():
+    from openpyxl import Workbook, load_workbook
+    import zipfile
+    workbook = Workbook(); workbook.active.append(['Revenue', 12345]);workbook.active['B2']='=B1+1'
     source = io.BytesIO(); workbook.save(source)
     result, mime, name = wm.export_copy(source.getvalue(), 'XLSX', '收入.xlsx', IDENTITY)
-    reader = PdfReader(io.BytesIO(result))
-    assert 'Revenue' in reader.pages[0].extract_text() and '12345' in reader.pages[0].extract_text()
-    assert reader.metadata['/WatermarkTrace'] == IDENTITY.trace_id
+    book=load_workbook(io.BytesIO(result))
+    assert book.active['A1'].value=='Revenue' and book.active['B1'].value==12345 and book.active['B2'].value=='=B1+1'
+    assert IDENTITY.username in book.active.oddFooter.left.text and IDENTITY.trace_id in book.active.oddFooter.right.text
+    assert name.endswith('.xlsx') and 'spreadsheetml' in mime
+    with zipfile.ZipFile(io.BytesIO(result)) as archive:
+        assert any('ckb-watermark-' in name for name in archive.namelist())
+    other=wm.ExportIdentity('next-user',18,IDENTITY.timestamp,'second-trace')
+    updated,_,_=wm.export_copy(result,'XLSX','again.xlsx',other)
+    again=load_workbook(io.BytesIO(updated))
+    assert 'next-user' in again.active.oddFooter.left.text and IDENTITY.username not in again.active.oddFooter.left.text
+    assert again.active['B2'].value=='=B1+1'
+
+
+def test_native_text_preserves_extension_encoding_and_original_body_bytes():
+    source = b'\xff\xfe' + 'Original text'.encode('utf-16-le')
+    result,mime,name=wm.export_copy(source,'TXT','notes.txt',IDENTITY)
+    assert result.startswith(b'\xff\xfe') and source[2:] in result
+    assert IDENTITY.username in result[2:].decode('utf-16-le')
+    assert name.endswith('.txt') and mime=='text/plain; charset=utf-16-le'
+
+
+def test_native_word_keeps_body_and_existing_header_with_all_header_variants():
+    import zipfile
+    from lxml import etree as E
+    from company_office_watermark import NS
+    contents={'[Content_Types].xml':('<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+        '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/></Types>'),
+        '_rels/.rels':'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="root" Type="'+NS['r']+'/officeDocument" Target="word/document.xml"/></Relationships>',
+        'word/document.xml':'<w:document xmlns:w="'+NS['w']+'" xmlns:r="'+NS['r']+'"><w:body><w:p><w:r><w:t>Keep original paragraph</w:t></w:r></w:p><w:sectPr><w:headerReference w:type="default" r:id="brand"/><w:titlePg/></w:sectPr></w:body></w:document>',
+        'word/_rels/document.xml.rels':'<Relationships xmlns="'+NS['rel']+'"><Relationship Id="brand" Type="'+NS['r']+'/header" Target="header1.xml"/></Relationships>',
+        'word/header1.xml':'<w:hdr xmlns:w="'+NS['w']+'"><w:p><w:r><w:t>Keep company header</w:t></w:r></w:p></w:hdr>',
+        'custom/unchanged.bin':'keep these bytes'}
+    source=io.BytesIO()
+    with zipfile.ZipFile(source,'w') as archive:
+        for name,value in contents.items():archive.writestr(name,value)
+    result,mime,name=wm.export_copy(source.getvalue(),'DOCX','report.docx',IDENTITY)
+    assert name.endswith('.docx') and 'wordprocessingml' in mime
+    with zipfile.ZipFile(io.BytesIO(result)) as archive:
+        assert archive.read('custom/unchanged.bin')==b'keep these bytes'
+        document=E.fromstring(archive.read('word/document.xml'))
+        assert document.xpath('//w:body//w:t/text()',namespaces=NS)==['Keep original paragraph']
+        headers=[name for name in archive.namelist() if re.fullmatch(r'word/header.*\.xml',name)]
+        assert len(headers)==3
+        for header in headers:
+            xml=E.fromstring(archive.read(header));assert xml.find('.//{'+NS['wp']+'}anchor') is not None
+        assert 'Keep company header' in archive.read('word/header1.xml').decode()
+    other=wm.ExportIdentity('next-user',18,IDENTITY.timestamp,'second-trace')
+    updated,_,_=wm.export_copy(result,'DOCX','again.docx',other)
+    with zipfile.ZipFile(io.BytesIO(updated)) as archive:
+        for header in headers:
+            xml=E.fromstring(archive.read(header))
+            tags=xml.findall('.//{'+NS['wp']+'}docPr')
+            assert len(tags)==1 and 'next-user' in tags[0].get('descr')
+
+
+def test_native_slides_keep_existing_shapes_and_add_overlay_to_each_slide():
+    import zipfile
+    from lxml import etree as E
+    from company_office_watermark import NS
+    source=io.BytesIO()
+    with zipfile.ZipFile(source,'w') as archive:
+        archive.writestr('[Content_Types].xml','<Types xmlns="'+NS['ct']+'"/>')
+        archive.writestr('ppt/presentation.xml','<p:presentation xmlns:p="'+NS['p']+'"><p:sldSz cx="9144000" cy="6858000"/></p:presentation>')
+        for number in (1,2):
+            archive.writestr(f'ppt/slides/slide{number}.xml','<p:sld xmlns:p="'+NS['p']+'" xmlns:a="'+NS['a']+'"><p:cSld><p:spTree><p:sp><p:txBody><a:p><a:r><a:t>Keep original slide</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:sld>')
+    result,mime,name=wm.export_copy(source.getvalue(),'PPTX','slides.pptx',IDENTITY)
+    assert name.endswith('.pptx') and 'presentationml' in mime
+    with zipfile.ZipFile(io.BytesIO(result)) as archive:
+        for number in (1,2):
+            slide=E.fromstring(archive.read(f'ppt/slides/slide{number}.xml'))
+            assert slide.xpath('//a:t/text()',namespaces=NS)==['Keep original slide']
+            assert slide.find('.//{'+NS['p']+'}pic') is not None
 
 
 def test_real_audio_video_outputs_contain_marks_and_playable_streams(tmp_path):
