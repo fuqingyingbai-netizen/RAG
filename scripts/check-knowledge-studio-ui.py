@@ -129,6 +129,8 @@ def main():
             if path == '/company-knowledge/my-projects':
                 return route.fulfill(json={'project_count':2,'document_count':len(docs),'projects':[{'name':'示例汽车研究项目','industries':['汽车与出行'],'document_count':8},{'name':'示例制造业项目','industries':['先进制造'],'document_count':8}]})
             if path.startswith('/company-knowledge/access-requests'): return route.fulfill(json={'requests':[]})
+            if path == '/company-knowledge/audit-events':
+                return route.fulfill(json={'events':[{'id':'qa-event','project_id':'project-0','target_type':'project','target_id':'project-0','target_name':'示例项目','actor_username':'preview','action':'project.update','created_at':'2026-11-03T08:00:00Z','changes':{'description':{'before':'原始背景','after':'修正背景 <script>不执行</script>'}},'details':{}}], 'total':1,'page':1})
             if path.startswith('/company-knowledge/conversations'):
                 if request.method != 'GET': mutations.append({'path':path,'body':request.post_data_json})
                 return route.fulfill(json={'session_id':'preview-conversation' if request.method == 'POST' else '', 'sessions':[{'id':'preview-conversation','title':'示例 · 市场进入研究'}], 'messages':[], 'document_ids':request.post_data_json.get('document_ids',[]) if request.method == 'POST' else [],'scope':'accessible'})
@@ -195,6 +197,15 @@ def main():
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme','dark')
         if args.theme == 'light': page.get_by_role('button',name='切换知识库主题',exact=True).click()
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme',args.theme)
+        page.get_by_role('button',name='操作记录',exact=True).click()
+        audit=page.get_by_role('dialog',name='操作记录',exact=True)
+        expect(audit).to_contain_text('preview')
+        audit.locator('summary').click()
+        expect(audit).to_contain_text('原始背景')
+        expect(audit).to_contain_text('修正背景 <script>不执行</script>')
+        expect(audit.locator('script')).to_have_count(0)
+        page.screenshot(path=str(args.output_dir/'audit-desktop.png'),full_page=True,animations='disabled')
+        audit.get_by_role('button',name='关闭',exact=True).click()
         expect(page.locator('.ckb-mini-file')).to_have_count(4)
         expect(page.locator('.ckb-mini-file .ckb-file-object')).to_have_count(4)
         page.get_by_role('button',name='暂停动效',exact=True).click()

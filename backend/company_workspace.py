@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -27,8 +27,18 @@ from company_catalog import (AUDIO_FORMATS, VIDEO_FORMATS, CONFIDENTIALITY_LABEL
                              ensure_company_schema, is_owner, media_kind, serialize)
 from database import SessionLocal
 from models import User
+from company_audit import record, snapshot, mark_modified, history
+from company_watermark import ExportIdentity, WatermarkError, export_copy
 
 workspace_router = APIRouter()
+
+
+@workspace_router.get('/audit-events')
+def audit_events(project_id: str = '', document_id: str = '', page: int = Query(1, ge=1),
+                 page_size: int = Query(30, ge=1, le=100), user: User = Depends(kb.require_knowledge_user)):
+    with SessionLocal() as db:
+        return history(db, user, kb.settings()['index_id'], project_id=project_id, document_id=document_id,
+                       page=page, page_size=page_size)
 MAX_BYTES = 32 * 1024 * 1024
 MAX_MEDIA_BYTES = 128 * 1024 * 1024
 MEDIA_FORMATS = {ext.lower() for ext in AUDIO_FORMATS | VIDEO_FORMATS}
@@ -286,7 +296,7 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
             project, industry, category, review = directory.name, directory.industry, directory.category, directory.review
             confidentiality, visibility, acl = directory.confidentiality, directory.visibility, list(directory.readers or [])
             labels = list(directory.tags or [])
-            directory.updated_at = datetime.utcnow()
+            mark_modified(directory, user)
         # PostgreSQL serializes uploads from one user so concurrent submissions
         # cannot allocate the same version. Unique indexes are the second guard.
         db.execute(select(User).where(User.username == user.username).with_for_update())
@@ -299,6 +309,7 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
             raise HTTPException(409, '相同内容已上传，请在资料列表查看原任务；如处理失败可点击重试。')
         doc = CompanyDocument(id=uuid.uuid4().hex, index_id=cfg['index_id'], title=title,
             format=extension.upper(), size=len(payload), sha256=digest, owner=owner,
+            uploaded_by=user.username, uploaded_by_user_id=getattr(user, 'id', None), modified_by=user.username,
             owner_user_id=owner_id, knowledge_project_id=project_id, folder_id=folder_id, inherits_project=int(bool(project_id)), confidentiality=confidentiality,
             project=project.strip(), industry=industry.strip(), category=category, review=review,
             tags=labels, description=description.strip(),
@@ -311,6 +322,7 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
                                 mimetypes.guess_type(title)[0] or 'application/octet-stream')
         try:
             db.add(doc)
+            record(db, user, 'document.upload', doc)
             db.commit()
         except IntegrityError:
             db.rollback()
@@ -343,6 +355,7 @@ class DocumentMetadata(BaseModel):
 async def edit_document(doc_id: str, values: DocumentMetadata, user: User = Depends(kb.require_knowledge_user)):
     with SessionLocal() as db:
         doc = find_doc(db, doc_id, user, manage=True)
+        before = snapshot(doc)
         changed = values.model_dump(exclude_unset=True)
         if 'title' in changed:
             name = changed['title'].strip()
@@ -386,7 +399,8 @@ async def edit_document(doc_id: str, values: DocumentMetadata, user: User = Depe
             doc.stale_cloud_id = doc.cloud_id or doc.stale_cloud_id
             doc.cloud_id, doc.job_id, doc.lease_id = None, '', ''
             doc.state, doc.status_message = 'queued', '说明已更新，等待重新建立索引；音视频原件保持不变'
-        doc.updated_at = datetime.utcnow()
+        mark_modified(doc, user)
+        record(db, user, 'document.update', doc, before=before)
         try:
             db.commit()
         except IntegrityError:
@@ -482,15 +496,18 @@ def decide_access(request_id: str, values: AccessRequestDecision,
         doc = db.scalar(select(CompanyDocument).where(CompanyDocument.id == request.document_id).with_for_update())
         if not doc or doc.state == 'deleted':
             raise HTTPException(409, '资料已删除，无法继续审批。')
+        before = snapshot(doc)
         if values.decision == 'approved':
             doc.readers = list(dict.fromkeys([*(doc.readers or []), request.requester_username]))
             doc.visibility = 'restricted'
-            doc.updated_at = datetime.utcnow()
+            mark_modified(doc, user)
         request.status = values.decision
         request.decision_note = values.note.strip()
         request.decided_by_id = getattr(user, 'id', None)
         request.decided_by_username = user.username
         request.decided_at = datetime.utcnow()
+        record(db, user, 'document.access_decision', doc, before=before,
+            details={'decision': values.decision, 'requester': request.requester_username, 'note': values.note.strip()})
         db.commit()
         return serialize_access_request(request, doc)
 
@@ -536,6 +553,7 @@ def my_projects(user: User = Depends(kb.require_knowledge_user)):
 async def retry(doc_id: str, user: User = Depends(kb.require_knowledge_user)):
     with SessionLocal() as db:
         doc = find_doc(db, doc_id, user, manage=True)
+        before = snapshot(doc)
         if doc.state != 'failed' or not doc.object_key:
             raise HTTPException(409, '仅本系统上传且处理失败的文件可以重试。')
         if doc.lease_until and doc.lease_until > datetime.utcnow():
@@ -546,6 +564,8 @@ async def retry(doc_id: str, user: User = Depends(kb.require_knowledge_user)):
             doc.job_id = ''
         doc.state = 'queued'
         doc.status_message = '已安排重试'
+        mark_modified(doc, user)
+        record(db, user, 'document.retry', doc, before=before)
         db.commit()
     schedule_document(doc_id)
     return {'accepted': True}
@@ -555,6 +575,7 @@ async def retry(doc_id: str, user: User = Depends(kb.require_knowledge_user)):
 async def delete_document(doc_id: str, user: User = Depends(kb.require_knowledge_user)):
     with SessionLocal() as db:
         doc = find_doc(db, doc_id, user, manage=True)
+        before = snapshot(doc)
         if doc.state in ('queued', 'uploading', 'parsing', 'indexing') or (doc.lease_until and doc.lease_until > datetime.utcnow()):
             raise HTTPException(409, '资料仍在处理，请等待完成后删除。')
         doc.state = 'deleting'
@@ -570,28 +591,46 @@ async def delete_document(doc_id: str, user: User = Depends(kb.require_knowledge
                 db.commit()
                 raise HTTPException(502, doc.status_message) from None
         doc.state = 'deleted'
-        doc.updated_at = datetime.utcnow()
+        mark_modified(doc, user)
+        record(db, user, 'document.delete', doc, before=before, details={'deleted': True})
         db.commit()
         # Keep the original in controlled storage as a recovery copy. No API can
         # return it once deleted. No other knowledge bases/data-centre files touched.
     return {'deleted': True}
 
 
+@workspace_router.get('/documents/{doc_id}/download')
 @workspace_router.get('/documents/{doc_id}/original')
-async def original(doc_id: str, download: bool = False, user: User = Depends(kb.require_knowledge_user)):
+async def original(doc_id: str, request: Request, download: bool = False, user: User = Depends(kb.require_knowledge_user)):
+    download = download or request.url.path.endswith('/download')
+    trace_id = uuid.uuid4().hex
+    identity = ExportIdentity(user.username, getattr(user, 'id', None), datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'), trace_id)
     with SessionLocal() as db:
         doc = find_doc(db, doc_id, user)
         if not doc.object_key:
-            raise HTTPException(404, '历史文件原件需从云端引用打开。')
-        data = await asyncio.to_thread(document_store().get_bytes, doc.object_key)
-        mime = mimetypes.guess_type(doc.title)[0] or 'application/octet-stream'
-        inline = not download and (doc.format in ('PDF', 'PNG', 'JPG', 'JPEG') or bool(media_kind(doc)))
-        if media_kind(doc):
-            mime = {'MP3': 'audio/mpeg', 'WAV': 'audio/wav', 'M4A': 'audio/mp4', 'OGG': 'audio/ogg',
-                    'FLAC': 'audio/flac', 'MP4': 'video/mp4', 'WEBM': 'video/webm'}[doc.format]
-        return Response(data, media_type=mime if inline else 'application/octet-stream', headers={
-            'Content-Disposition': ('inline' if inline else 'attachment') + "; filename*=UTF-8''" + quote(doc.title),
-            'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff'})
+            raise HTTPException(404, '这份历史资料尚无受控原件，暂不能生成带水印副本。')
+        object_key, fmt, title = doc.object_key, doc.format, doc.title
+    try:
+        data = await asyncio.to_thread(document_store().get_bytes, object_key)
+        result, mime, filename = await asyncio.to_thread(export_copy, data, fmt, title, identity)
+    except WatermarkError as error:
+        with SessionLocal() as db:
+            doc = find_doc(db, doc_id, user)
+            record(db, user, 'document.export_failed', doc, before=snapshot(doc),
+                details={'trace_id': trace_id, 'reason': str(error)})
+            db.commit()
+        raise HTTPException(error.status, str(error)) from None
+    # Conversion may take time. Recheck the current ACL before issuing any bytes.
+    with SessionLocal() as db:
+        doc = find_doc(db, doc_id, user)
+        record(db, user, 'document.download' if download else 'document.preview', doc, before=snapshot(doc),
+            event_id=trace_id, details={'trace_id': trace_id, 'filename': filename, 'mime': mime,
+                'sha256': hashlib.sha256(result).hexdigest(), 'watermarked': True})
+        db.commit()
+    return Response(result, media_type=mime, headers={
+        'Content-Disposition': ('attachment' if download else 'inline') + "; filename*=UTF-8''" + quote(filename),
+        'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff',
+        'X-Watermark-Trace': trace_id, 'X-Download-Filename': quote(filename)})
 
 
 @workspace_router.get('/documents/{doc_id}/preview')
@@ -649,10 +688,19 @@ async def pdf_page(doc_id: str, page: int = Query(1, ge=1), user: User = Depends
         data = await asyncio.to_thread(document_store().get_bytes, doc.object_key)
     try:
         image, count = await asyncio.to_thread(render_pdf_page, data, page)
+        identity = ExportIdentity(user.username, getattr(user, 'id', None), datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'), uuid.uuid4().hex)
+        image, _, _ = await asyncio.to_thread(export_copy, image, 'PNG', 'preview.png', identity)
     except HTTPException:
         raise
+    except WatermarkError as error:
+        raise HTTPException(error.status, str(error)) from None
     except Exception:
         raise HTTPException(422, 'PDF 无法预览，可能已加密或损坏，请下载原件核对。') from None
+    with SessionLocal() as db:
+        doc = find_doc(db, doc_id, user)
+        record(db, user, 'document.preview', doc, before=snapshot(doc), event_id=identity.trace_id,
+            details={'trace_id': identity.trace_id, 'page': page, 'watermarked': True})
+        db.commit()
     return Response(image, media_type='image/png', headers={'Cache-Control': 'private, no-store',
         'X-Document-Pages': str(count), 'X-Content-Type-Options': 'nosniff'})
 

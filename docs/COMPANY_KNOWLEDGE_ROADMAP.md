@@ -25,4 +25,4 @@
 - [Glean 搜索权限](https://docs.glean.com/administration/search/faq)：检索遵守源系统权限。
 - [Glean 反馈机制](https://docs.glean.com/administration/assistant/configuration/feedback-data-handling)：搜索和回答反馈及相应分析数据。
 
-上述优先级是结合本系统用途和现有实现作出的建议；本次交付实现的是首页和分类体验调整，表中的后续能力尚未新增。
+上述优先级是结合本系统用途和现有实现作出的建议。用户已暂缓这四类扩展；后续一轮仅落实了明确要求的下载水印、创建/上传者字段和基础操作记录。回收站、版本恢复、定期复核、批量导入与反馈统计仍未新增，不能将基础留痕视为这些能力已经完成。

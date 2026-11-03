@@ -13,6 +13,7 @@ from company_catalog import (CompanyDocument, CompanyProject, CompanyFolder, can
 from company_workspace import CATEGORIES, validate_acl, validate_tags, validate_confidentiality, schedule_document
 from database import SessionLocal
 from models import User
+from company_audit import record, snapshot, mark_modified
 
 projects_router = APIRouter()
 
@@ -66,7 +67,7 @@ def restrict_to_project(values, project):
 
 def serialize_project(project, user, docs, folders):
     values = {key: getattr(project, key) for key in ('id', 'name', 'owner', 'owner_user_id', 'industry',
-        'category', 'review', 'confidentiality', 'visibility', 'description')}
+        'category', 'review', 'confidentiality', 'visibility', 'description', 'created_by', 'modified_by')}
     values.update(tags=list(project.tags or []), readers=list(project.readers or []) if can_manage(project, user) else [],
         can_manage=can_manage(project, user), created_at=project.created_at.isoformat()+'Z',
         modified_at=project.updated_at.isoformat()+'Z', document_count=len(docs),
@@ -129,8 +130,9 @@ def create_project(data: ProjectValues, user: User = Depends(kb.require_knowledg
     values = data.validated()
     with SessionLocal() as db:
         project = CompanyProject(id=uuid.uuid4().hex, index_id=kb.settings()['index_id'],
-            owner=user.username, owner_user_id=getattr(user, 'id', None), **values)
+            owner=user.username, owner_user_id=getattr(user, 'id', None), created_by=user.username, modified_by=user.username, **values)
         db.add(project)
+        record(db, user, 'project.create', project)
         commit(db)
         return serialize_project(project, user, [], [])
 
@@ -140,6 +142,7 @@ async def edit_project(project_id: str, data: ProjectValues, user: User = Depend
     values = data.validated()
     with SessionLocal() as db:
         project = find_project(db, project_id, user, manage=True)
+        before = snapshot(project)
         docs = list(db.scalars(select(CompanyDocument).where(CompanyDocument.knowledge_project_id == project.id)))
         # Existing ingestion must finish before changing fields used in a media description index.
         renamed = values['name'] != project.name
@@ -150,9 +153,10 @@ async def edit_project(project_id: str, data: ProjectValues, user: User = Depend
         acl_changed = any(values[key] != getattr(project, key) for key in ('confidentiality', 'visibility', 'readers'))
         for key, value in values.items():
             setattr(project, key, value)
-        project.updated_at = datetime.utcnow()
+        mark_modified(project, user)
         queued = []
         for doc in docs:
+            doc_before = snapshot(doc)
             if renamed:
                 doc.project = project.name
             if doc.inherits_project:
@@ -168,6 +172,10 @@ async def edit_project(project_id: str, data: ProjectValues, user: User = Depend
                 doc.state, doc.status_message = 'queued', '项目属性已更新，等待重新索引文字说明'
                 queued.append(doc.id)
             doc.updated_at = datetime.utcnow()
+            if snapshot(doc) != doc_before:
+                mark_modified(doc, user)
+                record(db, user, 'document.inherit', doc, before=doc_before, details={'source': 'project.update'})
+        record(db, user, 'project.update', project, before=before)
         commit(db)
         result = serialize_project(project, user, [d for d in docs if d.state != 'deleted'],
             list(db.scalars(select(CompanyFolder).where(CompanyFolder.project_id == project.id))))
@@ -196,7 +204,8 @@ def create_folder(project_id: str, data: FolderValues, user: User = Depends(kb.r
         folder = CompanyFolder(id=uuid.uuid4().hex, project_id=project.id, parent_id=data.parent_id,
             name=clean_name(data.name))
         db.add(folder)
-        project.updated_at = datetime.utcnow()
+        mark_modified(project, user)
+        record(db, user, 'folder.create', folder)
         commit(db)
         return {'id': folder.id, 'project_id': folder.project_id, 'parent_id': folder.parent_id, 'name': folder.name}
 
@@ -208,9 +217,12 @@ def edit_folder(project_id: str, folder_id: str, data: FolderValues, user: User 
         folder = find_folder(db, project.id, folder_id)
         if not folder:
             raise HTTPException(404, '目录不存在。')
+        before = snapshot(folder)
         # Renaming only; parent changes require a separate explicit move operation.
         folder.name = clean_name(data.name)
-        folder.updated_at = project.updated_at = datetime.utcnow()
+        folder.updated_at = datetime.utcnow()
+        mark_modified(project, user)
+        record(db, user, 'folder.update', folder, before=before)
         commit(db)
         return {'id': folder.id, 'project_id': folder.project_id, 'parent_id': folder.parent_id, 'name': folder.name}
 
@@ -227,7 +239,8 @@ def delete_empty_folder(project_id: str, folder_id: str, user: User = Depends(kb
                 CompanyDocument.knowledge_project_id == project.id, CompanyDocument.folder_id == folder.id,
                 CompanyDocument.state != 'deleted').limit(1)):
             raise HTTPException(409, '目录不为空，请先处理其中的文件和子目录。')
+        record(db, user, 'folder.delete', folder, before=snapshot(folder), details={'deleted': True})
         db.delete(folder)
-        project.updated_at = datetime.utcnow()
+        mark_modified(project, user)
         commit(db)
         return {'deleted': True}

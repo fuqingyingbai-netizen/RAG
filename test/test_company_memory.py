@@ -80,9 +80,14 @@ def test_restore_history_and_followup_retrieves_again_without_trusting_browser(e
     sid=create(env)
     first=call(env,sid)
     assert first.status_code==200 and '"type": "saved"' in first.text and '"type": "done"' in first.text
+    with env.db() as db:
+        saved = db.scalar(select(memory.KnowledgeChatMessage).where(memory.KnowledgeChatMessage.role == 'assistant'))
+        saved.references = [{**ref, 'url':'https://example.com/legacy-unmarked.pdf', 'location_url':'https://example.com/page.png'} for ref in saved.references]
+        db.commit()
     restored=env.client.get('/company-knowledge/conversations').json()
     assert restored['session_id']==sid and len(restored['messages'])==2
     assert restored['messages'][1]['references'][0]['local_id']=='doc-a'
+    assert restored['messages'][1]['references'][0]['url'] == restored['messages'][1]['references'][0]['location_url'] == ''
     response=call(env,sid,'那它的商业化情况呢？','two',history=[{'role':'user','content':'ATTACKER_CONTEXT'}])
     assert '已补全追问' in response.text
     retrievals=[body for path,body in requests if path.endswith('/retrieve')]

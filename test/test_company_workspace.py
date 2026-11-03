@@ -14,7 +14,7 @@ from sqlalchemy.orm import sessionmaker
 import company_knowledge as kb
 import company_workspace as ws
 import company_ingestion as ingestion
-from company_catalog import CompanyAccessRequest, CompanyDocument, CompanyProject, CompanyFolder, document_store
+from company_catalog import CompanyAccessRequest, CompanyDocument, CompanyProject, CompanyFolder, CompanyAuditEvent, document_store
 from models import User
 
 real_sync_catalog = ws.sync_catalog
@@ -36,6 +36,7 @@ def setup(monkeypatch, tmp_path):
     CompanyAccessRequest.__table__.create(engine)
     CompanyProject.__table__.create(engine)
     CompanyFolder.__table__.create(engine)
+    CompanyAuditEvent.__table__.create(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(ws, 'SessionLocal', factory)
     import company_projects
@@ -58,6 +59,109 @@ def upload(setup, payload=b'Company knowledge evidence', name='evidence.txt', **
     return setup.client.post('/company-knowledge/uploads', files={'file': (name, payload)}, data=fields)
 
 
+def stored_original(setup, doc_id):
+    """The server's archival bytes remain unchanged; HTTP exports are marked derivatives."""
+    with setup.db() as db:
+        return document_store().get_bytes(db.get(CompanyDocument, doc_id).object_key)
+
+
+def test_server_attribution_owned_edits_and_audit_permissions(setup):
+    p = project(setup, '审计项目')
+    assert p['created_by'] == p['modified_by'] == 'alice'
+    response = setup.client.patch('/company-knowledge/projects/' + p['id'], json={
+        'name': '修正名称', 'description': '修正背景', 'created_by': 'forged', 'modified_by': 'forged'})
+    assert response.status_code == 200 and response.json()['created_by'] == 'alice'
+    rows = setup.client.get('/company-knowledge/audit-events', params={'project_id': p['id']}).json()['events']
+    edited = next(row for row in rows if row['action'] == 'project.update')
+    assert edited['actor_username'] == 'alice'
+    assert edited['changes']['name'] == {'before': '审计项目', 'after': '修正名称'}
+    assert edited['changes']['description'] == {'before': '', 'after': '修正背景'}
+    setup.user.username, setup.user.id = 'bob', 2
+    assert setup.client.patch('/company-knowledge/projects/' + p['id'], json={'name': '越权'}).status_code == 403
+    assert setup.client.get('/company-knowledge/audit-events', params={'project_id': p['id']}).status_code == 404
+    assert setup.client.get('/company-knowledge/audit-events').status_code == 403
+    setup.user.role = 'admin'
+    row = upload(setup, project_id=p['id'], uploaded_by='forged').json()
+    assert row['owner'] == 'alice' and row['uploaded_by'] == 'bob' and row['modified_by'] == 'bob'
+    assert setup.client.patch('/company-knowledge/documents/' + row['id'], json={'title': 'renamed.txt', 'modified_by': 'forged'}).status_code == 200
+    events = setup.client.get('/company-knowledge/audit-events', params={'document_id': row['id']}).json()['events']
+    assert {'document.upload', 'document.update'} <= {e['action'] for e in events}
+    edited = next(e for e in events if e['action'] == 'document.update')
+    assert edited['actor_username'] == 'bob' and edited['changes']['title']['before'] == 'evidence.txt'
+    assert setup.client.put('/company-knowledge/audit-events/' + edited['id'], json={}).status_code in (404,405)
+
+
+def test_audit_rolls_back_with_failed_project_changes(setup):
+    a, b = project(setup, '审计 A'), project(setup, '审计 B')
+    assert setup.client.patch('/company-knowledge/projects/' + b['id'], json={'name': a['name']}).status_code == 409
+    rows = setup.client.get('/company-knowledge/audit-events', params={'project_id': b['id']}).json()['events']
+    assert len(rows) == 1 and rows[0]['action'] == 'project.create'
+    assert setup.client.get('/company-knowledge/projects').json()['projects'][0]['name'] in ('审计 A', '审计 B')
+
+
+def test_every_export_route_is_personalised_and_original_is_preserved(setup):
+    import io
+    from pypdf import PdfReader
+    row = upload(setup).json()
+    traces = set()
+    for suffix in ('/download', '/original', '/original?download=true', '/original?download=false'):
+        response = setup.client.get('/company-knowledge/documents/' + row['id'] + suffix)
+        assert response.status_code == 200 and response.headers['content-type'] == 'application/pdf'
+        pdf = PdfReader(io.BytesIO(response.content))
+        assert pdf.metadata['/DownloadAccount'] == 'alice'
+        assert 'Company knowledge evidence' in pdf.pages[0].extract_text()
+        assert response.headers['x-watermark-trace'] == pdf.metadata['/WatermarkTrace']
+        traces.add(response.headers['x-watermark-trace'])
+    assert len(traces) == 4 and stored_original(setup, row['id']) == b'Company knowledge evidence'
+    setup.user.id, setup.user.username = 2, 'bob'
+    response = setup.client.get('/company-knowledge/documents/' + row['id'] + '/download')
+    assert PdfReader(io.BytesIO(response.content)).metadata['/DownloadAccount'] == 'bob'
+    assert setup.client.get('/company-knowledge/audit-events', params={'document_id': row['id']}).status_code == 404
+    setup.user.role = 'admin'
+    history = setup.client.get('/company-knowledge/audit-events', params={'document_id': row['id']}).json()['events']
+    generated = next(e for e in history if e['id'] == response.headers['x-watermark-trace'])
+    assert generated['action'] == 'document.download' and generated['actor_username'] == 'bob'
+    assert generated['details']['sha256'] == hashlib.sha256(response.content).hexdigest()
+
+
+def test_export_failure_never_falls_back_to_original_and_rechecks_acl(setup, monkeypatch):
+    from company_watermark import WatermarkError
+    row = upload(setup).json()
+    def failure(*args):
+        raise WatermarkError('模拟转换失败')
+    monkeypatch.setattr(ws, 'export_copy', failure)
+    response = setup.client.get('/company-knowledge/documents/' + row['id'] + '/download')
+    assert response.status_code == 503 and b'Company knowledge evidence' not in response.content
+    events = setup.client.get('/company-knowledge/audit-events', params={'document_id': row['id']}).json()['events']
+    assert events[0]['action'] == 'document.export_failed'
+    setup.user.id, setup.user.username = 2, 'bob'
+    def revoked(data, fmt, title, identity):
+        with setup.db() as db:
+            doc = db.get(CompanyDocument, row['id']); doc.visibility = 'restricted'; doc.readers = []; db.commit()
+        return b'%PDF-marked', 'application/pdf', 'marked.pdf'
+    monkeypatch.setattr(ws, 'export_copy', revoked)
+    assert setup.client.get('/company-knowledge/documents/' + row['id'] + '/download').status_code == 404
+
+
+def test_audit_schema_upgrade_retains_existing_records_and_is_repeatable(setup):
+    from company_catalog import ensure_company_schema
+    p = project(setup)
+    row = upload(setup, project_id=p['id']).json()
+    with setup.db() as db:
+        engine = db.get_bind()
+    with engine.begin() as connection:
+        for column in ('uploaded_by', 'uploaded_by_user_id', 'modified_by'):
+            connection.exec_driver_sql('ALTER TABLE company_documents DROP COLUMN ' + column)
+        for column in ('created_by', 'modified_by'):
+            connection.exec_driver_sql('ALTER TABLE company_projects DROP COLUMN ' + column)
+    ensure_company_schema(engine); ensure_company_schema(engine)
+    with setup.db() as db:
+        assert db.get(CompanyDocument, row['id']).uploaded_by == ''
+        assert db.get(CompanyProject, p['id']).created_by == ''
+        assert len(list(db.scalars(select(CompanyAuditEvent)))) == 2
+    assert stored_original(setup, row['id']) == b'Company knowledge evidence'
+
+
 def ready(setup, doc_id, cloud_id='cloud-a'):
     with setup.db() as db:
         doc = db.get(CompanyDocument, doc_id)
@@ -76,7 +180,9 @@ def test_upload_original_versions_duplicate_and_scope_acl(setup):
     row = response.json()
     assert row['state'] == 'queued' and row['has_original'] and row['version'] == 1
     assert row['id'] in setup.scheduled
-    assert setup.client.get(f'/company-knowledge/documents/{row["id"]}/original').content == b'Company knowledge evidence'
+    response = setup.client.get(f'/company-knowledge/documents/{row["id"]}/original')
+    assert response.status_code == 200 and response.content.startswith(b'%PDF') and response.headers['x-watermark-trace']
+    assert stored_original(setup, row['id']) == b'Company knowledge evidence'
     assert upload(setup, project='P1').status_code == 409
     second = upload(setup, payload=b'New version', project='P1').json()
     assert second['version'] == 2
@@ -545,14 +651,15 @@ def test_media_indexes_only_description_and_reindexes_edits_without_changing_ori
     asyncio.run(ingestion.process_document(row['id']))
     assert '访谈复盘经验' in puts[0] and '访谈方法' in puts[0] and '未自动转写' in puts[0]
     response = setup.client.get('/company-knowledge/documents/' + row['id'] + '/original')
-    assert response.content == audio and response.headers['content-type'] == 'audio/wav'
+    assert response.status_code == 503  # The invalid WAV fixture cannot produce a marked export.
+    assert stored_original(setup, row['id']) == audio
     response = setup.client.patch('/company-knowledge/documents/' + row['id'], json={'description': '已修正的访谈经验'})
     assert response.status_code == 200 and response.json()['state'] == 'queued'
     assert response.json()['cloud_id'] is None
     assert setup.client.patch('/company-knowledge/documents/' + row['id'], json={'description': '过早再次编辑'}).status_code == 409
     asyncio.run(ingestion.process_document(row['id']))
     assert '已修正的访谈经验' in puts[1] and '访谈复盘经验' not in puts[1]
-    assert setup.client.get('/company-knowledge/documents/' + row['id'] + '/original').content == audio
+    assert stored_original(setup, row['id']) == audio
     assert observed.count('/api/v1/indices/rag/index/delete_file') == 1
 
 
@@ -584,7 +691,7 @@ def test_conflicting_project_edit_returns_a_recoverable_error_and_preserves_orig
     with setup.db() as db:
         doc = db.get(CompanyDocument, second['id'])
         assert doc.project == 'P2' and doc.tags == []
-    assert setup.client.get('/company-knowledge/documents/' + second['id'] + '/original').content == b'Company knowledge evidence'
+    assert stored_original(setup, second['id']) == b'Company knowledge evidence'
 
 
 def project(setup, name='AI Agent 研究', **values):
@@ -658,7 +765,7 @@ def test_project_rename_and_acl_edits_update_inherited_files_without_losing_orig
         doc=db.get(CompanyDocument,row['id'])
         assert doc.project=='新的项目名称' and doc.industry=='新行业' and doc.tags==['修正标签']
         assert doc.visibility=='restricted' and doc.readers==['bob']
-    assert setup.client.get('/company-knowledge/documents/'+row['id']+'/original').content==b'Company knowledge evidence'
+    assert stored_original(setup, row['id']) == b'Company knowledge evidence'
     setup.user.id,setup.user.username=3,'charlie'
     assert setup.client.get('/company-knowledge/documents/'+row['id']+'/original').status_code==404
 
@@ -670,7 +777,7 @@ def test_project_media_without_notes_is_archive_only_and_can_gain_or_remove_desc
     assert result.status_code==202,result.text
     row=result.json()
     assert row['state']=='archived' and row['id'] not in setup.scheduled
-    assert setup.client.get('/company-knowledge/documents/'+row['id']+'/original').content==audio
+    assert stored_original(setup, row['id']) == audio
     changed=setup.client.patch('/company-knowledge/documents/'+row['id'],json={'description':'人工说明'})
     assert changed.status_code==200 and changed.json()['state']=='queued' and row['id'] in setup.scheduled
     ready(setup,row['id'],'media-cloud')
@@ -738,7 +845,7 @@ def test_directory_upgrade_removes_legacy_global_file_uniqueness_without_losing_
         assert project_id and doc.folder_id==''
     f=folder(setup,project_id,'报告')
     assert upload(setup,project_id=project_id,folder_id=f['id']).status_code==202
-    assert setup.client.get('/company-knowledge/documents/'+row['id']+'/original').content==b'Company knowledge evidence'
+    assert stored_original(setup, row['id']) == b'Company knowledge evidence'
 
 
 def test_migration_does_not_merge_unnamed_files_into_an_existing_named_project(setup):

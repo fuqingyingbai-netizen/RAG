@@ -68,6 +68,8 @@ def test_planning_text_is_not_mixed_into_answer_and_citations_are_safe():
     reference = kb.citation({'_citation_index': 2, 'doc_id': 'file-test', 'content': 'Evidence',
                              'doc_url': 'javascript:alert(1)', 'page_number': [0, 1]})
     assert reference['url'] == '' and reference['text'] == 'Evidence' and reference['id'] == '2'
+    reference = kb.citation({'doc_url': 'https://bucket.example/unmarked-original.pdf', '_pos_url': 'https://bucket.example/page.png'})
+    assert reference['url'] == reference['location_url'] == ''
 
 
 def test_sse_parser_handles_comments_multiline_and_final_unterminated_record():

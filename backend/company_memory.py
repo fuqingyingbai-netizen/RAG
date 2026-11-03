@@ -140,7 +140,7 @@ def snapshot(user, index_id, session_id=None, before_id=None, activate=False):
             readable = valid(row.dependencies, available)
             status = 'interrupted' if row.status == 'pending' and not busy else row.status
             messages.append({'id': row.id, 'role': row.role, 'text': row.content if readable else HIDDEN,
-                'references': row.references if readable else [], 'redacted': not readable,
+                'references': [{**reference, 'url': '', 'location_url': ''} for reference in row.references] if readable else [], 'redacted': not readable,
                 'complete': status == 'completed', 'status': status, 'progress': [], 'elapsedSeconds': 0,
                 'error': '上次回答已中断，可以重新提问。' if status == 'interrupted' and readable else ''})
         result = {'session_id': thread.id if thread else None, 'scope': thread.scope if thread else 'accessible',

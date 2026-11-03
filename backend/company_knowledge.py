@@ -134,7 +134,8 @@ def citation(doc):
     return {'id': str(doc.get('_citation_index', '')), 'document_id': str(doc.get('doc_id', '')),
             'title': str(doc.get('doc_name') or doc.get('title') or '引用资料'),
             'text': str(doc.get('content') or ''), 'pages': pages,
-            'url': safe_url(doc.get('doc_url')), 'location_url': safe_url(doc.get('_pos_url'))}
+            # Source bytes must go through authenticated, personalised export routes.
+            'url': '', 'location_url': ''}
 
 
 def frame_events(frame):

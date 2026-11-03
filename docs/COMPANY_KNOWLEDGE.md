@@ -163,6 +163,30 @@ node --test test/company-knowledge-ui.test.cjs
 
 文件上传发生在项目/目录内，继承项目的行业、标签、分类、复核状态与权限，无需重复填写。新文件的项目属性在项目设置中统一管理；文件设置允许改名（保留扩展名）、在当前项目中选择归档目录、编辑说明。旧文件继续保留原有文件属性与权限，可单独管理。管理员代表项目上传时，文件归属项目所有者。
 
+## 下载水印与操作留痕
+
+所有知识库下载均由后端生成当前账号专属的副本，保留服务器原始归档文件与原件 SHA256，RAG 继续读取原件。PDF 每页加可见水印；DOC/DOCX/XLS/XLSX/PPT/PPTX 经 LibreOffice 转成 PDF 再加水印；TXT/MD 生成带水印 PDF；JPG/JPEG/PNG 生成带水印 PNG；录音统一生成带首尾身份提示的 MP3；视频统一生成烧录可见水印的 MP4。标记包含登录账号、UTC 时间与追踪编号，下载副本的哈希和追踪编号写入操作记录。音视频的格式、编码与录音首尾时长会随导出发生变化。
+
+`GET /company-knowledge/documents/{id}/download` 为正式下载入口。旧 `/original`（包括 download=false）同样只能返回带标记副本；PDF 页面预览也带个人标记。引用及已保存会话不再返回可绕过此流程的云端原件链接。历史资料未归档受控原件时不能下载，转换失败、超时、缺少依赖时也不会返回无标记原件。完成转换后再次检查文件权限，防止处理期间被撤销权限后仍导出。单进程最多同时生成两个副本，处理繁忙返回 429，可手动稍后重试；前端不会自动重试下载。
+
+普通账号可以管理自己创建的项目和所属目录，不能修改其他人的项目；管理员可管理全部。项目创建者 `created_by`、文件实际上传者 `uploaded_by`/`uploaded_by_user_id`、最后修改者 `modified_by` 均由认证账号在后端填写，前端不能指定或覆盖。项目 owner 与文件归属仍表示业务所有者，管理员代上传时会与实际上传人不同。新增字段对旧资料留空，界面显示“历史未采集”，不补造操作记录。
+
+创建项目、上传文件、修改项目/文件/目录、继承项目属性、删除、重试、权限审批、导出与失败，写入 `company_audit_events`。属性修改的记录与业务修改处于同一数据库事务，保存字段的前后值、操作人 ID/账号和时间。`GET /company-knowledge/audit-events` 支持 project_id、document_id、page、page_size；管理员可以查看全部，本项目/文件管理者只能查看对应范围，项目范围还会排除其无权阅读文件的记录。API 没有修改或删除操作记录的入口。这是本轮的基础留痕，尚未扩展回收站、版本恢复或定期复核。
+
+### 转换环境
+
+Python 依赖随 `pyproject.toml` / `uv.lock` 安装，新增 ReportLab；FFmpeg 优先使用系统或指定程序，否则使用 imageio-ffmpeg。Linux 部署需安装 LibreOffice、中文字体与 espeak-ng，例如 Debian/Ubuntu：
+
+```sh
+sudo apt-get install --no-install-recommends libreoffice-writer libreoffice-calc libreoffice-impress fonts-noto-cjk espeak-ng ffmpeg
+```
+
+可选配置：`COMPANY_KNOWLEDGE_OFFICE_BINARY`（soffice；Windows 建议 soffice.com）、`COMPANY_KNOWLEDGE_WATERMARK_FONT`（中文字体文件）、`COMPANY_KNOWLEDGE_FFMPEG_BINARY`、`COMPANY_KNOWLEDGE_SPEECH_BINARY`（Linux）。Windows 录音身份提示使用 System.Speech。Office 每次转换使用临时用户配置并禁用文档宏，临时文件在转换结束后清理；生产运行账号应继续使用服务专用的低权限账号。
+
+导出限制：纯文字最多 2 MB，PDF 最多 1000 页，图片/页面图层最多 4000 万像素，音视频副本最多 512 MB。超出限制时要求拆分，保持失败时不返回原件的规则。
+
+验收：`python -m pytest test/test_company_watermark.py test/test_company_workspace.py`；配置 Office 路径后执行真实转换用例，并核对水印、副本播放、权限与原件不变。对外发布必须具备转换依赖，否则下载将按上述规则拒绝。
+
 文档与图片继续自动解析/OCR、建立 RAG 索引；单份 32 MB。录音/视频单份 128 MB，没有说明时以“已归档”状态保存，只播放与下载；填写说明后将人工说明作为独立文本建立索引。不自动转写或分析音视频内容。移除说明时先清除旧说明索引，再回到归档状态。
 
 相同项目中不同子目录允许同名文件。相同目录内相同内容提示重复，内容不同创建新版本。文件原件的对象存储键不随目录/文件名变化。历史原件与现有问答权限过滤继续生效。

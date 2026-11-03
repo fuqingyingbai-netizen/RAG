@@ -31,6 +31,9 @@ class CompanyDocument(Base):
     object_key: Mapped[str] = mapped_column(String(500), default='')
     owner: Mapped[str] = mapped_column(String(100), default='')
     owner_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    uploaded_by: Mapped[str] = mapped_column(String(100), default='')
+    uploaded_by_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    modified_by: Mapped[str] = mapped_column(String(100), default='')
     research_project_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     research_artifact_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     is_current: Mapped[int] = mapped_column(Integer, default=1)
@@ -68,6 +71,8 @@ class CompanyProject(Base):
     legacy_key: Mapped[str] = mapped_column(String(64), default='')
     owner: Mapped[str] = mapped_column(String(100))
     owner_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_by: Mapped[str] = mapped_column(String(100), default='')
+    modified_by: Mapped[str] = mapped_column(String(100), default='')
     industry: Mapped[str] = mapped_column(String(100), default='')
     tags: Mapped[list] = mapped_column(JSON, default=list)
     description: Mapped[str] = mapped_column(Text, default='')
@@ -111,6 +116,22 @@ class CompanyAccessRequest(Base):
     decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
+class CompanyAuditEvent(Base):
+    __tablename__ = 'company_audit_events'
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    index_id: Mapped[str] = mapped_column(String(100), index=True)
+    project_id: Mapped[str] = mapped_column(String(64), default='', index=True)
+    target_type: Mapped[str] = mapped_column(String(30))
+    target_id: Mapped[str] = mapped_column(String(64), index=True)
+    target_name: Mapped[str] = mapped_column(String(255), default='')
+    actor_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    actor_username: Mapped[str] = mapped_column(String(100))
+    action: Mapped[str] = mapped_column(String(50), index=True)
+    changes: Mapped[dict] = mapped_column(JSON, default=dict)
+    details: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
 CONFIDENTIALITY_LABELS = {'internal': '内部', 'confidential': '敏感', 'secret': '机密'}
 AUDIO_FORMATS = {'MP3', 'WAV', 'M4A', 'OGG', 'FLAC'}
 VIDEO_FORMATS = {'MP4', 'WEBM'}
@@ -129,6 +150,10 @@ def ensure_company_schema(engine):
     columns = {column['name'] for column in inspector.get_columns('company_documents')}
     additions = []
     for column, definition in (('knowledge_project_id', "VARCHAR(64) DEFAULT '' NOT NULL"), ('folder_id', "VARCHAR(64) DEFAULT '' NOT NULL"), ('inherits_project', 'INTEGER DEFAULT 0 NOT NULL')):
+        if column not in columns:
+            additions.append('ADD COLUMN ' + column + ' ' + definition)
+    for column, definition in (('uploaded_by', "VARCHAR(100) DEFAULT '' NOT NULL"),
+                               ('uploaded_by_user_id', 'INTEGER'), ('modified_by', "VARCHAR(100) DEFAULT '' NOT NULL")):
         if column not in columns:
             additions.append('ADD COLUMN ' + column + ' ' + definition)
     if 'owner_user_id' not in columns:
@@ -150,6 +175,12 @@ def ensure_company_schema(engine):
             for clause in additions:
                 connection.exec_driver_sql('ALTER TABLE company_documents ' + clause)
     Base.metadata.create_all(bind=engine)
+    if 'company_projects' in inspector.get_table_names():
+        project_columns = {column['name'] for column in inspect(engine).get_columns('company_projects')}
+        with engine.begin() as connection:
+            for column in ('created_by', 'modified_by'):
+                if column not in project_columns:
+                    connection.exec_driver_sql("ALTER TABLE company_projects ADD COLUMN " + column + " VARCHAR(100) DEFAULT '' NOT NULL")
     for index in CompanyDocument.__table__.indexes:
         index.create(bind=engine, checkfirst=True)
     with engine.begin() as connection:
@@ -227,7 +258,7 @@ STATE_LABELS = {'queued': '等待处理', 'uploading': '上传到知识库', 'pa
 def serialize(doc, user, request_status=''):
     readable = can_read(doc, user)
     locked = not readable
-    values = {key: getattr(doc, key) for key in ('id', 'title', 'format', 'size', 'owner', 'owner_user_id',
+    values = {key: getattr(doc, key) for key in ('id', 'title', 'format', 'size', 'owner', 'owner_user_id', 'uploaded_by', 'modified_by',
               'project', 'industry', 'category', 'review', 'version', 'visibility', 'confidentiality', 'state',
               'research_project_id', 'research_artifact_id', 'is_current', 'knowledge_project_id', 'folder_id', 'inherits_project')}
     values['status_message'] = doc.status_message if readable else '需要管理员批准后才能阅读、下载或用于问答。'
