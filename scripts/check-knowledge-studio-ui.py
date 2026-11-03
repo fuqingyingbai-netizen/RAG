@@ -203,12 +203,33 @@ def main():
         page.emulate_media(reduced_motion='reduce')
         assert page.locator('.ckb-orbit-runner').evaluate('(el)=>getComputedStyle(el).animationName') == 'none'
         page.emulate_media(reduced_motion='no-preference')
+        expect(page.locator('.ckb-atlas-node')).to_have_count(4)
+        page.locator('.ckb-atlas-results').click()
+        expect(page.get_by_role('tab',name='资料库')).to_have_attribute('aria-selected','true')
+        expect(page.locator('.ckb-library-sidebar > button.active')).to_have_text('研究成果0')
+        page.get_by_role('tab',name='研究首页',exact=True).click()
+        page.locator('.ckb-atlas-templates').click()
+        expect(page.get_by_role('tab',name='案例库')).to_have_attribute('aria-selected','true')
+        expect(page.locator('.ckb-library-sidebar > button.active')).to_contain_text('方法与模板')
+        page.get_by_role('button',name='创建项目',exact=True).click()
+        case_editor=page.get_by_role('dialog',name='创建项目',exact=True)
+        assert case_editor.get_by_role('combobox',name='项目分类',exact=True).locator('option').all_text_contents() == ['项目经验','案例复盘','方法与模板','培训分享']
+        expect(case_editor.get_by_role('combobox',name='项目分类',exact=True)).to_have_value('方法与模板')
+        page.screenshot(path=str(args.output_dir/'case-project-create.png'),full_page=True,animations='disabled')
+        case_editor.get_by_role('button',name='取消',exact=True).click()
+        page.get_by_role('tab',name='资料库',exact=True).click()
+        page.get_by_role('button',name='编辑项目：示例汽车研究项目',exact=True).click()
+        existing_editor=page.get_by_role('dialog',name='项目设置',exact=True)
+        assert existing_editor.get_by_role('combobox',name='项目分类',exact=True).locator('option').all_text_contents() == ['项目经验','案例复盘','方法与模板','培训分享']
+        existing_editor.get_by_role('button',name='取消',exact=True).click()
+        page.get_by_role('tab',name='研究首页',exact=True).click()
         page.screenshot(path=str(args.output_dir/'home-desktop.png'),full_page=True,animations='disabled')
         page.get_by_role('tab',name='资料库',exact=True).click()
         expect(page.locator('.ckb-project-directory')).to_have_count(2)
         page.screenshot(path=str(args.output_dir/'projects-desktop.png'),full_page=True,animations='disabled')
         page.get_by_role('button',name='创建项目',exact=True).click()
         editor=page.get_by_role('dialog',name='创建项目',exact=True)
+        assert editor.get_by_role('combobox',name='项目分类',exact=True).locator('option').all_text_contents() == ['项目原件','研究成果','访谈纪要','行业资料']
         editor.get_by_role('textbox',name='项目名称',exact=True).fill('QA 项目空间')
         editor.get_by_role('textbox',name='项目行业',exact=True).fill('AI Agent')
         editor.get_by_role('textbox',name='项目标签',exact=True).fill('行业背景，项目方法')
@@ -356,6 +377,11 @@ def main():
                 help_box['x'] + help_box['width'] <= menu_box['x'] or
                 help_box['x'] >= menu_box['x'] + menu_box['width']), 'Help overlaps mobile navigation'
         page.get_by_role('tab',name='研究首页',exact=True).click()
+        for cover in page.locator('.ckb-featured-cover').all():
+            assert cover.bounding_box()['width'] > 150, 'Project cover collapsed inside flex card'
+            art=cover.locator('.ckb-folder-object').bounding_box()
+            frame=cover.bounding_box()
+            assert art['x'] >= frame['x'] and art['x'] + art['width'] <= frame['x'] + frame['width']
         page.screenshot(path=str(args.output_dir/'home-mobile.png'),full_page=True,animations='disabled')
         assert page.evaluate('document.documentElement.scrollWidth') <= 390
         page.get_by_role('tab',name='案例库').click()
