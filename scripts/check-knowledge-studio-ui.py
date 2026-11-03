@@ -1,0 +1,259 @@
+"""Exercise the production knowledge component with isolated synthetic API records."""
+import argparse
+from copy import deepcopy
+from datetime import datetime, timedelta, timezone
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+import io
+import json
+from pathlib import Path
+import threading
+from urllib.parse import urlsplit
+import wave
+
+from playwright.sync_api import sync_playwright, expect
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class QuietHandler(SimpleHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--assets-dir', type=Path, default=ROOT / 'work/knowledge-redesign/vendor')
+    parser.add_argument('--output-dir', type=Path, default=ROOT / 'work/knowledge-redesign')
+    args = parser.parse_args()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    for name in ('vue.js', 'element.js', 'element.css', 'icons.css'):
+        assert (args.assets_dir / name).is_file(), f'Missing cached browser asset: {name}'
+    server = ThreadingHTTPServer(('127.0.0.1', 0), partial(QuietHandler, directory=str(ROOT / 'frontend')))
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f'http://127.0.0.1:{server.server_port}'
+    names = ['新能源汽车市场进入复盘', '访谈提纲与现场记录方法', '制造业供应链风险核对', '客户沟通与项目交付经验', '咨询项目启动清单', '行业背景研究笔记', '项目复盘分享录音', '案例讲解视频']
+    categories = ['项目经验', '方法与模板', '案例复盘', '培训分享', '项目原件', '行业资料', '培训分享', '项目经验']
+    docs = []
+    for i in range(16):
+        name, cat = names[i % 8], categories[i % 8]
+        fmt = 'WAV' if i == 6 else 'WEBM' if i == 7 else 'PDF' if i % 3 == 0 else 'DOCX'
+        docs.append(dict(id=f'doc-{i}', cloud_id=f'cloud-{i}', title='示例 · ' + name + (f'（{i+1}）' if i >= 8 else '') + '.' + fmt.lower(),
+            format=fmt, size=240000, project='示例汽车研究项目' if i % 2 == 0 else '示例制造业项目', industry='汽车与出行' if i % 2 == 0 else '先进制造',
+            category=cat, review='已复核' if i % 3 else '待复核', version=1, confidentiality='internal', confidentiality_label='内部', visibility='members',
+            readers=[], is_owner=True, owner='preview', can_read=True, can_manage=True, has_original=True, state='ready', label='可检索',
+            modified_at=(datetime(2026,11,3,tzinfo=timezone.utc)-timedelta(days=i)).isoformat(),
+            created_at=(datetime(2026,11,2,tzinfo=timezone.utc)-timedelta(days=i)).isoformat(), tags=['行业背景', '市场进入'] if i % 2 == 0 else ['访谈方法', '项目管理'],
+            description='演示资料：记录项目背景、研究方法和可复用的交付经验。用于隔离界面验收，不代表真实业务结论。',
+            status_message='文字说明已可检索；未自动转写' if i in (6,7) else '解析与索引完成', media_kind='audio' if i == 6 else 'video' if i == 7 else ''))
+    errors, unexpected, mutations, metrics = [], [], [], {}
+    hide_cases = False
+    assets = {'vue.global.prod.js':'vue.js', 'index.full.min.js':'element.js', 'index.css':'element.css', 'all.min.css':'icons.css'}
+    buffer = io.BytesIO()
+    with wave.open(buffer, 'wb') as output:
+        output.setnchannels(1); output.setsampwidth(2); output.setframerate(8000); output.writeframes(b'\0\0' * 8000)
+    audio = buffer.getvalue()
+    (args.output_dir / 'synthetic-audio.wav').write_bytes(audio)
+    with sync_playwright() as playwright:
+        print('Launching isolated browser',flush=True)
+        browser = playwright.chromium.launch(channel='msedge', headless=True)
+        # Produce a real, decodable WebM for the player test using bundled capture support.
+        capture = browser.new_context(record_video_dir=str(args.output_dir / 'capture'), record_video_size={'width':320,'height':240})
+        cp = capture.new_page(); cp.set_content('<body style="background:#16384a;color:#b3ecdf;font:24px sans-serif;padding:40px">Synthetic<br>case video</body>')
+        cp.wait_for_timeout(700)
+        recording = cp.video
+        capture.close()
+        video_path = recording.path()
+        video = Path(video_path).read_bytes()
+        print('Media fixtures ready',flush=True)
+        page = browser.new_page(viewport={'width':1440,'height':960}, device_scale_factor=1)
+        def page_error(error):
+            errors.append(str(error)); print('Browser error: '+str(error),flush=True)
+        page.on('pageerror', page_error)
+        page.add_init_script("localStorage.setItem('accessToken','synthetic-preview-only');localStorage.setItem('activeView','company-knowledge');")
+
+        def route_request(route):
+            request, url = route.request, route.request.url
+            path = urlsplit(url).path
+            if not url.startswith(base):
+                name = path.rsplit('/',1)[-1]
+                if name in assets:
+                    return route.fulfill(path=str(args.assets_dir / assets[name]))
+                if name.endswith('.woff2') and (args.assets_dir / name).is_file():
+                    return route.fulfill(path=str(args.assets_dir / name))
+                if name == 'marked.min.js':
+                    return route.fulfill(content_type='application/javascript', body='window.marked={parse:s=>s};')
+                # Font requests are optional in the isolated fixture; no external service is used.
+                return route.fulfill(status=200, body='')
+            if path == '/auth/me':
+                return route.fulfill(json={'id':1,'username':'preview','role':'admin','knowledge_access':True,'must_change_password':False})
+            if path == '/research/projects': return route.fulfill(json=[])
+            if path == '/research/home': return route.fulfill(status=503,json={'detail':'隔离验收仅加载公司知识库'})
+            if path == '/research/assistant/state': return route.fulfill(json={'session_id':'preview','sessions':[],'messages':[]})
+            if path == '/company-knowledge/status':
+                return route.fulfill(json={'configured':True,'access_allowed':True,'is_admin':True,'username':'preview'})
+            if path == '/company-knowledge/documents':
+                rows = [d for d in docs if not hide_cases or d['category'] not in ('项目经验','案例复盘','方法与模板','培训分享')]
+                return route.fulfill(json={'documents':deepcopy(rows),'total_count':len(rows),'warning':''})
+            if path == '/company-knowledge/my-projects':
+                return route.fulfill(json={'project_count':2,'document_count':len(docs),'projects':[{'name':'示例汽车研究项目','industries':['汽车与出行'],'document_count':8},{'name':'示例制造业项目','industries':['先进制造'],'document_count':8}]})
+            if path.startswith('/company-knowledge/access-requests'): return route.fulfill(json={'requests':[]})
+            if path.startswith('/company-knowledge/conversations'):
+                if request.method != 'GET': mutations.append({'path':path,'body':request.post_data_json})
+                return route.fulfill(json={'session_id':'preview-conversation' if request.method == 'POST' else '', 'sessions':[{'id':'preview-conversation','title':'示例 · 市场进入研究'}], 'messages':[], 'document_ids':request.post_data_json.get('document_ids',[]) if request.method == 'POST' else [],'scope':'accessible'})
+            if path == '/company-knowledge/chat/stream':
+                body = request.post_data_json
+                mutations.append({'path':path,'body':body})
+                events = [{'type':'progress','stage':'retrieving','label':'检索完成','finished':True,'detail':'命中 1 份文件、1 个片段。','elapsed_seconds':1}]
+                if body['message'] == 'UI_TEST_ERROR':
+                    events.append({'type':'error','message':'模拟连接中断，请重试。'})
+                else:
+                    events.extend([
+                        {'type':'citations','citations':[{'id':'1','document_id':'cloud-1','title':docs[1]['title'],'text':'合成的访谈方法说明。'}]},
+                        {'type':'answer_delta','text':'依据示例资料，可复用访谈提纲与项目复盘方法 [id_1]。\n\n| 要点 | 依据 |\n| --- | --- |\n| 访谈准备 | 项目说明 |'},
+                        {'type':'saved'}, {'type':'done','usage':{}},
+                    ])
+                return route.fulfill(content_type='text/event-stream',body=''.join('data: '+json.dumps(e,ensure_ascii=False)+'\n\n' for e in events))
+            if path.endswith('/preview'):
+                return route.fulfill(json={'references':[{'id':'1','text':'隔离测试的解析片段。','title':'示例资料'}],'total':1})
+            if path.endswith('/original'):
+                doc = next(d for d in docs if d['id'] == path.split('/')[-2])
+                return route.fulfill(body=audio if doc['media_kind']=='audio' else video,content_type='audio/wav' if doc['media_kind']=='audio' else 'video/webm')
+            if path.startswith('/company-knowledge/documents/') and request.method == 'PATCH':
+                doc = next(d for d in docs if d['id'] == path.split('/')[-1]); doc.update(request.post_data_json)
+                mutations.append({'path':path,'body':request.post_data_json})
+                return route.fulfill(json=deepcopy(doc))
+            if path == '/company-knowledge/uploads':
+                mutations.append({'path':path,'method':'POST'})
+                doc = deepcopy(docs[6]); doc.update(id='uploaded',title='synthetic-audio.wav',tags=['上传测试'],description='音频说明测试')
+                docs.append(doc)
+                return route.fulfill(status=202,json=doc)
+            if path.startswith('/company-knowledge/') or path.startswith('/research/'):
+                unexpected.append(path); return route.fulfill(status=404,json={'detail':'Unexpected isolated API'})
+            return route.continue_()
+
+        page.route('**/*',route_request)
+        print('Opening production frontend',flush=True)
+        page.goto(base,wait_until='networkidle')
+        page.get_by_role('menuitem',name='公司知识库',exact=True).click()
+        print('Company view opened',flush=True)
+        expect(page.get_by_role('heading',name='让每一次研究，')).to_be_visible()
+        page.get_by_role('button',name='暂停动效',exact=True).click()
+        assert page.locator('.ckb-orbit-runner').evaluate('(el)=>getComputedStyle(el).animationName') == 'none'
+        page.get_by_role('button',name='开启动效',exact=True).click()
+        page.emulate_media(reduced_motion='reduce')
+        assert page.locator('.ckb-orbit-runner').evaluate('(el)=>getComputedStyle(el).animationName') == 'none'
+        page.emulate_media(reduced_motion='no-preference')
+        page.screenshot(path=str(args.output_dir/'home-desktop.png'),full_page=True,animations='disabled')
+        page.get_by_role('button',name='查找历史案例',exact=True).click()
+        expect(page.get_by_role('tab',name='案例库')).to_have_attribute('aria-selected','true')
+        expect(page.locator('.ckb-case-card')).to_have_count(10)
+        assert page.locator('.ckb-case-card').first.bounding_box()['height'] >= 350
+        assert page.locator('.ckb-case-cover').first.bounding_box()['height'] >= 100
+        page.screenshot(path=str(args.output_dir/'cases-desktop.png'),full_page=True,animations='disabled')
+        page.get_by_role('combobox',name='筛选标签',exact=True).select_option('行业背景')
+        page.get_by_label('开始日期',exact=True).fill('2026-11-02')
+        page.get_by_label('结束日期',exact=True).fill('2026-11-02')
+        expect(page.locator('.ckb-case-card')).to_have_count(1)
+        page.get_by_role('button',name='重置',exact=True).click()
+        card = page.locator('.ckb-case-card').filter(has_text='项目复盘分享录音').first
+        card.get_by_role('button',name='播放与详情').click()
+        audio_player = page.locator('audio')
+        expect(audio_player).to_be_visible()
+        page.wait_for_function('document.querySelector("audio").readyState >= 1')
+        assert page.locator('audio').evaluate('(el)=>el.duration') == 1
+        page.screenshot(path=str(args.output_dir/'audio-reader.png'),full_page=True,animations='disabled')
+        page.get_by_role('button',name='Close this dialog').click()
+        card.get_by_role('button',name='编辑信息',exact=True).click()
+        dialog = page.get_by_role('dialog',name='管理资料')
+        dialog.get_by_role('textbox',name='自定义标签',exact=True).fill('修正标签，行业背景')
+        dialog.get_by_role('textbox',name='文字说明',exact=True).fill('已经修正的说明，可供后续查找。')
+        page.screenshot(path=str(args.output_dir/'metadata-desktop.png'),full_page=True,animations='disabled')
+        dialog.get_by_role('button',name='保存修改',exact=True).click()
+        expect(dialog).not_to_be_visible()
+        edited=next(d for d in docs if d['id']=='doc-6')
+        assert edited['tags']==['修正标签','行业背景'] and '已经修正' in edited['description']
+        page.locator('.ckb-case-card').filter(has_text='案例讲解视频').first.get_by_role('button',name='播放与详情').click()
+        expect(page.locator('video')).to_be_visible()
+        page.wait_for_function('document.querySelector("video").readyState >= 1')
+        assert page.locator('video').evaluate('(el)=>el.duration') > 0
+        page.screenshot(path=str(args.output_dir/'video-reader.png'),full_page=True,animations='disabled')
+        page.get_by_role('button',name='Close this dialog').click()
+        page.get_by_role('button',name='上传资料',exact=True).click()
+        dialog=page.get_by_role('dialog',name='上传公司资料')
+        dialog.get_by_role('textbox',name='自定义标签',exact=True).fill('上传测试')
+        dialog.get_by_role('textbox',name='文字说明',exact=True).fill('音频说明测试')
+        dialog.get_by_label('选择上传资料',exact=True).set_input_files(str(args.output_dir/'synthetic-audio.wav'))
+        page.screenshot(path=str(args.output_dir/'upload-desktop.png'),full_page=True,animations='disabled')
+        dialog.get_by_role('button',name='上传并建立索引',exact=True).click()
+        expect(dialog.get_by_role('button',name='完成，查看资料')).to_be_visible()
+        dialog.get_by_role('button',name='完成，查看资料').click()
+        page.get_by_role('tab',name='研究首页',exact=True).click()
+        page.get_by_role('button',name='比较资料结论',exact=True).click()
+        expect(page.locator('.ckb-compare-intent')).to_be_visible()
+        compare=page.get_by_role('button',name='比较选中资料（0）',exact=True)
+        expect(compare).to_be_disabled()
+        checks=page.locator('.ckb-document-table tbody input[type=checkbox]')
+        checks.nth(0).check();checks.nth(1).check()
+        page.get_by_role('button',name='比较选中资料（2）',exact=True).click()
+        expect(page.get_by_role('textbox',name='知识问答问题')).to_have_value('比较所选资料的结论差异，逐项列出依据与待复核事项。')
+        page.screenshot(path=str(args.output_dir/'chat-desktop.png'),full_page=True,animations='disabled')
+        page.get_by_role('button',name='发送问题',exact=True).click()
+        expect(page.locator('.ckb-live-answer')).to_contain_text('依据示例资料')
+        expect(page.locator('.ckb-answer-table table')).to_be_visible()
+        page.screenshot(path=str(args.output_dir/'chat-answer-desktop.png'),full_page=True,animations='disabled')
+        page.locator('.ckb-citation').first.click()
+        expect(page.locator('.ckb-source-reader')).to_contain_text('隔离测试的解析片段')
+        page.screenshot(path=str(args.output_dir/'citation-reader.png'),full_page=True,animations='disabled')
+        page.get_by_role('button',name='Close this dialog').click()
+        page.get_by_role('textbox',name='知识问答问题',exact=True).fill('UI_TEST_ERROR')
+        page.get_by_role('button',name='发送问题',exact=True).click()
+        expect(page.locator('.ckb-message-assistant .ckb-service-error')).to_contain_text('模拟连接中断')
+        page.screenshot(path=str(args.output_dir/'chat-error-desktop.png'),full_page=True,animations='disabled')
+        page.get_by_role('tab',name='资料库').click()
+        page.set_viewport_size({'width':1440,'height':900})
+        page.screenshot(path=str(args.output_dir/'library-desktop.png'),full_page=True,animations='disabled')
+        metrics['desktop_first_row']=page.locator('.ckb-document-table tbody tr').first.bounding_box()
+        metrics['desktop_table']=page.locator('.ckb-table-scroll').bounding_box()
+        assert metrics['desktop_first_row']['y'] < 360,metrics
+        page.set_viewport_size({'width':1366,'height':768})
+        page.screenshot(path=str(args.output_dir/'library-short-desktop.png'),full_page=True,animations='disabled')
+        metrics['short_first_row']=page.locator('.ckb-document-table tbody tr').first.bounding_box()
+        assert metrics['short_first_row']['y'] < 350,metrics
+        page.set_viewport_size({'width':390,'height':844})
+        page.screenshot(path=str(args.output_dir/'library-mobile.png'),full_page=True,animations='disabled')
+        metrics['mobile_scroll_width']=page.evaluate('document.documentElement.scrollWidth')
+        assert metrics['mobile_scroll_width'] <= 390
+        help_box = page.locator('.assistant-fab').bounding_box()
+        menu_box = page.locator('.mobile-nav-toggle').bounding_box()
+        assert help_box and menu_box
+        assert (help_box['y'] >= menu_box['y'] + menu_box['height'] or
+                help_box['x'] + help_box['width'] <= menu_box['x'] or
+                help_box['x'] >= menu_box['x'] + menu_box['width']), 'Help overlaps mobile navigation'
+        page.get_by_role('tab',name='研究首页',exact=True).click()
+        page.screenshot(path=str(args.output_dir/'home-mobile.png'),full_page=True,animations='disabled')
+        assert page.evaluate('document.documentElement.scrollWidth') <= 390
+        page.get_by_role('tab',name='案例库').click()
+        page.screenshot(path=str(args.output_dir/'cases-mobile.png'),full_page=True,animations='disabled')
+        assert page.evaluate('document.documentElement.scrollWidth') <= 390
+        page.get_by_role('tab',name='研究问答',exact=True).click()
+        page.screenshot(path=str(args.output_dir/'chat-mobile.png'),full_page=True,animations='disabled')
+        assert page.evaluate('document.documentElement.scrollWidth') <= 390
+        page.set_viewport_size({'width':1440,'height':900})
+        page.get_by_role('tab',name='案例库').click()
+        hide_cases = True
+        page.get_by_role('button',name='刷新资料',exact=True).click()
+        expect(page.locator('.ckb-case-empty')).to_be_visible()
+        expect(page.locator('.ckb-case-empty h3')).to_contain_text('第一份经验')
+        page.screenshot(path=str(args.output_dir/'cases-empty-desktop.png'),full_page=True,animations='disabled')
+        assert not errors,errors
+        assert not unexpected,unexpected
+        (args.output_dir/'browser-check.json').write_text(json.dumps({'errors':errors,'unexpected':unexpected,'mutations':mutations,'metrics':metrics},ensure_ascii=False,indent=2),encoding='utf-8')
+        print(json.dumps({'screenshots':len(list(args.output_dir.glob('*.png'))),'errors':errors,'metrics':metrics},ensure_ascii=True))
+        browser.close()
+    server.shutdown();server.server_close()
+
+
+if __name__=='__main__':
+    main()

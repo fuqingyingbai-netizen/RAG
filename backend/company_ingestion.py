@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import or_, update
 
 from database import SessionLocal
-from company_catalog import CompanyDocument, document_store
+from company_catalog import CompanyDocument, document_store, media_kind
 import company_knowledge as kb
 
 ACTIVE = ('queued', 'uploading', 'parsing', 'indexing')
@@ -42,20 +42,27 @@ async def _process_document(doc_id):
             return
         doc = db.get(CompanyDocument, doc_id)
         values = {key: getattr(doc, key) for key in ('index_id', 'cloud_id', 'object_key', 'title', 'format',
-                                                   'size', 'lease_id', 'job_id', 'parser')}
+                                                   'size', 'lease_id', 'job_id', 'parser', 'stale_cloud_id')}
+        media = media_kind(doc)
+        summary = (f'# {doc.title}\n\n音视频文字说明（人工填写，未自动转写，不代表已读取录音或视频内容）\n'
+                   f'项目：{doc.project}\n行业：{doc.industry}\n标签：{"、".join(doc.tags or [])}\n\n{doc.description}') if media else ''
     try:
         cfg = kb.settings()
         # A changed deployment must not import an old task into a different corpus.
         if values['index_id'] != cfg['index_id']:
             raise kb.KnowledgeError('知识库配置已变更，请管理员检查原任务。')
         async with kb.httpx.AsyncClient(timeout=120, trust_env=False) as client:
+            if values['stale_cloud_id']:
+                await kb.cloud_rpc(client, cfg, '/api/v1/indices/rag/index/delete_file', {
+                    'index_id': cfg['index_id'], 'doc_ids': [values['stale_cloud_id']]})
+                checkpoint(doc_id, token, stale_cloud_id='')
             if not values['cloud_id']:
-                checkpoint(doc_id, token, state='uploading', status_message='正在上传至知识库')
-                payload = await asyncio.to_thread(document_store().get_bytes, values['object_key'])
+                checkpoint(doc_id, token, state='uploading', status_message='正在上传文字说明' if media else '正在上传至知识库')
+                payload = summary.encode('utf-8') if media else await asyncio.to_thread(document_store().get_bytes, values['object_key'])
                 # A previous upload may have completed before process exit. A new lease is
                 # safe until registration; the registered ID is persisted before import.
                 lease = await kb.cloud_rpc(client, cfg, '/api/v1/connector/dash/applyFileUploadLease', {
-                    'category': kb.upload_category(), 'fileName': values['title'],
+                    'category': kb.upload_category(), 'fileName': values['title'][:251] + '.md' if media else values['title'],
                     'sizeBytes': str(len(payload)),
                     'contentMd5': base64.b64encode(hashlib.md5(payload).digest()).decode(),
                     'categoryType': 'UNSTRUCTURED'})
@@ -68,7 +75,7 @@ async def _process_document(doc_id):
                 response = await client.put(url, headers=param.get('headers') or {}, content=payload)
                 if response.status_code not in (200, 201, 204):
                     raise kb.KnowledgeError('原件上传至知识库失败，请重试。')
-                checkpoint(doc_id, token, lease_id=lease_id, state='parsing', status_message='正在解析文档，扫描件将识别文字')
+                checkpoint(doc_id, token, lease_id=lease_id, state='parsing', status_message='正在解析人工填写的说明' if media else '正在解析文档，扫描件将识别文字')
                 registered = await kb.cloud_rpc(client, cfg, '/api/v1/connector/dash/addFile', {
                     'leaseId': lease_id, 'category': kb.upload_category(), 'categoryType': 'UNSTRUCTURED',
                     'parser': values['parser'], 'tags': ['company-workspace', 'ckdoc-' + doc_id]})
@@ -90,7 +97,7 @@ async def _process_document(doc_id):
                 row = next((row for row in result.get('rows', []) if row.get('doc_id') == values['cloud_id']), {})
                 state = str(row.get('status') or row.get('code') or '').upper()
                 if state == 'FINISH':
-                    checkpoint(doc_id, token, state='ready', status_message='解析与索引完成，可以检索和提问')
+                    checkpoint(doc_id, token, state='ready', status_message='文字说明已可检索；音视频原件可播放与下载，未自动转写' if media else '解析与索引完成，可以检索和提问')
                     return
                 if any(word in str(row.get('code', '')).upper() + state for word in ('FAIL', 'ERROR')):
                     raise kb.KnowledgeError('云端解析或索引失败，请检查文件后重试。')

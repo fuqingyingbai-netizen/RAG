@@ -36,6 +36,9 @@ class CompanyDocument(Base):
     is_current: Mapped[int] = mapped_column(Integer, default=1)
     project: Mapped[str] = mapped_column(String(200), default='')
     industry: Mapped[str] = mapped_column(String(100), default='')
+    tags: Mapped[list] = mapped_column(JSON, default=list)
+    description: Mapped[str] = mapped_column(Text, default='')
+    stale_cloud_id: Mapped[str] = mapped_column(String(200), default='')
     category: Mapped[str] = mapped_column(String(50), default='项目原件')
     review: Mapped[str] = mapped_column(String(30), default='待复核')
     version: Mapped[int] = mapped_column(Integer, default=1)
@@ -74,6 +77,12 @@ class CompanyAccessRequest(Base):
 
 
 CONFIDENTIALITY_LABELS = {'internal': '内部', 'confidential': '敏感', 'secret': '机密'}
+AUDIO_FORMATS = {'MP3', 'WAV', 'M4A', 'OGG', 'FLAC'}
+VIDEO_FORMATS = {'MP4', 'WEBM'}
+
+
+def media_kind(doc):
+    return 'audio' if doc.format in AUDIO_FORMATS else 'video' if doc.format in VIDEO_FORMATS else ''
 
 
 def ensure_company_schema(engine):
@@ -88,6 +97,11 @@ def ensure_company_schema(engine):
         additions.append('ADD COLUMN owner_user_id INTEGER')
     if 'confidentiality' not in columns:
         additions.append("ADD COLUMN confidentiality VARCHAR(20) DEFAULT 'internal' NOT NULL")
+    for column, definition in (('tags', "JSON DEFAULT '[]' NOT NULL"),
+                               ('description', "TEXT DEFAULT '' NOT NULL"),
+                               ('stale_cloud_id', "VARCHAR(200) DEFAULT '' NOT NULL")):
+        if column not in columns:
+            additions.append('ADD COLUMN ' + column + ' ' + definition)
     for column in ('research_project_id', 'research_artifact_id'):
         if column not in columns:
             additions.append('ADD COLUMN ' + column + ' INTEGER')
@@ -149,4 +163,7 @@ def serialize(doc, user, request_status=''):
         'has_original': bool(doc.object_key) if readable else False,
         'can_read': readable, 'can_request': locked and request_status != 'pending',
         'request_status': request_status, 'is_owner': is_owner(doc, user),
-        'can_manage': can_manage(doc, user), 'modified_at': doc.updated_at.isoformat() + 'Z', 'tags': []}
+        'can_manage': can_manage(doc, user), 'modified_at': doc.updated_at.isoformat() + 'Z',
+        'created_at': doc.created_at.isoformat() + 'Z',
+        'tags': list(doc.tags or []) if readable else [],
+        'description': doc.description if readable else '', 'media_kind': media_kind(doc)}

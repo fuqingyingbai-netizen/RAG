@@ -484,3 +484,100 @@ def test_many_table_rows_cannot_crowd_another_document_out_of_evidence():
     assert len([row for row in selected if row[0] == 'table']) == 4
     assert any(row[0] == 'resume' for row in selected)
     assert not ws.reference_candidates(nodes, {}, 'test-index')
+
+
+def test_tags_description_editing_and_locked_metadata_redaction(setup):
+    row = upload(setup, project='案例项目', category='项目经验', visibility='restricted',
+                 tags='["行业背景", "行业背景", "访谈"]', description='只给授权账号阅读的说明').json()
+    assert row['tags'] == ['行业背景', '访谈'] and row['created_at']
+    assert row['description'] == '只给授权账号阅读的说明'
+    response = setup.client.patch('/company-knowledge/documents/' + row['id'], json={
+        'tags': ['修正标签'], 'description': '更正说明', 'industry': '汽车'})
+    assert response.status_code == 200
+    assert response.json()['visibility'] == 'restricted'
+    assert response.json()['tags'] == ['修正标签']
+    setup.user.id, setup.user.username = 3, 'charlie'
+    locked = setup.client.get('/company-knowledge/documents').json()['documents'][0]
+    assert locked['tags'] == [] and locked['description'] == '' and not locked['can_read']
+    assert setup.client.patch('/company-knowledge/documents/' + row['id'], json={'tags': ['越权']}).status_code == 404
+
+
+@pytest.mark.parametrize('tags', ['[" "]', '["' + '长' * 41 + '"]', '"not-a-list"', '[' + ','.join('"x"' for _ in range(21)) + ']'])
+def test_tag_limits_are_enforced_on_upload_and_edit(setup, tags):
+    assert upload(setup, tags=tags).status_code == 422
+    row = upload(setup).json()
+    assert setup.client.patch('/company-knowledge/documents/' + row['id'], json={'tags': json.loads(tags)}).status_code == 422
+
+
+def test_media_indexes_only_description_and_reindexes_edits_without_changing_original(setup, monkeypatch):
+    audio = b'RIFF' + (40).to_bytes(4, 'little') + b'WAVE' + b'original-audio-fixture'
+    assert upload(setup, name='复盘.wav', payload=audio).status_code == 422
+    row = upload(setup, name='复盘.wav', payload=audio, category='案例复盘', description='访谈复盘经验', tags='["访谈方法"]').json()
+    assert row['media_kind'] == 'audio' and row['state'] == 'queued'
+    observed, puts = [], []
+    sequence = {'n': 0}
+    def handler(request):
+        observed.append(request.url.path)
+        body = json.loads(request.content) if request.method == 'POST' else {}
+        if request.method == 'PUT':
+            assert 'Authorization' not in request.headers
+            assert b'original-audio-fixture' not in request.content
+            puts.append(request.content.decode())
+            return httpx.Response(200)
+        if request.url.path.endswith('delete_file'):
+            assert body['doc_ids'] == ['cloud-media-1']
+            return httpx.Response(200, json={'data': {}})
+        if request.url.path.endswith('applyFileUploadLease'):
+            sequence['n'] += 1
+            assert body['fileName'] == '复盘.wav.md'
+            return httpx.Response(200, json={'data': {'leaseId': 'lease', 'param': {'url': 'https://bucket.oss-cn-beijing.aliyuncs.com/summary'}}})
+        if request.url.path.endswith('addFile'):
+            assert body['parser'] == 'AUTO_SELECT'
+            return httpx.Response(200, json={'data': {'fileId': 'cloud-media-' + str(sequence['n'])}})
+        if request.url.path.endswith('job/create'):
+            return httpx.Response(200, json={'data': {'ingestionId': 'job'}})
+        return httpx.Response(200, json={'data': {'rows': [{'doc_id': 'cloud-media-' + str(sequence['n']), 'status': 'FINISH'}]}})
+    transport(monkeypatch, handler)
+    asyncio.run(ingestion.process_document(row['id']))
+    assert '访谈复盘经验' in puts[0] and '访谈方法' in puts[0] and '未自动转写' in puts[0]
+    response = setup.client.get('/company-knowledge/documents/' + row['id'] + '/original')
+    assert response.content == audio and response.headers['content-type'] == 'audio/wav'
+    response = setup.client.patch('/company-knowledge/documents/' + row['id'], json={'description': '已修正的访谈经验'})
+    assert response.status_code == 200 and response.json()['state'] == 'queued'
+    assert response.json()['cloud_id'] is None
+    assert setup.client.patch('/company-knowledge/documents/' + row['id'], json={'description': '过早再次编辑'}).status_code == 409
+    asyncio.run(ingestion.process_document(row['id']))
+    assert '已修正的访谈经验' in puts[1] and '访谈复盘经验' not in puts[1]
+    assert setup.client.get('/company-knowledge/documents/' + row['id'] + '/original').content == audio
+    assert observed.count('/api/v1/indices/rag/index/delete_file') == 1
+
+
+@pytest.mark.parametrize('name,payload', [('fake.mp3', b'not audio'), ('fake.mp4', b'not video'), ('fake.wav', b'RIFFwrong')])
+def test_media_content_must_match_extension(setup, name, payload):
+    assert upload(setup, name=name, payload=payload, description='测试说明').status_code == 422
+
+
+def test_additive_catalogue_migration_preserves_existing_rows_and_is_repeatable(setup):
+    from company_catalog import ensure_company_schema
+    row = upload(setup).json()
+    with setup.db() as db:
+        engine = db.get_bind()
+    with engine.begin() as connection:
+        for name in ('tags', 'description', 'stale_cloud_id'):
+            connection.exec_driver_sql('ALTER TABLE company_documents DROP COLUMN ' + name)
+    ensure_company_schema(engine)
+    ensure_company_schema(engine)
+    with setup.db() as db:
+        doc = db.get(CompanyDocument, row['id'])
+        assert doc.title == 'evidence.txt' and doc.tags == [] and doc.description == '' and doc.stale_cloud_id == ''
+
+
+def test_conflicting_project_edit_returns_a_recoverable_error_and_preserves_original(setup):
+    first = upload(setup, project='P1').json()
+    second = upload(setup, project='P2').json()
+    response = setup.client.patch('/company-knowledge/documents/' + second['id'], json={'project':'P1','tags':['应回滚']})
+    assert response.status_code == 409
+    with setup.db() as db:
+        doc = db.get(CompanyDocument, second['id'])
+        assert doc.project == 'P2' and doc.tags == []
+    assert setup.client.get('/company-knowledge/documents/' + second['id'] + '/original').content == b'Company knowledge evidence'

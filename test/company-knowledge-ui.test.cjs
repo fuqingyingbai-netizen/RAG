@@ -234,3 +234,54 @@ test('creating a conversation sends scope only, not untrusted browser history',a
  context.apiFetch=async(url,options)=>{sent=JSON.parse(options.body);return {ok:true,json:async()=>({session_id:'new'})};};
  assert.equal((await context.createChatSession()).session_id,'new');assert.equal(sent.document_ids[0],'one');assert.equal(sent.scope,'accessible');assert.equal('history' in sent,false);
 });
+
+test('case entry browses experience while comparison always asks for a deliberate selection',()=>{
+ const context=libraryContext();context.$nextTick=fn=>fn();context.$refs={};
+ context.selectedIds=['old-a','old-b']; context.prepareResearch('cases');
+ assert.equal(context.mode,'cases'); assert.equal(context.draft,'');
+ context.prepareResearch('templates');assert.equal(context.mode,'cases');assert.equal(context.category,'方法与模板');
+ context.prepareResearch('compare');assert.equal(context.mode,'library');assert.equal(context.libraryIntent,'compare');
+ assert.equal(context.selectedIds.length,0);
+ context.selectedIds=['a','b']; context.askLibrary();
+ assert.equal(context.mode,'chat');assert.match(context.draft,/比较所选资料/);assert.equal(context.libraryIntent,'');
+});
+
+test('custom tags and inclusive local calendar dates combine with other filters',()=>{
+ const context=libraryContext();
+ assert.deepEqual(Array.from(context.parseTags('行业背景，市场进入,行业背景\n访谈方法')),['行业背景','市场进入','访谈方法']);
+ Object.assign(context,{mode:'cases',tagFilter:'行业背景',dateFrom:'2026-11-02',dateTo:'2026-11-02',documents:[
+  {id:'a',title:'访谈',category:'项目经验',tags:['行业背景'],created_at:'2026-11-02T23:59:59'},
+  {id:'b',title:'报告',category:'项目经验',tags:['行业背景'],created_at:'2026-11-03T00:00:00'},
+  {id:'c',title:'其他',category:'项目原件',tags:['行业背景'],created_at:'2026-11-02T12:00:00'},
+  {id:'d',title:'未知日期',category:'项目经验',tags:['行业背景']},
+ ]});
+ assert.deepEqual(Array.from(component.computed.filteredDocuments.call(context).map(doc=>doc.id)),['a']);
+ assert.equal(component.computed.libraryScopeFiltered.call(context),true);
+ context.resetFilters();assert.equal(context.tagFilter,'');assert.equal(context.dateFrom,'');
+});
+
+test('management restores editable tags and description without broadening internal restricted files',()=>{
+ const context=libraryContext();context.editDocument({id:'a',category:'项目经验',review:'待复核',confidentiality:'internal',visibility:'restricted',tags:['背景'],description:'经验说明',readers:['bob']});
+ assert.equal(context.uploadForm.tagsText,'背景');assert.equal(context.uploadForm.description,'经验说明');
+ context.syncConfidentiality();assert.equal(context.uploadForm.visibility,'restricted');
+});
+
+test('media can play from the authenticated original without waiting for description indexing',async()=>{
+ const component=vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../frontend/company-knowledge.js'),'utf8')+'\nCompanyKnowledge;',{
+  localStorage:{getItem:()=>null,setItem(){}},URL:{createObjectURL:()=> 'blob:media',revokeObjectURL(){}},
+ });
+ const context=component.data();for(const [name,method] of Object.entries(component.methods))context[name]=method.bind(context);
+ context.allReferences=[];context.service={username:'alice'};const urls=[];
+ context.apiFetch=async url=>{urls.push(url);return {ok:true,blob:async()=>({})};};
+ await context.openDocument({id:'audio',can_read:true,media_kind:'audio',state:'queued',description:'说明'});
+ assert.deepEqual(urls,['/company-knowledge/documents/audio/original']);assert.equal(context.readerUrl,'blob:media');
+ assert.equal(context.readerLoading,false);
+});
+
+test('missing media description keeps the upload form editable and sends no request',async()=>{
+ const context=libraryContext();context.stagedFiles=[{name:'demo.wav',size:12}];
+ let sent=0;context.apiFetch=async()=>{sent++;};
+ await context.uploadFiles();assert.equal(sent,0);assert.equal(context.uploadBusy,false);
+ assert.equal(context.uploadResults.length,0);assert.match(context.uploadError,/文字说明/);
+ assert.equal(context.stagedFiles.length,1);
+});
