@@ -75,7 +75,7 @@ def await_ready(timeout=90):
     raise RuntimeError('Application did not become ready')
 
 
-def activate(candidate,expected,wait):
+def activate(candidate,expected,wait,public_host):
     if os.geteuid()!=0 or not (ROOT/'.deployment-owned').is_file():
         raise RuntimeError('Expected root on the managed supermew deployment')
     os.umask(0o077)
@@ -94,6 +94,10 @@ def activate(candidate,expected,wait):
         FLAG.write_text(datetime.now(timezone.utc).isoformat());FLAG.chmod(0o644)
         stopped=False;vector_stopped=False;success=False;backup=None
         try:
+            # Verify the active ingress actually refuses new writes before trusting it.
+            code=run(['curl','-sS','-o','/dev/null','-w','%{http_code}','--resolve',
+                      public_host+':443:127.0.0.1','-X','POST','https://'+public_host+'/auth/login']).strip()
+            if code!=b'503':raise RuntimeError('Public mutation gate did not reject a new request')
             until=time.monotonic()+wait;stable=0
             while True:
                 busy=workloads()
@@ -152,8 +156,11 @@ if __name__=='__main__':
     parser.add_argument('--candidate',type=Path,required=True)
     parser.add_argument('--expected-current',type=Path,required=True)
     parser.add_argument('--wait-seconds',type=int,default=1800)
+    parser.add_argument('--public-host',required=True)
     parser.add_argument('--run',action='store_true',required=True)
     args=parser.parse_args()
     def interrupted(signum,frame):raise InterruptedError('Deployment interrupted; restoring the previous service')
     signal.signal(signal.SIGTERM,interrupted)
-    activate(args.candidate,args.expected_current,args.wait_seconds)
+    if not args.public_host or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-' for c in args.public_host):
+        parser.error('Expected a public hostname')
+    activate(args.candidate,args.expected_current,args.wait_seconds,args.public_host)
