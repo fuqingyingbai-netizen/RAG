@@ -38,7 +38,7 @@ def main():
     docs = []
     for i in range(16):
         name, cat = names[i % 8], categories[i % 8]
-        fmt = 'WAV' if i == 6 else 'WEBM' if i == 7 else 'PDF' if i % 3 == 0 else 'DOCX'
+        fmt = 'WAV' if i == 6 else 'WEBM' if i == 7 else ['PDF','DOCX','XLSX','PPTX','TXT','PNG','PDF','DOCX'][i % 8]
         docs.append(dict(id=f'doc-{i}', cloud_id=f'cloud-{i}', title='示例 · ' + name + (f'（{i+1}）' if i >= 8 else '') + '.' + fmt.lower(),
             format=fmt, size=240000, project='示例汽车研究项目' if i % 2 == 0 else '示例制造业项目', industry='汽车与出行' if i % 2 == 0 else '先进制造',
             category=cat, review='已复核' if i % 3 else '待复核', version=1, confidentiality='internal', confidentiality_label='内部', visibility='members',
@@ -47,6 +47,7 @@ def main():
             created_at=(datetime(2026,11,2,tzinfo=timezone.utc)-timedelta(days=i)).isoformat(), tags=['行业背景', '市场进入'] if i % 2 == 0 else ['访谈方法', '项目管理'],
             description='演示资料：记录项目背景、研究方法和可复用的交付经验。用于隔离界面验收，不代表真实业务结论。',
             status_message='文字说明已可检索；未自动转写' if i in (6,7) else '解析与索引完成', media_kind='audio' if i == 6 else 'video' if i == 7 else ''))
+    docs[8].update(can_read=False,can_manage=False,is_owner=False,tags=[],description='',label='需授权',confidentiality='secret',confidentiality_label='机密')
     errors, unexpected, mutations, metrics = [], [], [], {}
     hide_cases = False
     assets = {'vue.global.prod.js':'vue.js', 'index.full.min.js':'element.js', 'index.css':'element.css', 'all.min.css':'icons.css'}
@@ -194,8 +195,13 @@ def main():
         expect(page.locator('.ckb-compare-intent')).to_be_visible()
         compare=page.get_by_role('button',name='比较选中资料（0）',exact=True)
         expect(compare).to_be_disabled()
-        checks=page.locator('.ckb-document-table tbody input[type=checkbox]')
+        checks=page.locator('.ckb-file-gallery input[type=checkbox]')
         checks.nth(0).check();checks.nth(1).check()
+        page.get_by_role('button',name='列表',exact=True).click()
+        expect(page.locator('.ckb-document-table tbody input:checked')).to_have_count(2)
+        page.screenshot(path=str(args.output_dir/'library-list-selected.png'),full_page=True,animations='disabled')
+        page.get_by_role('button',name='卡片',exact=True).click()
+        expect(page.locator('.ckb-file-gallery input:checked')).to_have_count(2)
         page.get_by_role('button',name='比较选中资料（2）',exact=True).click()
         expect(page.get_by_role('textbox',name='知识问答问题')).to_have_value('比较所选资料的结论差异，逐项列出依据与待复核事项。')
         page.screenshot(path=str(args.output_dir/'chat-desktop.png'),full_page=True,animations='disabled')
@@ -214,12 +220,35 @@ def main():
         page.get_by_role('tab',name='资料库').click()
         page.set_viewport_size({'width':1440,'height':900})
         page.screenshot(path=str(args.output_dir/'library-desktop.png'),full_page=True,animations='disabled')
-        metrics['desktop_first_row']=page.locator('.ckb-document-table tbody tr').first.bounding_box()
+        expect(page.locator('.ckb-file-card')).to_have_count(10)
+        expect(page.locator('.ckb-file-card.locked input')).to_be_disabled()
+        expect(page.locator('.ckb-file-card.kind-pdf')).not_to_have_count(0)
+        expect(page.locator('.ckb-file-card.kind-sheet')).not_to_have_count(0)
+        metrics['desktop_first_row']=page.locator('.ckb-file-card').first.bounding_box()
+        assert metrics['desktop_first_row']['height'] >= 324
+        for card in page.locator('.ckb-file-card').all():
+            rect=card.bounding_box(); footer=card.locator('.ckb-file-footer').bounding_box()
+            assert footer['y'] + footer['height'] <= rect['y'] + rect['height'] + 1, f'File actions clipped: card={rect}, footer={footer}'
+        first_title = page.locator('.ckb-file-title').first.inner_text()
+        page.get_by_role('button',name='下一页资料',exact=True).click()
+        expect(page.locator('.ckb-file-card')).to_have_count(7)
+        assert page.locator('.ckb-file-title').first.inner_text() != first_title
+        page.get_by_role('button',name='上一页资料',exact=True).click()
+        page.get_by_role('combobox',name='筛选标签',exact=True).select_option('行业背景')
+        assert 0 < page.locator('.ckb-file-card').count() < 10
+        page.get_by_role('textbox',name='搜索知识库资料',exact=True).fill('THIS_FILE_DOES_NOT_EXIST')
+        expect(page.locator('.ckb-gallery-empty')).to_be_visible()
+        page.screenshot(path=str(args.output_dir/'library-empty-filter.png'),full_page=True,animations='disabled')
+        page.get_by_role('button',name='清除筛选',exact=True).click()
+        page.get_by_role('button',name='列表',exact=True).click()
+        page.screenshot(path=str(args.output_dir/'library-list-desktop.png'),full_page=True,animations='disabled')
+        expect(page.locator('.ckb-document-table')).to_be_visible()
+        page.get_by_role('button',name='卡片',exact=True).click()
         metrics['desktop_table']=page.locator('.ckb-table-scroll').bounding_box()
         assert metrics['desktop_first_row']['y'] < 360,metrics
         page.set_viewport_size({'width':1366,'height':768})
         page.screenshot(path=str(args.output_dir/'library-short-desktop.png'),full_page=True,animations='disabled')
-        metrics['short_first_row']=page.locator('.ckb-document-table tbody tr').first.bounding_box()
+        metrics['short_first_row']=page.locator('.ckb-file-card').first.bounding_box()
         assert metrics['short_first_row']['y'] < 350,metrics
         page.set_viewport_size({'width':390,'height':844})
         page.screenshot(path=str(args.output_dir/'library-mobile.png'),full_page=True,animations='disabled')
