@@ -142,14 +142,20 @@ def main():
         print('Company view opened',flush=True)
         expect(page.get_by_role('heading',name='让每一次研究，')).to_be_visible()
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme','light')
-        page.get_by_role('button',name='夜晚',exact=True).click()
+        theme_toggle = page.get_by_role('button',name='切换知识库主题',exact=True)
+        expect(theme_toggle).to_have_count(1)
+        assert theme_toggle.inner_text() == ''
+        system_style = '() => [".sidebar", ".company-knowledge-shell > .topbar", ".sidebar-logo"].map(s => { const c=getComputedStyle(document.querySelector(s)); return [c.backgroundColor,c.color,c.filter]; })'
+        system_before = page.evaluate(system_style)
+        theme_toggle.click()
+        assert page.evaluate(system_style) == system_before, 'Knowledge theme changed system shell'
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme','dark')
         assert page.evaluate('localStorage.getItem("companyKnowledgeTheme")') == 'dark'
         page.get_by_role('menuitem',name='个人首页',exact=True).click()
         assert page.evaluate('document.documentElement.dataset.knowledgeTheme') is None
         page.get_by_role('menuitem',name='公司知识库',exact=True).click()
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme','dark')
-        page.get_by_role('button',name='白天' if args.theme == 'light' else '夜晚',exact=True).click()
+        if args.theme == 'light': page.get_by_role('button',name='切换知识库主题',exact=True).click()
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme',args.theme)
         assert page.locator('.ckb-mini-file').count() >= 4
         assert page.locator('.ckb-mini-file .ckb-file-object').count() >= 4
