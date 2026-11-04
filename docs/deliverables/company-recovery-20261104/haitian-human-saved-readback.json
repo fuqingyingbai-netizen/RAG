@@ -1,0 +1,75 @@
+{
+  "scope": "Human readback of saved source30 draft; these observations do not override model or delivery gates",
+  "company": "haitian",
+  "report_artifact_id": 19,
+  "report_sha256": "98e0e21dec318967a7ba2b5701ba507bb56d502ca7ea74deef6e12b00281ba00",
+  "correctly_bounded_recovered_case": {
+    "aspect": "股权与治理信息表",
+    "chapter": 2,
+    "evidence_ids": [
+      "E-AE137C7A98F6"
+    ],
+    "finding_id": "F-9f749100f6ffd48a",
+    "information_ids": [
+      "I-65774148a8e9ebaf"
+    ],
+    "local_finding_id": "F-ch02-02",
+    "source_title": "佛山市海天调味食品股份有限公司 年年度股东会 会议材料",
+    "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-18/1225122726.PDF",
+    "statement_ids": [
+      "T-171c8291304d40a1"
+    ],
+    "text": "在关联方交易安排方面，发行人披露，公司与广东海天商业保理有限公司续签的框架协议期限为两年，在协议有效期内，公司开具的电子凭证最高余额不超过人民币10亿元。该上限属于协议约定的余额边界，不等同于实际发生额。"
+  },
+  "known_unresolved_attribution": {
+    "finding": {
+      "aspect": "关键经营事实与风险研判",
+      "chapter": 6,
+      "evidence_ids": [
+        "E-AE137C7A98F6"
+      ],
+      "finding_id": "F-552b8e468e5fac7a",
+      "information_ids": [
+        "I-57f34e709cfbbbcf"
+      ],
+      "local_finding_id": "F-ch06-02",
+      "source_title": "佛山市海天调味食品股份有限公司 年年度股东会 会议材料",
+      "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-18/1225122726.PDF",
+      "statement_ids": [
+        "T-0cdf36b099c743f3"
+      ],
+      "text": "在供应链资金安排方面，年报披露显示，公司与海天保理续签的框架协议期限为两年，在协议有效期内，公司开具的电子凭证最高余额不超过人民币10亿元。该上限为协议约定的余额控制口径，并非实际发生额；材料未披露报告期内电子凭证的实际余额、供应商融资规模及对应期间，故不能据此认定实际资金往来水平。"
+    },
+    "reason": "Retained original is shareholder meeting materials; this paragraph still incorrectly calls it an annual report. Final document review includes failed localization and other unresolved issues. It remains a review draft, not accepted due diligence."
+  },
+  "delivery_ready": false,
+  "document_review_status": "failed",
+  "document_review_issue_count": 47,
+  "pending_information_count": 18,
+  "failed_batch_count": 8,
+  "native_window_gap": [
+    {
+      "chapters": [],
+      "disposition": "needs_context",
+      "evidence_id": "E-AE137C7A98F6",
+      "missing_fields": [
+        "主体、期间或原表字段关系待明确"
+      ],
+      "reason": "本窗为封面、目录、参会须知、议程及议案一开头，仅确认公司名称、会议时间地点、议案清单等程序性信息；议案一正文在“各项工作保持积极稳健的发展”处截断，未形成可独立引用的实质结论。目录所列议案二至十二的正文均不在本窗，不能据此判断其内容或相关性。",
+      "requires_original_page": false,
+      "window_id": "W1",
+      "stop_reason": "context_call_deferred",
+      "error": {
+        "category": "protection_not_sent",
+        "blocked_by": "identical_input_attempt_limit",
+        "stage": "native_context_reading",
+        "input_sha256": "2e5e3202e824a416778e1fe45bff8a41e1ebf4609be9e647d2b48833fce22451",
+        "attempts": 0,
+        "request_invoked": false,
+        "request_sent": false,
+        "retryable": false
+      }
+    }
+  ],
+  "not_overridden": true
+}

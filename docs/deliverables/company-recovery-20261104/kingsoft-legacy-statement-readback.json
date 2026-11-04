@@ -2,8 +2,8 @@
   "company": "kingsoft",
   "original_source_id": 30,
   "source_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
-  "report_artifact_id": 19,
-  "report_sha256": "a12ebe48b2e0e2497c49fe42723593f4a700f6da0b54034a6b04bb9dfc50fab1",
+  "report_artifact_id": 25,
+  "report_sha256": "1a816f50136c1f436b307feebddd4a390bd5873d1d0402d49ac355cb78079019",
   "scope": "Exact native-range overlap and identical information text traced into saved adopted prose; semantic equivalence is for human review, not inferred from overlap.",
   "traces": []
 }
