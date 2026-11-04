@@ -1,0 +1,22 @@
+[
+  {
+    "repository": "langchain-ai/langchain",
+    "verified_commit": "aa2528fb980a290d2b06c83a1be43e60bc2348f9",
+    "source_url": "https://github.com/langchain-ai/langchain/blob/aa2528fb980a290d2b06c83a1be43e60bc2348f9/libs/core/langchain_core/language_models/chat_models.py",
+    "git_blob_sha": "791a57e5b242c77204f2275a9fdec806ccbe09ad",
+    "license": "MIT",
+    "license_url": "https://github.com/langchain-ai/langchain/blob/aa2528fb980a290d2b06c83a1be43e60bc2348f9/LICENSE",
+    "license_blob_sha": "3957738673765912ca83a0048f833e095d61e087",
+    "adaptation": "借鉴按完整提示和模型调用配置区分缓存；本项目另将实际编辑/审稿实现、证据范围和模型配置摘要写入回执，规则变化必须重新审稿。未引入框架或复制实现。"
+  },
+  {
+    "repository": "run-llama/llama_index",
+    "verified_commit": "444fdf0684707de62ebb447d658dba137dd9cb99",
+    "source_url": "https://github.com/run-llama/llama_index/blob/444fdf0684707de62ebb447d658dba137dd9cb99/llama-index-core/llama_index/core/query_engine/citation_query_engine.py",
+    "git_blob_sha": "0e0bfda06289e6ee10d771fa7d5d4e5e947615b6",
+    "license": "MIT",
+    "license_url": "https://github.com/run-llama/llama_index/blob/444fdf0684707de62ebb447d658dba137dd9cb99/LICENSE",
+    "license_blob_sha": "e6074042d0391061b7d7d45d21e6693ae108daec",
+    "adaptation": "借鉴细粒度来源独立标识；本项目为审稿问题携带所有实际出错的finding_ids并回连information_ids。保留原件偏移及哈希，不采用清空原偏移的实现。未引入框架或复制实现。"
+  }
+]

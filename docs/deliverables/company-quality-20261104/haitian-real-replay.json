@@ -1,0 +1,328 @@
+{
+  "scope": "Two real Haitian source30 failure records, current production writer/auditor; not complete-company acceptance",
+  "model": "deepseek-flash",
+  "base_url": "https://api.deepseek.com",
+  "original_sha256": "7206582c9ba5fb9a5fc3c7fe14ff8e8caf84b064f3468fc05d0d89aaaf10c0e0",
+  "initial_calls": 4,
+  "unchanged_input_calls": 0,
+  "changed_actual_audit_prompt_calls": 4,
+  "policy_changed_without_manual_version_bump": true,
+  "first_diagnostic": {
+    "usable_information": 2,
+    "narrative_information": 2,
+    "pending_information_ids": [],
+    "accepted_batches": 2,
+    "failed_batches": 0,
+    "findings": 2,
+    "review_incomplete_batches": 0,
+    "revision_required_batches": 0,
+    "semantic_review_scope": "逐条信息双向审稿及原文/正文子串绑定；不宣称穷尽全部未采纳原文或独立事实核实。"
+  },
+  "revised_diagnostic": {
+    "usable_information": 2,
+    "narrative_information": 2,
+    "pending_information_ids": [],
+    "accepted_batches": 2,
+    "failed_batches": 0,
+    "findings": 2,
+    "review_incomplete_batches": 0,
+    "revision_required_batches": 0,
+    "semantic_review_scope": "逐条信息双向审稿及原文/正文子串绑定；不宣称穷尽全部未采纳原文或独立事实核实。"
+  },
+  "first_findings": [
+    {
+      "finding_id": "F-a87d11bcaf52dc2f",
+      "text": "《佛山市海天调味食品股份有限公司2025年年度股东会会议材料》所载《海天商业保理合作框架协议》相关内容显示，公司与海天保理续签的框架协议期限为两年；在该协议有效期内，公司开具的电子凭证最高余额不超过人民币10亿元。该上限是协议约定的余额控制口径，材料未给出报告期内电子凭证的实际开具金额或实际最高余额，因此不能据此认定实际业务规模。就本章关键经营事实与风险研判而言，这一安排将公司对供应商的付款义务与关联方保理融资相衔接，10亿元上限构成需要持续跟踪的关联方资金往来边界；实际发生额及是否触及上限仍待后续披露核对。",
+      "chapter": 6,
+      "aspect": "关键经营事实与风险研判",
+      "information_ids": [
+        "I-57f34e709cfbbbcf"
+      ],
+      "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-18/1225122726.PDF",
+      "source_title": "佛山市海天调味食品股份有限公司 年年度股东会 会议材料",
+      "statement_ids": [
+        "T-0cdf36b099c743f3"
+      ],
+      "evidence_ids": [
+        "E-AE137C7A98F6"
+      ],
+      "local_finding_id": "F1"
+    },
+    {
+      "finding_id": "F-42f2189bb8b466f0",
+      "text": "《佛山市海天调味食品股份有限公司 年年度股东会 会议材料》所载董事会工作报告称，公司2025年营业收入288.73亿元，同比增长7.32%；其中调味品主营业务收入273.99亿元，同比增长9.04%。同一段落还载明，2025年归母净利润70.38亿元，同比增长10.95%；扣非归母净利润68.45亿元，同比增长12.81%。上述数据以“公司”为披露主体，属发行人董事会工作报告中的年度经营结果表述，可作为本章收入与利润口径核验的起点；但该材料未按部门列示收入、成本或利润，故不能据此形成分部门运营数据表。",
+      "chapter": 6,
+      "aspect": "分部门业务运营数据核验表",
+      "information_ids": [
+        "I-6664f1735e6d3c38"
+      ],
+      "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-18/1225122726.PDF",
+      "source_title": "佛山市海天调味食品股份有限公司 年年度股东会 会议材料",
+      "statement_ids": [
+        "T-1cf317621a0a6f37"
+      ],
+      "evidence_ids": [
+        "E-AE137C7A98F6"
+      ],
+      "local_finding_id": "F1"
+    }
+  ],
+  "revised_findings": [
+    {
+      "finding_id": "F-aa7eb62e819b2a99",
+      "text": "《佛山市海天调味食品股份有限公司2025年年度股东会会议材料》所载《海天商业保理合作框架协议》相关内容显示，公司与广东海天商业保理有限公司续签的框架协议期限为两年；在该协议有效期内，公司开具的电子凭证最高余额不超过人民币10亿元。该上限属于协议约定的额度约束，材料未给出报告期内电子凭证实际开具余额或实际使用额，因此不能据此认定实际业务规模或资金占用水平。就本章关键经营事实与风险研判而言，这一安排表明公司供应链结算中存在由关联方保理公司承接电子凭证融资的通道，其风险观察点在于协议有效期内电子凭证余额须受10亿元上限约束，以及该关联交易的实际发生情况尚待后续披露核对。",
+      "chapter": 6,
+      "aspect": "关键经营事实与风险研判",
+      "information_ids": [
+        "I-57f34e709cfbbbcf"
+      ],
+      "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-18/1225122726.PDF",
+      "source_title": "佛山市海天调味食品股份有限公司 年年度股东会 会议材料",
+      "statement_ids": [
+        "T-0cdf36b099c743f3"
+      ],
+      "evidence_ids": [
+        "E-AE137C7A98F6"
+      ],
+      "local_finding_id": "F1"
+    },
+    {
+      "finding_id": "F-23e073b6c26b2a02",
+      "text": "《佛山市海天调味食品股份有限公司 年年度股东会 会议材料》所载董事会工作报告称，公司2025年营业收入288.73亿元，同比增长7.32%；其中调味品主营业务收入273.99亿元，同比增长9.04%。同一段落还载明，2025年归母净利润70.38亿元，同比增长10.95%；扣非归母净利润68.45亿元，同比增长12.81%。就本章“分部门业务运营数据核验表”而言，上述数据可用于核验公司整体收入、调味品主营业务收入及利润口径，但该报告仅给出公司整体与调味品主营的汇总数，未按部门列示更细的运营数据，分部门层面的核验仍缺少对应明细。",
+      "chapter": 6,
+      "aspect": "分部门业务运营数据核验表",
+      "information_ids": [
+        "I-6664f1735e6d3c38"
+      ],
+      "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-18/1225122726.PDF",
+      "source_title": "佛山市海天调味食品股份有限公司 年年度股东会 会议材料",
+      "statement_ids": [
+        "T-1cf317621a0a6f37"
+      ],
+      "evidence_ids": [
+        "E-AE137C7A98F6"
+      ],
+      "local_finding_id": "F1"
+    }
+  ],
+  "program_errors": [],
+  "literal_summary": "## 1. 摘要\n\n### 报告概述\n\n### 核心发现点\n\n### 需关注信号\n- 公司公告提示半年度财务数据未经审计。[E-123456ABCDEF]\n\n### 公司所属赛道竞争格局\n\n### 总体评估",
+  "calls": [
+    {
+      "role": "公司交付正文编写",
+      "input_sha256": "505e3d205621b933867d44bb83e48202a7cc01b2f7ff3749b90a27d64f75425a",
+      "input_chars": 38766,
+      "output_chars": 342,
+      "seconds": 2.766
+    },
+    {
+      "role": "公司交付正文独立审稿",
+      "input_sha256": "28d41beb013258cd7fdbd241e148f35c0b162db585e11a43a3c85e6a9de7dd58",
+      "input_chars": 39381,
+      "output_chars": 1376,
+      "seconds": 3.469
+    },
+    {
+      "role": "公司交付正文编写",
+      "input_sha256": "40f126105623be47bd1a7be25c9fc81173ae1ef7131f364fe7566563ecb7530e",
+      "input_chars": 39526,
+      "output_chars": 338,
+      "seconds": 1.312
+    },
+    {
+      "role": "公司交付正文独立审稿",
+      "input_sha256": "3a253aa6f9d8a45352e1fcedf77da4c4735e8a92947c3e4c1cf0fb7d0117ba69",
+      "input_chars": 40137,
+      "output_chars": 1677,
+      "seconds": 3.266
+    },
+    {
+      "role": "公司交付正文编写",
+      "input_sha256": "505e3d205621b933867d44bb83e48202a7cc01b2f7ff3749b90a27d64f75425a",
+      "input_chars": 38766,
+      "output_chars": 370,
+      "seconds": 2.047
+    },
+    {
+      "role": "公司交付正文独立审稿",
+      "input_sha256": "be1054040b8e35fba2f501fdc961d78e4a154ab3363d5040649fa6bc8b8d7c02",
+      "input_chars": 39444,
+      "output_chars": 1228,
+      "seconds": 2.75
+    },
+    {
+      "role": "公司交付正文编写",
+      "input_sha256": "40f126105623be47bd1a7be25c9fc81173ae1ef7131f364fe7566563ecb7530e",
+      "input_chars": 39526,
+      "output_chars": 351,
+      "seconds": 1.766
+    },
+    {
+      "role": "公司交付正文独立审稿",
+      "input_sha256": "edd80daa55874414dfb274d0ed2122db56fea81a3c673bd9c1660afa56b3d0f6",
+      "input_chars": 40185,
+      "output_chars": 1511,
+      "seconds": 2.875
+    }
+  ],
+  "usage": [
+    {
+      "input_tokens": 22058,
+      "output_tokens": 181,
+      "total_tokens": 22239,
+      "input_token_details": {
+        "cache_read": 21888
+      },
+      "output_token_details": {},
+      "provider_request_id": ""
+    },
+    {
+      "input_tokens": 22192,
+      "output_tokens": 597,
+      "total_tokens": 22789,
+      "input_token_details": {
+        "cache_read": 21760
+      },
+      "output_token_details": {},
+      "provider_request_id": ""
+    },
+    {
+      "input_tokens": 21429,
+      "output_tokens": 179,
+      "total_tokens": 21608,
+      "input_token_details": {
+        "cache_read": 21248
+      },
+      "output_token_details": {},
+      "provider_request_id": ""
+    },
+    {
+      "input_tokens": 21558,
+      "output_tokens": 712,
+      "total_tokens": 22270,
+      "input_token_details": {
+        "cache_read": 21248
+      },
+      "output_token_details": {},
+      "provider_request_id": ""
+    },
+    {
+      "input_tokens": 22058,
+      "output_tokens": 193,
+      "total_tokens": 22251,
+      "input_token_details": {
+        "cache_read": 21888
+      },
+      "output_token_details": {},
+      "provider_request_id": ""
+    },
+    {
+      "input_tokens": 22227,
+      "output_tokens": 523,
+      "total_tokens": 22750,
+      "input_token_details": {
+        "cache_read": 21760
+      },
+      "output_token_details": {},
+      "provider_request_id": ""
+    },
+    {
+      "input_tokens": 21429,
+      "output_tokens": 191,
+      "total_tokens": 21620,
+      "input_token_details": {
+        "cache_read": 21248
+      },
+      "output_token_details": {},
+      "provider_request_id": ""
+    },
+    {
+      "input_tokens": 21593,
+      "output_tokens": 622,
+      "total_tokens": 22215,
+      "input_token_details": {
+        "cache_read": 21248
+      },
+      "output_token_details": {},
+      "provider_request_id": ""
+    }
+  ],
+  "seconds": 20.39,
+  "report_sha256": "1730b81cc13431b0fbdaa097f495c3205bc85aa0b15f8eb1fb6e3900404a0dcc",
+  "docx_sha256": "6e8b74df3ecf39f242cb85599d93b304c0e82250a5ef588777eba9a5de6b2e72",
+  "code_sha256": {
+    "backend\\company_audit.py": "a7e3fcce487cbefa441ef78b253ad8fdf4e298afc00cb1774ef6460a5f4d8b29",
+    "backend\\company_catalog.py": "8f202e771e80f6eefdafceb303536c74ad4a0622478b56c0eb9cf7ae3cb99226",
+    "backend\\company_chapters.py": "a22becf016865b7a459e984ed304ec0808620194a6f93120f4ee99168311aa04",
+    "backend\\company_chapter_flow.py": "b8e990c8de119c0da12c432b6edbf3453665338348b0228ce3cb138a40ea2faa",
+    "backend\\company_charts.py": "c698dc904dee9ee48c947491ec596e5b5b87b321e3d61f6354a0a903c106c39b",
+    "backend\\company_collections.py": "bc2b00bfa3f2450568d9429614a4448e9b4de08f9f8c1ee23b2e705d9bbe23c6",
+    "backend\\company_collection_audit.py": "c4527b867700b1e31b167c8beb2cb362460fcb2b08f69e85c33907f3fa1e9d14",
+    "backend\\company_discovery.py": "428ee99851232482d12e380d877b30bcd942790c967cb7ceb66e039bbde0a00e",
+    "backend\\company_export_progress.py": "79340aa59463b307fb7647b5eaa966ebe7305ecae22aaef68b0b8d68f68df6c3",
+    "backend\\company_flow_state.py": "8ccb48ba9907aae9fc2e6039bdd3ab1e65b794a6d678318e78097811e21c2ac4",
+    "backend\\company_ingestion.py": "d8940fd161091d9c3fb31b6bf749629af1070cf54709001b9b50db0aaf0839db",
+    "backend\\company_knowledge.py": "457451d3927896639a8928af7c1e30fbfb15aece686e4cf557961707790ce739",
+    "backend\\company_memory.py": "5276cec1813ab075dad77ad4558ae7a5f9b336eb87515ac7c10bb3201a6e0ba3",
+    "backend\\company_ocr.py": "991b4940e72d73dba1c274442bbb486068da5370a87fe4eb647765ef51045408",
+    "backend\\company_office_watermark.py": "3e93052a6608e5ed6c68b28953b967aabba0e4f708e0e1987c4192b90f0f411b",
+    "backend\\company_pdf.py": "6b180f1c354b332c98f0bf5d329b956bcfb2ad79eec406ea1e378af6094c88dc",
+    "backend\\company_pdf_reading_order.py": "9f9cb048bfe3d62cf61e283c8324b6465a7e558ce2ca1538aa8e31a3798fbbe9",
+    "backend\\company_platform.py": "8e6502a2e37b79e95629c47b5f9e2747fd28776e7f7263120c064d0410894dbd",
+    "backend\\company_projects.py": "d35a29c98a203d283ecd6abdb43b2747d2c98ef94bf879bf178f76b38dbb0780",
+    "backend\\company_publishers.py": "c2a4e9f7cca1ecd66b710b7ab793ac2e844db37ab1bd30ab87347c540bf5e3a5",
+    "backend\\company_reading.py": "1247f33104679999509a5448e5494589353d66e54c2086fb54ce1b8eb0c8d7d3",
+    "backend\\company_requirements.py": "7ceb22d24e3ec7d5dfd2c01d6875c97442fdd4e15b96bbf4881d482705879a3c",
+    "backend\\company_risk.py": "17e1c34c8ee9a4ced2d53f8afde80b6b931467d038b30403657ec0669ede1f93",
+    "backend\\company_watermark.py": "3e8449b94128b814681c269cb534e57467f3eb129054169d9515940b0cc59914",
+    "backend\\company_workspace.py": "c66573efc9e4a51a0740ea245998f25bd9f15ef8483933d24a23a23fab752e91",
+    "backend\\research_workflow.py": "9fa58798344472371aa59f29b865ea126833c4d03bbbd532cda4a0dc93d3d896",
+    "backend\\report_agents\\company_accounting_tables.py": "32d7aefe711ca883df23cdad42f5a2ad4c5092241734b6474d9cab991f6f6516",
+    "backend\\report_agents\\company_assessment.py": "6105a56efd2e8420789c282e9d62180a27ba1d75f829de4a7601569e51d75541",
+    "backend\\report_agents\\company_assessment_sources.py": "d3d7cbf350eac5c503a191f81a25f92815cfe34d277b2765a77821753c48ffe9",
+    "backend\\report_agents\\company_audit_disclosures.py": "b9e10b57256561475dbce7a5ccdb19ff5061da8dc19f3cb111b4147cda45b8ce",
+    "backend\\report_agents\\company_beneficial_ownership.py": "370a2a596303154cd0786200391769ab1b28cda05b8efdf48f48d80dcf54a7ed",
+    "backend\\report_agents\\company_business.py": "d63d96137085f416bef5fbd7f78120796bd1a127cec3e45588dcd1889f4b157a",
+    "backend\\report_agents\\company_chapter_agent.py": "0ae8f0644016671d46aa165da2d8a74b0b44ac8fd0dc99b51374c1cbda9e9723",
+    "backend\\report_agents\\company_chapter_placements.py": "7f9acc99f582e39a17e16931e9f7dbc6244e494ac3b6c592617c9d25502b4c78",
+    "backend\\report_agents\\company_checkpoint.py": "b4e3ede38e67693c68003b3cad0638082317767b11156690476642ef39ed9511",
+    "backend\\report_agents\\company_corpus.py": "159d6a6f5394bd332dfac6192fbf349f8193a92caa3836b53bb5b7afd717902e",
+    "backend\\report_agents\\company_corpus_writer.py": "12533978dceac39a77dcc4dbf04cf68b6175d59e9034a01a551e0e6ba8b60779",
+    "backend\\report_agents\\company_delivery.py": "95dbc8137c6062e04b6397efc8ab0ae51c2675252366e61dd693658f91c02396",
+    "backend\\report_agents\\company_delivery_contract.py": "b42c3ed618ac5fa79a8f97ece4c0f5ced98dfb2e1cb845cfbaaee6cdd30b883b",
+    "backend\\report_agents\\company_diligence.py": "93401da49620b80ea6e1b95f622df132122439cf6782217e70383f33b484d9e9",
+    "backend\\report_agents\\company_editorial.py": "496437e5d6088938642d9c1b39d1f501499b603ecb88f415a659b817611d80e7",
+    "backend\\report_agents\\company_editorial_context.py": "a28567c1ed1ab8c9e7681e75f6d1874d45a86ee2c9ab17341ecdaf5eab9443ae",
+    "backend\\report_agents\\company_event_evidence.py": "0a2034be78de433f69f4c6ed42d3726f56c98f2bec6526eaa4a900a92c3a01e1",
+    "backend\\report_agents\\company_evidence.py": "f68ea5fb26351350ec2fa09a10f13245568b268c92db35c857ade59187f92965",
+    "backend\\report_agents\\company_financial_statements.py": "032cbe7ea24526ae747544533fcb7f383851cc4c8384f8d1ff92afd31ffbe0c1",
+    "backend\\report_agents\\company_governance.py": "6b161d79a5096566816829311551f12a576d939ea4fd3ba46334901bf1d094f2",
+    "backend\\report_agents\\company_history.py": "a3df9bdb210cdad03ba8fa05fe3a23ca7b92c30cf7df660a881ec637343e9d5c",
+    "backend\\report_agents\\company_information_journal.py": "113706d6224740a49e218f051cafa6524be67a8a8a0413c7c5eefdaf59fa75a8",
+    "backend\\report_agents\\company_information_usage.py": "fd57066f5d17acf32195ac37227c1a92f9e98c259ab743ef7fbf3756d9f7f3e5",
+    "backend\\report_agents\\company_issuer_identity.py": "3746f091d93ccf06ce6349b6380a0508433d791baf729392dcecc5d2e39748a2",
+    "backend\\report_agents\\company_judicial.py": "7416c2dc9ca82ea4b55ca300af3de5a32f7ea860c057f1efb2e8ea8b318bebef",
+    "backend\\report_agents\\company_listing_funding.py": "58184dba1ecad9fe61757e36f8193f22166d213fef46e67a9176bdf29716aa42",
+    "backend\\report_agents\\company_main_focus.py": "c5bbd1e001cc909422be59649042997dcae90297c85e397118e906322356ddc2",
+    "backend\\report_agents\\company_management.py": "c18ae972e80c0f9d0a0d26b6dddd48bad9e372bbc93334667bad0a626bb6061d",
+    "backend\\report_agents\\company_model_reading.py": "b90cb183cab374ecaa2c2a6867965e7b859447fe79a6a1c771405ebba6630f0c",
+    "backend\\report_agents\\company_operations.py": "f6cfedd7fcbff1ab3fb77056d1d86033724509a7983ecf29f139d0627ee84847",
+    "backend\\report_agents\\company_overseas_identity.py": "a655b418c8dedac920e70790792fbab4232f3be2aff6ce0e00d684bbe991678f",
+    "backend\\report_agents\\company_page_context.py": "6aa1ea94087227bffb612becd650e5442d5aa85bb2006e0301123e7e4177f824",
+    "backend\\report_agents\\company_people.py": "9efec7008e19f9110c7b0f8b935a3148dcbe89d29a2c507b7b3598342059aedf",
+    "backend\\report_agents\\company_presentation.py": "277fd8d00a3fa5f37f57f7a04c9815a33cf0893c483ca98c070312e69d38327b",
+    "backend\\report_agents\\company_press_releases.py": "73167fcf7f9d03715e77a5106afab7d39d14d6d10bdcd2c4a3b3f4319cbb2bd7",
+    "backend\\report_agents\\company_product_releases.py": "c483064d9db50d72c2564ce05a1274b1a7b945ce4c7c3d5f9106eec1b402a94a",
+    "backend\\report_agents\\company_reading_recovery.py": "c26662e3188e2f7b77dddcbdd2172e67d8af0fec27291c3ae9d01cad7441b1c6",
+    "backend\\report_agents\\company_regulatory.py": "0c153f646bd0538d749be30f086a32d94de73c791f320bd7e1760e308d662399",
+    "backend\\report_agents\\company_report_agent.py": "151d6ae2bef306b2118a5401ec35138c413cf4d562646def29e5613757fa40e0",
+    "backend\\report_agents\\company_reputation.py": "0d328b3e307eb955bf5deef9e7b44592b7fcee8e20506b688b407f505a1f7bae",
+    "backend\\report_agents\\company_risk_register.py": "9eeb266238bb687645911529604d44e668ace586bc39d47382117cc022786ba6",
+    "backend\\report_agents\\company_selection_audit.py": "b2e6fc0efc2fd893e4ee566b8d5771f83ab4a1e0d7e509bdf98a9909b5d5351c",
+    "backend\\report_agents\\company_source_review.py": "3ed1119f252e52d95a8b8c2573d57448ea847541ad446fddbdbdc74ccc0b409b",
+    "backend\\report_agents\\company_summary.py": "4ec1668ee8a63383ca3b9cdb3df0294d223bd186e0fea84ad981bea96fe629ab",
+    "backend\\report_agents\\company_text.py": "bcdb97b626f39a8766307bc50cdc03f151a556529346fce9dbf11429104b311d",
+    "backend\\report_agents\\company_time_context.py": "c435bb047bcd507b782bac9d896a73ab5c1412a7252f7b51c04edfb84307d626",
+    "backend\\report_agents\\company_transport.py": "f46b6e51cda40af3e3bb6a750af36bb4bae53b797544022c4b78a735cd7eae2b"
+  }
+}

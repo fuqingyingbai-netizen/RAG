@@ -1,0 +1,25 @@
+{
+  "company": "kingsoft",
+  "pages": 11,
+  "docx_sha256": "2ea1054798c315d8b97b125db2f9c880754ba7dde51b9e8b84acf6d27677e745",
+  "renderer": "bundled documents/render_docx.py 26.1026.10807",
+  "dpi": 96,
+  "all_pages_visually_inspected": true,
+  "findings": "All 11 final pages inspected at full size. No clipped text, overlaps or missing table rows. Long follow-up rows continue across pages with repeated headers. Empty chapter headings reflect unavailable material; no filler was inserted.",
+  "contacts": [
+    "kingsoft-word-contact-1.png"
+  ],
+  "png_sha256": {
+    "page-1.png": "5704efc9bba02f1ca9c35f409640be513f3113be071975d5c03711220ced13c3",
+    "page-2.png": "339464e2dd4d32f540c685c627bf7a359a108e1b28bb72d6b6ab1f73f560c5cc",
+    "page-3.png": "33e0756bcd6ced0ef4b8b037f9faea7c23f753400f8ec84cca78f17e253566ba",
+    "page-4.png": "11ca7bb0a19830c443c71871ebf00a1f7c1c8a816857e3e8caa661d10c413569",
+    "page-5.png": "570e2e28ffbb430cd381ea63fac99b9e35f48ac30ad93a546062052a3c199c59",
+    "page-6.png": "b47e53a4a54006b74b75dee8d97fd5518e5b4144b3ae12b0a1e1d64cd39b3ab1",
+    "page-7.png": "8b7de7f0a52edbbad4cb0556eed6fdbde16afd19b89d173026c5ff4d7c6338e2",
+    "page-8.png": "a9c41155b761ca99f13120d4b27076a5dc6ac641182b96039744434fa4ab5888",
+    "page-9.png": "fa6866b6bf86048c8c5eb618f993dc7f225277f824e9503dd0c176895cd79ca5",
+    "page-10.png": "0cfcc4be4cdc6eaa9b292d786722994d62f205d7c97e68e6c18a5742e6ef9631",
+    "page-11.png": "075aa2024d2068340f36c0a28d069751f736d1a240c6d55348ed930680ee8486"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "company": "haitian",
+  "pages": 3,
+  "docx_sha256": "6e8b74df3ecf39f242cb85599d93b304c0e82250a5ef588777eba9a5de6b2e72",
+  "renderer": "bundled documents/render_docx.py 26.1026.10807",
+  "dpi": 96,
+  "all_pages_visually_inspected": true,
+  "findings": "Final 3 pages inspected. Cover and contents match previously inspected PNG hashes; changed body page inspected at full size. No clipping, overlapping text or missing lines.",
+  "contacts": [
+    "haitian-word-contact-1.png"
+  ],
+  "png_sha256": {
+    "page-1.png": "8622b0c14cf373f702d4549f579c8ac6333adf0bfc6344666a8554f475e4b3d5",
+    "page-2.png": "3b9944baf122ede3879ae67775326dd577b44d4e58658f88084419ab78311adb",
+    "page-3.png": "64489da4ae116d823dc9fdad4763e2731a37e8e6b4ce3a4af5e76569efb08f87"
+  }
+}

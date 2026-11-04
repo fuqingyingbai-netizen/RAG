@@ -1,0 +1,11 @@
+{
+  "scope": "Current tracked/unignored deliverables, actual index blobs, and merged history since baseline; secret values never emitted",
+  "base_commit": "514f0327a6a14cd442860e1c4ecd23f74e38703c",
+  "head": "2e740dc4d4c6768a69e28477080e136f85db830f",
+  "checked_objects": 2961,
+  "known_local_credentials_checked": 9,
+  "known_local_credential_matches": [],
+  "bounded_token_pattern_candidates": [],
+  "forbidden_staged_paths": [],
+  "env_is_gitignored": true
+}

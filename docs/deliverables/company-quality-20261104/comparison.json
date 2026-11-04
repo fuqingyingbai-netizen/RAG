@@ -1,0 +1,132 @@
+{
+  "scope": "One retained source per company; final Word and report are saved production outputs, not complete-company acceptance",
+  "kingsoft": {
+    "before": {
+      "report_id": 25,
+      "version": 5,
+      "chars": 22529,
+      "pages": 30,
+      "editorial": {
+        "usable_information": 16,
+        "narrative_information": 12,
+        "pending_information_ids": [
+          "I-8338d90126f86079",
+          "I-8c550f33f7adffec",
+          "I-99efc5894e1f6a8f",
+          "I-a60da1bcce6dc695"
+        ],
+        "accepted_batches": 8,
+        "failed_batches": 1,
+        "findings": 15,
+        "review_incomplete_batches": 0,
+        "revision_required_batches": 1,
+        "semantic_review_scope": "逐条信息双向审稿及原文/正文子串绑定；不宣称穷尽全部未采纳原文或独立事实核实。"
+      },
+      "document_review": "failed"
+    },
+    "after": {
+      "report_id": 103,
+      "version": 18,
+      "chars": 8872,
+      "pages": 11,
+      "editorial": {
+        "usable_information": 23,
+        "narrative_information": 23,
+        "pending_information_ids": [],
+        "accepted_batches": 5,
+        "failed_batches": 0,
+        "findings": 15,
+        "review_incomplete_batches": 0,
+        "revision_required_batches": 0,
+        "semantic_review_scope": "逐条信息双向审稿及原文/正文子串绑定；不宣称穷尽全部未采纳原文或独立事实核实。"
+      },
+      "document_review": "passed",
+      "document_issues": 0,
+      "native_reading": {
+        "native_windows_acknowledged": true,
+        "pending_selection_repairs": 0,
+        "all_candidate_windows_reviewed": true,
+        "reading_scope": "full_native_plan_with_explicit_window_acknowledgements",
+        "accepted_claims": 23
+      },
+      "delivery_ready": false,
+      "delivery_errors": [
+        "第2章必答问题尚未全部核对完成",
+        "第6章必答问题尚未全部核对完成",
+        "公司报告交付质量闸门未通过：第2章必答问题尚未全部核对完成；第6章必答问题尚未全部核对完成；第二章工商股权核查未形成可交付证据，需人工复核；第三章沿革与成长质量未形成可交付证据，需人工复核；第五章评价与对标未形成可交付证据，需人工复核；第六章经营与研发进展未形成可交付证据，需人工复核；第七章管理团队未形成可交付证据，需人工复核；第八章文化与人员情况未形成可交付证据，需人工复核；第九章司法记录未形成可交付证据，需人工复核；第十章专项核查未形成具体可追溯对象，需人工复核；第十一章风险事项或75项核查目录未通过核对，需人工复核；第十二章综合评价或评分计算未通过核对，需人工复核",
+        "content_contract_not_passed"
+      ],
+      "code_matches_current": true,
+      "last_invocation_seconds": 297.437,
+      "last_invocation_metrics_cumulative": {
+        "elapsed_seconds": 7174.752,
+        "input_chars": 26370071,
+        "input_tokens": 13762543,
+        "model_calls": 1397,
+        "output_chars": 1969229,
+        "output_tokens": 932623,
+        "platform_cache_hits": 0,
+        "platform_requests": 0,
+        "query_cache_hits": 0,
+        "reported_usage_calls": 1396,
+        "search_queries": 0
+      },
+      "saved_report_sha256": "b6b21ce7957e00d04c21fa84c09f04ff8e7ce539df9939277c17bbb92bcc6cf6",
+      "program_filler_present": {
+        "以上接续所引来源的事件记载": false,
+        "如本章展示图谱": false,
+        "公开资料判断条件": false,
+        "上文展示已通过逐批审核的段落": false,
+        "ORG-74": false
+      }
+    },
+    "independent_project": {
+      "scope": "Separate database initially created empty; resumed through checkpoints during fixes, final invocation matches current code",
+      "report_id": 7,
+      "chars": 9395,
+      "pages": 11,
+      "editorial": {
+        "usable_information": 23,
+        "narrative_information": 23,
+        "pending_information_ids": [],
+        "accepted_batches": 7,
+        "failed_batches": 0,
+        "findings": 17,
+        "review_incomplete_batches": 0,
+        "revision_required_batches": 0,
+        "semantic_review_scope": "逐条信息双向审稿及原文/正文子串绑定；不宣称穷尽全部未采纳原文或独立事实核实。"
+      },
+      "document_review": "passed",
+      "document_issues": 0,
+      "source_reading": {
+        "1": {
+          "review_windows": 4,
+          "reviewed_windows": 4,
+          "unread_ranges": [],
+          "structural_gaps": []
+        }
+      },
+      "code_matches_current": true,
+      "delivery_ready": false,
+      "last_invocation_seconds": 338.5
+    }
+  },
+  "haitian": {
+    "records": 2,
+    "initial_model_calls": 4,
+    "unchanged_input_model_calls": 0,
+    "changed_actual_audit_prompt_calls": 4,
+    "first_diagnostic": {
+      "usable_information": 2,
+      "narrative_information": 2,
+      "pending_information_ids": [],
+      "accepted_batches": 2,
+      "failed_batches": 0,
+      "findings": 2,
+      "review_incomplete_batches": 0,
+      "revision_required_batches": 0,
+      "semantic_review_scope": "逐条信息双向审稿及原文/正文子串绑定；不宣称穷尽全部未采纳原文或独立事实核实。"
+    },
+    "code_matches_current": true
+  }
+}
