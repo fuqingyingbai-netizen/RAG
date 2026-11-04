@@ -1002,7 +1002,11 @@ def receipt_aware_batches(records,prior,target,feedback=None):
                 or len(set(ids))!=len(ids)):continue
         chapter=batch.get('chapter');aspect=batch.get('aspect')
         rows=[lookup[i] for i in ids]
-        if any((r['decision'].get('chapter'),r['decision'].get('aspect'))!=(chapter,aspect) for r in rows):continue
+        source_aspects=batch.get('source_aspects')
+        if source_aspects:
+            if source_aspects!={r['information_id']:r['decision']['aspect'] for r in rows}:continue
+            if any(r['decision'].get('chapter')!=chapter for r in rows):continue
+        elif any((r['decision'].get('chapter'),r['decision'].get('aspect'))!=(chapter,aspect) for r in rows):continue
         critique=batch_feedback(feedback,chapter,ids) or batch.get('feedback') or []
         expected=fingerprint({'version':VERSION,'target':target,'chapter':chapter,'aspect':aspect,
                               'records':[record_payload(r) for r in rows],'feedback':critique})
@@ -1015,7 +1019,20 @@ def receipt_aware_batches(records,prior,target,feedback=None):
         reserved.update(ids);jobs.append((key,rows))
     jobs.extend(editorial_batches([r for r in records if r['information_id'] not in reserved]))
     jobs.sort(key=lambda job:(job[0],min(positions[r['information_id']] for r in job[1])))
-    return jobs
+    # One issue can require merging prose written in different aspect batches.
+    # Rewriting each batch alone cannot remove that duplication while retaining
+    # every input. Join only explicitly connected jobs; no source is discarded.
+    groups=[{n} for n in range(len(jobs))]
+    for issue in feedback or []:
+        ids=set(issue.get('information_ids') or [])
+        touched={n for n,(key,rows) in enumerate(jobs) if key[0]==issue.get('chapter') and
+            ids.intersection(r['information_id'] for r in rows)}
+        connected=[g for g in groups if g & touched]
+        if len(connected)<2:continue
+        merged=set().union(*connected);rows=[r for n in sorted(merged) for r in jobs[n][1]]
+        if len(rows)>64 or sum(len(json.dumps(editorial_payload(r),ensure_ascii=False)) for r in rows)>88000:continue
+        groups=[g for g in groups if not g & merged]+[merged]
+    return [(jobs[min(g)][0],[r for n in sorted(g) for r in jobs[n][1]]) for g in sorted(groups,key=min)]
 
 
 def audit_location_only(errors,audit):
@@ -1209,6 +1226,11 @@ def build_editorial_package(usage, outline, target, invoke, *, previous=None, wo
             if not issues and not validate_audit(rows, checked, cached.get('audit'),{p['information_id']:p for p in cached.get('placements',[])}):
                 return {**cached, 'reused': True}
         base_prompt = proposal_prompt(rows, target, chapter, aspect,evidence_context=packet)
+        source_aspects={r['information_id']:r['decision']['aspect'] for r in rows}
+        if len(set(source_aspects.values()))>1:
+            prefix,payload=base_prompt.rsplit('材料：\n',1)
+            base_prompt=prefix+'本次将同一审稿意见涉及的问题联合修复：'+json.dumps(source_aspects,ensure_ascii=False)+\
+                '。共有事实只表达一次，并列全实际支持它的记录ID；不得为每个原始批次重复抄写数据或缺口说明。材料：\n'+payload
         if chapter_agents is not None:
             prefix,data=base_prompt.rsplit('材料：\n',1)
             prefix=prefix.replace('所有use信息都要在段落中有实质表达','默认main的信息都要在段落中有实质表达')
@@ -1382,6 +1404,7 @@ def build_editorial_package(usage, outline, target, invoke, *, previous=None, wo
             any(e.startswith('editorial_call_failed:') for e in errors) else
             'review_record_incomplete' if incomplete_review_record(errors,audit) else 'revision_required')
         return {'input_sha256': input_hash, 'policy_sha256':policy,'evidence_context_sha256':fingerprint(packet),'chapter': chapter, 'aspect': aspect,
+            'source_aspects':{r['information_id']:r['decision']['aspect'] for r in rows},
             'information_ids': [r['information_id'] for r in rows], 'accepted': accepted,
             'findings': findings, 'audit': audit, 'errors': errors, 'attempts': attempts, 'feedback':critique,
             'placements':list(chosen_placements.values()),'step_attempts':{k:v.get('attempts',0) for k,v in step_budgets.items()},

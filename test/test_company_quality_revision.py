@@ -214,8 +214,33 @@ def test_multi_paragraph_feedback_rewrites_both_batches_and_reuses_unaffected_ch
     calls=[]
     second=editorial.build_editorial_package({'records':rows},OUTLINE,'公司',invoke_for(rows,calls),
         previous=first,workers=1,feedback=feedback)
-    assert len(calls)==4 and next(b for b in second['batches'] if b['chapter']==7)['reused']
+    assert len(calls)==2 and next(b for b in second['batches'] if b['chapter']==7)['reused']
     assert all(b.get('feedback') for b in second['batches'] if b['chapter']==6)
+
+
+def test_cross_batch_duplicate_feedback_can_merge_prose_keep_all_sources_and_resume_without_calls():
+    rows=[record('I-a'),record('I-b'),record('I-c',chapter=7)]
+    rows[1]['decision']['aspect']=OUTLINE[5][1][1]
+    first=editorial.build_editorial_package({'records':rows},OUTLINE,'公司',invoke_for(rows),workers=1)
+    old=[f for f in first['findings'] if f['chapter']==6];calls=[]
+    def invoke(role,prompt,trace):
+        calls.append(role)
+        if role=='公司交付正文编写':
+            assert '联合修复' in prompt
+            return json.dumps({'findings':[{'finding_id':'merged','text':rows[0]['text'],'information_ids':['I-a','I-b']}]})
+        data=json.loads(prompt.rsplit('资料：\n',1)[1]);return json.dumps(audit(rows[:2],data['findings']))
+    feedback=[{'chapter':6,'finding_ids':[f['finding_id'] for f in old],'quote':old[0]['text'],'message':'同一事实重复，合并两段。'}]
+    second=editorial.build_editorial_package({'records':rows},OUTLINE,'公司',invoke,previous=first,workers=1,feedback=feedback)
+    assert calls==['公司交付正文编写','公司交付正文独立审稿']
+    assert not second['diagnostic']['pending_information_ids']
+    assert len([f for f in second['findings'] if f['chapter']==6])==1
+    assert not editorial.package_errors(second,rows,'公司')
+    calls.clear()
+    third=editorial.build_editorial_package({'records':rows},OUTLINE,'公司',invoke,previous=second,workers=1)
+    assert calls==[] and not third['diagnostic']['pending_information_ids']
+    sections=render_compact_chapters(SimpleNamespace(company_editorial_package=third),
+        {'groups':editorial.digest_groups(third)},OUTLINE,{})
+    assert sections[6].count(rows[0]['text'])==1
 
 
 def test_partial_source_locator_repairs_keep_valid_repairs_and_original_pending_rows(monkeypatch):
