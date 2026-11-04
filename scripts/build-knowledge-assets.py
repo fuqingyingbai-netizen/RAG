@@ -11,7 +11,7 @@ def build():
     index=frontend/'index.html'
     html=index.read_text(encoding='utf-8')
     files=[]
-    for name in ('knowledge-glass-optics.js','company-knowledge.js','company-knowledge-glass.css'):
+    for name in ('knowledge-glass-optics.js','knowledge-document-viewer.js','company-knowledge.js','company-knowledge-glass.css'):
         source=frontend/name
         payload=source.read_bytes()
         checksum=hashlib.sha256(payload).hexdigest()

@@ -10,10 +10,28 @@ from pathlib import Path
 import threading
 from urllib.parse import urlsplit
 import wave
+import zipfile
 
 from playwright.sync_api import sync_playwright, expect
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def document_fixture():
+    """Two full pages and a table, deliberately different from retrieval chunks."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr('[Content_Types].xml', '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')
+        archive.writestr('_rels/.rels', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>')
+        archive.writestr('word/document.xml', '''<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>
+          <w:p><w:pPr><w:spacing w:after="300"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="40"/><w:color w:val="245D78"/></w:rPr><w:t>研究项目 · 完整原件预览</w:t></w:r></w:p>
+          <w:p><w:r><w:t>这是完整文档的第一段，保留标题、段落与表格。这段正文不在检索片段里。</w:t></w:r></w:p>
+          <w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="4000"/><w:gridCol w:w="4000"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>研究方法</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>访谈与资料核对</w:t></w:r></w:p></w:tc></w:tr></w:tbl>
+          <w:p><w:r><w:br w:type="page"/></w:r></w:p><w:p><w:r><w:t>第二页：完整上下文仍在，不是按检索片段拼接。</w:t></w:r></w:p>
+          <w:p><w:hyperlink r:id="unsafe-link"><w:r><w:t>不可跳转的文档链接</w:t></w:r></w:hyperlink></w:p>
+          <w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1100" w:right="1100" w:bottom="1100" w:left="1100"/></w:sectPr></w:body></w:document>''')
+        archive.writestr('word/_rels/document.xml.rels', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="unsafe-link" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="javascript:parent.document.body.innerHTML=&quot;bad&quot;" TargetMode="External"/></Relationships>')
+    return buffer.getvalue()
 
 
 class QuietHandler(SimpleHTTPRequestHandler):
@@ -54,7 +72,7 @@ def main():
     for i,doc in enumerate(docs):doc.update(knowledge_project_id=f'project-{i%2}',folder_id='',inherits_project=0)
     errors, unexpected, mutations, metrics = [], [], [], {}
     hide_cases = False
-    pending_export, export_polls = None, 0
+    pending_export, export_polls, pending_chat = None, 0, None
     assets = {'vue.global.prod.js':'vue.js', 'index.full.min.js':'element.js', 'index.css':'element.css', 'all.min.css':'icons.css'}
     buffer = io.BytesIO()
     with wave.open(buffer, 'wb') as output:
@@ -78,10 +96,10 @@ def main():
             errors.append(str(error)); print('Browser error: '+str(error),flush=True)
         page.on('pageerror', page_error)
         page.on('console',lambda msg: page_error(msg.text) if msg.type=='error' and not msg.text.startswith('Failed to load resource:') else None)
-        page.add_init_script("localStorage.setItem('accessToken','synthetic-preview-only');localStorage.setItem('activeView','company-knowledge');")
+        page.add_init_script("if(window===window.top){localStorage.setItem('accessToken','synthetic-preview-only');localStorage.setItem('activeView','company-knowledge');}")
 
         def route_request(route):
-            nonlocal pending_export, export_polls
+            nonlocal pending_export, export_polls, pending_chat
             request, url = route.request, route.request.url
             path = urlsplit(url).path
             if not url.startswith(base):
@@ -148,7 +166,10 @@ def main():
                         {'type':'answer_delta','text':'依据示例资料，可复用访谈提纲与项目复盘方法 [id_1]。\n\n| 要点 | 依据 |\n| --- | --- |\n| 访谈准备 | 项目说明 |'},
                         {'type':'saved'}, {'type':'done','usage':{}},
                     ])
-                return route.fulfill(content_type='text/event-stream',body=''.join('data: '+json.dumps(e,ensure_ascii=False)+'\n\n' for e in events))
+                response=''.join('data: '+json.dumps(e,ensure_ascii=False)+'\n\n' for e in events)
+                if body['message'] != 'UI_TEST_ERROR':
+                    pending_chat=(route,response);return
+                return route.fulfill(content_type='text/event-stream',body=response)
             if path.endswith('/preview'):
                 return route.fulfill(json={'references':[{'id':'1','text':'隔离测试的解析片段。','title':'示例资料'}],'total':1})
             if path.endswith('/export-status'):
@@ -159,6 +180,10 @@ def main():
                 return
             if path.endswith('/original'):
                 doc = next(d for d in docs if d['id'] == path.split('/')[-2])
+                if doc['format'] == 'DOCX':
+                    return route.fulfill(body=document_fixture(),content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',headers={'X-Watermark-Trace':'synthetic-trace-only'})
+                if doc['format'] in ('TXT','MD','CSV'):
+                    return route.fulfill(body='完整文件正文，不是检索切片。\n第二段完整上下文。',content_type='text/plain;charset=utf-8')
                 return route.fulfill(body=audio if doc['media_kind']=='audio' else video,content_type='audio/wav' if doc['media_kind']=='audio' else 'video/webm')
             if path.startswith('/company-knowledge/documents/') and request.method == 'PATCH':
                 doc = next(d for d in docs if d['id'] == path.split('/')[-1]); doc.update(request.post_data_json)
@@ -243,7 +268,22 @@ def main():
         existing_editor.get_by_role('button',name='取消',exact=True).click()
         page.get_by_role('tab',name='研究首页',exact=True).click()
         page.screenshot(path=str(args.output_dir/'home-desktop.png'),full_page=True,animations='disabled')
+        card=page.locator('.ckb-mini-file').nth(1)
+        relative_top='e => e.getBoundingClientRect().top-e.parentElement.getBoundingClientRect().top'
+        resting_top=card.evaluate(relative_top);card.hover();page.wait_for_timeout(300)
+        assert abs(card.evaluate(relative_top)-resting_top)<1, 'Hover moved the card border outside its grid'
+        page.screenshot(path=str(args.output_dir/'home-file-hover.png'),full_page=True,animations='disabled')
         page.locator('.ckb-mini-file').nth(1).click()
+        original_frame = page.frame_locator('iframe.ckb-document-frame')
+        expect(original_frame.locator('section.docx')).to_have_count(2)
+        expect(original_frame.locator('table')).to_contain_text('访谈与资料核对')
+        expect(original_frame.locator('a')).to_have_count(0)
+        expect(original_frame.locator('.viewer-watermark').first).to_contain_text('preview')
+        expect(page.locator('.ckb-document-loading')).to_have_count(0)
+        reader_box=page.locator('.ckb-reader-dialog').bounding_box()
+        assert reader_box['y']+reader_box['height'] <= page.viewport_size['height']+1
+        assert original_frame.locator('body').evaluate("() => { try { return !!parent.document.body; } catch (_) { return false; } }") is False
+        page.screenshot(path=str(args.output_dir/'word-original-desktop.png'),full_page=True,animations='disabled')
         page.get_by_role('button',name='下载水印副本',exact=True).click()
         expect(page.locator('.ckb-download-progress')).to_contain_text('水印 89/178 项',timeout=10000)
         expect(page.locator('.ckb-download-progress progress')).to_have_attribute('value','89')
@@ -364,10 +404,18 @@ def main():
         expect(page.get_by_role('textbox',name='知识问答问题')).to_have_value('比较所选资料的结论差异，逐项列出依据与待复核事项。')
         page.screenshot(path=str(args.output_dir/'chat-desktop.png'),full_page=True,animations='disabled')
         page.get_by_role('button',name='发送问题',exact=True).click()
+        expect(page.locator('.ckb-thinking-ribbon')).to_be_visible()
+        expect(page.get_by_role('button',name='停止生成',exact=True)).to_be_visible()
+        page.screenshot(path=str(args.output_dir/'chat-generating-desktop.png'),full_page=True,animations='disabled')
+        assert pending_chat is not None
+        pending_chat[0].fulfill(content_type='text/event-stream',body=pending_chat[1]);pending_chat=None
         expect(page.locator('.ckb-live-answer')).to_contain_text('依据示例资料')
+        expect(page.get_by_role('button',name='复制回答',exact=True)).to_be_visible()
         expect(page.locator('.ckb-answer-table table')).to_be_visible()
         page.screenshot(path=str(args.output_dir/'chat-answer-desktop.png'),full_page=True,animations='disabled')
         page.locator('.ckb-citation').first.click()
+        expect(page.frame_locator('iframe.ckb-document-frame').locator('section.docx')).to_have_count(2)
+        page.get_by_role('button',name='检索片段',exact=False).click()
         expect(page.locator('.ckb-source-reader')).to_contain_text('隔离测试的解析片段')
         page.screenshot(path=str(args.output_dir/'citation-reader.png'),full_page=True,animations='disabled')
         page.get_by_role('button',name='Close this dialog').click()

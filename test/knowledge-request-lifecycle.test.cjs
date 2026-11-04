@@ -124,6 +124,30 @@ test('closing and reopening the same preview does not accept an older response f
   assert.equal(f.state.selectedDoc.references[0].text,'new');assert.equal(f.state.readerTotal,1);assert.equal(f.state.readerError,'');
 });
 
+test('a failed cloud chunk service does not block the complete original document',async()=>{
+  const f=fixture(async url=>{
+    if(url.endsWith('/preview'))throw new Error('cloud unavailable');
+    return new Response('complete document body',{headers:{'X-Watermark-Trace':'trace-b'}});
+  });
+  await f.state.openDocument({id:'word',format:'DOCX',has_original:true,can_read:true});
+  assert.equal(await f.state.readerBlob.text(),'complete document body');
+  assert.equal(f.state.readerMode,'original');assert.equal(f.state.readerError,'');
+  assert.equal(f.state.readerTrace,'trace-b');assert.equal(f.state.readerOriginalLoading,false);
+});
+
+test('a late original cannot replace the Word document currently being read',async()=>{
+  const old=deferred(),f=fixture(async url=>{
+    if(url.endsWith('/preview'))return new Response('{"references":[],"total":0}');
+    if(url.includes('/a/'))return old.promise;
+    return new Response('new document',{headers:{'X-Watermark-Trace':'new-trace'}});
+  });
+  const first=f.state.openDocument({id:'a',format:'DOCX',has_original:true,can_read:true});
+  await f.state.openDocument({id:'b',format:'DOCX',has_original:true,can_read:true});
+  old.resolve(new Response('old document'));await first;
+  assert.equal(await f.state.readerBlob.text(),'new document');
+  assert.equal(f.state.readerTrace,'new-trace');assert.equal(f.state.readerOriginalLoading,false);
+});
+
 test('caller cancellation remains effective for read requests and rejects even if transport ignores abort',async()=>{
   const body=deferred(),f=fixture(async()=>({status:200,json:()=>body.promise}));
   const controller=new AbortController();const response=await f.state.apiFetch('/company-knowledge/status',{signal:controller.signal});
