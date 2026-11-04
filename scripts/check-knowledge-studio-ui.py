@@ -59,7 +59,7 @@ def check_layout_regression(page, args, projects, docs, pdf_reads):
     last=page.get_by_role('button',name='打开项目：'+projects[-1]['name'],exact=True)
     last.scroll_into_view_if_needed();last.click()
     expect(page.locator('.ckb-directory-path')).to_contain_text(projects[-1]['name'])
-    for label in ('案例库','研究问答','研究首页','资料库'):
+    for label in ('经验沉淀','研究问答','研究首页','资料库'):
         tab=page.get_by_role('tab',name=label,exact=True);tab.click();page.wait_for_timeout(450)
         expect(tab).to_have_attribute('aria-selected','true')
         active=tab.bounding_box();indicator=page.locator('.ckb-tab-indicator').bounding_box()
@@ -117,6 +117,7 @@ def main():
     parser.add_argument('--theme', choices=['light','dark'], default='light')
     parser.add_argument('--reader-only',action='store_true')
     parser.add_argument('--layout-regression',action='store_true')
+    parser.add_argument('--collection-regression',action='store_true')
     parser.add_argument('--assets-dir', type=Path, default=ROOT / 'work/knowledge-redesign/vendor')
     parser.add_argument('--output-dir', type=Path, default=ROOT / 'work/knowledge-redesign')
     args = parser.parse_args()
@@ -146,8 +147,19 @@ def main():
     if args.layout_regression:
         for i in range(2,24):
             project=deepcopy(projects[0]);project.update(id=f'project-{i}',name=f'示例知识项目 {i} · 人工智能行业研究与项目资料归档',category='项目原件' if i%2==0 else '项目经验');projects.append(project)
+    if args.layout_regression:
+        for project in projects: project['category']='项目原件'
     folders=[dict(id='folder-report',project_id='project-0',parent_id='',name='报告'),dict(id='folder-audio',project_id='project-0',parent_id='',name='录音')]
     for i,doc in enumerate(docs):doc.update(knowledge_project_id=f'project-{i%2}',folder_id='',inherits_project=0)
+    if args.layout_regression:
+        for doc in docs: doc['category']='项目原件'
+    if args.collection_regression:
+        projects[0].update(name='资料库专属项目',category='项目原件',industry='研究行业',tags=['资料库标签'])
+        projects[1].update(name='现场经验专属项目',category='手稿笔记',industry='实践行业',tags=['经验标签'])
+        docs=[docs[i] for i in (0,1,5,6,7)]
+        for i,doc in enumerate(docs):
+            exp=i>0;project=projects[int(exp)]
+            doc.update(project=project['name'],knowledge_project_id=project['id'],industry=project['industry'],tags=project['tags'],category='项目原件' if not exp else '手稿笔记' if i==1 else '现场照片' if i==2 else '影音随记')
     errors, unexpected, mutations, metrics = [], [], [], {}
     hide_cases = False
     pdf_reads=[]
@@ -232,6 +244,10 @@ def main():
                 return route.fulfill(json={'events':[{'id':'qa-event','project_id':'project-0','target_type':'project','target_id':'project-0','target_name':'示例项目','actor_username':'preview','action':'project.update','created_at':'2026-11-03T08:00:00Z','changes':{'description':{'before':'原始背景','after':'修正背景 <script>不执行</script>'}},'details':{}}], 'total':1,'page':1})
             if path.startswith('/company-knowledge/conversations'):
                 if request.method != 'GET': mutations.append({'path':path,'body':request.post_data_json})
+                if args.collection_regression:
+                    scope=request.post_data_json.get('scope','accessible') if request.method=='POST' else ('experience' if parse_qs(urlsplit(url).query).get('collection')==['experience'] or path.endswith('experience-session') else 'accessible')
+                    exp=scope in ('experience','my-experience');sid='experience-session' if exp else 'library-session'
+                    return route.fulfill(json={'session_id':sid if request.method=='POST' else '', 'scope':scope,'collection':'experience' if exp else 'library','sessions':[{'id':sid,'scope':scope,'title':'经验对话' if exp else '资料对话'}],'messages':[],'document_ids':request.post_data_json.get('document_ids',[]) if request.method=='POST' else []})
                 return route.fulfill(json={'session_id':'preview-conversation' if request.method == 'POST' else '', 'sessions':[{'id':'preview-conversation','title':'示例 · 市场进入研究'}], 'messages':[], 'document_ids':request.post_data_json.get('document_ids',[]) if request.method == 'POST' else [],'scope':'accessible'})
             if path == '/company-knowledge/chat/stream':
                 body = request.post_data_json
@@ -270,6 +286,10 @@ def main():
                 return
             if path.endswith('/original'):
                 doc = next(d for d in docs if d['id'] == path.split('/')[-2])
+                if doc['format']=='PNG':
+                    from PIL import Image
+                    output=io.BytesIO();Image.new('RGB',(500,700),'#e5eff7').save(output,format='PNG')
+                    return route.fulfill(body=output.getvalue(),content_type='image/png')
                 if doc['format'] == 'DOCX':
                     return route.fulfill(body=document_fixture(),content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',headers={'X-Watermark-Trace':'synthetic-trace-only'})
                 if doc['format'] in ('TXT','MD','CSV'):
@@ -320,6 +340,73 @@ def main():
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme','dark')
         if args.theme == 'light': page.get_by_role('button',name='切换知识库主题',exact=True).click()
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme',args.theme)
+        if args.collection_regression:
+            page.get_by_role('tab',name='资料库',exact=True).click()
+            expect(page.locator('.ckb-project-directory')).to_have_count(1)
+            expect(page.locator('.ckb-project-directory')).to_contain_text('资料库专属项目')
+            expect(page.get_by_role('combobox',name='筛选行业')).to_contain_text('研究行业')
+            expect(page.get_by_role('combobox',name='筛选行业')).not_to_contain_text('实践行业')
+            first=page.locator('.ckb-select-filters select').first;first.focus()
+            assert first.evaluate('e=>Number.parseFloat(getComputedStyle(e).outlineOffset)')<0
+            assert first.evaluate('e=>getComputedStyle(e).outlineStyle')=='solid'
+            page.screenshot(path=str(args.output_dir/'library-focus.png'),animations='disabled')
+            page.get_by_role('tab',name='经验沉淀',exact=True).click()
+            expect(page.locator('.ckb-project-directory')).to_have_count(1)
+            expect(page.locator('.ckb-project-directory')).to_contain_text('现场经验专属项目')
+            expect(page.get_by_role('combobox',name='筛选行业')).to_contain_text('实践行业')
+            expect(page.get_by_role('combobox',name='筛选行业')).not_to_contain_text('研究行业')
+            page.get_by_role('button',name='创建项目',exact=True).click()
+            editor=page.get_by_role('dialog',name='创建项目',exact=True)
+            options=editor.get_by_role('combobox',name='项目分类',exact=True).locator('option').all_text_contents()
+            assert '手稿笔记' in options and '现场照片' in options and '项目原件' not in options
+            editor.get_by_role('button',name='取消',exact=True).click()
+            page.get_by_role('button',name='浏览全部文件',exact=True).click()
+            expect(page.locator('.ckb-case-card')).to_have_count(4)
+            page.set_viewport_size({'width':390,'height':844})
+            assert page.evaluate('document.documentElement.scrollWidth')<=390
+            page.screenshot(path=str(args.output_dir/'experience-mobile.png'),animations='disabled')
+            page.set_viewport_size({'width':1440,'height':960})
+            page.screenshot(path=str(args.output_dir/'experience-files.png'),animations='disabled')
+            photo=page.locator('.ckb-case-card').filter(has_text=docs[2]['title'])
+            photo.get_by_role('button',name='查看原件',exact=True).click()
+            expect(page.get_by_alt_text('扫描资料原件',exact=True)).to_be_visible()
+            page.get_by_role('button',name='Close this dialog').click()
+            audio_card=page.locator('.ckb-case-card').filter(has_text=docs[3]['title'])
+            audio_card.get_by_role('button',name='播放与详情',exact=True).click()
+            expect(page.locator('audio')).to_be_visible()
+            page.get_by_role('button',name='Close this dialog').click()
+            page.locator('.ckb-selection-bar .ckb-button-primary').click()
+            expect(page.locator('.ckb-evidence-panel')).to_contain_text('经验沉淀')
+            expect(page.locator('.ckb-session-list')).to_contain_text('经验对话')
+            expect(page.locator('.ckb-session-list')).not_to_contain_text('资料对话')
+            page.get_by_role('textbox',name='知识问答问题',exact=True).fill('总结现场经验')
+            page.get_by_role('button',name='发送问题',exact=True).click()
+            expect(page.get_by_role('button',name='停止生成',exact=True)).to_be_visible()
+            for _ in range(50):
+                if pending_chat is not None: break
+                page.wait_for_timeout(100)
+            assert pending_chat is not None
+            sent=next(row['body'] for row in reversed(mutations) if row['path'].endswith('/chat/stream'))
+            assert sent['scope']=='experience' and not sent['document_ids'],sent
+            pending_chat[0].fulfill(content_type='text/event-stream',body=pending_chat[1]);pending_chat=None
+            expect(page.get_by_role('button',name='发送问题',exact=True)).to_be_disabled()
+            page.reload(wait_until='networkidle')
+            page.get_by_role('menuitem',name='公司知识库',exact=True).click()
+            expect(page.locator('.ckb-evidence-panel')).to_contain_text('经验沉淀')
+            page.get_by_role('button',name='选择资料',exact=True).click()
+            expect(page.get_by_role('tab',name='经验沉淀',exact=True)).to_have_attribute('aria-selected','true')
+            expect(page.locator('.ckb-case-card')).to_have_count(4)
+            page.get_by_role('tab',name='资料库',exact=True).click()
+            page.get_by_role('button',name='浏览全部文件',exact=True).click()
+            expect(page.locator('.ckb-file-card')).to_have_count(1)
+            page.get_by_role('textbox',name='搜索知识库资料',exact=True).fill('现场经验专属项目')
+            expect(page.locator('.ckb-file-card')).to_have_count(0)
+            assert not errors,errors
+            assert not unexpected,unexpected
+            result={'theme':args.theme,'collections':'isolated','experience_formats':['PNG','DOCX','WAV','WEBM'],'focus_ring':'inset','chat_scope':sent['scope'],'errors':errors}
+            (args.output_dir/'collections-result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+            print(json.dumps(result,ensure_ascii=False),flush=True)
+            browser.close();server.shutdown();server.server_close();return
         if args.layout_regression:
             result=check_layout_regression(page,args,projects,docs,pdf_reads)
             assert not errors,errors
@@ -350,7 +437,7 @@ def main():
         expect(page.locator('.ckb-library-sidebar > button.active')).to_have_text('研究成果0')
         page.get_by_role('tab',name='研究首页',exact=True).click()
         page.locator('.ckb-atlas-templates').click()
-        expect(page.get_by_role('tab',name='案例库')).to_have_attribute('aria-selected','true')
+        expect(page.get_by_role('tab',name='经验沉淀')).to_have_attribute('aria-selected','true')
         expect(page.locator('.ckb-library-sidebar > button.active')).to_contain_text('方法与模板')
         page.get_by_role('button',name='创建项目',exact=True).click()
         case_editor=page.get_by_role('dialog',name='创建项目',exact=True)
@@ -447,7 +534,7 @@ def main():
         page.screenshot(path=str(args.output_dir/'project-folders-desktop.png'),full_page=True,animations='disabled')
         page.get_by_role('tab',name='研究首页',exact=True).click()
         page.get_by_role('button',name='查找历史案例',exact=True).click()
-        expect(page.get_by_role('tab',name='案例库')).to_have_attribute('aria-selected','true')
+        expect(page.get_by_role('tab',name='经验沉淀')).to_have_attribute('aria-selected','true')
         page.get_by_role('button',name='浏览全部文件',exact=True).click()
         expect(page.locator('.ckb-case-card')).to_have_count(10)
         page.locator('.ckb-case-grid').evaluate('(el)=>el.getAnimations().forEach(a=>a.finish())')
@@ -604,7 +691,7 @@ def main():
             assert art['x'] >= frame['x'] and art['x'] + art['width'] <= frame['x'] + frame['width']
         page.screenshot(path=str(args.output_dir/'home-mobile.png'),full_page=True,animations='disabled')
         assert page.evaluate('document.documentElement.scrollWidth') <= 390
-        page.get_by_role('tab',name='案例库').click()
+        page.get_by_role('tab',name='经验沉淀').click()
         page.screenshot(path=str(args.output_dir/'cases-mobile.png'),full_page=True,animations='disabled')
         assert page.evaluate('document.documentElement.scrollWidth') <= 390
         page.get_by_role('tab',name='研究问答',exact=True).click()
@@ -617,7 +704,7 @@ def main():
         page.screenshot(path=str(args.output_dir/'home-files-desktop.png'),full_page=True,animations='disabled')
         for card in page.locator('.ckb-mini-file').all():
             assert card.bounding_box()['height'] >= 180
-        page.get_by_role('tab',name='案例库').click()
+        page.get_by_role('tab',name='经验沉淀').click()
         hide_cases = True
         page.get_by_role('button',name='刷新资料',exact=True).click()
         expect(page.locator('.ckb-project-directory')).to_have_count(0)

@@ -14,6 +14,7 @@ from company_workspace import CATEGORIES, validate_acl, validate_tags, validate_
 from database import SessionLocal
 from models import User
 from company_audit import record, snapshot, mark_modified
+from company_collections import EXPERIENCE_CATEGORIES
 
 projects_router = APIRouter()
 
@@ -142,6 +143,8 @@ async def edit_project(project_id: str, data: ProjectValues, user: User = Depend
     values = data.validated()
     with SessionLocal() as db:
         project = find_project(db, project_id, user, manage=True)
+        if (values['category'] in EXPERIENCE_CATEGORIES) != (project.category in EXPERIENCE_CATEGORIES):
+            raise HTTPException(422, '资料库与经验沉淀分别归档，不能通过修改分类跨库移动项目。')
         before = snapshot(project)
         docs = list(db.scalars(select(CompanyDocument).where(CompanyDocument.knowledge_project_id == project.id)))
         # Existing ingestion must finish before changing fields used in a media description index.

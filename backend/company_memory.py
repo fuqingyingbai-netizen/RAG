@@ -12,6 +12,7 @@ from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, or_, s
 from sqlalchemy.orm import Mapped, mapped_column
 
 import company_knowledge as kb
+from company_collections import in_scope, is_personal, collection_of_scope
 from company_catalog import CompanyDocument, can_read, is_owner
 from database import Base
 
@@ -83,7 +84,7 @@ def fingerprint(doc):
 def accessible(db, user, index_id, scope='accessible'):
     return {doc.id: fingerprint(doc) for doc in db.scalars(select(CompanyDocument).where(
         CompanyDocument.index_id == index_id, CompanyDocument.state == 'ready'))
-        if can_read(doc, user) and (scope != 'my-projects' or is_owner(doc, user))}
+        if can_read(doc, user) and in_scope(doc, scope) and (not is_personal(scope) or is_owner(doc, user))}
 
 
 def valid(dependencies, available):
@@ -92,7 +93,7 @@ def valid(dependencies, available):
 
 def dependencies_for(db, user, cfg):
     ids = {row['id'] for row in cfg['allowed_documents'].values()}
-    available = accessible(db, user, cfg['index_id'])
+    available = accessible(db, user, cfg['index_id'], cfg.get('knowledge_scope', 'accessible'))
     return {key: available[key] for key in ids if key in available}
 
 
@@ -117,14 +118,23 @@ def state_for(db, user, index_id):
     return state
 
 
-def snapshot(user, index_id, session_id=None, before_id=None, activate=False):
+def snapshot(user, index_id, session_id=None, before_id=None, activate=False, collection='library'):
     with factory()() as db:
-        available = accessible(db, user, index_id)
         state = state_for(db, user, index_id)
         threads = list(db.scalars(select(KnowledgeChatThread).where(KnowledgeChatThread.user_id == user.id,
             KnowledgeChatThread.index_id == index_id).order_by(KnowledgeChatThread.updated_at.desc()).limit(100)))
-        chosen = session_id or state.active_id
+        if session_id:
+            collection = collection_of_scope(owned(db, user, index_id, session_id).scope)
+        threads = [thread for thread in threads if collection_of_scope(thread.scope) == collection]
+        chosen = session_id or (state.active_id if any(thread.id == state.active_id for thread in threads) else (threads[0].id if threads else ''))
         thread = owned(db, user, index_id, chosen) if chosen else None
+        active_scope = thread.scope if thread else ('experience' if collection == 'experience' else 'accessible')
+        access_cache = {}
+        def available_for(scope):
+            if scope not in access_cache:
+                access_cache[scope] = accessible(db, user, index_id, scope)
+            return access_cache[scope]
+        available = available_for(active_scope)
         if thread and activate:
             state.active_id = thread.id
         rows = []
@@ -143,27 +153,27 @@ def snapshot(user, index_id, session_id=None, before_id=None, activate=False):
                 'references': [{**reference, 'url': '', 'location_url': ''} for reference in row.references] if readable else [], 'redacted': not readable,
                 'complete': status == 'completed', 'status': status, 'progress': [], 'elapsedSeconds': 0,
                 'error': '上次回答已中断，可以重新提问。' if status == 'interrupted' and readable else ''})
-        result = {'session_id': thread.id if thread else None, 'scope': thread.scope if thread else 'accessible',
+        result = {'session_id': thread.id if thread else None, 'scope': active_scope, 'collection': collection,
             'document_ids': thread.document_ids if thread else [], 'messages': messages,
             'has_more': len(rows) > 80, 'busy': busy,
             'scope_unavailable': bool(thread and any(key not in available for key in thread.document_ids)),
             'memory_status': '部分历史因资料或权限变化已隐藏' if any(m['redacted'] for m in messages)
                 else '历史已保存到当前账号 · 已有研究任务摘要' if thread and thread.summary and valid(thread.summary_dependencies, available)
                 else '历史已保存到当前账号',
-            'sessions': [{'id': item.id, 'title': item.title if valid(item.dependencies, available)
+            'sessions': [{'id': item.id, 'scope': item.scope, 'title': item.title if valid(item.dependencies, available_for(item.scope))
                           else '历史研究（部分资料不可用）', 'updated_at': item.updated_at.isoformat() + 'Z'} for item in threads]}
         db.commit()
         return result
 
 
 class NewConversation(BaseModel):
-    scope: str = Field(default='accessible', pattern='^(accessible|my-projects)$')
+    scope: str = Field(default='accessible', pattern='^(accessible|my-projects|experience|my-experience)$')
     document_ids: list[str] = Field(default_factory=list, max_length=20)
 
 
 @memory_router.get('/conversations')
-def conversations(user=Depends(kb.require_knowledge_user)):
-    return snapshot(user, kb.settings()['index_id'])
+def conversations(collection: str = Query('library', pattern='^(library|experience)$'), user=Depends(kb.require_knowledge_user)):
+    return snapshot(user, kb.settings()['index_id'], collection=collection)
 
 
 @memory_router.post('/conversations', status_code=201)
@@ -193,13 +203,14 @@ def delete_conversation(session_id: str, user=Depends(kb.require_knowledge_user)
     index_id = kb.settings()['index_id']
     with factory()() as db:
         thread = owned(db, user, index_id, session_id)
+        collection = collection_of_scope(thread.scope)
         db.query(KnowledgeChatMessage).filter(KnowledgeChatMessage.thread_id == thread.id).delete(synchronize_session=False)
         db.delete(thread)
         state = state_for(db, user, index_id)
         if state.active_id == session_id:
             state.active_id = ''
         db.commit()
-    return snapshot(user, index_id)
+    return snapshot(user, index_id, collection=collection)
 
 
 def begin_turn(user, cfg, session_id, request_id, question):
@@ -348,7 +359,7 @@ async def retrieval_question(cfg, question, context):
 
 def still_allowed(user, cfg, deps):
     with factory()() as db:
-        return valid(deps, accessible(db, user, cfg['index_id']))
+        return valid(deps, accessible(db, user, cfg['index_id'], cfg.get('knowledge_scope', 'accessible')))
 
 
 def finish_turn(user, cfg, session_id, token, request_id, answer, references, context, deps, completed):
@@ -360,7 +371,7 @@ def finish_turn(user, cfg, session_id, token, request_id, answer, references, co
         if not changed:
             db.rollback()
             return False
-        readable = valid(deps, accessible(db, user, cfg['index_id']))
+        readable = valid(deps, accessible(db, user, cfg['index_id'], cfg.get('knowledge_scope', 'accessible')))
         pending = db.scalar(select(KnowledgeChatMessage).where(KnowledgeChatMessage.thread_id == session_id,
             KnowledgeChatMessage.request_id == request_id, KnowledgeChatMessage.role == 'user'))
         pending.status = 'completed' if completed else 'interrupted'

@@ -29,6 +29,7 @@ from company_catalog import (AUDIO_FORMATS, VIDEO_FORMATS, CONFIDENTIALITY_LABEL
 from database import SessionLocal
 from models import User
 from company_audit import record, snapshot, mark_modified, history
+from company_collections import EXPERIENCE_CATEGORIES, KNOWLEDGE_SCOPES, in_scope, is_personal
 from company_watermark import ExportIdentity, WatermarkError, export_copy
 import company_export_progress as export_progress
 
@@ -45,7 +46,7 @@ MAX_BYTES = 32 * 1024 * 1024
 MAX_MEDIA_BYTES = 128 * 1024 * 1024
 MEDIA_FORMATS = {ext.lower() for ext in AUDIO_FORMATS | VIDEO_FORMATS}
 FORMATS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md', 'jpg', 'jpeg', 'png'} | MEDIA_FORMATS
-CATEGORIES = ('项目原件', '研究成果', '方法与模板', '访谈纪要', '行业资料', '项目经验', '案例复盘', '培训分享')
+CATEGORIES = ('项目原件', '研究成果', '方法与模板', '访谈纪要', '行业资料', '项目经验', '案例复盘', '培训分享', '现场照片', '手稿笔记', '影音随记')
 tasks = {}
 scanner = None
 sync_lock = asyncio.Lock()
@@ -157,14 +158,17 @@ async def sync_catalog(cfg, force=False):
 
 
 async def prepare_scope(cfg, user, requested, scope='accessible'):
+    if scope not in KNOWLEDGE_SCOPES:
+        raise HTTPException(422, '请选择资料库或经验沉淀中的有效问答范围。')
+    cfg['knowledge_scope'] = scope
     await sync_catalog(cfg)
     with SessionLocal() as migration_db:
         backfill_company_projects(migration_db.get_bind())
     with SessionLocal() as db:
         docs = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == cfg['index_id'],
                                                             CompanyDocument.state != 'deleted')))
-        visible = {doc.id: doc for doc in docs if can_read(doc, user)
-                   and (scope != 'my-projects' or is_owner(doc, user))}
+        visible = {doc.id: doc for doc in docs if can_read(doc, user) and in_scope(doc, scope)
+                   and (not is_personal(scope) or is_owner(doc, user))}
         if requested:
             if any(doc_id not in visible for doc_id in requested):
                 raise HTTPException(403, '所选资料不存在或没有访问权限，请刷新列表。')
@@ -359,6 +363,8 @@ async def edit_document(doc_id: str, values: DocumentMetadata, user: User = Depe
         doc = find_doc(db, doc_id, user, manage=True)
         before = snapshot(doc)
         changed = values.model_dump(exclude_unset=True)
+        if 'category' in changed and ((changed['category'] in EXPERIENCE_CATEGORIES) != (doc.category in EXPERIENCE_CATEGORIES)):
+            raise HTTPException(422, '资料库与经验沉淀分别归档，不能通过修改分类跨库移动文件。')
         if 'title' in changed:
             name = changed['title'].strip()
             if (not name or any(ord(c) < 32 or c in '/\\' for c in name) or
@@ -515,15 +521,17 @@ def decide_access(request_id: str, values: AccessRequestDecision,
 
 
 @workspace_router.get('/my-projects')
-def my_projects(user: User = Depends(kb.require_knowledge_user)):
+def my_projects(user: User = Depends(kb.require_knowledge_user), scope: str = 'my-projects'):
+    if scope not in KNOWLEDGE_SCOPES:
+        raise HTTPException(422, '无效的项目范围。')
     with SessionLocal() as db:
         docs = [doc for doc in db.scalars(select(CompanyDocument).where(
             CompanyDocument.index_id == kb.settings()['index_id'], CompanyDocument.state != 'deleted'))
-            if is_owner(doc, user)]
+            if is_owner(doc, user) and in_scope(doc, scope)]
         groups = {}
         owned_directories = {}
         for project_row in db.scalars(select(CompanyProject).where(CompanyProject.index_id == kb.settings()['index_id'])):
-            if is_owner(project_row, user):
+            if is_owner(project_row, user) and in_scope(project_row, scope):
                 owned_directories[project_row.id] = project_row
                 groups[project_row.name] = {'name': project_row.name, 'document_count': 0, 'ready_count': 0,
                     'industries': {project_row.industry} if project_row.industry else set(),

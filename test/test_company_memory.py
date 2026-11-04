@@ -51,6 +51,70 @@ def create(env,ids=None):
     return response.json()['session_id']
 
 
+def add_experience(env):
+    with env.db() as db:
+        db.add(CompanyDocument(id='experience-a',index_id='memory-index',cloud_id='experience-cloud',title='现场手稿照片',
+            format='PNG',owner='bob',owner_user_id=2,visibility='members',state='ready',category='手稿笔记',
+            project='现场经验',industry='内部实践'))
+        db.commit()
+
+
+def test_collections_reject_cross_collection_ids_and_personal_scopes(env):
+    add_experience(env)
+    for scope,expected in [('accessible',{'cloud-a'}),('experience',{'experience-cloud'}),('my-experience',{'experience-cloud'}),('my-projects',set())]:
+        cfg={'index_id':'memory-index'}
+        assert set(asyncio.run(ws.prepare_scope(cfg,env.user,[],scope)))==expected
+    for scope,ids in [('accessible',['experience-a']),('experience',['doc-a']),('experience',['experience-a','doc-a'])]:
+        response=env.client.post('/company-knowledge/conversations',json={'scope':scope,'document_ids':ids})
+        assert response.status_code==403,response.text
+
+
+def test_conversation_histories_and_active_threads_are_collection_isolated(env):
+    add_experience(env)
+    library=create(env)
+    response=env.client.post('/company-knowledge/conversations',json={'scope':'experience','document_ids':['experience-a']})
+    assert response.status_code==201,response.text
+    experience=response.json()['session_id']
+    lib=env.client.get('/company-knowledge/conversations?collection=library').json()
+    exp=env.client.get('/company-knowledge/conversations?collection=experience').json()
+    assert lib['session_id']==library and [s['id'] for s in lib['sessions']]==[library]
+    assert exp['session_id']==experience and [s['id'] for s in exp['sessions']]==[experience]
+    assert exp['scope']=='experience' and exp['collection']=='experience'
+    forged=env.client.post('/company-knowledge/chat/stream',json={'message':'总结经验','session_id':experience,'scope':'accessible','document_ids':['experience-a']})
+    assert forged.status_code==409
+    deleted=env.client.delete('/company-knowledge/conversations/'+experience).json()
+    assert deleted['collection']=='experience' and deleted['session_id'] is None and deleted['sessions']==[]
+
+
+def test_experience_retrieval_filters_cloud_and_does_not_ingest_library_history(env,monkeypatch):
+    add_experience(env)
+    requests=[]
+    def handler(request):
+        body=json.loads(request.content);requests.append((request.url.path,body))
+        if request.url.path.endswith('/app/get'):
+            return httpx.Response(200,json={'data':{'agent_details':[{'agent_version':'1','agent_config':{'agent_model':'test'}}]}})
+        if request.url.path.endswith('/retrieve'):
+            return httpx.Response(200,json={'data':{'nodes':[
+                {'metadata':{'doc_id':'cloud-a','content':'LIBRARY_PRIVATE_EVIDENCE','doc_name':'资料库原件'}},
+                {'metadata':{'doc_id':'experience-cloud','content':'EXPERIENCE_ONLY_EVIDENCE','doc_name':'现场手稿照片'}}]}})
+        frames=[{'choices':[{'delta':{'content':'经验沉淀内容 [id_1]'},'finish_reason':None}]},{'choices':[{'delta':{},'finish_reason':'stop'}]}]
+        return httpx.Response(200,text=''.join('data: '+json.dumps(f,ensure_ascii=False)+'\n\n' for f in frames))
+    original=httpx.AsyncClient
+    monkeypatch.setattr(kb.httpx,'AsyncClient',lambda **kw:original(transport=httpx.MockTransport(handler),**kw))
+    response=env.client.post('/company-knowledge/conversations',json={'scope':'experience','document_ids':[]})
+    assert response.status_code==201
+    sid=response.json()['session_id']
+    answer=env.client.post('/company-knowledge/chat/stream',json={'message':'总结现场手稿','session_id':sid,'scope':'experience','document_ids':[],'request_id':'experience-turn'})
+    assert answer.status_code==200 and '"type": "saved"' in answer.text
+    retrieval=next(body for path,body in requests if path.endswith('/retrieve'))
+    assert retrieval['search_filters']==[{'doc_id':['experience-cloud']}]
+    generated=[body for path,body in requests if path.endswith('/chat/completions') and body.get('stream')]
+    assert generated and 'LIBRARY_PRIVATE_EVIDENCE' not in json.dumps(generated)
+    restored=env.client.get('/company-knowledge/conversations?collection=experience').json()
+    assert restored['messages'][-1]['references'][0]['local_id']=='experience-a'
+    assert env.client.get('/company-knowledge/conversations?collection=library').json()['messages']==[]
+
+
 def call(env,sid,message='总结豆包业务布局',request_id='one',**extra):
     return env.client.post('/company-knowledge/chat/stream',json={'session_id':sid,'request_id':request_id,
         'document_ids':['doc-a'],'message':message,**extra})

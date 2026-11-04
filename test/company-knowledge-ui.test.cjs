@@ -51,7 +51,7 @@ test('refresh retains loaded pages and selections across page boundaries', async
 });
 
 test('changing evidence scope starts a new conversation and never changes it mid-generation', () => {
-  const context = { busy: false, selectedIds: [], reset: 0, newConversation() { this.reset++; } };
+  const context = { busy: false, selectedIds: [], documents: [], caseCategories: [], currentCollection:'library', reset: 0, newConversation() { this.reset++; } };
   component.methods.changeScope.call(context, ['one']);
   assert.equal(context.reset, 1);
   assert.deepEqual(context.selectedIds, ['one']);
@@ -61,7 +61,7 @@ test('changing evidence scope starts a new conversation and never changes it mid
 });
 
 test('filters combine project, industry, processing and review state', () => {
-  const context = { recentUploadIds: [], query: 'report', category: '研究成果', projectFilter: 'P1', industryFilter: '汽车',
+  const context = { caseCategories: component.data().caseCategories, currentCollection:'library', recentUploadIds: [], query: 'report', category: '研究成果', projectFilter: 'P1', industryFilter: '汽车',
     statusFilter: 'ready', reviewFilter: '待复核', favoritesOnly: false, favorites: [], documents: [
       { id: 'a', title: 'Report', category: '研究成果', project: 'P1', industry: '汽车', state: 'ready', review: '待复核' },
       { id: 'b', title: 'Report', category: '研究成果', project: 'P2', industry: '汽车', state: 'ready', review: '待复核' },
@@ -89,6 +89,11 @@ test('upload dialog follows actual document states by ID and offers retry on fai
 function libraryContext() {
   const context = component.data();
   for (const [name, method] of Object.entries(component.methods)) context[name] = method.bind(context);
+  for (const [name, computed] of Object.entries(component.computed)) {
+    let overridden=false, value;
+    Object.defineProperty(context,name,{configurable:true,get:()=>overridden ? value : computed.call(context),set:next=>{overridden=true;value=next;}});
+  }
+  context.apiFetch = async () => ({ok:true,json:async()=>({sessions:[],messages:[],document_ids:[],scope:context.chatScope})});
   return context;
 }
 test('category navigation clears stale filters, while clearing filters retains category', () => {
@@ -140,7 +145,7 @@ test('project collections group only accessible loaded documents', () => {
   assert.equal(projects[0].name,'Project A'); assert.equal(projects[0].count,2); assert.equal(projects[0].industry,'汽车');
 });
 test('recent reading ignores inaccessible or removed files and preserves reading order', () => {
-  const context = {readingHistory:['missing','b','a','locked'],documents:[{id:'a',can_read:true},{id:'b',can_read:true},{id:'locked',can_read:false}]};
+  const context = {readingHistory:['missing','b','a','locked'],collectionDocuments:[{id:'a',can_read:true},{id:'b',can_read:true},{id:'locked',can_read:false}]};
   assert.deepEqual(Array.from(component.computed.recentlyRead.call(context).map(doc => doc.id)),['b','a']);
 });
 test('sorting by recency preserves filtered list and handles missing dates', () => {

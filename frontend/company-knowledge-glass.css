@@ -484,3 +484,10 @@
 .ckb-motion-paused .ckb-view-panel,.ckb-motion-paused .ckb-tabs > button.active > i { animation:none!important; }
 .ckb-motion-paused .ckb-tab-indicator { transition:none!important; }
 @media(prefers-reduced-motion:reduce) { .ckb-view-panel,.ckb-workbench .ckb-tabs > button.active > i { animation:none!important; }.ckb-tab-indicator { transition:none!important; } }
+
+/* Experience is an independent collection, including its filter vocabulary. */
+.ckb-tab-copy strong:has(.ckb-experience-dot) { display:flex; align-items:center; gap:6px; }
+.ckb-experience-dot { display:inline-block; width:5px; height:5px; flex:0 0 5px; border-radius:50%; background:var(--ku-day-accent,#76d8ec); box-shadow:0 0 7px var(--ku-day-accent,#76d8ec); }
+.ckb-workbench .ckb-select-filters { padding:3px 3px 4px; }
+.ckb-workbench .ckb-select-filters :is(select,input):focus { outline:2px solid var(--ku-day-accent,#76d8ec); outline-offset:-2px; box-shadow:inset 0 0 0 1px var(--ku-day-accent,#76d8ec); }
+.ckb-experience-formats { display:flex; gap:7px; flex-wrap:wrap; color:var(--ku-day-muted,#89a5be); font-size:11px; }

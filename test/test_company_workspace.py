@@ -756,6 +756,20 @@ def test_empty_project_persists_and_nested_folders_are_project_scoped(setup):
     assert setup.client.delete('/company-knowledge/projects/'+p['id']+'/folders/'+child['id']).status_code == 200
 
 
+def test_experience_categories_support_photo_handwriting_and_prevent_reclassification_across_collections(setup):
+    library=project(setup,'规范资料项目',category='项目原件')
+    experience=project(setup,'手稿经验项目',category='手稿笔记')
+    assert experience['category']=='手稿笔记'
+    for p,category in [(library,'现场照片'),(experience,'行业资料')]:
+        result=setup.client.patch('/company-knowledge/projects/'+p['id'],json={'name':p['name'],'category':category})
+        assert result.status_code==422
+    assert setup.client.patch('/company-knowledge/projects/'+experience['id'],json={'name':experience['name'],'category':'现场照片'}).status_code==200
+    library_file=upload(setup,project_id=library['id']).json()
+    experience_file=upload(setup,project_id=experience['id'],name='手稿.png',payload=b'\x89PNG\r\n\x1a\nphoto-fixture').json()
+    assert experience_file['category']=='现场照片' and experience_file['inherits_project']==1
+    assert setup.client.patch('/company-knowledge/documents/'+library_file['id'],json={'category':'影音随记'}).status_code==422
+
+
 def test_project_upload_inherits_metadata_and_versions_are_local_to_folder(setup):
     p=project(setup,industry='AI',tags=['项目标签'],confidentiality='secret',readers=['bob'])
     a=folder(setup,p['id'],'报告'); b=folder(setup,p['id'],'笔录')

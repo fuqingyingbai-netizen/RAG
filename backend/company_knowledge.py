@@ -221,7 +221,7 @@ class KnowledgeQuestion(BaseModel):
     message: str = Field(min_length=1, max_length=1500)
     history: list[HistoryMessage] = Field(default_factory=list, max_length=20)
     document_ids: list[str] = Field(default_factory=list, max_length=20)
-    scope: Literal['accessible', 'my-projects'] = 'accessible'
+    scope: Literal['accessible', 'my-projects', 'experience', 'my-experience'] = 'accessible'
     session_id: str | None = Field(default=None, max_length=64)
     request_id: str | None = Field(default=None, max_length=64)
 
@@ -331,10 +331,11 @@ async def chat(question: KnowledgeQuestion, user: User = Depends(require_knowled
         raise HTTPException(422, '问题不能为空。')
     if sum(len(m.content) for m in question.history) > 60000:
         raise HTTPException(422, '对话内容过长，请开始新对话。')
-    if not question.document_ids and re.search(
+    if not question.session_id and not question.document_ids and re.search(
             r'(我的项目|我(?:曾经)?(?:做过|参与过|负责过|上传过|上传的).{0,12}(?:项目|资料|文件)|我.{0,6}(?:做了|做过|参与|负责|上传).{0,10}(?:哪些|什么).{0,6}(?:项目|资料|文件))',
             question.message):
-        question = question.model_copy(update={'scope': 'my-projects'})
+        from company_collections import personal_scope
+        question = question.model_copy(update={'scope': personal_scope(question.scope)})
     try:
         cfg = settings()
         if question.session_id:
@@ -346,8 +347,8 @@ async def chat(question: KnowledgeQuestion, user: User = Depends(require_knowled
             cfg['explicit_document_scope'] = bool(saved_ids)
         from company_workspace import prepare_scope, my_projects
         cfg['allowed_documents'] = await prepare_scope(cfg, user, question.document_ids, question.scope)
-        if question.scope == 'my-projects':
-            cfg['project_portfolio'] = my_projects(user)
+        if question.scope in ('my-projects', 'my-experience'):
+            cfg['project_portfolio'] = my_projects(user, question.scope)
         if question.session_id:
             from company_memory import begin_turn
             from uuid import uuid4
