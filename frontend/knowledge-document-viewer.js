@@ -82,3 +82,92 @@
     template: `<div class="ckb-native-document"><div class="ckb-document-controls"><span><i class="fa-regular fa-file-lines" aria-hidden="true"></i>{{ format === 'DOCX' ? '文档版式' : '完整正文' }}<small v-if="pages">连续阅读</small></span><div v-if="format === 'DOCX'"><button :disabled="loading || zoom <= 60" aria-label="缩小文档" @click="changeZoom(-10)">−</button><span>{{ zoom }}%</span><button :disabled="loading || zoom >= 160" aria-label="放大文档" @click="changeZoom(10)">+</button></div></div><p v-if="loading" class="ckb-document-loading" role="status"><i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i>正在铺开完整文档…</p><p v-if="error" class="ckb-document-failure" role="alert">{{ error }}</p><iframe v-if="format === 'DOCX' && !error" ref="frame" :srcdoc="source" sandbox="allow-scripts" referrerpolicy="no-referrer" title="完整 Word 文档预览" class="ckb-document-frame"></iframe><div v-else-if="!error && !loading" class="ckb-fulltext-document"><div class="ckb-text-watermark" aria-hidden="true">{{ identity }} · {{ trace }}</div><pre>{{ text }}</pre></div><small class="ckb-document-footnote">{{ format === 'DOCX' ? '在线排版可能与 Word 略有差异，可下载原格式水印副本核对。' : '展示完整文件正文，检索片段仅作为问答依据。' }}</small></div>`,
   };
 })();
+
+/* Reuse the authenticated, watermarked page endpoint. Only nearby pages are read;
+   scrolling never downloads the unmarked original or starts a new export job. */
+window.KnowledgePdfViewer = {
+  props: { documentId: String, firstPage: String, pages: Number, fetchPage: Function },
+  data() { return { sheets: [], visiblePage: 1 }; },
+  mounted() {
+    this.wanted = new Set(); this.queue = []; this.owned = new Set(); this.controllers = new Set();
+    this.sheets = Array.from({ length: Math.max(1, this.pages || 1) }, (_, i) => ({ number: i + 1, url: i ? '' : this.firstPage, ratio: 1 / Math.SQRT2, state: i ? 'idle' : 'ready', error: '' }));
+    this.$nextTick(() => {
+      if (this.disposed) return;
+      if (typeof IntersectionObserver !== 'undefined') {
+        this.observer = new IntersectionObserver(entries => {
+          for (const entry of entries) {
+            const number = Number(entry.target.dataset.page);
+            if (entry.isIntersecting) { this.wanted.add(number); this.enqueue(number); }
+            else this.wanted.delete(number);
+          }
+          this.prune();
+        }, { root: this.$refs.scroll, rootMargin: '600px 0px' });
+        this.$refs.scroll.querySelectorAll('[data-page]').forEach(page => this.observer.observe(page));
+      }
+      this.trackPage();
+    });
+  },
+  beforeUnmount() {
+    this.disposed = true; this.observer?.disconnect(); cancelAnimationFrame(this.scrollFrame);
+    for (const controller of this.controllers || []) controller.abort();
+    for (const url of this.owned || []) URL.revokeObjectURL(url);
+  },
+  methods: {
+    enqueue(number, retry = false) {
+      const sheet = this.sheets[number - 1];
+      if (!sheet || sheet.url || sheet.state === 'loading' || sheet.state === 'queued' || (sheet.state === 'error' && !retry)) return;
+      sheet.state = 'queued'; sheet.error = ''; this.queue.push(number); this.drain();
+    },
+    async drain() {
+      if (this.draining || this.disposed) return;
+      this.draining = true;
+      try {
+        while (this.queue.length && !this.disposed) {
+          const number = this.queue.shift(), sheet = this.sheets[number - 1];
+          if (!this.wanted.has(number)) { sheet.state = 'idle'; continue; }
+          const controller = new AbortController(); this.controllers.add(controller); sheet.state = 'loading';
+          try {
+            const response = await this.fetchPage('/company-knowledge/documents/' + encodeURIComponent(this.documentId) + '/page?page=' + number, { signal: controller.signal });
+            if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.detail || '这一页暂未加载成功，请重试。'); }
+            const blob = await response.blob();
+            if (this.disposed) return;
+            const url = URL.createObjectURL(blob); this.owned.add(url); sheet.url = url; sheet.state = 'ready'; this.prune();
+          } catch (error) {
+            if (!this.disposed) { sheet.state = 'error'; sheet.error = error.message || '页面加载失败，请重试。'; }
+          } finally { this.controllers.delete(controller); }
+        }
+      } finally { this.draining = false; }
+    },
+    prune() {
+      const loaded = this.sheets.filter(sheet => sheet.url);
+      const distant = loaded.filter(sheet => sheet.number !== 1 && !this.wanted.has(sheet.number)).sort((a, b) => Math.abs(b.number - this.visiblePage) - Math.abs(a.number - this.visiblePage));
+      while (loaded.length > 8 && distant.length) {
+        const sheet = distant.shift(); URL.revokeObjectURL(sheet.url); this.owned.delete(sheet.url); sheet.url = ''; sheet.state = 'idle'; loaded.pop();
+      }
+    },
+    measure(sheet, event) {
+      const image = event.target;
+      if (image.naturalWidth && image.naturalHeight) {
+        sheet.ratio = image.naturalWidth / image.naturalHeight;
+        if (sheet.number === 1) for (const other of this.sheets) if (other.state === 'idle') other.ratio = sheet.ratio;
+      }
+    },
+    trackPage() {
+      cancelAnimationFrame(this.scrollFrame);
+      this.scrollFrame = requestAnimationFrame(() => {
+        const scroll = this.$refs.scroll; if (!scroll || this.disposed) return;
+        const top = scroll.getBoundingClientRect().top;
+        for (const page of scroll.querySelectorAll('[data-page]')) {
+          const bounds = page.getBoundingClientRect();
+          if (bounds.bottom > top + 60) { this.visiblePage = Number(page.dataset.page); break; }
+        }
+        if (!this.observer) for (const page of scroll.querySelectorAll('[data-page]')) {
+          const number = Number(page.dataset.page), bounds = page.getBoundingClientRect();
+          if (bounds.bottom > top - 600 && bounds.top < top + scroll.clientHeight + 600) { this.wanted.add(number); this.enqueue(number); }
+          else this.wanted.delete(number);
+        }
+      });
+    },
+  },
+  template: `<div class="ckb-continuous-pdf"><div class="ckb-document-controls"><span><i class="fa-regular fa-file-pdf" aria-hidden="true"></i>PDF 原件<small>连续阅读</small></span><span>第 {{ visiblePage }} / {{ sheets.length }} 页</span></div><div ref="scroll" class="ckb-pdf-scroll" tabindex="0" role="region" aria-label="PDF 连续阅读区域" @scroll.passive="trackPage"><figure v-for="sheet in sheets" :key="sheet.number" :data-page="sheet.number" class="ckb-pdf-sheet" :style="{ aspectRatio: sheet.ratio }"><img v-if="sheet.url" :src="sheet.url" :alt="'PDF 原件第 ' + sheet.number + ' 页'" @load="measure(sheet, $event)"><div v-else class="ckb-pdf-placeholder" :aria-busy="sheet.state === 'loading'"><template v-if="sheet.error"><p role="alert">{{ sheet.error }}</p><button @click="enqueue(sheet.number, true)">重新加载这一页</button></template><span v-else><i v-if="sheet.state === 'loading'" class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i> 第 {{ sheet.number }} 页{{ sheet.state === 'loading' ? ' · 正在加载' : '' }}</span></div><figcaption>{{ sheet.number }} / {{ sheets.length }}</figcaption></figure></div></div>`,
+};

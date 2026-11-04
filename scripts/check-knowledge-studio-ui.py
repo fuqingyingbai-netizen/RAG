@@ -8,7 +8,7 @@ import io
 import json
 from pathlib import Path
 import threading
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 import wave
 import zipfile
 import sys
@@ -45,10 +45,78 @@ class QuietHandler(SimpleHTTPRequestHandler):
         pass
 
 
+def check_layout_regression(page, args, projects, docs, pdf_reads):
+    """The reported failures need many grid rows and real scrolling, not CSS snapshots."""
+    page.set_viewport_size({'width':1700,'height':800})
+    page.get_by_role('tab',name='资料库',exact=True).click()
+    expect(page.locator('.ckb-project-directory')).to_have_count(24)
+    page.wait_for_timeout(650)
+    grid=page.locator('.ckb-directory-grid')
+    assert grid.evaluate('e=>e.scrollHeight>e.clientHeight+100'), 'Projects must scroll inside the available viewport'
+    geometry=page.locator('.ckb-project-directory').evaluate_all('''cards=>cards.map(card=>{const c=card.getBoundingClientRect(),t=card.querySelector('h3').getBoundingClientRect();return {height:c.height,titleVisible:t.height>0&&t.top>=c.top&&t.bottom<=c.bottom,name:card.querySelector('h3').textContent};})''')
+    assert all(c['height']>=360 and c['titleVisible'] for c in geometry),geometry
+    page.screenshot(path=str(args.output_dir/'many-projects-desktop.png'),animations='disabled')
+    last=page.get_by_role('button',name='打开项目：'+projects[-1]['name'],exact=True)
+    last.scroll_into_view_if_needed();last.click()
+    expect(page.locator('.ckb-directory-path')).to_contain_text(projects[-1]['name'])
+    for label in ('案例库','研究问答','研究首页','资料库'):
+        tab=page.get_by_role('tab',name=label,exact=True);tab.click();page.wait_for_timeout(450)
+        expect(tab).to_have_attribute('aria-selected','true')
+        active=tab.bounding_box();indicator=page.locator('.ckb-tab-indicator').bounding_box()
+        assert abs(active['x']-indicator['x'])<1 and abs(active['width']-indicator['width'])<1,(active,indicator)
+    # Keyboard and reduced-motion behavior apply to the new navigation too.
+    page.get_by_role('tab',name='资料库',exact=True).focus();page.keyboard.press('ArrowRight')
+    expect(page.get_by_role('tab',name='研究问答',exact=True)).to_have_attribute('aria-selected','true')
+    page.emulate_media(reduced_motion='reduce')
+    assert page.locator('.ckb-view-panel').evaluate('e=>getComputedStyle(e).animationName')=='none'
+    assert page.locator('.ckb-tab-indicator').evaluate('e=>getComputedStyle(e).transitionDuration')=='0s'
+    page.emulate_media(reduced_motion='no-preference')
+    for viewport in ({'width':1180,'height':800},{'width':390,'height':844}):
+        page.set_viewport_size(viewport);page.get_by_role('tab',name='资料库',exact=True).click()
+        expect(page.locator('.ckb-project-directory')).to_have_count(24)
+        assert page.locator('.ckb-project-directory').first.bounding_box()['height']>=340
+        page.screenshot(path=str(args.output_dir/('projects-'+str(viewport['width'])+'.png')),animations='disabled')
+    page.set_viewport_size({'width':1440,'height':900})
+    page.get_by_role('tab',name='研究首页',exact=True).click()
+    page.locator('.ckb-mini-file').filter(has_text=docs[0]['title']).first.click()
+    scroll=page.get_by_role('region',name='PDF 连续阅读区域',exact=True)
+    expect(scroll).to_be_visible()
+    expect(page.get_by_alt_text('PDF 原件第 1 页',exact=True)).to_be_visible()
+    page.wait_for_timeout(450)
+    reader=page.locator('.ckb-workbench-reader')
+    box=page.locator('.ckb-reader-columns').bounding_box()
+    assert box['y']<160 and box['height']>700,box
+    assert len(pdf_reads)<6,pdf_reads
+    expect(reader.get_by_role('button',name='下一页',exact=True)).to_have_count(0)
+    page.locator('.ckb-pdf-sheet[data-page="2"]').scroll_into_view_if_needed()
+    expect(page.get_by_alt_text('PDF 原件第 2 页',exact=True)).to_be_visible()
+    page.screenshot(path=str(args.output_dir/'pdf-continuous-desktop.png'),animations='disabled')
+    page.locator('.ckb-pdf-sheet[data-page="3"]').scroll_into_view_if_needed()
+    failed=page.locator('.ckb-pdf-sheet[data-page="3"]')
+    expect(failed.get_by_role('button',name='重新加载这一页',exact=True)).to_be_visible()
+    failed.get_by_role('button',name='重新加载这一页',exact=True).click()
+    expect(page.get_by_alt_text('PDF 原件第 3 页',exact=True)).to_be_visible()
+    for number in (12,24,35):
+        page.locator(f'.ckb-pdf-sheet[data-page="{number}"]').scroll_into_view_if_needed()
+        expect(page.get_by_alt_text(f'PDF 原件第 {number} 页',exact=True)).to_be_visible()
+    assert page.locator('.ckb-pdf-sheet > img').count()<=8,'Offscreen page blobs should be released'
+    assert len(set(pdf_reads))<20,'Continuous reading eagerly fetched the entire PDF'
+    scroll.focus();page.keyboard.press('Home');scroll.evaluate('e=>e.scrollTop=0')
+    expect(page.get_by_alt_text('PDF 原件第 1 页',exact=True)).to_be_visible()
+    page.set_viewport_size({'width':390,'height':844})
+    expect(scroll).to_be_visible()
+    assert scroll.bounding_box()['height']>300
+    page.screenshot(path=str(args.output_dir/'pdf-continuous-mobile.png'),animations='disabled')
+    page.get_by_role('button',name='Close this dialog').click()
+    expect(page.locator('.ckb-continuous-pdf')).to_have_count(0)
+    return {'project_cards':len(geometry),'minimum_card_height':min(c['height'] for c in geometry),'reader':box,'pdf_page_requests':pdf_reads,'themes':[args.theme]}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--theme', choices=['light','dark'], default='light')
     parser.add_argument('--reader-only',action='store_true')
+    parser.add_argument('--layout-regression',action='store_true')
     parser.add_argument('--assets-dir', type=Path, default=ROOT / 'work/knowledge-redesign/vendor')
     parser.add_argument('--output-dir', type=Path, default=ROOT / 'work/knowledge-redesign')
     args = parser.parse_args()
@@ -75,10 +143,14 @@ def main():
             status_message='文字说明已可检索；未自动转写' if i in (6,7) else '解析与索引完成', media_kind='audio' if i == 6 else 'video' if i == 7 else ''))
     docs[8].update(can_read=False,can_manage=False,is_owner=False,tags=[],description='',label='需授权',confidentiality='secret',confidentiality_label='机密')
     projects=[dict(id=f'project-{i}',name=name,owner='preview',owner_user_id=1,industry='汽车与出行' if i==0 else '先进制造',category='项目经验' if i==0 else '方法与模板',review='待复核',confidentiality='internal',visibility='members',readers=[],tags=['行业背景'],description='将背景、访谈、研究成果归入同一个项目空间。',can_manage=True,created_at='2026-11-03T08:00:00Z',modified_at='2026-11-03T08:00:00Z') for i,name in enumerate(['示例汽车研究项目','示例制造业项目'])]
+    if args.layout_regression:
+        for i in range(2,24):
+            project=deepcopy(projects[0]);project.update(id=f'project-{i}',name=f'示例知识项目 {i} · 人工智能行业研究与项目资料归档',category='项目原件' if i%2==0 else '项目经验');projects.append(project)
     folders=[dict(id='folder-report',project_id='project-0',parent_id='',name='报告'),dict(id='folder-audio',project_id='project-0',parent_id='',name='录音')]
     for i,doc in enumerate(docs):doc.update(knowledge_project_id=f'project-{i%2}',folder_id='',inherits_project=0)
     errors, unexpected, mutations, metrics = [], [], [], {}
     hide_cases = False
+    pdf_reads=[]
     pending_export, export_polls, pending_chat = None, 0, None
     assets = {'vue.global.prod.js':'vue.js', 'index.full.min.js':'element.js', 'index.css':'element.css', 'all.min.css':'icons.css'}
     buffer = io.BytesIO()
@@ -179,6 +251,17 @@ def main():
                 return route.fulfill(content_type='text/event-stream',body=response)
             if path.endswith('/preview'):
                 return route.fulfill(json={'references':[{'id':'1','text':'隔离测试的解析片段。','title':'示例资料'}],'total':1})
+            if path.endswith('/page'):
+                from PIL import Image,ImageDraw
+                number=int(parse_qs(urlsplit(url).query).get('page',['1'])[0]);pdf_reads.append(number)
+                assert request.headers.get('authorization')=='Bearer synthetic-preview-only'
+                if args.layout_regression and number==3 and pdf_reads.count(3)==1:
+                    return route.fulfill(status=503,json={'detail':'模拟单页预览暂不可用'})
+                image=Image.new('RGB',(760,1075),'white');draw=ImageDraw.Draw(image)
+                draw.text((70,80),'COMPLETE ORIGINAL - PAGE '+str(number),fill='#243f58',font_size=30)
+                for y in range(160,900,45):draw.line((70,y,680,y),fill='#c6d1df',width=2)
+                output=io.BytesIO();image.save(output,format='PNG')
+                return route.fulfill(body=output.getvalue(),content_type='image/png',headers={'X-Document-Pages':'40','X-Watermark-Trace':'synthetic-trace-only'})
             if path.endswith('/export-status'):
                 export_polls += 1
                 return route.fulfill(json={'stage':'converting' if export_polls == 1 else 'stamping','page':0 if export_polls == 1 else 89,'total_pages':0 if export_polls == 1 else 178})
@@ -237,6 +320,13 @@ def main():
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme','dark')
         if args.theme == 'light': page.get_by_role('button',name='切换知识库主题',exact=True).click()
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme',args.theme)
+        if args.layout_regression:
+            result=check_layout_regression(page,args,projects,docs,pdf_reads)
+            assert not errors,errors
+            assert not unexpected,unexpected
+            (args.output_dir/'layout-result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+            print(json.dumps(result,ensure_ascii=False),flush=True)
+            browser.close();server.shutdown();server.server_close();return
         page.get_by_role('button',name='操作记录',exact=True).click()
         audit=page.get_by_role('dialog',name='操作记录',exact=True)
         expect(audit).to_contain_text('preview')

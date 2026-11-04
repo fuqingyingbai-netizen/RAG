@@ -411,3 +411,76 @@
   background:conic-gradient(from 145deg at 50% 50%,rgba(55,151,187,.24),rgba(255,255,255,.98) 14%,rgba(81,140,187,.23) 31%,rgba(255,255,255,.95) 52%,rgba(94,96,170,.25) 70%,rgba(255,255,255,.95) 85%,rgba(55,151,187,.24));
 }
 :root[data-knowledge-theme=light] .el-dialog.ckb-dialog { box-shadow:inset 0 1px 1px #fff,inset 0 -1px 0 rgba(48,103,150,.25),0 28px 80px var(--kg-optic-shadow),0 6px 20px rgba(40,79,121,.2)!important; }
+
+/* A single glass selection follows the tabs; each destination arrives in place. */
+.ckb-workbench .ckb-tabs { position:relative; isolation:isolate; }
+.ckb-tab-indicator { position:absolute; z-index:0; left:0; top:0; bottom:0; pointer-events:none; border-radius:11px 11px 0 0; background:linear-gradient(145deg,var(--ku-day-glow,#1c647c33),var(--ku-day-violet-soft,#38335a55)); box-shadow:inset 0 1px 0 var(--kg-rim),inset 0 -2px 0 var(--ku-day-accent,#76d8ec); transition:transform .38s cubic-bezier(.22,.8,.23,1),width .38s cubic-bezier(.22,.8,.23,1),opacity .2s; }
+.ckb-workbench .ckb-tabs > button { z-index:1; transition:color .2s,background .2s,scale .16s; }
+.ckb-workbench .ckb-tabs > button.active { background:transparent!important; }
+.ckb-workbench .ckb-tabs > button.active::after { display:none; }
+.ckb-workbench .ckb-tabs > button:active { scale:.96; }
+.ckb-workbench .ckb-tabs > button:focus-visible { outline:2px solid var(--ku-day-accent,#76d8ec); outline-offset:-4px; border-radius:9px; }
+.ckb-workbench .ckb-tabs > button.active > i { animation:ckb-nav-select .42s cubic-bezier(.2,.8,.3,1); }
+.ckb-view-panel { animation:ckb-view-arrive .36s cubic-bezier(.22,.8,.23,1) both; }
+@keyframes ckb-nav-select { 0% { transform:translateY(2px) scale(.8); } 55% { transform:translateY(-2px) scale(1.14); } 100% { transform:none; } }
+@keyframes ckb-view-arrive { from { opacity:.25; transform:translateY(10px); } to { opacity:1; transform:none; } }
+
+/* Grid tracks must overflow, never shrink the cards into their artwork. */
+.ckb-workbench .ckb-library-content > .ckb-directory-grid { grid-auto-rows:minmax(360px,max-content); align-items:stretch; scrollbar-gutter:stable; scrollbar-color:var(--ku-day-muted,#637e9a) transparent; overscroll-behavior:contain; }
+.ckb-workbench .ckb-directory-grid > .ckb-project-directory { min-height:360px; align-self:stretch; }
+.ckb-directory-grid .ckb-project-art { height:126px; flex-basis:126px; }
+.ckb-directory-grid .ckb-project-directory-info { flex:1 0 auto; }
+.ckb-directory-grid .ckb-project-directory h3 { flex-shrink:0; display:block; visibility:visible; }
+.ckb-directory-grid .ckb-project-door:focus-visible { outline:2px solid var(--ku-day-accent,#76d8ec); outline-offset:-3px; border-radius:14px; }
+.ckb-workbench .ckb-directory-stage::-webkit-scrollbar { width:9px; }
+.ckb-workbench .ckb-directory-stage::-webkit-scrollbar-thumb { border:2px solid transparent; border-radius:8px; background:var(--ku-day-muted,#637e9a); background-clip:padding-box; }
+.ckb-workbench .ckb-directory-stage::-webkit-scrollbar-track { background:transparent; }
+
+/* Keep the reader's chrome small so the document starts near the top. */
+.el-dialog.ckb-workbench-reader { height:96dvh; max-height:96dvh; margin:2dvh auto!important; padding:12px 14px 14px; }
+.ckb-workbench-reader .el-dialog__header { padding:0 36px 8px 2px; margin:0; }
+.ckb-workbench-reader .el-dialog__title { display:block; font-size:15px; line-height:24px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ckb-workbench-reader .el-dialog__headerbtn { top:0; right:0; width:30px; height:30px; }
+.ckb-workbench-reader .el-dialog__body { padding:0; }
+.ckb-workbench-reader .ckb-reader-toolbar { padding:5px 0; margin:0; gap:10px; flex-direction:row; align-items:center; }
+.ckb-workbench-reader .ckb-reader-toolbar > div { gap:6px; }
+.ckb-workbench-reader .ckb-reader-toolbar .ckb-button { padding:7px 10px; font-size:11px!important; min-height:32px; }
+.ckb-reader-policy { flex-shrink:0; margin:0 0 0 auto; font-size:10px; color:var(--ku-day-muted,#89a5be); }
+.ckb-reader-policy[open] { flex-basis:100%; order:3; margin-left:0; }
+.ckb-reader-policy > summary { display:flex; align-items:center; gap:7px; padding:3px 1px; width:fit-content; cursor:pointer; list-style:none; }
+.ckb-reader-policy > summary::-webkit-details-marker { display:none; }
+.ckb-reader-policy > summary > i { color:var(--ku-day-accent,#76d8ec); }
+.ckb-reader-policy > summary > span { opacity:.8; text-decoration:underline; text-underline-offset:3px; }
+.ckb-reader-policy .ckb-export-note { margin:3px 0 5px; line-height:1.6; font-size:10px; }
+.ckb-workbench-reader .ckb-reader-view-tabs { margin:3px 0 6px; gap:5px; flex-wrap:wrap; }
+.ckb-workbench-reader .ckb-reader-view-tabs > button { padding:6px 10px; font-size:11px; }
+.ckb-workbench-reader .ckb-reader-columns { grid-template-columns:minmax(0,1fr) 280px; gap:14px; }
+.ckb-workbench-reader .ckb-reader-question { padding:16px; }
+.ckb-workbench-reader .ckb-original-pane:has(.ckb-continuous-pdf) { padding:0; overflow:hidden; }
+.ckb-continuous-pdf { height:100%; min-height:0; display:flex; flex-direction:column; background:#e5eaf0; color:#43566e; }
+.ckb-continuous-pdf .ckb-document-controls { padding:6px 14px; min-height:32px; }
+.ckb-pdf-scroll { flex:1; min-height:0; overflow:auto; padding:14px 12px; overscroll-behavior:contain; scrollbar-gutter:stable; }
+.ckb-pdf-scroll:focus-visible { outline:2px solid #36869c; outline-offset:-2px; }
+.ckb-pdf-sheet { width:100%; max-width:1100px; margin:0 auto 16px; position:relative; background:#fff; box-shadow:0 3px 14px #26384b20; }
+.ckb-pdf-sheet > img { display:block; width:100%; height:auto; }
+.ckb-pdf-sheet > figcaption { position:absolute; right:9px; bottom:7px; background:#eef3f8e8; border-radius:4px; padding:2px 6px; font-size:10px; color:#5a6e85; pointer-events:none; }
+.ckb-pdf-placeholder { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:24px; font-size:12px; color:#697d93; }
+.ckb-pdf-placeholder button { border:1px solid #aabbd1; border-radius:7px; background:#f4f8fd; padding:7px 12px; color:#2d607c; }
+:root[data-knowledge-theme=light] .ckb-tab-indicator { background:linear-gradient(130deg,#b4e4ee80,#c7b8ee70); box-shadow:inset 0 1px 0 #fff,inset 0 -2px 0 #267e99,0 2px 14px #5c8bb415; }
+@media(max-width:960px) { .ckb-workbench-reader .ckb-reader-columns { grid-template-columns:minmax(0,1fr) 235px; gap:10px; } }
+@media(max-width:760px) {
+  .ckb-workbench .ckb-library-content > .ckb-directory-grid { grid-auto-rows:minmax(340px,max-content); }
+  .ckb-workbench .ckb-directory-grid > .ckb-project-directory { min-height:340px; }
+  .ckb-directory-grid .ckb-project-art { height:104px; flex-basis:104px; }
+  .el-dialog.ckb-workbench-reader { width:98vw!important; padding:10px; margin:1dvh auto!important; height:98dvh; max-height:98dvh; }
+  .ckb-workbench-reader .el-dialog__body { display:flex; overflow:auto; }
+  .ckb-workbench-reader .ckb-reader-toolbar { flex-wrap:wrap; padding:6px 0; }
+  .ckb-reader-view-tabs > small { display:none; }
+  .ckb-workbench-reader .ckb-reader-columns { display:flex; flex-direction:column; overflow:auto; flex:1; }
+  .ckb-workbench-reader .ckb-original-pane { flex:0 0 62dvh; min-height:300px; }
+  .ckb-workbench-reader .ckb-reader-question { flex-shrink:0; max-height:none; }
+  .ckb-pdf-scroll { padding:9px 5px; }
+}
+.ckb-motion-paused .ckb-view-panel,.ckb-motion-paused .ckb-tabs > button.active > i { animation:none!important; }
+.ckb-motion-paused .ckb-tab-indicator { transition:none!important; }
+@media(prefers-reduced-motion:reduce) { .ckb-view-panel,.ckb-workbench .ckb-tabs > button.active > i { animation:none!important; }.ckb-tab-indicator { transition:none!important; } }
