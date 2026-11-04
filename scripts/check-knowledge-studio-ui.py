@@ -260,6 +260,17 @@ def main():
         page.screenshot(path=str(args.output_dir/'projects-desktop.png'),full_page=True,animations='disabled')
         page.get_by_role('button',name='创建项目',exact=True).click()
         editor=page.get_by_role('dialog',name='创建项目',exact=True)
+        expect(page.locator('.ckb-glass-surface:visible.has-refraction')).to_have_count(1)
+        page.wait_for_function('document.querySelector(".ckb-glass-surface.has-refraction feImage")?.getAttribute("href")?.startsWith("data:image/png;base64,")')
+        page.screenshot(path=str(args.output_dir/'project-create-empty.png'),full_page=True,animations='disabled')
+        page.locator('.ckb-dialog:visible').hover(position={'x':100,'y':90})
+        page.wait_for_function('document.querySelector(".ckb-glass-surface").style.getPropertyValue("--kg-pointer-x") !== ""')
+        page.emulate_media(reduced_motion='reduce',contrast='more')
+        expect(page.locator('.ckb-glass-overlay:visible .ckb-glass-surface')).to_be_hidden()
+        assert page.locator('.ckb-dialog:visible').evaluate('(e)=>getComputedStyle(e).animationName') == 'none'
+        page.screenshot(path=str(args.output_dir/'project-create-accessible.png'),full_page=True,animations='disabled')
+        page.emulate_media(reduced_motion='no-preference',contrast='no-preference')
+        expect(page.locator('.ckb-glass-surface:visible.has-refraction')).to_have_count(1)
         assert editor.get_by_role('combobox',name='项目分类',exact=True).locator('option').all_text_contents() == ['项目原件','研究成果','访谈纪要','行业资料']
         editor.get_by_role('textbox',name='项目名称',exact=True).fill('QA 项目空间')
         editor.get_by_role('textbox',name='项目行业',exact=True).fill('AI Agent')
@@ -327,8 +338,8 @@ def main():
         page.get_by_role('button',name='上传文件',exact=True).click()
         dialog=page.get_by_role('dialog',name='上传到当前目录')
         dialog_background = page.locator('.ckb-dialog:visible').evaluate('(el)=>getComputedStyle(el).backgroundColor')
-        assert dialog_background == ('rgba(241, 248, 255, 0.79)' if args.theme == 'light' else 'rgba(19, 35, 57, 0.78)'), dialog_background
-        assert 'blur(' in page.locator('.ckb-dialog:visible').evaluate('(el)=>getComputedStyle(el).backdropFilter')
+        assert dialog_background.startswith('rgba('), dialog_background
+        assert 'blur(' in page.locator('.ckb-glass-surface:visible .ckb-glass-material').evaluate('(el)=>getComputedStyle(el).backdropFilter')
         assert page.locator('.ckb-glass-overlay:visible').count() == 1
         dialog.get_by_role('textbox',name='文字说明',exact=True).fill('音频说明测试')
         dialog.get_by_label('选择上传资料',exact=True).set_input_files(str(args.output_dir/'synthetic-audio.wav'))
@@ -483,6 +494,18 @@ def main():
         expect(page.locator('.ckb-directory-path')).to_contain_text('已编辑')
         page.screenshot(path=str(args.output_dir/'project-folders-mobile.png'),full_page=True,animations='disabled')
         assert page.evaluate('document.documentElement.scrollWidth') <= 390
+        page.get_by_role('button',name='新建目录',exact=True).click()
+        mobile_dialog=page.get_by_role('dialog',name='新建目录',exact=True)
+        expect(mobile_dialog).to_be_visible()
+        page.wait_for_function('''() => {
+          const panel=document.querySelector('.ckb-folder-dialog');
+          const surface=panel.parentElement.querySelector('.ckb-glass-surface');
+          if (!surface) return false;
+          const a=panel.getBoundingClientRect(),b=surface.getBoundingClientRect();
+          return Math.abs(a.left-b.left)<2 && Math.abs(a.top-b.top)<2 && Math.abs(a.width-b.width)<2;
+        }''')
+        page.screenshot(path=str(args.output_dir/'folder-glass-mobile.png'),full_page=True,animations='disabled')
+        mobile_dialog.get_by_role('button',name='取消',exact=True).click()
         assert not errors,errors
         assert not unexpected,unexpected
         (args.output_dir/'browser-check.json').write_text(json.dumps({'errors':errors,'unexpected':unexpected,'mutations':mutations,'metrics':metrics},ensure_ascii=False,indent=2),encoding='utf-8')

@@ -1,49 +1,76 @@
 /* Knowledge-only optical layers. The form glass and archive frost have distinct weights.
    Visual references: github.com/shuding/liquid-glass and github.com/dpawlikowski/liquid-glass.
    Original CSS; text and native controls are never displaced or blurred. */
-.ckb-workbench, .ckb-dialog {
+.ckb-workbench, .ckb-dialog, .ckb-glass-surface {
   --kg-dialog:rgba(19,35,57,.78); --kg-card:rgba(18,33,54,.76);
   --kg-edge:rgba(183,221,255,.28); --kg-rim:rgba(219,245,255,.42);
-  --kg-field:rgba(7,20,38,.54); --kg-glint:rgba(146,213,255,.16);
+  --kg-field:rgba(8,22,38,.57); --kg-glint:rgba(146,213,255,.16);
   --kg-shadow:rgba(0,6,18,.38); --kg-frost:rgba(150,201,241,.07);
+  --kg-lens-fill:rgba(16,31,51,.66); --kg-lens-edge:rgba(107,164,205,.20);
+  --kg-optic-shadow:rgba(1,9,23,.48); --kg-lens-line:rgba(220,244,255,.58);
 }
 :root[data-knowledge-theme=light] .ckb-workbench,
-:root[data-knowledge-theme=light] .ckb-dialog {
+:root[data-knowledge-theme=light] .ckb-dialog,
+:root[data-knowledge-theme=light] .ckb-glass-surface {
   --kg-dialog:rgba(241,248,255,.79); --kg-card:rgba(250,253,255,.73);
   --kg-edge:rgba(115,145,184,.39); --kg-rim:rgba(255,255,255,.96);
-  --kg-field:rgba(255,255,255,.68); --kg-glint:rgba(255,255,255,.72);
+  --kg-field:rgba(255,255,255,.62); --kg-glint:rgba(255,255,255,.72);
   --kg-shadow:rgba(48,76,116,.16); --kg-frost:rgba(93,147,207,.055);
+  --kg-lens-fill:rgba(239,246,253,.47); --kg-lens-edge:rgba(236,248,255,.22);
+  --kg-optic-shadow:rgba(34,57,86,.23); --kg-lens-line:rgba(255,255,255,.96);
 }
-/* Floating dialog: a clear illuminated shell above a softly defocused workspace. */
+/* The backdrop stays legible through the rim; the lens blurs its own interior. */
 .ckb-glass-overlay.el-overlay {
-  background:radial-gradient(ellipse at 22% 12%,rgba(100,157,207,.13),transparent 50%),rgba(3,11,24,.40);
-  -webkit-backdrop-filter:blur(7px) saturate(115%);
-  backdrop-filter:blur(7px) saturate(115%);
+  background:radial-gradient(ellipse at 30% 0%,rgba(110,179,220,.06),transparent 58%),rgba(2,9,21,.42);
 }
 :root[data-knowledge-theme=light] .ckb-glass-overlay.el-overlay {
-  background:radial-gradient(ellipse at 22% 12%,rgba(208,227,255,.26),transparent 55%),rgba(35,57,88,.22);
+  background:rgba(46,67,96,.22);
 }
 .el-dialog.ckb-dialog {
-  position:relative; isolation:isolate; border-radius:24px!important;
-  border:1px solid var(--kg-edge);
-  background:linear-gradient(135deg,var(--kg-glint),transparent 28%,transparent 75%,var(--kg-frost)),var(--kg-dialog)!important;
-  -webkit-backdrop-filter:blur(32px) saturate(145%);
-  backdrop-filter:blur(32px) saturate(145%);
-  box-shadow:inset 0 1px 0 var(--kg-rim),inset 1px 0 0 var(--kg-glint),inset 0 -1px 0 var(--kg-edge),0 28px 90px var(--kg-shadow),0 4px 16px var(--kg-shadow)!important;
+  position:relative; isolation:isolate; border-radius:30px!important; padding:22px;
+  border:1px solid var(--kg-lens-line);
+  background:var(--kg-lens-edge)!important;
+  box-shadow:inset 0 1px 1px var(--kg-rim),inset 0 -1px 1px var(--kg-edge),0 32px 100px var(--kg-optic-shadow),0 7px 24px var(--kg-shadow)!important;
 }
-.ckb-dialog::before {
-  content:""; position:absolute; z-index:-1; inset:0; border-radius:inherit; pointer-events:none;
-  background:radial-gradient(ellipse at 10% 0,var(--kg-glint),transparent 48%),radial-gradient(ellipse at 100% 100%,rgba(131,109,223,.10),transparent 52%);
+.ckb-dialog::before { content:none; }
+.ckb-glass-anchor { display:none; }
+.ckb-glass-surface { position:absolute; z-index:-1; border-radius:30px; overflow:hidden; pointer-events:none; }
+.ckb-glass-surface > span { position:absolute; inset:0; border-radius:inherit; pointer-events:none; }
+.ckb-optics-definitions { position:absolute; width:0; height:0; pointer-events:none; }
+.ckb-glass-refraction {
+  background:linear-gradient(145deg,rgba(255,255,255,.17),transparent 32%,transparent 65%,rgba(102,196,238,.09));
+  -webkit-backdrop-filter:blur(4px) saturate(145%); backdrop-filter:blur(4px) saturate(145%);
 }
-.ckb-dialog .el-dialog__header { padding:8px 4px 17px; border-bottom-color:var(--kg-edge); }
+.has-refraction > .ckb-glass-refraction {
+  -webkit-backdrop-filter:var(--kg-optics-filter) blur(.6px) saturate(145%);
+  backdrop-filter:var(--kg-optics-filter) blur(.6px) saturate(145%);
+}
+.ckb-glass-surface > .ckb-glass-material {
+  inset:13px; border-radius:19px;
+  background:radial-gradient(ellipse at 14% 0%,var(--kg-glint),transparent 58%),var(--kg-lens-fill);
+  -webkit-backdrop-filter:blur(15px) saturate(135%); backdrop-filter:blur(15px) saturate(135%);
+  /* Feather the transition from the clear lens shoulder to the reading surface. */
+  box-shadow:0 0 13px 9px var(--kg-lens-fill);
+}
+.ckb-glass-surface > .ckb-glass-caustic {
+  background:radial-gradient(ellipse at var(--kg-pointer-x,22%) var(--kg-pointer-y,2%),rgba(255,255,255,.14),transparent 56%);
+}
+.ckb-glass-surface > .ckb-glass-rim {
+  inset:1px; border-radius:29px; padding:1px;
+  background:conic-gradient(from 145deg at 50% 50%,rgba(129,216,241,.08),rgba(255,255,255,.78) 14%,rgba(255,255,255,.10) 30%,rgba(195,234,255,.64) 52%,rgba(255,255,255,.12) 69%,rgba(232,223,255,.50) 84%,rgba(129,216,241,.08));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude;
+}
+.ckb-dialog .el-dialog__header { padding:4px 2px 17px; border-bottom-color:var(--kg-edge); }
 .ckb-dialog .el-dialog__title { font-weight:600; letter-spacing:.5px; }
-.ckb-dialog .el-dialog__headerbtn { border-radius:50%; transition:background .2s; }
+.ckb-dialog .el-dialog__headerbtn { top:12px; right:12px; border-radius:50%; transition:background .2s; }
 .ckb-dialog .el-dialog__headerbtn:hover { background:var(--kg-glint); }
-.ckb-dialog .el-dialog__footer { border-top:1px solid var(--kg-edge); padding:18px 4px 4px; margin-top:18px; }
+.ckb-dialog .el-dialog__footer { border-top:1px solid var(--kg-edge); padding:18px 2px 0; margin-top:18px; }
 .ckb-dialog .ckb-form-grid input:not([type=checkbox]):not([type=file]),
 .ckb-dialog .ckb-form-grid select,.ckb-dialog .ckb-form-grid textarea {
   background:var(--kg-field); border-color:var(--kg-edge); border-radius:11px;
-  box-shadow:inset 0 1px 3px var(--kg-shadow),0 1px 0 var(--kg-glint);
+  box-shadow:inset 0 1px 0 var(--kg-rim),0 2px 5px rgba(18,45,72,.04);
   transition:border-color .2s,box-shadow .2s;
 }
 .ckb-dialog select option { background:var(--ku-panel); color:var(--ku-text); }
@@ -51,12 +78,19 @@
   border-color:var(--ku-cyan); box-shadow:0 0 0 3px var(--kg-frost),inset 0 1px 2px var(--kg-shadow);
 }
 .ckb-project-dialog .ckb-project-editor > aside {
-  border-radius:18px; border-color:var(--kg-edge);
-  background:radial-gradient(ellipse at 20% 10%,rgba(98,205,231,.22),transparent 60%),linear-gradient(155deg,var(--kg-glint),rgba(139,118,218,.12));
-  box-shadow:inset 0 1px 0 var(--kg-rim),0 12px 30px var(--kg-shadow);
+  border-radius:20px; border-color:var(--kg-edge);
+  background:radial-gradient(ellipse at 45% 15%,rgba(92,203,223,.18),transparent 46%),linear-gradient(170deg,rgba(255,255,255,.16),rgba(162,171,223,.07));
+  box-shadow:inset 0 1px 0 var(--kg-rim),inset 0 -1px 0 var(--kg-edge),0 8px 24px rgba(18,45,72,.06);
 }
-.ckb-dialog .ckb-folder-lid { background:linear-gradient(155deg,rgba(124,221,243,.78),rgba(54,128,172,.76)); box-shadow:inset 0 1px 0 #d5f6ffb3,0 15px 32px #08223a33; }
+.ckb-dialog .ckb-folder-lid { background:linear-gradient(155deg,rgba(144,228,242,.64),rgba(52,142,177,.62)); border:1px solid rgba(207,247,255,.72); box-shadow:inset 0 1px 0 #e5fcffd9,inset 0 -2px 7px #1a749b20,0 15px 26px #08223a24; }
 .ckb-dialog .ckb-attribution,.ckb-dialog .ckb-upload-inheritance,.ckb-dialog .ckb-file-editor-hero { background:var(--kg-frost); border-color:var(--kg-edge); border-radius:12px; }
+.ckb-project-dialog .ckb-attribution { padding:11px 13px; border-color:transparent; box-shadow:inset 0 1px 0 var(--kg-glint); }
+.ckb-project-dialog .ckb-project-editor { gap:24px; }
+.ckb-project-dialog .ckb-project-editor > form { padding:0; }
+.ckb-dialog .ckb-button { border-radius:11px; }
+.ckb-dialog .ckb-button-primary { box-shadow:inset 0 1px 0 rgba(255,255,255,.48),0 4px 10px var(--kg-shadow); }
+.ckb-reveal-dialog { animation:ckb-lens-arrive .42s cubic-bezier(.16,.8,.25,1) both; }
+@keyframes ckb-lens-arrive { from { opacity:0; transform:translateY(18px) scale(.96); } to { opacity:1; transform:translateY(0) scale(1); } }
 /* Archive cards: satin glass, a denser reading surface and a separate luminous cover. */
 .ckb-workbench .ckb-file-gallery,.ckb-workbench .ckb-case-grid,.ckb-workbench .ckb-project-directory-grid {
   background-image:radial-gradient(ellipse at 12% 7%,var(--kg-frost),transparent 55%),radial-gradient(ellipse at 95% 80%,var(--kg-frost),transparent 55%);
@@ -90,9 +124,18 @@
 }
 @media(prefers-reduced-transparency:reduce),(prefers-contrast:more) {
   .el-dialog.ckb-dialog,.ckb-workbench .ckb-file-card,.ckb-workbench .ckb-case-card,.ckb-workbench .ckb-mini-file,.ckb-workbench .ckb-project-directory,.ckb-workbench .ckb-subfolder-card { background:var(--ku-panel)!important; backdrop-filter:none; -webkit-backdrop-filter:none; }
+  .ckb-glass-surface { display:none; }
 }
 @media(prefers-reduced-motion:reduce) {
   .ckb-workbench .ckb-file-art::after,.ckb-workbench .ckb-mini-cover::after { transition:none; transform:none; }
   .ckb-workbench .ckb-file-card:hover,.ckb-workbench .ckb-mini-file:hover,.ckb-workbench .ckb-project-directory:hover { translate:none; }
+  .ckb-reveal-dialog { animation:none; }
+  .ckb-glass-caustic { display:none; }
 }
-@media(max-width:760px) { .el-dialog.ckb-dialog { border-radius:18px!important; backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); } }
+:root:has(.ckb-motion-paused) .ckb-glass-caustic { display:none; }
+@media(max-width:760px) {
+  .el-dialog.ckb-dialog { padding:17px; border-radius:24px!important; }
+  .ckb-glass-surface { border-radius:24px; }
+  .ckb-glass-surface > .ckb-glass-material { inset:9px; border-radius:16px; }
+  .ckb-glass-surface > .ckb-glass-rim { border-radius:23px; }
+}
