@@ -370,3 +370,5 @@ from company_workspace import workspace_router
 router.include_router(workspace_router)
 from company_memory import memory_router
 router.include_router(memory_router)
+from company_discovery import discovery_router
+router.include_router(discovery_router)

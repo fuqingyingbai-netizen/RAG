@@ -115,6 +115,7 @@ def check_layout_regression(page, args, projects, docs, pdf_reads):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--theme', choices=['light','dark'], default='light')
+    parser.add_argument('--discovery-regression',action='store_true')
     parser.add_argument('--reader-only',action='store_true')
     parser.add_argument('--layout-regression',action='store_true')
     parser.add_argument('--collection-regression',action='store_true')
@@ -153,6 +154,9 @@ def main():
     for i,doc in enumerate(docs):doc.update(knowledge_project_id=f'project-{i%2}',folder_id='',inherits_project=0)
     if args.layout_regression:
         for doc in docs: doc['category']='项目原件'
+    if args.discovery_regression:
+        for i,project in enumerate(projects):project['category']='项目原件' if i==0 else '项目经验'
+        for i,doc in enumerate(docs):doc['category']='项目原件' if i%2==0 else '项目经验'
     if args.collection_regression:
         projects[0].update(name='资料库专属项目',category='项目原件',industry='研究行业',tags=['资料库标签'])
         projects[1].update(name='现场经验专属项目',category='手稿笔记',industry='实践行业',tags=['经验标签'])
@@ -265,6 +269,17 @@ def main():
                 if body['message'] != 'UI_TEST_ERROR':
                     pending_chat=(route,response);return
                 return route.fulfill(content_type='text/event-stream',body=response)
+            if path == '/company-knowledge/search':
+                body=request.post_data_json;mutations.append({'path':path,'body':body})
+                assert body['scope']=='accessible' and docs[0]['id'] in body['document_ids']
+                return route.fulfill(json={'matches':[{'document':deepcopy(docs[0]),'reference':{'id':'1','document_id':docs[0]['cloud_id'],'text':'这句话只在正文出现，是检索结果的实际内容。','pages':[2]}}],'total':1})
+            if path.endswith('/locate'):
+                return route.fulfill(json={'page':2,'matched':True,'rectangles':[{'left':.12,'top':.2,'width':.65,'height':.04}],'text':'只在正文出现'})
+            if path.endswith('/thumbnail') and args.discovery_regression:
+                from PIL import Image
+                output=io.BytesIO();Image.new('RGB',(720,480),'#9abcca').save(output,'PNG')
+                return route.fulfill(body=output.getvalue(),content_type='image/png')
+            if path.endswith('/outline'):return route.fulfill(json={'entries':[{'title':'示例章节','page':2}]})
             if path.endswith('/preview'):
                 return route.fulfill(json={'references':[{'id':'1','text':'隔离测试的解析片段。','title':'示例资料'}],'total':1})
             if path.endswith('/page'):
@@ -315,6 +330,7 @@ def main():
                 docs.append(doc)
                 return route.fulfill(status=202,json=doc)
             if path.startswith('/company-knowledge/') or path.startswith('/research/'):
+                if path.endswith('/thumbnail'): return route.fulfill(status=422,json={'detail':'No synthetic cover'})
                 unexpected.append(path); return route.fulfill(status=404,json={'detail':'Unexpected isolated API'})
             return route.continue_()
 
@@ -334,12 +350,24 @@ def main():
         assert page.evaluate(system_style) == system_before, 'Knowledge theme changed system shell'
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme','dark')
         assert page.evaluate('localStorage.getItem("companyKnowledgeTheme")') == 'dark'
-        page.get_by_role('menuitem',name='个人首页',exact=True).click()
+        try: page.get_by_role('menuitem',name='个人首页',exact=True).click()
+        except Exception:
+            page.screenshot(path=str(args.output_dir/'navigation-failure.png'),full_page=True,animations='disabled')
+            raise
         assert page.evaluate('document.documentElement.dataset.knowledgeTheme') is None
         page.get_by_role('menuitem',name='公司知识库',exact=True).click()
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme','dark')
         if args.theme == 'light': page.get_by_role('button',name='切换知识库主题',exact=True).click()
         expect(page.locator('.ckb-workbench')).to_have_attribute('data-theme',args.theme)
+        if args.discovery_regression:
+            from importlib.util import spec_from_file_location,module_from_spec
+            spec=spec_from_file_location('discovery_check',ROOT/'scripts/check-knowledge-discovery.py');module=module_from_spec(spec);spec.loader.exec_module(module)
+            result=module.check(page,args,docs,mutations)
+            assert not errors,errors
+            assert not unexpected,unexpected
+            (args.output_dir/'discovery-result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+            print(json.dumps(result,ensure_ascii=False),flush=True)
+            browser.close();server.shutdown();server.server_close();return
         if args.collection_regression:
             page.get_by_role('tab',name='资料库',exact=True).click()
             expect(page.locator('.ckb-project-directory')).to_have_count(1)
