@@ -12,12 +12,12 @@
 :root[data-knowledge-theme=light] .ckb-workbench,
 :root[data-knowledge-theme=light] .ckb-dialog,
 :root[data-knowledge-theme=light] .ckb-glass-surface {
-  --kg-dialog:rgba(241,248,255,.79); --kg-card:rgba(250,253,255,.73);
-  --kg-edge:rgba(115,145,184,.39); --kg-rim:rgba(255,255,255,.96);
-  --kg-field:rgba(255,255,255,.62); --kg-glint:rgba(255,255,255,.72);
-  --kg-shadow:rgba(48,76,116,.16); --kg-frost:rgba(93,147,207,.055);
-  --kg-lens-fill:rgba(239,246,253,.47); --kg-lens-edge:rgba(236,248,255,.22);
-  --kg-optic-shadow:rgba(34,57,86,.23); --kg-lens-line:rgba(255,255,255,.96);
+  --kg-dialog:rgba(233,246,255,.72); --kg-card:rgba(244,251,255,.58);
+  --kg-edge:rgba(65,112,155,.38); --kg-rim:rgba(255,255,255,.98);
+  --kg-field:rgba(255,255,255,.48); --kg-glint:rgba(255,255,255,.84);
+  --kg-shadow:rgba(37,72,111,.19); --kg-frost:rgba(68,135,180,.095);
+  --kg-lens-fill:rgba(233,244,251,.40); --kg-lens-edge:rgba(198,226,246,.24);
+  --kg-optic-shadow:rgba(34,65,99,.27); --kg-lens-line:rgba(255,255,255,.98);
 }
 /* The backdrop stays legible through the rim; the lens blurs its own interior. */
 .ckb-glass-overlay.el-overlay {
@@ -363,3 +363,51 @@
   .ckb-composer .ckb-composer-scope { max-width:72%; font-size:9px; padding:4px 6px; }
   .ckb-workbench .ckb-library-content .ckb-archive-scene { width:100%; opacity:.14!important; }
 }
+
+/* Daylight glass needs a coloured lower edge as well as a white upper rim.
+   All refinements are knowledge-light-only; layout and dark materials stay intact. */
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-chat-aside {
+  --kg-rail-fill:rgba(229,242,252,.48); --kg-rail-glow:rgba(32,146,173,.16);
+  background:radial-gradient(ellipse at 0% 0%,rgba(80,175,210,.19),transparent 55%),linear-gradient(170deg,rgba(223,236,252,.72),rgba(232,232,250,.48));
+  box-shadow:inset -1px 0 0 rgba(67,115,159,.16);
+}
+:root[data-knowledge-theme=light] :is(.ckb-session-panel,.ckb-evidence-panel) {
+  background:linear-gradient(145deg,rgba(255,255,255,.77),rgba(255,255,255,.15) 40%,rgba(123,177,214,.12)),var(--kg-rail-fill);
+  border-color:rgba(61,115,158,.36);
+  box-shadow:inset 0 1px 1px #fff,inset 0 -1px 0 rgba(57,112,154,.16),0 6px 16px rgba(45,88,132,.085);
+}
+:root[data-knowledge-theme=light] .ckb-chat-aside > .ckb-new-conversation {
+  background:linear-gradient(115deg,rgba(255,255,255,.65),rgba(133,206,222,.19) 52%,rgba(149,135,210,.17)),var(--kg-rail-fill);
+  box-shadow:inset 0 1px 1px #fff,inset 0 -1px 0 rgba(54,113,155,.2),0 5px 16px rgba(38,89,133,.15);
+}
+:root[data-knowledge-theme=light] .ckb-chat-space > span::before { opacity:.95; }
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-composer {
+  border-color:rgba(51,115,158,.46);
+  background:linear-gradient(150deg,rgba(255,255,255,.92),rgba(237,249,255,.44) 43%,rgba(220,227,248,.34)),rgba(242,250,255,.54);
+  box-shadow:inset 0 1px 1px #fff,inset 0 -1px 0 rgba(43,109,153,.22),0 9px 24px rgba(39,81,126,.16),0 1px 3px rgba(39,81,126,.10);
+}
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-composer::before {
+  padding:1.5px; opacity:.66;
+  background-image:linear-gradient(115deg,transparent 10%,rgba(26,139,164,.95) 40%,rgba(113,91,184,.86) 56%,transparent 88%);
+}
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-composer:hover {
+  border-color:rgba(36,117,155,.65); box-shadow:inset 0 1px 1px #fff,inset 0 -1px 0 rgba(43,109,153,.24),0 10px 28px rgba(39,81,126,.19);
+}
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-composer:focus-within {
+  border-color:#28869f; box-shadow:inset 0 1px 1px #fff,inset 0 -1px 0 rgba(43,109,153,.24),0 0 0 3px rgba(51,144,175,.11),0 12px 30px rgba(39,81,126,.19);
+}
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-composer:is(:hover,:focus-within,.has-draft)::before { opacity:1; }
+:root[data-knowledge-theme=light] .ckb-composer .ckb-composer-scope { background:linear-gradient(#ffffff8c,#bcdce72b); border-color:rgba(57,119,158,.34); box-shadow:inset 0 1px 0 #fff; }
+:root[data-knowledge-theme=light] .ckb-composer-signal > b > i { opacity:.8; }
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-library-content { --kg-archive-fill:rgba(231,245,254,.36); }
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-library-content :is(.ckb-project-directory,.ckb-file-card,.ckb-case-card,.ckb-subfolder-card) {
+  background:linear-gradient(145deg,rgba(255,255,255,.6),rgba(255,255,255,.09) 45%,rgba(111,167,211,.07)),var(--kg-archive-fill);
+  border-color:rgba(67,119,163,.36);
+  box-shadow:inset 0 1px 1px #fff,inset 0 -1px 0 rgba(55,113,155,.16),0 8px 22px rgba(38,84,130,.13),0 1px 3px rgba(38,84,130,.09);
+}
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-library-content :is(.ckb-project-directory,.ckb-file-card,.ckb-case-card,.ckb-subfolder-card):hover { border-color:rgba(38,128,158,.68); box-shadow:inset 0 1px 1px #fff,inset 0 -1px 0 rgba(55,113,155,.2),0 12px 28px rgba(38,84,130,.18); }
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-library-content :is(.ckb-file-card.selected,.ckb-case-card.selected) { border-color:#248da5; box-shadow:inset 0 1px 0 #fff,0 0 0 2px rgba(36,141,165,.16),0 8px 22px rgba(38,84,130,.13); }
+:root[data-knowledge-theme=light] .ckb-glass-surface > .ckb-glass-rim {
+  background:conic-gradient(from 145deg at 50% 50%,rgba(55,151,187,.24),rgba(255,255,255,.98) 14%,rgba(81,140,187,.23) 31%,rgba(255,255,255,.95) 52%,rgba(94,96,170,.25) 70%,rgba(255,255,255,.95) 85%,rgba(55,151,187,.24));
+}
+:root[data-knowledge-theme=light] .el-dialog.ckb-dialog { box-shadow:inset 0 1px 1px #fff,inset 0 -1px 0 rgba(48,103,150,.25),0 28px 80px var(--kg-optic-shadow),0 6px 20px rgba(40,79,121,.2)!important; }
