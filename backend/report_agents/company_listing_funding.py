@@ -62,4 +62,9 @@ def listing_funding_events(source,target,base,as_of):
                 'native_listing_funding':VERSION,
                 'source_attribution':'专业平台所载发行原文；不冒称交易所独立回取' if context['platform'] else '发行人原始披露',
                 'mode':'同一原文的具名发行挂牌事实与实际募集净额；不拼接后续配股，不把上市本身当净额到账。'})
+    from .company_time_context import publication_context
+    time_context=publication_context(source,as_of)
+    for record in result:
+        record['time_context']={**time_context,'event_date':record['funding_date'],'accounting_period':'not_applicable'}
+        record['post_cutoff_disclosure']=time_context['post_cutoff_disclosure']
     return result

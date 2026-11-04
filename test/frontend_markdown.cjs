@@ -30,6 +30,6 @@ for (const url of ['https://example.com', 'http://example.com', 'mailto:team@exa
 }
 const html = fs.readFileSync('frontend/index.html', 'utf8');
 assert.ok(html.indexOf('vendor/purify-3.4.17.min.js') < html.indexOf('safe-markdown.js'));
-assert.ok(html.indexOf('safe-markdown.js') < html.indexOf('src="script.js"'));
+assert.ok(html.indexOf('safe-markdown.js') < html.search(/src="script(?:\.[a-f0-9]{12})?\.js"/));
 assert.ok(fs.readFileSync('frontend/script.js', 'utf8').includes('window.SafeMarkdown.render(text)'));
 console.log('Markdown checks passed: sanitize delegation, parser/sanitizer fallback, URL policy and script order');

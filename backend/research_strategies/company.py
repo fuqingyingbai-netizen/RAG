@@ -5,6 +5,9 @@ class CompanyResearchStrategy(BaseResearchStrategy):
     target_type = "company"
 
     def module_questions(self, module, target, industry):
+        from company_chapters import is_chapter_id, chapter
+        if is_chapter_id(module):
+            return [q.format(target=target) for q in chapter(module)['questions']]
         from company_requirements import question_spec
         spec = question_spec(module)
         return [spec[1].format(target=target)] if spec else super().module_questions(module, target, industry)
@@ -15,6 +18,31 @@ class CompanyResearchStrategy(BaseResearchStrategy):
         return ['{target} ' + term for term in spec[3]] if spec else super().templates_for_module(module, target, industry)
 
     def expand_search_queries(self, plan, intake):
+        if plan.get('company_template_version'):
+            from company_chapters import chapter
+            from company_requirements import bind_queries
+            rows = []
+            requirements = {r.get('chapter'): r for r in plan.get('company_requirements') or []}
+            for module in plan.get('modules', []):
+                c = chapter(module['name'])
+                for index, term in enumerate(c['query_terms']):
+                    # Public commentary and company websites remain reachable;
+                    # authoritative retrieval is a first pass, not a whitelist.
+                    rows.append({'module': c['id'], 'query': f"{intake['target_name']} {term}",
+                        'search_tier': 'open_web'})
+                    if index:
+                        continue
+                    rows.append({'module': c['id'], 'query': f"{intake['target_name']} {term}",
+                        'search_tier': 'authority_first',
+                        'include_domains': requirements.get(c['chapter'], {}).get('authority_domains') or
+                            (['court.gov.cn', 'wenshu.court.gov.cn', 'creditchina.gov.cn'] if c['chapter'] == 9
+                            else ['cninfo.com.cn', 'sse.com.cn', 'szse.cn', 'hkexnews.hk']),
+                        'authority_required': 1})
+            for query in intake.get('search_queries') or []:
+                # Free-form queries need explicit routing; they are not silently
+                # attributed to all chapters or forced into the last chapter.
+                rows.append({'module': '用户指定', 'query': query, 'search_tier': 'open_web'})
+            return bind_queries(rows, plan.get('company_requirements') or [])
         from datetime import date
         import re
         rows=super().expand_search_queries(plan,intake)
@@ -95,6 +123,9 @@ class CompanyResearchStrategy(BaseResearchStrategy):
     ]
 
     def required_source_types(self, module: str) -> list[str]:
+        from company_chapters import is_chapter_id, chapter
+        if is_chapter_id(module):
+            module = chapter(module)['legacy_title']
         if module in {"主体工商基本信息核查股东关系与治理底盘", "历史沿革与融资", "历史沿革与成长质量"}:
             return ["filing", "official", "business_database", "news"]
         if module in {"企业司法负面核查", "诉讼/制裁", "风险核查"}:

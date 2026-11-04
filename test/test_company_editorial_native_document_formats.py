@@ -90,7 +90,11 @@ def test_omitting_zero_or_changing_share_units_is_still_rejected():
     assert parse(row, PROSE.replace('0股', '0元'))[1]
     text = PROSE.replace('甲公司持有0股；', '')
     findings = [{'finding_id': 'p', 'text': text, 'information_ids': [row['information_id']]}]
-    assert 'lost_numeric_information:I-a' in validate_audit([row], findings, audit([row], findings))
+    from report_agents.company_editorial import review_observations
+    assert '0股' in review_observations([row],findings)[0]['tokens']
+    review=audit([row],findings);review['criteria']['semantic_retention']=False
+    review['information'][0]['status']='lost';review['issues']=['遗漏甲公司的零持股信息。']
+    assert 'editorial_criterion:semantic_retention' in validate_audit([row],findings,review)
 
 
 def test_explicit_semicolon_sequence_survives_physical_pdf_line_wrapping():
@@ -157,7 +161,11 @@ def test_native_angle_title_keeps_year_checks_active():
     row = record(text='公司拟审议《关于<公司2024年-2028年员工持股计划（草案）>的议案》，尚未通过。')
     assert parse(row, row['text'].replace('2028', '2029'))[1]
     findings = [{'finding_id': 'p', 'text': '公司拟审议相关员工持股计划，尚未通过。', 'information_ids': [row['information_id']]}]
-    assert validate_audit([row], findings, audit([row], findings))
+    from report_agents.company_editorial import review_observations
+    assert review_observations([row],findings)
+    review=audit([row],findings);review['criteria']['semantic_retention']=False
+    review['information'][0]['status']='lost';review['issues']=['遗漏计划适用的2024年至2028年期间。']
+    assert validate_audit([row],findings,review)
 
 
 @pytest.mark.parametrize('native,model', [

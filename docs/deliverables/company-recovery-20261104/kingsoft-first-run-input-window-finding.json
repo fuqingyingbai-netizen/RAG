@@ -1,0 +1,21 @@
+{
+  "status": "interrupted_for_input_window_repair",
+  "checkpoint_sha256": "8ca37a2e94332e53e431e4c979e8567dad4b5bfad071bea98c542a9b1c907427",
+  "metrics": {
+    "elapsed_seconds": 266.172,
+    "input_chars": 583074,
+    "input_tokens": 300658,
+    "model_calls": 50,
+    "output_chars": 101047,
+    "output_tokens": 43800,
+    "platform_cache_hits": 0,
+    "platform_requests": 0,
+    "query_cache_hits": 0,
+    "reported_usage_calls": 50,
+    "search_queries": 0
+  },
+  "stage": "information_routed",
+  "chapter": 4,
+  "finding": "Flat PDF extraction combined multiple tables in a window; whole-window retention incorrectly overloaded a chapter. Preserve checkpoints and add byte-bound native subspan selection before continuing.",
+  "report_acceptance": false
+}

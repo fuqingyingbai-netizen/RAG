@@ -240,6 +240,7 @@ def test_evidence_is_not_hidden_after_large_metadata_in_model_context():
 
 
 def test_industry_workflow_runs_from_collection_to_word_without_external_calls(monkeypatch):
+    monkeypatch.setattr('proposal_branch.load_context',lambda *a,**kw:{})
     from datetime import datetime
     from unittest.mock import Mock
     from docx_exporter import markdown_to_docx_bytes
@@ -252,6 +253,7 @@ def test_industry_workflow_runs_from_collection_to_word_without_external_calls(m
     project = SimpleNamespace(id=123, title='行业集成测试', target_name='机器人行业', target_type='industry',
                               industry='机器人行业', description='', sources=[], artifacts=[])
     database = Mock()
+    database.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value=[]
     exports = []
     def collect(*args, **kwargs):
         for i, module in enumerate(('政策与监管', '市场规模与增长', '竞争格局与代表企业', '技术路线对比'), 1):

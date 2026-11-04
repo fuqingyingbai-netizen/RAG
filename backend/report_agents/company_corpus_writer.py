@@ -65,6 +65,8 @@ def collect_statements(project,review):
             'period','previous_period','previous_unit','previous_currency','as_of','cutoff','report_end_date',
             'reporting_scope','consolidation_scope','kind','role','quote_role','ratio','stage','status','procedure_status','mode',
             'scope','evidence_scope','context_quote','boundary','aspect','source_kind') if record.get(k) is not None}
+        if record.get('model_reading_mode'):
+            context.update({key:record[key] for key in ('subject_basis','subject_binding','time_context','original_sha256','original_page_context') if key in record})
         if isinstance(record.get('context'),dict):context={**record['context'],**context}
         if record.get('source_date_role') is not None:
             for key in ('publication_date','source_date','source_date_role','source_date_quote'):
@@ -410,7 +412,6 @@ def render_compact_chapters(project,digest,outline,original_sections):
     pending=unreviewed_chapters(getattr(project,'company_information_usage_package',{}) or {},
         getattr(project,'company_editorial_package',{}) or {})
     for chapter in range(2,12):
-        if chapter in pending:continue
         selected=[g for g in groups if g['chapter']==chapter]
         if not selected:continue
         lines=[f'## {chapter}. '+outline[chapter-1][0],'']
@@ -470,6 +471,9 @@ def render_compact_chapters(project,digest,outline,original_sections):
             if financial:
                 lines+=['### 已核对经营数据原表','']+_table(['主体／报告期','指标','本期原值','上年同期原值','原单位／来源'],[
                     [str(r.get('entity') or project.target_name)+'；'+r['period'],r['metric'],r['value'],r.get('previous_value',''),str(r.get('currency') or '')+r['unit']+'；'+refs(r)] for r in financial])
+        if chapter in pending:
+            lines+=['### 正文核对尚未完成','',
+                '上文展示已通过逐批审核的段落。本章另有内容尚未完成核对，相关草稿与原文保留；本章尚未通过完整验收。','']
         sections[chapter]='\n'.join(lines)
     # Keep scoring deterministic. A relevant non-scoring reference can explain
     # the boundary without turning a transaction check into financial metrics.

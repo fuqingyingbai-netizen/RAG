@@ -121,7 +121,10 @@ def test_body_audit_requires_selected_numbers_and_retains_full_source_support_ch
     bind_proposition_spans([focused],audit)
     assert not validate_audit([focused],findings,audit)
     changed=deepcopy(findings);changed[0]['text']='公司收入增长。'
-    assert any(e.startswith('lost_numeric_information') for e in validate_audit([focused],changed,audit))
+    assert 'unbound_semantic_span:I-a' in validate_audit([focused],changed,audit)
+    rejected=deepcopy(audit);rejected['criteria']['semantic_retention']=False
+    rejected['information'][0]['status']='lost';rejected['issues']=['遗漏所选核心收入金额。']
+    assert 'editorial_criterion:semantic_retention' in validate_audit([focused],changed,rejected)
     assert prose_errors('公司收入为999万元。',[focused])
     assert '完整text' in proposal_prompt([focused],TARGET,6,'实际经营')
     assert '事实筛选漏掉' in audit_prompt([focused],findings,TARGET)

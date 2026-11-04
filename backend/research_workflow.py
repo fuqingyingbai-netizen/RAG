@@ -76,7 +76,7 @@ FIXED_GENERATE_PROPOSAL = True
 PERSON_IDENTITY_POLICY_VERSION = "person-identity-v4-context"
 INDUSTRY_CLEANING_VERSION = "industry-evidence-v24-performance-boundaries"
 INDUSTRY_REPORT_VERSION = "industry-report-evidence-v61-bounded-recovery"
-COMPANY_REPORT_VERSION = 'company-report-evidence-v148-canonical-focus-witnesses'
+COMPANY_REPORT_VERSION = "company-report-evidence-v150-sequential-chapter-flow"
 
 
 def company_source_fingerprint(sources):
@@ -178,22 +178,8 @@ PERSON_REPORT_OUTLINE = [
     ("后续研究点", ["待补充", "待访谈", "待核验事项"]),
 ]
 
-COMPANY_REPORT_OUTLINE = [
-    ("摘要", ["报告概述", "核心发现点", "需关注信号", "竞争格局", "总体评估"]),
-    ("主体工商基本信息核查股东关系与治理底盘", ["注册信息", "公司规模", "注册资本", "股权架构", "治理底盘"]),
-    ("历史沿革与融资", ["工商变更", "业务发展历程", "融资情况", "上市规范性瑕疵"]),
-    ("组织治理与运营管理评估", ["组织架构", "决策机制", "权责划分", "内部激励"]),
-    ("行业口碑、产品认可度与同业竞争地位研判", ["员工评价", "竞品评价", "合作方评价", "行业地位"]),
-    ("主营业务真实经营情况核验", ["核心业务", "客户", "收入", "研发", "招聘"]),
-    ("核心管理团队（深度/基础）风险研判", ["管理层履历", "产业资源", "关联关系", "团队掌控力"]),
-    ("企业文化及人员流失情况", ["文化价值观", "人才储备", "核心岗位流失"]),
-    ("企业司法负面核查", ["诉讼", "处罚", "产品风险", "研发风险", "供应链风险"]),
-    ("定向穿透专项尽职调查", ["融资", "资金使用", "业务真实性", "大额资金往来"]),
-    ("风险核查", ["组织风险", "业务风险", "行业特殊风险"]),
-    ("综合评价", ["总结打分"]),
-    ("信息来源", ["信息点", "来源说明", "可信度", "支持章节"]),
-    ("后续研究建议", ["待确认信息点", "深度研究方向", "优先级", "访谈对象"]),
-]
+from company_chapters import outline as company_chapter_outline
+COMPANY_REPORT_OUTLINE = company_chapter_outline(legacy=True)
 
 INDUSTRY_REPORT_OUTLINE = [
     ("摘要", ["报告概述", "核心研究发现", "需关注信号", "总体评估"]),
@@ -750,8 +736,7 @@ class ResearchWorkflow:
             streaming=os.getenv('COMPANY_REPORT_EDITOR_STREAMING_ENABLED', 'true').strip().lower() in {'1','true','yes','on'},
             timeout=(_env_int('COMPANY_ANALYSIS_TIMEOUT_SECONDS',_env_int('LLM_TIMEOUT_SECONDS',120,10,600),10,600)
                      if profile=='analysis' else _env_int("COMPANY_REPORT_EDITOR_TIMEOUT_SECONDS",150,30,600)),
-            max_retries=(_env_int('COMPANY_ANALYSIS_MAX_RETRIES',_env_int('LLM_MAX_RETRIES',2,0,5),0,5)
-                         if profile=='analysis' else _env_int("COMPANY_REPORT_EDITOR_MAX_RETRIES",1,0,1)),
+            max_retries=0,  # Company transport is the only retry owner.
             **({'max_tokens':completion_limit} if completion_limit else {}),
             **({'reasoning_effort':reasoning_effort} if reasoning_effort else {}),
             **({'extra_body':{'thinking_budget':thinking_budget,'enable_thinking':True}} if thinking_budget else {}),
@@ -759,13 +744,21 @@ class ResearchWorkflow:
         setattr(self, attribute, model)
         return model
 
-    def _invoke_company_report_editor(self, role: str, prompt: str, emit: TraceEmitter | None = None) -> str:
+    def _invoke_company_report_editor(self, role: str, prompt: str, emit: TraceEmitter | None = None, usage_sink=None) -> str:
         """Use a dedicated, bounded editor request for company-report batches."""
-        model = (self._get_company_report_editor_model(profile='main_focus')
-                 if role.startswith('公司主报告事实选择') else self._get_company_report_editor_model())
+        try:
+            model = (self._get_company_report_editor_model(profile='main_focus')
+                     if role.startswith('公司主报告事实选择') else self._get_company_report_editor_model())
+        except Exception as exc:
+            from report_agents.company_transport import CompanyModelUnavailable,safe_identifier
+            raise CompanyModelUnavailable(diagnostic={'category':'configuration','exception_type':safe_identifier(type(exc).__name__),
+                'stage':role,'attempts':0,'request_invoked':False,'request_sent':False,'retryable':False}) from exc
         if not model:
             _emit(emit, "llm", role, "公司报告分批主编模型未配置，保留章节草稿", "", status="fallback")
-            return ""
+            from report_agents.company_transport import CompanyModelUnavailable
+            raise CompanyModelUnavailable(diagnostic={'category':'configuration','exception_type':'ModelNotConfigured',
+                'attempts':0,'request_invoked':False,'request_sent':False,'retryable':False})
+        result=None
         try:
             _emit(
                 emit, "llm", role, "正在调用公司报告分批主编模型",
@@ -775,6 +768,10 @@ class ResearchWorkflow:
                 {"role": "system", "content": "你是严谨的公司研究编辑与核对员。按当前任务精编或独立审稿；仅使用给定原文和结构化证据，不新增事实或来源，输出任务要求的完整格式。"},
                 {"role": "user", "content": prompt},
             ])
+            if usage_sink:
+                from report_agents.company_transport import safe_identifier
+                usage=getattr(result,'usage_metadata',None) or (getattr(result,'response_metadata',{}) or {}).get('token_usage',{})
+                usage_sink({**usage,'provider_request_id':safe_identifier((getattr(result,'response_metadata',{}) or {}).get('request_id',''))})
             if (getattr(result,'response_metadata',{}) or {}).get('finish_reason') in {'length','max_tokens','max_output_tokens'}:
                 raise ValueError('company_editor_response_truncated')
             if (getattr(result,'response_metadata',{}) or {}).get('finish_reason') != 'stop':
@@ -783,14 +780,21 @@ class ResearchWorkflow:
                 # authorizes the existing semantic validators to inspect it.
                 raise ValueError('company_editor_response_incomplete')
             content = str(result.content or "")
+            if not content.strip():raise ValueError("empty company model response")
             _emit(
                 emit, "llm", role, "公司报告分批主编模型调用完成",
                 f"chars={len(content)}", output_chars=len(content), status="done",
             )
             return content
         except Exception as exc:
-            _emit(emit, "llm", role, "公司报告分批主编超时或失败，保留章节草稿", str(exc), status="fallback")
-            return ""
+            from report_agents.company_transport import failure_diagnostic
+            if result is not None:
+                exc.company_response_received=True
+                exc.company_usage=getattr(result,'usage_metadata',None) or (getattr(result,'response_metadata',{}) or {}).get('token_usage',{})
+            diagnostic=failure_diagnostic(exc,stage=role)
+            _emit(emit,"llm",role,"公司模型失败，保留原文与恢复位置",
+                json.dumps(diagnostic,ensure_ascii=False),status="fallback")
+            raise
 
     def _invoke_vision(
         self,
@@ -1008,6 +1012,12 @@ class ResearchWorkflow:
             db.commit()
         _emit(emit, "init", "workflow", "研究对象类型已标准化", standardized_type, target_type=standardized_type, status="done")
         checkpoint("init")
+
+        if standardized_type == 'company':
+            # All company entry points (including resume and second stage)
+            # share the chapter loop; no switch back to whole-report collection.
+            from company_chapter_flow import run_company_chapters
+            return run_company_chapters(self,db,project,normalized_intake,emit,pause_requested)
 
         resume_enabled = os.getenv("WORKFLOW_RESUME_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
         force_refresh = bool(normalized_intake.get("force_refresh_from_upload_ocr"))
@@ -2161,15 +2171,19 @@ class ResearchWorkflow:
             if (metadata.get('delivery_status')!='final_candidate' or metadata.get('quality_warning') or
                     (metadata.get('company_delivery_contract') or {}).get('delivery_ready') is not True):
                 _emit(emit,'retention','source_records','公司报告尚待复核，原文已保留便于继续处理','',status='warning')
-                return
+                return False
         try:
-            from source_retention import finalize_web_sources
-            count = finalize_web_sources(db, project, research_store)
+            from source_retention import finalize_web_sources,finalize_company_sources
+            if str(getattr(project,'target_type',''))=='company' and metadata.get('company_flow_version'):
+                count=finalize_company_sources(db,project,research_store)
+            else:count=finalize_web_sources(db,project,research_store)
             _emit(emit, 'retention', 'source_records', '来源记录已保留，临时网页正文已清理',
                   f'count={count}', status='done')
+            return True
         except Exception:
             db.rollback()
             _emit(emit, 'retention', 'source_records', '临时正文清理未完成，来源记录仍可用', '', status='warning')
+            return False
 
     def _latest_artifact(self, project: ResearchProject, artifact_type: str) -> ResearchArtifact | None:
         session = object_session(project)
@@ -2257,7 +2271,9 @@ class ResearchWorkflow:
                 target_name = inferred_target
         target_type = self._standardize_target_type(project, intake, target_name)
         strategy = get_research_strategy(target_type)
-        modules = modules or strategy.default_modules or DEFAULT_RESEARCH_MODULES
+        from company_chapters import uses_chapter_contract
+        if not (target_type == 'company' and uses_chapter_contract(intake)):
+            modules = modules or strategy.default_modules or DEFAULT_RESEARCH_MODULES
         if target_type == "person":
             # Project copies are often suffixed with 1/2, but that version marker must not enter person queries.
             target_name = re.sub(r"(?<=[A-Za-z\u4e00-\u9fff])\d+$", "", target_name).strip()
@@ -2296,6 +2312,9 @@ class ResearchWorkflow:
             "force_refresh_from_upload_ocr": bool(intake.get("force_refresh_from_upload_ocr")),
         }
         if target_type == 'company':
+            from company_chapters import VERSION as COMPANY_TEMPLATE, normalize_selection
+            normalized['company_template_version'] = COMPANY_TEMPLATE
+            normalized['focus_modules']=normalize_selection(intake.get('focus_modules') if 'focus_modules' in intake else None)
             normalized['as_of_date'] = str(intake.get('as_of_date') or datetime.now().date().isoformat()).strip()
             normalized['required_chapters'] = list(intake.get('required_chapters') or [])
             from report_agents.company_delivery_contract import delivery_requirements
@@ -2756,6 +2775,12 @@ class ResearchWorkflow:
         industry = intake.get("industry") or project.industry
         strategy = get_research_strategy(str(intake.get("target_type") or project.target_type or "company"))
         modules = intake.get("focus_modules") or strategy.default_modules or DEFAULT_RESEARCH_MODULES
+        if intake.get('target_type') == 'company':
+            from company_chapters import uses_chapter_contract, selected_chapters, chapter, tasks, VERSION as CHAPTER_VERSION
+            if uses_chapter_contract(intake):
+                if intake.get('company_template_version') not in (None, '', CHAPTER_VERSION):
+                    raise ValueError('公司章节模板已更新，请刷新目录后重新提交。')
+                modules = [chapter(n)['id'] for n in selected_chapters(intake)]
         if intake.get("target_type") == "industry":
             modules = list(modules)
             if (intake.get("industry_scope") or {}).get("capital_market") == "none":
@@ -2806,8 +2831,14 @@ class ResearchWorkflow:
             plan['company_requirement_version'] = COMPANY_QUESTION_VERSION
             plan['company_requirements'] = build_requirements(modules, {**intake, 'target_name': target})
             project.company_research_requirements = plan['company_requirements']
+            if uses_chapter_contract(intake):
+                plan['company_template_version'] = CHAPTER_VERSION
+                plan['chapter_research_tasks'] = tasks(intake)
             for item in plan['modules']:
                 item['company_requirement_ids'] = [r['requirement_id'] for r in plan['company_requirements'] if r['module'] == item['name']]
+                if uses_chapter_contract(intake):
+                    spec = chapter(item['name'])
+                    item.update(chapter=spec['chapter'], chapter_id=spec['id'], title=spec['title'], agent_id=spec['agent_id'])
         if intake.get('target_type') == 'industry':
             try:
                 from .industry_evidence import evidence_requirements, VERSION
@@ -2832,6 +2863,7 @@ class ResearchWorkflow:
         configured_providers: list[str],
         emit: TraceEmitter | None = None,
         pause_requested: Callable[[], bool] | None = None,
+        query_cache=None,
     ) -> list[tuple[dict[str, Any], list[dict[str, Any]]]]:
         if not query_items:
             return []
@@ -2861,12 +2893,20 @@ class ResearchWorkflow:
                     for item in results:
                         item["metadata"] = {**(item.get("metadata") or {}), "person_discovery_only": True}
                 else:
-                    results = web_search_provider.search(
-                        query, limit=max(1, max_results_per_query),
-                        include_domains=list(query_item.get("include_domains") or []),
-                        category=query_item.get("exa_category"),
-                        preferred_providers=list(query_item.get("preferred_providers") or []),
-                        candidate_limit=max(1, max_results_per_query) * max(1, len(web_search_provider.engines)))
+                    parameters=dict(limit=max(1,max_results_per_query),
+                        include_domains=list(query_item.get('include_domains') or []),
+                        category=query_item.get('exa_category'),
+                        preferred_providers=list(query_item.get('preferred_providers') or []),
+                        candidate_limit=max(1,max_results_per_query)*max(1,len(web_search_provider.engines)))
+                    execute=lambda:web_search_provider.search(query,**parameters)
+                    if query_cache is not None:
+                        from search_results import SearchResults
+                        value,reused=query_cache.query({'query':query,'parameters':parameters,
+                            'engines':[name for name,_ in web_search_provider.engines],
+                            'configured_providers':sorted(configured_providers)},execute)
+                        results=SearchResults(value['rows'],audit=value['audit'])
+                        query_item['company_query_reused']=reused
+                    else:results=execute()
                 query_item["search_result_audit"] = dict(getattr(results, "audit", {}) or {
                     "method": "single_provider_or_external_results", "kept_count": len(results)})
                 if query_item.get('recovery_round'):
@@ -2925,6 +2965,17 @@ class ResearchWorkflow:
         return [(query_item, results) for _index, query_item, results in ordered]
 
     def _gap_queries(self, plan: dict[str, Any], intake: dict[str, Any], gaps: list[str]) -> list[dict[str, str]]:
+        if plan.get('company_template_version') and intake.get('target_type') == 'company':
+            from company_chapters import primary_chapter, chapter
+            missing = {primary_chapter(str(gap).split('：', 1)[0].replace('缺少', '').strip()) for gap in gaps}
+            missing.discard(None)
+            gap_plan = {**plan, 'modules': [m for m in plan.get('modules', [])
+                if primary_chapter(m['name']) in missing]}
+            # Gap search keeps the original selected chapter's ownership.
+            # Unbound gaps remain visible for review rather than silently
+            # launching unrelated chapter searches.
+            return [row for row in self._expand_search_queries(gap_plan, {**intake, 'search_queries': []})
+                if row.get('module') in {m['name'] for m in gap_plan['modules']}]
         if intake.get("target_type") == "industry":
             missing = {str(gap).split("：", 1)[0] for gap in gaps}
             gap_plan = {**plan, "modules": [m for m in plan.get("modules", []) if m.get("name") in missing]}
@@ -3544,10 +3595,17 @@ class ResearchWorkflow:
             meta = source.source_metadata or {}
             module = str(meta.get("module") or source.source_type or "unknown")
             module_counts[module] += 1
+            chapter_modules=set(meta.get('company_chapter_ids') or []) | {meta.get('company_chapter_id')}
+            if plan.get('company_template_version'):
+                for chapter_module in chapter_modules - {None, '', module}:
+                    module_counts[chapter_module] += 1
             quality = meta.get("quality") or {}
             grade = self._source_grade(source, quality)
             if grade == "A":
                 authoritative_counts[module] += 1
+                if plan.get('company_template_version'):
+                    for chapter_module in chapter_modules - {None, '', module}:
+                        authoritative_counts[chapter_module] += 1
             score = int(source.credibility_score or quality.get("score") or 50)
             total_score += score
             source_rows.append({
@@ -4412,13 +4470,14 @@ class ResearchWorkflow:
         intake: dict[str, Any] | None = None,
     ) -> bool:
         clean = self._clean_source_text(content)
-        if self._is_empty_structured_text(clean):
+        company_raw=((intake or {}).get('target_type') or getattr(project,'target_type',''))=='company'
+        if self._is_empty_structured_text(clean) and not company_raw:
             return False
         entity_ok, entity_reason = self._structured_entity_matches_request(content, metadata, intake)
         related_entity_context = False
         if not entity_ok:
             related_entity_context = self._structured_entity_is_related_context(content, metadata, intake)
-            if not related_entity_context:
+            if not related_entity_context and not company_raw:
                 _emit(
                     emit,
                     "structured_data",
@@ -4456,7 +4515,7 @@ class ResearchWorkflow:
             "text/markdown; charset=utf-8",
         )
         metadata = dict(metadata)
-        raw_response = metadata.pop("company_qcc_raw_response", None)
+        raw_response = metadata.pop("company_platform_raw_response", metadata.pop("company_qcc_raw_response", None))
         if raw_response is not None:
             metadata["raw_response_key"] = research_store.put_text(
                 f"projects/{project.id}/structured/{provider}_{module}_{source_stamp}_raw.json",
@@ -4468,11 +4527,24 @@ class ResearchWorkflow:
             "module": module,
             "retention_policy": "transient_platform_body",
             "content_kind": "structured_data",
-            "entity_validation": "related_entity_context" if related_entity_context else "verified",
+            "entity_validation": "related_entity_context" if related_entity_context else "unverified_platform_subject" if not entity_ok else "verified",
             "entity_validation_reason": entity_reason,
-            "evidence_scope": "related_entity_context" if related_entity_context else "target_direct",
+            "evidence_scope": "related_entity_context" if related_entity_context else "unresolved_subject" if not entity_ok else "target_direct",
             **metadata,
         }
+        from company_chapters import uses_chapter_contract
+        if (intake or {}).get('target_type') == 'company' and uses_chapter_contract(intake):
+            # This records the request's intended chapters, not acceptance of
+            # a platform assertion. Existing subject/original gates still apply.
+            provider_family='qcc' if provider.startswith('qcc') else provider
+            matches=[r for r in getattr(project,'company_research_requirements',[]) if any(
+                route['provider']==provider_family and route['tool']==metadata.get('tool') and
+                route['arguments'].get('aspect','')==metadata.get('aspect','')
+                for route in r.get('routes',[]))]
+            source_metadata.update(company_requirement_ids=[r['requirement_id'] for r in matches],
+                company_chapter_ids=[r['chapter_id'] for r in matches],
+                company_template_version=intake.get('company_template_version',''),
+                company_requirement_binding='requested_route_not_evidence_acceptance')
         affiliation_context = (intake or {}).get("person_affiliation_context")
         if not metadata.get("person_subject_verified") and isinstance(affiliation_context, dict) and affiliation_context.get("person_name") and affiliation_context.get("affiliation_name"):
             source_metadata["person_affiliation"] = dict(affiliation_context)
@@ -4511,7 +4583,7 @@ class ResearchWorkflow:
             return 0
         added = 0
         company = self._standardize_target_type(project, intake, target) == "company"
-        if company:
+        if company and not intake.get('_company_chapter_pass'):
             project.company_professional_platform_attempts = []
             project.company_judicial_query_attempts = []
         if str(intake.get("target_type") or project.target_type).lower() == "person":
@@ -4529,8 +4601,9 @@ class ResearchWorkflow:
         if company:
             audit = {"attempts": getattr(project, "company_professional_platform_attempts", []),
                      "judicial_query_attempts": getattr(project, "company_judicial_query_attempts", [])}
-            self.save_artifact(db, project, "professional_platform_audit", "专业平台查询覆盖记录",
-                               json.dumps(audit, ensure_ascii=False), {"provider_audit_version": 1})
+            if not intake.get('_company_chapter_pass'):
+                self.save_artifact(db, project, "professional_platform_audit", "专业平台查询覆盖记录",
+                                   json.dumps(audit, ensure_ascii=False), {"provider_audit_version": 1})
             failures = sum(r["status"] in {"failed", "not_queried"} for r in audit["attempts"])
             if failures:
                 _emit(emit, "structured_data", "structured_data_agent", "专业平台存在未完成查询",
@@ -4766,10 +4839,14 @@ class ResearchWorkflow:
         return False
 
     def _collect_qcc_sources(self, db: Session, project: ResearchProject, target: str, intake: dict[str, Any], emit: TraceEmitter | None = None) -> int:
+        from company_requirements import selected_platform_tools
+        selected_tools=selected_platform_tools(intake,'qcc')
+        if selected_tools == set():return 0
         token = os.getenv("QCC_API_KEY", "").strip()
         audit = self._company_platform_audit(project, intake, target, "qcc", token)
         audit.planned(["get_company_registration_info", "get_shareholder_info", "get_key_personnel",
-                       "get_company_profile", "get_company_risk_scan", "get_administrative_penalty", "get_recruitment_info"])
+                       "get_company_profile", "get_company_risk_scan", "get_administrative_penalty", "get_recruitment_info"]
+                      if selected_tools is None else sorted(selected_tools))
         if not token:
             audit.stop_reason = "not_configured"
             audit.finish_unqueried()
@@ -4804,9 +4881,12 @@ class ResearchWorkflow:
         candidates = intake.get("structured_target_candidates") or [target]
         disabled_tools: set[str] = set()
         company_risk = self._standardize_target_type(project, intake, target) == "company"
-        if company_risk:
+        if company_risk and not intake.get('_company_chapter_pass'):
             project.company_judicial_query_attempts = []
         for provider, url, tools in endpoints:
+            if selected_tools is not None:
+                tools=[row for row in tools if row[0] in selected_tools]
+                if not tools:continue
             session, ok, error = audit.initialize(self._mcp_initialize, url, headers, timeout=timeout)
             if not ok:
                 if audit.result(provider + "初始化", {}, {"error": error}):
@@ -4884,9 +4964,13 @@ class ResearchWorkflow:
         return added
 
     def _collect_tyc_sources(self, db: Session, project: ResearchProject, target: str, intake: dict[str, Any], emit: TraceEmitter | None = None) -> int:
+        from company_requirements import selected_platform_tools
+        selected_tools=selected_platform_tools(intake,'tyc')
+        if selected_tools == set():return 0
         api_key = (os.getenv("TYC_API_KEY") or os.getenv("TENC_API_KEY") or "").strip()
         audit = self._company_platform_audit(project, intake, target, "tyc", api_key)
-        audit.planned(["search_companies", "get_company_basic_profile", "get_company_people", "get_company_group_profile", "search_patents"])
+        audit.planned(["search_companies", "get_company_basic_profile", "get_company_people", "get_company_group_profile", "search_patents"]
+                      if selected_tools is None else ['search_companies',*sorted(selected_tools)])
         if not api_key:
             audit.stop_reason = "not_configured"
             audit.finish_unqueried()
@@ -4932,6 +5016,7 @@ class ResearchWorkflow:
             ("search_patents", "技术实力", {"query": subject_args["company_name"], "applicant": subject_args["company_name"], "page": 1, "page_size": 20}),
         ]
         for index, (tool, module, args) in enumerate(detail_tools, 1):
+            if selected_tools is not None and tool not in selected_tools:continue
             payload, session = audit.call(self._mcp_call_tool, url, headers, tool, args, session=session, request_id=30 + index, timeout=timeout)
             if audit.result(tool, args, payload):
                 self._emit_platform_stop(audit, emit)
@@ -4945,6 +5030,9 @@ class ResearchWorkflow:
         return added
 
     def _collect_xiniu_sources(self, db: Session, project: ResearchProject, target: str, intake: dict[str, Any], emit: TraceEmitter | None = None) -> int:
+        from company_requirements import selected_platform_tools
+        selected_tools=selected_platform_tools(intake,'xiniu')
+        if selected_tools == set():return 0
         api_key = os.getenv("XINIU_API_KEY", "").strip()
         audit = self._company_platform_audit(project, intake, target, "xiniu", api_key)
         aspects = [
@@ -4954,6 +5042,8 @@ class ResearchWorkflow:
             ("团队人物及招聘分析", "管理团队"),
             ("风险评估", "风险核查"),
         ]
+        if selected_tools is not None:
+            aspects=[row for row in aspects if 'get_company_info:'+row[0] in selected_tools]
         audit.planned(["get_company_info:" + aspect for aspect, _module in aspects])
         if not api_key:
             audit.stop_reason = "not_configured"
@@ -5045,6 +5135,8 @@ class ResearchWorkflow:
         expanded_query_items = (list(targeted_query_items)[:4] if targeted_query_items is not None
             else list(company_selected_queries) if company_selected_queries
             else self._expand_search_queries(plan, intake))
+        if intake.get('_company_chapter_pass'):
+            expanded_query_items=list(intake.get('_company_chapter_query_items') or [])
         if targeted_query_items is None and intake.get('target_type')=='industry' and plan.get('evidence_requirements') and not intake.get('search_queries'):
             active=self._active_industry_sources(project)
             counts=Counter(str((s.source_metadata or {}).get('module') or '') for s in active if (s.content or '').strip())
@@ -5056,17 +5148,24 @@ class ResearchWorkflow:
                     _emit(emit,'web_search','coverage_agent','复用已有来源，仅补采指标证据缺口',
                           f'queries={len(expanded_query_items)}',status='running')
         discovered_company_recalls: set[str] = set()
-        if str(intake.get("target_type") or "").lower() == "company" and not company_selected_queries:
+        if str(intake.get("target_type") or "").lower() == "company" and not company_selected_queries and not intake.get('_company_chapter_pass'):
             from report_agents.company_risk_register import recall_discovery_queries
             from report_agents.company_assessment import assessment_discovery_queries
             expanded_query_items = recall_discovery_queries(list(project.sources or []),
                 str(intake.get("target_name") or project.target_name or ""), discovered_company_recalls) + assessment_discovery_queries(
                 str(intake.get("target_name") or project.target_name or "")) + expanded_query_items
+        if plan.get('company_template_version'):
+            from company_requirements import chapter_queries
+            expanded_query_items=chapter_queries(expanded_query_items,plan.get('company_requirements',[]))
         person_mode = str(intake.get("target_type") or "").lower() == "person"
         authority_queries = [item for item in expanded_query_items if item.get("search_tier") == "authority_first"]
         pending_open_web_queries = [item for item in expanded_query_items if item.get("search_tier") != "authority_first"] if authority_queries else []
         query_items = authority_queries or expanded_query_items
         max_rounds = max(1, int(intake.get("max_search_rounds") or FIXED_MAX_SEARCH_ROUNDS))
+        if intake.get('_company_chapter_pass'):
+            max_rounds=1
+            query_items=expanded_query_items
+            pending_open_web_queries=[]
         if targeted_query_items is not None:
             max_rounds = 1
             max_results_per_query = min(3, max_results_per_query)
@@ -5089,6 +5188,10 @@ class ResearchWorkflow:
         discovered_company_benchmarks: set[str] = set()
         active_sources = self._active_industry_sources(project)
         seen_urls = {canonical_source_url(s.url) for s in active_sources if s.url and (s.source_metadata or {}).get("retention_policy") != "record_only"}
+        if intake.get('_company_chapter_pass'):
+            from report_agents.company_evidence import source_body
+            seen_urls={canonical_source_url(s.url) for s in active_sources if s.url and
+                source_body(s)[1]!='discovery_summary' and source_body(s)[0]}
         host_counts: defaultdict[str, int] = defaultdict(int)
         authority_host_counts: defaultdict[str, int] = defaultdict(int)
         tech_content_saved = 0
@@ -5138,6 +5241,11 @@ class ResearchWorkflow:
             if pause_requested and pause_requested():
                 raise WorkflowPaused("任务已暂停")
             round_added = 0
+            if plan.get('company_template_version'):
+                from company_requirements import chapter_queries
+                query_items=chapter_queries(query_items,plan.get('company_requirements',[]))
+                if not query_items:
+                    break
             if intake.get("target_type") == "industry":
                 budget = _env_int("INDUSTRY_SEARCH_QUERY_BUDGET", 80, 10, 200)
                 try:
@@ -5164,6 +5272,7 @@ class ResearchWorkflow:
                 configured_providers,
                 emit,
                 pause_requested,
+                **({'query_cache':intake['_company_query_cache']} if intake.get('_company_query_cache') is not None else {}),
             )
             if person_search:
                 person_search.record(search_batches)
@@ -5289,6 +5398,8 @@ class ResearchWorkflow:
                                 "person_commission_id": query_item.get("commission_id", ""),
                                 "person_requirement_ids": list(query_item.get("requirement_ids") or []),
                                 **({"company_requirement_ids": list(query_item.get("company_requirement_ids") or []),
+                                    "company_chapter": query_item.get("company_chapter"),
+                                    "company_chapter_id": query_item.get("company_chapter_id", ""),
                                     "company_requirement_version": query_item.get("company_requirement_version", ""),
                                     "company_requirement_scope_sha256": query_item.get("company_requirement_scope_sha256", ""),
                                     "company_query_purpose": query_item.get("query_purpose", "")}
@@ -5537,6 +5648,8 @@ class ResearchWorkflow:
                                 "person_commission_id": query_item.get("commission_id", ""),
                                 "person_requirement_ids": list(query_item.get("requirement_ids") or []),
                                 **({"company_requirement_ids": list(query_item.get("company_requirement_ids") or []),
+                                    "company_chapter": query_item.get("company_chapter"),
+                                    "company_chapter_id": query_item.get("company_chapter_id", ""),
                                     "company_requirement_version": query_item.get("company_requirement_version", ""),
                                     "company_requirement_scope_sha256": query_item.get("company_requirement_scope_sha256", ""),
                                     "company_query_purpose": query_item.get("query_purpose", "")}
@@ -5730,10 +5843,11 @@ class ResearchWorkflow:
             db.expire(project, ["sources"])
             if company_collection:
                 project.company_collection_audit_package=company_collection.snapshot(list(project.sources or []))
-                collection_artifact=self.save_artifact(db,project,'company_collection_audit','公司候选来源归档去向',
-                    json.dumps(project.company_collection_audit_package,ensure_ascii=False),
-                    {'collection_version':project.company_collection_audit_package['version']})
-                project.company_collection_audit_artifact_id=collection_artifact.id
+                if not intake.get('_company_chapter_pass'):
+                    collection_artifact=self.save_artifact(db,project,'company_collection_audit','公司候选来源归档去向',
+                        json.dumps(project.company_collection_audit_package,ensure_ascii=False),
+                        {'collection_version':project.company_collection_audit_package['version']})
+                    project.company_collection_audit_artifact_id=collection_artifact.id
             coverage = self.evaluate_source_quality(project, plan)
             if person_search:
                 retrieval_audit = person_search.audit(list(project.sources or []))
@@ -7195,6 +7309,10 @@ Do not infer controllable impact or low risk from absence of penalties. A single
     def _select_report_outline(self, project: ResearchProject, intake: dict[str, Any] | None = None) -> list[tuple[str, list[str]]]:
         intake = intake or {}
         target_type = (project.target_type or "").lower()
+        if target_type == 'company':
+            from company_chapters import outline, uses_chapter_contract
+            company_intake=intake or getattr(project,'company_research_intake',{}) or {}
+            return outline(legacy=not uses_chapter_contract(company_intake))
         research_type = str(intake.get("research_type") or "").lower()
         company_name = str(intake.get("company_name") or "").strip()
         title_blob = f"{project.title} {project.description} {project.industry} {research_type}".lower()
@@ -7942,6 +8060,12 @@ Do not infer controllable impact or low risk from absence of penalties. A single
             'context_or_unbound_pending_review':'背景或主体尚未绑定，仍待复核'}
         ledger_rows += [f'| {state_labels.get(state,state)} | {count} |' for state,count in sorted(summary['outcomes'].items())]
         ledger = "\n".join(ledger_rows)
+        chapter_agent=(getattr(project,'_company_chapter_agents',{}) or {}).get(13)
+        if chapter_agent:
+            from company_chapters import uses_chapter_contract
+            if uses_chapter_contract(getattr(project,'company_research_intake',{}) or {}):
+                ledger=re.sub(r'^## 13\.[^\n]+','## 13. '+chapter_agent.spec['title'],ledger,count=1)
+            ledger=chapter_agent.execute(lambda:ledger,phase='source_index')
         source_pattern = r"(?ms)^##\s*13[.、．][^\n]*\n.*?(?=^##\s*14[.、．]|\Z)"
         if re.search(source_pattern, report):
             report = re.sub(source_pattern, ledger + "\n\n", report)
@@ -8243,8 +8367,12 @@ Do not infer controllable impact or low risk from absence of penalties. A single
     def _collect_company_delivery_repair(self, db, project, intake, contract, emit=None, pause_requested=None):
         """One targeted retrieval pass; no restart of the whole search plan."""
         from report_agents.company_delivery_contract import evidence_repair_queries
-        from report_agents.company_report_agent import COMPANY_REPORT_OUTLINE
-        queries=evidence_repair_queries(str(project.target_name),contract,COMPANY_REPORT_OUTLINE)
+        from company_chapters import uses_chapter_contract, selected_chapters, outline
+        chapter_mode=uses_chapter_contract(intake)
+        if chapter_mode:
+            selected=set(selected_chapters(intake))
+            contract={**contract,'repair_tasks':[t for t in contract.get('repair_tasks',[]) if t.get('chapter') in selected]}
+        queries=evidence_repair_queries(str(project.target_name),contract,outline(legacy=not chapter_mode))
         if not queries or not intake.get('ai_search_enabled',True):return 0
         repair={**intake,'company_delivery_repair_queries':queries,'max_search_rounds':1,
                 'search_queries':[q['query'] for q in queries]}
@@ -8253,7 +8381,8 @@ Do not infer controllable impact or low risk from absence of penalties. A single
         _emit(emit,'report','company_editorial','按核心证据缺口定向补采',f'queries={len(queries)}',status='running')
         try:
             added=self.collect_web_sources(db,project,repair['search_queries'],[],4,emit=emit,
-                plan={'modules':[]},intake=repair,reuse_archived=True,pause_requested=pause_requested)
+                plan=self.plan_research(project,intake) if chapter_mode else {'modules':[]},
+                intake=repair,reuse_archived=True,pause_requested=pause_requested)
             if added:db.expire(project,['sources'])
             receipt.update(new_sources=added,status='completed' if added else 'no_new_original')
             return added
@@ -8270,10 +8399,17 @@ Do not infer controllable impact or low risk from absence of penalties. A single
         from report_agents.company_delivery_contract import split_sections,assess_delivery,report_hash,fill_evidence_gaps,followup_chapter,stamp_research_date
         from report_agents.company_corpus_writer import render_compact_chapters
         from report_agents.company_report_agent import CompanyReportAgent
+        from company_chapters import outline as chapter_outline, uses_chapter_contract
         from report_agents.company_governance import refs
         from report_agents.company_checkpoint import checkpoint_editorial_batch
         project.company_delivery_contract_required=True
-        invoke=lambda role,prompt,trace=None:self._invoke_company_report_editor(role,prompt,emit=emit)
+        outline=chapter_outline(legacy=not uses_chapter_contract(getattr(project,'company_research_intake',{}) or {}))
+        chapter_agents=getattr(project,'_company_chapter_agents',None)
+        journal=getattr(project,'_company_flow_journal',None)
+        raw_invoke=lambda role,prompt,trace=None:self._invoke_company_report_editor(
+            role,prompt,emit=emit,**({'usage_sink':journal.usage} if journal is not None else {}))
+        from report_agents.company_transport import bounded_company_invoke
+        invoke=getattr(project,'_company_flow_invoke',None) or bounded_company_invoke((lambda role,prompt,trace=None:journal.invoke(raw_invoke,role,prompt,trace)) if journal is not None else raw_invoke)
         editorial=getattr(project,'company_editorial_package',{}) or {}
         usage=getattr(project,'company_information_usage_package',{}) or {}
         from report_agents.company_presentation import main_usage
@@ -8286,15 +8422,23 @@ Do not infer controllable impact or low risk from absence of penalties. A single
             note=('本交付包包含《分析主报告.docx》和《完整证据附件.html》。主报告聚焦直接影响判断的事实、变化及差异；'
                   '完整证据附件保留本次信息台账的原文、原值、主体范围和出处，可按关键词或来源编号检索。'
                   '附件中的发布者陈述或平台记录不等于独立核实的公司结论。')
-            heading,_,rest=sections.get(13,'## 13. '+CompanyReportAgent.outline[12][0]).partition('\n')
+            heading,_,rest=sections.get(13,'## 13. '+outline[12][0]).partition('\n')
             if note not in rest:sections[13]=heading+'\n\n'+note+'\n\n'+rest
-        sections[14]=followup_chapter(project,CompanyReportAgent.outline)
+        sections[14]=followup_chapter(project,outline)
+        if chapter_agents:
+            sections[14]=chapter_agents[14].execute(lambda:sections[14],phase='followup')
         report='\n\n'.join(sections[n] for n in sorted(sections))
         reviews=[]
-        if editorial.get('findings') and not editorial.get('diagnostic',{}).get('pending_information_ids'):
+        def save_document_receipt(receipt):
+            if journal is not None:
+                with journal.lock:
+                    journal.data.setdefault('document_review_receipts',{})[receipt['input_sha256']]=receipt
+                    journal.save()
+        if editorial.get('findings'):
             for attempt in range(2):
                 review=document_review(project,split_sections(report),editorial,invoke,
-                    previous=reviews[-1] if reviews else None)
+                    previous=reviews[-1] if reviews else {'receipts':list(journal.data.get('document_review_receipts',{}).values())} if journal is not None else None,
+                    receipt_callback=save_document_receipt)
                 reviews.append(review)
                 if review['status']=='passed':break
                 if attempt==1:break
@@ -8306,12 +8450,17 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                 # rewrites of separately accepted facts in the same chapter.
                 fact_feedback=[i for i in feedback if i.get('quote') and any(
                     f['chapter']==i['chapter'] and i['quote'] in f['text'] for f in editorial.get('findings',[]))]
-                updated=(build_editorial_package(editorial_usage,CompanyReportAgent.outline,str(project.target_name),invoke,
+                updated=(build_editorial_package(editorial_usage,outline,str(project.target_name),invoke,
                     previous=editorial,feedback=fact_feedback,emit=_emit,trace_emit=emit,
-                    receipt_callback=lambda batch:checkpoint_editorial_batch(project,batch,_emit,emit)) if fact_feedback else editorial)
+                    receipt_callback=lambda batch:checkpoint_editorial_batch(project,batch,_emit,emit),
+                    chapter_agents=chapter_agents) if fact_feedback else editorial)
                 if updated['diagnostic']['pending_information_ids']:
-                    editorial.setdefault('failed_delivery_repairs',[]).append(updated)
-                    break
+                    # An unrelated pending batch must not discard a successful
+                    # located repair. Re-render only independently accepted
+                    # findings; the final contract still blocks delivery.
+                    updated.setdefault('failed_delivery_repairs',[]).append({
+                        'pending_information_ids':updated['diagnostic']['pending_information_ids'],
+                        'issues':feedback})
                 sections=split_sections(report)
                 project.company_editorial_package=updated
                 for f in editorial.get('findings',[]):
@@ -8321,24 +8470,31 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                     sections[chapter]=sections[chapter].split('### 同口径原值差异及处理',1)[0].rstrip()
                 digest=getattr(project,'company_corpus_digest_package',{}) or {}
                 digest['groups']=digest_groups(updated)
-                sections=render_compact_chapters(project,digest,CompanyReportAgent.outline,sections)
+                sections=render_compact_chapters(project,digest,outline,sections)
                 for group in digest['groups']:
                     if group['chapter']==12:sections[12]+='\n\n'+group['summary']
                 sections=render_conflicts(updated,sections)
-                sections=fill_evidence_gaps(sections,updated,CompanyReportAgent.outline,usage=usage)
-                if any(i['chapter']==1 for i in feedback):
+                sections=fill_evidence_gaps(sections,updated,outline,usage=usage)
+                if any(i['chapter']==1 for i in feedback) or updated.get('findings')!=editorial.get('findings'):
                     project.company_summary_editorial_feedback=[i for i in feedback if i['chapter']==1]
                     sections[1]=CompanyReportAgent()._write_summary(project,'{}',sections,invoke,_emit,emit)
-                sections[14]=followup_chapter(project,CompanyReportAgent.outline)
+                sections[14]=followup_chapter(project,outline)
+                if chapter_agents:
+                    sections[14]=chapter_agents[14].execute(lambda:sections[14],phase='followup_repair')
                 sections=stamp_research_date(project,sections)
                 report='\n\n'.join(sections[n] for n in sorted(sections))
                 report=self._append_report_evidence_index(project,report,'{}',emit=emit)
                 editorial=updated
                 apply_narrative_uses(usage,editorial)
         project.company_editorial_package=editorial
+        if getattr(project,'company_flow_version',None):
+            from report_agents.company_chapter_placements import appendix_html
+            project.company_chapter_appendix_html=appendix_html(usage,editorial)
         project.company_document_review=({**reviews[-1],'report_sha256':report_hash(report),'attempts':reviews}
             if reviews else {'status':'failed','issues':[{'message':'没有完成正文语义精编，无法进行全文验收'}],
                              'report_sha256':report_hash(report)})
+        if chapter_agents:
+            project.company_chapter_agents_metadata=[a.metadata() for a in chapter_agents.values()]
         contract=assess_delivery(project,report)
         project.company_delivery_contract=contract
         _emit(emit,'report','company_editorial','公司报告内容交付验收',
@@ -9197,6 +9353,10 @@ Do not infer controllable impact or low risk from absence of penalties. A single
         if project.target_type == "person" and artifact_type == "desktop_report":
             artifact_metadata.update(requires_human_review=True, verification_status="source_statements_only", delivery_status="review_draft")
             artifact_metadata['person_relationship_graph_audit'] = getattr(project,'person_relationship_graph_audit',{})
+        if project.target_type == 'company' and artifact_type == 'desktop_report':
+            artifact_metadata.update(
+                company_template_version=getattr(project,'company_template_version',''),
+                company_chapter_agents=getattr(project,'company_chapter_agents_metadata',[]))
         index_job = None
         object_key = '' if artifact_type == 'industry_run' else research_store.put_text(
             f"projects/{project.id}/{artifact_type}/{artifact_type}_v{version}.{suffix}",
@@ -9237,7 +9397,7 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                     title=title,
                     review_draft=bool(artifact_metadata.get("quality_warning") or artifact_metadata.get("requires_human_review")),
                     outline=self._select_report_outline(project) if artifact_type == "desktop_report" else None,
-                    document_kind=('industry_proposal' if artifact_type == 'proposal' else 'industry_report') if project.target_type == 'industry' else 'report',
+                    document_kind=('industry_proposal' if artifact_type == 'proposal' else 'industry_report') if project.target_type == 'industry' else 'company_report' if project.target_type=='company' and artifact_type=='desktop_report' else 'report',
                 )
                 if project.target_type == 'industry':
                     try:

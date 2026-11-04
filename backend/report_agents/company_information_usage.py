@@ -129,8 +129,11 @@ def validate_review(records, answer, outline):
         status = decision.get('status')
         if status == 'use':
             chapter = decision.get('chapter')
-            if isinstance(chapter,str) and re.fullmatch(r'\d{1,2}',chapter.strip()):
-                chapter=int(chapter.strip());decision['chapter']=chapter
+            if isinstance(chapter,str):
+                from .company_model_reading import canonical_chapter
+                normalized_chapter=canonical_chapter(chapter)
+                if normalized_chapter is not None:chapter=normalized_chapter;decision['chapter']=chapter
+                elif chapter.strip()=='12':chapter=12;decision['chapter']=12
             if type(chapter) is int and 2<=chapter<=12 and decision.get('aspect') not in outline[chapter-1][1]:
                 destinations=[i+1 for i,(_,aspects) in enumerate(outline[:12]) if decision.get('aspect') in aspects]
                 if len(destinations)==1:
@@ -252,7 +255,11 @@ def build_information_usage(digest, sections, outline, target, invoke, *, receip
                 if not pending:break
                 prompt=review_prompt(pending,target,outline)+'\n第'+str(attempt+2)+'次，仅修复这些未完成记录；保留已通过记录，不重写。诊断：'+json.dumps(errors,ensure_ascii=False)
             except Exception as exc:
-                errors=[type(exc).__name__];attempts.append({'attempt':attempt+1,'errors':errors})
+                from company_flow_state import CompanyFlowLimit
+                from .company_transport import CompanyModelUnavailable,failure_diagnostic
+                if isinstance(exc,CompanyFlowLimit):raise
+                errors=[type(exc).__name__];attempts.append({'attempt':attempt+1,'errors':errors,'transport_error':failure_diagnostic(exc,stage='information_routing')})
+                if isinstance(exc,CompanyModelUnavailable):break
                 prompt=review_prompt(remaining,target,outline)+'\n第'+str(attempt+2)+'次；上一返回无法解析，请输出完整有效JSON。'
         errors=['unreviewed_information:'+r['information_id'] for r in rows if r['information_id'] not in checked]
         excluded=[r for r in rows if checked.get(r['information_id'],{}).get('status')=='exclude']

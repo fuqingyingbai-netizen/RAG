@@ -1,0 +1,22 @@
+.checkbox-grid.company-chapter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+.company-chapter-grid .el-checkbox {
+  margin: 0;
+  min-width: 0;
+  height: auto;
+  min-height: 32px;
+  align-items: flex-start;
+  white-space: normal;
+}
+.company-chapter-grid .el-checkbox__input { margin-top: 4px; }
+.company-chapter-grid .el-checkbox__label {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+@media (max-width: 640px) {
+  .checkbox-grid.company-chapter-grid { grid-template-columns: minmax(0, 1fr); }
+}

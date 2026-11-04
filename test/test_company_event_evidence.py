@@ -56,7 +56,8 @@ def test_review_cannot_bypass_native_or_scope_guards(mutation, error):
 
 def test_after_cutoff_and_search_abstract_never_become_historical_event():
     s = source(); row = selection(s)
-    assert 'after_research_cutoff' in validate_event(row, s, TARGET, '2024-12-31')
+    assert not validate_event(row,s,TARGET,'2024-12-31',require_independent=False)
+    assert 'independent_check_input_or_response_changed' in validate_event(row,s,TARGET,'2024-12-31')
     s['source_metadata']['content_kind'] = 'search_summary'
     assert 'not_usable_primary_event_source' in validate_event(row, s, TARGET, '2026-10-20')
 

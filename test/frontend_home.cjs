@@ -12,7 +12,7 @@ const context = {
   document: {visibilityState: 'visible'}, setInterval() {return 1;}, clearInterval() {},
 };
 vm.runInNewContext(fs.readFileSync('frontend/script.js', 'utf8'), context);
-const homeAsset = fs.readFileSync('frontend/index.html', 'utf8').match(/<script src="(personal-home(?:\.[a-f0-9]+)?\.js)"><\/script>/)?.[1];
+const homeAsset = fs.readFileSync('frontend/index.html', 'utf8').match(/<script(?: defer)? src="(personal-home(?:\.[a-f0-9]+)?\.js)"><\/script>/)?.[1];
 assert.ok(homeAsset, 'Homepage tests must load the component actually served by index.html');
 const homeDefinition = vm.runInNewContext(fs.readFileSync(`frontend/${homeAsset}`, 'utf8') + '\nPersonalHome;', context);
 function state(definition, props = {}) {

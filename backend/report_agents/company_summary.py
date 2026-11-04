@@ -160,7 +160,7 @@ def _chapter_summary_cards(packages: dict[str, Any]) -> list[dict[str, Any]]:
     """Use admitted fields, not chapter prose, to synchronize the summary."""
     result = []
     editorial=packages.get('editorial') or {}
-    if editorial.get('version','').startswith('company-editorial-') and not editorial.get('diagnostic',{}).get('pending_information_ids'):
+    if editorial.get('version','').startswith('company-editorial-'):
         for f in editorial.get('findings',[]):
             ids=f.get('evidence_ids') or []
             if not ids:continue
@@ -240,7 +240,7 @@ def build_company_summary_package(
 
     def add(fact: dict[str, Any], text: str, topic: str, *, raw: bool = False, period: str = "", verified: bool = False) -> None:
         text = re.sub(r"\s+", " ", text).strip()
-        if topic not in SUMMARY_TOPICS or not 10 <= len(text) <= 650 or NATIONAL_DATA.search(text) or any(x in text for x in PROCESS_NOISE) or re.search(r"(?:的企业名称|：企业名称)为", text):
+        if topic not in SUMMARY_TOPICS or not text or (not verified and (not 10 <= len(text) <= 650 or NATIONAL_DATA.search(text) or any(x in text for x in PROCESS_NOISE) or re.search(r"(?:的企业名称|：企业名称)为", text))):
             counts["unsuitable_claim"] += 1
             return
         original_source = source_by_url.get(str(fact.get("source_url") or ""))
@@ -404,7 +404,8 @@ def build_company_summary_package(
     if any(c.get('original_record_kind')=='regulatory_remediation' for c in candidates):quotas['risk']=2
     topic_counts: Counter[str] = Counter()
     package: dict[str, Any] = {"facts": [], "query_observations": list({x["source_title"]: x for x in observations}.values())[:3],
-                               "evidence_boundary": "仅摘要所需的目标主体原文事实；其他主体或全库未覆盖状态不得由本章推定。"}
+                               "evidence_boundary": "仅摘要所需的目标主体原文事实；其他主体或全库未覆盖状态不得由本章推定。",
+                               "pending_information_ids":(chapter_packages or {}).get("editorial",{}).get("diagnostic",{}).get("pending_information_ids",[])}
     for _ in range(4):
         for topic in topics:
             if topic_counts[topic] >= quotas[topic]:

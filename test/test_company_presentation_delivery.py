@@ -169,6 +169,7 @@ def test_report_agent_keeps_annex_information_out_of_main_writing_only_in_reques
     main_rows=rows if mode=='detailed' else rows[:2];base=invoke_for(main_rows);roles=[]
     def invoke(role,prompt,trace):
         roles.append(role)
+        role=role.split('｜',1)[0]
         if role.startswith('公司交付正文取舍'):return json.dumps(answer_for(rows))
         if role.startswith('公司主报告事实选择'):
             data=json.loads(prompt.split('完整资料：\n',1)[1])

@@ -1,0 +1,73 @@
+{
+  "company": "kingsoft",
+  "scope": "same-native-bytes historical-proposal guard and model scope repair; not narrative/report acceptance",
+  "native_sources": 26,
+  "original_proposals": 31,
+  "before_pending_scope": 3,
+  "after_valid_selections": 29,
+  "pending_repairs": [
+    {
+      "proposal_index": 28,
+      "selection": {
+        "chapter": 3,
+        "evidence_id": "E-41E8CE1A57D0",
+        "relevance": "全资子公司与关联方签1500万元技术服务合同，佐证关联交易",
+        "scope": "target",
+        "window_id": "W2"
+      },
+      "reason": "target_scope_requires_entity_clarification"
+    }
+  ],
+  "repairs": [
+    {
+      "proposal_index": 4,
+      "replacement": null,
+      "reason": "原窗口W46（E-B043642DD500）出自聚辰半导体招股说明书，北京金山办公软件股份有限公司在该文件中仅作为“陈作涛担任独立董事的企业”被列为关联方，属于第三方文件中的关联方披露，并非目标公司自身披露的经营范围或独董任职证据；该窗口不能证明目标公司经营范围，也不能证明陈作涛在目标公司的任职事实，主体范围无法按目标直接责任纠正，故撤回。"
+    },
+    {
+      "proposal_index": 16,
+      "replacement": {
+        "evidence_id": "E-28CEF0C6BC50",
+        "window_id": "W7",
+        "chapter": 3,
+        "scope": "target",
+        "relevance": "披露金山办公经营范围含软件开发、软件销售、互联网信息服务及第二类增值电信业务",
+        "quote": "经营范围： 一般项目：货物进出口；技术进出口；计算机软硬件及辅助设备批发；通信设备销售；软件开发；广告发布；广告设计、代理；广告制作；信息系统集成服务；技术服务、技术开发、技术咨询、技术交流、技术转让、技术推广；软件销售。（除依法须经批准的项目外，凭营业执照依法自主开展经营活动）许可项目：出版物批发；互联网信息服务；第二类增值电信业务。（依法须经批准的项目，经相关部门批准后方可开展经营活动，具体经营项目以相关部门批准文件或许可证件为准）（不得从事国家和本市产业政策禁止和限制类项目的经营活动）。",
+        "quote_start": 543,
+        "subject_basis": "窗口所在页面标题为“金山办公(688111) 主营构成_F10_同花顺金融服务网”，证券代码688111与公司简称金山办公对应目标公司；窗口内“经营范围”段落紧接主营构成数据，系对金山办公（688111）经营范围的记载，主体指向目标公司。"
+      },
+      "reason": "原引用主体范围需澄清：该窗口来自同花顺F10页面，标题以证券代码688111及简称“金山办公”标识目标公司，窗口内经营范围段落与主营构成数据同页呈现，可确认系目标公司经营范围记载，故将scope维持为target并补充subject_basis；章节按经营范围/业务介绍语义归入第3章。"
+    },
+    {
+      "proposal_index": 28,
+      "replacement": {
+        "evidence_id": "E-41E8CE1A57D0",
+        "window_id": "W2",
+        "chapter": 3,
+        "scope": "target_subsidiary",
+        "relevance": "金山办公全资子公司珠金办与关联方北京金山数字娱乐签署技术服务合同，合同总金额预计不超过1500万元，佐证关联交易",
+        "quote": "10月26日，金山办公发布公告称，公司全资子公司珠海金山办公软件有限公司（甲方，简称珠金办）拟与北京金山数字娱乐科技有限公司（乙方）签署《技术服务合同》，合同总金额预计不超过1500万元。",
+        "quote_start": 936,
+        "subject_basis": "原文明确签约甲方为“公司全资子公司珠海金山办公软件有限公司（甲方，简称珠金办）”，乙方为“北京金山数字娱乐科技有限公司”；合同主体为全资子公司而非目标公司本体，目标公司仅为公告披露方。"
+      },
+      "reason": "原scope标为target不准确：窗口原文显示合同签署主体为金山办公的全资子公司珠海金山办公软件有限公司（珠金办），交易对方为北京金山数字娱乐科技有限公司，目标公司系公告披露方而非合同直接签约主体；按真实范围纠正为target_subsidiary，避免将子公司合同义务推定为目标公司直接责任。章节按关联交易/子公司事项归入第3章。"
+    }
+  ],
+  "error": null,
+  "metrics": {
+    "model_calls": 1,
+    "input_chars": 108901,
+    "output_chars": 1881,
+    "input_tokens": 58003,
+    "output_tokens": 845,
+    "reported_usage_calls": 1,
+    "search_queries": 0,
+    "query_cache_hits": 0,
+    "platform_requests": 0,
+    "platform_cache_hits": 0,
+    "elapsed_seconds": 6.359
+  },
+  "seconds": 6.407,
+  "model": "deepseek-flash",
+  "base_url": "https://api.deepseek.com"
+}

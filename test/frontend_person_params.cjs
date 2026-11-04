@@ -42,12 +42,13 @@ state.selectedFiles = [];
   state.runWorkflow = async () => {};
   await state.submitTask();
   const created = calls.find(c => c.url === '/research/projects').payload.metadata;
-  assert.equal(created.person_context, state.form.personContext);
+  assert.equal(created.person_context, '2018—2022年任职；教育：远山大学');
+  assert.equal(state.form.personContext,'');
   assert.equal(JSON.stringify(created.person_aliases), JSON.stringify(['Evan Lin', '林知遠']));
   state.runWorkflow = run;
-  await state.runWorkflow(project);
+  await state.runExistingWorkflow(project,created);
   const fresh = calls.find(c => c.url.endsWith('/run/stream')).payload;
-  assert.equal(fresh.person_context, state.form.personContext);
+  assert.equal(fresh.person_context, created.person_context);
   assert.equal(fresh.ai_search_enabled, false);
   const intake = { ...created, identity_anchors: '远山大学', as_of_date: '2026-10-20',
     uploaded_identity_clues: [{ subject: '林知远', provenance: 'uploaded_material_unverified' }],
@@ -63,10 +64,8 @@ state.selectedFiles = [];
   state.projectDetails[project.id] = { intake };
   await state.runSecondStage();
   const reviewed = calls.find(c => c.url.includes('/second-stage/')).payload;
-  assert.equal(reviewed.person_context, intake.person_context);
-  assert.equal(reviewed.identity_anchors, intake.identity_anchors);
-  assert.ok(reviewed.focus_questions.includes('核对历史任职'));
-  assert.ok(reviewed.special_requirements.includes(intake.special_requirements));
-  assert.equal(reviewed.ai_search_enabled, false);
+  assert.equal(reviewed.proposal_review_notes,'');
+  assert.equal(reviewed.person_context,undefined); // Formal proposal reads saved context on the server.
+  assert.equal(reviewed.ai_search_enabled,undefined); // It does not restart person research.
   console.log('Person create, run, resume and second-stage context parameters passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

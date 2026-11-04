@@ -1,0 +1,47 @@
+{
+  "company": "haitian",
+  "scope": "same-native-bytes historical-proposal guard and model scope repair; not narrative/report acceptance",
+  "native_sources": 19,
+  "original_proposals": 34,
+  "before_pending_scope": 2,
+  "after_valid_selections": 33,
+  "pending_repairs": [],
+  "repairs": [
+    {
+      "proposal_index": 20,
+      "replacement": null,
+      "reason": "撤回：所给窗口W1（E-1F32FEF57F27）原文主体为“佛山市海天调味食品有限公司”，并非目标“佛山市海天调味食品股份有限公司”，且该页为第三方招聘聚合页，简介口径陈旧（200余年历史、60万吨产销、年销售额超20亿），无法将主体范围纠正为目标单体责任；按target_scope_requires_entity_clarification，当前原文无可用subject_basis支持target scope，故不保留该片段。"
+    },
+    {
+      "proposal_index": 32,
+      "replacement": {
+        "evidence_id": "E-9B92AAD1D3A6",
+        "window_id": "W3",
+        "chapter": 3,
+        "scope": "target",
+        "relevance": "公司公告披露制定2026年度“提质增效重回报”行动方案，属公司治理与股东回报计划，主体为佛山市海天调味食品股份有限公司。",
+        "quote": "为贯彻落实国务院《关于进一步提高上市公司质量的意见》的相关要求，\n积极响应上海证券交易所《关于开展沪市公司“提质增效重回报”专项行动的\n倡议》，践行“经营发展和投资者回报并重”的理念，佛山市海天调味食品股\n份有限公司（以下简称“公司”）切实承担起高质量发展和提升投资价值的主\n体责任，在总结前期专项行动实施效果与投资者意见的基础上，结合自身发展\n战略、经营实际及财务状况，制定2026年度“提质增效重回报”行动方案。",
+        "quote_start": 425,
+        "subject_basis": "原文明确载明“佛山市海天调味食品股份有限公司（以下简称“公司”）……制定2026年度“提质增效重回报”行动方案”，且公告标题为“佛山市海天调味食品股份有限公司 关于2026年度“提质增效重回报”行动方案的公告”，主体与目标一致。"
+      },
+      "reason": "原selection的window_id为W3但未给出可核对的连续原文；经核对E-9B92AAD1D3A6的W3窗口，原文明确以“佛山市海天调味食品股份有限公司（以下简称“公司”）”为主体制定2026年度行动方案，主体范围可确认为target，章节按公司治理/股东回报计划归入3，故按真实窗口原文纠正并保留。"
+    }
+  ],
+  "error": null,
+  "metrics": {
+    "model_calls": 1,
+    "input_chars": 90526,
+    "output_chars": 1177,
+    "input_tokens": 50626,
+    "output_tokens": 535,
+    "reported_usage_calls": 1,
+    "search_queries": 0,
+    "query_cache_hits": 0,
+    "platform_requests": 0,
+    "platform_cache_hits": 0,
+    "elapsed_seconds": 5.391
+  },
+  "seconds": 5.422,
+  "model": "deepseek-flash",
+  "base_url": "https://api.deepseek.com"
+}

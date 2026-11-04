@@ -570,7 +570,7 @@ def markdown_to_docx_bytes(
     document_kind: str = 'report',
 ) -> bytes:
     lines = (markdown or "").replace("\r\n", "\n").split("\n")
-    company_claim_index = bool(re.search(r"(?m)^##\s*13[.、．]\s*信息来源（自动生成审计索引）", markdown or ""))
+    company_claim_index = document_kind=='company_report' or bool(re.search(r"(?m)^##\s*13[.、．]\s*信息来源（自动生成审计索引）", markdown or ""))
     person_claim_index = bool(re.search(r"(?m)^##\s*14[.、．]\s*信息来源（正文实际引用索引）", markdown or ""))
     indexed_evidence_ids = sorted(set(
         match.group(1).upper()

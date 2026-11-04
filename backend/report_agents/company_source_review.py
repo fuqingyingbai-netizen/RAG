@@ -223,8 +223,7 @@ def prepare_review(project, cleaned, sections):
         if cited & ({evidence_id(source),eid} | {str(c.get('evidence_id') or '') for c in local}):
             info['state']='already_body_cited';continue
         meta=get(source,'source_metadata',{}) or {}
-        if as_of and str(meta.get('publication_date') or '')>as_of:
-            info['state']='after_research_cutoff';continue
+        info['post_cutoff_disclosure']=bool(as_of and str(meta.get('publication_date') or '')>as_of)
         # Explicit semantic exclusions are final. A generic excerpt labelled
         # noise only because its prefix was clipped can be examined anew,
         # without rewriting or re-admitting the excluded card itself.
@@ -234,7 +233,7 @@ def prepare_review(project, cleaned, sections):
         if not kind:continue
         date_proof=document_date_proof(source)
         if as_of and date_proof and date_proof['date']>as_of:
-            info['state']='after_research_cutoff';continue
+            info['post_cutoff_disclosure']=True
         raw,origin=source_body(source)
         windows=passage_windows(raw,target,kind)
         info['candidate_windows']=len(windows)
@@ -265,6 +264,9 @@ def validate_selection(row, documents, target, as_of=''):
     if not isinstance(row,dict):return None,'invalid_row'
     doc=documents.get(str(row.get('evidence_id') or ''))
     if not doc:return None,'unknown_source'
+    if doc.get('model_reading_mode'):
+        from .company_model_reading import validate_model_selection
+        return validate_model_selection(row,doc,target,as_of)
     window_id=str(row.get('window_id') or '')
     chosen=next((w for w in doc['windows'] if w.get('window_id')==window_id),None) if window_id else None
     if window_id and chosen is None:return None,'unknown_window'
@@ -379,7 +381,7 @@ def validate_selection(row, documents, target, as_of=''):
     # complete quote; a date absent from it must not become a table value.
     stamp='' if chosen else str(row.get('date') or '')
     if stamp and not re.fullmatch(r'(?:19|20)\d{2}(?:-\d{2}(?:-\d{2})?)?',stamp):return None,'invalid_date'
-    if stamp and as_of and stamp>as_of:return None,'after_research_cutoff'
+    # Date and publication context are retained; semantic review checks the historical claim.
     if stamp:
         parts=stamp.split('-')
         pattern=re.escape(parts[0])+r'\s*(?:年|[-/.])'

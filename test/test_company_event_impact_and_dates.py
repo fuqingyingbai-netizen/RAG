@@ -78,10 +78,12 @@ def test_explicit_publication_date_and_document_date_keep_their_own_meaning():
                                    date_quote='发布日期：2026-10-24', date_quote_offset=0)
     assert not validate_event(row, s, TARGET, AS_OF, require_independent=False)
     assert event_period(row).startswith('资料发布日期2026-10-24')
-    assert 'after_research_cutoff' in validate_event(row, s, TARGET, '2026-10-23')
+    assert not validate_event(row,s,TARGET,'2026-10-23',require_independent=False)
+    assert 'independent_check_input_or_response_changed' in validate_event(row,s,TARGET,'2026-10-23')
     row.update(source_date_role='document_date', publication_date=None)
     assert event_period(row).startswith('文书署明日期2026-10-24')
-    assert 'after_research_cutoff' in validate_event(row, s, TARGET, '2026-10-23')
+    assert not validate_event(row,s,TARGET,'2026-10-23',require_independent=False)
+    assert 'independent_check_input_or_response_changed' in validate_event(row,s,TARGET,'2026-10-23')
 
 
 def test_undated_event_does_not_require_a_made_up_date_quote():

@@ -18,13 +18,13 @@ def intake(**changes):
 
 
 def checkbox_modules():
-    text = (Path(__file__).parents[1] / 'frontend/script.js').read_text(encoding='utf-8')
-    block = text.split('modulesByTarget: { company: [', 1)[1].split('], person:', 1)[0]
-    return re.findall(r"value:\s*'([^']+)'", block)
+    from company_chapters import public_config
+    return public_config()['defaults']
 
 
 def test_every_real_company_checkbox_has_a_specific_question_and_original_contract():
     modules = checkbox_modules()
+    assert len(modules) == 10
     rows = build_requirements(modules, intake())
     assert len(rows) == len(modules) == len({r['requirement_id'] for r in rows})
     for row in rows:
@@ -128,8 +128,8 @@ def test_resume_uses_only_specific_gaps_without_mutating_intake_or_claiming_acce
 
 
 @pytest.mark.parametrize('mixed_tiers',[False,True])
-def test_real_resume_and_collector_pass_only_gap_queries_with_requirement_ids(monkeypatch,mixed_tiers):
-    """Exercise both entry points; abort at the network boundary, before calls."""
+def test_existing_gap_collector_passes_only_bound_gap_queries(monkeypatch,mixed_tiers):
+    """The collector keeps targeted requests; company dispatch is tested separately."""
     class ReachedSearch(BaseException):pass
     workflow=ResearchWorkflow()
     config=intake(focus_modules=['收入情况'],max_search_rounds=4)
@@ -158,7 +158,9 @@ def test_real_resume_and_collector_pass_only_gap_queries_with_requirement_ids(mo
         captured.extend(rows)
         raise ReachedSearch()
     monkeypatch.setattr(workflow,'_search_query_items_parallel',search)
-    with pytest.raises(ReachedSearch):workflow.run_project(db,project,[],[],intake=config)
+    selected=resume_gap_intake(config,gaps,plan['company_requirements'])
+    with pytest.raises(ReachedSearch):workflow.collect_web_sources(db,project,[],[],30,
+        plan=plan,intake=selected,reuse_archived=False)
     assert len(captured)==len(gaps) and captured[0]['query']==query['query']
     assert all(r['company_requirement_ids']==[plan['company_requirements'][0]['requirement_id']] for r in captured)
 

@@ -1,0 +1,789 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="29" skipped="0" tests="540" time="42.013" timestamp="2026-11-04T18:14:24.931508+08:00" hostname="DESKTOP-226P4DF"><testcase classname="test.test_company_assessment" name="test_weights_are_explicit_company_performance_not_evidence_coverage" time="0.001" /><testcase classname="test.test_company_assessment" name="test_original_platform_fields_can_score_revenue_profit_and_cash_without_exchange" time="0.026" /><testcase classname="test.test_company_assessment" name="test_platform_class_is_admitted_but_missing_or_incompatible_fields_do_not_score[\u9752\u79be\u5236\u9020\u80a1\u4efd\u6709\u9650\u516c\u53f8-\u9752\u79be\u5143\u4ef6\u80a1\u4efd\u6709\u9650\u516c\u53f8]" time="0.004" /><testcase classname="test.test_company_assessment" name="test_platform_class_is_admitted_but_missing_or_incompatible_fields_do_not_score[2025-12-31-\u5f85\u67e5]" time="0.009" /><testcase classname="test.test_company_assessment" name="test_platform_class_is_admitted_but_missing_or_incompatible_fields_do_not_score[\u4e07\u5143-\u5f85\u67e5]" time="0.010" /><testcase classname="test.test_company_assessment" name="test_platform_class_is_admitted_but_missing_or_incompatible_fields_do_not_score[\u5408\u5e76-\u5b50\u516c\u53f8\u53e3\u5f84]" time="0.010" /><testcase classname="test.test_company_assessment" name="test_platform_class_is_admitted_but_missing_or_incompatible_fields_do_not_score[\u4eba\u6c11\u5e01-\u5f85\u67e5]" time="0.010" /><testcase classname="test.test_company_assessment" name="test_platform_class_is_admitted_but_missing_or_incompatible_fields_do_not_score[2025\u5e74\u5ea6-2025\u5e74\u5355\u5b63]" time="0.009" /><testcase classname="test.test_company_assessment" name="test_platform_estimated_revenue_does_not_erase_other_actual_metrics" time="0.010" /><testcase classname="test.test_company_assessment" name="test_explicit_subject_quarantine_cannot_reenter_target_financial_scoring[rejected]" time="0.002" /><testcase classname="test.test_company_assessment" name="test_explicit_subject_quarantine_cannot_reenter_target_financial_scoring[ambiguous]" time="0.002" /><testcase classname="test.test_company_assessment" name="test_explicit_subject_quarantine_cannot_reenter_target_financial_scoring[related_entity_context]" time="0.002" /><testcase classname="test.test_company_assessment" name="test_platform_copy_of_actual_outcomes_and_audit_is_not_rejected_by_domain" time="0.020" /><testcase classname="test.test_company_assessment" name="test_platform_funding_amount_is_visible_without_inventing_completion_or_receipt" time="0.006" /><testcase classname="test.test_company_assessment" name="test_platform_explicit_completed_receipt_can_score_and_is_literal_revalidated" time="0.023" /><testcase classname="test.test_company_assessment" name="test_platform_native_json_financial_rows_preserve_quote_and_decimal_precision" time="0.007" /><testcase classname="test.test_company_assessment" name="test_mixed_company_platform_table_admits_only_target_rows_without_rejecting_comparison" time="0.012" /><testcase classname="test.test_company_assessment" name="test_read_current_prior_and_third_values_from_actual_header_and_local_units[False]" time="0.002" /><testcase classname="test.test_company_assessment" name="test_read_current_prior_and_third_values_from_actual_header_and_local_units[True]" time="0.002" /><testcase classname="test.test_company_assessment" name="test_interim_is_not_annualized_and_cannot_earn_two_annual_growth_bonus" time="0.001" /><testcase classname="test.test_company_assessment" name="test_revenue_scores_follow_observed_trend_not_scale[120-100-90-5]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_revenue_scores_follow_observed_trend_not_scale[120-100-None-4]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_revenue_scores_follow_observed_trend_not_scale[100-100-90-3]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_revenue_scores_follow_observed_trend_not_scale[90-100-80-2]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_revenue_scores_follow_observed_trend_not_scale[80-90-100-1]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_revenue_scores_follow_observed_trend_not_scale[0-90-80-1]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_revenue_scores_follow_observed_trend_not_scale[20-0-None-3]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_revenue_scores_follow_observed_trend_not_scale[0-0-None-None]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_revenue_scores_follow_observed_trend_not_scale[-5-100-90-None]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_profit_and_cash_are_not_divided_or_confused[-1--1-2-2-1]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_profit_and_cash_are_not_divided_or_confused[-1-2-2-2-2]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_profit_and_cash_are_not_divided_or_confused[0-2-2-2-2]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_profit_and_cash_are_not_divided_or_confused[2-1-3-2-3]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_profit_and_cash_are_not_divided_or_confused[2-2-1-1-4]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_conflicting_latest_observation_freezes_score_instead_of_picking_favorable" time="0.000" /><testcase classname="test.test_company_assessment" name="test_profit_cash_require_matching_period_and_unit" time="0.000" /><testcase classname="test.test_company_assessment" name="test_missing_dimensions_keep_weights_and_are_not_imputed_zero_or_three" time="0.001" /><testcase classname="test.test_company_assessment" name="test_empty_packet_has_no_fake_low_score_or_meaningless_range" time="0.001" /><testcase classname="test.test_company_assessment" name="test_duplicate_documents_do_not_raise_company_score" time="0.105" /><testcase classname="test.test_company_assessment" name="test_cleaner_score_claims_and_wrong_company_original_are_not_inputs" time="0.012" /><testcase classname="test.test_company_assessment" name="test_failed_snippet_or_untrusted_original_cannot_score[&lt;lambda&gt;0]" time="0.006" /><testcase classname="test.test_company_assessment" name="test_failed_snippet_or_untrusted_original_cannot_score[&lt;lambda&gt;1]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_failed_snippet_or_untrusted_original_cannot_score[&lt;lambda&gt;2]" time="0.003" /><testcase classname="test.test_company_assessment" name="test_future_or_decade_old_financials_do_not_represent_current_profile" time="0.047" /><testcase classname="test.test_company_assessment" name="test_deficiency_definitions_are_not_findings_or_negative_opinions" time="0.001" /><testcase classname="test.test_company_assessment" name="test_actual_adverse_internal_control_opinion_not_treated_as_effective" time="0.001" /><testcase classname="test.test_company_assessment" name="test_financial_statement_audit_and_company_self_assessment_do_not_replace_control_opinion" time="0.001" /><testcase classname="test.test_company_assessment" name="test_same_control_opinion_mirrors_cannot_earn_continuity_bonus" time="0.001" /><testcase classname="test.test_company_assessment" name="test_only_actual_issuer_completed_funding_and_same_quote_amount_count" time="0.001" /><testcase classname="test.test_company_assessment" name="test_planned_approved_or_subsidiary_funding_not_parent_execution_grade[2025\u5e743\u670811\u65e5\uff0c\u672c\u516c\u53f8\u62df\u5b8c\u6210\u914d\u552e\uff0c\u51c0\u989d1,200\u4e07\u5143\u3002]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_planned_approved_or_subsidiary_funding_not_parent_execution_grade[2025\u5e743\u670811\u65e5\uff0c\u672c\u516c\u53f8\u5b50\u516c\u53f8\u5b8c\u6210\u914d\u552e\uff0c\u51c0\u989d1,200\u4e07\u5143\u3002]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_planned_approved_or_subsidiary_funding_not_parent_execution_grade[2025\u5e743\u670811\u65e5\uff0c\u672c\u516c\u53f8\u83b7\u6279\u53d1\u884c\uff0c\u51c0\u989d1,200\u4e07\u5143\u3002]" time="0.001" /><testcase classname="test.test_company_assessment" name="test_proper_company_outcomes_enable_technology_and_execution_scoring" time="0.033" /><testcase classname="test.test_company_assessment" name="test_subsidiary_tech_data_or_missing_company_scope_cannot_become_company_score" time="0.002" /><testcase classname="test.test_company_assessment" name="test_execution_incomplete_weights_and_retroactive_goals_do_not_score" time="0.003" /><testcase classname="test.test_company_assessment" name="test_complete_evidence_can_produce_company_score_not_permanent_unknown_workaround" time="0.050" /><testcase classname="test.test_company_assessment" name="test_capital_status_uses_later_formal_termination_not_earlier_approval" time="0.002" /><testcase classname="test.test_company_assessment" name="test_termination_is_not_transferred_by_brand_or_unproven_parent_relation" time="0.002" /><testcase classname="test.test_company_assessment" name="test_future_parent_relationship_not_available_for_historical_cutoff" time="0.002"><failure message="AssertionError: assert not [{'source_url': 'https://www.hkexnews.hk/reports/2025/r1.pdf', 'source_title': '青禾制造股份有限公司2025年年度报告', 'evidence_id': 'E-96D32FDF448A', 'evidence_ids': ['E-96D32FDF448A'], ...}]">def test_future_parent_relationship_not_available_for_historical_cutoff():
+        rows,_=capital_status_observations([capital_parent(),termination_notice()],ROOT,defaultdict(list),'2022-02-01')
+&gt;       assert not rows
+E       AssertionError: assert not [{'source_url': 'https://www.hkexnews.hk/reports/2025/r1.pdf', 'source_title': '青禾制造股份有限公司2025年年度报告', 'evidence_id': 'E-96D32FDF448A', 'evidence_ids': ['E-96D32FDF448A'], ...}]
+
+test\test_company_assessment.py:364: AssertionError</failure></testcase><testcase classname="test.test_company_assessment" name="test_invalid_research_cutoff_cannot_be_silently_reinterpreted" time="0.001" /><testcase classname="test.test_company_assessment" name="test_combined_company_and_consolidated_statement_date_before_title" time="0.002" /><testcase classname="test.test_company_assessment" name="test_project_targets_future_dates_or_termination_are_not_accomplished_production[\u622a\u81f32025\u5e74\u672b\uff0c\u9879\u76ee\u5c1a\u672a\u6295\u4ea7\uff0c\u6b63\u5728\u51c6\u5907\u5de5\u4f5c\u3002-None]" time="0.031" /><testcase classname="test.test_company_assessment" name="test_project_targets_future_dates_or_termination_are_not_accomplished_production[2025\u5e7410\u67081\u65e5\uff0c\u6838\u5fc3\u5668\u4ef6\u9879\u76ee\u5df2\u6295\u4ea7\uff0c\u5f00\u5c55\u5ba2\u6237\u4ea4\u4ed8\u3002-3]" time="0.032" /><testcase classname="test.test_company_assessment" name="test_project_targets_future_dates_or_termination_are_not_accomplished_production[2028\u5e7410\u67081\u65e5\uff0c\u6838\u5fc3\u5668\u4ef6\u9879\u76ee\u5df2\u6295\u4ea7\uff0c\u5f00\u5c55\u5ba2\u6237\u4ea4\u4ed8\u3002-None]" time="0.031" /><testcase classname="test.test_company_assessment" name="test_project_targets_future_dates_or_termination_are_not_accomplished_production[\u9879\u76ee\u5df2\u7ecf\u7ec8\u6b62\u91cf\u4ea7\u5de5\u4f5c\uff0c\u540e\u7eed\u53d1\u5c55\u53e6\u884c\u7814\u7a76\u3002-None]" time="0.030" /><testcase classname="test.test_company_assessment" name="test_project_targets_future_dates_or_termination_are_not_accomplished_production[\u6838\u5fc3\u5668\u4ef6\u8fbe\u5230A\u6837\u72b6\u6001\uff0c\u9884\u8ba12026\u5e74\u5b9e\u73b0\u4e0a\u5e02\u3002-2]" time="0.030" /><testcase classname="test.test_company_assessment" name="test_project_targets_future_dates_or_termination_are_not_accomplished_production[\u9879\u76ee\u5904\u4e8e\u7814\u53d1\u6837\u673a\u8bd5\u5236\u9636\u6bb5\uff0c\u5f00\u5c55\u6027\u80fd\u9a8c\u8bc1\u3002-2]" time="0.030" /><testcase classname="test.test_company_assessment" name="test_narrative_does_not_join_different_period_profit_and_cash_as_coexisting" time="0.039" /><testcase classname="test.test_company_assessment" name="test_model_cannot_rewrite_checked_chapter12_and_audit_index_uses_its_originals" time="0.064" /><testcase classname="test.test_company_assessment" name="test_no_citation_padding_and_no_model_rating_fallback_for_empty_chapter" time="0.001" /><testcase classname="test.test_company_assessment" name="test_tampered_aggregate_and_orphan_eid_are_detected" time="0.026" /><testcase classname="test.test_company_assessment" name="test_partial_pdf_metrics_do_not_imply_full_document_acceptance" time="0.024" /><testcase classname="test.test_company_assessment" name="test_company_template_fallback_without_current_chapter_checks_fails_gate" time="0.001" /><testcase classname="test.test_company_assessment" name="test_generation_resets_old_diagnostics_before_any_template_fallback" time="0.018" /><testcase classname="test.test_company_chapter_flow" name="test_long_document_is_located_by_chapter_without_embedding_or_full_prompt" time="0.054" /><testcase classname="test.test_company_chapter_flow" name="test_query_cache_is_single_flight_scoped_and_preserves_failing_requests" time="0.169" /><testcase classname="test.test_company_chapter_flow" name="test_checkpoint_tamper_budget_and_scope_are_not_silent_success" time="0.075" /><testcase classname="test.test_company_chapter_flow" name="test_question_completion_requires_known_native_proofs" time="0.001" /><testcase classname="test.test_company_chapter_flow" name="test_real_chapter_loop_writes_six_before_seven_reusing_the_same_yearbook" time="0.721" /><testcase classname="test.test_company_chapter_flow" name="test_resume_revalidates_receipts_and_does_not_rewrite_unchanged_chapter" time="0.518" /><testcase classname="test.test_company_chapter_flow" name="test_changed_native_body_invalidates_index_and_earlier_chapter_only_when_related" time="0.941" /><testcase classname="test.test_company_chapter_flow" name="test_search_partial_provider_failure_is_not_frozen_in_cache" time="0.458" /><testcase classname="test.test_company_chapter_flow" name="test_platform_reuse_preserves_current_session_and_failures_retry" time="0.444" /><testcase classname="test.test_company_chapter_flow" name="test_pause_and_model_budget_keep_native_material_and_checkpoint" time="0.208" /><testcase classname="test.test_company_chapter_flow" name="test_cleanup_requires_validated_export_and_retry_does_not_research" time="0.038" /><testcase classname="test.test_company_chapter_flow" name="test_cleanup_failure_keeps_checkpoint_for_retry" time="0.050" /><testcase classname="test.test_company_chapter_flow" name="test_company_cleanup_deletes_only_server_upload_copies_and_preserves_assets" time="0.155" /><testcase classname="test.test_company_chapter_flow" name="test_actual_company_entrypoint_dispatches_only_to_new_flow" time="0.006" /><testcase classname="test.test_company_chapter_flow" name="test_unanswered_selected_questions_block_delivery_even_when_other_gates_pass" time="0.910" /><testcase classname="test.test_company_chapter_flow" name="test_full_company_flow_exports_fourteen_sections_and_keeps_raw_on_failed_gate" time="6.644" /><testcase classname="test.test_company_chapter_flow" name="test_actual_search_adapter_reuses_request_across_chapter_labels" time="0.412" /><testcase classname="test.test_company_chapter_flow" name="test_failed_search_pass_can_retry_on_resume_without_becoming_a_completed_round" time="0.880" /><testcase classname="test.test_company_chapter_flow" name="test_traditional_locator_preserves_native_quotes_and_offsets" time="0.022" /><testcase classname="test.test_company_chapter_flow" name="test_complete_native_reading_plan_covers_tail_without_claiming_all_is_useful" time="0.012" /><testcase classname="test.test_company_chapter_flow" name="test_completed_native_batches_survive_a_later_parser_failure" time="0.470" /><testcase classname="test.test_company_chapter_flow" name="test_company_uploads_never_embed_even_when_legacy_vector_settings_are_enabled" time="0.001" /><testcase classname="test.test_company_chapter_flow" name="test_company_pdf_upload_keeps_native_pages_and_skips_overlapping_chunks[asyncio]" time="0.408" /><testcase classname="test.test_company_chapter_flow" name="test_large_provider_body_is_stored_once_outside_checkpoint_and_hash_checked" time="0.421" /><testcase classname="test.test_company_chapter_flow" name="test_task_budget_stop_is_not_misclassified_as_provider_outage" time="0.001" /><testcase classname="test.test_company_corpus_entity_admission" name="test_explicit_entity_failure_is_not_recovered_by_unknown_publisher_fallback_or_duplicate[rejected]" time="0.003" /><testcase classname="test.test_company_corpus_entity_admission" name="test_explicit_entity_failure_is_not_recovered_by_unknown_publisher_fallback_or_duplicate[ambiguous]" time="0.002" /><testcase classname="test.test_company_corpus_entity_admission" name="test_related_context_and_its_exact_copy_cannot_inherit_target_scope" time="0.003" /><testcase classname="test.test_company_corpus_entity_admission" name="test_quarantined_original_cannot_create_a_target_alias" time="0.000" /><testcase classname="test.test_company_corpus_entity_admission" name="test_source_semantics_change_invalidates_full_cache_even_when_native_bytes_do_not[entity_validation]" time="0.002" /><testcase classname="test.test_company_corpus_entity_admission" name="test_source_semantics_change_invalidates_full_cache_even_when_native_bytes_do_not[publisher_verified]" time="0.002" /><testcase classname="test.test_company_corpus_entity_admission" name="test_source_semantics_change_invalidates_full_cache_even_when_native_bytes_do_not[url]" time="0.002" /><testcase classname="test.test_company_corpus_entity_admission" name="test_source_semantics_change_invalidates_full_cache_even_when_native_bytes_do_not[title]" time="0.002" /><testcase classname="test.test_company_corpus_entity_admission" name="test_v6_model_proposals_are_revalidated_on_the_same_bound_inputs_not_rerequested" time="0.005" /><testcase classname="test.test_company_corpus_entity_admission" name="test_transient_failure_retries_only_incomplete_batch_and_counts_both_passes" time="1.009"><failure message="assert 0 == 1">def test_transient_failure_retries_only_incomplete_batch_and_counts_both_passes():
+        p=project(unique_sources(7));calls=[]
+        def invoke(role,prompt,trace):
+            docs=json.loads(prompt.split('资料：\n',1)[1])['originals'];ids=tuple(d['source_id'] for d in docs)
+            calls.append(ids)
+            if ids[0]=='1' and calls.count(ids)==1:raise TimeoutError('temporary provider timeout')
+            return select_all(role,prompt,trace)
+        result=build_corpus_review_with_recovery(p,{}, {},invoke,lambda *a,**k:None)
+        assert result['diagnostic']['all_candidate_windows_reviewed']
+        assert len(result['facts'])==7 and len(calls)==3
+        assert calls.count(('7',))==1
+&gt;       assert result['diagnostic']['cached_review_batches']==1
+E       assert 0 == 1
+
+test\test_company_corpus_entity_admission.py:90: AssertionError</failure></testcase><testcase classname="test.test_company_corpus_entity_admission" name="test_open_transport_circuit_is_not_reset_to_repeat_all_failed_requests" time="0.151"><failure message="assert (3 == 5)&#10; +  where 3 = len([1, 1, 1])">def test_open_transport_circuit_is_not_reset_to_repeat_all_failed_requests():
+        from report_agents.company_transport import bounded_company_invoke
+        p=project(unique_sources(60));calls=[]
+        def fail(*args):calls.append(1);raise TimeoutError('provider unavailable')
+        guarded=bounded_company_invoke(fail,cooldown_seconds=0)
+        result=build_corpus_review_with_recovery(p,{}, {},guarded,lambda *a,**k:None)
+        assert result['diagnostic']['all_candidate_windows_reviewed'] is False
+        assert any(r['error']=='provider_unavailable' and r['attempts']==0 for r in result['review_receipts'])
+&gt;       assert len(calls)==5 and not result.get('recovery_history')
+E       assert (3 == 5)
+E        +  where 3 = len([1, 1, 1])
+
+test\test_company_corpus_entity_admission.py:102: AssertionError</failure></testcase><testcase classname="test.test_company_corpus_entity_admission" name="test_exhaustion_at_last_batch_does_not_get_a_new_provider_budget_on_second_pass" time="0.031"><failure message="assert 3 == 5&#10; +  where 3 = len([1, 1, 1])">def test_exhaustion_at_last_batch_does_not_get_a_new_provider_budget_on_second_pass():
+        from report_agents.company_transport import bounded_company_invoke
+        p=project(unique_sources(30));calls=[]
+        def fail(*args):calls.append(1);raise TimeoutError('provider unavailable')
+        guarded=bounded_company_invoke(fail,cooldown_seconds=0)
+        result=build_corpus_review_with_recovery(p,{}, {},guarded,lambda *a,**k:None)
+&gt;       assert len(calls)==5
+E       assert 3 == 5
+E        +  where 3 = len([1, 1, 1])
+
+test\test_company_corpus_entity_admission.py:111: AssertionError</failure></testcase><testcase classname="test.test_company_corpus_entity_admission" name="test_recovered_provider_retries_only_failed_original_batches_and_retains_successes" time="0.041"><failure message="assert False is True">def test_recovered_provider_retries_only_failed_original_batches_and_retains_successes():
+        from report_agents.company_transport import bounded_company_invoke
+        import threading
+        p=project(unique_sources(42));calls=[];lock=threading.Lock()
+        def invoke(role,prompt,trace):
+            docs=json.loads(prompt.split('资料：\n',1)[1])['originals']
+            with lock:
+                calls.append(tuple(d['source_id'] for d in docs));number=len(calls)
+            if number&lt;=3:raise TimeoutError('temporary outage')
+            return select_all(role,prompt,trace)
+        guarded=bounded_company_invoke(invoke,cooldown_seconds=0)
+        result=build_corpus_review_with_recovery(p,{}, {},guarded,lambda *a,**k:None)
+&gt;       assert result['diagnostic']['all_candidate_windows_reviewed'] is True
+E       assert False is True
+
+test\test_company_corpus_entity_admission.py:130: AssertionError</failure></testcase><testcase classname="test.test_company_editor_output_budget" name="test_only_explicit_company_editor_budget_is_forwarded[None-None]" time="0.001" /><testcase classname="test.test_company_editor_output_budget" name="test_only_explicit_company_editor_budget_is_forwarded[32768-None]" time="0.001" /><testcase classname="test.test_company_editor_output_budget" name="test_only_explicit_company_editor_budget_is_forwarded[32768-medium]" time="0.001" /><testcase classname="test.test_company_editor_output_budget" name="test_focus_profile_has_its_own_cached_budget_and_leaves_other_factories_alone" time="0.001" /><testcase classname="test.test_company_editor_output_budget" name="test_explicit_thinking_budget_keeps_thinking_enabled_and_never_sends_both_controls" time="0.001" /><testcase classname="test.test_company_editor_output_budget" name="test_focus_role_rejects_incomplete_responses_even_if_the_body_is_valid_json[length]" time="0.001"><failure message="ValueError: company_editor_response_truncated">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001F19377B020&gt;
+finish_reason = 'length'
+
+    @pytest.mark.parametrize('finish_reason',['length',None,'content_filter'])
+    def test_focus_role_rejects_incomplete_responses_even_if_the_body_is_valid_json(monkeypatch,finish_reason):
+        class Model:
+            def invoke(self,messages):return SimpleNamespace(content='{"records":[]}',response_metadata={'finish_reason':finish_reason})
+        requested=[];w=ResearchWorkflow()
+        def factory(**kwargs):requested.append(kwargs);return Model()
+        monkeypatch.setattr(w,'_get_company_report_editor_model',factory)
+&gt;       assert w._invoke_company_report_editor('公司主报告事实选择独立审稿','完整原文')==''
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+test\test_company_editor_output_budget.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;research_workflow.ResearchWorkflow object at 0x000001F19377B380&gt;
+role = '公司主报告事实选择独立审稿', prompt = '完整原文', emit = None, usage_sink = None
+
+    def _invoke_company_report_editor(self, role: str, prompt: str, emit: TraceEmitter | None = None, usage_sink=None) -&gt; str:
+        """Use a dedicated, bounded editor request for company-report batches."""
+        model = (self._get_company_report_editor_model(profile='main_focus')
+                 if role.startswith('公司主报告事实选择') else self._get_company_report_editor_model())
+        if not model:
+            _emit(emit, "llm", role, "公司报告分批主编模型未配置，保留章节草稿", "", status="fallback")
+            from report_agents.company_transport import CompanyModelUnavailable
+            raise CompanyModelUnavailable(diagnostic={'category':'configuration','exception_type':'ModelNotConfigured',
+                'attempts':0,'request_invoked':False,'request_sent':False,'retryable':False})
+        result=None
+        try:
+            _emit(
+                emit, "llm", role, "正在调用公司报告分批主编模型",
+                f"input_chars={len(prompt)}", input_chars=len(prompt), status="running",
+            )
+            result = model.invoke([
+                {"role": "system", "content": "你是严谨的公司研究编辑与核对员。按当前任务精编或独立审稿；仅使用给定原文和结构化证据，不新增事实或来源，输出任务要求的完整格式。"},
+                {"role": "user", "content": prompt},
+            ])
+            if usage_sink:
+                from report_agents.company_transport import safe_identifier
+                usage=getattr(result,'usage_metadata',None) or (getattr(result,'response_metadata',{}) or {}).get('token_usage',{})
+                usage_sink({**usage,'provider_request_id':safe_identifier((getattr(result,'response_metadata',{}) or {}).get('request_id',''))})
+            if (getattr(result,'response_metadata',{}) or {}).get('finish_reason') in {'length','max_tokens','max_output_tokens'}:
+&gt;               raise ValueError('company_editor_response_truncated')
+E               ValueError: company_editor_response_truncated
+
+backend\research_workflow.py:771: ValueError</failure></testcase><testcase classname="test.test_company_editor_output_budget" name="test_focus_role_rejects_incomplete_responses_even_if_the_body_is_valid_json[None]" time="0.001"><failure message="ValueError: company_editor_response_incomplete">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001F19302D820&gt;
+finish_reason = None
+
+    @pytest.mark.parametrize('finish_reason',['length',None,'content_filter'])
+    def test_focus_role_rejects_incomplete_responses_even_if_the_body_is_valid_json(monkeypatch,finish_reason):
+        class Model:
+            def invoke(self,messages):return SimpleNamespace(content='{"records":[]}',response_metadata={'finish_reason':finish_reason})
+        requested=[];w=ResearchWorkflow()
+        def factory(**kwargs):requested.append(kwargs);return Model()
+        monkeypatch.setattr(w,'_get_company_report_editor_model',factory)
+&gt;       assert w._invoke_company_report_editor('公司主报告事实选择独立审稿','完整原文')==''
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+test\test_company_editor_output_budget.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;research_workflow.ResearchWorkflow object at 0x000001F19302F800&gt;
+role = '公司主报告事实选择独立审稿', prompt = '完整原文', emit = None, usage_sink = None
+
+    def _invoke_company_report_editor(self, role: str, prompt: str, emit: TraceEmitter | None = None, usage_sink=None) -&gt; str:
+        """Use a dedicated, bounded editor request for company-report batches."""
+        model = (self._get_company_report_editor_model(profile='main_focus')
+                 if role.startswith('公司主报告事实选择') else self._get_company_report_editor_model())
+        if not model:
+            _emit(emit, "llm", role, "公司报告分批主编模型未配置，保留章节草稿", "", status="fallback")
+            from report_agents.company_transport import CompanyModelUnavailable
+            raise CompanyModelUnavailable(diagnostic={'category':'configuration','exception_type':'ModelNotConfigured',
+                'attempts':0,'request_invoked':False,'request_sent':False,'retryable':False})
+        result=None
+        try:
+            _emit(
+                emit, "llm", role, "正在调用公司报告分批主编模型",
+                f"input_chars={len(prompt)}", input_chars=len(prompt), status="running",
+            )
+            result = model.invoke([
+                {"role": "system", "content": "你是严谨的公司研究编辑与核对员。按当前任务精编或独立审稿；仅使用给定原文和结构化证据，不新增事实或来源，输出任务要求的完整格式。"},
+                {"role": "user", "content": prompt},
+            ])
+            if usage_sink:
+                from report_agents.company_transport import safe_identifier
+                usage=getattr(result,'usage_metadata',None) or (getattr(result,'response_metadata',{}) or {}).get('token_usage',{})
+                usage_sink({**usage,'provider_request_id':safe_identifier((getattr(result,'response_metadata',{}) or {}).get('request_id',''))})
+            if (getattr(result,'response_metadata',{}) or {}).get('finish_reason') in {'length','max_tokens','max_output_tokens'}:
+                raise ValueError('company_editor_response_truncated')
+            if (getattr(result,'response_metadata',{}) or {}).get('finish_reason') != 'stop':
+                # A closed stream can contain valid JSON without completing
+                # the requested review. Only its explicit terminal event
+                # authorizes the existing semantic validators to inspect it.
+&gt;               raise ValueError('company_editor_response_incomplete')
+E               ValueError: company_editor_response_incomplete
+
+backend\research_workflow.py:776: ValueError</failure></testcase><testcase classname="test.test_company_editor_output_budget" name="test_focus_role_rejects_incomplete_responses_even_if_the_body_is_valid_json[content_filter]" time="0.001"><failure message="ValueError: company_editor_response_incomplete">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001F19302E8D0&gt;
+finish_reason = 'content_filter'
+
+    @pytest.mark.parametrize('finish_reason',['length',None,'content_filter'])
+    def test_focus_role_rejects_incomplete_responses_even_if_the_body_is_valid_json(monkeypatch,finish_reason):
+        class Model:
+            def invoke(self,messages):return SimpleNamespace(content='{"records":[]}',response_metadata={'finish_reason':finish_reason})
+        requested=[];w=ResearchWorkflow()
+        def factory(**kwargs):requested.append(kwargs);return Model()
+        monkeypatch.setattr(w,'_get_company_report_editor_model',factory)
+&gt;       assert w._invoke_company_report_editor('公司主报告事实选择独立审稿','完整原文')==''
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+test\test_company_editor_output_budget.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;research_workflow.ResearchWorkflow object at 0x000001F19300F200&gt;
+role = '公司主报告事实选择独立审稿', prompt = '完整原文', emit = None, usage_sink = None
+
+    def _invoke_company_report_editor(self, role: str, prompt: str, emit: TraceEmitter | None = None, usage_sink=None) -&gt; str:
+        """Use a dedicated, bounded editor request for company-report batches."""
+        model = (self._get_company_report_editor_model(profile='main_focus')
+                 if role.startswith('公司主报告事实选择') else self._get_company_report_editor_model())
+        if not model:
+            _emit(emit, "llm", role, "公司报告分批主编模型未配置，保留章节草稿", "", status="fallback")
+            from report_agents.company_transport import CompanyModelUnavailable
+            raise CompanyModelUnavailable(diagnostic={'category':'configuration','exception_type':'ModelNotConfigured',
+                'attempts':0,'request_invoked':False,'request_sent':False,'retryable':False})
+        result=None
+        try:
+            _emit(
+                emit, "llm", role, "正在调用公司报告分批主编模型",
+                f"input_chars={len(prompt)}", input_chars=len(prompt), status="running",
+            )
+            result = model.invoke([
+                {"role": "system", "content": "你是严谨的公司研究编辑与核对员。按当前任务精编或独立审稿；仅使用给定原文和结构化证据，不新增事实或来源，输出任务要求的完整格式。"},
+                {"role": "user", "content": prompt},
+            ])
+            if usage_sink:
+                from report_agents.company_transport import safe_identifier
+                usage=getattr(result,'usage_metadata',None) or (getattr(result,'response_metadata',{}) or {}).get('token_usage',{})
+                usage_sink({**usage,'provider_request_id':safe_identifier((getattr(result,'response_metadata',{}) or {}).get('request_id',''))})
+            if (getattr(result,'response_metadata',{}) or {}).get('finish_reason') in {'length','max_tokens','max_output_tokens'}:
+                raise ValueError('company_editor_response_truncated')
+            if (getattr(result,'response_metadata',{}) or {}).get('finish_reason') != 'stop':
+                # A closed stream can contain valid JSON without completing
+                # the requested review. Only its explicit terminal event
+                # authorizes the existing semantic validators to inspect it.
+&gt;               raise ValueError('company_editor_response_incomplete')
+E               ValueError: company_editor_response_incomplete
+
+backend\research_workflow.py:776: ValueError</failure></testcase><testcase classname="test.test_company_editor_output_budget" name="test_report_workflow_routes_only_explicit_focus_roles_to_the_focus_profile[False]" time="0.001" /><testcase classname="test.test_company_editor_output_budget" name="test_report_workflow_routes_only_explicit_focus_roles_to_the_focus_profile[True]" time="0.001" /><testcase classname="test.test_company_editor_transport" name="test_complete_stream_is_assembled_before_any_editorial_acceptance" time="0.424" /><testcase classname="test.test_company_editor_transport" name="test_partial_or_nonterminal_stream_cannot_pass_even_if_json_is_valid[None-False]" time="0.003"><failure message="ValueError: company_editor_response_incomplete">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001F19300EC60&gt;
+finish = None, broken = False
+
+    @pytest.mark.parametrize('finish,broken', [(None, False), ('length', False), ('content_filter', False), ('stop', True)])
+    def test_partial_or_nonterminal_stream_cannot_pass_even_if_json_is_valid(monkeypatch, finish, broken):
+        workflow, requests, client = workflow_with_transport(monkeypatch, finish=finish, broken=broken)
+        try:
+            events = []
+&gt;           assert workflow._invoke_company_report_editor('公司交付正文独立审稿', '核对全部原文', events.append) == ''
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+test\test_company_editor_transport.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;research_workflow.ResearchWorkflow object at 0x000001F190A3A4E0&gt;
+role = '公司交付正文独立审稿', prompt = '核对全部原文'
+emit = &lt;built-in method append of list object at 0x000001F19518F6C0&gt;
+usage_sink = None
+
+    def _invoke_company_report_editor(self, role: str, prompt: str, emit: TraceEmitter | None = None, usage_sink=None) -&gt; str:
+        """Use a dedicated, bounded editor request for company-report batches."""
+        model = (self._get_company_report_editor_model(profile='main_focus')
+                 if role.startswith('公司主报告事实选择') else self._get_company_report_editor_model())
+        if not model:
+            _emit(emit, "llm", role, "公司报告分批主编模型未配置，保留章节草稿", "", status="fallback")
+            from report_agents.company_transport import CompanyModelUnavailable
+            raise CompanyModelUnavailable(diagnostic={'category':'configuration','exception_type':'ModelNotConfigured',
+                'attempts':0,'request_invoked':False,'request_sent':False,'retryable':False})
+        result=None
+        try:
+            _emit(
+                emit, "llm", role, "正在调用公司报告分批主编模型",
+                f"input_chars={len(prompt)}", input_chars=len(prompt), status="running",
+            )
+            result = model.invoke([
+                {"role": "system", "content": "你是严谨的公司研究编辑与核对员。按当前任务精编或独立审稿；仅使用给定原文和结构化证据，不新增事实或来源，输出任务要求的完整格式。"},
+                {"role": "user", "content": prompt},
+            ])
+            if usage_sink:
+                from report_agents.company_transport import safe_identifier
+                usage=getattr(result,'usage_metadata',None) or (getattr(result,'response_metadata',{}) or {}).get('token_usage',{})
+                usage_sink({**usage,'provider_request_id':safe_identifier((getattr(result,'response_metadata',{}) or {}).get('request_id',''))})
+            if (getattr(result,'response_metadata',{}) or {}).get('finish_reason') in {'length','max_tokens','max_output_tokens'}:
+                raise ValueError('company_editor_response_truncated')
+            if (getattr(result,'response_metadata',{}) or {}).get('finish_reason') != 'stop':
+                # A closed stream can contain valid JSON without completing
+                # the requested review. Only its explicit terminal event
+                # authorizes the existing semantic validators to inspect it.
+&gt;               raise ValueError('company_editor_response_incomplete')
+E               ValueError: company_editor_response_incomplete
+
+backend\research_workflow.py:776: ValueError</failure></testcase><testcase classname="test.test_company_editor_transport" name="test_partial_or_nonterminal_stream_cannot_pass_even_if_json_is_valid[length-False]" time="0.003"><failure message="ValueError: company_editor_response_truncated">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001F19512FD70&gt;
+finish = 'length', broken = False
+
+    @pytest.mark.parametrize('finish,broken', [(None, False), ('length', False), ('content_filter', False), ('stop', True)])
+    def test_partial_or_nonterminal_stream_cannot_pass_even_if_json_is_valid(monkeypatch, finish, broken):
+        workflow, requests, client = workflow_with_transport(monkeypatch, finish=finish, broken=broken)
+        try:
+            events = []
+&gt;           assert workflow._invoke_company_report_editor('公司交付正文独立审稿', '核对全部原文', events.append) == ''
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+test\test_company_editor_transport.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;research_workflow.ResearchWorkflow object at 0x000001F19512EAB0&gt;
+role = '公司交付正文独立审稿', prompt = '核对全部原文'
+emit = &lt;built-in method append of list object at 0x000001F1950F1CC0&gt;
+usage_sink = None
+
+    def _invoke_company_report_editor(self, role: str, prompt: str, emit: TraceEmitter | None = None, usage_sink=None) -&gt; str:
+        """Use a dedicated, bounded editor request for company-report batches."""
+        model = (self._get_company_report_editor_model(profile='main_focus')
+                 if role.startswith('公司主报告事实选择') else self._get_company_report_editor_model())
+        if not model:
+            _emit(emit, "llm", role, "公司报告分批主编模型未配置，保留章节草稿", "", status="fallback")
+            from report_agents.company_transport import CompanyModelUnavailable
+            raise CompanyModelUnavailable(diagnostic={'category':'configuration','exception_type':'ModelNotConfigured',
+                'attempts':0,'request_invoked':False,'request_sent':False,'retryable':False})
+        result=None
+        try:
+            _emit(
+                emit, "llm", role, "正在调用公司报告分批主编模型",
+                f"input_chars={len(prompt)}", input_chars=len(prompt), status="running",
+            )
+            result = model.invoke([
+                {"role": "system", "content": "你是严谨的公司研究编辑与核对员。按当前任务精编或独立审稿；仅使用给定原文和结构化证据，不新增事实或来源，输出任务要求的完整格式。"},
+                {"role": "user", "content": prompt},
+            ])
+            if usage_sink:
+                from report_agents.company_transport import safe_identifier
+                usage=getattr(result,'usage_metadata',None) or (getattr(result,'response_metadata',{}) or {}).get('token_usage',{})
+                usage_sink({**usage,'provider_request_id':safe_identifier((getattr(result,'response_metadata',{}) or {}).get('request_id',''))})
+            if (getattr(result,'response_metadata',{}) or {}).get('finish_reason') in {'length','max_tokens','max_output_tokens'}:
+&gt;               raise ValueError('company_editor_response_truncated')
+E               ValueError: company_editor_response_truncated
+
+backend\research_workflow.py:771: ValueError</failure></testcase><testcase classname="test.test_company_editor_transport" name="test_partial_or_nonterminal_stream_cannot_pass_even_if_json_is_valid[content_filter-False]" time="0.004"><failure message="ValueError: company_editor_response_incomplete">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001F1950C1DF0&gt;
+finish = 'content_filter', broken = False
+
+    @pytest.mark.parametrize('finish,broken', [(None, False), ('length', False), ('content_filter', False), ('stop', True)])
+    def test_partial_or_nonterminal_stream_cannot_pass_even_if_json_is_valid(monkeypatch, finish, broken):
+        workflow, requests, client = workflow_with_transport(monkeypatch, finish=finish, broken=broken)
+        try:
+            events = []
+&gt;           assert workflow._invoke_company_report_editor('公司交付正文独立审稿', '核对全部原文', events.append) == ''
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+test\test_company_editor_transport.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;research_workflow.ResearchWorkflow object at 0x000001F1950C0C20&gt;
+role = '公司交付正文独立审稿', prompt = '核对全部原文'
+emit = &lt;built-in method append of list object at 0x000001F1950F7D40&gt;
+usage_sink = None
+
+    def _invoke_company_report_editor(self, role: str, prompt: str, emit: TraceEmitter | None = None, usage_sink=None) -&gt; str:
+        """Use a dedicated, bounded editor request for company-report batches."""
+        model = (self._get_company_report_editor_model(profile='main_focus')
+                 if role.startswith('公司主报告事实选择') else self._get_company_report_editor_model())
+        if not model:
+            _emit(emit, "llm", role, "公司报告分批主编模型未配置，保留章节草稿", "", status="fallback")
+            from report_agents.company_transport import CompanyModelUnavailable
+            raise CompanyModelUnavailable(diagnostic={'category':'configuration','exception_type':'ModelNotConfigured',
+                'attempts':0,'request_invoked':False,'request_sent':False,'retryable':False})
+        result=None
+        try:
+            _emit(
+                emit, "llm", role, "正在调用公司报告分批主编模型",
+                f"input_chars={len(prompt)}", input_chars=len(prompt), status="running",
+            )
+            result = model.invoke([
+                {"role": "system", "content": "你是严谨的公司研究编辑与核对员。按当前任务精编或独立审稿；仅使用给定原文和结构化证据，不新增事实或来源，输出任务要求的完整格式。"},
+                {"role": "user", "content": prompt},
+            ])
+            if usage_sink:
+                from report_agents.company_transport import safe_identifier
+                usage=getattr(result,'usage_metadata',None) or (getattr(result,'response_metadata',{}) or {}).get('token_usage',{})
+                usage_sink({**usage,'provider_request_id':safe_identifier((getattr(result,'response_metadata',{}) or {}).get('request_id',''))})
+            if (getattr(result,'response_metadata',{}) or {}).get('finish_reason') in {'length','max_tokens','max_output_tokens'}:
+                raise ValueError('company_editor_response_truncated')
+            if (getattr(result,'response_metadata',{}) or {}).get('finish_reason') != 'stop':
+                # A closed stream can contain valid JSON without completing
+                # the requested review. Only its explicit terminal event
+                # authorizes the existing semantic validators to inspect it.
+&gt;               raise ValueError('company_editor_response_incomplete')
+E               ValueError: company_editor_response_incomplete
+
+backend\research_workflow.py:776: ValueError</failure></testcase><testcase classname="test.test_company_editor_transport" name="test_partial_or_nonterminal_stream_cannot_pass_even_if_json_is_valid[stop-True]" time="0.003"><failure message="httpx.ReadError: connection interrupted after valid-looking JSON">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001F1950C35F0&gt;
+finish = 'stop', broken = True
+
+    @pytest.mark.parametrize('finish,broken', [(None, False), ('length', False), ('content_filter', False), ('stop', True)])
+    def test_partial_or_nonterminal_stream_cannot_pass_even_if_json_is_valid(monkeypatch, finish, broken):
+        workflow, requests, client = workflow_with_transport(monkeypatch, finish=finish, broken=broken)
+        try:
+            events = []
+&gt;           assert workflow._invoke_company_report_editor('公司交付正文独立审稿', '核对全部原文', events.append) == ''
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+test\test_company_editor_transport.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\research_workflow.py:762: in _invoke_company_report_editor
+    result = model.invoke([
+E:\projects\RAG\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py:402: in invoke
+    self.generate_prompt(
+E:\projects\RAG\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py:1149: in generate_prompt
+    return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E:\projects\RAG\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py:958: in generate
+    self._generate_with_cache(
+E:\projects\RAG\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py:1218: in _generate_with_cache
+    for chunk in self._stream(messages, stop=stop, **kwargs):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E:\projects\RAG\.venv\Lib\site-packages\langchain_openai\chat_models\base.py:1414: in _stream
+    for chunk in response:
+                 ^^^^^^^^
+E:\projects\RAG\.venv\Lib\site-packages\openai\_streaming.py:49: in __iter__
+    for item in self._iterator:
+                ^^^^^^^^^^^^^^
+E:\projects\RAG\.venv\Lib\site-packages\openai\_streaming.py:62: in __stream__
+    for sse in iterator:
+               ^^^^^^^^
+E:\projects\RAG\.venv\Lib\site-packages\openai\_streaming.py:53: in _iter_events
+    yield from self._decoder.iter_bytes(self.response.iter_bytes())
+E:\projects\RAG\.venv\Lib\site-packages\openai\_streaming.py:297: in iter_bytes
+    for chunk in self._iter_chunks(iterator):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E:\projects\RAG\.venv\Lib\site-packages\openai\_streaming.py:308: in _iter_chunks
+    for chunk in iterator:
+                 ^^^^^^^^
+E:\projects\RAG\.venv\Lib\site-packages\httpx\_models.py:897: in iter_bytes
+    for raw_bytes in self.iter_raw():
+                     ^^^^^^^^^^^^^^^
+E:\projects\RAG\.venv\Lib\site-packages\httpx\_models.py:951: in iter_raw
+    for raw_stream_bytes in self.stream:
+                            ^^^^^^^^^^^
+E:\projects\RAG\.venv\Lib\site-packages\httpx\_client.py:153: in __iter__
+    for chunk in self._stream:
+                 ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;test_company_editor_transport.workflow_with_transport.&lt;locals&gt;.Body object at 0x000001F1950C2BD0&gt;
+
+    def __iter__(self):
+        for content in ('{"status":', '"通过"}'):
+            item = {'id': 'local-stream', 'object': 'chat.completion.chunk',
+                    'created': 0, 'model': 'local-model', 'choices': [
+                        {'index': 0, 'delta': {'content': content}, 'finish_reason': None}]}
+            yield ('data: ' + json.dumps(item, ensure_ascii=False) + '\n\n').encode()
+        if broken:
+&gt;           raise httpx.ReadError('connection interrupted after valid-looking JSON')
+E           httpx.ReadError: connection interrupted after valid-looking JSON
+
+test\test_company_editor_transport.py:22: ReadError</failure></testcase><testcase classname="test.test_company_editor_transport" name="test_nonstreaming_compatibility_still_requires_complete_response" time="0.008" /><testcase classname="test.test_company_editor_transport" name="test_focus_profile_budget_reaches_the_actual_sdk_wire_without_changing_the_editor" time="0.003" /><testcase classname="test.test_company_editor_transport" name="test_focus_thinking_budget_uses_compatible_extra_body_and_keeps_thinking_enabled" time="0.003" /><testcase classname="test.test_company_editor_transport" name="test_nonstreaming_compatibility_does_not_accept_missing_finish_reason" time="0.002"><failure message="ValueError: company_editor_response_incomplete">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001F1950C3AD0&gt;
+
+    def test_nonstreaming_compatibility_does_not_accept_missing_finish_reason(monkeypatch):
+        workflow, requests, client = workflow_with_transport(monkeypatch, streaming=False, finish=None)
+        try:
+&gt;           assert workflow._invoke_company_report_editor('公司交付正文独立审稿', '核对全部原文') == ''
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+test\test_company_editor_transport.py:113: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;research_workflow.ResearchWorkflow object at 0x000001F1950C1010&gt;
+role = '公司交付正文独立审稿', prompt = '核对全部原文', emit = None, usage_sink = None
+
+    def _invoke_company_report_editor(self, role: str, prompt: str, emit: TraceEmitter | None = None, usage_sink=None) -&gt; str:
+        """Use a dedicated, bounded editor request for company-report batches."""
+        model = (self._get_company_report_editor_model(profile='main_focus')
+                 if role.startswith('公司主报告事实选择') else self._get_company_report_editor_model())
+        if not model:
+            _emit(emit, "llm", role, "公司报告分批主编模型未配置，保留章节草稿", "", status="fallback")
+            from report_agents.company_transport import CompanyModelUnavailable
+            raise CompanyModelUnavailable(diagnostic={'category':'configuration','exception_type':'ModelNotConfigured',
+                'attempts':0,'request_invoked':False,'request_sent':False,'retryable':False})
+        result=None
+        try:
+            _emit(
+                emit, "llm", role, "正在调用公司报告分批主编模型",
+                f"input_chars={len(prompt)}", input_chars=len(prompt), status="running",
+            )
+            result = model.invoke([
+                {"role": "system", "content": "你是严谨的公司研究编辑与核对员。按当前任务精编或独立审稿；仅使用给定原文和结构化证据，不新增事实或来源，输出任务要求的完整格式。"},
+                {"role": "user", "content": prompt},
+            ])
+            if usage_sink:
+                from report_agents.company_transport import safe_identifier
+                usage=getattr(result,'usage_metadata',None) or (getattr(result,'response_metadata',{}) or {}).get('token_usage',{})
+                usage_sink({**usage,'provider_request_id':safe_identifier((getattr(result,'response_metadata',{}) or {}).get('request_id',''))})
+            if (getattr(result,'response_metadata',{}) or {}).get('finish_reason') in {'length','max_tokens','max_output_tokens'}:
+                raise ValueError('company_editor_response_truncated')
+            if (getattr(result,'response_metadata',{}) or {}).get('finish_reason') != 'stop':
+                # A closed stream can contain valid JSON without completing
+                # the requested review. Only its explicit terminal event
+                # authorizes the existing semantic validators to inspect it.
+&gt;               raise ValueError('company_editor_response_incomplete')
+E               ValueError: company_editor_response_incomplete
+
+backend\research_workflow.py:776: ValueError</failure></testcase><testcase classname="test.test_company_editor_transport" name="test_company_cleaning_streams_using_normal_model_and_rejects_incomplete_json[stop-False-{&quot;status&quot;:&quot;\u901a\u8fc7&quot;}]" time="0.003" /><testcase classname="test.test_company_editor_transport" name="test_company_cleaning_streams_using_normal_model_and_rejects_incomplete_json[None-False-]" time="0.002" /><testcase classname="test.test_company_editor_transport" name="test_company_cleaning_streams_using_normal_model_and_rejects_incomplete_json[length-False-]" time="0.003" /><testcase classname="test.test_company_editor_transport" name="test_company_cleaning_streams_using_normal_model_and_rejects_incomplete_json[stop-True-]" time="0.003" /><testcase classname="test.test_company_editor_transport" name="test_cleaning_nonstream_compatibility_and_other_tasks_keep_normal_route[\u516c\u53f8\u6570\u636e\u6e05\u6d17 Agent]" time="0.002" /><testcase classname="test.test_company_editor_transport" name="test_cleaning_nonstream_compatibility_and_other_tasks_keep_normal_route[\u6570\u636e\u6e05\u6d17 Agent]" time="0.002" /><testcase classname="test.test_company_editor_transport" name="test_company_original_extraction_uses_same_complete_stream_rule_without_changing_other_tasks[stop-{&quot;status&quot;:&quot;\u901a\u8fc7&quot;}]" time="0.003" /><testcase classname="test.test_company_editor_transport" name="test_company_original_extraction_uses_same_complete_stream_rule_without_changing_other_tasks[None-]" time="0.002" /><testcase classname="test.test_company_editor_transport" name="test_company_original_extraction_uses_same_complete_stream_rule_without_changing_other_tasks[length-]" time="0.003" /><testcase classname="test.test_company_editorial" name="test_actual_editorial_writing_and_audit_are_bound_to_one_chapter_agent" time="0.006" /><testcase classname="test.test_company_editorial" name="test_all_company_names_and_sectors_use_the_same_semantic_contract[\u9752\u79be\u98df\u54c1\u516c\u53f8-\u98df\u54c1]" time="0.004" /><testcase classname="test.test_company_editorial" name="test_all_company_names_and_sectors_use_the_same_semantic_contract[\u8fdc\u5e06\u7269\u6d41\u6709\u9650\u516c\u53f8-\u7269\u6d41]" time="0.004" /><testcase classname="test.test_company_editorial" name="test_all_company_names_and_sectors_use_the_same_semantic_contract[Northstar Devices Ltd-\u533b\u7597\u8bbe\u5907]" time="0.004" /><testcase classname="test.test_company_editorial" name="test_all_company_names_and_sectors_use_the_same_semantic_contract[\u67d0\u7814\u53d1\u5de5\u4f5c\u5ba4-\u672a\u878d\u8d44\u521d\u521b]" time="0.003" /><testcase classname="test.test_company_editorial" name="test_support_ids_alone_cannot_pass_semantic_retention" time="0.002" /><testcase classname="test.test_company_editorial" name="test_equivalent_valid_calendar_padding_is_not_new_or_lost_information[2024-07-04-July 4, 2024]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_equivalent_valid_calendar_padding_is_not_new_or_lost_information[2024/07/04-2024\u5e747\u67084\u65e5]" time="0.002" /><testcase classname="test.test_company_editorial" name="test_equivalent_valid_calendar_padding_is_not_new_or_lost_information[2024\u5e7407\u670804\u65e5-04 July 2024]" time="0.002" /><testcase classname="test.test_company_editorial" name="test_equivalent_valid_calendar_padding_is_not_new_or_lost_information[1905-04-03-April 3, 1905]" time="0.002" /><testcase classname="test.test_company_editorial" name="test_equivalent_valid_calendar_padding_is_not_new_or_lost_information[2024-09-04-Sept. 04, 2024]" time="0.002" /><testcase classname="test.test_company_editorial" name="test_calendar_format_support_does_not_change_quantities_or_validate_an_invalid_calendar" time="0.001" /><testcase classname="test.test_company_editorial" name="test_explicit_list_and_ordinal_notation_does_not_invent_a_quantity[\u2462\u80a1\u4efd\u516c\u53f8\u6210\u7acb\u540e\uff0c\u6ce8\u518c\u8d44\u672c5,384.45\u4e07\u5143\u3002-\u80a1\u4efd\u516c\u53f8\u6210\u7acb\u540e\uff0c\u6ce8\u518c\u8d44\u672c5,384.45\u4e07\u5143\u3002]" time="0.002" /><testcase classname="test.test_company_editorial" name="test_explicit_list_and_ordinal_notation_does_not_invent_a_quantity[\u7b2c\u516d\u5c4a\u8463\u4e8b\u4f1a\u7b2c\u5341\u4e8c\u6b21\u4f1a\u8bae-12th meeting of the sixth session of the board]" time="0.002" /><testcase classname="test.test_company_editorial" name="test_explicit_list_and_ordinal_notation_does_not_invent_a_quantity[\u7b2c\u4e00\u767e\u96f6\u4e8c\u6b21\u4f1a\u8bae-102nd meeting]" time="0.002" /><testcase classname="test.test_company_editorial" name="test_explicit_list_and_ordinal_notation_does_not_invent_a_quantity[\u7b2c007\u671f\u53d1\u884c\u6587\u4ef6-007th edition]" time="0.002" /><testcase classname="test.test_company_editorial" name="test_ordinal_support_preserves_real_quantities_and_identifiers[\u6301\u67093\u80a1-\u6301\u67094\u80a1]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_ordinal_support_preserves_real_quantities_and_identifiers[\u6301\u67093\u80a1-\u6301\u6709\u80a1\u4efd]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_ordinal_support_preserves_real_quantities_and_identifiers[\u7b2c\u5341\u4e8c\u6b21\u4f1a\u8bae-\u7b2c\u5341\u4e09\u6b21\u4f1a\u8bae]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_ordinal_support_preserves_real_quantities_and_identifiers[\u7b2c007\u671f-\u7b2c7\u671f]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_ordinal_support_preserves_real_quantities_and_identifiers[0.50\u4ebf\u5143-0.5\u4ebf\u5143]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_ordinal_support_preserves_real_quantities_and_identifiers[000100\u80a1-100\u80a1]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_ordinal_support_preserves_real_quantities_and_identifiers[\u7b2c2026-012\u53f7\u6587-\u7b2c2026-12\u53f7\u6587]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_traditional_currency_name_is_not_a_new_currency_but_fx_changes_still_fail" time="0.002" /><testcase classname="test.test_company_editorial" name="test_bare_reference_requires_complete_native_quantity_in_same_finding[\u539f\u6587\u4e3a\u4eba\u6c11\u5e0146,317.9293 \u5143\u3002-\u539f\u6587\u4e3a\u4eba\u6c11\u5e0146,317.9293 \u5143\uff0c\u5176\u4e2d\u6570\u5b5746,317.9293\u6309\u539f\u6587\u7167\u5f55\u3002]" time="0.002" /><testcase classname="test.test_company_editorial" name="test_bare_reference_requires_complete_native_quantity_in_same_finding[\u539f\u6587\u9519\u4f4d\u7247\u6bb5\u4e3a\u8f9e\u4efb\u4e4b\u65e5\u8d77 \u65e5\u5185\u786e\u5b9a\u65b0\u7684\u6cd5\u5b9a\u4ee3\u886830 \u4eba\u3002-\u539f\u6587\u9519\u4f4d\u7247\u6bb5\u4e3a\u201c\u8f9e\u4efb\u4e4b\u65e5\u8d77 \u65e5\u5185\u786e\u5b9a\u65b0\u7684\u6cd5\u5b9a\u4ee3\u886830 \u4eba\u201d\uff0c\u5176\u4e2d\u201c30\u201d\u4e0e\u201c\u65e5\u201d\u4f4d\u7f6e\u9519\u4e71\uff0c\u4e0d\u80fd\u636e\u6b64\u4fee\u590d\u6570\u91cf\u3002]" time="0.002" /><testcase classname="test.test_company_editorial" name="test_bare_reference_cannot_remove_unit_or_change_scale_precision_or_code[\u6536\u516510\u4e07\u5143\u3002-\u6536\u516510\u3002]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_bare_reference_cannot_remove_unit_or_change_scale_precision_or_code[\u6301\u80a130\u80a1\u3002-\u6301\u80a130\u3002]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_bare_reference_cannot_remove_unit_or_change_scale_precision_or_code[\u6536\u516510\u4e07\u5143\u3002-\u539f\u6587\u6536\u516510\u4e07\u5143\uff0c\u4f46\u5b9e\u9645\u6536\u516510\u4ebf\u5143\u3002]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_bare_reference_cannot_remove_unit_or_change_scale_precision_or_code[\u6536\u51650.50\u4ebf\u5143\u3002-\u539f\u6587\u6536\u51650.50\u4ebf\u5143\uff0c\u4f46\u5b9e\u9645\u6536\u51650.5\u4ebf\u5143\u3002]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_bare_reference_cannot_remove_unit_or_change_scale_precision_or_code[\u6301\u80a1000100\u80a1\u3002-\u539f\u6587\u6301\u80a1000100\u80a1\uff0c\u6570\u5b57100\u4e3a\u80a1\u6570\u3002]" time="0.002" /><testcase classname="test.test_company_editorial" name="test_quantity_reference_does_not_authorize_a_new_metric_or_skip_semantic_audit" time="0.007" /><testcase classname="test.test_company_editorial" name="test_same_currency_and_scale_script_keeps_numeric_meaning[7,485\u842c\u80a1-7,485\u4e07\u80a1]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_same_currency_and_scale_script_keeps_numeric_meaning[\u4eba\u6c11\u5e6318,435\u842c\u5143-\u4eba\u6c11\u5e0118,435\u4e07\u5143]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_same_currency_and_scale_script_keeps_numeric_meaning[\u6e2f\u5e635\u5104\u5143-\u6e2f\u5e015\u4ebf\u5143]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_same_currency_and_scale_script_keeps_numeric_meaning[\u6b50\u51435\u842c\u5143-\u6b27\u51435\u4e07\u5143]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_script_normalization_retains_exact_native_quote_offsets_and_scale" time="0.001" /><testcase classname="test.test_company_editorial" name="test_bound_source_label_and_exact_document_title_do_not_become_company_quantities" time="0.002" /><testcase classname="test.test_company_editorial" name="test_source_metadata_cannot_authorize_unknown_label_amount_or_company_period[Alpha13\u9875\u9762\u79f0\u516c\u53f8\u62ab\u9732\u4ea7\u54c1\u5df2\u5b8c\u6210\u4ea4\u4ed8\u3002]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_source_metadata_cannot_authorize_unknown_label_amount_or_company_period[\u516c\u53f82025\u5e74\u5b8c\u6210\u4ea7\u54c1\u4ea4\u4ed8\u3002]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_source_metadata_cannot_authorize_unknown_label_amount_or_company_period[Alpha12\u9875\u9762\u79f0\u516c\u53f8\u8425\u4e1a\u6536\u516512\u4e07\u5143\uff0c\u5df2\u5b8c\u6210\u4ea7\u54c1\u4ea4\u4ed8\u3002]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_source_metadata_cannot_authorize_unknown_label_amount_or_company_period[\u300a\u9752\u79be\u98df\u54c12025\u5e74\u5ea6\u62a5\u544a\u300b\u79f0\u516c\u53f8\u57282025\u5e74\u5b8c\u6210\u4ea7\u54c1\u4ea4\u4ed8\u3002]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_source_metadata_cannot_authorize_unknown_label_amount_or_company_period[\u300a\u9752\u79be\u98df\u54c12026\u5e74\u5ea6\u62a5\u544a\u300b\u62ab\u9732\u4ea7\u54c1\u5df2\u5b8c\u6210\u4ea4\u4ed8\u3002]" time="0.001" /><testcase classname="test.test_company_editorial" name="test_partial_coverage_and_falsified_review_cannot_pass" time="0.002" /><testcase classname="test.test_company_editorial" name="test_new_units_false_completion_and_bad_audit_trigger_automatic_repair" time="0.005" /><testcase classname="test.test_company_editorial" name="test_persistent_model_failure_remains_pending_and_never_fabricates_prose" time="3.002" /><testcase classname="test.test_company_editorial" name="test_identical_proofs_can_reuse_but_new_unit_period_or_voice_cannot" time="0.008" /><testcase classname="test.test_company_editorial" name="test_conflict_requires_equal_explicit_scope_and_period_unknown_is_not_zero" time="0.001" /><testcase classname="test.test_company_editorial" name="test_zero_currency_and_previous_values_remain_distinct_information" time="0.001" /><testcase classname="test.test_company_editorial" name="test_final_document_review_cannot_pass_on_invalid_or_unbound_issue" time="0.001" /><testcase classname="test.test_company_editorial" name="test_long_document_review_jobs_retain_every_character_without_clipping" time="0.001" /><testcase classname="test.test_company_editorial" name="test_unknown_score_can_be_disclosed_but_required_score_and_stale_text_block_delivery" time="0.013" /><testcase classname="test.test_company_editorial" name="test_only_successful_content_integrity_render_and_layout_can_mark_ready" time="0.007" /><testcase classname="test.test_company_editorial" name="test_core_requirements_do_not_relax_for_small_or_unlisted_companies" time="0.000" /><testcase classname="test.test_company_editorial" name="test_precise_numeric_and_currency_information_must_survive_synthesis" time="0.002" /><testcase classname="test.test_company_editorial" name="test_review_must_visit_all_native_propositions_even_when_model_says_retained" time="0.001" /><testcase classname="test.test_company_editorial" name="test_gaps_are_specific_and_do_not_clear_unknown_ids_or_failed_calculations" time="0.007" /><testcase classname="test.test_company_editorial" name="test_core_evidence_gap_triggers_specific_bounded_retrieval_only_once" time="0.001" /><testcase classname="test.test_company_editorial" name="test_final_workflow_review_is_bound_to_actual_report_and_uses_no_case_names" time="0.009" /><testcase classname="test.test_company_editorial" name="test_export_rejects_missing_chapter_or_lost_body_text" time="0.004" /><testcase classname="test.test_company_editorial" name="test_english_originals_have_topic_routing_without_publisher_or_scope_upgrade" time="0.003" /><testcase classname="test.test_company_editorial" name="test_calendar_translation_is_not_changed_measurement_or_currency" time="0.001" /><testcase classname="test.test_company_editorial" name="test_json_formatting_is_repaired_without_skipping_semantic_audit" time="0.003" /><testcase classname="test.test_company_editorial" name="test_short_zero_field_stays_semantically_verifiable" time="0.001" /><testcase classname="test.test_company_editorial" name="test_short_speaker_header_is_recovered_as_one_contiguous_native_quote" time="0.001" /><testcase classname="test.test_company_editorial" name="test_required_scoring_is_preserved_from_explicit_request_and_negation" time="0.000" /><testcase classname="test.test_company_editorial" name="test_recovered_native_sources_are_indexed_even_if_cleaning_is_empty" time="0.001" /><testcase classname="test.test_company_editorial" name="test_final_editorial_receipts_are_rechecked_instead_of_trusting_green_counts" time="0.007" /><testcase classname="test.test_company_editorial" name="test_future_parser_context_fields_are_not_erased_by_a_fixed_dedup_whitelist" time="0.001" /><testcase classname="test.test_company_editorial" name="test_unknown_dates_cannot_create_a_same_period_numeric_conflict" time="0.000" /><testcase classname="test.test_company_editorial" name="test_support_id_repair_requires_real_semantic_representation_of_both_sources" time="0.005" /><testcase classname="test.test_company_editorial" name="test_question_specific_followup_separates_incentives_and_organization" time="0.005" /><testcase classname="test.test_company_editorial" name="test_equal_quantity_spelling_is_restored_without_changing_values_or_currency" time="0.001" /><testcase classname="test.test_company_editorial" name="test_notation_restoration_preserves_surrounding_spaces_and_long_precision" time="0.001" /><testcase classname="test.test_company_editorial" name="test_export_requires_native_citation_targets_and_exact_zero_table_cells" time="0.011" /><testcase classname="test.test_company_editorial" name="test_excluded_original_cannot_reappear_in_body_as_an_accepted_claim" time="0.006" /><testcase classname="test.test_company_editorial" name="test_save_entry_point_rechecks_content_even_with_green_export_and_cached_contract" time="0.008" /><testcase classname="test.test_company_editorial" name="test_gap_plans_do_not_turn_structure_labels_into_company_events" time="0.005" /><testcase classname="test.test_company_editorial" name="test_bounded_unscored_assessment_requires_every_original_reason_and_anchor" time="0.006" /><testcase classname="test.test_company_editorial" name="test_gap_repair_is_idempotent_and_empty_score_reasons_do_not_claim_records_exist" time="0.002" /><testcase classname="test.test_company_editorial" name="test_gap_feedback_does_not_rewrite_accepted_facts_in_the_same_chapter" time="0.007" /><testcase classname="test.test_company_editorial" name="test_failed_model_review_keeps_native_fields_in_a_blocked_draft" time="0.001" /><testcase classname="test.test_company_editorial" name="test_undeclared_industry_keeps_sector_checks_pending_rather_than_excluded" time="0.001" /><testcase classname="test.test_company_editorial" name="test_native_asterisk_footnotes_and_single_underscores_survive_export_validation" time="0.005" /><testcase classname="test.test_company_editorial" name="test_pdf_checks_allow_page_field_updates_but_still_require_native_zero" time="0.068" /><testcase classname="test.test_company_editorial_candidate_repair" name="test_quantity_repair_preserves_candidates_but_freshly_audits_every_record" time="0.006" /><testcase classname="test.test_company_editorial_candidate_repair" name="test_semantic_failure_of_a_preserved_candidate_releases_it_for_full_rewrite" time="0.009" /><testcase classname="test.test_company_editorial_candidate_repair" name="test_candidate_tampering_is_rejected_before_any_semantic_acceptance" time="0.007" /><testcase classname="test.test_company_editorial_candidate_repair" name="test_nonquantity_defects_never_authorize_candidate_freezing" time="0.001" /><testcase classname="test.test_company_editorial_journal" name="test_partial_run_resumes_only_genuinely_checked_batches_and_reaudits_other_information" time="0.225" /><testcase classname="test.test_company_editorial_journal" name="test_completed_batch_is_saved_without_waiting_for_an_earlier_job_and_final_order_is_stable" time="0.161" /><testcase classname="test.test_company_editorial_journal" name="test_corrupt_batch_or_changed_original_cannot_become_an_accepted_cache_hit" time="0.071" /><testcase classname="test.test_company_editorial_journal" name="test_batch_workload_budget_never_drops_records_or_slices_a_large_native_statement" time="0.003" /><testcase classname="test.test_company_editorial_supplement" name="test_missing_information_is_added_without_rewriting_supported_prose_and_full_review_runs_again" time="0.007" /><testcase classname="test.test_company_editorial_supplement" name="test_an_unsupported_or_unreadable_first_draft_cannot_lock_its_prose" time="0.007" /><testcase classname="test.test_company_editorial_supplement" name="test_changing_protected_prose_is_rejected_and_requires_a_fresh_full_rewrite" time="0.007" /><testcase classname="test.test_company_editorial_supplement" name="test_new_full_audit_failure_cannot_be_overridden_by_the_original_supported_flags" time="0.010" /><testcase classname="test.test_company_event_evidence" name="test_review_cannot_bypass_native_or_scope_guards[mutation0-nonliteral_quote]" time="0.022" /><testcase classname="test.test_company_event_evidence" name="test_review_cannot_bypass_native_or_scope_guards[mutation1-nonliteral_quote]" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_review_cannot_bypass_native_or_scope_guards[mutation2-unproven_publication_date]" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_review_cannot_bypass_native_or_scope_guards[mutation3-original_changed]" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_review_cannot_bypass_native_or_scope_guards[mutation4-target_mismatch]" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_review_cannot_bypass_native_or_scope_guards[mutation5-unsupported_event_kind]" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_review_cannot_bypass_native_or_scope_guards[mutation6-independent_check_missing]" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_review_cannot_bypass_native_or_scope_guards[mutation7-new_summary_number]" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_after_cutoff_and_search_abstract_never_become_historical_event" time="0.001"><failure message="AssertionError: assert 'after_research_cutoff' in ['independent_check_input_or_response_changed']&#10; +  where ['independent_check_input_or_response_changed'] = validate_event({'target_name': '青禾科技有限公司', 'kind': 'external_impersonation', 'source_url': 'https://www.samr.gov.cn/example.html', 'source_title': '青禾科技有限公司第三方仿冒案件', ...}, {'title': '青禾科技有限公司第三方仿冒案件', 'url': 'https://www.samr.gov.cn/example.html', 'content': '发布日期：2025-02-01\n针对青禾科技有限公司的第三方仿冒案件，监管机关责令仿冒者停止违法行为。', 'source_metadata': {'fetch_status': 'done'}}, '青禾科技有限公司', '2024-12-31')">def test_after_cutoff_and_search_abstract_never_become_historical_event():
+        s = source(); row = selection(s)
+&gt;       assert 'after_research_cutoff' in validate_event(row, s, TARGET, '2024-12-31')
+E       AssertionError: assert 'after_research_cutoff' in ['independent_check_input_or_response_changed']
+E        +  where ['independent_check_input_or_response_changed'] = validate_event({'target_name': '青禾科技有限公司', 'kind': 'external_impersonation', 'source_url': 'https://www.samr.gov.cn/example.html', 'source_title': '青禾科技有限公司第三方仿冒案件', ...}, {'title': '青禾科技有限公司第三方仿冒案件', 'url': 'https://www.samr.gov.cn/example.html', 'content': '发布日期：2025-02-01\n针对青禾科技有限公司的第三方仿冒案件，监管机关责令仿冒者停止违法行为。', 'source_metadata': {'fetch_status': 'done'}}, '青禾科技有限公司', '2024-12-31')
+
+test\test_company_event_evidence.py:59: AssertionError</failure></testcase><testcase classname="test.test_company_event_evidence" name="test_third_party_mirror_is_not_a_primary_regulatory_source" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_changed_original_invalidates_cached_selection" time="0.002" /><testcase classname="test.test_company_event_evidence" name="test_no_event_retains_receipt_without_manufacturing_a_risk" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_named_primary_action_cannot_be_dismissed_by_a_null_model_answer" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_government_hosted_issuer_reply_is_retained_without_becoming_an_agency_original[\u5173\u4e8e\u9752\u79be\u79d1\u6280\u9996\u6b21\u516c\u5f00\u53d1\u884c\u80a1\u7968\u5e76\u4e0a\u5e02\u53d1\u884c\u6ce8\u518c\u73af\u8282\u53cd\u9988\u610f\u89c1\u843d\u5b9e\u51fd\u7684\u56de\u590d]" time="0.002" /><testcase classname="test.test_company_event_evidence" name="test_government_hosted_issuer_reply_is_retained_without_becoming_an_agency_original[\u53d1\u884c\u4eba\u53ca\u4fdd\u8350\u673a\u6784\u5173\u4e8e\u4e0a\u5e02\u7533\u8bf7\u5ba1\u6838\u95ee\u8be2\u51fd\u7684\u56de\u590d.pdf]" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_government_hosted_issuer_reply_is_retained_without_becoming_an_agency_original[\u53d1\u884c\u4eba\u5173\u4e8e\u95ee\u8be2\u51fd\u7684\u7b54\u590d]" time="0.002" /><testcase classname="test.test_company_event_evidence" name="test_regulators_action_on_an_issuer_reply_is_still_a_primary_event_candidate" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_another_issuers_reply_cannot_become_the_targets_disclosure_from_a_body_mention" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_the_issuers_native_reply_statement_binds_authorship_without_turning_into_agency_approval" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_primary_event_survives_risk_package_and_compact_writer_without_default_score" time="0.004" /><testcase classname="test.test_company_event_evidence" name="test_registry_table_and_graph_preserve_conflicting_ratios_and_unknown_dates" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_share_class_aggregate_is_kept_as_original_row_but_not_a_person_node" time="0.000" /><testcase classname="test.test_company_event_evidence" name="test_equity_svg_separates_date_so_the_exact_percentage_is_not_clipped" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_investor_contribution_is_literal_non_scoring_context_only" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_transaction_boundary_reference_is_registered_without_becoming_a_score" time="0.001" /><testcase classname="test.test_company_event_evidence" name="test_compact_personnel_table_retains_raw_role_term_and_observation_boundary" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_display_time_preserves_case_without_fabricating_publication_or_event_date" time="0.005" /><testcase classname="test.test_company_event_impact_and_dates" name="test_explicit_publication_date_and_document_date_keep_their_own_meaning" time="0.003"><failure message="AssertionError: assert 'after_research_cutoff' in ['independent_check_input_or_response_changed']&#10; +  where ['independent_check_input_or_response_changed'] = validate_event({'target_name': '青禾食品股份有限公司', 'kind': 'external_impersonation', 'source_url': 'https://court.example.gov.cn/case', 'source_title': '青禾食品股份有限公司第三方侵权典型案例', ...}, {'id': 1, 'title': '青禾食品股份有限公司第三方侵权典型案例', 'url': 'https://court.example.gov.cn/case', 'content': '发布日期：2026-10-24\n青禾食...利人。乙地法院责令第三方停止侵权；原告商誉和销量受到影响。法院酌定销量下降利润损失350万元，并将合理广告费300万元、律师费5万元纳入655万元赔偿范围。被告应在判决生效后十日内办理字号变更，后在二审阶段主动申请撤回上诉。', ...}, '青禾食品股份有限公司', '2026-10-23')">def test_explicit_publication_date_and_document_date_keep_their_own_meaning():
+        s = source(); s['content'] = '发布日期：2026-10-24\n' + BODY
+        row = selection(s); row.update(source_date_role='publication', publication_date='2026-10-24',
+                                       date_quote='发布日期：2026-10-24', date_quote_offset=0)
+        assert not validate_event(row, s, TARGET, AS_OF, require_independent=False)
+        assert event_period(row).startswith('资料发布日期2026-10-24')
+&gt;       assert 'after_research_cutoff' in validate_event(row, s, TARGET, '2026-10-23')
+E       AssertionError: assert 'after_research_cutoff' in ['independent_check_input_or_response_changed']
+E        +  where ['independent_check_input_or_response_changed'] = validate_event({'target_name': '青禾食品股份有限公司', 'kind': 'external_impersonation', 'source_url': 'https://court.example.gov.cn/case', 'source_title': '青禾食品股份有限公司第三方侵权典型案例', ...}, {'id': 1, 'title': '青禾食品股份有限公司第三方侵权典型案例', 'url': 'https://court.example.gov.cn/case', 'content': '发布日期：2026-10-24\n青禾食...利人。乙地法院责令第三方停止侵权；原告商誉和销量受到影响。法院酌定销量下降利润损失350万元，并将合理广告费300万元、律师费5万元纳入655万元赔偿范围。被告应在判决生效后十日内办理字号变更，后在二审阶段主动申请撤回上诉。', ...}, '青禾食品股份有限公司', '2026-10-23')
+
+test\test_company_event_impact_and_dates.py:81: AssertionError</failure></testcase><testcase classname="test.test_company_event_impact_and_dates" name="test_undated_event_does_not_require_a_made_up_date_quote" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_bad_date_claims_are_rejected_even_with_a_green_overall_verdict[changes0-nonpublication_time_used_as_publication]" time="0.002" /><testcase classname="test.test_company_event_impact_and_dates" name="test_bad_date_claims_are_rejected_even_with_a_green_overall_verdict[changes1-unproven_source_date]" time="0.002" /><testcase classname="test.test_company_event_impact_and_dates" name="test_bad_date_claims_are_rejected_even_with_a_green_overall_verdict[changes2-unproven_publication_date]" time="0.002" /><testcase classname="test.test_company_event_impact_and_dates" name="test_bad_date_claims_are_rejected_even_with_a_green_overall_verdict[changes3-unproven_source_date_role]" time="0.002" /><testcase classname="test.test_company_event_impact_and_dates" name="test_bad_date_claims_are_rejected_even_with_a_green_overall_verdict[changes4-unproven_source_date]" time="0.002" /><testcase classname="test.test_company_event_impact_and_dates" name="test_bad_date_claims_are_rejected_even_with_a_green_overall_verdict[changes5-unproven_source_date]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_each_independent_criterion_is_mandatory[factual_support]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_each_independent_criterion_is_mandatory[responsibility_and_impact]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_each_independent_criterion_is_mandatory[date_meaning]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_each_independent_criterion_is_mandatory[procedure_and_receipt_state]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_each_independent_criterion_is_mandatory[counterevidence]" time="0.002" /><testcase classname="test.test_company_event_impact_and_dates" name="test_each_independent_criterion_is_mandatory[actors_and_obligations]" time="0.002" /><testcase classname="test.test_company_event_impact_and_dates" name="test_literal_precheck_never_inserts_an_independent_verdict" time="0.002" /><testcase classname="test.test_company_event_impact_and_dates" name="test_requests_and_awards_cannot_become_completed_states[\u4e8c\u5ba1\u88ab\u544a\u4e3b\u52a8\u64a4\u56de\u4e0a\u8bc9\u3002-unproven_withdrawal_completion]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_requests_and_awards_cannot_become_completed_states[\u4e0a\u8bc9\u5df2\u64a4\u56de\u3002-unproven_withdrawal_completion]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_requests_and_awards_cannot_become_completed_states[\u7a0b\u5e8f\u9636\u6bb5\u4e3a\u4e00\u5ba1\u5224\u51b3\u751f\u6548\u3002-unproven_judgment_finality]" time="0.002" /><testcase classname="test.test_company_event_impact_and_dates" name="test_requests_and_awards_cannot_become_completed_states[\u539f\u5224\u5df2\u7ecf\u751f\u6548\u3002-unproven_judgment_finality]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_requests_and_awards_cannot_become_completed_states[\u76ee\u6807\u516c\u53f8\u5df2\u6536\u5230655\u4e07\u5143\u8d54\u507f\u3002-unproven_compensation_receipt]" time="0.002" /><testcase classname="test.test_company_event_impact_and_dates" name="test_requests_and_awards_cannot_become_completed_states[\u8d54\u507f\u6b3e\u5df2\u7ecf\u5230\u8d26\u3002-unproven_compensation_receipt]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_requests_qualifications_and_future_conditions_remain_allowed[\u88ab\u544a\u4e3b\u52a8\u7533\u8bf7\u64a4\u56de\u4e0a\u8bc9\u3002]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_requests_qualifications_and_future_conditions_remain_allowed[\u6cd5\u9662\u5224\u8d54655\u4e07\u5143\uff0c\u88ab\u544a\u5728\u4e8c\u5ba1\u7533\u8bf7\u64a4\u56de\u4e0a\u8bc9\u3002]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_requests_qualifications_and_future_conditions_remain_allowed[\u539f\u6587\u672a\u8f7d\u660e\u7533\u8bf7\u662f\u5426\u83b7\u51c6\uff0c\u4e0d\u80fd\u636e\u6b64\u8ba4\u5b9a\u5224\u51b3\u5df2\u751f\u6548\u3002]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_requests_qualifications_and_future_conditions_remain_allowed[\u5e94\u5728\u5224\u51b3\u751f\u6548\u540e\u5341\u65e5\u5185\u529e\u7406\u5b57\u53f7\u53d8\u66f4\u3002]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_requests_qualifications_and_future_conditions_remain_allowed[\u9700\u6838\u9a8c\u64a4\u56de\u4e0a\u8bc9\u7533\u8bf7\u7684\u5904\u7406\u7ed3\u679c\u3002]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_requests_qualifications_and_future_conditions_remain_allowed[\u5c1a\u5f85\u5224\u51b3\u751f\u6548\u3002]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_explanation_of_distinct_states_is_not_a_completed_act[\u4e8c\u5ba1\u51c6\u8bb8\u64a4\u56de\u3001\u5224\u51b3\u751f\u6548\u3001\u5224\u8d54\u5c65\u884c\u4e0e\u6b3e\u9879\u5230\u8d26\u5747\u4e3a\u4e0d\u540c\u72b6\u6001\u3002]" time="0.002" /><testcase classname="test.test_company_event_impact_and_dates" name="test_explanation_of_distinct_states_is_not_a_completed_act[\u7533\u8bf7\u64a4\u56de\u4e0a\u8bc9\u3001\u6cd5\u9662\u51c6\u8bb8\u64a4\u56de\u3001\u5224\u51b3\u751f\u6548\u3001\u5224\u8d54\u4e49\u52a1\u4e0e\u8d54\u507f\u6b3e\u5b9e\u9645\u5230\u8d26\u7cfb\u4e0d\u540c\u72b6\u6001\u3002]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_explanation_of_distinct_states_is_not_a_completed_act[\u7533\u8bf7\u64a4\u8bc9\u3001\u6cd5\u9662\u51c6\u8bb8\u64a4\u8bc9\u3001\u5224\u51b3\u751f\u6548\u4e0e\u8d54\u507f\u5230\u8d26\u662f\u4e0d\u540c\u7684\u7a0b\u5e8f\u9636\u6bb5\u3002]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_explanation_of_distinct_states_is_not_a_completed_act[\u7533\u8acb\u64a4\u56de\u4e0a\u8a34\u3001\u6cd5\u9662\u51c6\u8a31\u64a4\u56de\u4e0a\u8a34\u3001\u5224\u6c7a\u751f\u6548\u8207\u6b3e\u9805\u5230\u8cec\u5747\u70ba\u4e0d\u540c\u72c0\u614b\u3002]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_distinction_reminder_does_not_hide_an_actual_completed_act_claim[\u539f\u5224\u5df2\u751f\u6548\u4e14\u7533\u8bf7\u64a4\u8bc9\u4e0e\u6cd5\u9662\u51c6\u8bb8\u64a4\u8bc9\u7cfb\u4e0d\u540c\u72b6\u6001\u3002-unproven_judgment_finality]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_distinction_reminder_does_not_hide_an_actual_completed_act_claim[\u6cd5\u9662\u88c1\u5b9a\u51c6\u8bb8\u64a4\u56de\u4e0a\u8bc9\u4e0e\u5224\u51b3\u751f\u6548\u7cfb\u4e0d\u540c\u72b6\u6001\u3002-unproven_withdrawal_completion]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_distinction_reminder_does_not_hide_an_actual_completed_act_claim[\u4e8c\u5ba1\u64a4\u56de\u4e0a\u8bc9\u5df2\u83b7\u51c6\u3001\u5224\u51b3\u5df2\u751f\u6548\u4e0e\u8d54\u507f\u6b3e\u5df2\u5230\u8d26\u5747\u4e3a\u4e0d\u540c\u72b6\u6001\u3002-unproven_judgment_finality]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_distinction_reminder_does_not_hide_an_actual_completed_act_claim[\u4e8c\u5ba1\u64a4\u56de\u4e0a\u8bc9\u5df2\u83b7\u51c6\u3001\u5224\u51b3\u5df2\u751f\u6548\u4e0e\u8d54\u507f\u6b3e\u5df2\u5230\u8d26\u5747\u4e3a\u4e0d\u540c\u72b6\u6001\u3002-unproven_compensation_receipt]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_distinction_reminder_does_not_hide_an_actual_completed_act_claim[2026\u5e74\u5224\u51b3\u751f\u6548\u4e0e\u8d54\u6b3e\u5230\u8d26\u662f\u4e0d\u540c\u72b6\u6001\u3002-unproven_judgment_finality]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_distinction_reminder_does_not_hide_an_actual_completed_act_claim[\u672c\u6848\u539f\u5224\u5df2\u7ecf\u751f\u6548\u3002\u7533\u8bf7\u64a4\u8bc9\u4e0e\u51c6\u8bb8\u64a4\u8bc9\u662f\u4e0d\u540c\u72b6\u6001\u3002-unproven_judgment_finality]" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_concept_list_in_source_does_not_prove_withdrawal_or_finality" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_state_distinction_still_requires_a_fresh_complete_independent_review" time="0.005" /><testcase classname="test.test_company_event_impact_and_dates" name="test_granted_withdrawal_does_not_also_prove_judgment_finality" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_another_case_on_the_page_cannot_supply_receipt_or_grant" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_denied_grant_is_not_positive_evidence" time="0.001" /><testcase classname="test.test_company_event_impact_and_dates" name="test_event_cache_binds_target_cutoff_and_contract_version" time="0.002" /><testcase classname="test.test_company_event_impact_and_dates" name="test_semantic_repair_receives_a_fresh_complete_check[True]" time="0.004" /><testcase classname="test.test_company_event_impact_and_dates" name="test_semantic_repair_receives_a_fresh_complete_check[False]" time="0.005" /><testcase classname="test.test_company_event_impact_and_dates" name="test_source_date_context_does_not_change_unrelated_specialized_records" time="0.001" /><testcase classname="test.test_company_evidence_recovery" name="test_zero_keyword_and_short_native_values_reach_model_and_can_route[\u767b\u8bb0\u72b6\u6001\uff1a\u5b58\u7eed]" time="0.003" /><testcase classname="test.test_company_evidence_recovery" name="test_zero_keyword_and_short_native_values_reach_model_and_can_route[0]" time="0.002" /><testcase classname="test.test_company_evidence_recovery" name="test_zero_keyword_and_short_native_values_reach_model_and_can_route[\u672a\u77e5]" time="0.002" /><testcase classname="test.test_company_evidence_recovery" name="test_zero_keyword_and_short_native_values_reach_model_and_can_route[\u5e73\u53f0\u8f7d\u660e\u6700\u9ad8\u4f59\u989d\u53ca\u91c7\u8d2d\u4e0a\u9650\uff0c\u5e94\u6309\u5173\u8054\u65b9\u53e3\u5f84\u5206\u522b\u6838\u5bf9\u3002]" time="0.002" /><testcase classname="test.test_company_evidence_recovery" name="test_zero_keyword_and_short_native_values_reach_model_and_can_route[\u4ec5\u6709\u4e00\u4e2a\u6ca1\u6709\u4efb\u4f55\u4e3b\u9898\u8bcd\u7684\u5b57\u7b26\u4e32]" time="0.002" /><testcase classname="test.test_company_evidence_recovery" name="test_chapter_encoding_normalization_and_semantic_routing[6_0]" time="0.001" /><testcase classname="test.test_company_evidence_recovery" name="test_chapter_encoding_normalization_and_semantic_routing[6_1]" time="0.001" /><testcase classname="test.test_company_evidence_recovery" name="test_chapter_encoding_normalization_and_semantic_routing[06]" time="0.001" /><testcase classname="test.test_company_evidence_recovery" name="test_chapter_encoding_normalization_and_semantic_routing[company.ch06]" time="0.001" /><testcase classname="test.test_company_evidence_recovery" name="test_chapter_encoding_normalization_and_semantic_routing[ch06]" time="0.001" /><testcase classname="test.test_company_evidence_recovery" name="test_chapter_encoding_normalization_and_semantic_routing[\u7b2c\u516d\u7ae0]" time="0.001" /><testcase classname="test.test_company_evidence_recovery" name="test_chapter_encoding_normalization_and_semantic_routing[6.]" time="0.001" /><testcase classname="test.test_company_evidence_recovery" name="test_unknown_ids_cross_task_and_native_tampering_still_fail" time="0.001" /><testcase classname="test.test_company_evidence_recovery" name="test_long_cross_page_table_coverage_retains_headers_names_units_and_tail" time="0.054" /><testcase classname="test.test_company_evidence_recovery" name="test_later_publication_is_read_with_historical_boundary" time="0.001" /><testcase classname="test.test_company_evidence_recovery" name="test_missing_name_is_supplemented_from_actual_adjacent_original_and_rejudged" time="0.003" /><testcase classname="test.test_company_evidence_recovery" name="test_unresolved_context_preserves_specific_gap_and_clear_facts" time="0.004" /><testcase classname="test.test_company_evidence_recovery" name="test_failed_platform_receipt_is_read_but_cannot_be_company_fact" time="0.001" /><testcase classname="test.test_company_evidence_recovery" name="test_native_context_conflict_clarifies_without_broad_rewrite" time="0.002" /><testcase classname="test.test_company_evidence_recovery" name="test_complete_platform_raw_envelopes_are_saved_and_indexed_without_table_clipping" time="8.901" /><testcase classname="test.test_company_evidence_recovery" name="test_cross_chapter_routing_keeps_bound_records_and_invalidates_destination" time="0.005" /><testcase classname="test.test_company_evidence_recovery" name="test_unknown_selection_ids_are_repaired_in_isolation_and_bound_before_use" time="0.002" /><testcase classname="test.test_company_evidence_recovery" name="test_context_overflow_splits_without_dropping_tail_and_reuses_successful_child" time="0.006" /><testcase classname="test.test_company_listing_funding" name="test_dated_listing_and_actual_net_proceeds_are_not_lost_without_word_completed" time="0.061" /><testcase classname="test.test_company_listing_funding" name="test_plans_gross_amounts_unknown_currency_and_separate_events_are_not_actual_net[\u672c\u516c\u53f8\u53d1\u884c-\u672c\u516c\u53f8\u62df\u53d1\u884c]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_plans_gross_amounts_unknown_currency_and_separate_events_are_not_actual_net[\u672c\u516c\u53f8\u53d1\u884c-\u672c\u516c\u53f8\u83b7\u51c6\u53d1\u884c]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_plans_gross_amounts_unknown_currency_and_separate_events_are_not_actual_net[\u672c\u516c\u53f8\u53d1\u884c-\u672c\u516c\u53f8\u5b50\u516c\u53f8\u53d1\u884c]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_plans_gross_amounts_unknown_currency_and_separate_events_are_not_actual_net[\u5b9e\u9645\u52df\u96c6\u8d44\u91d1\u51c0\u989d-\u9884\u8ba1\u5b9e\u9645\u52df\u96c6\u8d44\u91d1\u51c0\u989d]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_plans_gross_amounts_unknown_currency_and_separate_events_are_not_actual_net[\u5b9e\u9645\u52df\u96c6\u8d44\u91d1\u51c0\u989d-\u52df\u96c6\u8d44\u91d1\u603b\u989d]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_plans_gross_amounts_unknown_currency_and_separate_events_are_not_actual_net[\u4eba\u6c11\u5e01100,000,000.00\u5143-100,000,000.00\u5143]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_plans_gross_amounts_unknown_currency_and_separate_events_are_not_actual_net[100,000,000.00-0.00]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_plans_gross_amounts_unknown_currency_and_separate_events_are_not_actual_net[2025\u5e746\u670819\u65e5-2026\u5e7412\u670819\u65e5]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_plans_gross_amounts_unknown_currency_and_separate_events_are_not_actual_net[2025\u5e746\u670819\u65e5-2020\u5e746\u670819\u65e5]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_plans_gross_amounts_unknown_currency_and_separate_events_are_not_actual_net[\u6263\u9664\u53d1\u884c\u8d39\u7528-2025\u5e747\u67081\u65e5\uff0c\u53e6\u4e00\u9879\u878d\u8d44\u6263\u9664\u53d1\u884c\u8d39\u7528]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_subsidiary_issuer_and_modified_native_values_cannot_inherit_parent_grade" time="0.004" /><testcase classname="test.test_company_listing_funding" name="test_preceding_conditional_or_nested_child_subject_is_not_removed_at_date[\u5047\u8bbe]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_preceding_conditional_or_nested_child_subject_is_not_removed_at_date[\u5982\u679c]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_preceding_conditional_or_nested_child_subject_is_not_removed_at_date[\u9884\u8ba1\u4e8e]" time="0.003" /><testcase classname="test.test_company_listing_funding" name="test_preceding_conditional_or_nested_child_subject_is_not_removed_at_date[\u8ba1\u5212\u4e8e]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_preceding_conditional_or_nested_child_subject_is_not_removed_at_date[\u4f8b\u5982\uff1a]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_preceding_conditional_or_nested_child_subject_is_not_removed_at_date[\u9644\u5c5e\u516c\u53f8\u516c\u544a\u79f0\uff1a]" time="0.002" /><testcase classname="test.test_company_listing_funding" name="test_future_publication_cannot_supply_an_as_of_funding_grade" time="0.002"><failure message="AssertionError: assert [{'source_url...C793A'], ...}] == []&#10;  &#10;  Left contains one more item: {'source_url': 'https://www.hkexnews.hk/listedco/listconews/sehk/2026/1224/2026122400001_c.pdf', 'source_title': '青禾制造股份有限公司2025年年度报告', 'evidence_id': 'E-B44484EC793A', 'evidence_ids': ['E-B44484EC793A'], ...}&#10;  Use -v to get more diff">def test_future_publication_cannot_supply_an_as_of_funding_grade():
+        source=src(extra=[{'page':15,'text':QUOTE}])
+        source['url']='https://www.hkexnews.hk/listedco/listconews/sehk/2026/1224/2026122400001_c.pdf'
+&gt;       assert listing_funding_events(source,ROOT,base(source),'2026-10-24')==[]
+E       AssertionError: assert [{'source_url...C793A'], ...}] == []
+E         
+E         Left contains one more item: {'source_url': 'https://www.hkexnews.hk/listedco/listconews/sehk/2026/1224/2026122400001_c.pdf', 'source_title': '青禾制造股份有限公司2025年年度报告', 'evidence_id': 'E-B44484EC793A', 'evidence_ids': ['E-B44484EC793A'], ...}
+E         Use -v to get more diff
+
+test\test_company_listing_funding.py:57: AssertionError</failure></testcase><testcase classname="test.test_company_listing_funding" name="test_platform_original_copy_is_admitted_with_platform_attribution" time="0.014" /><testcase classname="test.test_company_listing_funding" name="test_platform_profile_name_does_not_bind_an_unowned_quoted_listing_event" time="0.001" /><testcase classname="test.test_company_listing_funding" name="test_explicit_entity_rejection_is_preserved[rejected]" time="0.001" /><testcase classname="test.test_company_listing_funding" name="test_explicit_entity_rejection_is_preserved[ambiguous]" time="0.001" /><testcase classname="test.test_company_listing_funding" name="test_explicit_entity_rejection_is_preserved[related_entity_context]" time="0.001" /><testcase classname="test.test_company_listing_funding" name="test_two_independent_years_can_score_but_cross_year_overallotment_is_not_a_new_cycle" time="0.007" /><testcase classname="test.test_company_press_releases" name="test_completed_gross_shares_price_and_intended_use_are_distinct_without_calculated_net_or_payment" time="0.007"><failure message="AssertionError: assert not [{'source_url': 'https://home.blueriver.test/news/one', 'source_title': '青禾集团公告', 'evidence_id': 'E-000000000001', 'ev...er.test/news/one', 'source_title': '青禾集团公告', 'evidence_id': 'E-000000000001', 'evidence_ids': ['E-000000000001'], ...}]&#10; +  where [{'source_url': 'https://home.blueriver.test/news/one', 'source_title': '青禾集团公告', 'evidence_id': 'E-000000000001', 'ev...er.test/news/one', 'source_title': '青禾集团公告', 'evidence_id': 'E-000000000001', 'evidence_ids': ['E-000000000001'], ...}] = press_financing_rows({'url': 'https://home.blueriver.test/news/one', 'title': '青禾集团公告', 'content': '青禾集团完成新股份配售\n\n2026年8月26日\n\nHong Kong,... approximately 40%, or HK$7,960 million, will be used for research.', 'source_metadata': {'content_kind': 'full_text'}}, '青禾网络科技有限公司', {'source_url': 'https://home.blueriver.test/news/one', 'source_title': '青禾集团公告', 'evidence_id': 'E-000000000001', 'evidence_ids': ['E-000000000001']}, {'target_name': '青禾网络科技有限公司', 'roots': {'blueriver.test'}, 'websites': [{'host': 'blueriver.test', 'url': 'www.blueriv...限公司', 'evidence_quote': 'Blue River Network Limited\n青禾网络科技有限公司', 'source_url': 'https://www.hkexnews.hk/annual.pdf'}]}, as_of='2026-08-20')&#10; +    where {'source_url': 'https://home.blueriver.test/news/one', 'source_title': '青禾集团公告', 'evidence_id': 'E-000000000001', 'evidence_ids': ['E-000000000001']} = base({'url': 'https://home.blueriver.test/news/one', 'title': '青禾集团公告', 'content': '青禾集团完成新股份配售\n\n2026年8月26日\n\nHong Kong,... approximately 40%, or HK$7,960 million, will be used for research.', 'source_metadata': {'content_kind': 'full_text'}})">def test_completed_gross_shares_price_and_intended_use_are_distinct_without_calculated_net_or_payment():
+        s=release();ctx=build_issuer_identity([filing(),s],TARGET)
+        rows=press_financing_rows(s,TARGET,base(s),ctx,as_of='2026-10-20')
+        assert len(rows)==2 and rows[0]['gross_proceeds_text']=='HK$20 billion'
+        assert rows[0]['shares_text']=='500,000,000' and rows[0]['placing_price_text']=='HK$40.00'
+        assert rows[0]['net_proceeds_text']==''
+        assert rows[1]['kind']=='financing_use_plan' and '非实际支出' in rows[1]['mode']
+        assert all(r['fact'] in s['content'] for r in rows)
+&gt;       assert not press_financing_rows(s,TARGET,base(s),ctx,as_of='2026-08-20')
+E       AssertionError: assert not [{'source_url': 'https://home.blueriver.test/news/one', 'source_title': '青禾集团公告', 'evidence_id': 'E-000000000001', 'ev...er.test/news/one', 'source_title': '青禾集团公告', 'evidence_id': 'E-000000000001', 'evidence_ids': ['E-000000000001'], ...}]
+E        +  where [{'source_url': 'https://home.blueriver.test/news/one', 'source_title': '青禾集团公告', 'evidence_id': 'E-000000000001', 'ev...er.test/news/one', 'source_title': '青禾集团公告', 'evidence_id': 'E-000000000001', 'evidence_ids': ['E-000000000001'], ...}] = press_financing_rows({'url': 'https://home.blueriver.test/news/one', 'title': '青禾集团公告', 'content': '青禾集团完成新股份配售\n\n2026年8月26日\n\nHong Kong,... approximately 40%, or HK$7,960 million, will be used for research.', 'source_metadata': {'content_kind': 'full_text'}}, '青禾网络科技有限公司', {'source_url': 'https://home.blueriver.test/news/one', 'source_title': '青禾集团公告', 'evidence_id': 'E-000000000001', 'evidence_ids': ['E-000000000001']}, {'target_name': '青禾网络科技有限公司', 'roots': {'blueriver.test'}, 'websites': [{'host': 'blueriver.test', 'url': 'www.blueriv...限公司', 'evidence_quote': 'Blue River Network Limited\n青禾网络科技有限公司', 'source_url': 'https://www.hkexnews.hk/annual.pdf'}]}, as_of='2026-08-20')
+E        +    where {'source_url': 'https://home.blueriver.test/news/one', 'source_title': '青禾集团公告', 'evidence_id': 'E-000000000001', 'evidence_ids': ['E-000000000001']} = base({'url': 'https://home.blueriver.test/news/one', 'title': '青禾集团公告', 'content': '青禾集团完成新股份配售\n\n2026年8月26日\n\nHong Kong,... approximately 40%, or HK$7,960 million, will be used for research.', 'source_metadata': {'content_kind': 'full_text'}})
+
+test\test_company_press_releases.py:24: AssertionError</failure></testcase><testcase classname="test.test_company_press_releases" name="test_plan_pricing_and_mismatched_dateline_do_not_become_completed_funding" time="0.004" /><testcase classname="test.test_company_press_releases" name="test_subsidiary_press_statement_does_not_inherit_parent_funding" time="0.002" /><testcase classname="test.test_company_press_releases" name="test_copyright_footer_does_not_hide_the_bilingual_legal_action_binding" time="0.003" /><testcase classname="test.test_company_regulatory" name="test_original_decision_uses_action_date_not_url_year_and_preserves_amount_quote" time="0.004" /><testcase classname="test.test_company_regulatory" name="test_republication_summary_and_rejected_fetches_are_not_regulator_originals[change0]" time="0.001" /><testcase classname="test.test_company_regulatory" name="test_republication_summary_and_rejected_fetches_are_not_regulator_originals[change1]" time="0.001" /><testcase classname="test.test_company_regulatory" name="test_republication_summary_and_rejected_fetches_are_not_regulator_originals[change2]" time="0.001" /><testcase classname="test.test_company_regulatory" name="test_republication_summary_and_rejected_fetches_are_not_regulator_originals[change3]" time="0.001" /><testcase classname="test.test_company_regulatory" name="test_parent_comention_does_not_transfer_a_childs_penalty" time="0.001" /><testcase classname="test.test_company_regulatory" name="test_regulator_domain_does_not_assign_a_local_agencys_decision_to_the_national_publisher" time="0.002" /><testcase classname="test.test_company_regulatory" name="test_hypothetical_risk_and_proposed_penalty_are_not_decisions" time="0.002" /><testcase classname="test.test_company_regulatory" name="test_month_only_historical_date_is_not_replaced_with_current_publication_day" time="0.002" /><testcase classname="test.test_company_regulatory" name="test_regulator_followup_keeps_scope_and_does_not_erase_the_original_penalty" time="0.008" /><testcase classname="test.test_company_regulatory" name="test_future_regulatory_notice_is_not_admitted_at_the_research_cutoff" time="0.003"><failure message="AssertionError: assert not [{'id': 'R-C0B848540C1A', 'kind': 'administrative_penalty', 'label': '历史行政处罚及当前整改核查', 'origin': 'extension', ...}]">def test_future_regulatory_notice_is_not_admitted_at_the_research_cutoff():
+        c,s=fixture(penalty().replace('2021-04-10','2027-04-10').replace('2021年4月10日','2027年4月10日'))
+        risk=build_risk_register({'facts':[c]},TARGET,[s],intake={'as_of_date':'2026-10-20'})
+&gt;       assert not risk['entries']
+E       AssertionError: assert not [{'id': 'R-C0B848540C1A', 'kind': 'administrative_penalty', 'label': '历史行政处罚及当前整改核查', 'origin': 'extension', ...}]
+
+test\test_company_regulatory.py:98: AssertionError</failure></testcase><testcase classname="test.test_company_reputation" name="test_original_research_view_is_attributed_without_invented_market_share_or_peer_table" time="0.002"><failure message="AssertionError: assert not [{'kind': 'research_view', 'aspect': '行业地位', 'fact': '在综合能力方面，青禾网络科技有限公司、星河科技等厂商取得了优势与主要市场份额。', 'evidence_quote': '在综合能力方面，青禾网络科技有限公司、星河科技等厂商取得了优势与主要市场份额。', ...}]">def test_original_research_view_is_attributed_without_invented_market_share_or_peer_table():
+        from company_publishers import research_publisher_identity,statistics_publisher_identity
+        name='青禾网络科技有限公司';url='https://www.idc.com/resource-center/blog/cloud-study/'
+        raw=('Markets and Trends October 8, 2026 1 min\n\nIDC发布《中国AI云市场追踪报告，2025》。\n\n'
+             '在综合能力方面，'+name+'、星河科技等厂商取得了优势与主要市场份额。')
+        c,s=filing(name,raw);s.update(url=url,content=raw);c['source_url']=url
+        assert research_publisher_identity(url,raw)['publication_date']=='2026-10-08'
+        assert statistics_publisher_identity(url,raw)=={}
+        p=package(name,(c,s),as_of='2026-10-20');text=render_reputation(p)
+        assert len(p['facts'])==1 and p['facts'][0]['kind']=='research_view'
+        assert p['facts'][0]['fact'] in raw and p['facts'][0]['aspect']=='行业地位'
+        assert '原发布机构研究观点／非完整定量对标' in text
+        assert '尚无达到同产品、同期间、同地区及同分母条件的完整对标组' in text
+        assert not any(r['kind']=='benchmark' for r in p['facts'])
+&gt;       assert not package(name,(c,s),as_of='2026-10-01')['facts']
+E       AssertionError: assert not [{'kind': 'research_view', 'aspect': '行业地位', 'fact': '在综合能力方面，青禾网络科技有限公司、星河科技等厂商取得了优势与主要市场份额。', 'evidence_quote': '在综合能力方面，青禾网络科技有限公司、星河科技等厂商取得了优势与主要市场份额。', ...}]
+
+test\test_company_reputation.py:43: AssertionError</failure></testcase><testcase classname="test.test_company_reputation" name="test_original_research_route_not_inferred_from_republication_or_company_story[https://idc.com.evil.example/resource-center/blog/cloud-study/]" time="0.001" /><testcase classname="test.test_company_reputation" name="test_original_research_route_not_inferred_from_republication_or_company_story[https://www.idc.com/customer-story/cloud-study/]" time="0.001" /><testcase classname="test.test_company_reputation" name="test_original_research_route_not_inferred_from_republication_or_company_story[http://www.idc.com/resource-center/blog/cloud-study/]" time="0.001" /><testcase classname="test.test_company_reputation" name="test_declared_quarter_issuer_aliases_are_not_inferred_from_brand_prefixes" time="0.002" /><testcase classname="test.test_company_reputation" name="test_other_companies_survey_retains_own_values_and_no_example_conclusions[\u661f\u6cb3\u7cbe\u5bc6\u80a1\u4efd\u6709\u9650\u516c\u53f8]" time="0.008" /><testcase classname="test.test_company_reputation" name="test_other_companies_survey_retains_own_values_and_no_example_conclusions[\u9752\u79be\u98df\u54c1\u6709\u9650\u516c\u53f8]" time="0.003" /><testcase classname="test.test_company_reputation" name="test_other_companies_survey_retains_own_values_and_no_example_conclusions[Northstar Robotics Limited]" time="0.003" /><testcase classname="test.test_company_reputation" name="test_customer_nps_definition_complaint_scope_and_missing_prior_value" time="0.003" /><testcase classname="test.test_company_reputation" name="test_survey_header_reversed_and_parenthetical_line_wrapped" time="0.001" /><testcase classname="test.test_company_reputation" name="test_three_year_table_selects_latest_two_without_losing_column_alignment" time="0.008" /><testcase classname="test.test_company_reputation" name="test_wrapped_superscript_is_a_footnote_not_a_complaint_value" time="0.001" /><testcase classname="test.test_company_reputation" name="test_financial_company_customer_scope_not_expanded_to_entire_group" time="0.003" /><testcase classname="test.test_company_reputation" name="test_missing_header_unbound_flat_integer_cells_and_absent_value_not_guessed" time="0.001" /><testcase classname="test.test_company_reputation" name="test_same_period_survey_conflicts_retained_not_overwritten" time="0.003" /><testcase classname="test.test_company_reputation" name="test_generated_preface_cannot_replace_document_or_create_metrics" time="0.001" /><testcase classname="test.test_company_reputation" name="test_company_statement_not_employee_interview_and_no_phantom_interviews" time="0.002" /><testcase classname="test.test_company_reputation" name="test_subsidiary_research_mentioning_parent_not_parent_research_view" time="0.002" /><testcase classname="test.test_company_reputation" name="test_research_keeps_named_brand_and_historical_opinion_as_original" time="0.002" /><testcase classname="test.test_company_reputation" name="test_market_comparison_keeps_current_not_prior_or_combined_share" time="0.001" /><testcase classname="test.test_company_reputation" name="test_updated_release_verbs_do_not_leave_the_benchmark_on_old_period" time="0.001" /><testcase classname="test.test_company_reputation" name="test_industry_survey_cannot_become_company_score_or_service_nps_comparison" time="0.002" /><testcase classname="test.test_company_reputation" name="test_market_comparison_requires_period_population_and_target_peer_group" time="0.001" /><testcase classname="test.test_company_reputation" name="test_english_alias_must_come_from_verified_issuer_filing_not_competitor" time="0.001" /><testcase classname="test.test_company_reputation" name="test_latest_benchmark_uses_one_release_without_mixing_periods" time="0.007" /><testcase classname="test.test_company_reputation" name="test_cooperation_is_counterparty_statement_not_endorsement_or_completed_sales" time="0.003" /><testcase classname="test.test_company_reputation" name="test_unknown_citation_modified_judgment_and_empty_package_fail" time="0.002" /><testcase classname="test.test_company_reputation" name="test_fast_company_cleaning_original_precedes_and_excludes_generated_summary" time="0.001" /><testcase classname="test.test_company_reputation" name="test_summary_only_retained_as_discovery_but_not_hard_fact_or_llm_input" time="0.001" /><testcase classname="test.test_company_reputation" name="test_failed_fetch_abstract_in_content_cannot_masquerade_as_original" time="0.000" /><testcase classname="test.test_company_reputation" name="test_completed_ocr_only_and_physical_page_recovery" time="0.000" /><testcase classname="test.test_company_reputation" name="test_company_llm_quote_must_exist_in_original_and_extra_numbers_rejected" time="0.001" /><testcase classname="test.test_company_reputation" name="test_company_evidence_policy_keeps_industry_original_body_rules_separate" time="0.048" /><testcase classname="test.test_company_reputation" name="test_company_pdf_keeps_page_155_and_layout_beyond_old_40_page_limit" time="0.022" /><testcase classname="test.test_company_reputation" name="test_company_pdf_does_not_silently_omit_tail_of_435_page_report" time="0.028" /><testcase classname="test.test_company_reputation" name="test_cooperation_passage_deduplicates_mobile_copy_without_losing_new_product" time="0.001" /><testcase classname="test.test_company_reputation" name="test_cooperation_preserves_legal_company_suffix_and_drops_repeated_page_title" time="0.001" /><testcase classname="test.test_company_reputation" name="test_company_pdf_page_limit_reports_omissions_without_claiming_complete" time="0.004" /><testcase classname="test.test_company_reputation" name="test_empty_pdf_pages_mark_needs_ocr_not_ocr_done" time="0.002" /><testcase classname="test.test_company_reputation" name="test_company_fetch_profile_retains_page_metadata_and_default_fetch_unchanged" time="0.001" /><testcase classname="test.test_company_reputation" name="test_workflow_timeout_wrapper_forwards_company_profile_only_when_requested" time="0.001" /><testcase classname="test.test_company_reputation" name="test_company_fallback_cleaning_cannot_restore_generated_preface" time="0.001" /><testcase classname="test.test_company_reputation" name="test_survey_score_change_is_bounded_and_missing_full_pdf_is_explicit" time="0.002" /><testcase classname="test.test_company_reputation" name="test_recovered_metric_source_index_keeps_metric_unit_period_and_chapter" time="0.002" /><testcase classname="test.test_company_reputation" name="test_checked_fifth_chapter_survives_editor_without_unused_citation_padding" time="0.040" /><testcase classname="test.test_company_risk_register" name="test_dictionary_exactly_preserves_75_template_questions_and_three_categories" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_platform_cloud_and_ai_questions_extend_scope_without_changing_75_items_or_scoring_absence" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_date_parsing_rejects_incomplete_or_invalid_dates[2026-09-18-2026-09-18]" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_date_parsing_rejects_incomplete_or_invalid_dates[2026\u5e746\u670830\u65e5-2026-06-30]" time="0.000" /><testcase classname="test.test_company_risk_register" name="test_date_parsing_rejects_incomplete_or_invalid_dates[2025\u5e742\u670830\u65e5-None]" time="0.000" /><testcase classname="test.test_company_risk_register" name="test_date_parsing_rejects_incomplete_or_invalid_dates[2025\u5e74-None]" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_missing_cleaned_card_does_not_hide_original_recall_or_relation" time="0.011" /><testcase classname="test.test_company_risk_register" name="test_parent_name_prefix_does_not_prove_child_ownership" time="0.004" /><testcase classname="test.test_company_risk_register" name="test_direct_manufacturer_needs_no_parent_relationship" time="0.004" /><testcase classname="test.test_company_risk_register" name="test_subsidiary_grid_requires_owned_report_and_preserves_direct_indirect[False-False]" time="0.002" /><testcase classname="test.test_company_risk_register" name="test_subsidiary_grid_requires_owned_report_and_preserves_direct_indirect[True-True]" time="0.002" /><testcase classname="test.test_company_risk_register" name="test_blank_indirect_is_not_zero_and_invalid_percentage_not_admitted" time="0.002" /><testcase classname="test.test_company_risk_register" name="test_fiscal_year_is_not_automatically_calendar_year_end" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_relationship_cutoff_not_invented_when_only_report_year_or_contents_available" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_wrong_issuer_and_generic_table_comention_are_not_relationship_proof" time="0.013" /><testcase classname="test.test_company_risk_register" name="test_historical_recall_with_later_relationship_is_explicitly_retrospective" time="0.008" /><testcase classname="test.test_company_risk_register" name="test_research_cutoff_excludes_future_notice_and_future_relationship" time="0.015" /><testcase classname="test.test_company_risk_register" name="test_future_financial_statement_and_later_exchange_release_do_not_leak_into_risk" time="0.011"><failure message="AssertionError: assert (not [{'id': 'R-411B784B4A75', 'kind': 'payment_pending', 'label': '未付款项及流动性核查', 'origin': 'extension', ...}])">def test_future_financial_statement_and_later_exchange_release_do_not_leak_into_risk():
+        s = report(year=2027)
+        s['source_metadata']['document_pages'].append({'page': 30, 'text': '本公司截至2027年12月31日尚有余额为人民币1,000万元的应付票据到期未付。'})
+        s['content'] += '\n' + s['source_metadata']['document_pages'][-1]['text']
+        p = build(s, intake={'as_of_date': '2026-10-14'})
+&gt;       assert not p['entries'] and p['diagnostic']['filters']['sources_after_research_cutoff'] == 1
+E       AssertionError: assert (not [{'id': 'R-411B784B4A75', 'kind': 'payment_pending', 'label': '未付款项及流动性核查', 'origin': 'extension', ...}])
+
+test\test_company_risk_register.py:143: AssertionError</failure></testcase><testcase classname="test.test_company_risk_register" name="test_recent_h1_relation_selected_without_claiming_event_date_unchanged" time="0.013" /><testcase classname="test.test_company_risk_register" name="test_failed_or_wrong_page_never_becomes_no_recall_or_event[failed]" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_failed_or_wrong_page_never_becomes_no_recall_or_event[blocked_or_challenge]" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_failed_or_wrong_page_never_becomes_no_recall_or_event[wrong_page_or_homepage]" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_failed_or_wrong_page_never_becomes_no_recall_or_event[fetch_timeout]" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_search_snippet_and_homepage_even_http200_are_not_original_notices" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_primary_web_reader_cache_is_distinguished_from_direct_403" time="0.002" /><testcase classname="test.test_company_risk_register" name="test_notice_date_wins_over_portal_index_and_quantity_not_annual_sales" time="0.002" /><testcase classname="test.test_company_risk_register" name="test_multiple_manufacturers_shared_defect_and_three_model_rows_not_summed" time="0.014" /><testcase classname="test.test_company_risk_register" name="test_separate_campaigns_do_not_share_the_wrong_defect_or_investigation" time="0.009" /><testcase classname="test.test_company_risk_register" name="test_unshown_recall_number_is_null_not_fabricated" time="0.003" /><testcase classname="test.test_company_risk_register" name="test_impossible_future_production_period_not_admitted" time="0.002" /><testcase classname="test.test_company_risk_register" name="test_shared_total_across_two_production_periods_is_a_manual_gap_not_wrong_assignment" time="0.002" /><testcase classname="test.test_company_risk_register" name="test_unproven_shared_remedy_does_not_assign_defect_to_first_manufacturer" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_unknown_sector_not_clearance_and_verified_related_events_still_admitted" time="0.008" /><testcase classname="test.test_company_risk_register" name="test_unmapped_declared_industry_cannot_exclude_sector_checks[\u529e\u516c\u534f\u540c\u8f6f\u4ef6]" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_unmapped_declared_industry_cannot_exclude_sector_checks[\u8c03\u5473\u539f\u6599]" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_unmapped_declared_industry_cannot_exclude_sector_checks[\u7cbe\u5bc6\u8fd0\u52a8\u63a7\u5236]" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_unmapped_declared_industry_cannot_exclude_sector_checks[\u6d77\u6d0b\u5de5\u7a0b\u670d\u52a1]" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_consumer_quality_question_links_event_but_not_parameter_fraud" time="0.002" /><testcase classname="test.test_company_risk_register" name="test_template_and_60_plus_model_claims_do_not_establish_events_or_score" time="0.003" /><testcase classname="test.test_company_risk_register" name="test_company_workflow_uses_originals_without_model_or_old_normalizers" time="0.098" /><testcase classname="test.test_company_risk_register" name="test_person_and_industry_risk_paths_keep_their_own_model_dispatch" time="0.108" /><testcase classname="test.test_company_risk_register" name="test_recovery_obstacle_is_case_specific_and_latest_exact_case_preferred" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_different_claim_amounts_not_collapsed_and_scan_counts_not_adverse_judgments" time="0.000" /><testcase classname="test.test_company_risk_register" name="test_labour_notice_does_not_imply_illegal_employment_or_loss" time="0.000" /><testcase classname="test.test_company_risk_register" name="test_writer_and_audit_index_resolve_event_recovered_without_any_fact_card" time="0.003" /><testcase classname="test.test_company_risk_register" name="test_checked_risk_chapter_is_restored_after_unfounded_editor_rewrite" time="0.013" /><testcase classname="test.test_company_risk_register" name="test_empty_chapter_detail_survives_legacy_marker_pass" time="0.002" /><testcase classname="test.test_company_risk_register" name="test_empty_packet_is_degraded_and_unknown_does_not_masquerade_as_acceptance" time="0.001" /><testcase classname="test.test_company_risk_register" name="test_tampered_checklist_and_orphan_evidence_are_rejected" time="0.004" /><testcase classname="test.test_company_risk_register" name="test_discovery_is_bounded_and_only_uses_proven_manufacturers" time="0.004" /><testcase classname="test.test_company_risk_register" name="test_discovery_does_not_search_a_co_mentioned_or_investment_vehicle_as_manufacturer" time="0.004" /><testcase classname="test.test_company_risk_register" name="test_no_target_company_constant_in_generic_builder[\u661f\u6cb3\u7cbe\u5bc6\u80a1\u4efd\u6709\u9650\u516c\u53f8]" time="0.004" /><testcase classname="test.test_company_risk_register" name="test_no_target_company_constant_in_generic_builder[\u9752\u79be\u98df\u54c1\u6709\u9650\u516c\u53f8]" time="0.004" /><testcase classname="test.test_company_risk_register" name="test_no_target_company_constant_in_generic_builder[Northstar Robotics Limited]" time="0.004" /><testcase classname="test.test_industry_evidence" name="test_internal_fenced_facts_are_indexed_individually" time="0.001" /><testcase classname="test.test_industry_evidence" name="test_invalid_fact_library_records_index_failure_before_async_queue" time="0.001" /><testcase classname="test.test_industry_evidence" name="test_capital_toggle_and_neutral_queries" time="0.001" /><testcase classname="test.test_industry_evidence" name="test_explicit_companies_are_the_only_due_diligence_queries" time="0.001" /><testcase classname="test.test_industry_evidence" name="test_chapter_9_accepts_capital_evidence_and_fact_reuse_does_not_starve_later_chapters" time="0.024" /><testcase classname="test.test_industry_evidence" name="test_unknown_future_and_incomplete_numeric_facts_cannot_score" time="0.001" /><testcase classname="test.test_industry_evidence" name="test_complete_numeric_context_still_requires_matching_region_and_time" time="0.001" /><testcase classname="test.test_industry_evidence" name="test_risk_requires_valid_dimension_evidence_and_never_scores_a_company_as_industry" time="0.002" /><testcase classname="test.test_industry_evidence" name="test_template_has_16_chapters_and_disabled_modules_skip_model_calls" time="0.044" /><testcase classname="test.test_industry_evidence" name="test_source_index_uses_actual_packages_and_gate_rejects_fabricated_ids" time="0.021" /><testcase classname="test.test_industry_evidence" name="test_numeric_delivery_claim_needs_complete_context_and_matching_source" time="0.002" /><testcase classname="test.test_industry_evidence" name="test_risk_workload_is_balanced_and_trace_retains_each_failure" time="0.005" /><testcase classname="test.test_industry_evidence" name="test_workflow_scope_filters_old_sources_and_canonicalizes_modules" time="0.001" /><testcase classname="test.test_industry_evidence" name="test_industry_target_is_never_replaced_by_project_title" time="0.000" /><testcase classname="test.test_industry_evidence" name="test_fabricated_source_is_quarantined_and_uploaded_source_gets_internal_reference" time="0.001" /><testcase classname="test.test_industry_evidence" name="test_partial_risk_score_stays_unknown_through_workflow" time="0.002" /><testcase classname="test.test_industry_evidence" name="test_evidence_is_not_hidden_after_large_metadata_in_model_context" time="0.001" /><testcase classname="test.test_industry_evidence" name="test_industry_workflow_runs_from_collection_to_word_without_external_calls" time="0.006"><failure message="TypeError: Mock.keys() returned a non-iterable (type Mock)">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001F1981E6270&gt;
+
+    def test_industry_workflow_runs_from_collection_to_word_without_external_calls(monkeypatch):
+        from datetime import datetime
+        from unittest.mock import Mock
+        from docx_exporter import markdown_to_docx_bytes
+        from report_agents import CompanyReportAgent, PersonReportAgent
+        import io
+        import zipfile
+        monkeypatch.setattr('research_workflow.object_session', lambda project: None)
+        workflow = ResearchWorkflow.__new__(ResearchWorkflow)
+        workflow._report_agents = {'industry': IndustryReportAgent(), 'company': CompanyReportAgent(), 'person': PersonReportAgent()}
+        project = SimpleNamespace(id=123, title='行业集成测试', target_name='机器人行业', target_type='industry',
+                                  industry='机器人行业', description='', sources=[], artifacts=[])
+        database = Mock()
+        exports = []
+        def collect(*args, **kwargs):
+            for i, module in enumerate(('政策与监管', '市场规模与增长', '竞争格局与代表企业', '技术路线对比'), 1):
+                project.sources.append(SimpleNamespace(id=i, title='机器人行业' + module,
+                    url=f'https://stats.gov.cn/industry-test/{i}', source_type='government',
+                    content=('机器人行业' + module + '公开资料明确说明研究边界与应用要求。') * 8, summary='',
+                    object_key='', credibility_score=90, source_metadata={'module': module, 'evidence_scope': 'industry_level',
+                    'industry_scope_fingerprint': project.industry_scope_fingerprint, 'quality': {'score': 90}}))
+            return 4
+        workflow.collect_web_sources = collect
+        workflow.enrich_ocr_sources = lambda *a, **kw: 0
+        workflow._append_professional_evidence_assets = lambda project, report, *a, **kw: report
+        def invoke(role, prompt, emit=None):
+            if '风险研判' in role:
+                return json.dumps(unknown_risk())
+            if '总编' in role:
+                return ''
+            if '章节 Agent - ' in role:
+                title = role.split(' - ')[-1]
+                index = next(i for i, (heading, _) in enumerate(IndustryReportAgent.outline, 1) if heading == title)
+                ids = re.findall(r'E-[A-F0-9]{12}', prompt)
+                return f'## {index}. {title}\n\n' + ('已核验公开事实 ' + ids[0] if ids else '待核验')
+            return '{"facts": [], "information_gaps": []}'
+        workflow._invoke = invoke
+        workflow._invoke_industry_risk = invoke
+        workflow._invoke_industry_report = invoke
+        def save(db, project, kind, title, content, metadata=None, **kwargs):
+            artifact = SimpleNamespace(id=len(project.artifacts) + 1, artifact_type=kind, title=title,
+                version=1, content=content, artifact_metadata=metadata or {}, created_at=datetime.now(), object_key='test-key')
+            project.artifacts.append(artifact)
+            if kind == 'desktop_report':
+                exports.append(markdown_to_docx_bytes(content, title=title, outline=IndustryReportAgent.outline))
+            return artifact
+        workflow.save_artifact = save
+&gt;       artifacts, added = workflow.run_project(database, project, [], [], intake={
+            'target_type': 'industry', 'include_capital_markets': False, 'as_of_date': '2026-01-31'})
+
+test\test_industry_evidence.py:289: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\research_workflow.py:912: in run_project
+    artifacts, added = self._run_project_impl(db, project, search_queries, focus_questions,
+backend\research_workflow.py:961: in _run_project_impl
+    load_context(db, project, intake)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+db = &lt;Mock id='2137150874656'&gt;
+project = namespace(id=123, title='行业集成测试', target_name='机器人行业', target_type='industry', industry='机器人行业', description='', sourc...ew={}, industry_run_started_at=None, status='collecting', updated_at=datetime.datetime(2026, 11, 4, 10, 15, 4, 906001))
+intake = {'target_type': 'industry', 'include_capital_markets': False, 'as_of_date': '2026-01-31'}
+stage = 'initial_proposal'
+
+    def load_context(db, project, intake=None, *, stage='initial_proposal'):
+        from models import ResearchArtifact
+        saved = db.query(ResearchArtifact).filter(
+            ResearchArtifact.project_id == project.id,
+            ResearchArtifact.artifact_type == 'project_intake').first()
+&gt;       stored = dict(getattr(saved, 'artifact_metadata', None) or {})
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: Mock.keys() returned a non-iterable (type Mock)
+
+backend\proposal_branch.py:18: TypeError</failure></testcase><testcase classname="test.test_industry_evidence" name="test_proposal_follows_seven_sections_and_industry_scope" time="0.004" /><testcase classname="test.test_industry_v31_generation" name="test_thinking_option_is_limited_to_compatible_family[qwen3.8-max-True]" time="0.001"><failure message="AssertionError: assert {'extra_body'...budget': 256}} == {'extra_body'...king': False}}&#10;  &#10;  Differing items:&#10;  {'extra_body': {'enable_thinking': False, 'thinking_budget': 256}} != {'extra_body': {'enable_thinking': False}}&#10;  Use -v to get more diff">name = 'qwen3.8-max', disabled = True
+
+    @pytest.mark.parametrize('name,disabled', [('qwen3.8-max', True), ('router/Qwen3-235B', True),
+        ('qwen-plus', False), ('gpt-synthetic', False)])
+    def test_thinking_option_is_limited_to_compatible_family(name, disabled):
+        assert bool(generation_options(name)) == disabled
+        if disabled:
+&gt;           assert generation_options(name) == {'extra_body': {'enable_thinking': False}}
+E           AssertionError: assert {'extra_body'...budget': 256}} == {'extra_body'...king': False}}
+E             
+E             Differing items:
+E             {'extra_body': {'enable_thinking': False, 'thinking_budget': 256}} != {'extra_body': {'enable_thinking': False}}
+E             Use -v to get more diff
+
+test\test_industry_v31_generation.py:18: AssertionError</failure></testcase><testcase classname="test.test_industry_v31_generation" name="test_thinking_option_is_limited_to_compatible_family[router/Qwen3-235B-True]" time="0.001"><failure message="AssertionError: assert {'extra_body'...budget': 256}} == {'extra_body'...king': False}}&#10;  &#10;  Differing items:&#10;  {'extra_body': {'enable_thinking': False, 'thinking_budget': 256}} != {'extra_body': {'enable_thinking': False}}&#10;  Use -v to get more diff">name = 'router/Qwen3-235B', disabled = True
+
+    @pytest.mark.parametrize('name,disabled', [('qwen3.8-max', True), ('router/Qwen3-235B', True),
+        ('qwen-plus', False), ('gpt-synthetic', False)])
+    def test_thinking_option_is_limited_to_compatible_family(name, disabled):
+        assert bool(generation_options(name)) == disabled
+        if disabled:
+&gt;           assert generation_options(name) == {'extra_body': {'enable_thinking': False}}
+E           AssertionError: assert {'extra_body'...budget': 256}} == {'extra_body'...king': False}}
+E             
+E             Differing items:
+E             {'extra_body': {'enable_thinking': False, 'thinking_budget': 256}} != {'extra_body': {'enable_thinking': False}}
+E             Use -v to get more diff
+
+test\test_industry_v31_generation.py:18: AssertionError</failure></testcase><testcase classname="test.test_industry_v31_generation" name="test_thinking_option_is_limited_to_compatible_family[qwen-plus-False]" time="0.001" /><testcase classname="test.test_industry_v31_generation" name="test_thinking_option_is_limited_to_compatible_family[gpt-synthetic-False]" time="0.001" /><testcase classname="test.test_industry_v31_generation" name="test_sdk_length_failure_is_propagated_without_format_retry_or_secret_logging" time="0.051"><failure message="AssertionError: assert {'enable_thin..._budget': 256} == {'enable_thinking': False}&#10;  &#10;  Omitting 1 identical items, use -vv to show&#10;  Left contains 1 more item:&#10;  {'thinking_budget': 256}&#10;  Use -v to get more diff">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001F1938BBEC0&gt;
+
+    def test_sdk_length_failure_is_propagated_without_format_retry_or_secret_logging(monkeypatch):
+        import research_workflow
+        # The SDK throws before an AIMessage exists when thinking consumes the cap.
+        LengthFinishReasonError = type('LengthFinishReasonError', (Exception,), {})
+        configured, events, calls = [], [], []
+        monkeypatch.setenv('ARK_API_KEY', 'synthetic')
+        monkeypatch.setenv('MODEL', 'qwen3.8-max')
+        def create(**kwargs):
+            configured.append(kwargs)
+            def invoke(messages):
+                calls.append(messages)
+                raise LengthFinishReasonError('PRIVATE_RESPONSE_AND_CONFIG')
+            return SimpleNamespace(invoke=invoke)
+        monkeypatch.setattr(research_workflow, 'init_chat_model', create)
+        workflow = research_workflow.ResearchWorkflow.__new__(research_workflow.ResearchWorkflow)
+        p, f = project(), chain()
+        text = IndustryReportAgent()._write_statement_section(p, {'facts': [f]}, 2, '行业定义',
+            lambda role, prompt, emit: workflow._invoke_industry_report(role, prompt, events.append),
+            lambda *a, **k: None, None)
+        plan = p.industry_statement_plans[2]
+        assert len(calls) == plan['model_attempts'] == 1 and plan['fallback']
+&gt;       assert configured[0]['extra_body'] == {'enable_thinking': False}
+E       AssertionError: assert {'enable_thin..._budget': 256} == {'enable_thinking': False}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'thinking_budget': 256}
+E         Use -v to get more diff
+
+test\test_industry_v31_generation.py:46: AssertionError</failure></testcase><testcase classname="test.test_industry_v31_generation" name="test_actual_format_failure_still_gets_one_format_repair" time="0.001" /><testcase classname="test.test_industry_v31_generation" name="test_all_industry_stages_send_visible_output_option_without_more_budget[report]" time="0.001"><failure message="AssertionError: assert {'enable_thin..._budget': 256} == {'enable_thinking': False}&#10;  &#10;  Omitting 1 identical items, use -vv to show&#10;  Left contains 1 more item:&#10;  {'thinking_budget': 256}&#10;  Use -v to get more diff">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001F198267230&gt;
+stage = 'report'
+
+    @pytest.mark.parametrize('stage', ['report', 'support', 'risk', 'cleaning'])
+    def test_all_industry_stages_send_visible_output_option_without_more_budget(monkeypatch, stage):
+        import research_workflow
+        monkeypatch.setenv('ARK_API_KEY', 'synthetic')
+        monkeypatch.setenv('MODEL', 'qwen3.8-max')
+        configured = []
+        def create(**kwargs):
+            configured.append(kwargs)
+            return SimpleNamespace(invoke=lambda messages: SimpleNamespace(content='{}'))
+        monkeypatch.setattr(research_workflow, 'init_chat_model', create)
+        w = research_workflow.ResearchWorkflow.__new__(research_workflow.ResearchWorkflow)
+        if stage == 'report': w._invoke_industry_report('行业章节编排 Agent - 合成章', 'synthetic')
+        elif stage == 'support': w._invoke_industry_support_review('synthetic')
+        elif stage == 'risk': w._invoke_industry_risk('行业风险 Agent', 'synthetic')
+        else: w._invoke_industry_cleaning('行业清洗 Agent', 'synthetic')
+        options = configured[0]
+&gt;       assert options['extra_body'] == {'enable_thinking': False}
+E       AssertionError: assert {'enable_thin..._budget': 256} == {'enable_thinking': False}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'thinking_budget': 256}
+E         Use -v to get more diff
+
+test\test_industry_v31_generation.py:80: AssertionError</failure></testcase><testcase classname="test.test_industry_v31_generation" name="test_all_industry_stages_send_visible_output_option_without_more_budget[support]" time="0.001"><failure message="AssertionError: assert {'enable_thin..._budget': 256} == {'enable_thinking': False}&#10;  &#10;  Omitting 1 identical items, use -vv to show&#10;  Left contains 1 more item:&#10;  {'thinking_budget': 256}&#10;  Use -v to get more diff">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001F198266600&gt;
+stage = 'support'
+
+    @pytest.mark.parametrize('stage', ['report', 'support', 'risk', 'cleaning'])
+    def test_all_industry_stages_send_visible_output_option_without_more_budget(monkeypatch, stage):
+        import research_workflow
+        monkeypatch.setenv('ARK_API_KEY', 'synthetic')
+        monkeypatch.setenv('MODEL', 'qwen3.8-max')
+        configured = []
+        def create(**kwargs):
+            configured.append(kwargs)
+            return SimpleNamespace(invoke=lambda messages: SimpleNamespace(content='{}'))
+        monkeypatch.setattr(research_workflow, 'init_chat_model', create)
+        w = research_workflow.ResearchWorkflow.__new__(research_workflow.ResearchWorkflow)
+        if stage == 'report': w._invoke_industry_report('行业章节编排 Agent - 合成章', 'synthetic')
+        elif stage == 'support': w._invoke_industry_support_review('synthetic')
+        elif stage == 'risk': w._invoke_industry_risk('行业风险 Agent', 'synthetic')
+        else: w._invoke_industry_cleaning('行业清洗 Agent', 'synthetic')
+        options = configured[0]
+&gt;       assert options['extra_body'] == {'enable_thinking': False}
+E       AssertionError: assert {'enable_thin..._budget': 256} == {'enable_thinking': False}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'thinking_budget': 256}
+E         Use -v to get more diff
+
+test\test_industry_v31_generation.py:80: AssertionError</failure></testcase><testcase classname="test.test_industry_v31_generation" name="test_all_industry_stages_send_visible_output_option_without_more_budget[risk]" time="0.001"><failure message="AssertionError: assert {'enable_thin..._budget': 256} == {'enable_thinking': False}&#10;  &#10;  Omitting 1 identical items, use -vv to show&#10;  Left contains 1 more item:&#10;  {'thinking_budget': 256}&#10;  Use -v to get more diff">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001F197525490&gt;
+stage = 'risk'
+
+    @pytest.mark.parametrize('stage', ['report', 'support', 'risk', 'cleaning'])
+    def test_all_industry_stages_send_visible_output_option_without_more_budget(monkeypatch, stage):
+        import research_workflow
+        monkeypatch.setenv('ARK_API_KEY', 'synthetic')
+        monkeypatch.setenv('MODEL', 'qwen3.8-max')
+        configured = []
+        def create(**kwargs):
+            configured.append(kwargs)
+            return SimpleNamespace(invoke=lambda messages: SimpleNamespace(content='{}'))
+        monkeypatch.setattr(research_workflow, 'init_chat_model', create)
+        w = research_workflow.ResearchWorkflow.__new__(research_workflow.ResearchWorkflow)
+        if stage == 'report': w._invoke_industry_report('行业章节编排 Agent - 合成章', 'synthetic')
+        elif stage == 'support': w._invoke_industry_support_review('synthetic')
+        elif stage == 'risk': w._invoke_industry_risk('行业风险 Agent', 'synthetic')
+        else: w._invoke_industry_cleaning('行业清洗 Agent', 'synthetic')
+        options = configured[0]
+&gt;       assert options['extra_body'] == {'enable_thinking': False}
+E       AssertionError: assert {'enable_thin..._budget': 256} == {'enable_thinking': False}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'thinking_budget': 256}
+E         Use -v to get more diff
+
+test\test_industry_v31_generation.py:80: AssertionError</failure></testcase><testcase classname="test.test_industry_v31_generation" name="test_all_industry_stages_send_visible_output_option_without_more_budget[cleaning]" time="0.001"><failure message="AssertionError: assert {'enable_thin..._budget': 256} == {'enable_thinking': False}&#10;  &#10;  Omitting 1 identical items, use -vv to show&#10;  Left contains 1 more item:&#10;  {'thinking_budget': 256}&#10;  Use -v to get more diff">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001F19800BA10&gt;
+stage = 'cleaning'
+
+    @pytest.mark.parametrize('stage', ['report', 'support', 'risk', 'cleaning'])
+    def test_all_industry_stages_send_visible_output_option_without_more_budget(monkeypatch, stage):
+        import research_workflow
+        monkeypatch.setenv('ARK_API_KEY', 'synthetic')
+        monkeypatch.setenv('MODEL', 'qwen3.8-max')
+        configured = []
+        def create(**kwargs):
+            configured.append(kwargs)
+            return SimpleNamespace(invoke=lambda messages: SimpleNamespace(content='{}'))
+        monkeypatch.setattr(research_workflow, 'init_chat_model', create)
+        w = research_workflow.ResearchWorkflow.__new__(research_workflow.ResearchWorkflow)
+        if stage == 'report': w._invoke_industry_report('行业章节编排 Agent - 合成章', 'synthetic')
+        elif stage == 'support': w._invoke_industry_support_review('synthetic')
+        elif stage == 'risk': w._invoke_industry_risk('行业风险 Agent', 'synthetic')
+        else: w._invoke_industry_cleaning('行业清洗 Agent', 'synthetic')
+        options = configured[0]
+&gt;       assert options['extra_body'] == {'enable_thinking': False}
+E       AssertionError: assert {'enable_thin..._budget': 256} == {'enable_thinking': False}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'thinking_budget': 256}
+E         Use -v to get more diff
+
+test\test_industry_v31_generation.py:80: AssertionError</failure></testcase><testcase classname="test.test_industry_v31_generation" name="test_safe_output_usage_distinguishes_thinking_tokens_without_exposing_prose" time="0.001" /><testcase classname="test.test_industry_v31_generation" name="test_unrelated_phone_car_margin_is_not_an_ai_chain_value_observation" time="0.015" /><testcase classname="test.test_industry_v31_generation" name="test_report_research_scope_is_not_a_concrete_bottleneck_finding" time="0.001" /><testcase classname="test.test_industry_v31_generation" name="test_synthesis_also_budgets_actual_writer_text_instead_of_archive_metadata" time="0.004" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u77e5\u8bc6\u5e93\u4e0a\u4f20\u652f\u6301\u4ec0\u4e48\u683c\u5f0f\uff0c\u6700\u5927\u591a\u5927\uff1f-knowledge-upload-words0]" time="0.004" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u4efb\u52a1\u7b5b\u9009\u540e\u770b\u4e0d\u5230\u9879\u76ee\u600e\u4e48\u529e\uff1f-task-filters-words1]" time="0.002" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u884c\u4e1a\u7684\u6570\u636e\u622a\u6b62\u65e5\u600e\u4e48\u8bbe\u7f6e\uff1f-industry-scope-words2]" time="0.003" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u4eba\u7269\u540c\u540d\u65f6\u8981\u8865\u4ec0\u4e48\u7ebf\u7d22\uff1f-person-intake-words3]" time="0.003" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u5df2\u5f52\u6863\u8d26\u53f7\u6062\u590d\u540e\u80fd\u76f4\u63a5\u767b\u5f55\u5417\uff1f-admin-archive-words4]" time="0.003" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u600e\u4e48\u67e5\u770b\u5386\u53f2\u7248\u672c\uff1f-report-history-words5]" time="0.003" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u4e3a\u4ec0\u4e48\u6587\u4ef6\u4e0d\u80fd\u52fe\u9009\u95ee\u7b54\uff1f-knowledge-processing-words6]" time="0.003" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u5c0f\u52a9\u624b\u548c\u77e5\u8bc6\u5e93\u6709\u4ec0\u4e48\u533a\u522b\uff1f-assistant-role-words7]" time="0.003" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u7ba1\u7406\u5458\u80fd\u770b\u5230\u6211\u7684\u804a\u5929\u5417\uff1f-assistant-privacy-words8]" time="0.003" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u600e\u4e48\u53ea\u5bf9\u6211\u9009\u7684\u6587\u4ef6\u63d0\u95ee\uff1f-knowledge-qa-words9]" time="0.003" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u62a5\u544a\u5df2\u7ecf\u5b8c\u6210\u600e\u4e48\u6211\u7684\u9879\u76ee\u8fd8\u6ca1\u6709\uff1f-report-archive-words10]" time="0.003" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u600e\u4e48\u4fdd\u5b58\u8d44\u6599\u5e93\u7b5b\u9009\u6761\u4ef6\uff1f-knowledge-filters-words11]" time="0.003" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u53ef\u4ee5\u4e00\u6b21\u5220\u6389\u6240\u6709\u4efb\u52a1\u5417\uff1f-delete-task-words12]" time="0.002" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u5173\u95edAI\u641c\u7d22\u4e3a\u4ec0\u4e48\u8fd8\u8054\u7f51\uff1f-research-inputs-words13]" time="0.003" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u9080\u8bf7\u6709\u6548\u671f\u591a\u957f\uff1f-admin-invitations-words14]" time="0.003" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u4e13\u4e1a\u5e73\u53f0\u4f59\u989d\u4e0d\u8db3\u662f\u4e0d\u662f\u5bf9\u8c61\u6ca1\u6709\u98ce\u9669\uff1f-professional-platforms-words15]" time="0.003" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u77e5\u8bc6\u5e93\u804a\u5929\u8bb0\u5f55\u4f1a\u50cf\u5c0f\u52a9\u624b\u4e00\u6837\u4fdd\u5b58\u5417\uff1f-knowledge-chat-history-words16]" time="0.003" /><testcase classname="test.test_product_guide" name="test_real_usage_questions_find_specific_operational_answers[\u5c0f\u52a9\u624b\u7684\u65b0\u5bf9\u8bdd\u548c\u6e05\u7a7a\u8bb0\u5f55\u5206\u522b\u662f\u4ec0\u4e48\uff1f-assistant-conversations-words17]" time="0.003" /><testcase classname="test.test_product_guide" name="test_catalog_covers_actual_pages_and_referenced_controls_still_exist" time="0.001"><failure message="AssertionError: assert {'accounts', ...esearch', ...} == {'accounts', ...'submit', ...}&#10;  &#10;  Extra items in the left set:&#10;  'intake'&#10;  'deliverables'&#10;  'workbench'&#10;  'research'&#10;  Extra items in the right set:&#10;  'submit'&#10;  Use -v to get more diff">def test_catalog_covers_actual_pages_and_referenced_controls_still_exist():
+        html = (ROOT / 'frontend/index.html').read_text(encoding='utf-8')
+        actual = set(re.findall(r"activeView\s*===\s*'([^']+)'", html))
+&gt;       assert actual == set(catalog.PAGES)
+E       AssertionError: assert {'accounts', ...esearch', ...} == {'accounts', ...'submit', ...}
+E         
+E         Extra items in the left set:
+E         'intake'
+E         'deliverables'
+E         'workbench'
+E         'research'
+E         Extra items in the right set:
+E         'submit'
+E         Use -v to get more diff
+
+test\test_product_guide.py:55: AssertionError</failure></testcase><testcase classname="test.test_product_guide" name="test_generated_manual_is_identical_to_runtime_catalog" time="0.056" /><testcase classname="test.test_product_guide" name="test_every_topic_is_discoverable_and_exact_titles_are_unambiguous" time="0.126" /><testcase classname="test.test_product_guide" name="test_ordinary_roles_never_receive_admin_walkthroughs" time="0.005" /><testcase classname="test.test_product_guide" name="test_general_chat_weather_and_personal_recall_are_not_replaced_with_manual[\u5c0f\u52a9\u624b\uff0c\u4e0a\u6d77\u4eca\u5929\u5929\u6c14\u600e\u4e48\u6837\uff1f]" time="0.002" /><testcase classname="test.test_product_guide" name="test_general_chat_weather_and_personal_recall_are_not_replaced_with_manual[\u5e2e\u6211\u5199\u4e00\u7bc7\u884c\u4e1a\u62a5\u544a]" time="0.001" /><testcase classname="test.test_product_guide" name="test_general_chat_weather_and_personal_recall_are_not_replaced_with_manual[\u6211\u4e4b\u524d\u8bf4\u6211\u4f4f\u54ea\u91cc\uff1f]" time="0.003" /><testcase classname="test.test_product_guide" name="test_general_chat_weather_and_personal_recall_are_not_replaced_with_manual[\u4f60\u597d\uff0c\u804a\u804a\u5468\u672b\u7684\u5b89\u6392]" time="0.003" /><testcase classname="test.test_product_guide" name="test_model_can_find_local_guide_details_without_any_public_search" time="0.004" /><testcase classname="test.test_product_guide" name="test_model_cannot_replace_verified_steps_with_invented_controls" time="0.003" /><testcase classname="test.test_product_guide" name="test_guide_lookup_is_formatted_without_a_second_freeform_completion" time="0.003" /><testcase classname="test.test_product_guide" name="test_empty_lookup_can_retry_with_a_more_precise_local_query" time="0.004" /><testcase classname="test.test_product_guide" name="test_short_followup_keeps_local_guide_scope_but_chat_and_weather_can_switch_topics" time="0.010" /><testcase classname="test.test_product_guide" name="test_execution_layer_rejects_public_search_even_if_model_requests_it" time="0.002" /><testcase classname="test.test_product_guide" name="test_unknown_feature_offline_clarifies_instead_of_inventing_buttons" time="0.002" /><testcase classname="test.test_product_guide" name="test_precise_page_question_is_not_overridden_by_generic_usage_trigger" time="0.003" /><testcase classname="test.test_product_guide" name="test_long_history_does_not_make_offline_guides_depend_on_summary_model" time="1.156" /></testsuite></testsuites>

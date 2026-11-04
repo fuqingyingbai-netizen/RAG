@@ -8,6 +8,17 @@ from langchain_openai import ChatOpenAI
 import research_workflow
 
 
+def test_model_initialization_failure_is_pre_request_configuration_without_secret_echo(monkeypatch):
+    from report_agents.company_transport import CompanyModelUnavailable
+    workflow=research_workflow.ResearchWorkflow.__new__(research_workflow.ResearchWorkflow)
+    def invalid(*a,**kw):raise ValueError('private credential and complete settings must not be logged')
+    monkeypatch.setattr(workflow,'_get_company_report_editor_model',invalid)
+    with pytest.raises(CompanyModelUnavailable) as caught:workflow._invoke_company_report_editor('reading','original')
+    d=caught.value.diagnostic
+    assert d['category']=='configuration' and d['attempts']==0 and d['request_sent'] is False
+    assert not d['request_invoked'] and 'private' not in json.dumps(d)
+
+
 def workflow_with_transport(monkeypatch, *, finish='stop', broken=False, streaming=True):
     requests = []
 
@@ -68,7 +79,8 @@ def test_partial_or_nonterminal_stream_cannot_pass_even_if_json_is_valid(monkeyp
     workflow, requests, client = workflow_with_transport(monkeypatch, finish=finish, broken=broken)
     try:
         events = []
-        assert workflow._invoke_company_report_editor('公司交付正文独立审稿', '核对全部原文', events.append) == ''
+        expected=httpx.ReadError if broken else ValueError
+        with pytest.raises(expected):workflow._invoke_company_report_editor('公司交付正文独立审稿', '核对全部原文', events.append)
         assert requests and events[-1]['status'] == 'fallback'
     finally:
         client.close()
@@ -110,7 +122,8 @@ def test_focus_thinking_budget_uses_compatible_extra_body_and_keeps_thinking_ena
 def test_nonstreaming_compatibility_does_not_accept_missing_finish_reason(monkeypatch):
     workflow, requests, client = workflow_with_transport(monkeypatch, streaming=False, finish=None)
     try:
-        assert workflow._invoke_company_report_editor('公司交付正文独立审稿', '核对全部原文') == ''
+        with pytest.raises(ValueError,match='response_incomplete'):
+            workflow._invoke_company_report_editor('公司交付正文独立审稿', '核对全部原文')
     finally:
         client.close()
 

@@ -49,6 +49,32 @@ def invoke_for(rows,calls=None):
     return invoke
 
 
+def test_actual_editorial_writing_and_audit_are_bound_to_one_chapter_agent():
+    from company_chapters import outline, chapter
+    from report_agents.company_chapter_agent import create_chapter_agents
+    rows=[record()];calls=[];p=SimpleNamespace(target_name='青禾食品公司')
+    agents=create_chapter_agents(p,lambda *a,**kw:None)
+    base=invoke_for(rows)
+    def invoke(role,prompt,trace):
+        calls.append((role,prompt))
+        return base(role.split('｜')[0],prompt,trace)
+    package=build_editorial_package({'records':rows},outline(),p.target_name,invoke,
+        workers=1,chapter_agents=agents)
+    assert package['diagnostic']['pending_information_ids']==[]
+    assert len(calls)>=2 and all(r.endswith('company_chapter_06_agent') for r,p in calls)
+    assert all(chapter(6)['description'] in p for r,p in calls)
+    assert all(chapter(7)['description'] not in p for r,p in calls)
+    assert agents[6].model_calls==len(calls)
+    assert all(a.model_calls==0 for n,a in agents.items() if n!=6)
+    again=build_editorial_package({'records':rows},outline(),p.target_name,invoke,
+        workers=1,chapter_agents=agents,previous=package)
+    assert again['batches'][0]['reused']
+    assert agents[6].model_calls==len(calls)
+    with pytest.raises(ValueError,match='ownership mismatch'):
+        build_editorial_package({'records':rows},outline(),p.target_name,invoke,
+            workers=1,chapter_agents={6:agents[7]})
+
+
 @pytest.mark.parametrize('name,sector',[('青禾食品公司','食品'),('远帆物流有限公司','物流'),('Northstar Devices Ltd','医疗设备'),('某研发工作室','未融资初创')])
 def test_all_company_names_and_sectors_use_the_same_semantic_contract(name,sector):
     rows=[record(text=name+'披露本期已交付产品，计划新增产线尚未完成。')]
@@ -247,7 +273,8 @@ def test_persistent_model_failure_remains_pending_and_never_fabricates_prose():
     def fail(*a):raise TimeoutError()
     p=build_editorial_package({'records':[record()]},OUTLINE,'任意目标',fail,workers=1)
     assert not p['findings'] and p['diagnostic']['pending_information_ids']==['I-a']
-    assert len(p['batches'][0]['attempts'])==3
+    assert len(p['batches'][0]['attempts'])==1
+    assert p['batches'][0]['attempts'][0]['transport_error']['attempts']==3
 
 
 def test_identical_proofs_can_reuse_but_new_unit_period_or_voice_cannot():
@@ -338,7 +365,11 @@ def test_precise_numeric_and_currency_information_must_survive_synthesis():
     assert 'new_or_changed_currency_scale' in prose_errors('The company reported revenue of $10.00 billion.',rows)
     findings,_=parse_proposal({'findings':[{'finding_id':'x','text':'The company reported revenue of $10.00 million.','information_ids':['I-a']}]},rows,6,OUTLINE[5][1][0])
     qa=audit(rows,findings)
-    assert 'lost_numeric_information:I-a' in validate_audit(rows,findings,qa)
+    from report_agents.company_editorial import review_observations
+    assert '2%' in review_observations(rows,findings)[0]['tokens']
+    qa['criteria']['semantic_retention']=False
+    qa['information'][0]['status']='lost';qa['issues']=['遗漏原文关键下降幅度2%。']
+    assert 'editorial_criterion:semantic_retention' in validate_audit(rows,findings,qa)
 
 
 def test_review_must_visit_all_native_propositions_even_when_model_says_retained():
@@ -652,6 +683,95 @@ def test_gap_feedback_does_not_rewrite_accepted_facts_in_the_same_chapter(monkey
     result,meta=workflow._prepare_company_delivery(project,text)
     assert len(calls)==2 and meta['company_delivery_contract']['status']=='passed'
     assert all(f['text'] in result for f in project.company_editorial_package['findings'])
+
+
+def test_final_fact_repair_refreshes_summary_and_discards_stale_annex(monkeypatch):
+    import report_agents.company_editorial as editor
+    from research_workflow import ResearchWorkflow
+    from report_agents.company_report_agent import CompanyReportAgent
+    project,text=good_contract_project();workflow=ResearchWorkflow.__new__(ResearchWorkflow)
+    project.company_flow_version='test-chapter-flow';project.company_chapter_appendix_html='stale annex'
+    original=project.company_editorial_package['findings'][0]['text'];calls=[];summaries=[]
+    def review(*args,**kwargs):
+        calls.append('review')
+        return {'status':'passed' if len(calls)>1 else 'failed',
+            'issues':[] if len(calls)>1 else [{'chapter':2,'quote':original,'message':'保留公司披露归因'}]}
+    def repair(*args,**kwargs):
+        updated=deepcopy(project.company_editorial_package)
+        updated['findings'][0]['text']='按公司原文披露：'+original
+        for b in updated['batches']:
+            for finding in b.get('findings',[]):
+                if finding['text']==original:finding['text']='按公司原文披露：'+original
+        return updated
+    monkeypatch.setattr(editor,'document_review',review)
+    monkeypatch.setattr(editor,'build_editorial_package',repair)
+    monkeypatch.setattr(CompanyReportAgent,'_write_summary',lambda self,p,cleaned,sections,*a:summaries.append(p.company_editorial_package['findings'][0]['text']) or sections.get(1,'## 1. 摘要\n待核验。'))
+    monkeypatch.setattr(workflow,'_append_report_evidence_index',lambda p,report,*a,**kw:report)
+    result,_=workflow._prepare_company_delivery(project,text)
+    assert summaries and summaries[0].startswith('按公司原文披露：')
+    assert '按公司原文披露：'+original in result
+    assert project.company_chapter_appendix_html==''
+
+
+def test_pending_other_batch_does_not_skip_review_of_adopted_reader_text(monkeypatch):
+    import report_agents.company_editorial as editor
+    from research_workflow import ResearchWorkflow
+    project,text=good_contract_project();project.company_editorial_package['diagnostic']['pending_information_ids']=['I-other-pending']
+    calls=[]
+    monkeypatch.setattr(editor,'document_review',lambda *a,**kw:calls.append(1) or {'status':'passed','issues':[]})
+    result,metadata=ResearchWorkflow.__new__(ResearchWorkflow)._prepare_company_delivery(project,text)
+    assert calls==[1] and metadata['company_document_review']['status']=='passed'
+    assert metadata['company_delivery_contract']['delivery_ready'] is False
+    assert all(f['text'] in result for f in project.company_editorial_package['findings'])
+
+
+def test_located_fact_feedback_reuses_unaffected_batch_in_the_same_chapter():
+    one=record('I-one',chapter=2);two=record('I-two',chapter=2,text='公司披露销售收入200万元，现金流10万元。')
+    a=build_editorial_package({'records':[one]},OUTLINE,'远帆公司',invoke_for([one]),workers=1)
+    b=build_editorial_package({'records':[two]},OUTLINE,'远帆公司',invoke_for([two]),workers=1)
+    previous={**a,'batches':a['batches']+b['batches'],'findings':a['findings']+b['findings']}
+    calls=[]
+    result=build_editorial_package({'records':[one,two]},OUTLINE,'远帆公司',invoke_for([one],calls),previous=previous,
+        feedback=[{'chapter':2,'quote':a['findings'][0]['text'],'message':'请核对实际来源文类归因。'}],workers=1)
+    assert not result['diagnostic']['pending_information_ids'] and len(calls)==2
+    assert next(x for x in result['batches'] if x['information_ids']==['I-two'])['reused']
+
+
+def test_successful_final_repair_survives_an_unrelated_pending_batch(monkeypatch):
+    import report_agents.company_editorial as editor
+    from research_workflow import ResearchWorkflow
+    from report_agents.company_report_agent import CompanyReportAgent
+    project,text=good_contract_project();workflow=ResearchWorkflow.__new__(ResearchWorkflow)
+    project.company_editorial_package['diagnostic']['pending_information_ids']=['I-other-pending']
+    original=project.company_editorial_package['findings'][0]['text'];calls=[]
+    def review(*args,**kwargs):
+        calls.append(1)
+        return {'status':'passed' if len(calls)>1 else 'failed',
+            'issues':[] if len(calls)>1 else [{'chapter':2,'quote':original,'message':'核对文类'}]}
+    def repair(*args,**kwargs):
+        updated=deepcopy(project.company_editorial_package)
+        updated['findings'][0]['text']='所引会议材料记载：'+original
+        for batch in updated['batches']:
+            for finding in batch.get('findings',[]):
+                if finding['text']==original:finding['text']='所引会议材料记载：'+original
+        return updated
+    monkeypatch.setattr(editor,'document_review',review)
+    monkeypatch.setattr(editor,'build_editorial_package',repair)
+    monkeypatch.setattr(CompanyReportAgent,'_write_summary',lambda self,p,cleaned,sections,*a:sections.get(1,'## 1. 摘要\n待核验。'))
+    monkeypatch.setattr(workflow,'_append_report_evidence_index',lambda p,report,*a,**kw:report)
+    result,metadata=workflow._prepare_company_delivery(project,text)
+    assert len(calls)==2 and '所引会议材料记载：'+original in result
+    assert project.company_editorial_package['diagnostic']['pending_information_ids']==['I-other-pending']
+    assert metadata['company_delivery_contract']['delivery_ready'] is False
+
+
+def test_prose_and_independent_audit_require_actual_document_identity():
+    from report_agents.company_editorial import proposal_prompt,audit_prompt
+    row=record();row['provenance'][0]['source_title']='某公司股东会会议材料'
+    writing=proposal_prompt([row],'某公司',2,'治理');review=audit_prompt([row],[], '某公司')
+    assert '文类不明' in writing and '不能固定套用' in writing
+    assert row['provenance'][0]['source_title'] in writing
+    assert '会议材料不冒称年报' in review
 
 
 def test_failed_model_review_keeps_native_fields_in_a_blocked_draft():

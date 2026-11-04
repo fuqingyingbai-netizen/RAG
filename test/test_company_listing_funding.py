@@ -54,7 +54,9 @@ def test_preceding_conditional_or_nested_child_subject_is_not_removed_at_date(pr
 def test_future_publication_cannot_supply_an_as_of_funding_grade():
     source=src(extra=[{'page':15,'text':QUOTE}])
     source['url']='https://www.hkexnews.hk/listedco/listconews/sehk/2026/1224/2026122400001_c.pdf'
-    assert listing_funding_events(source,ROOT,base(source),'2026-10-24')==[]
+    rows=listing_funding_events(source,ROOT,base(source),'2026-10-24')
+    assert rows and all(r['time_context']['post_cutoff_publication_hint'] for r in rows)
+    assert funding_score({'facts':rows},ROOT,'2026-10-24',{source['url']:source})['score'] is None
 
 
 def test_platform_original_copy_is_admitted_with_platform_attribution():

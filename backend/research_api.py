@@ -57,6 +57,13 @@ from research_workflow import (
 
 router = APIRouter(prefix="/research", tags=["research"])
 
+
+@router.get('/company-chapters')
+def company_chapter_config():
+    """Public template labels and stable IDs; no credentials or examples."""
+    from company_chapters import public_config
+    return public_config()
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 UPLOAD_DIR = BASE_DIR / "data" / "research_uploads"
 loader = DocumentLoader()
@@ -216,7 +223,15 @@ def _unsubscribe_running_project(project_id: int, queue: asyncio.Queue) -> None:
 
 def _locked_run_intake(request: ResearchRunRequest, target_type: str = "") -> dict:
     effective_type = request.target_type or target_type
-    intake = request.model_dump(exclude_unset=effective_type in {"industry", "person"})
+    from company_chapters import VERSION, normalize_selection
+    if effective_type == 'company':
+        if request.company_template_version and request.company_template_version != VERSION:
+            raise HTTPException(409, '公司章节模板已更新，请刷新目录后重新提交。')
+        try:
+            normalize_selection(request.focus_modules if 'focus_modules' in request.model_fields_set else None)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+    intake = request.model_dump(exclude_unset=effective_type in {"industry", "person", "company"})
     intake["workspace_stage"] = "deliverables"
     intake.update(
         {
@@ -227,9 +242,12 @@ def _locked_run_intake(request: ResearchRunRequest, target_type: str = "") -> di
             "max_search_rounds": FIXED_MAX_SEARCH_ROUNDS,
         }
     )
-    if effective_type in {"industry", "person"}:
+    if effective_type == 'company':
+        intake['company_template_version']=VERSION
+        intake['focus_modules']=normalize_selection(request.focus_modules if 'focus_modules' in request.model_fields_set else None)
+    if effective_type in {"industry", "person", "company"}:
         intake["target_type"] = effective_type
-        if effective_type == "industry" or "ai_search_enabled" in request.model_fields_set:
+        if effective_type in {"industry","company"} or "ai_search_enabled" in request.model_fields_set:
             intake["ai_search_enabled"] = request.ai_search_enabled
         else:
             intake.pop("ai_search_enabled", None)
@@ -1010,6 +1028,9 @@ def _source_text_chunks(text: str, chunk_size: int = 1200, overlap: int = 160) -
 
 
 def _index_source_for_rag(project: ResearchProject, source: ResearchSource) -> dict:
+    if str(project.target_type or '').lower()=='company':
+        return {'vector_indexed':False,'vector_index_status':'disabled',
+            'vector_index_reason':'company_task_local_reading'}
     if os.getenv("VECTOR_INDEX_UPLOADS", "true").strip().lower() not in {"1", "true", "yes", "on"}:
         return {"vector_indexed": False, "vector_index_status": "disabled"}
     text = (source.content or source.summary or "").strip()
@@ -1080,8 +1101,13 @@ async def _store_uploaded_research_source(
         mimetypes.guess_type(filename)[0] or "application/octet-stream",
     )
     is_image = filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"))
+    native_document={}
     try:
-        text = await run_in_threadpool(_lightweight_upload_text, file_path, filename, is_image)
+        if project.target_type=='company' and filename.lower().endswith('.pdf'):
+            from company_pdf import extract_company_pdf
+            native_document=await run_in_threadpool(extract_company_pdf,payload)
+            text=native_document['content']
+        else:text = await run_in_threadpool(_lightweight_upload_text, file_path, filename, is_image)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"文档解析失败: {exc}") from exc
     if not text.strip():
@@ -1099,6 +1125,10 @@ async def _store_uploaded_research_source(
         "extraction_status": "failed" if extraction_failed else ("ocr_done" if is_image else "text_extracted"),
         **(metadata or {}),
     }
+    if native_document:
+        source_metadata.update({k:v for k,v in native_document.items() if k!='content'})
+        source_metadata.update(content_kind='full_text' if native_document.get('document_extraction',{}).get('complete') else 'partial_text',
+            fetch_status='done')
     if is_image:
         mime_type = mimetypes.guess_type(filename)[0] or "image/png"
         source_metadata.update(
@@ -1870,7 +1900,8 @@ async def upload_field_source(
         credibility_score=95,
         metadata={"stage": "second_stage", "evidence_tier": "first_hand"},
     )
-    return ResearchUploadResponse(source=_source_response(source), message="一手资料已入库并尝试写入向量库")
+    return ResearchUploadResponse(source=_source_response(source), message=(
+        '一手资料已保存，可用于后续章节研究。' if project.target_type=='company' else '一手资料已入库并尝试写入向量库'))
 
 
 @router.post("/projects/{project_id}/artifacts/replace", response_model=ResearchArtifactResponse)
@@ -2210,7 +2241,7 @@ async def _run_saved_proposal_stream(project_id, request, db, current_user, *, f
                 if not is_admin and project.created_by_id != user_id:
                     emit({"type": "error", "content": "无权访问该研究项目"})
                     return
-                intake = {**_project_intake(project), **request.model_dump(exclude_unset=True), 'stage': 'formal_plan' if formal_plan else 'proposal_only',
+                intake = {**_project_intake(project), **(_locked_run_intake(request,project.target_type) if project.target_type=='company' else request.model_dump(exclude_unset=True)), 'stage': 'formal_plan' if formal_plan else 'proposal_only',
                           'workspace_stage': 'review' if formal_plan else 'deliverables'}
                 _save_project_intake(worker_db, project, intake)
                 emit(

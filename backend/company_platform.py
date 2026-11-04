@@ -1,6 +1,7 @@
 """Account failures are collection gaps, never negative company findings."""
 import hashlib
 import json
+import os
 import re
 import time
 from datetime import datetime
@@ -9,6 +10,14 @@ from datetime import datetime
 def failure_kind(payload):
     """Classify error envelopes only; an authentic zero-result is not an error."""
     error = payload.get('error') if isinstance(payload, dict) else payload
+    if isinstance(payload,dict) and not error:
+        envelope=payload.get('result',payload)
+        if isinstance(envelope,dict) and envelope.get('isError') is True:
+            error=envelope.get('content') or {'code':'tool_execution_error'}
+        elif str(payload.get('status') or '').lower() in {'error','failed','failure'}:
+            error={'code':payload.get('code') or payload.get('errorCode'),'message':payload.get('message') or payload.get('msg') or 'request_failed'}
+        elif payload.get('errorCode') not in (None,'',0,'0',200,'200'):
+            error={'code':payload['errorCode'],'message':payload.get('message') or payload.get('msg','')}
     if not error:
         return ''
     text = json.dumps(error, ensure_ascii=False).lower()
@@ -25,6 +34,20 @@ def failure_kind(payload):
     if any(x in text for x in ('未启用', '未配置', '未开通', 'not enabled', 'not configured', 'not_configured', 'disabled')):
         return 'tool_unavailable'
     return 'request_failed'
+
+
+def redact_provider_payload(payload):
+    """Preserve data values while preventing credential echoes in receipts."""
+    sensitive={'authorization','api_key','apikey','access_token','secret_key','password'}
+    secrets=[v for k,v in os.environ.items() if v and len(v)>=12 and re.search(r'(?:API_KEY|TOKEN|SECRET|PASSWORD)$',k)]
+    def clean(value):
+        if isinstance(value,dict):return {k:('[REDACTED]' if str(k).lower() in sensitive else clean(v)) for k,v in value.items()}
+        if isinstance(value,list):return [clean(v) for v in value]
+        if isinstance(value,str):
+            for secret in secrets:value=value.replace(secret,'[REDACTED]')
+            return re.sub(r'(?<![A-Za-z0-9_-])sk-[A-Za-z0-9_-]{16,}','[REDACTED]',value)
+        return value
+    return clean(payload)
 
 
 class CompanyPlatformAudit:
@@ -44,13 +67,41 @@ class CompanyPlatformAudit:
 
     def call(self, function, url, headers, tool, arguments, **kwargs):
         try:
-            return function(url, headers, tool, arguments, **kwargs)
+            self._last_cache_reused=False
+            journal=getattr(self.project,'_company_flow_journal',None)
+            if journal is not None and self.attribute=='company_professional_platform_attempts':
+                value,reused=journal.platform(self.provider,tool,arguments,
+                    lambda:function(url,headers,tool,arguments,**kwargs))
+                self._last_cache_reused=reused
+                payload=value if reused else value[0]
+                self.retain_raw(tool,arguments,payload)
+                return (value,kwargs.get('session')) if reused else value
+            value=function(url, headers, tool, arguments, **kwargs)
+            self.retain_raw(tool,arguments,value[0])
+            return value
         except Exception as exc:
             self._transport_failure(tool, arguments, exc)
             raise
 
+    def retain_raw(self,tool,arguments,payload):
+        if self.attribute!='company_professional_platform_attempts':return
+        from company_flow_state import fingerprint
+        journal=getattr(self.project,'_company_flow_journal',None)
+        row={'provider':self.provider,'tool':tool,'arguments':dict(arguments),'target':self.subject,
+            'retrieved_at':datetime.now().isoformat(timespec='seconds'),
+            'collection_failure':failure_kind(payload),'raw_payload':redact_provider_payload(payload)}
+        key=fingerprint([self.provider,tool,arguments,payload])
+        if journal is not None:
+            with journal.lock:
+                if key not in journal.data.setdefault('platform_raw_records',{}):
+                    journal.remember('platform_raw_records',key,row)
+        else:
+            records=getattr(self.project,'company_platform_raw_records',{})
+            records[key]=row;self.project.company_platform_raw_records=records
+
     def initialize(self, function, *args, **kwargs):
         try:
+            self._last_cache_reused=False
             return function(*args, **kwargs)
         except Exception as exc:
             self._transport_failure('initialize', {}, exc)
@@ -71,6 +122,7 @@ class CompanyPlatformAudit:
             setattr(self.project, self.attribute, rows)
         row = {'provider': self.provider, 'tool': tool, 'subject': self.subject, 'arguments': dict(arguments),
                'status': status, 'reason': reason, 'retrieved_at': datetime.now().isoformat(timespec='seconds')}
+        if getattr(self,'_last_cache_reused',False):row['response_reused_in_task']=True
         requirements = getattr(self.project, 'company_research_requirements', None)
         company_context=(self.attribute=='company_professional_platform_attempts' and
                          str(getattr(self.project,'target_type','company')).lower()=='company')
@@ -83,6 +135,7 @@ class CompanyPlatformAudit:
                 'actual_arguments' if row['company_requirement_ids'] else 'unmatched')
         if isinstance(error, dict):
             # Keep machine diagnostics, not external instructions or credentials.
+            error=redact_provider_payload(error)
             row['error_code'] = error.get('code')
             data = error.get('data')
             if isinstance(data, dict):

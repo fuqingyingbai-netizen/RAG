@@ -8,6 +8,7 @@ import hashlib
 import io
 import json
 import re
+from company_chapters import chapter as chapter_contract
 import zipfile
 import unicodedata
 from collections import Counter
@@ -198,6 +199,9 @@ def delivery_requirements(intake):
     # or sectors. Identity and real operations are the minimum for this report.
     requested = intake.get('required_chapters') or []
     chapters = sorted({2, 6} | {int(i) for i in requested if str(i).isdigit() and 2 <= int(i) <= 12})
+    from company_chapters import uses_chapter_contract, selected_chapters
+    if uses_chapter_contract(intake):
+        chapters=sorted(set(chapters) | set(selected_chapters(intake)))
     scoring=intake.get('scoring_required')
     if type(scoring) is not bool:
         request=str(intake.get('special_requirements') or '')
@@ -238,7 +242,7 @@ def fill_evidence_gaps(sections, editorial, outline, *, usage=None):
         if chapter in pending:
             notice='### 正文核对尚未完成'
             result[chapter]=result.get(chapter,f'## {chapter}. '+outline[chapter-1][0]).split(notice,1)[0].rstrip()+\
-                '\n\n'+notice+'\n\n本章信息用途或正文语义核对尚未完成。已解析的原始字段与事件记录保留供复核，当前稿件不能作为验收通过的正文；核对失败不代表公司没有相关事项。'
+                '\n\n'+notice+'\n\n已通过逐批审核的段落继续保留。本章另有内容尚未完成用途或正文核对，相关草稿及原文保留供复核；当前稿件尚未通过完整验收，核对未完成不代表公司没有相关事项。'
             continue
         if chapter in present or chapter==12: continue
         title, aspects = outline[chapter-1]
@@ -264,6 +268,14 @@ def followup_chapter(project,outline):
     covered={(f['chapter'],f['aspect']) for f in editorial.get('findings',[])}
     required=delivery_requirements(getattr(project,'company_research_intake',{}) or {})
     rows=[]
+    for number,coverage in sorted((getattr(project,'company_question_coverage',{}) or {}).items()):
+        for q in coverage.get('questions',[]):
+            if q.get('status') in {'answered','not_applicable'}:continue
+            rows.append([f'第{number}章 '+q['question'],
+                str(q.get('reason') or '原文尚不能回答；不能据此作否定结论。'),
+                '核对：'+'、'.join(str(v) for v in q.get('missing_fields',[]))+
+                '；对照已保存出处及相反信息，取得对应原件后再作结论。',
+                '高' if int(number) in required['required_chapters'] else '中'])
     for chapter in range(2,12):
         for aspect in outline[chapter-1][1]:
             if (chapter,aspect) in covered or aspect in PRESENTATION_ASPECTS:continue
@@ -283,7 +295,7 @@ def followup_chapter(project,outline):
         rows.append([f'第{conflict["chapter"]}章 '+conflict['entity']+' '+conflict['field']+' '+conflict['period'],
             '同一显式口径原值有差异，正文保留各自来源，尚未择一认定。',
             '逐份比对原件的主体、数据期、单位、修订版本与后续更正；取得解释前不平均或合并。','高'])
-    lines=['## 14. 后续研究建议','',
+    lines=['## 14. '+outline[13][0],'',
         '以下为下一阶段建议事项，本轮未开展现场、访谈或银行流水核验。高优先级用于核心必答项及已发现的原值差异，中优先级用于扩展判断和非必需评分；不代表公司风险等级。','']
     if rows:lines+=_table(['待核验问题','当前判断边界','下一步动作及所需原件','优先级'],rows)
     else:lines+=['当前已接纳原文未形成额外的结构化补证任务；不据此认定全面尽调完成。']
@@ -324,8 +336,18 @@ def assess_delivery(project, report):
     review = getattr(project, 'company_document_review', {}) or {}
     intake = getattr(project, 'company_research_intake', {}) or {}
     requirements = delivery_requirements(intake); errors = []; tasks = []
+    if getattr(project,'company_flow_version',None):
+        coverage=getattr(project,'company_question_coverage',{}) or {}
+        for number in requirements['required_chapters']:
+            result=coverage.get(number,coverage.get(str(number),{}))
+            if result.get('complete') is not True:
+                errors.append(f'第{number}章必答问题尚未全部核对完成')
     corpus_review=getattr(project,'company_source_review_package',{}) or {}
     material_review_complete=corpus_review.get('diagnostic',{}).get('all_candidate_windows_reviewed') is True
+    if getattr(project,'company_flow_version',None) and not material_review_complete:
+        errors.append('本轮选定原文的阅读核对尚未全部完成')
+    if getattr(project,'company_flow_version',None) and any(st.get('structural_gaps') or st.get('unread_ranges') for st in corpus_review.get('source_review',{}).values()):
+        errors.append('原文仍有未读范围或具体结构缺口，需恢复阅读核对')
     records = [r for r in usage.get('records', []) if r.get('decision', {}).get('status') == 'use']
     reading_format=getattr(project,'company_reading_mode','detailed')
     if reading_format not in {'detailed','analysis_with_annex'}:errors.append('报告阅读形式无效，不能完成交付验收')
@@ -360,6 +382,19 @@ def assess_delivery(project, report):
     if not records or not editorial.get('findings'):
         errors.append('没有形成可核对的正文实质内容')
     represented = {i for f in editorial.get('findings', []) for i in f['information_ids']}
+    if getattr(project,'company_flow_version',None):
+        from .company_chapter_placements import accounted_ids
+        represented=accounted_ids(editorial)
+        import html
+        appendix=getattr(project,'company_chapter_appendix_html','')
+        lookup={r['information_id']:r for r in records}
+        for batch in editorial.get('batches',[]):
+            if not batch.get('accepted'):continue
+            for placement in batch.get('placements',[]):
+                if placement.get('destination')=='annex':
+                    record=lookup.get(placement['information_id'],{})
+                    if not record or html.escape(record['text']) not in appendix:
+                        errors.append('已核章节附件原文未进入最终附件：'+placement['information_id'])
     if represented != {r['information_id'] for r in records}:
         errors.append('实际精编段落未覆盖全部应进入正文的信息' if reading_format=='analysis_with_annex' else '实际精编段落未覆盖全部已接纳可用信息')
     sections = split_sections(report)
@@ -387,9 +422,12 @@ def assess_delivery(project, report):
         if not direct:
             errors.append(f'第{chapter}章缺少回答核心问题的目标主体证据')
             if material_review_complete:tasks.append({'chapter': chapter, 'priority': 'high',
-                'question': '确认目标法人及登记/发行人身份' if chapter == 2 else '确认目标公司具体产品、服务及实际经营状态',
+                'question': ('确认目标法人及登记/发行人身份' if chapter == 2 else
+                    '确认目标公司具体产品、服务及实际经营状态' if chapter == 6 else
+                    '补齐'+chapter_contract(chapter)['title']+'的目标主体原件'),
                 'action': '定向获取对应主体原件并重跑材料接纳、成稿及验收，不能以章节占位通过。',
-                'source_types': ['登记机关或交易所发行人原件'] if chapter == 2 else ['公司产品原页', '年度/期间经营披露', '可追溯业务记录']})
+                'source_types': ['登记机关或交易所发行人原件'] if chapter == 2 else
+                    ['公司产品原页', '年度/期间经营披露', '可追溯业务记录'] if chapter == 6 else [CHAPTER_MATERIALS[chapter]]})
     assessment = getattr(project, 'company_assessment_package', {}) or {}
     dimensions = assessment.get('dimensions', [])
     unscored = [d.get('id') for d in dimensions if d.get('score') is None]

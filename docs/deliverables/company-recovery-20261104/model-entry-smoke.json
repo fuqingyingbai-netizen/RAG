@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "response": "{\"configured\":true}",
+  "usage": [
+    {
+      "input_tokens": 55,
+      "output_tokens": 6,
+      "total_tokens": 61,
+      "input_token_details": {
+        "cache_read": 0
+      },
+      "output_token_details": {}
+    }
+  ],
+  "model": "deepseek-flash",
+  "base_url": "https://api.deepseek.com",
+  "sdk_max_retries": 0,
+  "seconds": 4.141
+}

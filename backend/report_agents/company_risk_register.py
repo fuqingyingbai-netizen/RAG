@@ -127,21 +127,9 @@ def filing_cutoff(pages):
 def later_than_research_cutoff(source, as_of):
     if not as_of:
         return False
-    raw, _ = source_body(source)
-    dates = [publication_date(source, raw), filing_cutoff(document_pages(source))]
-    meta = get(source, 'source_metadata', {}) or {}
-    dates += [iso_date(r.get('value')) for r in meta.get('visual_reviews', [])
-              if r.get('status') == 'reviewed' and r.get('kind') == 'document_signature_date']
-    # An exchange URL's later date is a conservative exclusion signal, never
-    # presented as a verified publication date in the report.
-    if exchange(source):
-        url = str(get(source, 'url') or '')
-        path_date = re.search(r'/(20\d{2})/(\d{2})(\d{2})/', url)
-        if not path_date:
-            path_date = re.search(r'/(20\d{2})-(\d{2})-(\d{2})/', url)
-        if path_date:
-            dates.append(iso_date('-'.join(path_date.groups())))
-    return any(d and d > as_of for d in dates)
+    # Publication is metadata, not a document admission boundary. Individual
+    # event/accounting cutoffs below still constrain historical conclusions.
+    return False
 
 
 def subsidiary_relations(target, sources, cards, as_of=None):
@@ -183,6 +171,10 @@ def subsidiary_relations(target, sources, cards, as_of=None):
                              'business_nature': nature[1] if nature else '',
                              'fact': re.sub(r'\s+', ' ', line).strip(),
                              'boundary': '报告截至日的子公司关系；空栏不自动补零，不能证明之后股权未变化。'})
+    from .company_time_context import publication_context
+    source_map={str(get(s,'url')):s for s in sources}
+    for record in rows:
+        if record.get('source_url') in source_map:record['time_context']=publication_context(source_map[record['source_url']],as_of)
     return rows
 
 
@@ -599,6 +591,20 @@ def build_risk_register(cleaned, target, sources=None, *, industry='', intake=No
             entry['supporting_records'] = rows
             entry['evidence_ids'] = sorted({e for r in rows for e in r.get('evidence_ids', [])})
             entries.append(entry)
+    temporal_observations=[];historical_entries=[]
+    source_map={str(get(s,'url')):s for s in sources}
+    financial_kinds={'purchase_accounting','accounting_consideration','payment_pending','related_funding','pro_forma','goodwill_impairment_loss'}
+    from .company_time_context import publication_context
+    for entry in entries:
+        record=entry['fact_record'];source=source_map.get(record.get('source_url'))
+        stamp=iso_date(record.get('date') or record.get('effective_date') or record.get('cutoff') or '')
+        if not stamp and record.get('kind') in financial_kinds and source is not None:stamp=filing_cutoff(document_pages(source))
+        if source is not None:record['time_context']=publication_context(source,as_of)
+        if as_of and stamp and stamp>as_of:
+            temporal_observations.append({**record,'event_or_period_cutoff':stamp,'scope_status':'after_historical_event_or_period_cutoff','eligible_for_risk_scoring':False})
+            counts['records_after_research_cutoff']+=1
+        else:historical_entries.append(entry)
+    entries=historical_entries
     for e in entries:
         facts.append(e['fact_record'])
         facts.extend(e.get('supporting_records', []))
@@ -651,7 +657,7 @@ def build_risk_register(cleaned, target, sources=None, *, industry='', intake=No
             'scoring_basis': '不对资料缺口、来源数量或模型分取平均；已核事项及其影响单列。集团风险数值须有重大性和概率依据。',
             'dimensions': dimensions, 'key_risks': list(dict.fromkeys(e['label'] + '：' + e['assessment'] for e in entries)),
             'unknowns': gaps, 'recommended_followups': list(dict.fromkeys(e['followup'] for e in entries)),
-            'entries': entries, 'facts': facts, 'checklist': checklist, 'coverage': coverage,
+            'entries': entries, 'facts': facts,'post_cutoff_observations':temporal_observations, 'checklist': checklist, 'coverage': coverage,
             'query_attempts': query_attempts or [], 'declared_industry_scope':scope,
             'active_template_sectors': sorted(active),'industry_extensions':industry_extensions,
             'event_review_pending': [r['source_url'] for r in (event_reviews or {}).get('receipts', [])

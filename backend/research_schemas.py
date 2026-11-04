@@ -79,6 +79,7 @@ class ResearchArtifactResponse(BaseModel):
 
 
 class ResearchRunRequest(BaseModel):
+    company_template_version: str = Field(default='', max_length=100)
     search_queries: list[str] = Field(default_factory=list)
     focus_questions: list[str] = Field(default_factory=list)
     target_type: str = ""

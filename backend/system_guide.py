@@ -11,9 +11,11 @@ from product_guide import (PAGES, GUIDE_TOOL, directory, page_help, guide_contex
 
 
 def page_for_role(page, role='user'):
+    if page == 'submit':
+        page = 'intake'
     if page == 'accounts' and role != 'admin':
         return 'home'
-    return page if page in PAGES else 'submit'
+    return page if page in PAGES else 'intake'
 
 
 def navigation(role='user'):

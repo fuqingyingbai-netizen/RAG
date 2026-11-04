@@ -21,7 +21,8 @@ def test_completed_gross_shares_price_and_intended_use_are_distinct_without_calc
     assert rows[0]['net_proceeds_text']==''
     assert rows[1]['kind']=='financing_use_plan' and '非实际支出' in rows[1]['mode']
     assert all(r['fact'] in s['content'] for r in rows)
-    assert not press_financing_rows(s,TARGET,base(s),ctx,as_of='2026-08-20')
+    late=press_financing_rows(s,TARGET,base(s),ctx,as_of='2026-08-20')
+    assert late and all(r['post_cutoff_disclosure'] for r in late)
     c=base(s)
     p=build_diligence_package({'facts':[c]},TARGET,[filing(),s],intake={'as_of_date':'2026-10-20'})
     assert {'financing','financing_use_plan'}=={r['kind'] for r in p['facts']}

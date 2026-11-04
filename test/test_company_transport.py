@@ -5,154 +5,109 @@ from concurrent.futures import ThreadPoolExecutor
 from report_agents.company_transport import bounded_company_invoke, CompanyModelUnavailable
 
 
-@pytest.mark.parametrize('raises', [False, True])
-def test_failed_provider_does_not_retry_for_every_queued_batch(raises):
-    calls = []
-    def unavailable(*args):
+def test_transient_retries_have_one_owner_and_no_phantom_calls():
+    calls=[];waits=[]
+    def provider(*args):
         calls.append(args)
-        if raises:
-            raise RuntimeError('provider unavailable')
-        return ''
-    invoke = bounded_company_invoke(unavailable, cooldown_seconds=0)
-    for _ in range(100):
-        with pytest.raises(CompanyModelUnavailable):
-            invoke('role', 'prompt', None)
-    assert len(calls) == 5
-
-
-def test_success_resets_consecutive_failures_and_wrapping_is_idempotent():
-    answers = iter(['', 'ok', '', '', 'ok'])
-    invoke = bounded_company_invoke(lambda: next(answers))
+        raise TimeoutError('sensitive request body must not be logged')
+    invoke=bounded_company_invoke(provider,sleep=waits.append)
     assert bounded_company_invoke(invoke) is invoke
-    for expected in ['', 'ok', '', '', 'ok']:
-        if expected:
-            assert invoke() == expected
-        else:
-            with pytest.raises(CompanyModelUnavailable):
-                invoke()
+    with pytest.raises(CompanyModelUnavailable) as caught:invoke('review','proofs')
+    assert caught.value.attempts==len(calls)==3
+    assert waits==[1,2]
+    assert caught.value.diagnostic['category']=='timeout'
+    assert caught.value.diagnostic['request_sent'] is None
+    for _ in range(10):
+        with pytest.raises(CompanyModelUnavailable) as blocked:invoke('review','proofs')
+        assert blocked.value.attempts==0 and not blocked.value.attempted
+    assert len(calls)==3
 
 
-@pytest.mark.parametrize('raises', [False, True])
-def test_transient_outage_recovers_without_replacing_or_rewriting_response(raises):
-    calls = []
-    response = ' {"quoted_source": "原件：百萬元；申请撤回上诉"} '
-    def provider(*args, **kwargs):
-        calls.append((args, kwargs))
-        if len(calls) <= 3:
-            if raises:
-                raise RuntimeError('connection failed')
-            return ''
-        return response
-    invoke = bounded_company_invoke(provider, cooldown_seconds=0)
-    for _ in range(3):
-        with pytest.raises(CompanyModelUnavailable) as exc:
-            invoke('role', 'prompt', target='公司')
-        assert exc.value.attempted is True
-    assert invoke('role', 'prompt', target='公司') == response
-    assert invoke('next', 'fresh') == response
-    assert calls[3] == (('role', 'prompt'), {'target': '公司'})
-    assert calls[4] == (('next', 'fresh'), {})
+def test_resume_is_a_fresh_finite_observation_and_keeps_provider_response():
+    calls=[]
+    def provider(*args):
+        calls.append(args)
+        if len(calls)<3:raise ConnectionError('connection unavailable')
+        return ' 原文不变 '
+    invoke=bounded_company_invoke(provider,sleep=lambda _:None)
+    assert invoke('read','input')==' 原文不变 '
+    assert len(calls)==3
 
 
-def test_only_one_recovery_request_runs_and_waiters_resume_after_its_success():
-    probe_started = threading.Event()
-    release_probe = threading.Event()
-    lock = threading.Lock()
-    calls = 0
-    def provider():
-        nonlocal calls
-        with lock:
-            calls += 1
-            number = calls
-        if number <= 3:
-            raise RuntimeError('offline')
-        if number == 4:
-            probe_started.set()
-            assert release_probe.wait(5)
+@pytest.mark.parametrize('status,category,retryable',[(401,'authentication',False),(402,'balance',False),
+    (403,'permission',False),(429,'rate_limit',True),(500,'temporary_server',True),(503,'temporary_server',True),
+    (413,'context_limit',False),(422,'configuration',False)])
+def test_provider_categories_preserve_safe_http_evidence(status,category,retryable):
+    from types import SimpleNamespace as NS
+    from report_agents.company_transport import failure_diagnostic
+    exc=RuntimeError('Authorization Bearer secret sk-not-for-output; sensitive entire request')
+    exc.status_code=status;exc.request_id='req-123'
+    exc.response=NS(headers={'retry-after':'3','authorization':'never-output'})
+    value=failure_diagnostic(exc,stage='audit',input_hash='bound-input')
+    assert value['category']==category and value['retryable'] is retryable
+    assert value['http_status']==status and value['provider_request_id']=='req-123'
+    assert value['retry_after_seconds']==3 and value['request_sent'] is True
+    assert 'secret' not in str(value) and 'Authorization' not in str(value)
+
+
+def test_auth_failure_is_not_blindly_retried_and_other_batches_are_deferred():
+    calls=[]
+    def provider(*args):
+        calls.append(args);exc=RuntimeError('bad credential');exc.status_code=401;raise exc
+    invoke=bounded_company_invoke(provider)
+    with pytest.raises(CompanyModelUnavailable) as caught:invoke('write','input')
+    assert caught.value.attempts==1
+    with pytest.raises(CompanyModelUnavailable) as caught:invoke('read','different')
+    assert caught.value.attempts==0
+    assert calls==[('write','input')]
+
+
+def test_rate_limit_respects_retry_after_without_nested_retry_amplification():
+    from types import SimpleNamespace as NS
+    calls=[];waits=[]
+    def provider(*args):
+        calls.append(args)
+        if len(calls)==1:
+            exc=RuntimeError('rate');exc.status_code=429;exc.response=NS(headers={'Retry-After':'7'});raise exc
         return 'ok'
-    invoke = bounded_company_invoke(provider, cooldown_seconds=0)
-    for _ in range(3):
-        with pytest.raises(CompanyModelUnavailable):
-            invoke()
-    with ThreadPoolExecutor(max_workers=6) as pool:
-        futures = [pool.submit(invoke) for _ in range(6)]
-        try:
-            assert probe_started.wait(5)
-            with lock:
-                assert calls == 4
-            assert all(not f.done() for f in futures)
-        finally:
-            release_probe.set()
-        assert [f.result(timeout=5) for f in futures] == ['ok'] * 6
-    assert calls == 9
+    invoke=bounded_company_invoke(provider,sleep=waits.append)
+    assert invoke('review','input')=='ok' and waits==[7] and len(calls)==2
 
 
-def test_late_inflight_success_reopens_guard_after_failure_budget_exhausted():
-    started = threading.Event()
-    release = threading.Event()
-    def provider(role):
-        if role == 'slow':
-            started.set()
-            assert release.wait(5)
-            return 'fresh actual response'
-        if role == 'fail':
-            raise RuntimeError('offline')
-        return 'recovered'
-    invoke = bounded_company_invoke(provider, cooldown_seconds=0)
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        slow = pool.submit(invoke, 'slow')
-        try:
-            assert started.wait(5)
-            for _ in range(5):
-                with pytest.raises(CompanyModelUnavailable) as exc:
-                    invoke('fail')
-                assert exc.value.attempted is True
-            with pytest.raises(CompanyModelUnavailable) as exc:
-                invoke('not actually attempted')
-            assert exc.value.attempted is False
-        finally:
-            release.set()
-        assert slow.result(timeout=5) == 'fresh actual response'
-    assert invoke('next') == 'recovered'
+def test_long_retry_after_is_resumable_and_never_busy_waited():
+    from types import SimpleNamespace as NS
+    exc=RuntimeError('rate');exc.status_code=429;exc.response=NS(headers={'Retry-After':'120'})
+    def provider():raise exc
+    with pytest.raises(CompanyModelUnavailable) as caught:
+        bounded_company_invoke(provider,sleep=lambda _:pytest.fail('must not sleep'))()
+    assert caught.value.diagnostic['deferred_until'] and caught.value.attempts==1
 
 
-def test_recovery_waits_for_cooldown_and_success_resets_next_outage_budget(monkeypatch):
-    import report_agents.company_transport as transport
-    clock = [100.0]
-    waits = []
-    real_condition = threading.Condition
-    class AdvancingCondition(real_condition):
-        def wait(self, timeout=None):
-            assert timeout is not None and timeout > 0
-            waits.append(timeout)
-            clock[0] += timeout
-    monkeypatch.setattr(transport.threading, 'Condition', AdvancingCondition)
-    monkeypatch.setattr(transport.time, 'monotonic', lambda: clock[0])
-    answers = iter(['', '', '', 'ok', '', '', '', 'second recovery'])
-    invoke = bounded_company_invoke(lambda: next(answers), cooldown_seconds=30)
-    for expected in ['', '', '', 'ok', '', '', '', 'second recovery']:
-        if expected:
-            assert invoke() == expected
-        else:
-            with pytest.raises(CompanyModelUnavailable):
-                invoke()
-    assert waits == [30, 30]
+def test_budget_limit_propagates_without_turning_into_provider_error():
+    from company_flow_state import CompanyFlowLimit
+    def provider():raise CompanyFlowLimit('budget')
+    with pytest.raises(CompanyFlowLimit):bounded_company_invoke(provider)()
 
 
-def test_persistent_outage_has_one_probe_at_a_time_and_finite_provider_calls():
-    calls = []
-    def provider():
-        calls.append(1)
-        raise RuntimeError('still offline')
-    invoke = bounded_company_invoke(provider, cooldown_seconds=0)
-    def attempt():
-        with pytest.raises(CompanyModelUnavailable) as exc:
-            invoke()
-        return exc.value.attempted
-    with ThreadPoolExecutor(max_workers=6) as pool:
-        attempted = list(pool.map(lambda _: attempt(), range(100)))
-    assert len(calls) == sum(attempted) == 5
-    assert attempted.count(False) == 95
+def test_invalid_model_output_is_local_and_does_not_open_global_outage_circuit():
+    def provider(role,prompt):
+        if role=='invalid':raise ValueError('invalid model JSON')
+        return 'valid independent batch'
+    invoke=bounded_company_invoke(provider)
+    for i in range(4):
+        with pytest.raises(CompanyModelUnavailable) as caught:invoke('invalid',str(i))
+        assert caught.value.diagnostic['category']=='output_format'
+    assert invoke('other','proofs')=='valid independent batch'
+
+
+def test_different_trace_callbacks_cannot_reset_same_input_attempt_budget():
+    calls=[]
+    def provider(*args):calls.append(1);raise ValueError('invalid format')
+    invoke=bounded_company_invoke(provider)
+    for i in range(3):
+        with pytest.raises(CompanyModelUnavailable):invoke('same-stage','same-input',lambda *a:None)
+    with pytest.raises(CompanyModelUnavailable) as caught:invoke('same-stage','same-input',lambda *a:None)
+    assert caught.value.attempts==0 and len(calls)==3
 
 
 def test_incomplete_native_review_cannot_pass_as_completed_delivery():

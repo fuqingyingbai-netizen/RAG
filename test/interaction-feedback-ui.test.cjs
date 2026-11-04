@@ -163,12 +163,12 @@ test('rerun parameter timeout clears waiting feedback without ever starting rese
   state.runExistingWorkflow=async()=>{runs++;};
   const pending=state.rerunProject({id:1});await tick();
   assert.equal(state.startingProjects[1],true);
-  assert.match(state.pendingActions['rerun:1'].phase,/读取重跑参数/);
+  assert.match(state.pendingActions['rerun:1'].phase,/读取(?:重跑|重新生成)参数/);
   const timer=[...timers.values()].find(item=>item.ms===30000);assert.ok(timer);timer.fn();
   await pending;
   assert.equal(runs,0);assert.equal(state.startingProjects[1],undefined);
   assert.equal(state.pendingActions['rerun:1'],undefined);
-  assert.match(state.actionErrors['rerun:1'].message,/加载重跑参数失败.*读取超时/);
+  assert.match(state.actionErrors['rerun:1'].message,/加载(?:重跑|重新生成)参数失败.*读取超时/);
   assert.match(state.actionErrors['rerun:1'].advice,/本次未启动研究/);
   assert.match(state.actionErrors['rerun:1'].advice,/读取成功后提交研究请求/);
   assert.ok(notices.some(([kind,text])=>kind==='error'&&/未启动任何研究任务/.test(text)));
@@ -183,10 +183,10 @@ test('rerun feedback advances from parameters to submission and confirmed backgr
     assert.equal(intake.marker,'saved');await connected.promise;onConnected();await running.promise;
   };
   const pending=state.rerunProject({id:1});await tick();
-  assert.match(state.pendingActions['rerun:1'].phase,/读取重跑参数/);
+  assert.match(state.pendingActions['rerun:1'].phase,/读取(?:重跑|重新生成)参数/);
   assert.equal(state.pendingActions['rerun:1'].readOnly,true);
   body.resolve({intake:{marker:'saved'}});await tick();
-  assert.match(state.pendingActions['rerun:1'].phase,/提交重跑请求/);
+  assert.match(state.pendingActions['rerun:1'].phase,/提交(?:重跑|重新生成)请求/);
   assert.equal(state.pendingActions['rerun:1'].readOnly,false);
   connected.resolve();await tick();assert.match(state.pendingActions['rerun:1'].phase,/后台执行/);
   running.resolve();await pending;assert.equal(state.pendingActions['rerun:1'],undefined);
