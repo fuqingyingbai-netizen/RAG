@@ -195,7 +195,7 @@ def test_history_registry_date_replaces_matching_coarse_formation_but_keeps_refo
 
 @pytest.mark.parametrize('mixed_scope',[False,True])
 def test_rebuilt_summary_keeps_group_and_parent_financial_subjects(mixed_scope):
-    from report_agents.company_summary import fallback_company_summary,summary_errors
+    from report_agents.company_summary import fallback_company_summary,summary_observations
     from test_company_summary import card,project
     period='2026年半年度报告'
     rows=[card(1,f'本集团{period}：营业收入为120.00万元。',summary_topic='financial',period=period)]
@@ -205,9 +205,10 @@ def test_rebuilt_summary_keeps_group_and_parent_financial_subjects(mixed_scope):
     text=fallback_company_summary(project(),package)
     financial=next(line for line in text.splitlines() if line.startswith('- ') and '营业收入' in line)
     assert '本集团' in financial
-    if mixed_scope:assert '母公司单体' in financial
-    else:assert financial.startswith('- 本集团'+period+'，')
-    assert summary_errors(text,package)==[]
+    assert all(row['fact'] in text for row in rows)
+    if mixed_scope:assert any(line.startswith('- 母公司单体') for line in text.splitlines())
+    else:assert financial.startswith('- 本集团'+period+'：')
+    assert summary_observations(text,package)==[]
 
 
 def test_history_report_publication_dates_do_not_displace_product_actions():
@@ -284,17 +285,17 @@ def test_indexed_defect_blocks_are_a_gap_until_campaign_join_is_verified():
 
 
 def test_summary_cannot_attach_later_recall_to_earlier_financial_reporting():
-    from report_agents.company_summary import summary_errors
+    from report_agents.company_summary import summary_observations
     from test_company_summary import card,section
     risk=card(1,'2026年9月18日，主管部门公告制造主体召回事项，后续整改待核。')
     report=card(2,'本集团2026年半年度报告营业收入为100万元。')
     p={'facts':[risk,report]}
-    assert any('计提' in e for e in summary_errors(section('需核验召回是否已在2026年半年度报告计提成本。[E-000000000001][E-000000000002]'),p))
-    assert any('融资' in e for e in summary_errors(section('本集团已完成融资。[E-000000000002]'),p))
+    assert any('计提' in e for e in summary_observations(section('需核验召回是否已在2026年半年度报告计提成本。[E-000000000001][E-000000000002]'),p))
+    assert any('融资' in e for e in summary_observations(section('本集团已完成融资。[E-000000000002]'),p))
     unsupported=section('需核实HKSCC NOMINEES LIMITED股份的实际控制归属是否与创始人存在一致行动安排。[E-000000000002]')
-    assert any('一致行动' in e for e in summary_errors(unsupported,p))
-    assert any('名义持股' in e for e in summary_errors(unsupported,p))
-    assert any('未披露' in e for e in summary_errors(section('主管部门未披露召回执行细节。[E-000000000001]'),p))
+    assert any('一致行动' in e for e in summary_observations(unsupported,p))
+    assert any('名义持股' in e for e in summary_observations(unsupported,p))
+    assert any('未披露' in e for e in summary_observations(section('主管部门未披露召回执行细节。[E-000000000001]'),p))
 
 
 def test_spaced_inline_summary_ids_normalize_once_without_changing_claims():

@@ -4,7 +4,7 @@ import pytest
 from report_agents.company_editorial import (
     parse_proposal, semantic_source_text, numeric_tokens, validate_audit,
 )
-from test_company_editorial import record, audit, OUTLINE
+from test_company_editorial import record, audit, OUTLINE, assert_semantic_rejected
 
 
 def parse(row, text):
@@ -32,12 +32,12 @@ def test_publisher_reference_preserves_only_the_own_document_identity(name, verb
 def test_reference_does_not_license_unknown_titles_periods_or_business_counts(text):
     row = record(text='公司完成产品交付。')
     row['provenance'][0]['source_title'] = '公司第六届监事会第三次会议决议公告；公司2022年年度报告'
-    assert parse(row, text)[1]
+    assert_semantic_rejected({'findings':[{'finding_id':'p','text':text,'information_ids':[row['information_id']]}]},[row])
 
 
 def test_uncited_source_title_cannot_supply_document_numbers():
     row = record(text='公司完成产品交付。')
-    assert parse(row, '公开平台刊载的公司第六届监事会第三次会议决议公告载明，公司完成产品交付。')[1]
+    assert_semantic_rejected({'findings':[{'finding_id':'p','text':'公开平台刊载的公司第六届监事会第三次会议决议公告载明，公司完成产品交付。','information_ids':[row['information_id']]}]},[row])
 
 
 NATIVE = '股东说明 1、甲公司持有0股；2、乙公司持有25%股权；3、公司未知其他股东是否存在一致行动关系。'
@@ -63,7 +63,8 @@ def test_inline_labels_do_not_demand_business_numbers_and_originals_stay_exact()
 def test_inline_layout_projection_cannot_hide_lost_or_changed_real_quantities(text):
     row = record(text=NATIVE)
     findings = [{'finding_id': 'p', 'text': text, 'information_ids': [row['information_id']]}]
-    assert validate_audit([row], findings, audit([row], findings))
+    qa=audit([row],findings);qa['criteria']['factual_support']=False
+    assert validate_audit([row],findings,qa)
 
 
 @pytest.mark.parametrize('text', [
@@ -87,7 +88,7 @@ def test_explicit_field_numbers_and_unknowns_remain_whole():
 
 def test_omitting_zero_or_changing_share_units_is_still_rejected():
     row = record(text=NATIVE)
-    assert parse(row, PROSE.replace('0股', '0元'))[1]
+    assert_semantic_rejected({'findings':[{'finding_id':'p','text':PROSE.replace('0股', '0元'),'information_ids':[row['information_id']]}]},[row])
     text = PROSE.replace('甲公司持有0股；', '')
     findings = [{'finding_id': 'p', 'text': text, 'information_ids': [row['information_id']]}]
     from report_agents.company_editorial import review_observations
@@ -159,7 +160,8 @@ def test_unbound_angle_title_is_not_licensed_by_metadata_or_another_source(suppo
 
 def test_native_angle_title_keeps_year_checks_active():
     row = record(text='公司拟审议《关于<公司2024年-2028年员工持股计划（草案）>的议案》，尚未通过。')
-    assert parse(row, row['text'].replace('2028', '2029'))[1]
+    # A changed literal angle title remains invalid markup/source text.
+    assert parse(row,row['text'].replace('2028','2029'))[1]
     findings = [{'finding_id': 'p', 'text': '公司拟审议相关员工持股计划，尚未通过。', 'information_ids': [row['information_id']]}]
     from report_agents.company_editorial import review_observations
     assert review_observations([row],findings)

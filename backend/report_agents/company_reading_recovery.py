@@ -256,15 +256,20 @@ def repair_selection_records(project,batch,result,invoke,trace=None):
                 '只修复以下未通过的引用/主体范围/章节记录，其他已有效片段不改写。'
                 '原文、任务ID和窗口ID必须真实，quote必须是所给窗口连续原文；不能猜ID或造引用。'
                 '主体名称/简称/集团/第三方按证据判断；不得由品牌或关联企业推定目标单体责任。'
+                'scope只填主体枚举target/group/service_joint/third_party_about_target/industry_context之一；'
+                '期间、单位、表格说明不是scope枚举，原说明可放scope_detail，不能丢弃。'
+                'scope表示来源中陈述的主体归因，不等于财务合并范围；不得仅凭归母或股东表推定集团合并范围。'
+                'quote_start如填写必须是原文中的整数偏移，不能填栏目名称或文字。'
                 'target_scope_requires_entity_clarification时列出来自当前原文的subject_basis，或按真实范围纠正scope。'
                 '被隔离或关联企业的原件不得修成目标直接责任。章节按目录语义规范为2—11。'
                 '若实际没有相关依据，replacement=null且说明撤回原因；不能为通过而补造字段。'
                 '返回JSON {repairs:[{proposal_index,replacement:{evidence_id,window_id,chapter,scope,relevance,quote,quote_start,subject_basis}或null,reason}]}，'
                 '每个问题索引恰好一项，不重审其他片段。\n资料：\n'+json.dumps({'target':project.target_name,'invalid':invalid,'originals':list(lookup.values())},ensure_ascii=False),trace))
         repairs=answer.get('repairs');allowed={r['proposal_index'] for r in invalid}
-        if not isinstance(repairs,list) or len(repairs)!=len(allowed) or {r.get('proposal_index') for r in repairs if isinstance(r,dict)}!=allowed:
+        returned=[r.get('proposal_index') for r in repairs if isinstance(r,dict)] if isinstance(repairs,list) else []
+        if not isinstance(repairs,list) or len(returned)!=len(repairs) or len(returned)!=len(set(returned)) or any(i not in allowed for i in returned):
             raise ValueError('incomplete_selection_repairs')
-        replacements={};unresolved=[]
+        replacements={};unresolved=list(allowed-set(returned))
         for row in repairs:
             index=row['proposal_index'];replacement=row.get('replacement')
             if not str(row.get('reason') or '').strip():unresolved.append(index);continue

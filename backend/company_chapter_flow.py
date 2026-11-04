@@ -23,7 +23,7 @@ from report_agents.company_corpus import build_corpus_review, research_context, 
 from report_agents.company_corpus_writer import collect_statements, render_compact_chapters
 from report_agents.company_information_usage import build_information_usage, source_information_map, routing_scope
 from report_agents.company_editorial import (build_editorial_package,digest_groups,apply_narrative_uses,
-    comparable_conflicts,VERSION as EDITORIAL_VERSION,record_payload,fingerprint as editorial_fingerprint)
+    comparable_conflicts,VERSION as EDITORIAL_VERSION,record_payload,fingerprint as editorial_fingerprint,editorial_policy_fingerprint)
 from report_agents.company_information_usage import VERSION as USAGE_VERSION
 from report_agents.company_delivery_contract import fill_evidence_gaps,followup_chapter,split_sections
 from report_agents.report_style import normalize_report_headings
@@ -139,24 +139,38 @@ class ChapterFlow:
                 states[sid]['reused_by_chapters']=reused
         facts=list({r.get('statement_id') or fingerprint(r):r for r in facts}.values())
         for sid,state in states.items():state['accepted_claims']=sum(r.get('source_id')==sid for r in facts)
-        records=[r for n,u in sorted(self.usages.items()) for r in u.get('records',[])]
-        records+=self.routed_records()
+        active_usages={n:u for n,u in self.usages.items() if u.get('version')==USAGE_VERSION and
+            u.get('review_scope')==routing_scope(self.project)}
+        records=[(r,False) for n,u in sorted(active_usages.items()) for r in u.get('records',[])]
+        records += [(r,True) for r in self.routed_records()]
         unique={}
-        for record in records:
+        for record,is_routed in records:
             iid=record['information_id']
             if iid in unique and fingerprint(record_payload(unique[iid]))!=fingerprint(record_payload(record)):
-                raise ValueError('conflicting_chapter_information_identifier')
+                previous=record_payload(unique[iid]);incoming=record_payload(record)
+                same_native={k:v for k,v in previous.items() if k!='decision'}=={k:v for k,v in incoming.items() if k!='decision'}
+                same_destination=all(previous.get('decision',{}).get(k)==incoming.get('decision',{}).get(k)
+                    for k in ('status','chapter','aspect'))
+                # The queue transports native evidence. A refreshed routing
+                # explanation cannot replace the destination's audited copy.
+                # Its changed input still refreshes that chapter in finalize.
+                if not (is_routed and same_native and same_destination):
+                    raise ValueError('conflicting_chapter_information_identifier')
             unique.setdefault(iid,record)
         records=list(unique.values())
-        statements=[s for n,u in sorted(self.usages.items()) for s in u.get('_statements',[])]
-        batches=[b for n,e in sorted(self.editorials.items()) for b in e.get('batches',[])]
-        findings=[f for n,e in sorted(self.editorials.items()) for f in e.get('findings',[])]
+        statements=[s for n,u in sorted(active_usages.items()) for s in u.get('_statements',[])]
+        batches=[b for n,e in sorted(self.editorials.items()) if n in active_usages for b in e.get('batches',[])]
+        findings=[f for n,e in sorted(self.editorials.items()) if n in active_usages for f in e.get('findings',[])]
         from report_agents.company_chapter_placements import accounted_ids
         accepted_ids=accounted_ids({'batches':batches})
         review={'version':CORPUS_VERSION,'target_name':self.project.target_name,
             'research_as_of':self.intake.get('as_of_date',''),'research_context':research_context(self.project),
             'facts':facts,'source_review':states,'review_receipts':receipts,
-            'diagnostic':{'all_candidate_windows_reviewed':all(
+            'diagnostic':{'native_windows_acknowledged':all(
+                s.get('reviewed_windows',0)==s.get('review_windows',0) and not s.get('unread_ranges') for s in states.values()),
+                'pending_selection_repairs':sum(len(r.get('response',{}).get('pending_selection_repairs') or [])
+                    for r in {r['input_sha256']:r for r in receipts if r.get('input_sha256')}.values()),
+                'all_candidate_windows_reviewed':all(
                 r.get('diagnostic',{}).get('all_candidate_windows_reviewed',False) and
                 not any(b.get('error') for b in r.get('review_receipts',[])) for r in self.reads.values()),
                 'reading_scope':'full_native_plan_with_explicit_window_acknowledgements',
@@ -168,7 +182,7 @@ class ChapterFlow:
                 if r.get('decision',{}).get('status') not in {'use','exclude'}]}}
         usage['source_map']=source_information_map(list(self.project.sources or []),review,usage)
         usable=[r for r in records if r.get('decision',{}).get('status')=='use']
-        editorial={'version':EDITORIAL_VERSION,'target_name':self.project.target_name,
+        editorial={'version':EDITORIAL_VERSION,'policy_sha256':editorial_policy_fingerprint(),'target_name':self.project.target_name,
             'input_sha256':editorial_fingerprint([record_payload(r) for r in usable]),
             'batches':batches,'findings':findings,'conflicts':comparable_conflicts(records),
             'diagnostic':{'usable_information':len(usable),'narrative_information':len(accepted_ids),
@@ -245,7 +259,8 @@ class ChapterFlow:
         def save_coverage(receipt):
             self.journal.data.setdefault('partial_coverage',{})[str(number)]=receipt
             self.journal.save()
-        coverage=assess_questions(number,self.project.target_name,proofs,self.chapter_invoke(number),previous_coverage,receipt_callback=save_coverage)
+        coverage=assess_questions(number,self.project.target_name,proofs,self.chapter_invoke(number),previous_coverage,
+            receipt_callback=save_coverage,originals=self.project.sources or [])
         self.coverage[number]=coverage
         self.event('本章已有资料核对完成',number=number,status='done',
             selected_chars=selection['diagnostic']['selected_chars'],
@@ -331,6 +346,7 @@ class ChapterFlow:
         records=[]
         for value in self.journal.data.get('routed_information',{}).values():
             if value.get('routing_version')!=USAGE_VERSION:continue
+            if value.get('review_scope')!=routing_scope(self.project):continue
             if any(sid not in sources or fingerprint(source_body(sources[sid]))!=digest
                     for sid,digest in value.get('source_bindings',{}).items()):continue
             row=value['record']
@@ -339,7 +355,26 @@ class ChapterFlow:
 
     def route_information(self,usage,number):
         sources={str(s.id):s for s in self.project.sources or []};outbound=[];own=[]
+        usage.setdefault('version',USAGE_VERSION);usage.setdefault('review_scope',routing_scope(self.project))
+        # Outbound decisions are still this reader's completed work. Keep them
+        # for cache revalidation instead of reclassifying them on every sweep.
         for row in usage['records']:
+            iid=row['information_id'];queue=self.journal.data.setdefault('routed_information',{})
+            if queue.get(iid,{}).get('origin_chapter')==number:queue.pop(iid)
+            for other,prior in self.usages.items():
+                if other==number:continue
+                if prior.get('version')!=USAGE_VERSION or prior.get('review_scope')!=routing_scope(self.project):continue
+                displaced=[r for r in prior.get('records',[]) if r['information_id']==iid and
+                    r.get('decision',{}).get('chapter')!=row.get('decision',{}).get('chapter')]
+                if not displaced:continue
+                native=lambda r:{k:v for k,v in record_payload(r).items() if k!='decision'}
+                if any(native(r)!=native(row) for r in displaced):
+                    raise ValueError('conflicting_chapter_information_identifier')
+                prior['records']=[r for r in prior['records'] if r['information_id']!=iid]
+                old_editorial=self.editorials.pop(other,{})
+                self.journal.data.setdefault('partial_editorials',{}).setdefault(str(other),[]).extend(old_editorial.get('batches',[]))
+                self.sections[other]='## '+str(other)+'. '+chapter(other)['title']
+                self.journal.data['chapters'].setdefault(str(other),{})['input_sha256']='routing_destination_changed'
             destination=row.get('decision',{}).get('chapter')
             if row.get('decision',{}).get('status')=='use' and destination!=number:
                 if not isinstance(destination,int) or not 2<=destination<=11:
@@ -352,11 +387,13 @@ class ChapterFlow:
                 if not bindings:
                     row['decision']={**row['decision'],'status':'pending_source_binding'};own.append(row);continue
                 self.journal.data.setdefault('routed_information',{})[row['information_id']]={
-                    'routing_version':USAGE_VERSION,'record':deepcopy(row),'source_bindings':bindings,'origin_chapter':number}
+                    'routing_version':USAGE_VERSION,'review_scope':routing_scope(self.project),
+                    'record':deepcopy(row),'source_bindings':bindings,'origin_chapter':number}
                 outbound.append({'information_id':row['information_id'],'destination_chapter':destination,
                     'reason':row['decision'].get('relevance'),'source_bindings':bindings})
             else:own.append(row)
         incoming=self.routed_records(number)
+        usage['routing_input_records']=deepcopy(usage['records'])
         usage['records']=list({r['information_id']:r for r in own+incoming}.values())
         usage['outbound_routes']=outbound
         usage.setdefault('diagnostic',{})['pending_information_ids']=[r['information_id'] for r in usage['records']
@@ -372,9 +409,11 @@ class ChapterFlow:
         for row in statements:
             row['context']={**row.get('context',{}),'chapter_question_owner':number}
         digest={'statements':statements,'groups':[],'diagnostic':{}}
-        local_invoke=self.chapter_invoke(number)
+        local_invoke=self.invoke
+        previous_usage=self.usages.get(number,{})
+        routing_previous={**previous_usage,'records':previous_usage.get('routing_input_records',previous_usage.get('records',[]))}
         usage=build_information_usage(digest,{number:self.sections[number]},outline(),self.project.target_name,
-            local_invoke,previous=self.usages.get(number),review_scope=routing_scope(self.project),
+            local_invoke,previous=routing_previous,review_scope=routing_scope(self.project),
             emit=self._emit,trace_emit=self.emit,workers=self.model_concurrency)
         usage=self.route_information(usage,number)
         self.usages[number]=usage
@@ -387,7 +426,7 @@ class ChapterFlow:
             self.journal.save()
         editorial=build_editorial_package(usage,outline(),self.project.target_name,self.invoke,
             previous=previous,emit=self._emit,trace_emit=self.emit,receipt_callback=save_editorial,
-            chapter_agents=self.project._company_chapter_agents)
+            chapter_agents=self.project._company_chapter_agents,originals=self.project.sources or [])
         apply_narrative_uses(usage,editorial)
         usage['_statements']=statements
         self.usages[number]=usage;self.editorials[number]=editorial
@@ -429,6 +468,8 @@ class ChapterFlow:
                 and not any(b.get('error') for b in self.reads.get(number,{}).get('review_receipts',[]))
                 and not any(st.get('structural_gaps') or st.get('unread_ranges') for st in self.reads.get(number,{}).get('source_review',{}).values())
                 and not self.coverage.get(number,{}).get('errors')
+                and self.usages[number].get('version')==USAGE_VERSION
+                and self.usages[number].get('review_scope')==routing_scope(self.project)
                 and not self.usages[number].get('diagnostic',{}).get('pending_information_ids')
                 and not self.editorials[number].get('diagnostic',{}).get('pending_information_ids')):
             from report_agents.company_editorial import package_errors

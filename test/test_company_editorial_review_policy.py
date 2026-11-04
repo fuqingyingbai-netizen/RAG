@@ -98,9 +98,9 @@ def test_legacy_accepted_receipts_are_rechecked_and_reused_without_new_model_cal
     for b in legacy['batches']:
         b['input_sha256']=fingerprint({'version':LEGACY_VERSION,'target':'公司','chapter':b['chapter'],
             'aspect':b['aspect'],'records':[record_payload(r) for r in rows],'feedback':[]})
-    def fail(*a):pytest.fail('valid old accepted prose should be revalidated locally')
-    updated=build_editorial_package({'records':rows},OUTLINE,'公司',fail,previous=legacy,workers=1)
-    assert updated['version']==VERSION and updated['batches'][0]['reused']
+    calls=[]
+    updated=build_editorial_package({'records':rows},OUTLINE,'公司',invoke_for(rows,calls),previous=legacy,workers=1)
+    assert updated['version']==VERSION and not updated['batches'][0].get('reused') and len(calls)==2
     assert not package_errors(updated,rows,'公司')
     legacy['batches'][0]['findings'][0]['text']='公司披露收入999亿元。'
     calls=[]
@@ -127,4 +127,5 @@ def test_partial_chapter_shows_accepted_prose_but_does_not_claim_completion():
     sections=render_compact_chapters(p,{'groups':digest_groups(package)},OUTLINE,{7:'旧的模板缺口说明'})
     assert rows[0]['text'] in sections[7] and '旧的模板缺口说明' not in sections[7]
     sections=fill_evidence_gaps(sections,package,OUTLINE,usage={'records':rows})
-    assert rows[0]['text'] in sections[7] and '尚未通过完整验收' in sections[7]
+    assert rows[0]['text'] in sections[7] and '尚未通过完整验收' not in sections[7]
+    assert package['batches'][-1]['accepted'] is False

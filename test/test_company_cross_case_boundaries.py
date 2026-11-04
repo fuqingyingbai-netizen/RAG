@@ -139,9 +139,9 @@ def test_web_event_is_not_described_as_a_professional_platform_return():
     f={'evidence_id':'E-000000000001','fact':TARGET+'于2021年收到行政处罚决定。','summary_topic':'risk',
        'source_kind':'other','source_url':'https://example.test/old-penalty','period':'2021-04-10'}
     text=fallback_company_summary(SimpleNamespace(target_name=TARGET),{'facts':[f]})
-    assert '平台返回记录' not in text and '历史日期及后续处理仍需核验' in text
+    assert f['fact'] in text and '平台返回记录' not in text and '历史日期及后续处理仍需核验' not in text
     f['source_url']='structured://fixture/risk'
-    assert '平台返回记录' in fallback_company_summary(SimpleNamespace(target_name=TARGET),{'facts':[f]})
+    assert f['fact'] in fallback_company_summary(SimpleNamespace(target_name=TARGET),{'facts':[f]})
 
 
 def test_native_historical_penalty_and_remediation_both_reach_summary_with_separate_dates():

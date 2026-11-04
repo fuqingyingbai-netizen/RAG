@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 from report_agents.company_summary import (
     SUMMARY_HEADINGS, build_company_summary_package, build_company_summary_prompt,
-    fallback_company_summary, summary_errors,
+    fallback_company_summary, summary_observations,
     _disclosure_financial_claims,
     normalize_company_summary,
 )
@@ -39,18 +39,17 @@ def test_confirmed_annual_impairment_summary_does_not_deny_the_disclosed_loss():
     package={'facts':[f]}
     text=fallback_company_summary(project(),package)
     assert '已确认商誉减值损失人民币8百万元' in text
-    assert '减值测试假设' in text and '公告不证明已发生事故或损失' not in text
-    assert not summary_errors(text,package)
-    bad=text.replace('应核对对应资产组、减值测试假设及后续变化；已确认年度损失与后续影响分别核查。',
-                     '公告不证明已发生事故或损失。')
-    assert any('已确认年度减值损失' in error for error in summary_errors(bad,package))
+    assert '减值测试假设' not in text and '公告不证明已发生事故或损失' not in text
+    assert not summary_observations(text,package)
+    bad=text.replace(f['fact'],f['fact']+'公告不证明已发生事故或损失。')
+    assert any('已确认年度减值损失' in error for error in summary_observations(bad,package))
 
 
 def test_recall_summary_preserves_the_unproved_accident_and_loss_boundary():
     f=card(text='2025年主管机关公告目标科技股份有限公司召回部分产品。')
     f.update(summary_topic='risk',source_kind='checked_chapter_field',original_record_kind='recall',period='2025年')
     text=fallback_company_summary(project(),{'facts':[f]})
-    assert '公告不证明已发生事故或损失' in text and '减值测试假设' not in text
+    assert f['fact'] in text and '公告不证明已发生事故或损失' not in text and '减值测试假设' not in text
 
 
 def test_summary_cannot_turn_undated_personnel_snapshot_into_current_role():
@@ -58,9 +57,9 @@ def test_summary_cannot_turn_undated_personnel_snapshot_into_current_role():
     raw='| 企业名称 | 目标科技股份有限公司 |\n| 1 | 王甲 | 2008-06-11至今 | 董事长 |'
     p=build_company_summary_package({'facts':[f]},project().target_name,[source(f,raw,'get_key_personnel',entity_validation='verified')])
     assert p['facts'] and all('2008' not in r['fact'] for r in p['facts'])
-    assert summary_errors(section('王甲为当前董事长。[E-000000000001]'),p)
-    assert summary_errors(section('王甲任期自2008年6月11日起至今。[E-000000000001]'),p)
-    assert not summary_errors(section('平台登记记录中，王甲职务为董事长，数据基准日未载。[E-000000000001]'),p)
+    assert summary_observations(section('王甲为当前董事长。[E-000000000001]'),p)
+    assert summary_observations(section('王甲任期自2008年6月11日起至今。[E-000000000001]'),p)
+    assert not summary_observations(section('平台登记记录中，王甲职务为董事长，数据基准日未载。[E-000000000001]'),p)
 
 
 def test_source_index_uses_summary_original_cards_instead_of_old_search_lead():
@@ -142,7 +141,7 @@ def test_summary_recovers_filing_table_column_meanings_and_negative_growth():
          '| 营业收入（元） | 10,000,000,000.00 | 12,000,000,000.00 | -16.67% |')
     package=build_company_summary_package({'facts':[fact]},project().target_name,[source(fact,raw)])
     assert any('上年同期为12,000,000,000.00元，同比-16.67%' in f['fact'] for f in package['facts'])
-    assert summary_errors(section('营业收入10,000,000,000.00元，同比16.67%。[E-000000000001]'),package)
+    assert summary_observations(section('营业收入10,000,000,000.00元，同比16.67%。[E-000000000001]'),package)
 
 
 def test_filing_table_requires_explicit_headers_and_handles_reversed_columns():
@@ -167,7 +166,7 @@ def test_literal_summary_rebuild_keeps_competition_period_and_passes_validation(
     assert any(f['summary_topic']=='competition' for f in package['facts'])
     rebuilt = fallback_company_summary(project(), package)
     assert '33.2%' in rebuilt and '[E-000000000002]' in rebuilt
-    assert summary_errors(rebuilt, package)==[]
+    assert summary_observations(rebuilt, package)==[]
 
 
 def test_no_hit_is_query_observation_never_positive_company_fact():
@@ -199,20 +198,20 @@ def test_summary_budget_keeps_whole_cards_and_removes_mirrored_duplicates():
 
 def test_summary_validator_rejects_fabricated_id_number_unit_and_rating():
     package=build_company_summary_package({'facts':[card()]},project().target_name)
-    assert not summary_errors(section('公司2025年营业收入10亿元。[E-000000000001]'),package)
+    assert not summary_observations(section('公司2025年营业收入10亿元。[E-000000000001]'),package)
     for text in ['公司2025年营业收入100亿元。[E-000000000001]',
                  '公司2025年营业收入10万美元。[E-000000000001]',
                  '公司2025年营业收入10亿元。[E-FFFFFFFFFFFF]',
                  '公司评级BBB+。[E-000000000001]']:
-        assert summary_errors(section(text),package)
+        assert summary_observations(section(text),package)
 
 
 def test_summary_validator_rejects_tables_duplicate_claims_and_bloat():
     package=build_company_summary_package({'facts':[card()]},project().target_name)
     body='目标科技股份有限公司2025年营业收入10亿元，经营收入已经列示。[E-000000000001]'
-    assert any('重复' in x for x in summary_errors(section(body+'\n'+body),package))
-    assert any('表格' in x for x in summary_errors(section('| 项目 | 数值 |'),package))
-    assert any('1400' in x for x in summary_errors(section('待核验。'*500),package))
+    assert any('重复' in x for x in summary_observations(section(body+'\n'+body),package))
+    assert any('表格' in x for x in summary_observations(section('| 项目 | 数值 |'),package))
+    assert any('1400' in x for x in summary_observations(section('待核验。'*500),package))
 
 
 def test_summary_prompt_contains_complete_json_without_inheriting_other_chapter_claims():
@@ -258,7 +257,7 @@ def test_empty_summary_keeps_template_blocks_and_review_boundary():
 
 def test_summary_decline_word_keeps_negative_percentage_meaning():
     package=build_company_summary_package({'facts':[card(text='目标科技股份有限公司2025年营业收入10亿元，同比-16.67%。')]},project().target_name)
-    assert not summary_errors(section('公司2025年营业收入10亿元，同比下降16.67%。[E-000000000001]'),package)
+    assert not summary_observations(section('公司2025年营业收入10亿元，同比下降16.67%。[E-000000000001]'),package)
 
 
 def test_structured_summary_renders_five_blocks_and_adjacent_references():
@@ -269,32 +268,32 @@ def test_structured_summary_renders_five_blocks_and_adjacent_references():
     package=build_company_summary_package({'facts':[card()]},project().target_name)
     assert '\n- 公司2025年营业收入10亿元。[E-000000000001]' in text
     assert text.count('[E-000000000001]')==1
-    assert not summary_errors(text,package)
+    assert not summary_observations(text,package)
 
 
 def test_summary_rejects_merging_distinct_nominee_and_clearing_nodes():
     package=build_company_summary_package({'facts':[card()]},project().target_name)
-    errors=summary_errors(section('HKSCC NOMINEES LIMITED即香港中央结算有限公司。[E-000000000001]'),package)
+    errors=summary_observations(section('HKSCC NOMINEES LIMITED即香港中央结算有限公司。[E-000000000001]'),package)
     assert any('登记节点' in error for error in errors)
 
 
 def test_summary_financial_conclusion_cannot_cite_only_judicial_record():
     fact=card(text='目标科技股份有限公司本次平台扫描裁判文书为117条。')
     package=build_company_summary_package({'facts':[fact]},project().target_name)
-    errors=summary_errors(section('公司营收与利润同比下滑，待核验。[E-000000000001]'),package)
+    errors=summary_observations(section('公司营收与利润同比下滑，待核验。[E-000000000001]'),package)
     assert any('财务判断' in error for error in errors)
 
 
 def test_summary_legal_representative_needs_registration_not_just_management_card():
     fact=card(text='目标科技股份有限公司主要人员：王甲，董事长、总裁。')
     package=build_company_summary_package({'facts':[fact]},project().target_name)
-    errors=summary_errors(section('王甲为公司法定代表人、董事长及总裁。[E-000000000001]'),package)
+    errors=summary_observations(section('王甲为公司法定代表人、董事长及总裁。[E-000000000001]'),package)
     assert any('工商登记' in error for error in errors)
 
 
 def test_summary_uncertainty_label_cannot_hide_an_uncited_number():
     package=build_company_summary_package({'facts':[card()]},project().target_name)
-    errors=summary_errors(section('公司营业收入可能为999亿元，待核验。'),package)
+    errors=summary_observations(section('公司营业收入可能为999亿元，待核验。'),package)
     assert any('来源引用' in error for error in errors)
 
 

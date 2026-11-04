@@ -8,7 +8,7 @@ from report_agents.company_assessment import financial_observations, _financial_
 from report_agents.company_diligence import period_of
 from report_agents.company_governance import _filing_period, _primary_filing
 from report_agents.company_risk_register import filing_cutoff
-from report_agents.company_summary import _chapter_summary_cards, fallback_company_summary, summary_errors, _numbers
+from report_agents.company_summary import _chapter_summary_cards, fallback_company_summary, summary_observations, _numbers
 
 TARGET = '星河控股有限公司'
 
@@ -119,8 +119,8 @@ def test_fiscal_summary_keeps_original_names_currency_period_and_calculation_bas
     assert all('据原表同币种计算' in r['fact'] for r in rows)
     for r in rows:r.update(source_kind='checked_chapter_field',summary_topic='financial')
     p={'facts':rows};text=fallback_company_summary(SimpleNamespace(target_name=TARGET),p)
-    assert summary_errors(text,p)==[]
-    assert summary_errors(text.replace('人民币','美元'),p)
+    assert summary_observations(text,p)==[]
+    assert summary_observations(text.replace('人民币','美元'),p)
 
 
 def test_million_and_thousand_units_are_compared_as_amounts_not_plain_numbers():

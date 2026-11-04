@@ -13,6 +13,7 @@ def compact(value):return re.sub(r'\s+','',value)
 
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('--directory',required=True);ap.add_argument('--company',required=True)
+    ap.add_argument('--output-dir',default='docs/deliverables/company-recovery-20261104')
     args=ap.parse_args();directory=(ROOT/'work'/args.directory).resolve()
     db=sqlite3.connect((directory/'research.sqlite').as_uri()+'?mode=ro',uri=True);db.row_factory=sqlite3.Row
     row=db.execute("SELECT * FROM research_artifacts WHERE artifact_type='desktop_report' ORDER BY id DESC LIMIT 1").fetchone()
@@ -64,7 +65,9 @@ def main():
         'code_sha256':{k:v for k,v in result.get('code_sha256',{}).items() if k.replace('\\','/').startswith(('backend/company_','backend/report_agents/company_')) or k.replace('\\','/') in {'backend/research_workflow.py','backend/docx_exporter.py','backend/research_api.py'}},
         'runtime_files_changed_since_invocation':[k for k,v in result.get('code_sha256',{}).items()
             if not (ROOT/k).is_file() or sha((ROOT/k).read_bytes())!=v]}
-    out=ROOT/'docs/deliverables/company-recovery-20261104'/(args.company+'-real-saved-readback.json')
+    outdir=(ROOT/args.output_dir).resolve();assert outdir.is_relative_to(ROOT.resolve())
+    outdir.mkdir(parents=True,exist_ok=True)
+    out=outdir/(args.company+'-real-saved-readback.json')
     out.write_text(json.dumps(outcome,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps({k:outcome[k] for k in ('company','report_artifact_id','main_findings_in_database_and_word','docx_integrity_status','docx_render_status','delivery_status')}))
     db.close()

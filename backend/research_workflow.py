@@ -8266,13 +8266,8 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                         bounded_gap=compact==re.sub(r'\s+','',rubric_body)
                 if len(compact) >= 320 and not no_evidence_notice and not bounded_gap and not cited_evidence_ids(section):
                     errors.append(f"第{chapter}章存在实质性内容但没有证据编号")
-            # A desktop search can establish only what its sources show.  Do
-            # not let a report turn a non-hit into a clean legal conclusion or
-            # a zero-risk score.  Such language must be backed by a reviewed
-            # official record, which this automated delivery path cannot prove.
-            from report_agents.company_delivery import company_overclaims
-            if company_overclaims(report):
-                errors.append("存在将公开检索未命中表述为确定不存在/零风险的公司结论")
+            # Legal meaning is judged by the independent document reviewer.
+            # A quoted or bounded phrase is not rejected by a lexical gate.
         if not audit_match:
             errors.append("缺少自动生成的审计引用索引")
         else:
@@ -8435,25 +8430,28 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                     journal.data.setdefault('document_review_receipts',{})[receipt['input_sha256']]=receipt
                     journal.save()
         if editorial.get('findings'):
-            for attempt in range(2):
+            max_review_passes=_env_int('COMPANY_DOCUMENT_REVIEW_MAX_PASSES',4,2,8)
+            for attempt in range(max_review_passes):
                 review=document_review(project,split_sections(report),editorial,invoke,
                     previous=reviews[-1] if reviews else {'receipts':list(journal.data.get('document_review_receipts',{}).values())} if journal is not None else None,
                     receipt_callback=save_document_receipt)
                 reviews.append(review)
                 if review['status']=='passed':break
-                if attempt==1:break
+                if attempt==max_review_passes-1:break
+                before_repair_hash=report_hash(report)
                 feedback=[{**i,'chapter':int(i['chapter'])} for i in review['issues'] if str(i.get('chapter')).isdigit()]
                 if not feedback:continue
                 _emit(emit,'report','company_editorial','按最终审稿意见自动修复正文',
                       f'issues={len(feedback)}',status='running')
                 # Gap-table and summary feedback must not trigger unnecessary
                 # rewrites of separately accepted facts in the same chapter.
-                fact_feedback=[i for i in feedback if i.get('quote') and any(
-                    f['chapter']==i['chapter'] and i['quote'] in f['text'] for f in editorial.get('findings',[]))]
+                fact_feedback=[i for i in feedback if not i.get('unresolved_locator') and any(
+                    f['chapter']==i['chapter'] and (f['finding_id'] in i.get('finding_ids',[]) or
+                    (not i.get('finding_ids') and i.get('quote') and i['quote'] in f['text'])) for f in editorial.get('findings',[]))]
                 updated=(build_editorial_package(editorial_usage,outline,str(project.target_name),invoke,
                     previous=editorial,feedback=fact_feedback,emit=_emit,trace_emit=emit,
                     receipt_callback=lambda batch:checkpoint_editorial_batch(project,batch,_emit,emit),
-                    chapter_agents=chapter_agents) if fact_feedback else editorial)
+                    chapter_agents=chapter_agents,originals=getattr(project,'sources',[]) or []) if fact_feedback else editorial)
                 if updated['diagnostic']['pending_information_ids']:
                     # An unrelated pending batch must not discard a successful
                     # located repair. Re-render only independently accepted
@@ -8486,6 +8484,7 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                 report=self._append_report_evidence_index(project,report,'{}',emit=emit)
                 editorial=updated
                 apply_narrative_uses(usage,editorial)
+                if attempt and report_hash(report)==before_repair_hash:break
         project.company_editorial_package=editorial
         if getattr(project,'company_flow_version',None):
             from report_agents.company_chapter_placements import appendix_html

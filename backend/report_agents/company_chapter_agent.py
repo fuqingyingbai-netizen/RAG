@@ -1,5 +1,6 @@
 """Fourteen isolated chapter writers; deterministic tables remain evidence-bound."""
 import hashlib
+import json
 import re
 import threading
 from company_chapters import chapter, prompt_contract, VERSION
@@ -39,7 +40,13 @@ class CompanyChapterAgent:
             raise
 
     def invoke(self, invoke, role, prompt, trace_emit=None):
-        bound = prompt_contract(self.number, str(self.project.target_name)) + prompt
+        if any(token in role for token in ('审稿','核对','格式','定位','重核','用途','归属修复')):
+            context={'chapter':self.number,'chapter_id':self.spec['id'],'title':self.spec['title'],
+                'target':str(self.project.target_name),'scope_description':self.spec['description']}
+            bound=('当前是独立核对任务，不是章节写作。章节描述仅用于确定范围，不要求补齐模板、模仿表达示例或新增分析。'
+                '以本次具体核对标准和原文为准；未取得的资料不能补写为事实。\n'
+                +json.dumps(context,ensure_ascii=False)+'\n'+prompt)
+        else:bound = prompt_contract(self.number, str(self.project.target_name)) + prompt
         with self._lock:
             self.model_calls += 1
         self._event('章节Agent模型调用', 'running',

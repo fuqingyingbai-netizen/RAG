@@ -616,6 +616,8 @@ def build_corpus_review(project,cleaned,sections,invoke,emit,trace_emit=None,*,p
             'model_requests':journal.data['metrics']['model_calls']-actual_requests_before if journal is not None else sum(r['attempts'] for r in receipts),
             'request_count_basis':'actual_sdk_invocations' if journal is not None else 'primary_transport_attempts','cached_review_batches':sum(r['attempts']==0 and not r['error'] for r in receipts),
             'provider_deferred_batches':sum(r['error']=='provider_unavailable' for r in receipts),
+            'native_windows_acknowledged':all(s['reviewed_windows']==s['review_windows'] for s in states.values() if s['review_windows']),
+            'pending_selection_repairs':sum(len(r.get('response',{}).get('pending_selection_repairs') or []) for r in receipts),
             'all_candidate_windows_reviewed':all(s['reviewed_windows']==s['review_windows'] for s in states.values() if s['review_windows']) and not any(r.get('response',{}).get('pending_selection_repairs') for r in receipts),
             'unresolved_structural_gaps':sum(len(s.get('structural_gaps',[])) for s in states.values()),
             'accepted_claims':len(facts),'accepted_sources':len({r['source_url'] for r in facts}),

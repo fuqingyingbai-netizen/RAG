@@ -1,5 +1,5 @@
 """Scan deliverable bytes and staged/history blobs without printing secrets."""
-import hashlib,json,re,subprocess
+import argparse,hashlib,json,re,subprocess
 from pathlib import Path
 from dotenv import dotenv_values
 
@@ -13,6 +13,10 @@ def git(*args):
 
 
 def main():
+    global OUT
+    parser=argparse.ArgumentParser();parser.add_argument('--output',default=str(OUT))
+    args=parser.parse_args();OUT=Path(args.output).resolve();assert OUT.is_relative_to(ROOT.resolve())
+    OUT.parent.mkdir(parents=True,exist_ok=True)
     values={v.encode() for k,v in dotenv_values(ROOT/'.env').items()
             if any(s in k.upper() for s in ('KEY','TOKEN','SECRET','PASSWORD')) and v and len(v)>=12}
     pattern=re.compile(rb'(?<![A-Za-z0-9_-])sk-[A-Za-z0-9_-]{20,}')

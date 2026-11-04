@@ -3,7 +3,7 @@ from copy import deepcopy
 import pytest
 
 from report_agents.company_editorial import declared_metric_quantities,parse_proposal,validate_audit
-from test_company_editorial import record,audit,OUTLINE
+from test_company_editorial import record,audit,OUTLINE,assert_semantic_rejected
 
 
 def metric_row():
@@ -37,19 +37,19 @@ def test_original_header_style_remains_valid_without_repeating_unit_after_each_v
     '公司披露营业收入本期1,000.00美元，上年同期900.00元，同比11.11%。',
 ])
 def test_declared_unit_cannot_change_scale_precision_or_currency(text):
-    assert parse(metric_row(),text)[1]
+    assert_semantic_rejected({'findings':[{'finding_id':'p','text':text,'information_ids':[metric_row()['information_id']]}]},[metric_row()])
 
 
 def test_raw_mixed_tables_cannot_borrow_the_next_table_unit_even_if_context_is_mislabeled():
     row=metric_row();row['text']='合同负债 1,000.00 900.00\n股本\n单位：元 币种：人民币\n股份总数 1,100.00'
     assert declared_metric_quantities(row)==[]
-    assert parse(row,'合同负债本期1,000.00元，上期900.00元。')[1]
+    assert_semantic_rejected({'findings':[{'finding_id':'p','text':'合同负债本期1,000.00元，上期900.00元。','information_ids':[row['information_id']]}]},[row])
 
 
 def test_mismatched_prior_unit_is_not_overwritten_with_current_unit():
     row=metric_row();row['context']['previous_unit']='万元'
     assert declared_metric_quantities(row)==['1,000.00元']
-    assert parse(row,'营业收入本期1,000.00元，上年同期900.00元。')[1]
+    assert_semantic_rejected({'findings':[{'finding_id':'p','text':'营业收入本期1,000.00元，上年同期900.00元。','information_ids':[row['information_id']]}]},[row])
 
 
 def test_unchecked_or_missing_unit_context_does_not_create_a_quantity():
@@ -63,7 +63,7 @@ def test_unchecked_or_missing_unit_context_does_not_create_a_quantity():
 def test_context_unit_cannot_match_only_the_suffix_of_a_larger_header_scale(native_unit):
     row=metric_row();row['text']=row['text'].replace('人民币元','人民币'+native_unit)
     assert declared_metric_quantities(row)==[]
-    assert parse(row,'营业收入本期1,000.00元，上年同期900.00元，同比11.11%，币种人民币。')[1]
+    assert_semantic_rejected({'findings':[{'finding_id':'p','text':'营业收入本期1,000.00元，上年同期900.00元，同比11.11%，币种人民币。','information_ids':[row['information_id']]}]},[row])
 
 
 def test_correct_complete_scaled_header_still_binds_its_own_amounts():

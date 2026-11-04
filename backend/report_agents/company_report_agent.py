@@ -1,4 +1,6 @@
 import json
+import hashlib
+from pathlib import Path
 from copy import copy
 import os
 import re
@@ -239,7 +241,7 @@ class CompanyReportAgent:
                 editorial=build_editorial_package(editorial_usage,self.outline,str(project.target_name),invoke,
                     previous=getattr(project,'company_editorial_cache',{}),emit=emit,trace_emit=trace_emit,
                     receipt_callback=lambda batch:checkpoint_editorial_batch(project,batch,emit,trace_emit),
-                    chapter_agents=agents)
+                    chapter_agents=agents,originals=getattr(project,'sources',[]) or [])
                 project.company_editorial_package=editorial
                 checkpoint_generation_stage(project,emit,trace_emit)
                 digest['groups']=digest_groups(editorial)
@@ -682,6 +684,9 @@ class CompanyReportAgent:
         emit(trace_emit, "report", self.trace_agent, "第十二章公司评价及评分计算核对完成",
              json.dumps(project.company_assessment_diagnostic, ensure_ascii=False),
              section=self.outline[11][0], status="fallback" if errors else "done")
+        if not any(d.get('score') is not None for d in package.get('dimensions',[])):
+            project.company_assessment_diagnostic['presentation']='unscored_rubric_retained_in_metadata'
+            return '## 12. '+self.outline[11][0]
         return chapter
 
     def _write_summary(self, project: Any, cleaned_json: str, completed_sections: dict[int, str], invoke, emit, trace_emit=None) -> str:
@@ -721,12 +726,14 @@ class CompanyReportAgent:
             native_invoke = invoke
             invoke = lambda role, text, trace=None: chapter_agent.invoke(native_invoke, role, text, trace)
 
-        feedback=getattr(project,'company_summary_editorial_feedback',[]) or []
+        previous=getattr(project,'company_summary_receipt',{}) or {}
+        feedback=getattr(project,'company_summary_editorial_feedback',None)
+        if feedback is None:feedback=previous.get('editorial_feedback') or []
         if feedback:prompt+='\n请修复最终审稿指出的摘要问题；只依据以上事实卡，原有来源范围和归因不能扩大：'+json.dumps(feedback,ensure_ascii=False)
         from company_flow_state import fingerprint,CompanyFlowLimit
-        signature=fingerprint(['company-summary-reviewed-input-v2',package_fingerprint(package),
+        signature=fingerprint(['company-summary-reviewed-input-v3',prompt,
+            hashlib.sha256(Path(__file__).with_name('company_summary.py').read_bytes()).hexdigest(),package_fingerprint(package),
             {str(n):text for n,text in completed_sections.items() if n!=1},feedback])
-        previous=getattr(project,'company_summary_receipt',{}) or {}
         if previous.get('input_sha256')==signature and previous.get('content') and not summary_errors(previous['content'],package):
             diagnostic['reused']=True
             return previous['content']
@@ -751,7 +758,8 @@ class CompanyReportAgent:
             diagnostic["cited_evidence_ids"] = sorted(set(cited_evidence_ids(rebuilt)))
             emit(trace_emit, "report", self.trace_agent, "公司摘要已按原文事实重建", "模型草稿越界；" + "；".join(errors), status="fallback")
             return rebuilt
-        project.company_summary_receipt={'input_sha256':signature,'content':answer,'package_fingerprint':package_fingerprint(package)}
+        project.company_summary_receipt={'input_sha256':signature,'content':answer,'package_fingerprint':package_fingerprint(package),
+            'editorial_feedback':feedback}
         journal=getattr(project,'_company_flow_journal',None)
         if journal is not None:
             journal.data['summary_receipt']=project.company_summary_receipt

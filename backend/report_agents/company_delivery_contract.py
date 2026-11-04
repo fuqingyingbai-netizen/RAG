@@ -233,72 +233,32 @@ def unreviewed_chapters(usage,editorial):
 
 
 def fill_evidence_gaps(sections, editorial, outline, *, usage=None):
-    """Answer unavailable questions with specific scope and an executable plan."""
-    from .company_governance import _table
-    result = dict(sections)
-    present = {f['chapter'] for f in editorial.get('findings', [])}
-    pending=unreviewed_chapters(usage or {},editorial)
+    """Preserve actual sections. Missing evidence is a delivery diagnostic."""
+    result=dict(sections)
     for chapter in range(2,13):
-        if chapter in pending:
-            notice='### 正文核对尚未完成'
-            result[chapter]=result.get(chapter,f'## {chapter}. '+outline[chapter-1][0]).split(notice,1)[0].rstrip()+\
-                '\n\n'+notice+'\n\n已通过逐批审核的段落继续保留。本章另有内容尚未完成用途或正文核对，相关草稿及原文保留供复核；当前稿件尚未通过完整验收，核对未完成不代表公司没有相关事项。'
-            continue
-        if chapter in present or chapter==12: continue
-        title, aspects = outline[chapter-1]
-        lines = [f'## {chapter}. {title}', '', '### 公开资料判断条件', '',
-                 '本轮已接纳原文尚不足以就下列问题形成直接判断；该范围限制不代表公司不存在相关事项，也不据此给公司定风险等级。', '']
-        rows = []
-        for aspect in aspects:
-            if aspect in PRESENTATION_ASPECTS:continue
-            plan=question_plan(chapter,aspect)
-            rows.append([plan['question'],plan['impact'],plan['action']])
-        lines += _table(['需回答的问题','目前判断范围','核验动作'], rows)
-        if chapter in {11,12}:
-            # Preserve deterministic risk checklists and the null-score rubric.
-            result[chapter] = result.get(chapter,'').split('### 公开资料判断条件',1)[0].rstrip() + '\n\n' + '\n'.join(lines[2:])
-        else: result[chapter] = '\n'.join(lines)
+        result.setdefault(chapter,f'## {chapter}. '+outline[chapter-1][0])
     return result
 
 
 def followup_chapter(project,outline):
-    """List concrete unresolved questions, without quotas or stale generic gaps."""
+    """Render only explicit questions and missing fields returned by review."""
     from .company_governance import _table
-    editorial=getattr(project,'company_editorial_package',{}) or {}
-    covered={(f['chapter'],f['aspect']) for f in editorial.get('findings',[])}
-    required=delivery_requirements(getattr(project,'company_research_intake',{}) or {})
     rows=[]
-    for number,coverage in sorted((getattr(project,'company_question_coverage',{}) or {}).items()):
+    for number,coverage in sorted((getattr(project,'company_question_coverage',{}) or {}).items(),key=lambda item:str(item[0])):
+        queries={}
+        for item in coverage.get('follow_up_queries',[]):
+            if isinstance(item,dict) and item.get('query'):
+                queries.setdefault(item.get('question_id'),[]).append(str(item['query']))
         for q in coverage.get('questions',[]):
             if q.get('status') in {'answered','not_applicable'}:continue
-            rows.append([f'第{number}章 '+q['question'],
-                str(q.get('reason') or '原文尚不能回答；不能据此作否定结论。'),
-                '核对：'+'、'.join(str(v) for v in q.get('missing_fields',[]))+
-                '；对照已保存出处及相反信息，取得对应原件后再作结论。',
-                '高' if int(number) in required['required_chapters'] else '中'])
-    for chapter in range(2,12):
-        for aspect in outline[chapter-1][1]:
-            if (chapter,aspect) in covered or aspect in PRESENTATION_ASPECTS:continue
-            plan=question_plan(chapter,aspect)
-            rows.append([f'第{chapter}章 '+plan['question'],plan['impact'],plan['action'],
-                '高' if chapter in required['required_chapters'] else '中'])
-    for dimension in (getattr(project,'company_assessment_package',{}) or {}).get('dimensions',[]):
-        if dimension.get('score') is not None:continue
-        from .company_assessment import SCORE_FOLLOWUP
-        rows.append(['第12章 '+str(dimension.get('name') or dimension.get('id') or '未命名分项'),
-            ('评分权重'+str(dimension['weight'])+'%；' if dimension.get('weight') is not None else '原权重未载；')+
-            '未评分原因：'+str(dimension.get('reason') or '原始评分定义待恢复，不能计算'),
-            SCORE_FOLLOWUP.get(dimension.get('id'),'恢复原始评分定义后再取得原件，不填默认分。')+
-            (' 按第12章该分项原锚点核验。' if dimension.get('anchors') else ' 原始锚点待恢复，不计算。'),
-            '高' if required['scoring_required'] else '中'])
-    for conflict in editorial.get('conflicts',[]):
-        rows.append([f'第{conflict["chapter"]}章 '+conflict['entity']+' '+conflict['field']+' '+conflict['period'],
-            '同一显式口径原值有差异，正文保留各自来源，尚未择一认定。',
-            '逐份比对原件的主体、数据期、单位、修订版本与后续更正；取得解释前不平均或合并。','高'])
-    lines=['## 14. '+outline[13][0],'',
-        '以下为下一阶段建议事项，本轮未开展现场、访谈或银行流水核验。高优先级用于核心必答项及已发现的原值差异，中优先级用于扩展判断和非必需评分；不代表公司风险等级。','']
-    if rows:lines+=_table(['待核验问题','当前判断边界','下一步动作及所需原件','优先级'],rows)
-    else:lines+=['当前已接纳原文未形成额外的结构化补证任务；不据此认定全面尽调完成。']
+            if q.get('review_origin')!='model_review':continue
+            fields=[str(v) for v in q.get('missing_fields',[]) if str(v).strip()]
+            actions=queries.get(q.get('id') or q.get('question_id'),[])
+            if not fields and not actions:continue
+            rows.append([f'第{number}章 '+str(q.get('question') or ''),
+                str(q.get('reason') or ''),'；'.join(fields),'；'.join(actions)])
+    lines=['## 14. '+outline[13][0],'']
+    if rows:lines+=_table(['待核验问题','具体原因','缺失字段','建议查询'],rows)
     return '\n'.join(lines)
 
 
@@ -323,11 +283,19 @@ def diagnostic_requires_review(project, key, report):
         # unscored reason and anchor. Do not add self-referential gap rows.
         from .company_assessment import RUBRIC
         dimensions=(getattr(project,'company_assessment_package',{}) or {}).get('dimensions',[])
+        if (diagnostic.get('presentation')=='unscored_rubric_retained_in_metadata' and
+                not delivery_requirements(getattr(project,'company_research_intake',{}) or {}).get('scoring_required') and
+                [d.get('id') for d in dimensions]==[d['id'] for d in RUBRIC] and
+                all(d.get('score') is None and d.get('reason') and d.get('anchors') for d in dimensions)):
+            return False
         return not ([d.get('id') for d in dimensions]==[d['id'] for d in RUBRIC] and
             all(d.get('score') is None and d.get('reason') and d.get('anchors') and
                 compact(d['name']) in compact(section) and compact(d['reason']) in compact(section) and
                 compact(d['anchors']) in compact(section) for d in dimensions) and '未评分' in section)
-    return not ('### 公开资料判断条件' in section and '| 核验动作 |' in section)
+    # A passed evidence/delivery contract already distinguishes mandatory gaps.
+    # Optional missing data stays in diagnostics; boilerplate in the body is
+    # never a prerequisite for accepting an otherwise reviewed report.
+    return False
 
 
 def assess_delivery(project, report):
@@ -345,7 +313,9 @@ def assess_delivery(project, report):
     corpus_review=getattr(project,'company_source_review_package',{}) or {}
     material_review_complete=corpus_review.get('diagnostic',{}).get('all_candidate_windows_reviewed') is True
     if getattr(project,'company_flow_version',None) and not material_review_complete:
-        errors.append('本轮选定原文的阅读核对尚未全部完成')
+        errors.append('候选记录的引用或主体格式校验尚未全部完成' if
+            corpus_review.get('diagnostic',{}).get('native_windows_acknowledged') is True else
+            '本轮选定原文的阅读核对尚未全部完成')
     if getattr(project,'company_flow_version',None) and any(st.get('structural_gaps') or st.get('unread_ranges') for st in corpus_review.get('source_review',{}).values()):
         errors.append('原文仍有未读范围或具体结构缺口，需恢复阅读核对')
     records = [r for r in usage.get('records', []) if r.get('decision', {}).get('status') == 'use']

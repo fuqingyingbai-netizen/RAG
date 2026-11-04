@@ -7,13 +7,13 @@ import pytest
 from report_agents.company_editorial import (
     build_editorial_package,parse_proposal,prose_errors,proposal_prompt,package_errors,
 )
-from test_company_editorial import record,proposal,invoke_for,OUTLINE
+from test_company_editorial import record,proposal,invoke_for,OUTLINE,assert_semantic_rejected
 
 
 @pytest.mark.parametrize('empty',['“”','“  ”','「」','『\n』','《 》'])
 def test_empty_entity_and_document_placeholders_require_readable_explanation(empty):
     row=record(text='公司是'+empty+'注册商标的权利人，提取内容未呈现图样。')
-    assert 'empty_quote_placeholder' in prose_errors(row['text'],[row])
+    assert_semantic_rejected(proposal([row]),[row])
     clear='公司是注册商标的权利人，提取内容未呈现图样。'
     assert not prose_errors(clear,[row])
     prompt=proposal_prompt([row],'远帆公司',6,'业务')

@@ -196,7 +196,7 @@ def test_transaction_boundary_reference_is_registered_without_becoming_a_score()
         'source_url': 'https://www.sse.com.cn/check.pdf', 'source_title': '专项核查报告'}
     text = render_compact_chapters(project, {'groups': [], 'statements': [statement]}, COMPANY_REPORT_OUTLINE,
                                    {12: render_assessment(p)})[12]
-    assert 'E-000000000001' in text
+    assert 'E-000000000001' not in text
     assert not any('无原件定位' in e for e in assessment_errors(text, p))
     assert all(d['score'] is None for d in p['dimensions'])
     assert all(not d['records'] for d in p['dimensions'])

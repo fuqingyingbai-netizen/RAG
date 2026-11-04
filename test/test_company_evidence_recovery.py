@@ -169,11 +169,50 @@ def test_cross_chapter_routing_keeps_bound_records_and_invalidates_destination(t
     usage=f.route_information({'records':[native],'diagnostic':{}},6)
     assert usage['records']==[] and usage['outbound_routes'][0]['destination_chapter']==7
     assert f.routed_records(7)[0]['text']==native['text']
+    queued=f.journal.data['routed_information'][native['information_id']]
+    scope=queued.pop('review_scope')
+    assert f.routed_records(7)==[]
+    queued['review_scope']=scope
     assert f.selection(7)['input_sha256']!=before
     received=f.route_information({'records':[],'diagnostic':{}},7)
     assert received['records'][0]['information_id']==native['information_id']
     f.project.sources[0].content+='原件新修订'
     assert f.routed_records(7)==[]
+
+
+def test_rerouting_removes_stale_queue_and_destination_but_keeps_native_cache_receipts(tmp_path,monkeypatch):
+    from copy import deepcopy
+    from test_company_editorial import record
+    f,_,_=flow(tmp_path,monkeypatch,[source()])
+    native=record(chapter=6);native['provenance'][0].update(source_id=1,original_offset=0)
+    routed=deepcopy(native);routed['decision']['chapter']=7
+    first=f.route_information({'records':[routed],'diagnostic':{}},6)
+    assert first['records']==[] and first['routing_input_records']==[routed]
+    f.usages[6]=first;f.usages[7]=f.route_information({'records':[],'diagnostic':{}},7)
+    f.editorials[7]={'batches':[{'information_ids':[native['information_id']],'accepted':True}]}
+    second=f.route_information({'records':[native],'diagnostic':{}},6)
+    assert f.routed_records()==[] and f.usages[7]['records']==[]
+    assert 7 not in f.editorials and f.journal.data['chapters']['7']['input_sha256']=='routing_destination_changed'
+    assert f.journal.data['partial_editorials']['7'][0]['accepted']
+    assert second['records']==[native] and second['routing_input_records']==[native]
+
+
+@pytest.mark.parametrize('change',['explanation','native_text','destination','aspect'])
+def test_merge_prefers_audited_destination_over_queue_explanations_but_rejects_native_conflicts(tmp_path,monkeypatch,change):
+    from copy import deepcopy
+    f,_,_=flow(tmp_path,monkeypatch,[source()]);f.run_chapter(7)
+    native=f.usages[7]['records'][0];queued=deepcopy(native)
+    if change=='explanation':queued['decision'].update(relevance='同一事实的另一种路由说明',voice='发布者自述')
+    elif change=='native_text':queued['text']+='改动原文'
+    elif change=='destination':queued['decision']['chapter']=6
+    else:queued['decision']['aspect']='其他用途'
+    monkeypatch.setattr(f,'routed_records',lambda *a:[queued])
+    if change!='explanation':
+        with pytest.raises(ValueError,match='conflicting_chapter_information_identifier'):f.merge()
+    else:
+        _,usage,_=f.merge()
+        assert usage['records'][0]['decision']==native['decision']
+        assert len(usage['records'])==len(f.usages[7]['records'])
 
 
 def test_unknown_selection_ids_are_repaired_in_isolation_and_bound_before_use():

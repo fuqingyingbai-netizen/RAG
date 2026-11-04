@@ -5,6 +5,7 @@ never asserts that the text answers a question or that a company is risk-free.
 """
 from bisect import bisect_right
 from copy import deepcopy
+from pathlib import Path
 import json
 import re
 from types import SimpleNamespace
@@ -110,7 +111,7 @@ class ReadingIndex:
                 'expanded_in_file':expanded,'gap_terms':sorted(gap_words),'embeddings_created':0}}
 
 
-def assess_questions(number,target,facts,invoke,previous=None,receipt_callback=None):
+def assess_questions(number,target,facts,invoke,previous=None,receipt_callback=None,originals=None):
     """Model judges explicit questions against native proofs; IDs are checked."""
     spec=chapter(number)
     questions=[{'id':f'Q{number:02d}-{i+1}','question':q.format(target=target)}
@@ -123,10 +124,15 @@ def assess_questions(number,target,facts,invoke,previous=None,receipt_callback=N
             proofs[key]={'id':key,'text':text,'source_url':row.get('source_url',''),
                 'evidence_id':row.get('evidence_id',''),'scope':row.get('scope') or row.get('evidence_scope',''),
                 'period':row.get('period','')}
-    signature=fingerprint([number,target,questions,proofs])
+    from report_agents.company_editorial_context import make_evidence_context
+    native_rows=[{'information_id':p['id'],'text':p['text'],'context':{},
+                  'provenance':[{'source_url':p['source_url']}]} for p in proofs.values()]
+    evidence_context=make_evidence_context(native_rows,originals)
+    policy=fingerprint([Path(__file__).read_text(encoding='utf-8'),evidence_context])
+    signature=fingerprint([policy,number,target,questions,proofs])
     if previous and previous.get('input_sha256')==signature and not previous.get('errors'):return deepcopy(previous)
     unresolved={q['id']:{**q,'status':'missing','support_ids':[],'missing_fields':['尚无可核原件'],
-        'reason':'本章问题尚未得到原文支持。'} for q in questions}
+        'reason':'本章问题尚未得到原文支持。','review_origin':'program_pending'} for q in questions}
     if not proofs:return {'input_sha256':signature,'questions':list(unresolved.values()),'proofs':[],
         'follow_up_queries':[],'complete':False}
     # No first-N clipping: every admitted proof enters one bounded batch.
@@ -147,9 +153,9 @@ def assess_questions(number,target,facts,invoke,previous=None,receipt_callback=N
             'local_search_terms:["缺失字段在文件内可能使用的具体名称、同义表达或表标题"],'
             'follow_up_queries:[{question_id,query,reason}]}。support_ids只能来自本批proofs，'
             'conflict至少引用两个不同原件论据。query只允许本章未回答的具体问题。\n资料：\n'+
-            json.dumps({'target':target,'questions':questions,'proofs':batch},ensure_ascii=False))
+            json.dumps({'target':target,'questions':questions,'proofs':batch,'evidence_context':evidence_context},ensure_ascii=False))
         try:
-            key=fingerprint(['company-question-coverage-v2',number,target,questions,batch])
+            key=fingerprint(['company-question-coverage-v3',policy,prompt])
             answer=deepcopy(cached[key]['response']) if key in cached else parse_json(invoke('公司本章问题覆盖核对',prompt,None))
             replies.append(answer)
             if (not isinstance(answer.get('questions'),list) or
@@ -165,8 +171,9 @@ def assess_questions(number,target,facts,invoke,previous=None,receipt_callback=N
                 if status=='conflict' and len(support)<2:continue
                 old=unresolved[qid]
                 if old['status']=='conflict':continue
-                if status=='conflict' or (old['status'] not in {'answered','not_applicable'} and status!='missing'):
-                    unresolved[qid]={**old,**row,'support_ids':support}
+                if status=='conflict' or (old['status'] not in {'answered','not_applicable'} and
+                        (status!='missing' or old.get('review_origin')=='program_pending')):
+                    unresolved[qid]={**old,**row,'support_ids':support,'review_origin':'model_review'}
             batch_receipts.append({'input_sha256':key,'response':answer,'error':None})
         except Exception as exc:
             from company_flow_state import CompanyFlowLimit

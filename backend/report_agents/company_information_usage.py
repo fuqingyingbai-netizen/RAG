@@ -6,11 +6,12 @@ summary's supporting IDs alone never prove that all its premises survived.
 import hashlib
 import html
 import json
+import os
 import re
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-VERSION = 'company-information-usage-v3-bound-routing-cache'
+VERSION = 'company-information-usage-v4-independent-routing-policy'
 EXCLUSIONS = {'navigation', 'unrelated', 'generic_definition', 'non_substantive'}
 CONTEXT_FIELDS = ('entity', 'field', 'metric', 'value', 'previous_value', 'unit', 'currency',
                   'period', 'as_of', 'cutoff', 'report_end_date', 'scope', 'evidence_scope',
@@ -156,7 +157,14 @@ def validate_review(records, answer, outline):
 
 def routing_scope(project):
     from .company_corpus import research_context
+    from pathlib import Path
+    here=Path(__file__).resolve()
+    policy_files=(here,here.parents[1]/'company_chapter_flow.py',here.parent/'company_chapter_agent.py')
     return {'as_of_date':str((getattr(project,'company_research_intake',{}) or {}).get('as_of_date') or ''),
+            'routing_identity':'independent_router_without_chapter_authoring_contract',
+            'routing_policy_sha256':hashlib.sha256('\n'.join(p.read_text(encoding='utf-8') for p in policy_files).encode()).hexdigest(),
+            'routing_model':{k:os.getenv(k,'') for k in ('MODEL','BASE_URL','COMPANY_REPORT_EDITOR_MAX_COMPLETION_TOKENS',
+                'COMPANY_REPORT_EDITOR_REASONING_EFFORT','COMPANY_REPORT_EDITOR_THINKING_BUDGET')},
             **research_context(project)}
 
 
@@ -176,7 +184,8 @@ def bind_legacy_routing_scope(package, target, scope, source_review, report_vers
 def routing_fingerprint(record, target, scope, outline):
     payload={k:record.get(k) for k in ('information_id','text','context','statement_ids',
         'chapters','provenance','evidence_ids','relevance')}
-    value={'version':VERSION,'target':target,'scope':scope,'outline':outline,'record':payload}
+    value={'version':VERSION,'target':target,'scope':scope,'outline':outline,'record':payload,
+           'review_contract':review_prompt([],target,outline)}
     if platform_method_metadata(record):
         # Only these labels need a new review. All other exact native routing
         # receipts remain reusable; no whole-corpus cache invalidation.

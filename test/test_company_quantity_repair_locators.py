@@ -7,7 +7,7 @@ import pytest
 from report_agents.company_editorial import (
     build_editorial_package, parse_proposal, quantity_repair_locators,
 )
-from test_company_editorial import OUTLINE, audit, record
+from test_company_editorial import OUTLINE, audit, record,assert_semantic_rejected
 
 
 def finding(row, text):
@@ -24,8 +24,7 @@ def test_corrupted_scale_is_visible_and_native_offsets_stay_verbatim():
         assert loc['quote'] == row['text'][loc['start']:loc['end']]
         assert '百萬元' in loc['quote']
     assert (proposal, row) == before
-    assert any('new_or_changed_number_unit' in e for e in
-               parse_proposal(proposal, [row], 6, OUTLINE[5][1][0])[1])
+    assert_semantic_rejected(proposal,[row])
 
 
 def test_equal_numbers_in_uncited_records_cannot_supply_a_unit():
@@ -53,21 +52,25 @@ def test_normal_retry_needs_new_correct_prose_and_full_independent_audit(repairs
         roles.append(role)
         if role == '公司交付正文独立审稿':
             data = json.loads(prompt.split('资料：\n', 1)[1])
-            return json.dumps(audit([row], data['findings']), ensure_ascii=False)
+            qa=audit([row],data['findings'])
+            if '百萟元' in data['findings'][0]['text']:
+                qa['criteria']['factual_support']=False;qa['findings'][0]['status']='unsupported'
+                qa['issues']=['原件为百萬元，正文误写百萟元。']
+            return json.dumps(qa,ensure_ascii=False)
         assert role == '公司交付正文编写'
         producer_prompts.append(prompt)
         text = row['text'] if repairs and len(producer_prompts) > 1 else row['text'].replace('百萬元', '百萟元')
         return json.dumps({'findings': [finding(row, text)]}, ensure_ascii=False)
 
     package = build_editorial_package({'records': [row]}, OUTLINE, '公司', invoke, workers=1)
-    assert '数量原文定位对照' in producer_prompts[1]
+    assert '原件为百萬元' in producer_prompts[1]
     assert '百萟元' in producer_prompts[1] and '百萬元' in producer_prompts[1]
     if repairs:
         assert not package['diagnostic']['pending_information_ids']
-        assert roles.count('公司交付正文独立审稿') == 1
+        assert roles.count('公司交付正文独立审稿') == 2
         assert package['findings'][0]['text'] == row['text']
         assert package['batches'][0]['attempts'][0]['errors']
     else:
         assert package['diagnostic']['pending_information_ids'] == [row['information_id']]
-        assert '公司交付正文独立审稿' not in roles
+        assert roles.count('公司交付正文独立审稿')==3
         assert package['batches'][0]['accepted'] is False

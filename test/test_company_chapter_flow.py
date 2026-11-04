@@ -185,6 +185,37 @@ def test_resume_revalidates_receipts_and_does_not_rewrite_unchanged_chapter(tmp_
     assert any(e.get('label')=='复用已核本章正文' for e in events)
 
 
+@pytest.mark.parametrize('change',['scope','version'])
+def test_changed_routing_policy_cannot_reuse_an_entire_finished_chapter(tmp_path,monkeypatch,change):
+    f,calls,events=flow(tmp_path,monkeypatch,[source()]);f.run_chapter(7)
+    if change=='scope':f.usages[7]['review_scope']={**f.usages[7]['review_scope'],'routing_policy_sha256':'old-policy'}
+    else:f.usages[7]['version']='old-routing-version'
+    calls.clear();events.clear();f.run_chapter(7)
+    routing=[(role,prompt) for role,prompt in calls if role.startswith('公司信息逐项用途核对')]
+    assert routing and all('company_chapter_07_agent' not in role for role,prompt in routing)
+    assert not any(e.get('label')=='复用已核本章正文' for e in events)
+    from report_agents.company_information_usage import routing_scope,VERSION
+    assert f.usages[7]['review_scope']==routing_scope(f.project) and f.usages[7]['version']==VERSION
+
+
+def test_outbound_routing_decisions_are_cached_even_when_origin_has_no_body(tmp_path,monkeypatch):
+    f,calls,_=flow(tmp_path,monkeypatch,[source()]);base=f.workflow._invoke_company_report_editor
+    def invoke(role,prompt,trace=None,**kwargs):
+        answer=base(role,prompt,trace,**kwargs)
+        if role=='公司信息逐项用途核对':
+            data=json.loads(answer)
+            for decision in data['records']:decision.update(chapter=7,aspect=outline()[6][1][0])
+            return json.dumps(data)
+        return answer
+    monkeypatch.setattr(f.workflow,'_invoke_company_report_editor',invoke)
+    f.run_chapter(6)
+    assert f.usages[6]['records']==[] and f.usages[6]['routing_input_records']
+    before=sum(role=='公司信息逐项用途核对' for role,prompt in calls)
+    f.write(6)
+    assert sum(role=='公司信息逐项用途核对' for role,prompt in calls)==before
+    assert f.routed_records(7)
+
+
 def test_changed_native_body_invalidates_index_and_earlier_chapter_only_when_related(tmp_path,monkeypatch):
     f,calls,_=flow(tmp_path,monkeypatch,[source()]);f.run_chapter(7)
     first=f.reads[7]['input_sha256'];count=len(calls)

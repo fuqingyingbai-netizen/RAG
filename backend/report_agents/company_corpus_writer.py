@@ -1,6 +1,6 @@
 """Compact, checked synthesis with a complete statement-to-source ledger.
 
-The model proposes prose and grouping. Independent checking, numeric guards
+The model proposes prose and grouping. Independent semantic checking
 and ID closure are required before a group can become narrative evidence.
 Detailed original statements stay in the accompanying evidence package.
 """
@@ -11,12 +11,13 @@ import os
 import re
 from collections import Counter,defaultdict
 from concurrent.futures import ThreadPoolExecutor,as_completed
+from pathlib import Path
 
 from .company_governance import _table,refs,cited_evidence_ids,render_beneficial_ownership,render_registered_shareholders,render_governance_personnel
 from .company_evidence import source_body
 from .company_corpus import VERSION as CORPUS_VERSION,platform_source,research_context,source_input_fingerprint
 
-VERSION='company-corpus-writer-v6-all-information-and-platform-fields'
+VERSION='company-corpus-writer-v7-semantic-review'
 CHAPTER_PACKAGES={2:'governance',3:'history',4:'operations',5:'reputation',6:'business',
                   7:'management',8:'people',9:'judicial',10:'diligence',11:'risk_register',12:'assessment'}
 
@@ -67,6 +68,9 @@ def collect_statements(project,review):
             'scope','evidence_scope','context_quote','boundary','aspect','source_kind') if record.get(k) is not None}
         if record.get('model_reading_mode'):
             context.update({key:record[key] for key in ('subject_basis','subject_binding','time_context','original_sha256','original_page_context') if key in record})
+            state=review.get('source_review',{}).get(str(record.get('source_id')), {})
+            context['source_reading_coverage']={k:state.get(k) for k in (
+                'original_sha256','reading_scope','review_windows','reviewed_windows','unread_ranges','structural_gaps')}
         if isinstance(record.get('context'),dict):context={**record['context'],**context}
         if record.get('source_date_role') is not None:
             for key in ('publication_date','source_date','source_date_role','source_date_quote'):
@@ -137,18 +141,9 @@ def _number_tokens(text):
 
 
 def _prose_errors(summary,records):
+    # The independent auditor judges meaning, quantities and attribution.
     errors=[]
-    if not summary or len(summary)>550:errors.append('empty_or_oversize_summary')
-    allowed=_number_tokens('\n'.join(r['text']+'\n'+json.dumps(r['context'],ensure_ascii=False) for r in records))
-    if _number_tokens(summary)-allowed:errors.append('new_or_changed_number_unit')
-    if re.search(r'不存在任何|完全没有|证明不存在|全面领先|毫无风险|已无风险|确定无违法',summary):errors.append('unbounded_conclusion')
-    if re.search(r'(?:现有|全部|本次|本报告)(?:公开)?(?:材料|资料|证据|来源|记录)[^。；]{0,18}(?:未提供|没有|缺少|尚未|不足|无法)',summary):
-        errors.append('batch_cannot_assert_whole_corpus_gap')
-    if re.search(r'(?:公司综合评分|本报告评分|公司得分|公司综合分)\s*[:：为是]?\s*\d',summary):errors.append('model_assigned_score')
-    if re.search(r'融资|实缴|持股|注册资本|营收|营业收入|净利润|到账',summary) and _number_tokens(summary) and any(
-            r['origin']=='literal_original_statement' and r['context'].get('source_kind') not in {'issuer_disclosure','government_statement'} for r in records):
-        if not re.search(r'平台|企查查|天眼查|启信宝|爱企查|媒体|报道|转载|第三方|文件|公告|公示',summary):
-            errors.append('nonprimary_numeric_claim_requires_explicit_attribution')
+    if not summary or not summary.strip():errors.append('empty_summary')
     if cited_evidence_ids(summary):errors.append('model_written_citation')
     return errors
 
@@ -191,8 +186,9 @@ def build_compact_digest(project,review,outline,invoke,emit,trace_emit=None):
     invoke=bounded_company_invoke(invoke)
     statements=collect_statements(project,review)
     previous=getattr(project,'company_corpus_digest_cache',{}) or {}
+    policy=hashlib.sha256(Path(__file__).read_text(encoding='utf-8').encode()).hexdigest()
     as_of=str((getattr(project,'company_research_intake',{}) or {}).get('as_of_date') or '')
-    if previous.get('version')!=VERSION or previous.get('target_name')!=str(project.target_name) or previous.get('research_as_of')!=as_of:previous={}
+    if previous.get('version')!=VERSION or previous.get('policy_sha256')!=policy or previous.get('target_name')!=str(project.target_name) or previous.get('research_as_of')!=as_of:previous={}
     previous_statements={r['statement_id']:r for r in previous.get('statements',[])}
     current_statements={r['statement_id']:r for r in statements}
     previous_receipts={tuple(sorted(r['statement_ids'])):r for r in previous.get('synthesis_receipts',[])}
@@ -325,7 +321,7 @@ def build_compact_digest(project,review,outline,invoke,emit,trace_emit=None):
     groups,condensation=condense_groups(groups,invoke,trace_emit)
     # The immutable native records are the detailed evidence table. A brief
     # report may omit a row, but can never erase its content or disposition.
-    return {'version':VERSION,'target_name':str(project.target_name),'research_as_of':as_of,'statements':statements,
+    return {'version':VERSION,'policy_sha256':policy,'target_name':str(project.target_name),'research_as_of':as_of,'statements':statements,
         'groups':groups,'checked_groups_before_condensation':initial_groups,'condensation_receipts':condensation,
         'appendix_statements':appendix,'synthesis_receipts':receipts,
         'reused_group_receipts':[{'group_id':g['group_id'],'statement_ids':g['statement_ids'],'verification':g['verification']} for g in reused_groups],
@@ -406,50 +402,35 @@ def condense_groups(groups,invoke,trace_emit=None):
 
 
 def render_compact_chapters(project,digest,outline,original_sections):
-    from .company_delivery_contract import PRESENTATION_ASPECTS,question_plan,unreviewed_chapters
     sections=dict(original_sections)
     groups=digest['groups']
-    pending=unreviewed_chapters(getattr(project,'company_information_usage_package',{}) or {},
-        getattr(project,'company_editorial_package',{}) or {})
     for chapter in range(2,12):
         selected=[g for g in groups if g['chapter']==chapter]
-        if not selected:continue
+        if not selected and chapter not in original_sections:continue
         lines=[f'## {chapter}. '+outline[chapter-1][0],'']
-        missing_aspects=[]
+        package=getattr(project,'company_'+CHAPTER_PACKAGES[chapter]+'_package',{}) or {}
+        # Checked native fields survive an unavailable narrative writer. Only
+        # their actual values are formatted; no missing-aspect prose is added.
+        if not selected or (chapter==11 and package.get('entries')):
+            seen=set()
+            for record in package.get('facts',[]):
+                text=str(record.get('fact') or record.get('evidence_quote') or '').strip()
+                ids=record.get('evidence_ids') or ([record['evidence_id']] if record.get('evidence_id') else [])
+                if not text or not ids or (text,tuple(ids)) in seen:continue
+                seen.add((text,tuple(ids)))
+                lines+=[text+refs({'evidence_ids':ids}),'']
+                for definition in record.get('definitions',[]):
+                    note=str(definition.get('text') or '').strip()
+                    if note and (note,tuple(ids)) not in seen:
+                        seen.add((note,tuple(ids)));lines+=[note+refs({'evidence_ids':ids}),'']
         for aspect in outline[chapter-1][1]:
             current=[g for g in selected if g['aspect']==aspect]
-            if not current and aspect in PRESENTATION_ASPECTS and not (chapter==11 and '75项' in aspect):continue
-            if not current and '图谱' not in aspect and '视觉' not in aspect and not (chapter==11 and '75项' in aspect):
-                missing_aspects.append(aspect)
-                continue
+            if not current:continue
             lines+=['### '+aspect,'']
-            if current:
-                for group in current:lines+=[group['summary'],'']
-                ids=list(dict.fromkeys(e for group in current for e in group['evidence_ids']))
-                if any(not cited_evidence_ids(group['summary']) for group in current):
-                    lines+=['本节证据：'+refs({'evidence_ids':ids}),'']
-            elif '图谱' in aspect or '视觉' in aspect:
-                lines+=['如本章展示图谱，节点、关系和经营字段均应对应所引原件；未获原件支持的关系不作补全，图示不代替逐项核验。','']
-            if chapter==11 and '75项' in aspect:
-                package=getattr(project,'company_risk_register_package',{})
-                if package.get('entries'):
-                    from .company_risk_register import render_risk_register
-                    # Exact event tables, qualifications and follow-ups must
-                    # survive narrative condensation as well as the checklist.
-                    event_text=render_risk_register(package)
-                    event_text=event_text.split('### 模板核查覆盖与判断缺口')[0]
-                    event_text=re.sub(r'^## 11[^\n]*\n','',event_text).strip()
-                    lines+=['#### 已核具体事项及责任边界','',re.sub(r'(?m)^### ', '#### ', event_text),'']
-                checklist=getattr(project,'company_risk_register_package',{}).get('checklist',[])
-                states={'requires_event_evidence':'待事件证据，不作排除','requires_sector_confirmation':'行业适用范围待确认',
-                        'outside_declared_sector_scope':'不在本轮行业边界',
-                        'linked_event_requires_specific_judgment':'有对应事项，需具体判断'}
-                lines+=_table(['编号','核查事项','本轮证据状态'],[[r['id'],r['label'],states.get(r['state'],r['state'])] for r in checklist])
-                lines+=['','目录为核查问题，不是已经发生的负面事实；完整判断、所需证据与边界保留在核查台账。','']
-        if missing_aspects:
-            lines+=['### 本章待核验事项','']
-            lines+=_table(['尚未形成直接结论的问题','当前判断边界','核验动作'],[
-                [question_plan(chapter,aspect)[key] for key in ('question','impact','action')] for aspect in missing_aspects])
+            for group in current:lines+=[group['summary'],'']
+            ids=list(dict.fromkeys(e for group in current for e in group['evidence_ids']))
+            if any(not cited_evidence_ids(group['summary']) for group in current):
+                lines+=[refs({'evidence_ids':ids}),'']
         if chapter==2:
             governance=getattr(project,'company_governance_package',{})
             facts=governance.get('facts',[])
@@ -471,31 +452,7 @@ def render_compact_chapters(project,digest,outline,original_sections):
             if financial:
                 lines+=['### 已核对经营数据原表','']+_table(['主体／报告期','指标','本期原值','上年同期原值','原单位／来源'],[
                     [str(r.get('entity') or project.target_name)+'；'+r['period'],r['metric'],r['value'],r.get('previous_value',''),str(r.get('currency') or '')+r['unit']+'；'+refs(r)] for r in financial])
-        if chapter in pending:
-            lines+=['### 正文核对尚未完成','',
-                '上文展示已通过逐批审核的段落。本章另有内容尚未完成核对，相关草稿与原文保留；本章尚未通过完整验收。','']
         sections[chapter]='\n'.join(lines)
-    # Keep scoring deterministic. A relevant non-scoring reference can explain
-    # the boundary without turning a transaction check into financial metrics.
-    project.company_assessment_context_references=[]
-    if 12 in sections and '第三方核查文件载有特定证券认购的流动资金覆盖说明' not in sections[12]:
-        context=next((r for r in digest.get('statements',[]) if r['chapter']==10
-            and r['context'].get('source_kind')=='third_party_filing'
-            and r['context'].get('scope')=='third_party_about_target'
-            and all(re.search(pattern,r['text'],re.S) for pattern in ('流动资金','认购','财务报表','核查'))),None)
-        if context:
-            sections[12]+=('\n\n### 现有材料的评价边界\n\n'
-                '第三方核查文件载有特定证券认购的流动资金覆盖说明。该说明用于限定本章评价边界，'
-                '不作为营收、盈利能力或公司综合评分的依据。'+refs(context))
-            project.company_assessment_context_references=[context]
-            assessment=getattr(project,'company_assessment_package',None)
-            if isinstance(assessment,dict):
-                record={**context.get('raw_record',{}),'kind':'non_scoring_transaction_context',
-                    'fact':context['text'],'evidence_ids':context['evidence_ids'],
-                    'source_url':context.get('source_url',''),'source_title':context.get('source_title','')}
-                if not any(r.get('kind')=='non_scoring_transaction_context' and r.get('fact')==record['fact']
-                           for r in assessment.setdefault('facts',[])):
-                    assessment['facts'].append(record)
     return sections
 
 

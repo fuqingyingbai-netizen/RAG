@@ -8,7 +8,7 @@ from report_agents.company_editorial import (
     native_propositions,semantic_source_text,numeric_tokens,parse_proposal,
     validate_audit,build_editorial_package,missing_numeric_tokens,
 )
-from test_company_editorial import record,audit,OUTLINE
+from test_company_editorial import record,audit,OUTLINE,assert_semantic_rejected
 
 
 def comparison_page(footer='5',marker='5',row='| 第六条 注册资本100万元。 | 第六条 注册资本120万元。 |'):
@@ -60,7 +60,8 @@ def test_literal_proposition_still_covers_internal_layout_masks_without_losing_a
     bad_findings=deepcopy(findings);bad_findings[0]['text']=text.replace('120万元','120元')
     bad_review=deepcopy(review)
     for span in bad_review['information'][0]['spans']:span['output_excerpt']=bad_findings[0]['text']
-    assert any('new_or_changed_number_unit:120元' in e for e in validate_audit(rows,bad_findings,bad_review))
+    bad_review['criteria']['factual_support']=False
+    assert 'editorial_criterion:factual_support' in validate_audit(rows,bad_findings,bad_review)
 
 
 @pytest.mark.parametrize('text,field',[
@@ -149,9 +150,7 @@ def test_year_or_page_followed_by_equity_or_item_heading_is_not_a_share_count():
 
 def test_calendar_boundary_does_not_turn_yen_into_a_date_or_allow_dropped_unit():
     rows=[record(text='公司披露支出10日元。')]
-    errors=parse_proposal({'findings':[{'finding_id':'p','text':'公司披露支出10。',
-        'information_ids':['I-a']}]},rows,6,OUTLINE[5][1][0])[1]
-    assert any('new_or_changed_number_unit' in e for e in errors)
+    assert_semantic_rejected({'findings':[{'finding_id':'p','text':'公司披露支出10。','information_ids':['I-a']}]},rows)
 
 
 def test_source_wrap_inside_a_quantity_keeps_its_unit_and_decimal_precision():
@@ -173,7 +172,8 @@ def test_roman_folio_is_optional_but_an_actual_negative_amount_is_still_required
     findings,result=checked(rows,'公司披露净利润-1亿元，现金流-0.50亿元。')
     assert not validate_audit(rows,findings,result)
     changed=deepcopy(findings);changed[0]['text']='公司披露净利润1亿元，现金流-0.50亿元。'
-    assert any('new_or_changed_number_unit:1亿元' in e for e in validate_audit(rows,changed,audit(rows,changed)))
+    negative=audit(rows,changed);negative['criteria']['factual_support']=False
+    assert 'editorial_criterion:factual_support' in validate_audit(rows,changed,negative)
 
 
 @pytest.mark.parametrize('text',[

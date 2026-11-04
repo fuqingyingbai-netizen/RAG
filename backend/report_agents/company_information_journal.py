@@ -8,8 +8,8 @@ import json
 import re
 from threading import RLock
 
-from report_agents.company_checkpoint import encode, prefix, scope
-from report_agents.company_information_usage import VERSION as ROUTING_VERSION, routing_fingerprint, validate_review
+from report_agents.company_checkpoint import encode, prefix
+from report_agents.company_information_usage import VERSION as ROUTING_VERSION, routing_fingerprint, routing_scope, validate_review
 
 VERSION = 'company-information-routing-journal-v1'
 _LOCK = RLock()
@@ -18,7 +18,7 @@ _LOCK = RLock()
 def binding(project, outline):
     return {'version': VERSION, 'routing_version': ROUTING_VERSION,
             'project_id': project.id, 'target_name': str(project.target_name),
-            'review_scope': scope(project),
+            'review_scope': routing_scope(project),
             'outline_sha256': hashlib.sha256(encode(outline).encode()).hexdigest()}
 
 
