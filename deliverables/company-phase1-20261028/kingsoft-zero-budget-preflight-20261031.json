@@ -1,0 +1,36 @@
+{
+  "observed_at": "2026-10-30T16:09:44.521695+00:00",
+  "case": "kingsoft",
+  "native_session_id": 39401,
+  "terminal_exit_code": 3,
+  "runtime_code_commit": "40dd5ad173144accb2ecc685741fcc6b9efcd2e9",
+  "product_code_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
+  "runtime_source_unchanged": true,
+  "native_state": "model_call_budget_exhausted",
+  "counts": {
+    "model_calls": 0,
+    "model_failures": 0,
+    "http_calls": 0,
+    "http_failures": 0,
+    "http_error_responses": 0,
+    "model_http_calls": 0
+  },
+  "next_required_stage": "company_data_cleaning",
+  "source_records_after": 1459,
+  "source_records_before": 1459,
+  "native_database_quick_check_before": "ok",
+  "before_cleaning_artifact_snapshot_matches_final_snapshot": true,
+  "snapshot_sha256": "b753d5562131fef1280874dc92e45880a959df8dc721d9a48597620a498919d3",
+  "snapshot_continuity_scope": "From the last artifact saved before bounded cleaning to final CLI snapshot; not a claim of byte equality to original baseline.",
+  "desktop_report_versions_before": 2,
+  "desktop_report_versions_after": 2,
+  "native_checkpoint_pointer_unchanged": "48032c1f463976ae774f4d66c1d4d030a7717d6165d6e3eecd46118e7693d4d2",
+  "budget_boundary_is_expected_not_report_approval": true,
+  "final_report_accepted": false,
+  "fresh_collection_accepted": false,
+  "holdout_inspected_or_tuned": false,
+  "evidence_sha256": {
+    "deliverables/company-phase1-20261028/test-results/kingsoft-zero-budget-bounded-plan-20261030T160725182804.json": "b961eb760e041ebc662c91399aca4c210779d4c69505ce602c0dd6c29b1d2212",
+    "deliverables/company-phase1-20261028/test-results/kingsoft-zero-budget-bounded-result-20261030T160725182804.json": "535a4872b1d006f985d7d2c4dccedf399fb0dcb1325612fd3f08dd721dc72838"
+  }
+}

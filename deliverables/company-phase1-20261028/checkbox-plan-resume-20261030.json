@@ -1,0 +1,179 @@
+{
+  "sample_kind": "synthetic_structural_probe",
+  "rows": [
+    {
+      "checkbox": "公司背景",
+      "questions": [
+        "示例制造股份有限公司 的全称、信用代码、登记主体及历史变更是否一致，集团与子公司如何区分？"
+      ],
+      "query_templates": [
+        "{target} 统一社会信用代码 登记 股东 公司章程 原文",
+        "{target} 历史沿革 工商变更 生效 日期"
+      ],
+      "checkbox_query_count": 2,
+      "queries_with_requirement_ids": 2,
+      "queries_with_purpose": 2,
+      "all_expanded_query_count": 49
+    },
+    {
+      "checkbox": "负面新闻",
+      "questions": [
+        "示例制造股份有限公司 的负面或正面评价来自谁、涉及哪个主体和时期，是否有原件与后续回应？"
+      ],
+      "query_templates": [
+        "{target} 投诉 评价 事件 回应 后续 原文",
+        "{target} 员工 客户 满意度 调查 口径 报告"
+      ],
+      "checkbox_query_count": 2,
+      "queries_with_requirement_ids": 2,
+      "queries_with_purpose": 2,
+      "all_expanded_query_count": 49
+    },
+    {
+      "checkbox": "诉讼/制裁",
+      "questions": [
+        "示例制造股份有限公司 在具体案件中是什么角色，谁承担何项义务，请求、裁判、申请和实际程序结果分别是什么？"
+      ],
+      "query_templates": [
+        "{target} 案号 当事人 裁判文书 判项 执行 原文",
+        "{target} 行政处罚决定 监管措施 整改 后续 原文"
+      ],
+      "checkbox_query_count": 3,
+      "queries_with_requirement_ids": 3,
+      "queries_with_purpose": 3,
+      "all_expanded_query_count": 49
+    },
+    {
+      "checkbox": "股东高管",
+      "questions": [
+        "示例制造股份有限公司 的股东、控制与任职关系在什么时期有效，关系本身与具体法律义务如何分别证明？"
+      ],
+      "query_templates": [
+        "{target} 股东名册 实际控制人 表决权 持股比例 任期 原文"
+      ],
+      "checkbox_query_count": 1,
+      "queries_with_requirement_ids": 1,
+      "queries_with_purpose": 1,
+      "all_expanded_query_count": 48
+    },
+    {
+      "checkbox": "融资情报",
+      "questions": [
+        "示例制造股份有限公司 的融资是计划、签约、发行还是完成，毛额、费用、实际净额与到账主体和日期如何核对？"
+      ],
+      "query_templates": [
+        "{target} 融资 发行 配售 募集资金净额 费用 实际使用 原文"
+      ],
+      "checkbox_query_count": 1,
+      "queries_with_requirement_ids": 1,
+      "queries_with_purpose": 1,
+      "all_expanded_query_count": 48
+    },
+    {
+      "checkbox": "管理团队",
+      "questions": [
+        "示例制造股份有限公司 管理人员的身份、履历、任期及变动是否有具名原件，组织和人员指标是什么口径？"
+      ],
+      "query_templates": [
+        "{target} 董事 高管 任期 履历 换届 辞任 原文",
+        "{target} 员工流失率 统计范围 计算公式 培训 报告"
+      ],
+      "checkbox_query_count": 2,
+      "queries_with_requirement_ids": 2,
+      "queries_with_purpose": 2,
+      "all_expanded_query_count": 49
+    },
+    {
+      "checkbox": "创始人背景",
+      "questions": [
+        "示例制造股份有限公司 创始人的身份、创业及任职经历由什么原件支持，与公司实际控制是否存在时间和主体差别？"
+      ],
+      "query_templates": [
+        "{target} 创始人 招股书 履历 历史沿革 实际控制人 原文"
+      ],
+      "checkbox_query_count": 1,
+      "queries_with_requirement_ids": 1,
+      "queries_with_purpose": 1,
+      "all_expanded_query_count": 48
+    },
+    {
+      "checkbox": "竞品公司",
+      "questions": [
+        "示例制造股份有限公司 与哪些同行在何产品、地区和时期可比，市场份额和技术指标的方法及分母是什么？"
+      ],
+      "query_templates": [
+        "{target} 同业 竞争 市场份额 统计口径 年度报告 产品 对标"
+      ],
+      "checkbox_query_count": 1,
+      "queries_with_requirement_ids": 1,
+      "queries_with_purpose": 1,
+      "all_expanded_query_count": 48
+    },
+    {
+      "checkbox": "上下游业务",
+      "questions": [
+        "示例制造股份有限公司 的业务、客户和供应商关系是否有合同或披露原件，订单、交付、验收与回款如何区分？"
+      ],
+      "query_templates": [
+        "{target} 主要客户 供应商 关联交易 合同 交付 验收 回款 年度报告"
+      ],
+      "checkbox_query_count": 1,
+      "queries_with_requirement_ids": 1,
+      "queries_with_purpose": 1,
+      "all_expanded_query_count": 48
+    },
+    {
+      "checkbox": "竞品情况",
+      "questions": [
+        "示例制造股份有限公司 与哪些同行在何产品、地区和时期可比，市场份额和技术指标的方法及分母是什么？"
+      ],
+      "query_templates": [
+        "{target} 同业 竞争 市场份额 统计口径 年度报告 产品 对标"
+      ],
+      "checkbox_query_count": 1,
+      "queries_with_requirement_ids": 1,
+      "queries_with_purpose": 1,
+      "all_expanded_query_count": 48
+    },
+    {
+      "checkbox": "收入情况",
+      "questions": [
+        "示例制造股份有限公司 收入、利润、现金流与偿债指标对应什么会计期间、币种、合并范围及调整口径，比较数是否一致？"
+      ],
+      "query_templates": [
+        "{target} 年度报告 半年度报告 财务报表 经营活动现金流量净额 比较数 附注 原文"
+      ],
+      "checkbox_query_count": 1,
+      "queries_with_requirement_ids": 1,
+      "queries_with_purpose": 1,
+      "all_expanded_query_count": 48
+    },
+    {
+      "checkbox": "行业政策",
+      "questions": [
+        "示例制造股份有限公司 相关政策适用于哪个地区、行业和主体，生效与修订状态如何，是否已发生具体监管事件？"
+      ],
+      "query_templates": [
+        "{target} 行业 政策 监管 适用范围 生效 修订 原文"
+      ],
+      "checkbox_query_count": 1,
+      "queries_with_requirement_ids": 1,
+      "queries_with_purpose": 1,
+      "all_expanded_query_count": 48
+    },
+    {
+      "checkbox": "舆情",
+      "questions": [
+        "示例制造股份有限公司 的负面或正面评价来自谁、涉及哪个主体和时期，是否有原件与后续回应？"
+      ],
+      "query_templates": [
+        "{target} 投诉 评价 事件 回应 后续 原文",
+        "{target} 员工 客户 满意度 调查 口径 报告"
+      ],
+      "checkbox_query_count": 2,
+      "queries_with_requirement_ids": 2,
+      "queries_with_purpose": 2,
+      "all_expanded_query_count": 49
+    }
+  ]
+}

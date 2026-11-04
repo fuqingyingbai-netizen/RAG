@@ -1,0 +1,407 @@
+diff --git a/backend/report_agents/company_information_journal.py b/backend/report_agents/company_information_journal.py
+new file mode 100644
+--- /dev/null
++++ b/backend/report_agents/company_information_journal.py
+@@ -0,0 +1,128 @@
++"""Durable native routing receipts, always revalidated against current inputs.
++
++This journal is progress, never a report or delivery approval. Exclusions are
++deliberately reviewed again, matching the existing whole-stage cache policy.
++"""
++import hashlib
++import json
++import re
++from threading import RLock
++
++from report_agents.company_checkpoint import encode, prefix, scope
++from report_agents.company_information_usage import VERSION as ROUTING_VERSION, routing_fingerprint, validate_review
++
++VERSION = 'company-information-routing-journal-v1'
++_LOCK = RLock()
++
++
++def binding(project, outline):
++    return {'version': VERSION, 'routing_version': ROUTING_VERSION,
++            'project_id': project.id, 'target_name': str(project.target_name),
++            'review_scope': scope(project),
++            'outline_sha256': hashlib.sha256(encode(outline).encode()).hexdigest()}
++
++
++def _index(store, folder, expected):
++    try:
++        value = json.loads(store.get_text(folder + '/information-routing-current.json'))
++    except (FileNotFoundError, ValueError):
++        return {**expected, 'entries': {}}
++    except Exception as exc:
++        if getattr(exc, 'code', '') in {'NoSuchKey', 'NoSuchObject', 'NoSuchBucket'}:
++            return {**expected, 'entries': {}}
++        raise
++    if (not isinstance(value, dict) or any(value.get(k) != v for k, v in expected.items())
++            or not isinstance(value.get('entries'), dict)):
++        return {**expected, 'entries': {}}
++    return value
++
++
++def checkpoint_batch(project, receipt, outline, emit=None, trace_emit=None):
++    store = getattr(project, 'company_generation_checkpoint_store', None)
++    folder = prefix(project)
++    if store is None or not folder:
++        return False
++    try:
++        expected = binding(project, outline)
++        if (receipt.get('routing_version') != ROUTING_VERSION
++                or receipt.get('target_name') != expected['target_name']
++                or receipt.get('review_scope') != expected['review_scope']):
++            return False
++        hashes = receipt.get('routing_record_hashes', {})
++        entries = {iid: fingerprint for iid, fingerprint in hashes.items()
++                   if iid in receipt.get('information_ids', [])
++                   and isinstance(fingerprint, str) and re.fullmatch(r'[0-9a-f]{64}', fingerprint)
++                   and isinstance(receipt.get('decisions', {}).get(iid), dict)
++                   and receipt['decisions'][iid].get('status') == 'use'}
++        if not entries:
++            return False
++        text = encode({**expected, 'receipt': receipt})
++        digest = hashlib.sha256(text.encode()).hexdigest()
++        # Publish only after the immutable entry succeeds. Read and merge under
++        # the same lock so simultaneous native batch completions cannot clobber.
++        with _LOCK:
++            index = _index(store, folder, expected)
++            store.put_text(folder + '/information-routing/' + digest + '.json', text,
++                           'application/json; charset=utf-8')
++            updated = {**index['entries'], **{iid: {'sha256': digest, 'input_sha256': fingerprint}
++                                             for iid, fingerprint in entries.items()}}
++            store.put_text(folder + '/information-routing-current.json',
++                           encode({**expected, 'entries': updated}), 'application/json; charset=utf-8')
++        return True
++    except Exception as exc:
++        if emit:
++            emit(trace_emit, 'report', 'company_checkpoint', '信息用途批次恢复回执保存失败',
++                 type(exc).__name__ + '；未保存批次不计为可恢复进度。', status='warning')
++        return False
++
++
++def read_decisions(project, records, outline, *, store=None):
++    store = store or getattr(project, 'company_generation_checkpoint_store', None)
++    folder = prefix(project)
++    if store is None or not folder:
++        return {}
++    expected = binding(project, outline)
++    try:
++        with _LOCK:
++            index = _index(store, folder, expected)
++    except Exception:
++        return {}
++    loaded = {}; decisions = {}
++    for row in records:
++        iid = row['information_id']; entry = index['entries'].get(iid)
++        if not isinstance(entry, dict):
++            continue
++        digest = entry.get('sha256')
++        if not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest):
++            continue
++        fingerprint = routing_fingerprint(row, str(project.target_name), expected['review_scope'], outline)
++        if entry.get('input_sha256') != fingerprint:
++            continue
++        try:
++            if digest not in loaded:
++                text = store.get_text(folder + '/information-routing/' + digest + '.json')
++                if hashlib.sha256(text.encode()).hexdigest() != digest:
++                    loaded[digest] = None
++                else:
++                    payload = json.loads(text)
++                    loaded[digest] = (payload if isinstance(payload, dict)
++                                      and all(payload.get(k) == v for k, v in expected.items()) else None)
++            payload = loaded[digest]
++            if not payload:
++                continue
++            receipt = payload['receipt']
++            if (receipt.get('routing_version') != ROUTING_VERSION
++                    or receipt.get('target_name') != expected['target_name']
++                    or receipt.get('review_scope') != expected['review_scope']
++                    or iid not in receipt.get('information_ids', [])
++                    or receipt.get('routing_record_hashes', {}).get(iid) != fingerprint):
++                continue
++            candidate = receipt.get('decisions', {}).get(iid)
++            if not isinstance(candidate, dict) or candidate.get('status') != 'use':
++                continue
++            checked, errors = validate_review([row], {'records': [candidate]}, outline)
++            if not errors and iid in checked:
++                decisions[iid] = checked[iid]
++        except Exception:
++            continue
++    return decisions
+diff --git a/backend/report_agents/company_information_usage.py b/backend/report_agents/company_information_usage.py
+--- a/backend/report_agents/company_information_usage.py
++++ b/backend/report_agents/company_information_usage.py
+@@ -182,7 +182,7 @@
+ 
+ 
+ def build_information_usage(digest, sections, outline, target, invoke, *, receipt_callback=None, workers=4,
+-                            previous=None, review_scope=None, emit=None, trace_emit=None):
++                            previous=None, review_scope=None, emit=None, trace_emit=None, journal_loader=None):
+     """Review all distinct retained information; failed calls remain pending.
+ 
+     The caller can persist exact prompt/response receipts and replay them.
+@@ -208,6 +208,22 @@
+             checked,errors=validate_review([old],{'records':[dict(decision)]},outline)
+             if not errors and iid in checked:
+                 decisions[iid]=checked[iid];cached_ids.append(iid)
++    journal_ids=[]
++    if journal_loader:
++        try:
++            candidates=journal_loader(records)
++            for row in records:
++                iid=row['information_id']
++                if iid in decisions:continue
++                candidate=candidates.get(iid) if isinstance(candidates,dict) else None
++                if not isinstance(candidate,dict) or candidate.get('status')!='use':continue
++                checked,errors=validate_review([row],{'records':[candidate]},outline)
++                if not errors and iid in checked:
++                    decisions[iid]=checked[iid];cached_ids.append(iid);journal_ids.append(iid)
++        except Exception as exc:
++            if emit:
++                emit(trace_emit,'report','company_checkpoint','信息用途恢复回执读取失败',
++                     type(exc).__name__+'；未恢复记录仍重新判定。',status='warning')
+     for row in records:
+         if row['information_id'] in decisions:continue
+         amount=len(json.dumps(row,ensure_ascii=False))
+@@ -257,7 +273,9 @@
+                         'voice':'原站记载或观点，发言归属及主体对应按原文核对',
+                         'exclusion_overturned':True,'exclusion_check':verdict}
+                 else:checked[iid]['exclusion_check']=verdict
+-        receipt={'information_ids':[r['information_id'] for r in rows],'decisions':checked,
++        receipt={'routing_version':VERSION,'target_name':target,'review_scope':scope,
++            'routing_record_hashes':{r['information_id']:fingerprints[r['information_id']] for r in rows},
++            'information_ids':[r['information_id'] for r in rows],'decisions':checked,
+             'errors':errors,'attempts':attempts,'exclusion_check':exclusion_check}
+         if receipt_callback:receipt_callback(receipt)
+         return receipt
+@@ -273,7 +291,8 @@
+     package.update(target_name=target,review_receipts=receipts,review_scope=scope,routing_record_hashes=fingerprints,
+                    cached_information_ids=cached_ids)
+     package['diagnostic'].update(review_batches=len(batches),
+-        review_batches_with_errors=sum(bool(r['errors']) for r in receipts),cached_information_records=len(cached_ids))
++        review_batches_with_errors=sum(bool(r['errors']) for r in receipts),cached_information_records=len(cached_ids),
++        cached_journal_records=len(journal_ids))
+     return package
+ 
+ 
+diff --git a/backend/report_agents/company_report_agent.py b/backend/report_agents/company_report_agent.py
+--- a/backend/report_agents/company_report_agent.py
++++ b/backend/report_agents/company_report_agent.py
+@@ -558,9 +558,12 @@
+             else:
+                 digest=build_compact_digest(project,review,self.outline,invoke,emit,trace_emit)
+             project.company_corpus_digest_package=digest
++            from .company_information_journal import checkpoint_batch as checkpoint_routing, read_decisions as read_routing
+             usage=build_information_usage(digest,sections_by_index,self.outline,str(project.target_name),invoke,
+                 previous=getattr(project,'company_information_usage_cache',{}),review_scope=routing_scope(project),
+-                emit=emit,trace_emit=trace_emit)
++                emit=emit,trace_emit=trace_emit,
++                receipt_callback=lambda batch:checkpoint_routing(project,batch,self.outline,emit,trace_emit),
++                journal_loader=lambda rows:read_routing(project,rows,self.outline))
+             usage['source_map']=source_information_map(list(project.sources or []),review,usage)
+             project.company_information_usage_package=usage
+             checkpoint_generation_stage(project,emit,trace_emit)
+diff --git a/test/test_company_information_journal.py b/test/test_company_information_journal.py
+new file mode 100644
+--- /dev/null
++++ b/test/test_company_information_journal.py
+@@ -0,0 +1,143 @@
++from concurrent.futures import ThreadPoolExecutor
++from copy import deepcopy
++import json
++from types import SimpleNamespace
++
++import pytest
++
++from report_agents.company_information_usage import information_records, routing_fingerprint, VERSION
++from test_company_information_usage import statement, decision, OUTLINE
++
++from report_agents import company_information_journal as journal
++
++
++class Store:
++    def __init__(self): self.data = {}; self.fail = ''
++    def put_text(self, key, text, mime):
++        if self.fail and self.fail in key: raise OSError('private detail must not appear')
++        self.data[key] = text
++    def get_text(self, key):
++        if key not in self.data: raise FileNotFoundError(key)
++        return self.data[key]
++
++
++def setup():
++    store = Store()
++    project = SimpleNamespace(id=1, target_name='测试公司', industry='设备',
++        company_research_intake={'as_of_date':'2026-10-24'}, company_generation_checkpoint_store=store)
++    rows = information_records([statement(), statement('T-2', '平台披露研发团队有24人，按所载口径观察。')])
++    return project, store, rows
++
++
++def receipt(project, rows):
++    scope = journal.binding(project, OUTLINE)['review_scope']
++    return {'routing_version':VERSION, 'target_name':project.target_name, 'review_scope':scope,
++        'routing_record_hashes':{r['information_id']:routing_fingerprint(r, project.target_name, scope, OUTLINE) for r in rows},
++        'information_ids':[r['information_id'] for r in rows],
++        'decisions':{r['information_id']:decision(r) for r in rows}, 'errors':[], 'attempts':[{'attempt':1,'errors':[]}]}
++
++
++def test_completed_batch_survives_without_whole_stage_or_delivery_approval():
++    project, store, rows = setup()
++    assert journal.checkpoint_batch(project, receipt(project, rows[:1]), OUTLINE)
++    fresh = deepcopy(project); fresh.company_generation_checkpoint_store = store
++    assert set(journal.read_decisions(fresh, rows, OUTLINE)) == {rows[0]['information_id']}
++    assert not hasattr(fresh, 'company_delivery_contract')
++    assert not any(key.endswith('/current.json') for key in store.data)
++
++
++def test_simultaneous_batches_merge_all_ids():
++    project, store, rows = setup()
++    with ThreadPoolExecutor(2) as pool:
++        results = list(pool.map(lambda row:journal.checkpoint_batch(project, receipt(project, [row]), OUTLINE), rows))
++    assert all(results)
++    assert len(journal.read_decisions(project, rows, OUTLINE)) == 2
++
++
++@pytest.mark.parametrize('change', ['text','context','provenance','evidence_ids','target','date','outline'])
++def test_current_input_scope_and_template_are_revalidated(change):
++    project, store, rows = setup()
++    journal.checkpoint_batch(project, receipt(project, rows), OUTLINE)
++    outline = deepcopy(OUTLINE)
++    if change == 'target': project.target_name = '另一公司'
++    elif change == 'date': project.company_research_intake['as_of_date'] = '2026-10-25'
++    elif change == 'outline': outline[7] = ('另一个章节问题', outline[7][1])
++    elif change == 'text': rows[0]['text'] += '新增条件。'
++    elif change == 'context': rows[0]['context']['new_field'] = 0
++    elif change == 'provenance': rows[0]['provenance'][0]['source_url'] = 'https://different.test'
++    else: rows[0]['evidence_ids'] = ['E-DIFFERENT']
++    recovered = journal.read_decisions(project, rows, outline)
++    assert rows[0]['information_id'] not in recovered
++    assert len(recovered) == (0 if change in {'target','date','outline'} else 1)
++
++
++@pytest.mark.parametrize('damage',['corrupt','missing','invalid_decision','exclude'])
++def test_corrupt_missing_or_invalid_receipts_never_recover(damage):
++    project, store, rows = setup(); batch = receipt(project, rows)
++    if damage == 'invalid_decision':
++        for item in batch['decisions'].values(): item['voice'] = ''
++    if damage == 'exclude':
++        for item in batch['decisions'].values(): item.update(status='exclude', exclude_code='generic_definition', reason='一般定义，无企业特定内容')
++    journal.checkpoint_batch(project, batch, OUTLINE)
++    for key in list(store.data):
++        if '/information-routing/' in key:
++            if damage == 'missing': del store.data[key]
++            elif damage == 'corrupt': store.data[key] += 'broken'
++    assert journal.read_decisions(project, rows, OUTLINE) == {}
++
++
++def test_failed_entry_write_never_publishes_pointer_and_redacts_exception():
++    project, store, rows = setup(); events = []
++    store.fail = '/information-routing/'
++    assert not journal.checkpoint_batch(project, receipt(project, rows), OUTLINE,
++        emit=lambda *a,**k:events.append(a))
++    assert store.data == {} and 'OSError' in str(events)
++    assert 'private detail' not in str(events)
++
++
++def test_failed_pointer_keeps_previous_durable_state():
++    project, store, rows = setup()
++    journal.checkpoint_batch(project, receipt(project, rows[:1]), OUTLINE)
++    store.fail = 'information-routing-current.json'
++    assert not journal.checkpoint_batch(project, receipt(project, rows[1:]), OUTLINE)
++    assert set(journal.read_decisions(project, rows, OUTLINE)) == {rows[0]['information_id']}
++
++
++def usage_builder():
++    from report_agents.company_information_usage import build_information_usage
++    return build_information_usage
++
++
++def test_real_builder_resumes_completed_batch_after_phase_interrupt_without_recalling_it():
++    project, store, _ = setup(); calls = []
++    statements = [statement('T-'+str(i), '平台载明岗位编号'+str(i)+'，不等于在岗人数。') for i in range(19)]
++    builder = usage_builder()
++    def invoke(role, prompt, trace):
++        rows = json.loads(prompt.rsplit('\n信息：\n',1)[1]); calls.append([r['information_id'] for r in rows])
++        if len(calls) == 2: raise SystemExit('simulated process interruption')
++        return json.dumps({'records':[decision(r) for r in rows]}, ensure_ascii=False)
++    options = dict(workers=1, review_scope=journal.binding(project, OUTLINE)['review_scope'],
++        receipt_callback=lambda batch:journal.checkpoint_batch(project,batch,OUTLINE),
++        journal_loader=lambda rows:journal.read_decisions(project,rows,OUTLINE))
++    with pytest.raises(SystemExit): builder({'statements':statements},{},OUTLINE,project.target_name,invoke,**options)
++    assert len(journal.read_decisions(project,information_records(statements),OUTLINE)) == 18
++    first_ids = set(calls[0]); calls.clear()
++    result = builder({'statements':statements},{},OUTLINE,project.target_name,invoke,**options)
++    assert len(calls) == 1 and first_ids.isdisjoint(calls[0])
++    assert result['diagnostic']['cached_journal_records'] == 18
++    assert result['diagnostic']['cached_information_records'] == 18
++    assert result['diagnostic']['pending_information_ids'] == []
++    assert len(result['records']) == 19
++    assert not hasattr(project,'company_delivery_contract')
++
++
++def test_loader_failure_rechecks_all_input_and_does_not_leak_details():
++    project, store, rows = setup(); events = []; calls = []
++    def invoke(role, prompt, trace):
++        records = json.loads(prompt.rsplit('\n信息：\n',1)[1]); calls.extend(records)
++        return json.dumps({'records':[decision(r) for r in records]})
++    def failed(records): raise OSError('private credential should never be printed')
++    result = usage_builder()({'statements':[statement()]},{},OUTLINE,project.target_name,invoke,
++        journal_loader=failed,emit=lambda *a,**k:events.append(a))
++    assert len(calls) == 1 and result['diagnostic']['cached_journal_records'] == 0
++    assert 'OSError' in str(events) and 'private credential' not in str(events)
+diff --git a/test/test_company_information_journal_wiring.py b/test/test_company_information_journal_wiring.py
+new file mode 100644
+--- /dev/null
++++ b/test/test_company_information_journal_wiring.py
+@@ -0,0 +1,48 @@
++"""Run the actual candidate caller in an isolated interpreter, not the live run."""
++import json
++
++import pytest
++
++from test_company_information_journal import setup, journal, statement, decision, OUTLINE
++
++
++def test_candidate_production_caller_saves_native_batches_and_restores_without_whole_stage(monkeypatch):
++    from report_agents import company_information_usage as usage, company_report_agent as caller
++    real_builder=usage.build_information_usage
++    def serial_builder(*args,**kwargs):
++        kwargs['workers']=1
++        return real_builder(*args,**kwargs)
++    monkeypatch.setattr(usage,'build_information_usage',serial_builder)
++    project,store,_=setup()
++    project.sources=[];project.target_type='company';project.title='测试公司报告';project.description=''
++    statements=[statement('T-'+str(i),'平台披露岗位编号'+str(i)+'，不表示在岗人数。') for i in range(19)]
++    monkeypatch.setenv('COMPANY_CORPUS_REVIEW_ENABLED','true')
++    monkeypatch.setenv('COMPANY_CORPUS_COMPACT_WRITE_ENABLED','true')
++    monkeypatch.setenv('COMPANY_DELIVERY_EDITORIAL_ENABLED','true')
++    monkeypatch.setattr(caller,'build_corpus_review_with_recovery',lambda *a,**k:{'version':'synthetic-corpus','facts':[]})
++    monkeypatch.setattr(caller,'collect_statements',lambda *a:statements)
++    calls=[];phase_checkpoints=[]
++    class StageSaved(BaseException):pass
++    def stage(p,*a,**k):
++        phase_checkpoints.append(bool(getattr(p,'company_information_usage_package',{})))
++        if phase_checkpoints[-1]:raise StageSaved()
++    monkeypatch.setattr('report_agents.company_checkpoint.checkpoint_generation_stage',stage)
++    def invoke(role,prompt,trace):
++        assert role=='公司信息逐项用途核对'
++        rows=json.loads(prompt.rsplit('\n信息：\n',1)[1]);calls.append([r['information_id'] for r in rows])
++        if len(calls)==2:raise SystemExit('interrupted before whole-stage checkpoint')
++        return json.dumps({'records':[decision(r) for r in rows]})
++    agent=caller.CompanyReportAgent()
++    with pytest.raises(SystemExit):agent.generate(project,'{"facts":[]}','{}',invoke,lambda s,n:s[:n],lambda *a,**k:None)
++    first_ids=set(calls[0])
++    assert len(first_ids)==18 and True not in phase_checkpoints
++    assert len(journal.read_decisions(project,usage.information_records(statements),OUTLINE))==18
++    calls.clear()
++    # generate clears transient packages itself; no full routing package is
++    # supplied as previous cache. Only the genuinely saved batch is available.
++    with pytest.raises(StageSaved):agent.generate(project,'{"facts":[]}','{}',invoke,lambda s,n:s[:n],lambda *a,**k:None)
++    assert len(calls)==1 and set(calls[0]).isdisjoint(first_ids)
++    package=project.company_information_usage_package
++    assert package['diagnostic']['cached_journal_records']==18
++    assert package['diagnostic']['pending_information_ids']==[]
++    assert len(package['records'])==19 and not project.company_delivery_contract

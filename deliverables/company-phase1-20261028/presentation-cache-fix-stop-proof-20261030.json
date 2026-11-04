@@ -1,0 +1,35 @@
+{
+  "at": "2026-10-30T14:28:31.966789+00:00",
+  "reason": "Verified whole-source cache binding discards 76 exact-input native presentation batches passing current two-review validators.",
+  "native_plan": "bounded-plan-20261030T135651080519.json",
+  "runtime_source_unchanged": true,
+  "owned_processes_stopped": [
+    {
+      "pid": 21792,
+      "created_at": 1793368606.830422
+    },
+    {
+      "pid": 38764,
+      "created_at": 1793368606.8187273
+    }
+  ],
+  "whole_usage_checkpoint": {
+    "key": "projects/1/company_generation_checkpoint/40c89bb9a1dbc53d3ebe8b84c2f606a74b46bccf840558b3b41703fff281f003.json",
+    "saved_at": "2026-10-30T14:06:48.360099+00:00",
+    "sha256": "40c89bb9a1dbc53d3ebe8b84c2f606a74b46bccf840558b3b41703fff281f003",
+    "version": "company-generation-checkpoint-v1"
+  },
+  "whole_usage_records": 9374,
+  "pending_usage": 0,
+  "online_backup": "work/company-phase1-20261028/native/haitian/pre-presentation-cache-fix-20261030T142815188117.sqlite",
+  "online_backup_sha256": "e224abd03d93888ff5f29442f39adf2c943fb5ccbff2ff5098b7d0e6c3c9f126",
+  "online_backup_quick_check": "ok",
+  "native_presentation_index_snapshot": "work/company-phase1-20261028/presentation-cache-audit-20261030/index-at-stop-20261030T142815188117.json",
+  "native_index_sha256": "c92c542fa2b9d560bb412f37b601b26a3e4320fc9743c4d81b467d7c3e749da3",
+  "native_indexed_batches": 328,
+  "current_input_valid_batches_blocked_by_global_fingerprint": 76,
+  "diagnostic_responses_transplanted": false,
+  "native_cache_modified": false,
+  "report_accepted": false,
+  "goal_complete": false
+}

@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-30T16:45:21.111909+00:00",
+  "reason": "verified governance date equivalence and identifier field defects",
+  "native_plan": "bounded-plan-20261030T145059173514.json",
+  "runtime_code_unchanged": true,
+  "verified_owned_processes": [
+    {
+      "pid": 49228,
+      "created_at": 1793371854.6843247
+    },
+    {
+      "pid": 51772,
+      "created_at": 1793371854.668794
+    }
+  ],
+  "checkpoint": {
+    "key": "projects/1/company_generation_checkpoint/0c65b76808d75cfd3216817827a903eee54f46f05228e67e12d30157d5df8882.json",
+    "saved_at": "2026-10-30T15:00:16.422726+00:00",
+    "sha256": "0c65b76808d75cfd3216817827a903eee54f46f05228e67e12d30157d5df8882",
+    "version": "company-generation-checkpoint-v1"
+  },
+  "checkpoint_sha_verified": true,
+  "information_usage_records": 9374,
+  "source_fingerprint_matches_online_backup": true,
+  "online_backup_proof": "work/company-phase1-20261028/native/haitian/pre-governance-values-backup-20261030T163917822583.json",
+  "online_backup_proof_sha256": "3212f45e6bb900461d14d39b580e80bf89245b105630c701359684bbdb27d75a",
+  "presentation_index_snapshot": "work/company-phase1-20261028/native/haitian/governance-value-stop-presentation-index-20261031.json",
+  "presentation_index_sha256": "ac592710decbd88054bfd8afcf98ba1cde859bd6b099ef3ad5d7970c04a23dfa",
+  "native_candidate_entries": 342,
+  "candidate_test_counts": {
+    "tests": 4792,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 4
+  },
+  "candidate_full_xml_sha256": "a7824cfe1155a1002708d95c589d8382dcfaef7ac1b88fb019b7694c213b68a8",
+  "stop_helper_sha256": "abdc89697093411b66c497bb886723dd35ac0412e12984f60959c6455444c033",
+  "candidate_promoted": false,
+  "full_report_accepted": false,
+  "unfinished_model_calls_are_not_approved": true,
+  "owned_native_processes_stopped": true
+}

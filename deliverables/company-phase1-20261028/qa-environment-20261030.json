@@ -1,0 +1,43 @@
+{
+  "recorded_at": "2026-10-30T13:05:05.537053+00:00",
+  "scope": "local QA prerequisites only; no report inspected",
+  "word_document_connector": {
+    "surface": "word",
+    "connected_executors": 0
+  },
+  "windows_application_interface": {
+    "operation": "sky.list_apps",
+    "attempts": 3,
+    "kernel_resets": 1,
+    "outcome": "computer-use request timed out: list_apps",
+    "ui_inputs_performed": 0,
+    "no_app_or_document_state_observed": true,
+    "helper_may_have_failed": true
+  },
+  "bundled_document_runtime": {
+    "version": "26.1029.11837",
+    "libreoffice_path_resolved_by_workspace_loader": false,
+    "user_desktop_libreoffice_used_for_this_probe": false
+  },
+  "browser_runtime": {
+    "version": "149.0.7827.55",
+    "local_download_completed": true,
+    "smoke_proof": "test-results/browser-runtime-20261030.json",
+    "screenshot_inspected": true,
+    "report_browser_review": "pending"
+  },
+  "final_word_pages_inspected": 0,
+  "final_report_acceptance": false,
+  "next_action": "Continue real workflows and candidate regressions; re-establish a supported Word/render interface before final all-page acceptance.",
+  "word_file_rendering_update": {
+    "observed_at": "2026-10-30T15:25:53.780758+00:00",
+    "packaged_renderer_version": "26.1029.11837",
+    "isolated_windows_console": "soffice.com",
+    "runtime_smoke_rendered_and_visually_inspected_pages": 1,
+    "personal_desktop_installation_used": false,
+    "not_a_loader_bundled_libreoffice": true,
+    "proof": "test-results/word-renderer-runtime-20261030.json",
+    "gui_document_connector_not_required_for_file_rendering": true,
+    "three_final_reports_all_pages_inspected": false
+  }
+}

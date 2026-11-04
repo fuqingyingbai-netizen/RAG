@@ -1,0 +1,287 @@
+{
+  "at": "2026-10-30T15:22:26.483740+00:00",
+  "current_code_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
+  "tested_code_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
+  "runtime_tests_frontend_unchanged_from_full_regression": true,
+  "shared_search_patch_ancestor": "cb9f7bfd640e425ed6617fe4d83b9435d24e5bad",
+  "upstream_pinned_files_reverified": [
+    {
+      "repository": "https://github.com/alephdata/followthemoney",
+      "commit": "c70a89ffa59ea785956f6095643310da3735b7fb",
+      "verified_files": [
+        {
+          "kind": "license",
+          "path": "LICENSE",
+          "sha256": "ded7e69a4f51b53d5e87aedaf8d0d1c1c98e2f3ced6c2b6a9475ba3b553dd990"
+        },
+        {
+          "kind": "selected",
+          "path": "followthemoney/proxy.py",
+          "sha256": "3c8ba8dfc7affcc2716a63bfd0c18a87631d8098b06a57ad65bab7b8a3b762fe"
+        },
+        {
+          "kind": "selected",
+          "path": "followthemoney/schema/Company.yaml",
+          "sha256": "a335cffcf1e5cbf70e6b7c632a4c5a5279705dcfb48ec2d8b7febcd80baa978f"
+        },
+        {
+          "kind": "selected",
+          "path": "followthemoney/schema/Ownership.yaml",
+          "sha256": "b4b584484f555f4694ba17ba0b5a53a2adbe6ae3d5641744df1bc199345f98f7"
+        },
+        {
+          "kind": "selected",
+          "path": "followthemoney/schema/Directorship.yaml",
+          "sha256": "04cc760104cbcb9b5afe558f9d82a3ecb1636564f0b6ed618169dc21274a7f6f"
+        },
+        {
+          "kind": "selected",
+          "path": "followthemoney/schema/Document.yaml",
+          "sha256": "300faf66b2bf2267761ee22127b73f047f42a5e72ff837b05c985f8c40978eec"
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/assafelovic/gpt-researcher",
+      "commit": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+      "verified_files": [
+        {
+          "kind": "license",
+          "path": "LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "kind": "selected",
+          "path": "multi_agents/agent.py",
+          "sha256": "cc74caada782db63307b78a3e9e26a9c204a8c7ea174ad0010a64a34b1d514a8"
+        },
+        {
+          "kind": "selected",
+          "path": "multi_agents/agents/orchestrator.py",
+          "sha256": "cda492d11159aae0858545d36905e8d4d91a9964bcbc45c33ccef3a0e090eef1"
+        },
+        {
+          "kind": "selected",
+          "path": "multi_agents/agents/editor.py",
+          "sha256": "ecf5148927bafb5751a95860c07bab36254cda14669e331e5022b638eb5aa903"
+        },
+        {
+          "kind": "selected",
+          "path": "multi_agents/agents/reviewer.py",
+          "sha256": "f508c6075b7c8fad00cbeacce301ac067ffde2e883c0e12f3c3be3844a47853e"
+        },
+        {
+          "kind": "selected",
+          "path": "multi_agents/agents/reviser.py",
+          "sha256": "4ecfb41e131ce5be14726e499f1f8f582c4dc3087048adf871984a88670af138"
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/duhu2000/financial-services-qcc",
+      "commit": "fb1289cf1c58fa99a3af37d594488400a22974b7",
+      "verified_files": [
+        {
+          "kind": "license",
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "kind": "selected",
+          "path": "commands/qcc-kyb-profile.md",
+          "sha256": "39ec3b097472c08fc397562f51bbf36dcab9e14accf02bab28e51401a3201762"
+        },
+        {
+          "kind": "selected",
+          "path": "skills/kyb-verification-qcc/SKILL.md",
+          "sha256": "1cfefdd0a76f0f0560ecb91c52b689406c52e2f93a3b346b80e882c2d3db7b22"
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/langchain-ai/open_deep_research",
+      "commit": "1b7d2e80db9faa586165c60e09096dbbfd483a64",
+      "verified_files": [
+        {
+          "kind": "license",
+          "path": "LICENSE",
+          "sha256": "3404cb66935968edefe1149c9bfcb44bd8532c437c01ac095ec53b6e195ce110"
+        },
+        {
+          "kind": "selected",
+          "path": "src/open_deep_research/deep_researcher.py",
+          "sha256": "af128d5d8773008d021b6ef7562e9fb90a45f7eb5e886483d1e6e835223275e0"
+        },
+        {
+          "kind": "selected",
+          "path": "src/open_deep_research/state.py",
+          "sha256": "7a03f4a1d5132573ed306d403fd3478fe8916d955f3caa44a8d365877ac35d0e"
+        },
+        {
+          "kind": "selected",
+          "path": "src/open_deep_research/configuration.py",
+          "sha256": "61e1a62ada20d16cb7b876c10b15a3ddb71f61248a53a05d7511ca6930af98da"
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/openaleph/openaleph",
+      "commit": "ef41665db5e8c8e9b563ba61036ea9842f8c4dec",
+      "verified_files": [
+        {
+          "kind": "license",
+          "path": "LICENSE.txt",
+          "sha256": "dbedcaa72fa2f5dea4fbaaddd9bf506c31b1142cd24b19aef811e075e536b4a7"
+        },
+        {
+          "kind": "selected",
+          "path": "aleph/model/document.py",
+          "sha256": "887325dfb9093fef745701afbfa6cef83ab8805f2400ffaa1e82b285f0377d4b"
+        },
+        {
+          "kind": "selected",
+          "path": "aleph/model/entity.py",
+          "sha256": "aebdbdc069293a03ca56d07badf4f5a0460294ee993f615836cb303c9e983145"
+        },
+        {
+          "kind": "selected",
+          "path": "aleph/model/entityset.py",
+          "sha256": "509e385785dd3ec314a088fcec02cc6e139d077e18bc234e1520bde0bc2a832b"
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/rgerjeki/Dossier",
+      "commit": "512b121739a8c95ec5015dcee337fefc48da1105",
+      "verified_files": [
+        {
+          "kind": "license",
+          "path": "LICENSE",
+          "sha256": "fb9530c1aafa9e3a80a6721fc7ed2665169140a3af476d3a75dffd40f1de0a71"
+        },
+        {
+          "kind": "selected",
+          "path": "src/dossier/models.py",
+          "sha256": "a36f41a0984b486d582a3962a04f6bf79957dcd717f272c9d8bd8d11481aba75"
+        },
+        {
+          "kind": "selected",
+          "path": "src/dossier/case.py",
+          "sha256": "2cfd1a9055aa9ac02b46091208ce7b259ee4bbf49c7defe02bd282149210aaad"
+        },
+        {
+          "kind": "selected",
+          "path": "src/dossier/ui/report_editor.py",
+          "sha256": "5ac448ee66493c1642645609a88df7f57da0e21270365c0fffa3b3f74025077a"
+        }
+      ]
+    },
+    {
+      "repository": "https://github.com/stanford-oval/storm",
+      "commit": "fb951af7744dab086e34962e9bc6fe878e145f83",
+      "verified_files": [
+        {
+          "kind": "license",
+          "path": "LICENSE",
+          "sha256": "88241386c28ff04821832762714c9ff0d22c4de6b0633d11554e69a968a718e0"
+        },
+        {
+          "kind": "selected",
+          "path": "knowledge_storm/storm_wiki/modules/knowledge_curation.py",
+          "sha256": "c3f037dc808287631825e6e9bb4dd0b51b9ca43f1c790a713d41513b7ae2c7e0"
+        }
+      ]
+    }
+  ],
+  "baseline_readonly_audit_sha256": "990abad74d09333fabc27332f362eea185939f3ce953c1b15de12139d7941a87",
+  "cases": [
+    {
+      "case": "haitian",
+      "latest_plan": "bounded-plan-20261030T145059173514.json",
+      "latest_round_has_end_record": false,
+      "persisted_acceptance_status": "checkpoint_saved_before_routing_journal_fix",
+      "final_report_acceptance_proven": false,
+      "note": "A persisted stage or a prior report is not proof of a live worker or final acceptance."
+    },
+    {
+      "case": "kingsoft",
+      "latest_plan": "bounded-plan-20261028T165519188680.json",
+      "latest_round_has_end_record": true,
+      "persisted_acceptance_status": "bounded_checkpoint",
+      "final_report_acceptance_proven": false,
+      "note": "A persisted stage or a prior report is not proof of a live worker or final acceptance."
+    },
+    {
+      "case": "holdout",
+      "latest_plan": null,
+      "latest_round_has_end_record": false,
+      "persisted_acceptance_status": "not_started",
+      "final_report_acceptance_proven": false,
+      "note": "A persisted stage or a prior report is not proof of a live worker or final acceptance."
+    }
+  ],
+  "regression": {
+    "passed": 4754,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 4,
+    "platform": "Windows Python 3.12.14",
+    "frontend_passed": 126,
+    "evidence": {
+      "test-results/full-regression-66bd061-linux.log": {
+        "sha256": "bf5fb2dbc9865300eec344323d924a07d511735cd1f20e716fa186204cc0a88b",
+        "bytes": 31329
+      },
+      "test-results/full-regression-66bd061-linux.xml": {
+        "sha256": "7f9288c58b07a2f3b89542f587ea04594238863efa331ec6f6e40455bdee2491",
+        "bytes": 856117
+      },
+      "test-results/frontend-regression-60d7aca.log": {
+        "sha256": "0e25bd8ec223f4af370a5277ea362cdf7a1acea6852f2467f03f5afdf18446e7",
+        "bytes": 12465
+      },
+      "test-results/full-regression-ee16e90-windows.log": {
+        "sha256": "fc8eb07bfc3a8053704f10355d6032f344b71b80a4d94d984de7d89dd963873f",
+        "bytes": 31157
+      },
+      "test-results/full-regression-ee16e90-windows.xml": {
+        "sha256": "6c516c49f941771b7f7fad016f784086e0a8b1eeffb3680fc3dce9951fe5d846",
+        "bytes": 862579
+      }
+    },
+    "skipped_tests": [
+      {
+        "classname": "test.test_backup_busy_workloads",
+        "name": "test_busy_job_skips_before_stopping_any_service[research]",
+        "reason": "Real flock and service guard run on Linux"
+      },
+      {
+        "classname": "test.test_backup_busy_workloads",
+        "name": "test_busy_job_skips_before_stopping_any_service[assistant]",
+        "reason": "Real flock and service guard run on Linux"
+      },
+      {
+        "classname": "test.test_backup_busy_workloads",
+        "name": "test_busy_job_skips_before_stopping_any_service[ingestion]",
+        "reason": "Real flock and service guard run on Linux"
+      },
+      {
+        "classname": "test.test_release_preparation",
+        "name": "test_first_start_allows_missing_bm25_file_when_parent_exists",
+        "reason": "Actual Linux path checks run on the target platform."
+      }
+    ]
+  },
+  "unfinished_requirements": [
+    "source-to-implementation mapping with final case and regression evidence for adopted designs",
+    "both development reports through the real workflow",
+    "untuned holdout through fresh real collection on frozen development code",
+    "same-report machine audit and all fourteen chapters reviewed",
+    "Markdown HTML Word evidence ZIP hash binding for each case",
+    "browser inspection and every final Word page visually inspected",
+    "final reproducibility package and requirement-by-requirement completion audit"
+  ],
+  "goal_achieved": false,
+  "model_calls_by_this_audit": 0,
+  "business_data_mutated": false
+}
