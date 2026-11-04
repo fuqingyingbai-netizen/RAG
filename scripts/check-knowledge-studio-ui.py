@@ -421,6 +421,25 @@ def main():
         expect(page.locator('.ckb-file-gallery input:checked')).to_have_count(2)
         page.get_by_role('button',name='比较选中资料（2）',exact=True).click()
         expect(page.get_by_role('textbox',name='知识问答问题')).to_have_value('比较所选资料的结论差异，逐项列出依据与待复核事项。')
+        expect(page.locator('.ckb-session-panel')).to_be_visible()
+        expect(page.locator('.ckb-evidence-panel')).to_be_visible()
+        composer=page.locator('.ckb-composer')
+        edge='e=>getComputedStyle(e,"::before").animationName'
+        assert composer.evaluate(edge)!='none'
+        page.get_by_role('button',name='暂停动效',exact=True).click()
+        assert composer.evaluate(edge)=='none'
+        assert page.locator('.ckb-chat-space > span').evaluate('e=>getComputedStyle(e,"::before").animationName')=='none'
+        page.get_by_role('button',name='开启动效',exact=True).click()
+        page.emulate_media(reduced_motion='reduce')
+        assert composer.evaluate(edge)=='none'
+        page.emulate_media(reduced_motion='no-preference')
+        draft=page.get_by_role('textbox',name='知识问答问题',exact=True)
+        value=draft.input_value();draft.fill('');page.locator('.ckb-chat-header').click()
+        expect(page.locator('.ckb-composer-signal')).to_contain_text('随时提问')
+        assert composer.evaluate(edge)!='none', 'Input must also animate while idle'
+        page.screenshot(path=str(args.output_dir/'chat-input-idle.png'),full_page=True,animations='disabled')
+        draft.fill(value)
+        expect(page.locator('.ckb-composer-signal')).to_contain_text('可以发送')
         page.screenshot(path=str(args.output_dir/'chat-desktop.png'),full_page=True,animations='disabled')
         page.get_by_role('button',name='发送问题',exact=True).click()
         expect(page.locator('.ckb-thinking-ribbon')).to_be_visible()

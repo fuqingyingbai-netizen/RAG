@@ -265,3 +265,101 @@
   .ckb-workbench-reader .ckb-reader-columns { display:flex; flex-direction:column; }
   .ckb-workbench-reader .ckb-reader-question { min-height:320px; }
 }
+
+/* Focused refinement: LobeHub-inspired sidebar grouping and the slow edge light
+   in Magic UI's Shine Border. Original CSS; conversation content is unchanged. */
+.ckb-workbench .ckb-chat-aside {
+  --kg-rail-fill:rgba(19,36,58,.46); --kg-rail-glow:rgba(103,207,235,.12);
+  position:relative; isolation:isolate; padding:20px 14px;
+  background:radial-gradient(ellipse at 5% 0%,var(--kg-rail-glow),transparent 48%),linear-gradient(175deg,rgba(107,134,197,.055),transparent 70%),rgba(13,25,44,.8);
+  box-shadow:inset -1px 0 0 rgba(205,237,255,.04);
+}
+.ckb-chat-aside::before { content:''; position:absolute; z-index:-1; top:0; left:0; right:0; height:215px; pointer-events:none; background-image:radial-gradient(var(--kg-edge) .7px,transparent .9px); background-size:15px 15px; mask-image:linear-gradient(#000,transparent); opacity:.22; }
+.ckb-chat-aside .ckb-chat-space { margin:0 4px 18px; gap:12px; }
+.ckb-chat-aside .ckb-chat-space > span { position:relative; isolation:isolate; border-radius:13px; width:37px; height:39px; background:linear-gradient(140deg,var(--kg-glint),transparent),var(--kg-rail-fill); box-shadow:inset 0 1px 0 var(--kg-rim),0 4px 16px var(--kg-shadow); }
+.ckb-chat-space > span::before { content:''; position:absolute; inset:-4px; padding:1px; border-radius:16px; background:conic-gradient(from 40deg,transparent 10%,var(--ku-cyan) 30%,transparent 44%,var(--ku-violet) 75%,transparent 86%); mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); mask-composite:exclude; opacity:.7; animation:ckb-rail-halo 14s linear infinite; pointer-events:none; }
+.ckb-workbench .ckb-chat-aside > .ckb-new-conversation { position:relative; overflow:hidden; display:flex; align-items:center; justify-content:flex-start; gap:11px; padding:12px 13px; margin:0 0 20px; border-radius:12px; border-color:var(--kg-edge); color:var(--ku-text); background:linear-gradient(115deg,var(--kg-rail-glow),rgba(135,120,210,.12)),var(--kg-rail-fill); box-shadow:inset 0 1px 0 var(--kg-glint),0 5px 14px var(--kg-shadow); transition:border-color .25s,box-shadow .25s; }
+.ckb-new-conversation > i:first-child { width:20px; height:20px; display:grid; place-items:center; border-radius:6px; background:var(--kg-frost); color:var(--ku-cyan); transition:transform .3s; }
+.ckb-new-conversation > i:last-child { margin-left:auto; font-size:9px; color:var(--ku-muted); transition:translate .3s,color .3s; }
+.ckb-new-conversation::after { content:''; position:absolute; inset:0; pointer-events:none; background:linear-gradient(100deg,transparent 15%,var(--kg-glint) 48%,transparent 75%); transform:translateX(-110%); transition:transform .65s; opacity:.45; }
+.ckb-new-conversation:hover:not(:disabled) { border-color:var(--ku-cyan)!important; box-shadow:inset 0 1px 0 var(--kg-rim),0 7px 20px var(--kg-shadow)!important; }
+.ckb-new-conversation:hover:not(:disabled)::after { transform:translateX(110%); }.ckb-new-conversation:hover:not(:disabled) > i:first-child { transform:rotate(90deg); }.ckb-new-conversation:hover:not(:disabled) > i:last-child { translate:2px -2px; color:var(--ku-cyan); }
+.ckb-session-panel,.ckb-evidence-panel { padding:13px 11px; border:1px solid var(--kg-edge); border-radius:14px; background:linear-gradient(145deg,var(--kg-frost),transparent 60%),var(--kg-rail-fill); box-shadow:inset 0 1px 0 var(--kg-glint); margin-bottom:15px; }
+.ckb-chat-aside :is(.ckb-session-panel,.ckb-evidence-panel) > .ckb-aside-label { display:flex; align-items:center; gap:7px; font-size:9px; letter-spacing:1px; margin:0 0 12px; color:var(--ku-muted); }
+.ckb-chat-aside .ckb-session-panel select { width:100%; border:1px solid var(--kg-edge); border-radius:8px; padding:9px 8px; background:var(--kg-field); color:var(--ku-text); font-size:10px; }
+.ckb-chat-aside .ckb-session-panel select option { background:var(--ku-panel); }
+.ckb-session-panel .ckb-session-list { margin:9px 0 0; gap:5px; }
+.ckb-session-panel .ckb-session-list > button { position:relative; overflow:hidden; border:1px solid transparent; border-radius:9px; padding:10px 9px; background:transparent; transition:background .2s,border-color .2s,translate .2s; }
+.ckb-session-panel .ckb-session-list > button.active { background:linear-gradient(105deg,var(--kg-rail-glow),var(--kg-frost)); border-color:var(--kg-edge); color:var(--ku-text); box-shadow:inset 2px 0 0 var(--ku-cyan); }
+.ckb-session-panel .ckb-session-list > button:hover:not(:disabled) { border-color:var(--kg-edge); background:var(--kg-frost); translate:2px 0; }
+.ckb-session-panel .ckb-history-actions { border:0; margin:10px 0 0; padding:8px 0 0; border-top:1px solid var(--kg-edge); justify-content:space-between; gap:5px; }
+.ckb-session-panel .ckb-history-actions button { font-size:9px; padding:4px 0; }.ckb-session-panel .ckb-history-actions button:hover:not(:disabled) { color:var(--ku-cyan); }
+.ckb-evidence-panel > strong { color:var(--ku-text); font-size:12px; font-weight:500; display:block; }
+.ckb-evidence-panel .ckb-scope-note { margin:7px 0 12px; font-size:10px; }
+.ckb-evidence-panel > .ckb-button { width:100%; font-size:10px!important; padding:9px 8px; margin-bottom:8px; background:var(--kg-field); border-color:var(--kg-edge); border-radius:9px; transition:background .2s,border-color .2s; }
+.ckb-evidence-panel > .ckb-button:hover:not(:disabled) { border-color:var(--ku-cyan); background:var(--kg-rail-glow); }
+.ckb-chat-aside .ckb-evidence-panel .ckb-reading-link { width:100%; padding:10px 8px; margin:5px 0 0; font-size:10px!important; border-radius:9px; background:var(--kg-field); border-color:var(--kg-edge); transition:translate .2s,border-color .2s,box-shadow .2s; }
+.ckb-evidence-panel .ckb-reading-link:hover { translate:2px 0; border-color:var(--file-colour)!important; box-shadow:inset 2px 0 0 var(--file-colour); }
+.ckb-chat-aside .ckb-chat-aside-foot { margin-top:auto; padding:12px 3px 0; font-size:9px; line-height:1.9; }
+
+/* The input is alive before a request: a low-intensity edge sweep, hover glow,
+   focus lift and a springy send affordance, with the same textarea and shortcuts. */
+.ckb-workbench .ckb-composer { border-radius:19px; border-color:var(--kg-edge); background:radial-gradient(ellipse at 0% 0%,rgba(105,202,225,.07),transparent 65%),linear-gradient(120deg,rgba(181,217,255,.025),rgba(142,127,222,.035)),rgba(17,32,52,.74); box-shadow:inset 0 1px 0 var(--kg-rim),0 7px 25px var(--kg-shadow); transition:background .3s,box-shadow .3s,border-color .3s,translate .3s; }
+.ckb-workbench .ckb-composer::before { content:''; position:absolute; inset:-1px; z-index:1; pointer-events:none; border-radius:inherit; padding:1px; background:linear-gradient(115deg,transparent 15%,var(--ku-cyan) 43%,var(--ku-violet) 55%,transparent 82%); background-size:280% 180%; mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); mask-composite:exclude; opacity:.3; animation:ckb-input-edge 11s ease-in-out infinite alternate; }
+.ckb-workbench .ckb-composer:hover { border-color:var(--kg-rim); box-shadow:inset 0 1px 0 var(--kg-rim),0 9px 30px var(--kg-shadow),0 0 20px var(--kg-frost); }
+.ckb-workbench .ckb-composer:focus-within { translate:0 -2px; border-color:var(--ku-cyan); box-shadow:inset 0 1px 0 var(--kg-rim),0 0 0 3px var(--kg-frost),0 12px 35px var(--kg-shadow); }
+.ckb-workbench .ckb-composer:is(:hover,:focus-within,.has-draft)::before { opacity:.8; animation-duration:4s; }
+.ckb-workbench .is-generating .ckb-composer::before { opacity:1; animation-duration:2.4s; }
+.ckb-composer .ckb-composer-scope { display:inline-flex; align-items:center; padding:5px 8px; border:1px solid var(--kg-edge); border-radius:7px; background:var(--kg-frost); max-width:65%; }
+.ckb-composer > div > .ckb-composer-signal { margin-left:auto; display:flex; gap:7px; align-items:center; overflow:visible; color:var(--ku-muted); }
+.ckb-composer-signal > b { display:flex; align-items:center; gap:2px; height:14px; }
+.ckb-composer-signal > b > i { display:block; width:2px; height:5px; margin:0!important; background:var(--ku-cyan); border-radius:2px; opacity:.5; animation:ckb-input-signal 3.2s ease-in-out infinite; }
+.ckb-composer-signal > b > i:nth-child(2) { height:9px; animation-delay:.3s; }.ckb-composer-signal > b > i:nth-child(3) { height:12px; animation-delay:.6s; }.ckb-composer-signal > b > i:nth-child(4) { height:7px; animation-delay:.9s; }
+.ckb-composer-signal small { font-size:9px; font-weight:400; }
+.ckb-workbench .ckb-composer button { position:relative; flex-shrink:0; width:31px; height:31px; border-radius:10px; background:linear-gradient(135deg,var(--ku-cyan),var(--ku-violet)); color:#10233c; box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 4px 14px rgba(90,182,227,.18); transition:transform .25s cubic-bezier(.2,.9,.3,1.5),box-shadow .25s,opacity .2s; }
+.ckb-workbench .ckb-composer button:not(:disabled):hover { transform:translateY(-2px) scale(1.07); box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 7px 19px rgba(90,182,227,.3); }
+.ckb-workbench .ckb-composer button:not(:disabled):active { transform:translateY(0) scale(.95); }
+.ckb-workbench .ckb-composer button:disabled { opacity:.38; box-shadow:none; }
+@keyframes ckb-rail-halo { to { transform:rotate(360deg); } }
+@keyframes ckb-input-edge { from { background-position:0 40%; } to { background-position:100% 65%; } }
+@keyframes ckb-input-signal { 50% { opacity:.9; transform:scaleY(.55); } }
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-chat-aside { --kg-rail-fill:rgba(255,255,255,.36); --kg-rail-glow:rgba(28,144,178,.10); background:radial-gradient(ellipse at 0% 0%,rgba(100,191,220,.13),transparent 55%),linear-gradient(170deg,rgba(231,239,255,.65),rgba(239,238,253,.45)); }
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-composer { background:radial-gradient(ellipse at 0% 0%,rgba(97,190,216,.09),transparent 65%),rgba(255,255,255,.72); }
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-composer button { color:#fff; background:linear-gradient(135deg,#248da5,#6d6fc3); }
+
+/* A populated archive retains its watermark, including through the card faces.
+   Text stays fully opaque; only surfaces and the restrained line art blend. */
+.ckb-workbench .ckb-library-content { --kg-archive-fill:rgba(19,37,59,.30); }
+.ckb-workbench .ckb-library-content .ckb-archive-scene { opacity:.21; width:min(88%,900px); top:170px; bottom:auto; right:0; }
+.ckb-workbench .ckb-library-content.ckb-sparse-space .ckb-archive-scene { opacity:.19; }
+.ckb-workbench .ckb-library-content :is(.ckb-project-directory,.ckb-file-card,.ckb-case-card,.ckb-subfolder-card) { background:linear-gradient(145deg,rgba(175,219,248,.045),transparent 50%,rgba(135,133,203,.035)),var(--kg-archive-fill); -webkit-backdrop-filter:blur(1px) saturate(112%); backdrop-filter:blur(1px) saturate(112%); }
+.ckb-workbench .ckb-library-content .ckb-project-art { background:radial-gradient(ellipse at 50% 75%,rgba(64,163,196,.15),transparent 72%),linear-gradient(120deg,rgba(89,150,205,.09),rgba(128,107,179,.08)); }
+.ckb-workbench .ckb-library-content :is(.ckb-file-gallery,.ckb-case-grid,.ckb-directory-grid) { background:transparent; }
+.ckb-workbench .ckb-library-content .ckb-file-art { background:radial-gradient(ellipse at 50% 75%,rgba(var(--file-rgb),.13),transparent 70%),linear-gradient(130deg,rgba(206,232,255,.04),transparent); }
+.ckb-workbench .ckb-library-content .ckb-create-project-tile { background:linear-gradient(140deg,var(--kg-archive-fill),transparent); }
+.ckb-workbench .ckb-library-content :is(.ckb-file-card.selected,.ckb-case-card.selected) { background:linear-gradient(135deg,rgba(80,195,213,.12),rgba(116,134,217,.08)),var(--kg-archive-fill); }
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-library-content { --kg-archive-fill:rgba(255,255,255,.38); }
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-library-content .ckb-archive-scene { opacity:.24; }
+:root[data-knowledge-theme=light] .ckb-workbench .ckb-library-content .ckb-project-art { background:radial-gradient(ellipse at 50% 75%,rgba(71,169,200,.13),transparent 72%),linear-gradient(125deg,rgba(225,239,255,.18),rgba(211,211,243,.14)); }
+.ckb-motion-paused .ckb-chat-space > span::before,.ckb-motion-paused .ckb-composer::before,.ckb-motion-paused .ckb-composer-signal > b > i { animation:none!important; }
+.ckb-motion-paused :is(.ckb-new-conversation,.ckb-new-conversation::after,.ckb-new-conversation > i,.ckb-session-list > button,.ckb-reading-link,.ckb-composer,.ckb-composer button) { transition:none!important; }
+@media(prefers-reduced-motion:reduce) {
+  .ckb-chat-space > span::before,.ckb-composer::before,.ckb-composer-signal > b > i { animation:none!important; }
+  .ckb-chat-aside :is(button,i),.ckb-new-conversation::after,.ckb-workbench .ckb-composer,.ckb-workbench .ckb-composer button { transition:none!important; }
+  .ckb-workbench .ckb-composer:focus-within { translate:none; }
+}
+@media(prefers-reduced-transparency:reduce),(prefers-contrast:more) {
+  .ckb-workbench .ckb-library-content :is(.ckb-project-directory,.ckb-file-card,.ckb-case-card,.ckb-subfolder-card),.ckb-workbench .ckb-chat-aside,.ckb-session-panel,.ckb-evidence-panel,.ckb-workbench .ckb-composer { background:var(--ku-panel)!important; -webkit-backdrop-filter:none; backdrop-filter:none; }
+  .ckb-workbench .ckb-library-content .ckb-archive-scene { display:none; }
+  .ckb-chat-space > span::before,.ckb-workbench .ckb-composer::before { display:none; }
+}
+@supports not (backdrop-filter:blur(1px)) {
+  .ckb-workbench .ckb-library-content :is(.ckb-project-directory,.ckb-file-card,.ckb-case-card,.ckb-subfolder-card) { background:var(--ku-panel); }
+}
+@media(max-width:760px) {
+  .ckb-workbench .ckb-chat-aside { padding:15px; gap:0; }
+  .ckb-session-panel,.ckb-evidence-panel { flex-shrink:0; }
+  .ckb-composer-signal > small { display:none; }
+  .ckb-composer .ckb-composer-scope { max-width:72%; font-size:9px; padding:4px 6px; }
+  .ckb-workbench .ckb-library-content .ckb-archive-scene { width:100%; opacity:.14!important; }
+}
