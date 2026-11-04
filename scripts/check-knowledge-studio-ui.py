@@ -123,6 +123,9 @@ def main():
     parser.add_argument('--output-dir', type=Path, default=ROOT / 'work/knowledge-redesign')
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    sys.path.insert(0,str(ROOT/'backend'))
+    from company_chapters import public_config
+    chapter_config=public_config()
     for name in ('vue.js', 'element.js', 'element.css', 'icons.css'):
         assert (args.assets_dir / name).is_file(), f'Missing cached browser asset: {name}'
     server = ThreadingHTTPServer(('127.0.0.1', 0), partial(QuietHandler, directory=str(ROOT / 'frontend')))
@@ -210,6 +213,7 @@ def main():
             if path == '/auth/me':
                 return route.fulfill(json={'id':1,'username':'preview','role':'admin','knowledge_access':True,'must_change_password':False})
             if path == '/research/projects': return route.fulfill(json=[])
+            if path == '/research/company-chapters': return route.fulfill(json=chapter_config)
             if path == '/research/home': return route.fulfill(status=503,json={'detail':'隔离验收仅加载公司知识库'})
             if path == '/research/assistant/state': return route.fulfill(json={'session_id':'preview','sessions':[],'messages':[]})
             if path == '/company-knowledge/status':

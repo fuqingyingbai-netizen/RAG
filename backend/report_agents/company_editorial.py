@@ -989,7 +989,7 @@ def receipt_aware_batches(records,prior,target,feedback=None):
         chapter=batch.get('chapter');aspect=batch.get('aspect')
         rows=[lookup[i] for i in ids]
         if any((r['decision'].get('chapter'),r['decision'].get('aspect'))!=(chapter,aspect) for r in rows):continue
-        critique=batch_feedback(feedback,chapter,ids)
+        critique=batch_feedback(feedback,chapter,ids) or batch.get('feedback') or []
         expected=fingerprint({'version':VERSION,'target':target,'chapter':chapter,'aspect':aspect,
                               'records':[record_payload(r) for r in rows],'feedback':critique})
         if expected!=batch.get('input_sha256'):continue
@@ -1106,7 +1106,7 @@ def build_editorial_package(usage, outline, target, invoke, *, previous=None, wo
     """
     invoke = bounded_company_invoke(invoke)
     records = [r for r in usage.get('records', []) if r.get('decision', {}).get('status') == 'use']
-    previous = previous or {}; prior = {}; draft_prior = {}
+    previous = previous or {}; prior = {}; draft_prior = {};carried_feedback={}
     feedback=deepcopy(feedback or [])
     for issue in feedback:
         if issue.get('quote'):
@@ -1119,10 +1119,15 @@ def build_editorial_package(usage, outline, target, invoke, *, previous=None, wo
             ids=receipt.get('information_ids') or []
             if not ids or len(set(ids))!=len(ids) or any(i not in lookup for i in ids):continue
             native=[lookup[i] for i in ids]
+            critique=batch_feedback(feedback,receipt['chapter'],ids) or receipt.get('feedback') or []
             payload={'version':previous['version'],'target':target,'chapter':receipt['chapter'],
                 'aspect':receipt['aspect'],'records':[record_payload(r) for r in native],
-                'feedback':batch_feedback(feedback,receipt['chapter'],ids)}
+                'feedback':critique}
             if fingerprint(payload)!=receipt.get('input_sha256'):continue
+            # A resolved final-review instruction remains part of this exact
+            # native batch on resume. Dropping it would discard the repaired
+            # receipt and regenerate its pre-repair prose.
+            carried_feedback[frozenset(ids)]=critique
             payload['version']=VERSION;key=fingerprint(payload)
             migrated={**deepcopy(receipt),'input_sha256':key}
             if previous['version']!=VERSION:migrated['revalidated_from_version']=previous['version']
@@ -1157,7 +1162,7 @@ def build_editorial_package(usage, outline, target, invoke, *, previous=None, wo
                 ('审稿' in role and ('定位' in role or '格式' in role))) else 'review' if '审稿' in role else 'write')
             with step_budget(step_budgets.setdefault(stage,{})):
                 return call_json(role, prompt, chapter_agent)
-        critique = batch_feedback(feedback,chapter,[r['information_id'] for r in rows])
+        critique = batch_feedback(feedback,chapter,[r['information_id'] for r in rows]) or carried_feedback.get(frozenset(r['information_id'] for r in rows),[])
         input_hash = fingerprint({'version': VERSION, 'target': target, 'chapter': chapter,
             'aspect': aspect, 'records': [record_payload(r) for r in rows], 'feedback': critique})
         cached = prior.get(input_hash)

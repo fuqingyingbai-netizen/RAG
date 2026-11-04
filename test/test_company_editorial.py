@@ -774,6 +774,22 @@ def test_prose_and_independent_audit_require_actual_document_identity():
     assert '会议材料不冒称年报' in review
 
 
+def test_final_review_instruction_and_approved_repair_survive_resume_without_new_feedback():
+    rows=[record()]
+    original=build_editorial_package({'records':rows},OUTLINE,'远帆公司',invoke_for(rows),workers=1)
+    repaired=build_editorial_package({'records':rows},OUTLINE,'远帆公司',invoke_for(rows),previous=original,
+        feedback=[{'chapter':6,'quote':original['findings'][0]['text'],'message':'保留会议材料归因。'}],workers=1)
+    assert repaired['batches'][0]['feedback']
+    calls=[]
+    resumed=build_editorial_package({'records':rows},OUTLINE,'远帆公司',invoke_for(rows,calls),previous=repaired,workers=1)
+    assert not calls and resumed['batches'][0]['reused']
+    changed=deepcopy(rows);changed[0]['context']['period']='另一期间'
+    changed_calls=[]
+    refreshed=build_editorial_package({'records':changed},OUTLINE,'远帆公司',invoke_for(changed,changed_calls),previous=repaired,workers=1)
+    assert changed_calls==['公司交付正文编写','公司交付正文独立审稿']
+    assert not refreshed['diagnostic']['pending_information_ids']
+
+
 def test_failed_model_review_keeps_native_fields_in_a_blocked_draft():
     from report_agents.company_delivery_contract import fill_evidence_gaps
     original='## 2. 主体\n\n| 注册资本 | 100万元 | [E-123456ABCDEF] |'

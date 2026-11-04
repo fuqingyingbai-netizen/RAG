@@ -1,0 +1,13 @@
+{
+  "theme": "light",
+  "body_search": true,
+  "source_location": true,
+  "word_match": true,
+  "quick_capture": true,
+  "reading_area": {
+    "x": 58.203125,
+    "y": 140.3389434814453,
+    "width": 1323.59375,
+    "height": 774.8124847412109
+  }
+}

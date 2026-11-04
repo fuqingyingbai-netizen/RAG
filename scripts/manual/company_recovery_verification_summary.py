@@ -9,7 +9,7 @@ OUT=ROOT/'docs/deliverables/company-recovery-20261104'
 
 def main():
     names=['regression-final.xml','company-research-final.xml','recovery-final.xml',
-           'platform-final.xml','reading-format-final.xml','format-html-final.xml','attribution-final.xml']
+           'platform-final.xml','reading-format-final.xml','format-html-final.xml','attribution-final.xml','latest-main-final.xml']
     latest={};runs=[];original_failures=[]
     for name in names:
         path=OUT/name;root=ET.parse(path).getroot();counts=Counter()

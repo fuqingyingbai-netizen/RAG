@@ -71,18 +71,29 @@
     },
     {
       "file": "attribution-final.xml",
-      "sha256": "8233bd6401bcb0cfe4ff06fc0982035ff04608243620028dd06b9faaa3b7dd08",
+      "sha256": "76c09ce472e36bb7d287e0f2dd40944c4fbbe3da17477a13abe20c592d80ad38",
       "counts": {
-        "passed": 138
+        "passed": 139
       },
-      "seconds": 21.153,
+      "seconds": 27.886,
       "started_at": [
-        "2026-11-04T21:01:00.576138+08:00"
+        "2026-11-04T21:18:19.340057+08:00"
+      ]
+    },
+    {
+      "file": "latest-main-final.xml",
+      "sha256": "b06d08ee90181d539e0c285793d63bb6b448979eac413ba892c14985c87a92be",
+      "counts": {
+        "passed": 145
+      },
+      "seconds": 405.662,
+      "started_at": [
+        "2026-11-04T21:05:23.568052+08:00"
       ]
     }
   ],
   "latest_observed_unique_test_verdicts": {
-    "passed": 4936,
+    "passed": 4945,
     "skipped": 4
   },
   "original_failures_with_latest_verdict": [
@@ -99,7 +110,7 @@
   ],
   "remaining_observed_failures": [],
   "frontend": {
-    "files": 16,
+    "files": 17,
     "failed_files": []
   }
 }

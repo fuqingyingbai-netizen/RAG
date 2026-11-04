@@ -61,7 +61,9 @@ def main():
         'summary_status':meta.get('company_summary_diagnostic',{}),'metrics':result.get('metrics'),
         'seconds_this_invocation':result.get('seconds_this_invocation'),'model':result.get('model'),'base_url':result.get('base_url'),
         'search_queries':result.get('metrics',{}).get('search_queries'),'platform_requests':result.get('metrics',{}).get('platform_requests'),
-        'code_sha256':{k:v for k,v in result.get('code_sha256',{}).items() if k.replace('\\','/').startswith(('backend/company_','backend/report_agents/company_'))}}
+        'code_sha256':{k:v for k,v in result.get('code_sha256',{}).items() if k.replace('\\','/').startswith(('backend/company_','backend/report_agents/company_')) or k.replace('\\','/') in {'backend/research_workflow.py','backend/docx_exporter.py','backend/research_api.py'}},
+        'runtime_files_changed_since_invocation':[k for k,v in result.get('code_sha256',{}).items()
+            if not (ROOT/k).is_file() or sha((ROOT/k).read_bytes())!=v]}
     out=ROOT/'docs/deliverables/company-recovery-20261104'/(args.company+'-real-saved-readback.json')
     out.write_text(json.dumps(outcome,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps({k:outcome[k] for k in ('company','report_artifact_id','main_findings_in_database_and_word','docx_integrity_status','docx_render_status','delivery_status')}))

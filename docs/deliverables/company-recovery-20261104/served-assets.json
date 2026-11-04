@@ -1,0 +1,27 @@
+[
+  {
+    "source": "frontend\\script.js",
+    "served": "frontend\\script.1effdc403b21.js",
+    "sha256": "1effdc403b2181ca23b8fed5bd20ee2c97335012ad3e467d2cad7e036ac9fdbb"
+  },
+  {
+    "source": "frontend\\company-chapters.css",
+    "served": "frontend\\company-chapters.68634208c5fc.css",
+    "sha256": "68634208c5fca5088c224859acd375d4afa9fe0c7c3bdbac551ba604f07b447b"
+  },
+  {
+    "source": "frontend\\company-knowledge.js",
+    "served": "frontend\\company-knowledge.5e80ea020ed7.js",
+    "sha256": "5e80ea020ed78d6163e94397acf82a67472a6445b5883f977196cde9de52f754"
+  },
+  {
+    "source": "frontend\\knowledge-document-viewer.js",
+    "served": "frontend\\knowledge-document-viewer.41b618afbad3.js",
+    "sha256": "41b618afbad38d33a4d7a80095f9000f3e2760ae31f752efecefa2eaa114fcc6"
+  },
+  {
+    "source": "frontend\\company-knowledge-glass.css",
+    "served": "frontend\\company-knowledge-glass.0949b880920f.css",
+    "sha256": "0949b880920ff44cd8f69fab0f219c97b6ec0b87dcc3cd35484068e87b51d842"
+  }
+]
