@@ -11,6 +11,7 @@ import threading
 from urllib.parse import urlsplit
 import wave
 import zipfile
+import sys
 
 from playwright.sync_api import sync_playwright, expect
 
@@ -31,7 +32,12 @@ def document_fixture():
           <w:p><w:hyperlink r:id="unsafe-link"><w:r><w:t>不可跳转的文档链接</w:t></w:r></w:hyperlink></w:p>
           <w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1100" w:right="1100" w:bottom="1100" w:left="1100"/></w:sectPr></w:body></w:document>''')
         archive.writestr('word/_rels/document.xml.rels', '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="unsafe-link" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="javascript:parent.document.body.innerHTML=&quot;bad&quot;" TargetMode="External"/></Relationships>')
-    return buffer.getvalue()
+    sys.path.insert(0,str(ROOT/'backend'))
+    from company_office_watermark import Package,mark_word
+    from company_watermark import ExportIdentity
+    package=Package(buffer.getvalue(),ExportIdentity('preview',1,'2026-11-04 00:00:00','synthetic-trace-only'))
+    mark_word(package,None)
+    return package.finish()
 
 
 class QuietHandler(SimpleHTTPRequestHandler):
@@ -42,6 +48,7 @@ class QuietHandler(SimpleHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--theme', choices=['light','dark'], default='light')
+    parser.add_argument('--reader-only',action='store_true')
     parser.add_argument('--assets-dir', type=Path, default=ROOT / 'work/knowledge-redesign/vendor')
     parser.add_argument('--output-dir', type=Path, default=ROOT / 'work/knowledge-redesign')
     args = parser.parse_args()
@@ -279,11 +286,23 @@ def main():
         expect(original_frame.locator('table')).to_contain_text('访谈与资料核对')
         expect(original_frame.locator('a')).to_have_count(0)
         expect(original_frame.locator('.viewer-watermark').first).to_contain_text('preview')
+        assert original_frame.locator('section.docx').first.evaluate("s=>(s.querySelector('header')?.getBoundingClientRect().height||0)<100"), 'Floating watermark enlarged the header'
+        assert original_frame.locator('section.docx').first.evaluate("s=>s.querySelector('article').getBoundingClientRect().top-s.getBoundingClientRect().top<250"), 'Document content was pushed below the reading area'
+        assert original_frame.locator('.viewer-watermark').first.evaluate("e=>e.style.backgroundImage.includes('data:image/svg+xml')"), 'Long documents need repeating preview watermarks'
         expect(page.locator('.ckb-document-loading')).to_have_count(0)
         reader_box=page.locator('.ckb-reader-dialog').bounding_box()
         assert reader_box['y']+reader_box['height'] <= page.viewport_size['height']+1
         assert original_frame.locator('body').evaluate("() => { try { return !!parent.document.body; } catch (_) { return false; } }") is False
         page.screenshot(path=str(args.output_dir/'word-original-desktop.png'),full_page=True,animations='disabled')
+        if args.reader_only:
+            page.get_by_role('button',name='放大文档',exact=True).click()
+            expect(page.locator('.ckb-document-controls')).to_contain_text('110%')
+            page.set_viewport_size({'width':390,'height':844})
+            expect(page.locator('iframe.ckb-document-frame')).to_be_visible()
+            page.screenshot(path=str(args.output_dir/'word-original-mobile.png'),full_page=True,animations='disabled')
+            assert not errors,errors
+            print(json.dumps({'reader':'passed','theme':args.theme,'errors':errors}),flush=True)
+            browser.close();server.shutdown();server.server_close();return
         page.get_by_role('button',name='下载水印副本',exact=True).click()
         expect(page.locator('.ckb-download-progress')).to_contain_text('水印 89/178 项',timeout=10000)
         expect(page.locator('.ckb-download-progress progress')).to_have_attribute('value','89')
