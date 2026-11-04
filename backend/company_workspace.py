@@ -716,9 +716,13 @@ def render_pdf_page(data, page):
 async def pdf_page(doc_id: str, page: int = Query(1, ge=1), user: User = Depends(kb.require_knowledge_user)):
     with SessionLocal() as db:
         doc = find_doc(db, doc_id, user)
-        if doc.format != 'PDF' or not doc.object_key:
+        from company_discovery import OFFICE_PAGES, reading_pdf
+        if doc.format not in OFFICE_PAGES | {'PDF'} or not doc.object_key:
             raise HTTPException(404, '该资料没有可预览的 PDF 原件。')
-        data = await asyncio.to_thread(document_store().get_bytes, doc.object_key)
+        try:
+            data = await asyncio.to_thread(reading_pdf, doc)
+        except WatermarkError as error:
+            raise HTTPException(error.status, str(error)) from None
     try:
         image, count = await asyncio.to_thread(render_pdf_page, data, page)
         identity = ExportIdentity(user.username, getattr(user, 'id', None), datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'), uuid.uuid4().hex)

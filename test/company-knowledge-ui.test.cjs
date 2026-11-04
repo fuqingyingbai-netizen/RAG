@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const component = vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../frontend/company-knowledge.js'), 'utf8') + '\nCompanyKnowledge;');
+const component = vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../frontend/company-knowledge.js'), 'utf8') + '\nCompanyKnowledge;', {AbortController,File});
 
 test('multiple chunks from one file become one card without losing citation IDs', () => {
   const references = [1, 2, 3, 4, 5].map(id => ({ id: String(id), document_id: 'file-a', title: 'Report' }));
@@ -196,8 +196,10 @@ test('pagination has disjoint pages, a partial last page and an empty range',()=
 });
 test('filter changes reset page and list scroll without losing cross-page selection',()=>{
  const context = {libraryPage:3,restoringView:false,selectedIds:['other-page'],scrolls:0,scrollLibraryTop(){this.scrolls++}};
- component.watch.libraryFilterKey.call(context); assert.equal(context.libraryPage,1); assert.equal(context.scrolls,1); assert.deepEqual(context.selectedIds,['other-page']);
- context.libraryPage=3;context.restoringView=true;component.watch.libraryFilterKey.call(context);assert.equal(context.libraryPage,3);
+ context.invalidateContentSearch = () => {};
+  component.watch.libraryFilterKey.call(context); assert.equal(context.libraryPage,1); assert.equal(context.scrolls,1); assert.deepEqual(context.selectedIds,['other-page']);
+ context.libraryPage=3;context.restoringView=true;context.invalidateContentSearch = () => {};
+  component.watch.libraryFilterKey.call(context);assert.equal(context.libraryPage,3);
 });
 test('page controls clamp to valid pages after the result set shrinks',()=>{
  const context = paginationContext(13,5);context.scrollLibraryTop=()=>{};
@@ -289,4 +291,49 @@ test('missing media description keeps the upload form editable and sends no requ
  await context.uploadFiles();assert.equal(sent,0);assert.equal(context.uploadBusy,false);
  assert.equal(context.uploadResults.length,0);assert.match(context.uploadError,/文字说明/);
  assert.equal(context.stagedFiles.length,1);
+});
+
+test('body search keeps filters but does not hide files whose titles lack the query',()=>{
+ const context=libraryContext();Object.assign(context,{searchMode:'content',query:'只在正文中出现',activeProjectId:'',activeFolderId:'',tagFilter:'',dateFrom:'',dateTo:'',mineOnly:false,recentUploadIds:[],currentCollection:'library',documents:[{id:'a',title:'普通文件',category:'项目原件',can_read:true,state:'ready'}]});
+ assert.equal(component.computed.filteredDocuments.call(context).length,1);
+ context.searchMode='metadata';assert.equal(component.computed.filteredDocuments.call(context).length,0);
+});
+
+test('a stale content-search response cannot refill a changed collection',async()=>{
+ let resolve;const response=new Promise(r=>resolve=r);
+ const context={query:'正文关键词',searchSequence:0,currentCollection:'library',searchDocumentIds:['library-file'],apiFetch:async()=>response};
+ const pending=component.methods.searchContent.call(context);
+ context.searchSequence++;context.currentCollection='experience';context.contentMatches=[];
+ resolve({ok:true,json:async()=>({matches:[{secret:'stale library result'}],total:1})});await pending;
+ assert.deepEqual(context.contentMatches,[]);
+});
+
+test('content search submits the exact currently filtered collection IDs',async()=>{
+ let request;const context={query:'经验方法',searchSequence:0,currentCollection:'experience',searchDocumentIds:[],apiFetch:async(_,options)=>{request=JSON.parse(options.body);return {ok:true,json:async()=>({matches:[],total:0})}}};
+ await component.methods.searchContent.call(context);assert.equal(request.scope,'experience');assert.deepEqual(request.document_ids,[]);assert.equal(context.contentBusy,false);
+});
+
+test('search snippet rendering treats imported markup as text',()=>{
+ const parts=component.methods.highlightedParts.call({query:'目标'},'<img src=x onerror=alert(1)>目标正文');
+ assert.equal(parts[0].text,'<img src=x onerror=alert(1)>');assert.equal(parts[1].match,true);assert.equal(parts[1].text,'目标');
+});
+
+test('media state never claims that the recording itself has been transcribed',()=>{
+ assert.equal(component.methods.knowledgeState({state:'ready',can_read:true,media_kind:'audio'}),'说明可检索');
+ assert.equal(component.methods.knowledgeState({state:'ready',can_read:true,format:'PNG'}),'识别文字可检索');
+});
+
+
+test('a quick text record becomes a searchable original note and retries do not duplicate it',async()=>{
+ const context={quickCapture:true,captureTitle:'现场经验',captureScene:'项目访谈',captureMethod:'先确认时间，再追问具体事例。',uploadForm:{description:'保留上下文'},stagedFiles:[],uploadResults:[]};
+ component.methods.prepareCaptureNote.call(context);assert.equal(context.stagedFiles.length,1);
+ const note=context.stagedFiles[0];assert.ok(note.name.endsWith('.md'));assert.ok((await note.text()).includes('先确认时间'));
+ component.methods.prepareCaptureNote.call(context);assert.equal(context.stagedFiles.length,1);
+ context.stagedFiles=[];context.uploadResults=[{id:'saved-note',name:note.name}];component.methods.prepareCaptureNote.call(context);assert.equal(context.stagedFiles.length,0);
+});
+
+test('Word citation matching uses the native renderer without overwriting its result from the server',async()=>{
+ let calls=0;const context={selectedDoc:{id:'word',has_original:true,format:'DOCX',references:[]},readerSequence:1,$nextTick:fn=>fn(),$refs:{nativeReader:{findSource(){calls++;}}},apiFetch(){throw Error('Native source matching must stay local');}};
+ await component.methods.locateReference.call(context,{id:'1',text:'原文中的引用'});assert.equal(calls,1);assert.equal(context.selectedDoc.references[0].text,'原文中的引用');assert.equal(context.locating,false);
+ context.selectedDoc={id:'legacy',has_original:false,references:[]};await component.methods.locateReference.call(context,{text:'历史引用'});assert.equal(context.readerMode,'excerpts');
 });
