@@ -553,7 +553,6 @@ class ChapterFlow:
         try:self.workflow._validate_delivery_report(self.project,report)
         except RuntimeError as exc:
             metadata.update(quality_warning=str(exc),delivery_status='review_draft')
-            report=self.workflow._prepend_review_draft_notice(report,str(exc))
         else:metadata['delivery_status']='final_candidate'
         artifact=self.workflow.save_artifact(self.db,self.project,'desktop_report',self.project.title+' · 公司研究报告',report,metadata)
         # These are final evidence receipts, referenced by the report and its

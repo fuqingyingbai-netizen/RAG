@@ -366,6 +366,11 @@ def test_full_company_flow_exports_fourteen_sections_and_keeps_raw_on_failed_gat
         assert report.artifact_metadata['report_pipeline_version']==COMPANY_REPORT_VERSION
         assert report.artifact_metadata['docx_object_key']
         assert report.artifact_metadata['company_delivery_contract']['delivery_ready'] is False
+        from report_agents.company_delivery_contract import report_hash
+        assert report.artifact_metadata['company_document_review']['report_sha256']==report_hash(report.content)
+        assert '待人工复核稿' not in report.content
+        assert '相同字节' not in '；'.join(report.artifact_metadata['company_delivery_contract']['errors'])
+        assert '重复章节正文' not in report.artifact_metadata.get('quality_warning','')
         assert p.status=='diagnostic' and added==0
         assert p.sources[0].content and store.get_text(key)
         assert (store.local_root/f'projects/{p.id}/company_chapter_flow/current.json').exists()

@@ -8165,7 +8165,7 @@ Do not infer controllable impact or low risk from absence of penalties. A single
         if target_type == "company":
             repeated_candidates = [
                 body for body in section_bodies
-                if "本次已检索公开来源未形成可引用记录；相关核验事项见第14章。" not in body
+                if body.strip() and "本次已检索公开来源未形成可引用记录；相关核验事项见第14章。" not in body
             ]
         repeated_bodies = len(repeated_candidates) - len(set(repeated_candidates))
         errors: list[str] = []
