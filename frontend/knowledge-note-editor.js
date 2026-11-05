@@ -51,7 +51,7 @@
             addNodeView(){return args=>component.imageView(args);},
           });
           const editor=new runtime.Editor({element:this.$refs.editorHost,content:clone(note.content),
-            extensions:[runtime.StarterKit.configure({heading:{levels:[1,2,3]},link:{openOnClick:false},trailingNode:false}),NoteImage,
+            extensions:[runtime.StarterKit.configure({heading:{levels:[1,2,3]},link:{openOnClick:false},trailingNode:{node:'paragraph'}}),NoteImage,
               runtime.Table.configure({resizable:false,allowTableNodeSelection:true}),runtime.TableRow,runtime.TableHeader,runtime.TableCell],
             editorProps:{attributes:{class:'kn-prose',role:'textbox','aria-label':'笔记正文','aria-multiline':'true',spellcheck:'false'},
               handlePaste:(view,event)=>{const files=[...(event.clipboardData?.items||[])].filter(item=>item.kind==='file').map(item=>item.getAsFile()).filter(Boolean);if(files.length){event.preventDefault();this.addFiles(files);return true;}return false;},
@@ -106,10 +106,23 @@
         item.state='uploading';item.error='';this.uploads=[...this.uploads];
         try{const data=new FormData();data.append('file',item.file);const response=await this.request('/images',{method:'POST',body:data});const asset=await response.json();if(this.destroyed)return;
           // Insert at the current caret without discarding edits made during upload.
-          this.editor.chain().focus().setImage({assetId:asset.id,width:80,caption:'',alt:item.file.name.replace(/\.[^.]+$/,''),ocrText:''}).run();item.state='done';this.error='';
+          const inserted=this.editor.chain().focus().setImage({assetId:asset.id,width:80,caption:'',alt:item.file.name.replace(/\.[^.]+$/,''),ocrText:''}).run();
+          if(!inserted)throw Error('图片已保存，请将光标移到正文位置后重试插入。');
+          let position=null,distance=Infinity;const caret=this.editor.state.selection.from;
+          this.editor.state.doc.descendants((node,pos)=>{if(node.type.name==='image'&&node.attrs.assetId===asset.id&&Math.abs(pos-caret)<distance){position=pos;distance=Math.abs(pos-caret);}});
+          this.continueAfterImage(position);item.state='done';this.error='';
         }catch(error){item.state='error';item.error=error.message;}finally{this.uploads=[...this.uploads];}
       },
       removeUpload(item){this.uploads=this.uploads.filter(value=>value!==item);},
+      continueAfterImage(position){
+        const editor=this.editor;if(!editor||typeof position!=='number')return;
+        const image=editor.state.doc.nodeAt(position);if(image?.type.name!=='image')return;
+        const after=position+image.nodeSize,tr=editor.state.tr,next=tr.doc.resolve(after).nodeAfter;
+        // Reuse an empty following paragraph; preserve existing text and all other images.
+        if(next?.type.name!=='paragraph'||next.content.size)tr.insert(after,editor.schema.nodes.paragraph.create());
+        tr.setSelection(window.KnowledgeNoteEngine.Selection.near(tr.doc.resolve(after+1))).scrollIntoView();
+        editor.view.dispatch(tr);editor.view.focus();
+      },
       async assetUrl(id){
         if(this.urls.has(id))return this.urls.get(id);if(this.images.has(id))return this.images.get(id);
         const lane=nextImageLane++%imageLanes.length;
@@ -127,10 +140,12 @@
         const ocr=document.createElement('button');ocr.type='button';ocr.textContent='识别图片文字';const remove=document.createElement('button');remove.type='button';remove.textContent='移除图片';controls.append(width,ocr,remove);
         const caption=document.createElement('input');caption.className='kn-image-caption';caption.placeholder='添加图片说明（参与检索）';caption.setAttribute('aria-label','图片说明');caption.maxLength=1000;caption.value=node.attrs.caption;
         const details=document.createElement('details');details.className='kn-image-ocr';const summary=document.createElement('summary');summary.textContent='图片识别文字 · 请核对';const text=document.createElement('textarea');text.value=node.attrs.ocrText;text.maxLength=20000;text.setAttribute('aria-label','图片识别文字');text.placeholder='点击“识别图片文字”后可在这里校正，也可手动补充。';details.append(summary,text);details.hidden=!node.attrs.ocrText;
-        figure.append(frame,controls,caption,details);
+        const write=document.createElement('button');write.type='button';write.className='kn-image-continue';write.textContent='在图片下继续写正文 ↓';write.onclick=()=>this.continueAfterImage(getPos());
+        figure.append(frame,controls,caption,details,write);
         const patch=attrs=>{if(disposed)return;const position=getPos();if(typeof position==='number')editor.view.dispatch(editor.state.tr.setNodeMarkup(position,undefined,{...current.attrs,...attrs}));};
         const load=async()=>{status.hidden=false;status.textContent='正在加载图片…';try{const url=await this.assetUrl(current.attrs.assetId);if(!disposed){img.src=url;status.hidden=true;}}catch{if(!disposed){status.textContent='图片加载失败，点击重试';status.hidden=false;}}};status.onclick=load;load();
         width.onchange=()=>patch({width:Number(width.value)});caption.oninput=()=>patch({caption:caption.value});text.oninput=()=>patch({ocrText:text.value});
+        caption.onkeydown=event=>{if(event.key==='Enter'&&!event.isComposing){event.preventDefault();this.continueAfterImage(getPos());}};
         remove.onclick=()=>{const pos=getPos();if(typeof pos==='number')editor.chain().focus().deleteRange({from:pos,to:pos+current.nodeSize}).run();};
         ocr.onclick=async()=>{if(current.attrs.ocrText&&!window.confirm('重新识别会替换当前图片文字，已校正的内容可通过撤销恢复。继续吗？'))return;ocr.disabled=true;ocr.textContent='正在识别…';try{const response=await this.request('/images/'+current.attrs.assetId+'/ocr',{method:'POST'});const result=await response.json();if(!disposed){details.hidden=false;details.open=true;if(result.text){patch({ocrText:result.text});text.value=result.text;}else this.error=result.message;}}catch(error){this.error=error.message;}finally{ocr.disabled=false;ocr.textContent='识别图片文字';}};
         handle.onpointerdown=event=>{event.preventDefault();handle.setPointerCapture(event.pointerId);const start=event.clientX,initial=figure.getBoundingClientRect().width,parent=figure.parentElement.getBoundingClientRect().width;let percent=current.attrs.width;
@@ -167,7 +182,7 @@
           <section class="kn-publication"><span class="kn-section-label">发布状态</span><strong :class="{'kn-failed':note?.index_state==='failed'}">{{indexLabel}}</strong><p v-if="note?.index_state==='failed'">{{note.index_message}}。点击“重试索引”可重试；已有可检索版本继续可用。</p><p v-else>编辑时自动保存草稿，点击发布后才更新检索。资料库与经验沉淀保持独立。</p><small>草稿 R{{note?.revision}}<template v-if="note?.indexed_revision"> · 可检索 R{{note.indexed_revision}}</template></small></section>
           <section><span class="kn-section-label">随笔记一起保存</span><p>标题、正文、表格、图片说明与校正后的识别文字会进入检索；图片本身作为附件保留。</p><p class="kn-privacy"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>继承所在项目的保密等级与访问权限。</p><small>创建人：{{note?.created_by}}<br>最近修改：{{note?.modified_by}}</small></section>
           <section><span class="kn-section-label">导出当前草稿</span><button class="kn-export" :disabled="blocked||exporting" @click="exportFile('docx')"><span>W</span><strong>Word 文档<small>可编辑 · 内嵌图片 · 下载水印</small></strong><b>↗</b></button><button class="kn-export" :disabled="blocked||exporting" @click="exportFile('markdown')"><span>M↓</span><strong>MD ＋ 图片<small>完整 ZIP 包 · 保留图片相对路径</small></strong><b>↗</b></button><p v-if="exporting" role="status">正在准备带水印的文件，请稍候…</p></section>
-          <section class="kn-help"><button :aria-expanded="helpOpen" @click="helpOpen=!helpOpen">操作提示 <span>{{helpOpen?'−':'＋'}}</span></button><div v-if="helpOpen"><p>点击图片下方可添加说明；拖动右下角或选择百分比调整大小。</p><p>点击“识别图片文字”，核对后保存。识别不出时可以手动补充。</p><p>表格中按 Tab 移动单元格，选中单元格后可加行、加列和合并。</p><p>关闭时会先保存。保存失败会明确提示，请重试或下载本机恢复副本。</p><p>标题、正文和发布操作都会记录操作人、时间与前后内容。草稿仅项目创建者和管理员可编辑查看。</p></div></section>
+          <section class="kn-help"><button :aria-expanded="helpOpen" @click="helpOpen=!helpOpen">操作提示 <span>{{helpOpen?'−':'＋'}}</span></button><div v-if="helpOpen"><p>插图后光标会进入下方正文，可以直接打字。填写图片说明后，点击“在图片下继续写正文”返回正文；说明框只填写这张图的说明。</p><p>拖动图片右下角或选择百分比调整大小。点击“识别图片文字”，核对后保存；识别不出时可手动补充。</p><p>表格中按 Tab 移动单元格，选中单元格后可加行、加列和合并。</p><p>关闭时会先保存。保存失败会明确提示，请重试或下载本机恢复副本。</p><p>标题、正文和发布操作都会记录操作人、时间与前后内容。草稿仅项目创建者和管理员可编辑查看。</p></div></section>
           <section class="kn-help"><button :aria-expanded="historyOpen" @click="showHistory">修改记录 <span>{{historyOpen?'−':'＋'}}</span></button><div v-if="historyOpen" class="kn-history"><p v-if="historyError">{{historyError}}</p><p v-if="!events.length&&!historyError">暂无记录。</p><details v-for="event in events" :key="event.id"><summary>{{historyLabel(event.action)}} · {{event.actor}}<small>{{new Date(event.created_at).toLocaleString('zh-CN')}}</small></summary><pre>{{historyContent(event.changes)}}</pre></details><small>显示最近 100 条操作。</small></div></section>
         </aside></div>
       </div>

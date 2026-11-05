@@ -20,7 +20,7 @@ import company_notes
 
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--output-dir',type=Path,required=True);parser.add_argument('--assets-dir',type=Path,required=True);args=parser.parse_args();args.output_dir.mkdir(parents=True,exist_ok=True)
+    parser=argparse.ArgumentParser();parser.add_argument('--output-dir',type=Path,required=True);parser.add_argument('--assets-dir',type=Path,required=True);parser.add_argument('--writing-regression',action='store_true');args=parser.parse_args();args.output_dir.mkdir(parents=True,exist_ok=True)
     with TemporaryDirectory(prefix='note-qa-',ignore_cleanup_errors=True) as temp:
         patch=pytest.MonkeyPatch();generator=setup.__wrapped__(patch,Path(temp));state=next(generator)
         import company_memory
@@ -48,7 +48,9 @@ def main():
                 self.send_response(response.status_code)
                 for key,value in response.headers.items():
                     if key.lower() not in ('transfer-encoding','connection','content-encoding'):self.send_header(key,value)
-                self.end_headers();self.wfile.write(response.content)
+                self.end_headers()
+                try:self.wfile.write(response.content)
+                except (BrokenPipeError,ConnectionAbortedError,ConnectionResetError):pass
         html='''<!doctype html><html lang="zh-CN" data-knowledge-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/qa-vendor/element.css"><link rel="stylesheet" href="/qa-vendor/icons.css"><link rel="stylesheet" href="/company-knowledge.css"><link rel="stylesheet" href="/company-knowledge-universe.css"><link rel="stylesheet" href="/knowledge-note-editor.css"><style>body{margin:0;background:radial-gradient(ellipse at 15% 60%,#9cdbe5aa,transparent 60%),linear-gradient(120deg,#d5e6f7,#e8dff4);font-family:system-ui,sans-serif}.backdrop{padding:80px;color:#42687b;font-size:32px}</style></head><body><div class="backdrop">经验沉淀 · 项目空间</div><div id="app"><knowledge-note-editor v-if="opened" :note-id="noteId" :fetch-api="api" username="alice" @close="opened=false"></knowledge-note-editor><button v-else id="reopen" @click="opened=true">继续编辑</button></div><script src="/qa-vendor/vue.js"></script><script src="/qa-vendor/element.js"></script><script src="/knowledge-note-editor.js"></script><script>const app=Vue.createApp({components:{KnowledgeNoteEditor},data:()=>({opened:true,noteId:NOTEID}),methods:{api:(url,options)=>fetch(url,options)}});app.use(ElementPlus);window.app=app.mount('#app');</script></body></html>'''.replace('NOTEID',json.dumps(note['id']))
         full_html=html.replace('<knowledge-note-editor v-if="opened" :note-id="noteId" :fetch-api="api" username="alice" @close="opened=false"></knowledge-note-editor><button v-else id="reopen" @click="opened=true">继续编辑</button>', '<company-knowledge/>').replace('<script src="/knowledge-note-editor.js"></script>', '<script src="/knowledge-note-editor.js"></script><script src="/company-knowledge.js"></script>').replace('components:{KnowledgeNoteEditor}', 'components:{KnowledgeNoteEditor,CompanyKnowledge}')
         server=ThreadingHTTPServer(('127.0.0.1',0),partial(Handler,directory=str(ROOT/'frontend')));threading.Thread(target=server.serve_forever,daemon=True).start()
@@ -56,6 +58,12 @@ def main():
             print('QA: launching browser',flush=True);browser=playwright.chromium.launch(channel='msedge',headless=True);page=browser.new_page(viewport={'width':1440,'height':1000},accept_downloads=True);errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
             try:
                 print('QA: opening editor',flush=True);page.goto('http://127.0.0.1:'+str(server.server_port)+'/');expect(page.get_by_role('textbox',name='笔记正文')).to_be_visible()
+                if args.writing_regression:
+                    check_writing(page,state,note,args,Path(temp))
+                    assert not errors,errors
+                    print(json.dumps({'status':'passed','checks':['legacy image-only draft','visible continue-writing action','caption remains separate','typing immediately after upload','no duplicate empty paragraphs','multiple images preserved','server save/reopen','light/dark/mobile'],'console_errors':errors},ensure_ascii=False))
+                    browser.close();server.shutdown();generator.close();patch.undo()
+                    return
                 print('QA: editor ready',flush=True);page.get_by_role('textbox',name='笔记标题').fill('一线访谈 · 可复用经验')
                 body=page.get_by_role('textbox',name='笔记正文');body.fill('先确认研究目标，再记录事实与判断。')
                 page.get_by_role('button',name='加粗',exact=True).click();page.keyboard.type(' 需要核对关键结论。');page.get_by_role('button',name='加粗',exact=True).click()
@@ -123,6 +131,40 @@ def main():
                 print('FAIL:',str(error),flush=True);page.screenshot(path=str(args.output_dir/'failure.png'));print('Browser errors:',errors);raise
             finally:browser.close()
         server.shutdown();generator.close();patch.undo()
+
+
+def check_writing(page,state,note,args,temp):
+    picture=io.BytesIO();Image.new('RGB',(600,220),'#74aebe').save(picture,'PNG')
+    base='/company-knowledge/notes/'+note['id']
+    asset=state.client.post(base+'/images',files={'file':('legacy.png',picture.getvalue(),'image/png')}).json()
+    original={'type':'doc','content':[{'type':'image','attrs':{'assetId':asset['id'],'width':80,'caption':'已有图片说明','ocrText':''}}]}
+    response=state.client.patch(base,json={'revision':1,'title':'只有图片的历史草稿','content':original});assert response.status_code==200
+    page.reload();body=page.get_by_role('textbox',name='笔记正文',exact=True)
+    write=page.get_by_role('button',name='在图片下继续写正文 ↓',exact=True)
+    expect(write).to_be_visible();write.click();page.keyboard.insert_text('照片后的第一段正文。')
+    expect(body.locator('p')).to_contain_text(['照片后的第一段正文。'])
+    expect(page.get_by_role('textbox',name='图片说明',exact=True)).to_have_value('已有图片说明')
+    page.get_by_role('textbox',name='图片说明',exact=True).fill('单独修改的图片说明')
+    page.get_by_role('textbox',name='图片说明',exact=True).press('Enter')
+    write.click();write.click();assert body.locator('p').count()==2
+    page.keyboard.insert_text('补充一段正文。');expect(body).to_contain_text('照片后的第一段正文。')
+    # Upload an image and type without any arrow-key workaround or paragraph selection.
+    file=temp/'new-image.png';file.write_bytes(picture.getvalue());page.locator('input[type=file]').set_input_files(str(file))
+    expect(body.locator('.kn-image')).to_have_count(2,timeout=30000)
+    page.wait_for_function("document.activeElement?.classList.contains('kn-prose')")
+    page.keyboard.insert_text('新图后直接继续输入。');expect(body).to_contain_text('新图后直接继续输入。')
+    expect(page.get_by_role('textbox',name='图片说明',exact=True).first).to_have_value('单独修改的图片说明')
+    assert body.locator('figure').evaluate_all("figures=>figures.every(f=>f.nextElementSibling?.tagName==='P')")
+    page.get_by_role('button',name='保存',exact=True).click();expect(page.locator('.kn-save-status')).to_contain_text('草稿已保存')
+    saved=state.client.get(base).json()['content'];assert sum(node['type']=='image' for node in saved['content'])==2
+    page.reload();body=page.get_by_role('textbox',name='笔记正文',exact=True);expect(body).to_contain_text('照片后的第一段正文。');expect(body).to_contain_text('新图后直接继续输入。')
+    page.wait_for_function("[...document.querySelectorAll('.kn-image img')].length===2&&[...document.querySelectorAll('.kn-image img')].every(image=>image.complete&&image.naturalWidth>0)")
+    for theme in ('light','dark'):
+        page.evaluate('theme=>document.documentElement.dataset.knowledgeTheme=theme',theme)
+        page.screenshot(path=str(args.output_dir/('continue-writing-'+theme+'.png')),animations='disabled')
+    page.set_viewport_size({'width':390,'height':844});page.get_by_role('button',name='在图片下继续写正文 ↓',exact=True).first.click();page.keyboard.insert_text('手机宽度也可接着写。');expect(body).to_contain_text('手机宽度也可接着写。')
+    assert page.evaluate('document.documentElement.scrollWidth')<=390
+    page.screenshot(path=str(args.output_dir/'continue-writing-mobile.png'),animations='disabled')
 
 
 if __name__=='__main__':main()
