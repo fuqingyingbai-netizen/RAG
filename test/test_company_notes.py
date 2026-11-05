@@ -150,3 +150,46 @@ def test_structured_content_validation_and_table_roundtrip():
                  {'type':'table','content':[{'type':'tableRow','content':[{'type':'tableCell','attrs':{'colspan':'2'},'content':[{'type':'paragraph'}]}]}]}]:
         from fastapi import HTTPException
         with pytest.raises(HTTPException):checked_content({'type':'doc','content':[node]},set())
+
+
+def nested_editor_table():
+    paragraph=lambda text: {'type':'paragraph','content':[{'type':'text','text':text}]}
+    table={'type':'table','content':[{'type':'tableRow','content':[{'type':'tableCell','content':[paragraph('表格中的事实')]}]}]}
+    return {'type':'doc','content':[{'type':'bulletList','content':[{'type':'listItem','content':[paragraph('列表中的研究事项'),table]}]}]}
+
+
+def test_editor_table_in_list_is_valid_and_portable():
+    clean=checked_content(nested_editor_table(),set())
+    assert '表格中的事实' in markdown('列表与表格',clean)
+    with zipfile.ZipFile(io.BytesIO(word_document('列表与表格',clean,{}))) as doc:
+        xml=doc.read('word/document.xml').decode()
+        assert '表格中的事实' in xml and '<w:tbl>' in xml
+
+
+@pytest.mark.parametrize('container',['blockquote','tableCell','tableHeader'])
+def test_editor_block_containers_accept_the_same_blocks_as_tiptap(container):
+    item=nested_editor_table()['content'][0]
+    wrapped={'type':container,'content':[item]}
+    if container!='blockquote':wrapped={'type':'table','content':[{'type':'tableRow','content':[wrapped]}]}
+    clean=checked_content({'type':'doc','content':[wrapped]},set())
+    with zipfile.ZipFile(io.BytesIO(word_document('复杂图文',clean,{}))) as doc:
+        assert '表格中的事实' in doc.read('word/document.xml').decode()
+
+
+def test_nested_blocks_still_enforce_structure_depth_and_safe_nodes():
+    from fastapi import HTTPException
+    for children in ([{'type':'table','content':[]}],[{'type':'paragraph'},{'type':'script'}]):
+        with pytest.raises(HTTPException):checked_content({'type':'doc','content':[{'type':'bulletList','content':[{'type':'listItem','content':children}]}]},set())
+    nested={'type':'paragraph'}
+    for _ in range(20):nested={'type':'blockquote','content':[nested]}
+    with pytest.raises(HTTPException):checked_content({'type':'doc','content':[nested]},set())
+
+
+def test_nested_editor_blocks_save_publish_and_export(setup):
+    _,note=create(setup)
+    saved=save(setup,note,nested_editor_table())
+    assert saved['content']==checked_content(nested_editor_table(),set())
+    assert setup.client.get('/company-knowledge/notes/'+note['id']).json()['content']==saved['content']
+    for fmt in ['docx','markdown']:
+        assert setup.client.get('/company-knowledge/notes/'+note['id']+'/export',params={'draft':True,'format':fmt}).status_code==200
+    assert publish(setup,saved)['pending_document_id']

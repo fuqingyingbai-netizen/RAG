@@ -7,15 +7,18 @@ from urllib.parse import urlsplit
 from fastapi import HTTPException
 
 EMPTY = {'type': 'doc', 'content': [{'type': 'paragraph'}]}
+BLOCKS = {'paragraph', 'heading', 'bulletList', 'orderedList', 'blockquote', 'codeBlock', 'horizontalRule', 'table', 'image'}
 CHILDREN = {
-    'doc': {'paragraph', 'heading', 'bulletList', 'orderedList', 'blockquote', 'codeBlock', 'horizontalRule', 'table', 'image'},
+    'doc': BLOCKS,
     'paragraph': {'text', 'hardBreak'}, 'heading': {'text', 'hardBreak'}, 'codeBlock': {'text'},
     'bulletList': {'listItem'}, 'orderedList': {'listItem'},
-    'listItem': {'paragraph', 'bulletList', 'orderedList', 'image'},
-    'blockquote': {'paragraph', 'heading', 'bulletList', 'orderedList'},
+    # Match Tiptap's `paragraph block*` and `block+` containers. Inserting a
+    # table while a list is active produces a table inside a list item.
+    'listItem': BLOCKS,
+    'blockquote': BLOCKS,
     'table': {'tableRow'}, 'tableRow': {'tableCell', 'tableHeader'},
-    'tableCell': {'paragraph', 'heading', 'bulletList', 'orderedList', 'image'},
-    'tableHeader': {'paragraph', 'heading', 'bulletList', 'orderedList', 'image'},
+    'tableCell': BLOCKS,
+    'tableHeader': BLOCKS,
     'text': set(), 'hardBreak': set(), 'horizontalRule': set(), 'image': set(),
 }
 
@@ -79,7 +82,8 @@ def checked_content(value, asset_ids):
             result['attrs'] = spans
         content = node.get('content', [])
         if not isinstance(content,list) or any(not isinstance(child,dict) or child.get('type') not in CHILDREN[kind] for child in content): invalid()
-        if kind in ('bulletList','orderedList','listItem','table','tableRow','tableCell','tableHeader') and not content: invalid()
+        if kind in ('bulletList','orderedList','listItem','blockquote','table','tableRow','tableCell','tableHeader') and not content: invalid()
+        if kind=='listItem' and content[0]['type']!='paragraph':invalid('列表项需以正文段落开头，请保留内容并重新整理列表。')
         if kind=='table' and len(content)>100: invalid('单个表格最多 100 行，请拆分表格。')
         if content: result['content']=[walk(child,depth+1) for child in content]
         if kind=='tableRow' and sum(cell.get('attrs',{}).get('colspan',1) for cell in result['content'])>12: invalid('单个表格最多 12 列。')
@@ -144,7 +148,11 @@ def markdown(title, content):
             return result+'\n\n'
         if kind=='table':
             width,cells=table_grid(node);grid=[['']*width for _ in children]
-            for row,col,_,_,cell in cells:grid[row][col]=' '.join(walk(c,depth) for c in cell.get('content',[])).strip().replace('\n','<br>')
+            for row,col,_,_,cell in cells:
+                text=' '.join(walk(c,depth) for c in cell.get('content',[])).strip().replace('\n','<br>')
+                # Nested tables become readable cell text in portable GFM. Their
+                # separators must not accidentally create extra outer columns.
+                grid[row][col]=re.sub(r'(?<!\\)\|',r'\|',text)
             return '\n'.join(['| '+' | '.join(grid[0])+' |','| '+' | '.join(['---']*width)+' |',*['| '+' | '.join(row)+' |' for row in grid[1:]]])+'\n\n'
         if kind in ('bulletList','orderedList'):
             rows=[]

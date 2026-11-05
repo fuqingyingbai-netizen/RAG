@@ -20,7 +20,7 @@ import company_notes
 
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--output-dir',type=Path,required=True);parser.add_argument('--assets-dir',type=Path,required=True);parser.add_argument('--writing-regression',action='store_true');args=parser.parse_args();args.output_dir.mkdir(parents=True,exist_ok=True)
+    parser=argparse.ArgumentParser();parser.add_argument('--output-dir',type=Path,required=True);parser.add_argument('--assets-dir',type=Path,required=True);parser.add_argument('--writing-regression',action='store_true');parser.add_argument('--table-regression',action='store_true');args=parser.parse_args();args.output_dir.mkdir(parents=True,exist_ok=True)
     with TemporaryDirectory(prefix='note-qa-',ignore_cleanup_errors=True) as temp:
         patch=pytest.MonkeyPatch();generator=setup.__wrapped__(patch,Path(temp));state=next(generator)
         import company_memory
@@ -58,6 +58,27 @@ def main():
             print('QA: launching browser',flush=True);browser=playwright.chromium.launch(channel='msedge',headless=True);page=browser.new_page(viewport={'width':1440,'height':1000},accept_downloads=True);errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
             try:
                 print('QA: opening editor',flush=True);page.goto('http://127.0.0.1:'+str(server.server_port)+'/');expect(page.get_by_role('textbox',name='笔记正文')).to_be_visible()
+                if args.table_regression:
+                    note_path='**/company-knowledge/notes/'+note['id']
+                    page.route(note_path,lambda route:route.fulfill(status=422,json={'detail':'笔记格式不完整，请重试或恢复最近保存的草稿。'}) if route.request.method=='PATCH' else route.continue_())
+                    body=page.get_by_role('textbox',name='笔记正文');body.fill('列表中的研究事项')
+                    page.get_by_role('button',name='• 列表',exact=True).click();page.get_by_title('插入三行三列表格',exact=True).click()
+                    expect(body.locator('li table')).to_have_count(1)
+                    body.locator('th').first.click();page.keyboard.insert_text('列表里的表格也能保存')
+                    page.get_by_role('button',name='下方加行',exact=True).click();page.get_by_role('button',name='右侧加列',exact=True).click()
+                    expect(body.locator('tr')).to_have_count(4);expect(body.locator('tr').first.locator('th,td')).to_have_count(4)
+                    page.get_by_role('button',name='保存',exact=True).click();expect(page.locator('.kn-save-status')).to_contain_text('保存失败')
+                    expect(body).to_contain_text('列表里的表格也能保存');page.unroute(note_path)
+                    page.get_by_role('button',name='重试保存',exact=True).click();expect(page.locator('.kn-save-status')).to_contain_text('草稿已保存',timeout=30000)
+                    page.reload();expect(body.locator('li table')).to_have_count(1);expect(body).to_contain_text('列表里的表格也能保存')
+                    with page.expect_download() as info:page.get_by_role('button',name='Word 文档',exact=False).click()
+                    info.value.save_as(str(args.output_dir/'nested-table.docx'))
+                    with page.expect_download() as info:page.get_by_role('button',name='MD ＋ 图片',exact=False).click()
+                    info.value.save_as(str(args.output_dir/'nested-table.zip'))
+                    page.get_by_role('button',name='发布笔记',exact=True).click();expect(page.locator('.kn-publication')).to_contain_text('正在建立索引')
+                    page.screenshot(path=str(args.output_dir/'nested-table.png'),animations='disabled');assert not errors,errors
+                    print(json.dumps({'status':'passed','checks':['table inside active list','4x4 expansion','server save/reopen','Word export','Markdown export','publish'],'console_errors':errors},ensure_ascii=False))
+                    browser.close();server.shutdown();generator.close();patch.undo();return
                 if args.writing_regression:
                     check_writing(page,state,note,args,Path(temp))
                     assert not errors,errors
