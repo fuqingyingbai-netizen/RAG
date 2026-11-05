@@ -19,13 +19,25 @@
 3. 用代码锚点记录依据。特别核对前端开关是否被后端固定策略覆盖、上传成功是否还需索引、管理员与上传者/项目创建人的权限是否相同。
 4. 重新生成用户指南，运行相关回归和浏览器检查，再集成最新主分支。主分支再有变化时检查受影响主题。
 
+5. 同时更新目录中的 `product_release` 说明版本、核对日期及已实现的变更；这与研究模型版本、报告历史版本不同。小助手“本次更新”读取这份已部署目录，后端部署标识从启动时的 release-manifest 读取，不依据历史聊天猜版本。不要只在聊天提示词里写更新内容。
+
+## 当前目录与顶层入口
+
+前端通过知识库组件的 `assistantHelpContext()` 提供当前模式、弹窗种类和项目/目录/笔记ID，不上传编辑器正文、项目说明或手填路径。后端 `assistant_product_context.resolve_location` 按登录账号、知识库资格、索引和项目权限只读核对名称，子目录必须属于同一项目；已打开笔记使用笔记真实归档字段，避免后台页面位置与笔记位置不一致。无权限或无效ID不返回名称、不猜保存结果。只解释位置和用法，不替用户上传、保存、发布或执行操作。
+
+必须保留三种入口的差异：“上传文件”使用当前目录；本人可管理的经验项目中“新建图文笔记”使用当前目录，其他位置回到自己的待整理项目；“随手记录”固定进入自己的待整理项目。变更任何入口时须同步操作说明与位置回归。小助手通过 Vue Teleport 独立置于 body 顶层；只有浮动入口或面板可接收点击，透明全屏层不能挡住业务页面，且须验证打开笔记弹窗时助手仍可输入、关闭助手不丢失草稿。
+
 ```powershell
 E:\projects\RAG\.venv\Scripts\python.exe scripts/build-system-guide.py
 E:\projects\RAG\.venv\Scripts\python.exe scripts/build-system-guide.py --check
+E:\projects\RAG\.venv\Scripts\python.exe scripts/build-assistant-assets.py
+E:\projects\RAG\.venv\Scripts\python.exe scripts/build-knowledge-assets.py
 $env:PYTHONPATH='backend'
 E:\projects\RAG\.venv\Scripts\python.exe -m pytest test/test_product_guide.py test/test_assistant_online.py test/test_assistant_memory.py test/test_guide_and_report_archive.py -q
 node --test test/*.cjs
 ```
+
+本轮助手改动还应运行 `test/test_assistant_product_context.py`，并用 `scripts/check-assistant-knowledge-ui.py --output-dir <输出目录>` 核对真实前端、隔离数据库、目录问答和笔记弹窗上层输入。生产检查不能为了演示创建测试项目、笔记或发布到公司索引。
 
 测试会核对现有页面是否都有指南、代码锚点是否仍存在、生成文档是否同步，以及具体问题匹配、权限过滤、不会向外搜索、聊天兼容和未知功能处理。测试不能自动判断所有新按钮的业务含义，新增功能仍需维护者读代码后补充，不能承诺指南随任何代码变化自动完善。
 

@@ -149,6 +149,11 @@ const CompanyKnowledge = {
   mounted() { this.restoreTheme(); this.loadService(); this.$nextTick(() => { this.syncTabIndicator(); if (typeof ResizeObserver !== 'undefined') { this.tabObserver = new ResizeObserver(() => this.syncTabIndicator()); this.tabObserver.observe(this.$el.querySelector('.ckb-tabs')); } }); this.pollClock = setInterval(() => { if (this.canAsk && !document.hidden && (this.pendingCount || !this.lastCataloguePoll || Date.now() - this.lastCataloguePoll > 29000)) { this.lastCataloguePoll = Date.now(); this.loadDocuments(false, false); this.loadAccessRequests(); this.loadMyProjects(); } }, 6000); },
   beforeUnmount() { this.contentController?.abort(); this.searchSequence++; this.tabObserver?.disconnect(); clearTimeout(this.directoryTimer); if (typeof document !== 'undefined' && document.documentElement) delete document.documentElement.dataset.knowledgeTheme; this.chatDisposed = true; this.chatGeneration++; this.requestsActive = false; this.cancelPendingReads(); this.controller?.abort(); clearInterval(this.activityClock); clearInterval(this.pollClock); this.releaseReader(); },
   methods: {
+    assistantHelpContext() {
+      return {mode:this.mode, project_id:this.activeProjectId || '', folder_id:this.activeFolderId || '',
+        note_id:this.noteEditorId || '', collection:this.currentCollection,
+        dialog:this.noteEditorId ? 'note' : this.uploadOpen ? (this.quickCapture ? 'capture' : 'upload') : this.projectEditorOpen ? 'project' : this.folderEditorOpen ? 'folder' : this.readerOpen ? 'reader' : ''};
+    },
     invalidateContentSearch() { this.searchSequence++; this.contentController?.abort(); this.contentBusy = false; this.contentMatches = []; this.contentTotal = 0; this.contentSearched = false; this.contentError = ''; },
     setSearchMode(mode) { this.searchMode = mode; this.invalidateContentSearch(); },
     async searchContent(page = 1) {

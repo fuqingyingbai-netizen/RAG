@@ -67,6 +67,18 @@ test('pasting a screenshot handles images while plain text keeps normal paste be
   assert.equal(calls,1);assert.equal(prevented,1);
 });
 
+test('knowledge help sends scope IDs only and drops scope on other pages', async () => {
+  const { state } = context(); state.currentUser={username:'alice'}; state.applyAssistantState(cloudState());
+  state.$refs={knowledgeWorkspace:{assistantHelpContext:()=>({mode:'cases',collection:'experience',dialog:'note',project_id:'project-1',folder_id:'folder-2',note_id:'note-3'})}};
+  const sent=[];
+  state.authFetch=async(url,options)=>{sent.push(JSON.parse(options.body));return {ok:true,body:{getReader:()=>({read:async()=>({done:true})})}}};
+  state.activeView='company-knowledge';state.assistantInput='笔记存在哪？';await state.sendAssistantMessage();
+  assert.equal(sent[0].knowledge_context.folder_id,'folder-2');assert.equal(sent[0].knowledge_context.note_id,'note-3');
+  assert.ok(!('content' in sent[0].knowledge_context));
+  state.activeView='home';state.assistantInput='现在系统什么版本？';await state.sendAssistantMessage();
+  assert.equal(sent[1].knowledge_context,undefined);
+});
+
 test('a newly signed-in account cannot inherit the previous account conversation', async () => {
   const { state } = context();
   state.currentUser = { username: 'alice' };

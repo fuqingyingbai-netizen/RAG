@@ -47,7 +47,7 @@ def answer_screenshot(workflow, request, role, on_event, cancelled):
     from assistant_model import assistant_model
     from product_guide import search_guide, answer_from_lookup, find_topics, is_product_question
     from assistant_memory import recent_window, SUMMARY_CHARS
-    from system_guide import guide_answer, page_for_role, guide_text
+    from system_guide import guide_answer, answer_for_request, page_for_role, guide_text
     if cancelled.is_set():
         return '', ''
     model = assistant_model(workflow)
@@ -101,7 +101,7 @@ def answer_screenshot(workflow, request, role, on_event, cancelled):
         # model labels an explicit product question as casual image chat.
         if is_product_question(request.message):
             page = page_for_role(request.current_page, role)
-            answer = guide_answer(request.message, page, role) or answer_from_lookup(search_guide({'query': request.message[:300]}, page, role))
+            answer = answer_for_request(request, role) or answer_from_lookup(search_guide({'query': request.message[:300]}, page, role))
             return answer, ''
         answer = result.get('answer')
         if isinstance(answer, str) and answer.strip():
@@ -125,6 +125,6 @@ def answer_screenshot(workflow, request, role, on_event, cancelled):
     if role != 'admin' and admin_topic:
         answer = guide_answer(admin_topic['title'], page, role)
     else:
-        answer = guide_answer(query, page, role) or answer_from_lookup(search_guide({'query': query}, page, role))
+        answer = answer_for_request(request.model_copy(update={'message': query}), role) or answer_from_lookup(search_guide({'query': query}, page, role))
     observation = '截图识别（可能不准确）：' + '、'.join(labels) + '。使用问题：' + query
     return '截图中可辨认的界面文字：' + '、'.join(labels) + '。\n\n' + answer, observation

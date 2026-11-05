@@ -2478,13 +2478,15 @@ async def research_assistant_stream(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from system_guide import page_for_role, model_answer, guide_answer, navigation
+    from system_guide import page_for_role, model_answer, answer_for_request, navigation
+    from assistant_product_context import resolve_location
     from assistant_memory import start_turn, context_plan, prepare_context, finish_turn, interrupt_turn
     from assistant_images import answer_screenshot, image_question
     question = request.message.strip()
     if not question and not request.images:
         raise HTTPException(400, '问题不能为空')
     page = page_for_role(request.current_page, current_user.role)
+    request._guide_location = resolve_location(db, current_user, request)
     request_id = request.request_id or str(uuid4())
     stored_question = image_question(question, len(request.images)) if request.images else question
     thread_id, lease = start_turn(db, current_user.id, request.session_id, stored_question, request_id)
@@ -2509,7 +2511,7 @@ async def research_assistant_stream(
                     'recent_messages': [{'role': row['role'], 'content': row['content']} for row in context['recent']]})
                 answer, observation = answer_screenshot(research_workflow, prompt_request, role, emit, cancelled)
                 return answer, dict(context, image_observation=observation)
-            answer = guide_answer(question, page, role)
+            answer = answer_for_request(request, role)
             if answer:
                 # Deterministic operating instructions remain available without
                 # any model call, even when a long chat is due for summarization.

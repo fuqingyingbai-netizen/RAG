@@ -2,7 +2,8 @@
 
 from datetime import date
 
-from pydantic import BaseModel, Field, StrictBool, field_validator, model_validator
+from typing import Literal
+from pydantic import BaseModel, Field, StrictBool, PrivateAttr, field_validator, model_validator
 
 
 class ResearchProjectCreate(BaseModel):
@@ -166,7 +167,19 @@ class ResearchAssistantImport(BaseModel):
     summary: str = Field(default='', max_length=8000)
 
 
+class AssistantKnowledgeContext(BaseModel):
+    # Only IDs, never client-supplied project names or document contents.
+    mode: Literal['home', 'library', 'cases', 'chat'] = 'home'
+    collection: Literal['library', 'experience'] = 'library'
+    dialog: Literal['', 'note', 'capture', 'upload', 'project', 'folder', 'reader'] = ''
+    project_id: str = Field(default='', max_length=64)
+    folder_id: str = Field(default='', max_length=64)
+    note_id: str = Field(default='', max_length=64)
+
+
 class ResearchAssistantRequest(BaseModel):
+    knowledge_context: Optional[AssistantKnowledgeContext] = None
+    _guide_location: dict = PrivateAttr(default_factory=dict)
     session_id: Optional[str] = Field(default=None, pattern=r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
     request_id: Optional[str] = Field(default=None, pattern=r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
     current_page: str = Field(default="submit", max_length=40)

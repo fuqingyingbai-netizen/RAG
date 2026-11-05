@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="accounts.css" />
   <link rel="stylesheet" href="personal-home.css" />
   <link rel="stylesheet" href="report-versions.css" />
-  <link rel="stylesheet" href="assistant.css" />
+  <link rel="stylesheet" href="assistant.c61caada37a7.css" />
   <link rel="stylesheet" href="workbench-theme.f50728f0293b.css" />
   <link rel="stylesheet" href="company-knowledge-universe.css" />
   <link rel="stylesheet" href="company-knowledge-glass.0949b880920f.css" />
@@ -130,7 +130,7 @@
           <div class="task-workspace-actions"><el-button plain :class="{ 'is-active': activeView === 'sources' }" :aria-current="activeView === 'sources' ? 'page' : undefined" @click="switchView('sources')"><i class="fa-solid fa-database" aria-hidden="true"></i><span>溯源库</span></el-button><el-button type="primary" :disabled="submitting" @click="switchView('submit')"><i class="fa-solid fa-plus" aria-hidden="true"></i><span>新建任务</span></el-button></div>
         </div>
         <personal-home v-if="activeView === 'home'" :request="authFetch" :read="readJSON" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @filter-tasks="openHomeTaskFilter" @open-project="openHomeProject" @view-versions="report => openReportVersions({id:report.project_id, title:report.project_title}, report.artifact_type)"></personal-home>
-        <company-knowledge v-if="activeView === 'company-knowledge'" :projects="projects" :feedback="runAction" :operation-state="pendingActions"></company-knowledge>
+        <company-knowledge ref="knowledgeWorkspace" v-if="activeView === 'company-knowledge'" :projects="projects" :feedback="runAction" :operation-state="pendingActions"></company-knowledge>
 
         <account-management v-if="activeView === 'accounts' && currentUser?.role === 'admin'" :request="authFetch" @session-invalidated="handleLogout"></account-management>
         <el-dialog v-model="taskCreateOpen" title="新建尽调任务" width="min(860px, 94vw)" :close-on-click-modal="false" class="task-create-dialog">
@@ -417,7 +417,9 @@
       </el-main>
     </el-container>
 
-    <button v-if="!assistantOpen" ref="assistantLauncher" class="assistant-fab" aria-label="打开小助手" :style="assistantFabStyle" @mousedown.stop="startAssistantDrag($event, 'launcher')" @click="toggleAssistant"><img src="aizhushou.png" alt="" /></button>
+    <teleport to="body">
+    <div v-if="isAuthenticated" class="system-assistant-layer">
+    <button v-if="!assistantOpen" ref="assistantLauncher" class="assistant-fab" aria-label="打开小助手" title="小助手 · 系统使用帮助" :style="assistantFabStyle" @mousedown.stop="startAssistantDrag($event, 'launcher')" @click="toggleAssistant"><img src="aizhushou.png" alt="" /></button>
     <section v-if="assistantOpen" class="assistant-panel" :class="{'assistant-compact': assistantViewportHeight < 500}" :style="assistantPanelStyle" role="dialog" aria-labelledby="assistant-title" aria-modal="false" @keydown.esc.stop="closeAssistant">
       <header class="assistant-drag-handle" @mousedown="startAssistantDrag($event, 'panel')">
         <div class="assistant-heading"><img src="aizhushou.png" alt="" /><div><strong id="assistant-title">AI 小助手</strong><span>操作指引 · 日常问答</span></div></div>
@@ -427,7 +429,7 @@
         <div class="assistant-session-tools"><select aria-label="切换小助手对话" :value="assistantSessionId" :disabled="assistantSyncing" @change="changeAssistantSession('switch', $event.target.value)"><option v-for="session in assistantSessions" :key="session.id" :value="session.id">{{ session.title }}</option></select><el-button size="small" :disabled="assistantSyncing" @click="changeAssistantSession('new')">新对话</el-button><el-button size="small" :disabled="assistantSyncing" @click="loadAssistantState">重新加载</el-button><el-button size="small" type="danger" plain :disabled="assistantSyncing" @click="changeAssistantSession('clear')">清空记录</el-button></div>
         <small role="status">{{ assistantSyncing ? '正在同步对话…' : assistantMemoryStatus }}</small>
       </div>
-      <nav class="assistant-prompts" aria-label="常用提问"><button type="button" :disabled="assistantLoading || assistantSyncing || !assistantReady" @click="askGuide('新人怎么开始？')"><i class="fa-solid fa-compass" aria-hidden="true"></i>新人入门</button><button type="button" :disabled="assistantLoading || assistantSyncing || !assistantReady" @click="askGuide('这个页面怎么用？')"><i class="fa-solid fa-circle-question" aria-hidden="true"></i>当前页面帮助</button><button type="button" :disabled="assistantLoading || assistantSyncing || !assistantReady" @click="askGuide('查看完整功能目录')"><i class="fa-solid fa-list" aria-hidden="true"></i>功能目录</button></nav>
+      <nav class="assistant-prompts" aria-label="常用提问"><button type="button" :disabled="assistantLoading || assistantSyncing || !assistantReady" @click="askGuide('新人怎么开始？')"><i class="fa-solid fa-compass" aria-hidden="true"></i>新人入门</button><button type="button" :disabled="assistantLoading || assistantSyncing || !assistantReady" @click="askGuide('这个页面怎么用？')"><i class="fa-solid fa-circle-question" aria-hidden="true"></i>当前页面帮助</button><button type="button" :disabled="assistantLoading || assistantSyncing || !assistantReady" @click="askGuide('查看完整功能目录')"><i class="fa-solid fa-list" aria-hidden="true"></i>功能目录</button><button type="button" :disabled="assistantLoading || assistantSyncing || !assistantReady" @click="askGuide('现在系统是什么版本，最近更新了什么？')"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>本次更新</button></nav>
       <div class="assistant-messages" ref="assistantMessages" role="log" aria-label="小助手聊天记录" aria-live="polite" aria-relevant="additions" @scroll="onAssistantScroll">
         <el-button v-if="assistantHasMore" text :disabled="assistantSyncing || assistantLoading" @click="loadOlderAssistant">加载更早消息</el-button>
         <div v-for="(msg, index) in assistantMessages" :key="index" :class="['assistant-msg', msg.isUser ? 'user' : 'bot']">
@@ -447,6 +449,8 @@
         <p class="assistant-input-hint">Enter 发送 · Shift + Enter 换行 · 截图不进入知识库</p>
       </footer>
     </section>
+    </div>
+    </teleport>
   </el-container>
   <report-versions v-if="isAuthenticated && reportVersionsOpen" :key="token" :project="reportVersionsProject" :initial-type="reportVersionsType" :request="authFetch" :read="readJSON" :download="downloadArtifact" @close="closeReportVersions"></report-versions>
   <el-dialog v-model="passwordOpen" title="修改密码" width="min(520px, 94vw)" :close-on-click-modal="false" @closed="passwordForm={current_password:'',new_password:'',confirm_password:''}">
@@ -467,11 +471,11 @@
 <script defer src="knowledge-document-viewer.41b618afbad3.js"></script>
 <link rel="stylesheet" href="knowledge-note-editor.70b7481352b4.css">
 <script defer src="knowledge-note-editor.b605009ed01f.js"></script>
-<script defer src="company-knowledge.c64455ae64c9.js"></script>
+<script defer src="company-knowledge.3b6538ed4ed8.js"></script>
 <script defer src="account-management.js"></script>
 <script defer src="personal-home.b7312d97a31e.js"></script>
 <script defer src="report-versions.js"></script>
-<script defer src="script.1effdc403b21.js"></script>
+<script defer src="script.93b9179f99e1.js"></script>
 </body>
 </html>
 

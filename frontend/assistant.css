@@ -1,4 +1,8 @@
 /* The assistant owns its viewport, typography and scroll area. */
+.system-assistant-layer { position:fixed; inset:0; z-index:2147483000; pointer-events:none; }
+.system-assistant-layer > .assistant-fab,
+.system-assistant-layer > .assistant-panel { position:fixed; pointer-events:auto; }
+.system-assistant-layer .assistant-prompts { flex-wrap:wrap; gap:6px; }
 .assistant-fab {
   width: 68px;
   height: 68px;

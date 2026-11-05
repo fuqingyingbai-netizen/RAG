@@ -1601,7 +1601,8 @@ createApp({
       try {
         const controller = new AbortController(); this.assistantController = controller;
         timeout = setTimeout(() => controller.abort(), 135000);
-        const r = await this.authFetch('/research/assistant/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ message: text, ...(images.length ? {images: images.map(image => image.url)} : {}), current_page: this.taskCreateOpen || this.activeView === 'intake' ? 'submit' : this.activeView === 'deliverables' ? 'tasks' : this.activeView, session_id: sessionId, request_id: globalThis.crypto?.randomUUID?.() }) });
+        const knowledgeContext = this.activeView === 'company-knowledge' ? this.$refs?.knowledgeWorkspace?.assistantHelpContext?.() : null;
+        const r = await this.authFetch('/research/assistant/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ message: text, ...(images.length ? {images: images.map(image => image.url)} : {}), ...(knowledgeContext ? {knowledge_context:knowledgeContext} : {}), current_page: this.taskCreateOpen || this.activeView === 'intake' ? 'submit' : this.activeView === 'deliverables' ? 'tasks' : this.activeView, session_id: sessionId, request_id: globalThis.crypto?.randomUUID?.() }) });
         if (epoch !== this.assistantEpoch) return;
         if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(Array.isArray(data.detail) ? data.detail.map(item => item.msg).join('；') : data.detail || '助手请求失败'); }
         const reader = r.body.getReader(), decoder = new TextDecoder(); let buffer = '';

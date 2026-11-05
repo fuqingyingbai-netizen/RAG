@@ -11,6 +11,7 @@ def render():
     lines = ['# 系统使用指南', '',
              '本指南与小助手共用一份功能目录，按实际页面和后端规则维护。操作路径、权限和限制以当前版本为准；部署配置、真实任务状态和业务资料请在相应页面核对。', '',
              f'本次核对基线：`{catalog["reviewed_base"]}`。包含 {len(catalog["topics"])} 个功能主题。管理员专属内容已单独标记，小助手会按当前登录角色过滤。', '',
+             f'功能说明版本：{catalog.get("product_release", {}).get("version", "未标记")}；核对日期：{catalog.get("product_release", {}).get("date", "未标记")}。实际部署标识可向小助手询问“现在系统是什么版本”。', '',
              '## 功能目录', '']
     for page, item in catalog['pages'].items():
         lines.append(f'- [{item["title"]}](#{page})')
