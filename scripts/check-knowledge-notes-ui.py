@@ -4,6 +4,7 @@ from functools import partial
 from http.server import ThreadingHTTPServer,SimpleHTTPRequestHandler
 import io
 import json
+import mimetypes
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
@@ -37,8 +38,8 @@ def main():
                     self.send_response(200);self.send_header('Content-Type','text/html;charset=utf-8');self.end_headers();self.wfile.write(full_html.encode());return
                 if self.path=='/':
                     self.send_response(200);self.send_header('Content-Type','text/html;charset=utf-8');self.end_headers();self.wfile.write(html.encode());return
-                if self.path.startswith('/qa-vendor/'):
-                    path=args.assets_dir/Path(self.path).name;self.send_response(200);self.send_header('Content-Type','text/css' if path.suffix=='.css' else 'text/javascript');self.end_headers();self.wfile.write(path.read_bytes());return
+                if self.path.startswith(('/qa-vendor/','/webfonts/')):
+                    path=args.assets_dir/Path(self.path).name;self.send_response(200);self.send_header('Content-Type',mimetypes.guess_type(path.name)[0] or 'application/octet-stream');self.end_headers();self.wfile.write(path.read_bytes());return
                 super().do_GET()
             def do_POST(self):self.api()
             def do_PATCH(self):self.api()
@@ -51,7 +52,7 @@ def main():
                 self.end_headers()
                 try:self.wfile.write(response.content)
                 except (BrokenPipeError,ConnectionAbortedError,ConnectionResetError):pass
-        html='''<!doctype html><html lang="zh-CN" data-knowledge-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/qa-vendor/element.css"><link rel="stylesheet" href="/qa-vendor/icons.css"><link rel="stylesheet" href="/company-knowledge.css"><link rel="stylesheet" href="/company-knowledge-universe.css"><link rel="stylesheet" href="/knowledge-note-editor.css"><style>body{margin:0;background:radial-gradient(ellipse at 15% 60%,#9cdbe5aa,transparent 60%),linear-gradient(120deg,#d5e6f7,#e8dff4);font-family:system-ui,sans-serif}.backdrop{padding:80px;color:#42687b;font-size:32px}</style></head><body><div class="backdrop">经验沉淀 · 项目空间</div><div id="app"><knowledge-note-editor v-if="opened" :note-id="noteId" :fetch-api="api" username="alice" @close="opened=false"></knowledge-note-editor><button v-else id="reopen" @click="opened=true">继续编辑</button></div><script src="/qa-vendor/vue.js"></script><script src="/qa-vendor/element.js"></script><script src="/knowledge-note-editor.js"></script><script>const app=Vue.createApp({components:{KnowledgeNoteEditor},data:()=>({opened:true,noteId:NOTEID}),methods:{api:(url,options)=>fetch(url,options)}});app.use(ElementPlus);window.app=app.mount('#app');</script></body></html>'''.replace('NOTEID',json.dumps(note['id']))
+        html='''<!doctype html><html lang="zh-CN" data-knowledge-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/qa-vendor/element.css"><link rel="stylesheet" href="/qa-vendor/icons.css"><link rel="stylesheet" href="/company-knowledge.css"><link rel="stylesheet" href="/company-knowledge-universe.css"><link rel="stylesheet" href="/company-knowledge-glass.css"><link rel="stylesheet" href="/knowledge-note-editor.css"><style>body{margin:0;background:radial-gradient(ellipse at 15% 60%,#9cdbe5aa,transparent 60%),linear-gradient(120deg,#d5e6f7,#e8dff4);font-family:system-ui,sans-serif}.backdrop{padding:80px;color:#42687b;font-size:32px}</style></head><body><div class="backdrop">经验沉淀 · 项目空间</div><div id="app"><knowledge-note-editor v-if="opened" :note-id="noteId" :fetch-api="api" username="alice" @close="opened=false"></knowledge-note-editor><button v-else id="reopen" @click="opened=true">继续编辑</button></div><script src="/qa-vendor/vue.js"></script><script src="/qa-vendor/element.js"></script><script src="/knowledge-glass-optics.js"></script><script src="/knowledge-note-editor.js"></script><script>const app=Vue.createApp({components:{KnowledgeNoteEditor},data:()=>({opened:true,noteId:NOTEID}),methods:{api:(url,options)=>fetch(url,options)}});app.use(ElementPlus);window.app=app.mount('#app');</script></body></html>'''.replace('NOTEID',json.dumps(note['id']))
         full_html=html.replace('<knowledge-note-editor v-if="opened" :note-id="noteId" :fetch-api="api" username="alice" @close="opened=false"></knowledge-note-editor><button v-else id="reopen" @click="opened=true">继续编辑</button>', '<company-knowledge/>').replace('<script src="/knowledge-note-editor.js"></script>', '<script src="/knowledge-note-editor.js"></script><script src="/company-knowledge.js"></script>').replace('components:{KnowledgeNoteEditor}', 'components:{KnowledgeNoteEditor,CompanyKnowledge}')
         server=ThreadingHTTPServer(('127.0.0.1',0),partial(Handler,directory=str(ROOT/'frontend')));threading.Thread(target=server.serve_forever,daemon=True).start()
         with sync_playwright() as playwright:

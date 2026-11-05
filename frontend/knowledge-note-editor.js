@@ -12,6 +12,7 @@
   }
   const clone=value=>JSON.parse(JSON.stringify(value));
   window.KnowledgeNoteEditor = {
+    components:{KnowledgeGlassSurface:window.KnowledgeGlassSurface||{}},
     props:{noteId:String,fetchApi:Function,username:String},
     emits:['close','changed'],
     data:()=>({open:true,loading:true,loadError:'',note:null,title:'',editor:null,saveState:'saved',error:'',busy:false,
@@ -162,7 +163,9 @@
       historyLabel(action){return {'note.create':'创建草稿','note.save':'保存修改','note.publish':'发布版本'}[action]||action;},
       historyContent(change){return JSON.stringify(change,null,2);},
     },
-    template:`<el-dialog v-model="open" title="图文笔记" width="min(1180px, 96vw)" class="ckb-dialog kn-dialog" modal-class="ckb-glass-overlay" append-to-body :close-on-click-modal="false" :before-close="close" :close-on-press-escape="false">
+    template:`<el-dialog v-model="open" title="图文笔记" width="min(1180px, 96vw)" class="ckb-dialog kn-dialog ckb-reveal-dialog" modal-class="ckb-glass-overlay" append-to-body :close-on-click-modal="false" :before-close="close" :close-on-press-escape="false">
+      <template #header="{titleId,titleClass}"><div class="kn-window-heading"><span class="kn-window-icon" aria-hidden="true"><i class="fa-solid fa-pen-nib"></i></span><div><strong :id="titleId" :class="titleClass">图文笔记</strong><small>记录洞察 · 沉淀经验</small></div></div></template>
+      <knowledge-glass-surface v-if="$options.components.KnowledgeGlassSurface.template"/>
       <div v-if="loading" class="kn-loading" role="status">正在打开你的写作空间…</div><div v-if="loadError" class="kn-error" role="alert">{{loadError}} <button @click="load">重新加载</button></div>
       <div v-show="!loading&&!loadError" class="kn-workspace">
         <header class="kn-top"><div class="kn-top-label"><span>EXPERIENCE / NOTES</span><strong>把经验，写成下一次的起点。</strong></div><div class="kn-save-status" :data-state="saveState" role="status"><i></i>{{saveLabel}}<small v-if="lastSaved && saveState==='saved'">{{new Date(lastSaved).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}}</small></div>
