@@ -61,6 +61,7 @@ def publish(package):
     assets={}
     notes_only=manifest.get('kind')=='note-editor'
     assistant_only=manifest.get('kind')=='assistant-style'
+    assistant_surface=manifest.get('kind')=='assistant-surface'
     patterns={'optics':r'knowledge-glass-optics\.[0-9a-f]{12}\.js',
               'viewer':r'knowledge-document-viewer\.[0-9a-f]{12}\.js',
               'engine':r'vendor/knowledge-reader/knowledge-document-engine\.[0-9a-f]{12}\.js',
@@ -74,6 +75,9 @@ def publish(package):
                   'note_style':r'knowledge-note-editor\.[0-9a-f]{12}\.css'}
     if assistant_only:
         patterns={'assistant_style':r'assistant\.[0-9a-f]{12}\.css'}
+    if assistant_surface:
+        patterns={'assistant_style':r'assistant\.[0-9a-f]{12}\.css',
+                  'assistant_surface':r'assistant-surface\.[0-9a-f]{12}\.html'}
     for row in manifest['assets']:
         role=row['role'];name=row['path']
         if role not in patterns or not re.fullmatch(patterns[role],name):raise RuntimeError('Unapproved UI asset')
@@ -81,7 +85,7 @@ def publish(package):
         if path.is_symlink() or not path.resolve().is_relative_to(package):raise RuntimeError('Package assets must be regular files')
         payload=path.read_bytes()
         if digest(payload)!=row['sha256']:raise RuntimeError('Asset checksum mismatch')
-        if role in {'optics','viewer','engine','component','style','note_editor','note_style','assistant_style'} and row['sha256'][:12] not in name:raise RuntimeError('Asset filename checksum mismatch')
+        if role in {'optics','viewer','engine','component','style','note_editor','note_style','assistant_style','assistant_surface'} and row['sha256'][:12] not in name:raise RuntimeError('Asset filename checksum mismatch')
         if role in assets:raise RuntimeError('Duplicate asset role')
         assets[role]=(name,payload)
     if set(assets)!=set(patterns):raise RuntimeError('Incomplete UI package')
@@ -101,7 +105,13 @@ def publish(package):
                 if name not in {'index.html','company-knowledge.js','company-knowledge-glass.css'}:raise RuntimeError('Unapproved baseline file')
                 if digest((frontend/name).read_bytes())!=checksum:raise RuntimeError('Frontend changed during review: '+name)
             index=frontend/'index.html';original=index.read_bytes();html=original.decode('utf-8')
-            if assistant_only:
+            if assistant_surface:
+                surface_pattern=r'<teleport to="body">\s*<div v-if="isAuthenticated" class="system-assistant-layer">.*?</teleport>'
+                template=assets['assistant_surface'][1].decode('utf-8')
+                if not re.fullmatch(surface_pattern,template,re.S):raise RuntimeError('Expected a bounded assistant template')
+                html,count=re.subn(surface_pattern,lambda _:template,html,flags=re.S)
+                if count!=1:raise RuntimeError('Expected one assistant surface')
+            if assistant_only or assistant_surface:
                 html,count=re.subn(r'(href=")assistant(?:\.[0-9a-f]{12})?\.css(")',lambda m:m[1]+assets['assistant_style'][0]+m[2],html)
                 if count!=1:raise RuntimeError('Expected one assistant stylesheet')
             elif notes_only:
@@ -146,8 +156,9 @@ def publish(package):
                 index=release/'frontend/index.html';stat=index.stat()
                 atomic_write(index,prepared[release],stat.st_mode&0o777,(stat.st_uid,stat.st_gid));changed.append(release)
             with urllib.request.urlopen('http://127.0.0.1:8010/',timeout=10) as response:served=response.read()
-            served_roles=('assistant_style',) if assistant_only else ('note_editor','note_style') if notes_only else ('component','optics','viewer','style')
+            served_roles=('assistant_style',) if assistant_only or assistant_surface else ('note_editor','note_style') if notes_only else ('component','optics','viewer','style')
             if not all(assets[role][0].encode() in served for role in served_roles):raise RuntimeError('Running service did not load the UI entrypoint')
+            if assistant_surface and assets['assistant_surface'][1] not in served:raise RuntimeError('Running service did not load the assistant template')
             for name,payload in assets.values():
                 with urllib.request.urlopen('http://127.0.0.1:8010/'+name,timeout=10) as response:
                     if digest(response.read())!=digest(payload):raise RuntimeError('Published asset differs: '+name)

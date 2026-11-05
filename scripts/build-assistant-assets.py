@@ -19,6 +19,13 @@ def build():
         if count != 1:
             raise ValueError('Expected one static entry: ' + name)
     index.write_text(html, encoding='utf-8', newline='\n')
+    # Deployment swaps only this bounded assistant surface; other live page
+    # markup can contain newer workflow changes than this checkout.
+    surface = re.findall(r'<teleport to="body">\s*<div v-if="isAuthenticated" class="system-assistant-layer">.*?</teleport>', html, re.S)
+    if len(surface) != 1:
+        raise ValueError('Expected one assistant surface')
+    payload = surface[0].encode('utf-8')
+    (ROOT / ('assistant-surface.' + hashlib.sha256(payload).hexdigest()[:12] + '.html')).write_bytes(payload)
     print('Updated assistant/app asset references')
 
 
