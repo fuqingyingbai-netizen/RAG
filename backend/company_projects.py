@@ -116,7 +116,8 @@ def list_projects(user: User = Depends(kb.require_knowledge_user)):
         projects = list(db.scalars(select(CompanyProject).where(
             CompanyProject.index_id == kb.settings()['index_id']).order_by(CompanyProject.updated_at.desc())))
         docs = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == kb.settings()['index_id'],
-            CompanyDocument.state != 'deleted')))
+            CompanyDocument.state != 'deleted',
+            (CompanyDocument.note_id == '') | (CompanyDocument.is_current == 1))))
         folders = list(db.scalars(select(CompanyFolder).join(CompanyProject).where(
             CompanyProject.index_id == kb.settings()['index_id'])))
         allowed = {p.id for p in projects if can_read(p, user)}
@@ -242,6 +243,9 @@ def delete_empty_folder(project_id: str, folder_id: str, user: User = Depends(kb
                 CompanyDocument.knowledge_project_id == project.id, CompanyDocument.folder_id == folder.id,
                 CompanyDocument.state != 'deleted').limit(1)):
             raise HTTPException(409, '目录不为空，请先处理其中的文件和子目录。')
+        from company_notes import CompanyNote
+        if db.scalar(select(CompanyNote.id).where(CompanyNote.project_id == project.id, CompanyNote.folder_id == folder.id).limit(1)):
+            raise HTTPException(409, '目录中仍有图文笔记或草稿，请保留目录。')
         record(db, user, 'folder.delete', folder, before=snapshot(folder), details={'deleted': True})
         db.delete(folder)
         mark_modified(project, user)

@@ -195,7 +195,8 @@ async def documents(page_number: int = Query(1, ge=1), page_size: int = Query(10
         warning = '云端目录同步暂不可用，正在显示本系统已保存的资料。'
     with SessionLocal() as db:
         docs = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == cfg['index_id'],
-            CompanyDocument.state != 'deleted').order_by(CompanyDocument.updated_at.desc())))
+            CompanyDocument.state != 'deleted',
+            (CompanyDocument.note_id == '') | (CompanyDocument.is_current == 1)).order_by(CompanyDocument.updated_at.desc())))
         request_states = {}
         user_id = getattr(user, 'id', None)
         if user_id is not None:
@@ -361,6 +362,8 @@ class DocumentMetadata(BaseModel):
 async def edit_document(doc_id: str, values: DocumentMetadata, user: User = Depends(kb.require_knowledge_user)):
     with SessionLocal() as db:
         doc = find_doc(db, doc_id, user, manage=True)
+        if doc.note_id:
+            raise HTTPException(422, '请使用“编辑笔记”修改图文笔记；继承属性请在项目设置中修改。')
         before = snapshot(doc)
         changed = values.model_dump(exclude_unset=True)
         if 'category' in changed and ((changed['category'] in EXPERIENCE_CATEGORIES) != (doc.category in EXPERIENCE_CATEGORIES)):

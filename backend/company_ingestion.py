@@ -17,12 +17,21 @@ upload_slots = asyncio.Semaphore(3)
 
 def checkpoint(doc_id, token, **values):
     with SessionLocal() as db:
+        if values.get('state') == 'ready':
+            from company_notes import publication_lock
+            doc = db.get(CompanyDocument, doc_id)
+            if doc:
+                publication_lock(db, doc)
         result = db.execute(update(CompanyDocument).where(CompanyDocument.id == doc_id,
             CompanyDocument.worker_id == token).values(**values, updated_at=datetime.utcnow(),
             lease_until=datetime.utcnow() + timedelta(minutes=3)))
-        db.commit()
         if result.rowcount != 1:
+            db.rollback()
             raise kb.KnowledgeError('处理任务已交由另一工作进程接管。')
+        if values.get('state') == 'ready':
+            from company_notes import publication_ready
+            publication_ready(db, doc_id)
+        db.commit()
 
 
 async def process_document(doc_id):

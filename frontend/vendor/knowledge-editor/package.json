@@ -1,0 +1,13 @@
+{
+  "name": "rag-knowledge-note-editor",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {"build": "node build.mjs"},
+  "dependencies": {
+    "@tiptap/core": "3.32.2",
+    "@tiptap/starter-kit": "3.32.2",
+    "@tiptap/extension-image": "3.32.2",
+    "@tiptap/extension-table": "3.32.2"
+  },
+  "devDependencies": {"esbuild": "0.28.2"}
+}

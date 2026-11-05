@@ -37,6 +37,8 @@ def setup(monkeypatch, tmp_path):
     CompanyProject.__table__.create(engine)
     CompanyFolder.__table__.create(engine)
     CompanyAuditEvent.__table__.create(engine)
+    from company_notes import CompanyNote, CompanyNoteAsset, CompanyNotePublication
+    for model in (CompanyNote, CompanyNoteAsset, CompanyNotePublication):model.__table__.create(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(ws, 'SessionLocal', factory)
     import company_projects

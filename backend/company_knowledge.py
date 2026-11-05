@@ -372,3 +372,5 @@ from company_memory import memory_router
 router.include_router(memory_router)
 from company_discovery import discovery_router
 router.include_router(discovery_router)
+from company_notes import notes_router
+router.include_router(notes_router)

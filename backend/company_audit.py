@@ -9,7 +9,8 @@ from sqlalchemy import func, select
 from company_catalog import CompanyAuditEvent, CompanyDocument, CompanyProject, can_manage, can_read
 
 FIELDS = ('name', 'title', 'industry', 'category', 'review', 'confidentiality', 'visibility',
-          'readers', 'tags', 'description', 'folder_id', 'parent_id', 'state', 'version')
+          'readers', 'tags', 'description', 'folder_id', 'parent_id', 'state', 'version',
+          'content', 'revision', 'published_revision')
 
 
 def snapshot(target):
@@ -18,7 +19,7 @@ def snapshot(target):
 
 def record(db, user, action, target, *, before=None, details=None, event_id=None):
     """Join the caller's transaction; never trust attribution supplied by a client."""
-    kind = 'project' if isinstance(target, CompanyProject) else 'document' if isinstance(target, CompanyDocument) else 'folder'
+    kind = 'project' if isinstance(target, CompanyProject) else 'document' if isinstance(target, CompanyDocument) else 'note' if getattr(target, '__tablename__', '') == 'company_notes' else 'folder'
     project_id = target.id if kind == 'project' else target.knowledge_project_id if kind == 'document' else target.project_id
     index_id = getattr(target, 'index_id', None)
     if index_id is None:

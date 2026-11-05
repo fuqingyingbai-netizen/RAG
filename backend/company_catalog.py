@@ -37,6 +37,7 @@ class CompanyDocument(Base):
     research_project_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     research_artifact_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     is_current: Mapped[int] = mapped_column(Integer, default=1)
+    note_id: Mapped[str] = mapped_column(String(64), default='', index=True)
     knowledge_project_id: Mapped[str] = mapped_column(String(64), default='', index=True)
     folder_id: Mapped[str] = mapped_column(String(64), default='', index=True)
     inherits_project: Mapped[int] = mapped_column(Integer, default=0)
@@ -149,7 +150,7 @@ def ensure_company_schema(engine):
         return
     columns = {column['name'] for column in inspector.get_columns('company_documents')}
     additions = []
-    for column, definition in (('knowledge_project_id', "VARCHAR(64) DEFAULT '' NOT NULL"), ('folder_id', "VARCHAR(64) DEFAULT '' NOT NULL"), ('inherits_project', 'INTEGER DEFAULT 0 NOT NULL')):
+    for column, definition in (('note_id', "VARCHAR(64) DEFAULT '' NOT NULL"), ('knowledge_project_id', "VARCHAR(64) DEFAULT '' NOT NULL"), ('folder_id', "VARCHAR(64) DEFAULT '' NOT NULL"), ('inherits_project', 'INTEGER DEFAULT 0 NOT NULL')):
         if column not in columns:
             additions.append('ADD COLUMN ' + column + ' ' + definition)
     for column, definition in (('uploaded_by', "VARCHAR(100) DEFAULT '' NOT NULL"),
@@ -263,6 +264,7 @@ def serialize(doc, user, request_status=''):
               'research_project_id', 'research_artifact_id', 'is_current', 'knowledge_project_id', 'folder_id', 'inherits_project')}
     values['status_message'] = doc.status_message if readable else '需要管理员批准后才能阅读、下载或用于问答。'
     return values | {
+        'note_id': doc.note_id if readable else '',
         'confidentiality_label': CONFIDENTIALITY_LABELS.get(doc.confidentiality, doc.confidentiality),
         'readers': doc.readers if can_manage(doc, user) else [],
         'cloud_id': doc.cloud_id if readable else None,
