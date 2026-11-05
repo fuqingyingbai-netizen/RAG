@@ -13,7 +13,8 @@ def build():
     files=[]
     for name in ('knowledge-glass-optics.js','knowledge-document-viewer.js','knowledge-note-editor.js','knowledge-note-editor.css','company-knowledge.js','company-knowledge-glass.css'):
         source=frontend/name
-        payload=source.read_bytes()
+        # Git checks these files out with LF. Hash the same bytes on Windows too.
+        payload=source.read_text(encoding='utf-8').encode('utf-8')
         checksum=hashlib.sha256(payload).hexdigest()
         filename=source.stem+'.'+checksum[:12]+source.suffix
         target=frontend/filename
