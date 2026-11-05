@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="vendor/element-plus-2.14.7/index.css" />
   <link rel="stylesheet" href="vendor/fontawesome-free-6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="company-chapters.68634208c5fc.css" />
   <link rel="stylesheet" href="company-knowledge.css" />
   <link rel="stylesheet" href="navigation.css" />
   <link rel="stylesheet" href="accounts.css" />
@@ -157,7 +158,12 @@
                 <p class="detail-note">报告采用 16 章目录。填写核心企业后，启用核心企业公开资料尽调；关注产品可写在重点问题中。不同企业与行业整体结论分别呈现。</p>
               </template>
               <el-form-item label="查什么"><el-select v-model="form.ddType" class="full"><el-option v-for="type in ddTypes" :key="type" :label="type" :value="type" ></el-option></el-select></el-form-item>
-              <el-form-item label="重点模块"><el-checkbox-group v-model="form.modules" class="checkbox-grid"><el-checkbox v-for="module in modules" :key="module.value" :label="module.value">{{ module.label }}</el-checkbox></el-checkbox-group></el-form-item>
+              <el-form-item :label="form.targetType === 'company' ? '重点研究章节' : '重点模块'">
+                <el-checkbox-group v-model="form.modules" class="checkbox-grid" :class="{'company-chapter-grid': form.targetType === 'company'}"><el-checkbox v-for="module in modules" :key="module.value" :label="module.value" :title="module.title || module.label" :disabled="module.selectable === false">{{ module.label }}</el-checkbox></el-checkbox-group>
+                <p v-if="form.targetType === 'company'" class="detail-note">按章优先复用已有资料，再按缺口检索和写作。勾选章节重点深查；摘要与综合评估自动汇总，另附信息来源和后续研究点。报告成功生成并通过核验后清理临时资料。</p>
+                <p v-if="form.targetType === 'company' && companyChaptersLoading" class="detail-note" role="status">正在加载章节目录…</p>
+                <p v-if="form.targetType === 'company' && companyChapterError" class="detail-note" role="alert">{{ companyChapterError }} <el-button link type="primary" @click="loadCompanyChapters">重新加载章节</el-button></p>
+              </el-form-item>
               <div class="search-setting"><div><strong>开启 AI 搜索</strong><span>公开网络、新闻、官方来源和制裁名单检索</span></div><el-switch v-model="form.aiSearchEnabled" ></el-switch></div>
               <el-row :gutter="14"><el-col :xs="24" :sm="12"><el-form-item label="检索关键词（每行一个）"><el-input v-model="form.searchQueries" type="textarea" :rows="3" ></el-input></el-form-item></el-col><el-col :xs="24" :sm="12"><el-form-item label="重点问题（每行一个）"><el-input v-model="form.focusQuestions" type="textarea" :rows="3" ></el-input></el-form-item></el-col></el-row>
               <el-form-item label="报告研究重点 / 特殊要求"><el-input v-model="form.keyQuestions" type="textarea" :rows="4" resize="vertical" ></el-input></el-form-item>
@@ -465,7 +471,7 @@
 <script defer src="account-management.js"></script>
 <script defer src="personal-home.b7312d97a31e.js"></script>
 <script defer src="report-versions.js"></script>
-<script defer src="script.25dcbbe3bcca.js"></script>
+<script defer src="script.1effdc403b21.js"></script>
 </body>
 </html>
 

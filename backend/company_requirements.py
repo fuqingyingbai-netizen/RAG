@@ -6,6 +6,7 @@ No score or legal responsibility is inferred from a tool result or an edge.
 from __future__ import annotations
 import hashlib
 import json
+from company_chapters import chapter as chapter_spec, is_chapter_id, primary_chapter, VERSION as TEMPLATE_VERSION
 
 VERSION = 'company-question-contract-v1'
 DISCLOSURE_DOMAINS = ['cninfo.com.cn', 'sse.com.cn', 'szse.cn', 'hkexnews.hk']
@@ -67,6 +68,7 @@ ROUTES = {
     'qcc_profile': ('qcc', 'get_company_profile', 'searchKey', None),
     'qcc_shareholders': ('qcc', 'get_shareholder_info', 'searchKey', None),
     'qcc_people': ('qcc', 'get_key_personnel', 'searchKey', None),
+    'qcc_recruitment': ('qcc', 'get_recruitment_info', 'searchKey', None),
     'qcc_risk': ('qcc', 'get_company_risk_scan', 'searchKey', None),
     'qcc_penalty': ('qcc', 'get_administrative_penalty', 'searchKey', None),
     'tyc_profile': ('tyc', 'get_company_basic_profile', 'company_name', None),
@@ -86,6 +88,9 @@ def fingerprint(value):
 
 
 def question_spec(module):
+    if is_chapter_id(module):
+        c = chapter_spec(module)
+        return ([c['chapter']], '；'.join(c['questions']), c['original_fields'], c['query_terms'], c['routes'])
     return QUESTIONS.get(MODULE_KEYS.get(module, ''))
 
 
@@ -95,14 +100,15 @@ def build_requirements(modules, intake):
              'as_of_date': str(intake.get('as_of_date') or '')}
     rows = []
     for module in dict.fromkeys(modules):
-        key = MODULE_KEYS.get(module)
+        contract = chapter_spec(module) if is_chapter_id(module) else None
+        key = f"chapter{contract['chapter']:02d}" if contract else MODULE_KEYS.get(module)
         if not key:
             rows.append({'requirement_id': 'CR-CUSTOM-' + fingerprint(module)[:16], 'module': module,
                          'version': VERSION, 'scope': scope, 'scope_sha256': fingerprint(scope),
                          'state': 'requires_specific_question', 'routes': [],
                          'question': f'{target} 的“{module}”需要明确核验事项和预期原件；不将标签等同可回答的问题。'})
             continue
-        chapters, question, fields, terms, routes = QUESTIONS[key]
+        chapters, question, fields, terms, routes = question_spec(module)
         planned = []
         for route in routes:
             provider, tool, argument, aspect = ROUTES[route]
@@ -115,7 +121,8 @@ def build_requirements(modules, intake):
                             'adapter_implemented': True, 'availability': 'requires_live_verification',
                             'result_is_not_original_or_answer_by_default': True})
         domains = (['court.gov.cn', 'wenshu.court.gov.cn', 'zxgk.court.gov.cn', 'creditchina.gov.cn', 'samr.gov.cn']
-                   if key == 'judicial' else ['gov.cn', 'csrc.gov.cn', 'samr.gov.cn'] if key == 'policy'
+                   if key == 'judicial' or (contract and contract['chapter'] == 9)
+                   else ['gov.cn', 'csrc.gov.cn', 'samr.gov.cn'] if key == 'policy' or (contract and contract['chapter'] == 11)
                    else list(DISCLOSURE_DOMAINS))
         row = {'requirement_id': 'CR-' + key.upper() + '-' + fingerprint(module)[:8],
                'question_key': key, 'module': module, 'version': VERSION,
@@ -127,6 +134,11 @@ def build_requirements(modules, intake):
                'acceptance': ['主体及期间绑定', '原文定位与字段单位完整', '限定和相反信息保留', '独立复核通过'],
                'stop_conditions': ['已回答且原件/冲突核验完整', '有界预算耗尽并保留缺口', '相同输入无进展则先诊断'],
                'budget_exhaustion_is_not_acceptance': True}
+        if contract:
+            row.update(chapter=contract['chapter'], chapter_id=contract['id'],
+                agent_id=contract['agent_id'], template_version=TEMPLATE_VERSION,
+                questions=[q.format(target=target) for q in contract['questions']],
+                template_cells=contract['source_cells'])
         row['input_sha256'] = fingerprint(row)
         rows.append(row)
     return rows
@@ -137,14 +149,39 @@ def bind_queries(rows, requirements):
     for row in rows:
         key = MODULE_KEYS.get(row.get('module'))
         matching = [r for r in requirements if r['module'] == row.get('module') or
-                    (key and r.get('question_key') == key)]
+                    (key and r.get('question_key') == key) or
+                    (r.get('chapter_id') and r.get('chapter') == primary_chapter(row.get('module')))]
         if matching:
             row = {**row, 'company_requirement_ids': sorted({r['requirement_id'] for r in matching}),
                    'company_requirement_version': VERSION,
                    'company_requirement_scope_sha256': matching[0]['scope_sha256'],
                    'query_purpose': '；'.join(dict.fromkeys(r['question'] for r in matching))}
+            owners = {r['chapter'] for r in matching if r.get('chapter_id')}
+            if len(owners) == 1:
+                number = owners.pop()
+                row.update(company_chapter=number, company_chapter_id=chapter_spec(number)['id'])
         result.append(row)
     return result
+
+
+def chapter_queries(rows, requirements):
+    """Keep selected ownership on foundation, discovery and gap queries alike."""
+    selected = {r['chapter'] for r in requirements if r.get('chapter_id')}
+    return [{**q, 'module': chapter_spec(q['company_chapter'])['id']}
+            if q.get('company_chapter') else q
+            for q in bind_queries(rows, requirements)
+            if q.get('company_chapter') in selected or q.get('module') == '用户指定']
+
+
+def selected_platform_tools(intake, provider):
+    """None preserves historical collection; an empty set requests no tools."""
+    from company_chapters import uses_chapter_contract, selected_chapters
+    if intake.get('target_type') != 'company' or not uses_chapter_contract(intake):
+        return None
+    return {tool + (':' + aspect if aspect else '')
+            for number in selected_chapters(intake)
+            for route in chapter_spec(number)['routes']
+            for p, tool, argument, aspect in [ROUTES[route]] if p == provider}
 
 
 def platform_requirement_ids(requirements, provider, tool, arguments, *, planned=False):

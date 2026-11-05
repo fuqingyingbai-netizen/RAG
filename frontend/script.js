@@ -25,7 +25,7 @@ function newResearchForm() {
   return {
     projectName: '', startDate: '', endDate: '', companyName: '', identifier: '',
     industry: '', region: '', targetType: 'company', ddType: '商业尽调', targetContext: '', personContext: '', personAliases: '',
-    modules: ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], aiSearchEnabled: true,
+    modules: [], aiSearchEnabled: true,
     searchQueries: '', focusQuestions: '', keyQuestions: '', clientRequirements: '',
     industryFocus: '', excludedSegments: '', researchPurpose: '日常了解',
     includeCapitalMarkets: false, asOfDate: ''
@@ -67,15 +67,8 @@ createApp({
       assistantNavigation: [],
       assistantSessionId: '', assistantSessions: [], assistantHasMore: false, assistantReady: false,
       assistantSyncing: false, assistantMemoryStatus: '', assistantController: null, assistantEpoch: 0,
-      modulesByTarget: { company: [
-        { label: '公司背景', value: '公司背景' }, { label: '负面新闻', value: '负面新闻' },
-        { label: '诉讼 / 制裁', value: '诉讼/制裁' }, { label: '股东高管', value: '股东高管' },
-        { label: '融资情报', value: '融资情报' }, { label: '管理团队', value: '管理团队' },
-        { label: '创始人背景', value: '创始人背景' }, { label: '竞品公司', value: '竞品公司' },
-        { label: '上下游业务', value: '上下游业务' }, { label: '竞品情况', value: '竞品情况' },
-        { label: '收入情况', value: '收入情况' }, { label: '行业政策', value: '行业政策' },
-        { label: '舆情', value: '舆情' }
-      ], person: ['创始人底色画像（家庭/教育/履历）', '人格特质与诚信评估', '商业操守与行业口碑', '经营胜任力（战略/执行/创新）', '识人用人与团队管控', '关联利益冲突（体外公司/代持/关联交易）', '司法负面与诉讼核查', '个人信用与财务风险', '投后治理与退出风险', '同业对标评估', '核心管理团队背景'].map(x => ({ label: x, value: x })), industry: ['行业定义与边界', '细分赛道与产业链', '政策与监管', '市场规模与增长', '竞争格局与代表企业', '商业模式与盈利逻辑', '技术演进与平台生态', '技术路线对比', '投融资与资本市场', '行业风险与不确定性'].map(x => ({ label: x, value: x })) },
+      companyChapterVersion: '', companyChapterError: '', companyChaptersLoading: false,
+      modulesByTarget: { company: [], person: ['创始人底色画像（家庭/教育/履历）', '人格特质与诚信评估', '商业操守与行业口碑', '经营胜任力（战略/执行/创新）', '识人用人与团队管控', '关联利益冲突（体外公司/代持/关联交易）', '司法负面与诉讼核查', '个人信用与财务风险', '投后治理与退出风险', '同业对标评估', '核心管理团队背景'].map(x => ({ label: x, value: x })), industry: ['行业定义与边界', '细分赛道与产业链', '政策与监管', '市场规模与增长', '竞争格局与代表企业', '商业模式与盈利逻辑', '技术演进与平台生态', '技术路线对比', '投融资与资本市场', '行业风险与不确定性'].map(x => ({ label: x, value: x })) },
       form: newResearchForm()
     };
   },
@@ -156,7 +149,7 @@ createApp({
       if (this.reviewProjectId && !projects.some(project => project.id === this.reviewProjectId)) this.clearReviewSelection();
     },
     knowledgeQuery() { this.sourcePage = 1; },
-    'form.targetType'(value) { const defaults = { company: ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], person: this.modulesByTarget.person.map(x => x.value), industry: this.modulesByTarget.industry.map(x => x.value) }; this.form.modules = defaults[value] || defaults.company; this.form.ddType = this.ddTypes[0]; this.form.targetContext = ''; this.form.personContext = ''; this.form.personAliases = ''; if (value === 'person' || value === 'industry') { this.form.industry = ''; this.form.region = ''; } }
+    'form.targetType'(value) { const defaults = { company: this.modulesByTarget.company.filter(x => x.selectable).map(x => x.value), person: this.modulesByTarget.person.map(x => x.value), industry: this.modulesByTarget.industry.map(x => x.value) }; this.form.modules = defaults[value] || defaults.company; this.form.ddType = this.ddTypes[0]; this.form.targetContext = ''; this.form.personContext = ''; this.form.personAliases = ''; if (value === 'person' || value === 'industry') { this.form.industry = ''; this.form.region = ''; } }
   },
     async mounted() {
       this.updateAssistantViewport();
@@ -166,6 +159,7 @@ createApp({
       this.nowTimer = setInterval(() => { this.nowTick = Date.now(); }, 1000);
       this.taskRefreshTimer = setInterval(() => this.refreshVisibleTaskProgress(), 5000);
       this.readInvitationFromUrl();
+      this.loadCompanyChapters();
       if (this.token) {
         try { await this.fetchMe(); } catch (_) { this.handleLogout(); return; }
         if (!this.currentUser.must_change_password) {
@@ -182,6 +176,28 @@ createApp({
     this.stopAssistantDrag();
   },
   methods: {
+    async loadCompanyChapters() {
+      if (this.companyChaptersLoading) return false;
+      this.companyChaptersLoading = true;
+      try {
+        const response = await fetch('/research/company-chapters');
+        if (!response.ok) throw Error('公司章节目录暂时不可用');
+        const config = await response.json();
+        if (!config.version || !Array.isArray(config.chapters) || config.chapters.length !== 12 ||
+            new Set(config.chapters.map(x => x.value)).size !== 12 ||
+            config.chapters.some((x, i) => x.chapter !== i + 1)) throw Error('公司章节目录不完整');
+        const firstLoad = !this.companyChapterVersion;
+        this.modulesByTarget.company = config.chapters.map(x => ({...x, label: x.label + (x.selectable ? '' : '（自动汇总）')}));
+        this.companyChapterVersion = config.version; this.companyChapterError = '';
+        if (firstLoad && this.form.targetType === 'company') this.form.modules = [...config.defaults];
+        return true;
+      } catch (error) { this.companyChapterError = error.message || '公司章节目录加载失败'; return false; }
+      finally { this.companyChaptersLoading = false; }
+    },
+    companyRunFields(targetType = this.form.targetType, intake = null) {
+      const version = intake ? intake.company_template_version : this.companyChapterVersion;
+      return targetType === 'company' && version ? {company_template_version: version} : {};
+    },
     actionPending(key) { return !!this.pendingActions[key]; },
     actionWaitText(action) {
       const seconds = Math.max(0, Math.floor((this.nowTick - action.startedAt) / 1000));
@@ -360,7 +376,8 @@ createApp({
       this.pendingActions = {}; this.actionPromises = {}; this.actionErrors = {}; this.reviewIntakes = {}; this.detailLoadedAt = {};
       this.startingProjects = {}; this.secondStageRunning = false; this.secondStageProjectId = '';
       this.assistantMessages = []; this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantLoading = false; this.assistantNavigation = []; this.selectedFiles = [];
-      this.form = newResearchForm(); this.resetTaskFilters();
+      this.form = newResearchForm();
+      this.form.modules = this.modulesByTarget.company.filter(x => x.selectable).map(x => x.value); this.resetTaskFilters();
       ++this.requirementsRequestSeq;
       this.clientRequirementFiles = []; this.requirementsFiles = []; this.requirementsSources = []; this.requirementsDocuments = [];
       this.requirementsOpen = false; this.requirementsProjectId = null; this.requirementsText = ''; this.requirementsLoading = false; this.requirementsSaving = false; this.reviewedReports = {};
@@ -539,6 +556,8 @@ createApp({
     async submitTask() {
       if (this.submitting) return;
       if (!this.form.projectName.trim()) return ElementPlus.ElMessage.warning('请填写项目名称');
+      if (this.form.targetType === 'company' && !this.companyChapterVersion && !(await this.loadCompanyChapters()))
+        return ElementPlus.ElMessage.warning('请先重新加载公司章节目录');
       const sentToken = this.token;
       let created = null;
       const requirements = [...this.clientRequirementFiles], sources = [...this.selectedFiles];
@@ -551,6 +570,7 @@ createApp({
           industry: this.form.industry.trim(),
           description: this.form.keyQuestions.trim(),
           metadata: {
+            ...this.companyRunFields(),
             ...this.industryRunFields(this.form.targetType),
             start_date: this.form.startDate,
             deadline: this.form.endDate,
@@ -577,7 +597,9 @@ createApp({
         created = project;
         this.projectMeta[project.id] = { startDate: this.form.startDate, endDate: this.form.endDate };
         this.resetTaskFilters(); this.projects.unshift(project); this.switchView('intake');
-        this.form = newResearchForm(); this.selectedFiles = []; this.clientRequirementFiles = [];
+        this.form = newResearchForm();
+        this.form.modules = this.modulesByTarget.company.filter(x=>x.selectable).map(x=>x.value);
+        this.selectedFiles = []; this.clientRequirementFiles = [];
         for (const file of [...requirements]) {
           const data = new FormData(); data.append('file', file);
           await this.postTaskUpload(project.id, `/research/projects/${project.id}/client-requirements`, data);
@@ -665,6 +687,7 @@ createApp({
       const sentToken = this.token;
       this.traceByProject[project.id] = this.traceByProject[project.id] || [];
       const payload = {
+        ...this.companyRunFields(),
         ...this.industryRunFields(this.form.targetType),
         search_queries: this.splitLines(this.form.searchQueries), focus_questions: this.splitLines(this.form.focusQuestions || this.form.keyQuestions),
         target_type: this.form.targetType, client_name: '', deadline: this.form.endDate || '',
@@ -760,6 +783,7 @@ createApp({
       const intake = savedIntake || this.intakeFor(project);
       const payload = proposalOnly ? {} : {
         ...this.industryRunFields(project.target_type, intake),
+        ...this.companyRunFields(project.target_type, intake),
         search_queries: intake.search_queries || [],
         focus_questions: intake.focus_questions || [],
         target_type: project.target_type,
@@ -1179,7 +1203,7 @@ createApp({
       let pollInterval = null;
       try { await this.runAction(`second-stage:${project.id}`, '正在提交正式方案生成请求：' + (project.title || project.id), async phase => {
         const intake = this.reviewIntakes[project.id] || this.projectDetails[project.id]?.intake || {};
-        const payload = {proposal_review_notes: intake.proposal_review_notes || ''};
+        const payload = {...this.companyRunFields(project.target_type, intake), proposal_review_notes: intake.proposal_review_notes || ''};
         const r = await this.authFetch(`/research/projects/${project.id}/second-stage/run/stream`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || '正式方案生成启动失败'); }
         phase('正式方案正在生成：' + (project.title || project.id) + '，可在尽调任务查看进度');

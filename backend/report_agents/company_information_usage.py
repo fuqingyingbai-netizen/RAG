@@ -6,11 +6,12 @@ summary's supporting IDs alone never prove that all its premises survived.
 import hashlib
 import html
 import json
+import os
 import re
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-VERSION = 'company-information-usage-v3-bound-routing-cache'
+VERSION = 'company-information-usage-v4-independent-routing-policy'
 EXCLUSIONS = {'navigation', 'unrelated', 'generic_definition', 'non_substantive'}
 CONTEXT_FIELDS = ('entity', 'field', 'metric', 'value', 'previous_value', 'unit', 'currency',
                   'period', 'as_of', 'cutoff', 'report_end_date', 'scope', 'evidence_scope',
@@ -129,8 +130,11 @@ def validate_review(records, answer, outline):
         status = decision.get('status')
         if status == 'use':
             chapter = decision.get('chapter')
-            if isinstance(chapter,str) and re.fullmatch(r'\d{1,2}',chapter.strip()):
-                chapter=int(chapter.strip());decision['chapter']=chapter
+            if isinstance(chapter,str):
+                from .company_model_reading import canonical_chapter
+                normalized_chapter=canonical_chapter(chapter)
+                if normalized_chapter is not None:chapter=normalized_chapter;decision['chapter']=chapter
+                elif chapter.strip()=='12':chapter=12;decision['chapter']=12
             if type(chapter) is int and 2<=chapter<=12 and decision.get('aspect') not in outline[chapter-1][1]:
                 destinations=[i+1 for i,(_,aspects) in enumerate(outline[:12]) if decision.get('aspect') in aspects]
                 if len(destinations)==1:
@@ -153,7 +157,14 @@ def validate_review(records, answer, outline):
 
 def routing_scope(project):
     from .company_corpus import research_context
+    from pathlib import Path
+    here=Path(__file__).resolve()
+    policy_files=(here,here.parents[1]/'company_chapter_flow.py',here.parent/'company_chapter_agent.py')
     return {'as_of_date':str((getattr(project,'company_research_intake',{}) or {}).get('as_of_date') or ''),
+            'routing_identity':'independent_router_without_chapter_authoring_contract',
+            'routing_policy_sha256':hashlib.sha256('\n'.join(p.read_text(encoding='utf-8') for p in policy_files).encode()).hexdigest(),
+            'routing_model':{k:os.getenv(k,'') for k in ('MODEL','BASE_URL','COMPANY_REPORT_EDITOR_MAX_COMPLETION_TOKENS',
+                'COMPANY_REPORT_EDITOR_REASONING_EFFORT','COMPANY_REPORT_EDITOR_THINKING_BUDGET')},
             **research_context(project)}
 
 
@@ -173,7 +184,8 @@ def bind_legacy_routing_scope(package, target, scope, source_review, report_vers
 def routing_fingerprint(record, target, scope, outline):
     payload={k:record.get(k) for k in ('information_id','text','context','statement_ids',
         'chapters','provenance','evidence_ids','relevance')}
-    value={'version':VERSION,'target':target,'scope':scope,'outline':outline,'record':payload}
+    value={'version':VERSION,'target':target,'scope':scope,'outline':outline,'record':payload,
+           'review_contract':review_prompt([],target,outline)}
     if platform_method_metadata(record):
         # Only these labels need a new review. All other exact native routing
         # receipts remain reusable; no whole-corpus cache invalidation.
@@ -182,7 +194,7 @@ def routing_fingerprint(record, target, scope, outline):
 
 
 def build_information_usage(digest, sections, outline, target, invoke, *, receipt_callback=None, workers=4,
-                            previous=None, review_scope=None, emit=None, trace_emit=None):
+                            previous=None, review_scope=None, emit=None, trace_emit=None, journal_loader=None):
     """Review all distinct retained information; failed calls remain pending.
 
     The caller can persist exact prompt/response receipts and replay them.
@@ -208,6 +220,22 @@ def build_information_usage(digest, sections, outline, target, invoke, *, receip
             checked,errors=validate_review([old],{'records':[dict(decision)]},outline)
             if not errors and iid in checked:
                 decisions[iid]=checked[iid];cached_ids.append(iid)
+    journal_ids=[]
+    if journal_loader:
+        try:
+            candidates=journal_loader(records)
+            for row in records:
+                iid=row['information_id']
+                if iid in decisions:continue
+                candidate=candidates.get(iid) if isinstance(candidates,dict) else None
+                if not isinstance(candidate,dict) or candidate.get('status')!='use':continue
+                checked,errors=validate_review([row],{'records':[candidate]},outline)
+                if not errors and iid in checked:
+                    decisions[iid]=checked[iid];cached_ids.append(iid);journal_ids.append(iid)
+        except Exception as exc:
+            if emit:
+                emit(trace_emit,'report','company_checkpoint','信息用途恢复回执读取失败',
+                     type(exc).__name__+'；未恢复记录仍重新判定。',status='warning')
     for row in records:
         if row['information_id'] in decisions:continue
         amount=len(json.dumps(row,ensure_ascii=False))
@@ -236,7 +264,11 @@ def build_information_usage(digest, sections, outline, target, invoke, *, receip
                 if not pending:break
                 prompt=review_prompt(pending,target,outline)+'\n第'+str(attempt+2)+'次，仅修复这些未完成记录；保留已通过记录，不重写。诊断：'+json.dumps(errors,ensure_ascii=False)
             except Exception as exc:
-                errors=[type(exc).__name__];attempts.append({'attempt':attempt+1,'errors':errors})
+                from company_flow_state import CompanyFlowLimit
+                from .company_transport import CompanyModelUnavailable,failure_diagnostic
+                if isinstance(exc,CompanyFlowLimit):raise
+                errors=[type(exc).__name__];attempts.append({'attempt':attempt+1,'errors':errors,'transport_error':failure_diagnostic(exc,stage='information_routing')})
+                if isinstance(exc,CompanyModelUnavailable):break
                 prompt=review_prompt(remaining,target,outline)+'\n第'+str(attempt+2)+'次；上一返回无法解析，请输出完整有效JSON。'
         errors=['unreviewed_information:'+r['information_id'] for r in rows if r['information_id'] not in checked]
         excluded=[r for r in rows if checked.get(r['information_id'],{}).get('status')=='exclude']
@@ -257,7 +289,9 @@ def build_information_usage(digest, sections, outline, target, invoke, *, receip
                         'voice':'原站记载或观点，发言归属及主体对应按原文核对',
                         'exclusion_overturned':True,'exclusion_check':verdict}
                 else:checked[iid]['exclusion_check']=verdict
-        receipt={'information_ids':[r['information_id'] for r in rows],'decisions':checked,
+        receipt={'routing_version':VERSION,'target_name':target,'review_scope':scope,
+            'routing_record_hashes':{r['information_id']:fingerprints[r['information_id']] for r in rows},
+            'information_ids':[r['information_id'] for r in rows],'decisions':checked,
             'errors':errors,'attempts':attempts,'exclusion_check':exclusion_check}
         if receipt_callback:receipt_callback(receipt)
         return receipt
@@ -273,7 +307,8 @@ def build_information_usage(digest, sections, outline, target, invoke, *, receip
     package.update(target_name=target,review_receipts=receipts,review_scope=scope,routing_record_hashes=fingerprints,
                    cached_information_ids=cached_ids)
     package['diagnostic'].update(review_batches=len(batches),
-        review_batches_with_errors=sum(bool(r['errors']) for r in receipts),cached_information_records=len(cached_ids))
+        review_batches_with_errors=sum(bool(r['errors']) for r in receipts),cached_information_records=len(cached_ids),
+        cached_journal_records=len(journal_ids))
     return package
 
 

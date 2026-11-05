@@ -1,6 +1,8 @@
 """Drop newly collected web bodies after successful research, keeping provenance."""
 from datetime import datetime
 from urllib.parse import urlsplit
+from pathlib import Path
+import hashlib
 
 
 def external_url(value):
@@ -45,4 +47,38 @@ def finalize_web_sources(db, project, store):
         changed += 1
     if changed:
         db.commit()
+    return changed
+
+
+def finalize_company_sources(db,project,store,upload_root=None):
+    """Drop task-owned copies after final delivery; never delete desktop originals."""
+    changed=finalize_web_sources(db,project,store)
+    root=(Path(upload_root) if upload_root is not None else Path(__file__).resolve().parent.parent/
+        'data/research_uploads').resolve()/str(int(project.id))
+    for source in project.sources or []:
+        meta=dict(source.source_metadata or {})
+        prefix=f'projects/{int(project.id)}/uploads/'
+        key=source.object_key or ''
+        if key.startswith(prefix):
+            keys=[key,meta.get('original_object_key','')]
+            if any(k and not store.project_key(k,project.id).startswith(prefix) for k in keys):
+                raise ValueError('company_upload_cleanup_scope_mismatch')
+            local=Path(meta['local_path']).resolve() if meta.get('local_path') else None
+            if local is not None and not local.is_relative_to(root):
+                raise ValueError('company_upload_cleanup_outside_server_copy')
+            digest=hashlib.sha256((source.content or '').encode()).hexdigest()
+            for k in keys:
+                if k:store.delete_object(k)
+            if local is not None and local.is_file():local.unlink()
+            source.content='';source.object_key='';source.summary=''
+            meta.update(retention_policy='record_only',body_removed_at=datetime.utcnow().isoformat()+'Z',
+                native_sha256=digest,original_url=external_url(source.url))
+            changed+=1
+        if meta.get('retention_policy')=='record_only':
+            keep={'provider','module','tool','target','query','publication_date','entity_validation',
+                'entity_validation_reason','retention_policy','body_removed_at','original_url','evidence_excerpt',
+                'company_chapter_ids','company_chapter_id','company_requirement_ids','original_filename',
+                'native_sha256','retrieved_at','evidence_scope','content_kind'}
+            source.source_metadata={k:v for k,v in meta.items() if k in keep}
+    db.commit()
     return changed

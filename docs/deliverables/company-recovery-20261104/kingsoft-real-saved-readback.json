@@ -1,0 +1,389 @@
+{
+  "company": "kingsoft",
+  "scope": "One retained frozen source through real ResearchWorkflow; not complete-company due diligence acceptance",
+  "report_artifact_id": 25,
+  "report_version": 5,
+  "report_chars": 22529,
+  "report_sha256": "1a816f50136c1f436b307feebddd4a390bd5873d1d0402d49ac355cb78079019",
+  "saved_object_equals_database": true,
+  "native_selections": [
+    {
+      "source_id": "1",
+      "chapter": 2,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "3f62e4371665e18c0729d3583e814fa4579f7ed621adffd7553dbe219b916275",
+      "start": 522,
+      "end": 580
+    },
+    {
+      "source_id": "1",
+      "chapter": 2,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "dab8224a93c5972772f22a1360fc3f8267b63a9810eb2b4447501288950bec06",
+      "start": 862,
+      "end": 963
+    },
+    {
+      "source_id": "1",
+      "chapter": 2,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "8663bd55dfd6781ff8864b584a18e3532f8bd21a563663361f81e9c3425dc5f3",
+      "start": 1404,
+      "end": 1578
+    },
+    {
+      "source_id": "1",
+      "chapter": 2,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "48fb659ebe564c77a693d4e2744ac0c2988d4dd55987af0b11ebacf62f8c6d2f",
+      "start": 1515,
+      "end": 1578
+    },
+    {
+      "source_id": "1",
+      "chapter": 2,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "f5ffb6939b687f5b1f498f61aca9a6cb3a42ae5f35d256aaebb4987772bc6728",
+      "start": 2152,
+      "end": 2330
+    },
+    {
+      "source_id": "1",
+      "chapter": 2,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "ed945f4635bf81b0839c31a028b28321c11d03cc40e153b631afeaca575a0771",
+      "start": 2170,
+      "end": 2330
+    },
+    {
+      "source_id": "1",
+      "chapter": 2,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "abe2b032940dfaf45c28c4b7de49da10127e0d06a0a15a06d2233d20c6ae089d",
+      "start": 2461,
+      "end": 2520
+    },
+    {
+      "source_id": "1",
+      "chapter": 6,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "074c59d291864c71d5d46b57f8f423651b5edaa0680d6f8ed63769ecc2c473ec",
+      "start": 990,
+      "end": 1034
+    },
+    {
+      "source_id": "1",
+      "chapter": 6,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "0a868e2ea483933fe4431842428b41d89f46878efeeb8bda560083bd321e0145",
+      "start": 990,
+      "end": 1379
+    },
+    {
+      "source_id": "1",
+      "chapter": 6,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "311d3a9e9a04757427e141d796f55b049254fc1db49d7bf71abcfe905960ecdf",
+      "start": 990,
+      "end": 1245
+    },
+    {
+      "source_id": "1",
+      "chapter": 6,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "e745507a930a5cba3f3eaeb38060d9d605f5f1aad6fd90ba2974835056741055",
+      "start": 1079,
+      "end": 1131
+    },
+    {
+      "source_id": "1",
+      "chapter": 6,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "9ebb2aa57ed298280e001588895868ed9c902d0cd91809185ed432e1c1ba2b72",
+      "start": 1195,
+      "end": 1245
+    },
+    {
+      "source_id": "1",
+      "chapter": 6,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "32b2f2239493259456d3a76727900b08c0af89c5a603726d6992daf86f3ced3c",
+      "start": 1341,
+      "end": 1379
+    },
+    {
+      "source_id": "1",
+      "chapter": 11,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "48b376f029da1947e73f930643f87824581bd43434464ee84403ff0d49071c82",
+      "start": 406,
+      "end": 421
+    },
+    {
+      "source_id": "1",
+      "chapter": 11,
+      "original_sha256": "3b44897b39d3b7106c71078850e664ccf35f78d8739d2f24a389d7998423218f",
+      "quote_sha256": "c159aed2b59a2ff71b1eb01132b44b68029edd0f81aabd82b9f9202acc8d3252",
+      "start": 2621,
+      "end": 2653
+    }
+  ],
+  "source_count": 1,
+  "source_reading": {
+    "1": {
+      "state": "reviewed_literal_claims",
+      "review_windows": 4,
+      "reviewed_windows": 4,
+      "accepted_claims": 15,
+      "reading_scope": "full_native_text",
+      "unread_ranges": [],
+      "structural_gaps": []
+    }
+  },
+  "editorial": {
+    "usable_information": 16,
+    "narrative_information": 12,
+    "pending_information_ids": [
+      "I-8338d90126f86079",
+      "I-8c550f33f7adffec",
+      "I-99efc5894e1f6a8f",
+      "I-a60da1bcce6dc695"
+    ],
+    "accepted_batches": 8,
+    "failed_batches": 1,
+    "findings": 15,
+    "review_incomplete_batches": 0,
+    "revision_required_batches": 1,
+    "semantic_review_scope": "逐条信息双向审稿及原文/正文子串绑定；不宣称穷尽全部未采纳原文或独立事实核实。"
+  },
+  "usage": {
+    "pending_information_ids": [],
+    "verified_narrative_information": 12
+  },
+  "main_findings_in_database_and_word": 15,
+  "docx_sha256": "7e6a9b222fc74994c377e6f941a40862fc59ba52408a1dd55ecf7502e8d46e65",
+  "docx_bookmarks": 15,
+  "docx_native_hyperlinks": 34,
+  "docx_integrity_status": "passed",
+  "docx_render_status": "passed",
+  "docx_layout_status": "passed",
+  "docx_render_page_count": 30,
+  "pdf_sha256": "184be6a3e7de6a0ff12dc08947507f627d2490bbb824a3e55b20b18ecd8f0a43",
+  "delivery_status": "review_draft",
+  "delivery_ready": false,
+  "document_review_status": "failed",
+  "document_review_issues": [
+    {
+      "chapter": "1",
+      "quote": "以上接续所引来源的事件记载；原始文件、历史日期及后续处理仍需核验，不能据此判定当前状态。",
+      "message": "该句与所在段落的实际内容不匹配：该段讨论的是摘要的审计状态与重大风险提示的披露范围，并未记载任何“事件”“历史日期”或“后续处理”。这是模板化的资料处理话术，属于空话堆砌，且会让读者误以为存在一项待核验的事件记录。应删除该句，或改写为与审计状态、风险章节未呈现这一具体缺口相对应的表述。"
+    },
+    {
+      "chapter": "1",
+      "quote": "本章所引材料尚未形成同期间、同产品或服务范围的同业比较依据，该比较待核验；需先明确可比企业、指标定义与数据期，再以原始披露核对相对位置。",
+      "message": "该节标题为“公司所属赛道竞争格局”，但正文未给出任何关于赛道或竞争格局的实质信息，仅说明比较待核验，未回答标题所提出的问题。同时，“需先明确可比企业、指标定义与数据期”未指明可比对象范围、拟采用的指标或数据期，也未说明核验动作由谁、以何种原件执行，属于无法执行的核验安排。应补充可识别的可比企业候选范围与指标口径，或明确将本节结论限定为“本章不涉及竞争格局判断”并说明原因。"
+    },
+    {
+      "chapter": "1",
+      "quote": "现阶段结论限于上述来源披露的企业与业务记录，整体经营判断待核验，不能据此判断风险已排除或全面尽调已完成；具体问题及所需原件集中列于后续研究建议章。",
+      "message": "“上述来源披露的企业与业务记录”与本章实际内容不符：本章所引仅为半年度报告摘要中的股票简况、现金流与审计状态提示，并未披露“业务记录”。该表述扩大了来源的实际覆盖范围，属于范围扩大，应改为与摘要实际披露字段相对应的表述。"
+    },
+    {
+      "chapter": "2",
+      "quote": "该表同时列示公司办公地址为北京市海淀区小营西路33号金山软件大厦，董事会秘书（信息披露境内代表）为潘磊，证券事务代表为赵美含。",
+      "message": "该句把办公地址、董事会秘书、证券事务代表三项信息归入“公司股票简况”表，但同段前文仅说明该表载明股票种类、交易所、简称、代码及变更前简称。三项信息是否确出自该表，正文未交代，读者无法判断其表源；若实际出自摘要其他栏目，则属表源归属错误。应将该句改为按摘要实际栏目分别标注来源，或删去“该表同时列示”的归属表述。"
+    },
+    {
+      "chapter": "2",
+      "quote": "上述股东持股及质押冻结信息按摘要披露口径列示，未延伸至其他期间。",
+      "message": "该句只声明信息按摘要口径列示、未延伸其他期间，未说明任何具体处理动作或边界，属于资料处理话术而非实质信息；且与后文重复照录同一行Kingsoft WPS Corporation Limited的持股比例、持股数量、限售数量、质押冻结栏原值，构成同一事实的重复堆砌。建议删除该句，并将后两段对同一行栏目的重复照录合并为一次，保留单位与栏目口径说明即可。"
+    },
+    {
+      "chapter": "2",
+      "quote": "上述为半年度报告摘要披露口径，仅表明该报告期控制权变更事项不适用及无存续债券，摘要未给出控股股东、实际控制人的具体身份及控制比例，治理底盘的完整判断有待相关字段补充。",
+      "message": "本章标题为“股东关系与治理底盘”，但“治理底盘判断”仅依据两项“不适用”勾选，得出“不存在控股股东或实际控制人变更”“无存续债券”，未回答控股股东是谁、控制比例多少、治理结构如何等本章核心问题；结论以“有待相关字段补充”收尾，未指明缺哪些字段、影响何种判断、下一步调取何种原件，属重要问题无具体回答且核验安排不可执行。应明确列出待补字段（如控股股东名称、持股比例、实际控制人认定）及对应调取对象（如半年报全文相应章节或工商登记原件）。"
+    },
+    {
+      "chapter": "6",
+      "quote": "需要说明的是，本次可用的已核证据仅为上述研发投入占营业收入比例一项",
+      "message": "该句称“仅为上述研发投入占营业收入比例一项”，但同一节下文已引用经营活动现金流量净额及同比增减（642,693,273.51、738,347,612.83、-12.96），构成正文内部矛盾：证据范围表述与实际引用事实不一致，应改为涵盖现金流数据，或明确限定为“研发投入占比一项为板块层面指标”。"
+    },
+    {
+      "chapter": "6",
+      "quote": "核心业务板块运营进展核验表",
+      "message": "该表标题在正文中被作为待填表格引用，但实际未提供任何表格或表头，仅以段落说明“无法按业务板块逐项填列”。标题与交付形态不一致，读者无法判断该表是否存在、包含哪些栏目；应删除表标题或改为说明性小标题，并明确本章不产出板块表。"
+    },
+    {
+      "chapter": "6",
+      "quote": "就本章核验而言，这一现金流数据是公司原始披露的财务摘要数据，反映的是报告期经营现金净流入同比下降，而非分部门、分产品的经营状态证据",
+      "message": "该句将摘要披露的合并现金流量净额称为“公司原始披露的财务摘要数据”，但来源身份为半年度报告摘要，摘要本身是披露文件的摘要形态，并非原始财务报表或审计报表；且该摘要已载明未经审计。表述易被读作已取得原始财务数据，应改为“摘要所载合并口径数据”，并保留未经审计限定。"
+    },
+    {
+      "chapter": "6",
+      "quote": "| 各业务分部的收入、成本及经营成果能否按同一期口径比较 | 无法判断集团总量来自哪些分部，也不能把集团增长分配给单一业务。 | 定位目标适用的年度或期间报告及分部附注，先确认分部定义，再核对各分部当期与比较期收入、成本及经营结果。 |",
+      "message": "该待核验事项的问题设定为“能否按同一期口径比较”，但当前判断边界写成“无法判断集团总量来自哪些分部”，答非所问；且核验动作要求核对“各分部当期与比较期收入、成本及经营结果”，而本章已说明现有摘要不含分业务线数据，动作未说明在仅有摘要时如何取得分部附注或替代材料，可执行性不足。应把问题改为分部收入成本能否取得并比较，判断边界对应“摘要未披露分部数据”，动作明确为调取含分部附注的定期报告全文。"
+    },
+    {
+      "chapter": "6",
+      "quote": "已通过逐批审核的段落继续保留。本章另有内容尚未完成用途或正文核对，相关草稿及原文保留供复核；当前稿件尚未通过完整验收，核对未完成不代表公司没有相关事项。",
+      "message": "该段属于资料处理与流程话术，未回答本章“主营业务真实经营情况”的任何问题，也未指明哪些段落未完成核对、缺什么用途核对；作为成稿章节的结尾，属于空话堆砌，应删除或改为具体列明未完成事项及其对结论的影响。"
+    },
+    {
+      "chapter": "11",
+      "quote": "| ORG-01 | 管理层缺乏执行战斗力 | 待事件证据，不作排除 |",
+      "message": "75项核查目录中，ORG-01至OPS-24等大量事项的“本轮证据状态”均写为“待事件证据，不作排除”，但本章“本章待核验事项”只把组织与管理风险、业务与运营风险、行业特殊风险归为三类，并给出笼统的核验动作，没有逐项说明每个具体问题需要什么材料、核验什么对象。例如“管理层缺乏执行战斗力”“业绩收入大幅造假”“现金流不足等”所需证据类型差异很大，却共用同一状态措辞和同一类核验动作，读者无法据此执行核查，属于重要问题无具体回答、核验安排不可执行。"
+    },
+    {
+      "chapter": "11",
+      "quote": "| CON-01 | 业绩夸大、造假 | 行业适用范围待确认 |",
+      "message": "CON、MED、TEC、ENE各组事项的状态统一写为“行业适用范围待确认”，但本章未说明这些组与目标公司（办公软件企业）的适用关系判断依据，也未在“本章待核验事项”中给出确认适用范围的具体动作。MED-01至MED-07（临床、医疗机构管理）、TEC-01（芯片贪腐）、ENE-01至ENE-07（能源类）等与办公软件业务的关联性明显需要单独说明，统一状态无法回答“这些事项是否适用于本公司”这一本章应回答的问题，属结论不能回答问题。"
+    },
+    {
+      "chapter": "11",
+      "quote": "材料未提供管理层执行力、战略延续性、决策流程、核心团队、人才流失、收入与客户数据真实性、经销体系、研发进度、知识产权、税务社保、现金流等任何具体事项的证据，故不能认定上述风险已经发生，也不能认定其不存在",
+      "message": "该句把ORG、OPS各组的具体事项合并为一段否定式列举，未区分哪些事项属于公司事实、哪些属于发布者主张、哪些属于研究推论，也未说明各事项的证据缺口差异；与后文75项目录逐项列示形成重复堆砌，且“不能认定发生也不能认定不存在”对全部事项一律适用，未形成任何有区分度的判断，属空话堆砌与资料处理话术。"
+    },
+    {
+      "chapter": "14",
+      "quote": "| 第3章 北京金山办公软件股份有限公司有哪些工商、业务与资本发展节点，分别处于计划、签约还是完成状态？ | 本章问题尚未得到原文支持。 | 核对：尚无可核原件；对照已保存出处及相反信息，取得对应原件后再作结论。 | 中 |",
+      "message": "该行与同章后部“第3章 业务发展历程与关键节点”行重复覆盖同一问题（节点处于计划/签约/完成状态），但两行给出的当前判断边界与下一步动作不一致：前者称“尚无可核原件”，后者要求“按公司历史披露与产品原页逐项登记发布、投产、交付或终止日期”。同一章内对同一待核验问题给出互相冲突的资料状态与动作安排，属内部矛盾；应合并为一行并统一资料状态与动作。"
+    },
+    {
+      "chapter": "14",
+      "quote": "| 第4章 北京金山办公软件股份有限公司组织架构、决策权限与执行流程是否有制度和实际事件依据？ | 唯一已核原文仅记载“公司全体董事出席董事会会议”，可间接说明董事会会议有出席记录，但未提供组织架构、决策权限划分、执行流程的制度文本或具体事件，无法完整回答。 | 核对：组织架构、决策权限、执行流程、制度依据、实际事件；对照已保存出处及相反信息，取得对应原件后再作结论。 | 中 |",
+      "message": "该行与同章后部“第4章 组织架构合理性”“第4章 权责划分”“第4章 执行流程”三行覆盖同一组问题，但前者称“唯一已核原文仅记载……”，后者分别给出“向公司取得架构及岗位职责文件”“比对岗位责任和授权矩阵”“调取控制测试、审计发现和整改记录”等具体动作。同一章内对同一问题域的资料状态（有无已核原文）与动作颗粒度不一致，属重复堆砌且内部矛盾；应合并并统一表述。"
+    },
+    {
+      "chapter": "14",
+      "quote": "| 第6章 北京金山办公软件股份有限公司各业务的收入、利润、现金流对应什么会计期间、币种、合并范围及调整口径？ | 已核原文仅给出北京金山办公软件股份有限公司营业收入、利润总额、归母净利润、扣非归母净利润及经营活动现金流量净额的两列数值和同比变动，可支持存在本期与比较期两列数据及扣非调整口径，但未标明会计期间、币种及单位、合并或母公司范围，也未按业务拆分收入、利润、现金流，无法回答各业务对应口径。 | 核对：会计期间、合并或母公司范围、币种及单位、分业务收入、分业务利润、分业务现金流、比较数及附注；对照已保存出处及相反信息，取得对应原件后再作结论。 | 高 |",
+      "message": "该行与同章后部“第6章 各业务分部的收入、成本及经营成果能否按同一期口径比较”行覆盖同一问题（分部口径与期间对齐），但前者称“未标明会计期间、币种及单位”，后者动作要求“先确认分部定义，再核对各分部当期与比较期收入、成本及经营结果”，未处理前者已指出的期间/币种缺失。两行并存造成同一问题两套边界与动作，属重复且未形成一致的可执行安排；应合并为一行，动作需同时覆盖期间、币种、合并范围与分部定义。"
+    },
+    {
+      "chapter": "14",
+      "quote": "| 第12章 研发成果商业兑现 | 评分权重15%；未评分原因：本章尚未形成可按原锚点评价的项目阶段记录；尚未取得公司合并范围研发成果收入同期原表，不能取最好项目或按项目数量给全公司技术分。 | 取得公司合并范围研发成果或核心技术产品收入本期及比较期原表；项目阶段原件另列，不替代公司商业贡献。 按第12章该分项原锚点核验。 | 中 |",
+      "message": "该行“未评分原因”称“本章尚未形成可按原锚点评价的项目阶段记录”，但同章第6章行已确认原文披露研发投入占营业收入比例本期34.76%、上期36.07%，第4章行亦提及研发活动；此处“本章尚未形成”与同章其他行对已核研发信息的描述范围不一致，易被读为全章无任何研发相关原文。应改为明确“未取得研发成果收入同期原表及项目阶段原件”，避免以“本章尚未形成”扩大为对全章资料状态的否定。"
+    }
+  ],
+  "summary_status": {
+    "version": "company-summary-v1",
+    "package_fingerprint": "2864595a8ec5e495",
+    "delivered_evidence_ids": [
+      "E-83AA23B126C4"
+    ],
+    "delivered_cards": 3,
+    "package_chars": 3210,
+    "selection": {
+      "candidates": 14,
+      "delivered_cards": 3,
+      "filters": {
+        "unsuitable_claim": 1
+      }
+    },
+    "repair_attempted": false,
+    "degraded": false,
+    "errors": [],
+    "model_errors": [
+      "数值、单位或年份未被本段引用原文支持",
+      "不能把摘要材料未列细节扩大为原件或企业未披露"
+    ],
+    "rebuilt_from_evidence": true,
+    "cited_evidence_ids": [
+      "E-83AA23B126C4"
+    ]
+  },
+  "metrics": {
+    "elapsed_seconds": 1661.516,
+    "input_chars": 2777421,
+    "input_tokens": 1422981,
+    "model_calls": 282,
+    "output_chars": 434978,
+    "output_tokens": 202880,
+    "platform_cache_hits": 0,
+    "platform_requests": 0,
+    "query_cache_hits": 0,
+    "reported_usage_calls": 282,
+    "search_queries": 0
+  },
+  "seconds_this_invocation": 296.609,
+  "model": "deepseek-flash",
+  "base_url": "https://api.deepseek.com",
+  "search_queries": 0,
+  "platform_requests": 0,
+  "code_sha256": {
+    "backend\\company_audit.py": "a7e3fcce487cbefa441ef78b253ad8fdf4e298afc00cb1774ef6460a5f4d8b29",
+    "backend\\company_catalog.py": "8f202e771e80f6eefdafceb303536c74ad4a0622478b56c0eb9cf7ae3cb99226",
+    "backend\\company_chapters.py": "a22becf016865b7a459e984ed304ec0808620194a6f93120f4ee99168311aa04",
+    "backend\\company_chapter_flow.py": "cb09213d8d462d41547e30eef4afbe4251e696ce616615d0f81e7bd851a1ec26",
+    "backend\\company_charts.py": "c698dc904dee9ee48c947491ec596e5b5b87b321e3d61f6354a0a903c106c39b",
+    "backend\\company_collections.py": "bc2b00bfa3f2450568d9429614a4448e9b4de08f9f8c1ee23b2e705d9bbe23c6",
+    "backend\\company_collection_audit.py": "c4527b867700b1e31b167c8beb2cb362460fcb2b08f69e85c33907f3fa1e9d14",
+    "backend\\company_discovery.py": "428ee99851232482d12e380d877b30bcd942790c967cb7ceb66e039bbde0a00e",
+    "backend\\company_export_progress.py": "79340aa59463b307fb7647b5eaa966ebe7305ecae22aaef68b0b8d68f68df6c3",
+    "backend\\company_flow_state.py": "8ccb48ba9907aae9fc2e6039bdd3ab1e65b794a6d678318e78097811e21c2ac4",
+    "backend\\company_ingestion.py": "d8940fd161091d9c3fb31b6bf749629af1070cf54709001b9b50db0aaf0839db",
+    "backend\\company_knowledge.py": "457451d3927896639a8928af7c1e30fbfb15aece686e4cf557961707790ce739",
+    "backend\\company_memory.py": "5276cec1813ab075dad77ad4558ae7a5f9b336eb87515ac7c10bb3201a6e0ba3",
+    "backend\\company_ocr.py": "991b4940e72d73dba1c274442bbb486068da5370a87fe4eb647765ef51045408",
+    "backend\\company_office_watermark.py": "3e93052a6608e5ed6c68b28953b967aabba0e4f708e0e1987c4192b90f0f411b",
+    "backend\\company_pdf.py": "6b180f1c354b332c98f0bf5d329b956bcfb2ad79eec406ea1e378af6094c88dc",
+    "backend\\company_pdf_reading_order.py": "9f9cb048bfe3d62cf61e283c8324b6465a7e558ce2ca1538aa8e31a3798fbbe9",
+    "backend\\company_platform.py": "8e6502a2e37b79e95629c47b5f9e2747fd28776e7f7263120c064d0410894dbd",
+    "backend\\company_projects.py": "d35a29c98a203d283ecd6abdb43b2747d2c98ef94bf879bf178f76b38dbb0780",
+    "backend\\company_publishers.py": "c2a4e9f7cca1ecd66b710b7ab793ac2e844db37ab1bd30ab87347c540bf5e3a5",
+    "backend\\company_reading.py": "7a4ffeb82c76219be3a0c3669e611b46262b0f55058dab4a0e379d9065f6c5d3",
+    "backend\\company_requirements.py": "7ceb22d24e3ec7d5dfd2c01d6875c97442fdd4e15b96bbf4881d482705879a3c",
+    "backend\\company_risk.py": "17e1c34c8ee9a4ced2d53f8afde80b6b931467d038b30403657ec0669ede1f93",
+    "backend\\company_watermark.py": "3e8449b94128b814681c269cb534e57467f3eb129054169d9515940b0cc59914",
+    "backend\\company_workspace.py": "c66573efc9e4a51a0740ea245998f25bd9f15ef8483933d24a23a23fab752e91",
+    "backend\\docx_exporter.py": "7d24333720b059e286bf1a5dd60deb43b0f4ea427336f3f5dc22e209be57a626",
+    "backend\\research_api.py": "8bbebd428bd6f7511f359e98628ca611d914076e2455d9098d766c1c09c3d33a",
+    "backend\\research_workflow.py": "aa9aecd5ec818ae96bf7069555aa357f6efcb00b8f61784d32fd152986f2b0ca",
+    "backend\\report_agents\\company_accounting_tables.py": "32d7aefe711ca883df23cdad42f5a2ad4c5092241734b6474d9cab991f6f6516",
+    "backend\\report_agents\\company_assessment.py": "6105a56efd2e8420789c282e9d62180a27ba1d75f829de4a7601569e51d75541",
+    "backend\\report_agents\\company_assessment_sources.py": "d3d7cbf350eac5c503a191f81a25f92815cfe34d277b2765a77821753c48ffe9",
+    "backend\\report_agents\\company_audit_disclosures.py": "b9e10b57256561475dbce7a5ccdb19ff5061da8dc19f3cb111b4147cda45b8ce",
+    "backend\\report_agents\\company_beneficial_ownership.py": "370a2a596303154cd0786200391769ab1b28cda05b8efdf48f48d80dcf54a7ed",
+    "backend\\report_agents\\company_business.py": "d63d96137085f416bef5fbd7f78120796bd1a127cec3e45588dcd1889f4b157a",
+    "backend\\report_agents\\company_chapter_agent.py": "033d68ca78d17964b7b2990d7762e92246b492bc5a233184d106ac17f3ead991",
+    "backend\\report_agents\\company_chapter_placements.py": "7f9acc99f582e39a17e16931e9f7dbc6244e494ac3b6c592617c9d25502b4c78",
+    "backend\\report_agents\\company_checkpoint.py": "b4e3ede38e67693c68003b3cad0638082317767b11156690476642ef39ed9511",
+    "backend\\report_agents\\company_corpus.py": "5570e70764d66805c68dac9d1a7dda621c6c3d2322fb4416da6307317ef02d2d",
+    "backend\\report_agents\\company_corpus_writer.py": "f1e8f9a91bbb3c520564c0ceead26e088ab795a215677ebf1ed4d491047e91ec",
+    "backend\\report_agents\\company_delivery.py": "95dbc8137c6062e04b6397efc8ab0ae51c2675252366e61dd693658f91c02396",
+    "backend\\report_agents\\company_delivery_contract.py": "7e277e893564cedbf5792031e1e810127e1110a34087ca7a895a284d7646c513",
+    "backend\\report_agents\\company_diligence.py": "93401da49620b80ea6e1b95f622df132122439cf6782217e70383f33b484d9e9",
+    "backend\\report_agents\\company_editorial.py": "29da93564faec36a057f073113430ca4562346c0175320d81f7ce90aa120a158",
+    "backend\\report_agents\\company_event_evidence.py": "0a2034be78de433f69f4c6ed42d3726f56c98f2bec6526eaa4a900a92c3a01e1",
+    "backend\\report_agents\\company_evidence.py": "f68ea5fb26351350ec2fa09a10f13245568b268c92db35c857ade59187f92965",
+    "backend\\report_agents\\company_financial_statements.py": "032cbe7ea24526ae747544533fcb7f383851cc4c8384f8d1ff92afd31ffbe0c1",
+    "backend\\report_agents\\company_governance.py": "6b161d79a5096566816829311551f12a576d939ea4fd3ba46334901bf1d094f2",
+    "backend\\report_agents\\company_history.py": "a3df9bdb210cdad03ba8fa05fe3a23ca7b92c30cf7df660a881ec637343e9d5c",
+    "backend\\report_agents\\company_information_journal.py": "1f84b2c0f6310d87fec6c877708ff126b22f1999e7d5c5858ddda5f767ddb3c1",
+    "backend\\report_agents\\company_information_usage.py": "f5456be47c2c5de05d78df182c1a08bae3fb12945feaf56029003ad0634db837",
+    "backend\\report_agents\\company_issuer_identity.py": "3746f091d93ccf06ce6349b6380a0508433d791baf729392dcecc5d2e39748a2",
+    "backend\\report_agents\\company_judicial.py": "7416c2dc9ca82ea4b55ca300af3de5a32f7ea860c057f1efb2e8ea8b318bebef",
+    "backend\\report_agents\\company_listing_funding.py": "58184dba1ecad9fe61757e36f8193f22166d213fef46e67a9176bdf29716aa42",
+    "backend\\report_agents\\company_main_focus.py": "c5bbd1e001cc909422be59649042997dcae90297c85e397118e906322356ddc2",
+    "backend\\report_agents\\company_management.py": "c18ae972e80c0f9d0a0d26b6dddd48bad9e372bbc93334667bad0a626bb6061d",
+    "backend\\report_agents\\company_model_reading.py": "b90cb183cab374ecaa2c2a6867965e7b859447fe79a6a1c771405ebba6630f0c",
+    "backend\\report_agents\\company_operations.py": "f6cfedd7fcbff1ab3fb77056d1d86033724509a7983ecf29f139d0627ee84847",
+    "backend\\report_agents\\company_overseas_identity.py": "a655b418c8dedac920e70790792fbab4232f3be2aff6ce0e00d684bbe991678f",
+    "backend\\report_agents\\company_page_context.py": "6aa1ea94087227bffb612becd650e5442d5aa85bb2006e0301123e7e4177f824",
+    "backend\\report_agents\\company_people.py": "9efec7008e19f9110c7b0f8b935a3148dcbe89d29a2c507b7b3598342059aedf",
+    "backend\\report_agents\\company_presentation.py": "277fd8d00a3fa5f37f57f7a04c9815a33cf0893c483ca98c070312e69d38327b",
+    "backend\\report_agents\\company_press_releases.py": "73167fcf7f9d03715e77a5106afab7d39d14d6d10bdcd2c4a3b3f4319cbb2bd7",
+    "backend\\report_agents\\company_product_releases.py": "c483064d9db50d72c2564ce05a1274b1a7b945ce4c7c3d5f9106eec1b402a94a",
+    "backend\\report_agents\\company_reading_recovery.py": "2dbc3df49d5116488693afc79429042e3bd83d7cb77773635ff29fdcb7a37464",
+    "backend\\report_agents\\company_regulatory.py": "0c153f646bd0538d749be30f086a32d94de73c791f320bd7e1760e308d662399",
+    "backend\\report_agents\\company_report_agent.py": "2e51e65b6531a807be5a995a052254356b2bdcedf6bc60c9c03bb0ce5f8fb3c7",
+    "backend\\report_agents\\company_reputation.py": "0d328b3e307eb955bf5deef9e7b44592b7fcee8e20506b688b407f505a1f7bae",
+    "backend\\report_agents\\company_risk_register.py": "9eeb266238bb687645911529604d44e668ace586bc39d47382117cc022786ba6",
+    "backend\\report_agents\\company_selection_audit.py": "b2e6fc0efc2fd893e4ee566b8d5771f83ab4a1e0d7e509bdf98a9909b5d5351c",
+    "backend\\report_agents\\company_source_review.py": "3ed1119f252e52d95a8b8c2573d57448ea847541ad446fddbdbdc74ccc0b409b",
+    "backend\\report_agents\\company_summary.py": "e42485394c6508702edbab6eb39bbc5dc6e22ce896e2e5aa9282bf8258a6de87",
+    "backend\\report_agents\\company_text.py": "bcdb97b626f39a8766307bc50cdc03f151a556529346fce9dbf11429104b311d",
+    "backend\\report_agents\\company_time_context.py": "c435bb047bcd507b782bac9d896a73ab5c1412a7252f7b51c04edfb84307d626",
+    "backend\\report_agents\\company_transport.py": "f46b6e51cda40af3e3bb6a750af36bb4bae53b797544022c4b78a735cd7eae2b"
+  },
+  "runtime_files_changed_since_invocation": []
+}

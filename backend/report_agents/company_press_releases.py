@@ -24,7 +24,7 @@ def press_financing_rows(source,target,base,identity,*,as_of=''):
         except ValueError:return []
     if not dates or len(set(dates))!=1:return []
     publication=dates[0]
-    if as_of and publication>as_of:return []
+    post_cutoff=bool(as_of and publication>as_of)
     paragraphs=[p.strip() for p in re.split(r'\n\s*\n',raw) if p.strip()]
     owner=anchor['bilingual_binding']['original_legal_name'];rows=[]
     for quote in paragraphs:
@@ -33,7 +33,7 @@ def press_financing_rows(source,target,base,identity,*,as_of=''):
         price=re.search(r'placing price of\s+('+MONEY+r')\s+per\s+(?:Placement\s+)?Share',quote,re.I)
         if not action or not price or re.search(r'expected completion|subject to completion|not completed|has not completed',quote,re.I):continue
         rows.append({**base,'kind':'financing','stream':'融资情况','entity':target,'period':publication,
-            'date':publication,'publication_date':publication,'fact':quote,'evidence_quote':quote,
+            'date':publication,'publication_date':publication,'post_cutoff_disclosure':post_cutoff,'fact':quote,'evidence_quote':quote,
             'gross_proceeds_text':action[1],'shares_text':action[2],'placing_price_text':price[1],
             'net_proceeds_text':'','document_origin':'issuer_press_release',
             'issuer_binding':anchor['bilingual_binding'],
@@ -44,7 +44,7 @@ def press_financing_rows(source,target,base,identity,*,as_of=''):
     for quote in paragraphs:
         if len(quote)>1500 or not re.search(r'The Company intends to (?:utilize|use) the net proceeds',quote,re.I):continue
         rows.append({**base,'kind':'financing_use_plan','stream':'融资情况','entity':target,'period':publication,
-            'date':publication,'publication_date':publication,'fact':quote,'evidence_quote':quote,
+            'date':publication,'publication_date':publication,'post_cutoff_disclosure':post_cutoff,'fact':quote,'evidence_quote':quote,
             'document_origin':'issuer_press_release','mode':'拟定募集资金用途／非实际支出',
             'stage_note':'将来用途、分配比例和拟分配金额不等于已支付、已使用或银行流水；不相加反推实际总净额。'})
         break

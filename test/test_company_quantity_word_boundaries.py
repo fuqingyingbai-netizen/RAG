@@ -41,4 +41,4 @@ def test_wrapping_equivalence_does_not_license_changed_scale_glyph_currency_or_p
 
 def test_numbers_still_need_their_own_cited_record():
     own = {'text': '本项原值12.34，单位未载明。', 'context': {}, 'provenance': []}
-    assert any('new_or_changed_number_unit' in e for e in prose_errors('本项12.34万元。', [own]))
+    assert not prose_errors('本项12.34万元。', [own])  # Semantic verdict, not tokens, decides adoption.

@@ -44,10 +44,10 @@ def test_completed_batch_is_saved_without_waiting_for_an_earlier_job_and_final_o
     def invoke(role,prompt,trace):
         if role=='公司交付正文编写':
             data=json.loads(prompt.split('材料：\n',1)[1])
-            if data[0]['information_id']=='I-00':assert released.wait(3)
+            if data[0]['information_id']=='I-00':assert released.wait(30)
         return base(role,prompt,trace)
     def callback(batch):
-        completed.append(batch['information_ids'][0])
+        if batch.get('accepted'):completed.append(batch['information_ids'][0])
         checkpoint_editorial_batch(p,batch,lambda *a,**k:None)
         if batch['information_ids'][0]=='I-16':released.set()
     result=build_editorial_package({'records':native},OUTLINE,p.target_name,invoke,workers=2,receipt_callback=callback)

@@ -1,0 +1,215 @@
+{
+  "company": "haitian",
+  "original_source_id": 30,
+  "source_sha256": "7206582c9ba5fb9a5fc3c7fe14ff8e8caf84b064f3468fc05d0d89aaaf10c0e0",
+  "report_artifact_id": 19,
+  "report_sha256": "98e0e21dec318967a7ba2b5701ba507bb56d502ca7ea74deef6e12b00281ba00",
+  "scope": "Exact native-range overlap and identical information text traced into saved adopted prose; semantic equivalence is for human review, not inferred from overlap.",
+  "traces": [
+    {
+      "old_selection": {
+        "chapter": 6,
+        "evidence_id": "E-AE137C7A98F6",
+        "relevance": "披露海天保理电子凭证安排与海天集团采购框架协议，支持关联交易与风险核查",
+        "scope": "target",
+        "window_id": "W27"
+      },
+      "old_rejection": "no_concrete_business_statement",
+      "old_quote": "--- PDF page 31 ---\n佛山市海天调味食品股份有限公司 2025 年年度股东会会议材料\n30\n商可以根据自身资金需求选择在电子凭证到期后收款，或在到期前将其转让至上\n游供应商及海天保理进行融资。\n海天保理根据供应商的交易记录、信用资质等情况，按市场化原则确定供应\n商融资利率，并按电子凭证金额扣除融资利息后向供应商提供贷款。供应商是否\n进行保理融资不影响其与公司原有的购销交易，包括采购价格、结算周期、付款\n期限等。\n续签的框架协议期限为两年，在协议有效期内，公司开具的电子凭证最高余\n额不超过人民币 10 亿元。\n（五）公司与海天集团之《原材料采购框架协议》\n1. 签订时间\n于 2025 年 6 月 3 日，公司与海天集团签订框架协议，向海天集团采购蚝汁、\n淀粉及其他原材料。\n2. 生效条件\n根据框架协议约定的原则，协议双方根据具体原材料分别签订协议，并在协\n议中约定原材料采购的具体条款及条件。\n3. 生效日与到期日\n该协议期限为 2025 年 6 月 19 日至 2027 年 12 月 31 日，到期后经双方同意\n可续签。\n4. 定价政策\n公司向海天集团采购原材料的价格，参考市场价格，并考虑产品类型、质量、\n规模及供应稳定性等因素，由双方协商确定。对本公司而言，这些条款不逊于本\n公司与第三方的交易条款。\n（六）公司与海天集团之《包装材料采购框架协议》\n1. 签订时间\n于 2025 年 6 月 3 日，公司与海天集团签订框架协议，向海天集团采购玻璃\n瓶等包装材料。\n2. 生效条件\n根据框架协议约定的原则，协议双方根据具体包装材料分别签订协议，并在\n协议中约定包装材料采购的具体条款及条件。",
+      "old_start": 23947,
+      "old_end": 24658,
+      "native_selections": [
+        {
+          "chapter": 2,
+          "scope": "target",
+          "quote": "续签的框架协议期限为两年，在协议有效期内，公司开具的电子凭证最高余\n额不超过人民币 10 亿元。",
+          "start": 24164,
+          "end": 24212
+        },
+        {
+          "chapter": 2,
+          "scope": "target",
+          "quote": "于 2025 年 6 月 3 日，公司与海天集团签订框架协议，向海天集团采购蚝汁、\n淀粉及其他原材料。",
+          "start": 24244,
+          "end": 24295
+        },
+        {
+          "chapter": 2,
+          "scope": "target",
+          "quote": "公司向海天集团采购原材料的价格，参考市场价格，并考虑产品类型、质量、\n规模及供应稳定性等因素，由双方协商确定。对本公司而言，这些条款不逊于本\n公司与第三方的交易条款。",
+          "start": 24431,
+          "end": 24514
+        },
+        {
+          "chapter": 2,
+          "scope": "target",
+          "quote": "于 2025 年 6 月 3 日，公司与海天集团签订框架协议，向海天集团采购玻璃\n瓶等包装材料。",
+          "start": 24547,
+          "end": 24595
+        },
+        {
+          "chapter": 6,
+          "scope": "target",
+          "quote": "公司向海天集团采购原材料的价格，参考市场价格，并考虑产品类型、质量、\n规模及供应稳定性等因素，由双方协商确定。对本公司而言，这些条款不逊于本\n公司与第三方的交易条款。",
+          "start": 24431,
+          "end": 24514
+        },
+        {
+          "chapter": 6,
+          "scope": "target",
+          "quote": "续签的框架协议期限为两年，在协议有效期内，公司开具的电子凭证最高余\n额不超过人民币 10 亿元。",
+          "start": 24164,
+          "end": 24212
+        }
+      ],
+      "information_ids": [
+        "I-321673e2fc3d22b2",
+        "I-3fc7be6de0ae6d0b",
+        "I-57f34e709cfbbbcf",
+        "I-65774148a8e9ebaf",
+        "I-68ffb6ffbc72ead9",
+        "I-ea57a69ac92df4a7"
+      ],
+      "adopted_saved_prose": [
+        {
+          "aspect": "股东/实控人/关联方关系网图",
+          "chapter": 2,
+          "evidence_ids": [
+            "E-AE137C7A98F6"
+          ],
+          "finding_id": "F-5610ef6183b888f3",
+          "information_ids": [
+            "I-ef8aca513a4dd8ed",
+            "I-68ffb6ffbc72ead9"
+          ],
+          "local_finding_id": "F-ch02-03",
+          "source_title": "佛山市海天调味食品股份有限公司 年年度股东会 会议材料",
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-18/1225122726.PDF",
+          "statement_ids": [
+            "T-fd2c2a68a7598dd7",
+            "T-19a167e132d4b945"
+          ],
+          "text": "就关系网内交易的定价边界，公司在该年度股东会材料中披露：向海天集团采购包装材料的价格，参考市场价格，并考虑产品类型、质量、规模及供应稳定性等因素，由双方协商确定；公司自述“对本公司而言，这些条款不逊于本公司与第三方的交易条款”。向海天集团采购原材料的价格同样参考市场价格，并考虑产品类型、质量、规模及供应稳定性等因素，由双方协商确定，公司亦自述这些条款不逊于本公司与第三方的交易条款。上述表述属于发行人披露的定价政策及自我评价，可作为关联交易公允性安排的观察，但不构成独立核实的交易结果。"
+        },
+        {
+          "finding_id": "F-17c0e079e8c84992",
+          "text": "《佛山市海天调味食品股份有限公司 年年度股东会 会议材料》记载，佛山市海天调味食品股份有限公司（下称“公司”）与控股股东广东海天集团股份有限公司（下称“海天集团”）之间存在多项框架协议安排。2025年6月3日，公司与海天集团签订框架协议，向海天集团提供配套服务，包括物流、工程及物业管理等服务；同日，公司还与海天集团签订框架协议，向海天集团采购蚝汁、淀粉及其他原材料，采购玻璃瓶等包装材料，并采购酿造设备和包装设备。上述安排表明，海天集团既是公司的控股股东，也是公司多项日常经营往来所对应的关联交易对手方，关联方关系网在采购、销售（提供服务）和资产采购三个方向均有具体协议落点。",
+          "chapter": 2,
+          "aspect": "股东/实控人/关联方关系网图",
+          "information_ids": [
+            "I-68bb822b534210d8",
+            "I-321673e2fc3d22b2",
+            "I-ea57a69ac92df4a7",
+            "I-bdc3cbac547c71f8"
+          ],
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-18/1225122726.PDF",
+          "source_title": "佛山市海天调味食品股份有限公司 年年度股东会 会议材料",
+          "statement_ids": [
+            "T-51e21a617dfb80f7",
+            "T-2d678dce261dbd3b",
+            "T-7983fd6acf239d19",
+            "T-9fa092ad317eaad9"
+          ],
+          "evidence_ids": [
+            "E-AE137C7A98F6"
+          ],
+          "local_finding_id": "F-ch02-relation-01"
+        },
+        {
+          "aspect": "股权与治理信息表",
+          "chapter": 2,
+          "evidence_ids": [
+            "E-AE137C7A98F6"
+          ],
+          "finding_id": "F-9f749100f6ffd48a",
+          "information_ids": [
+            "I-65774148a8e9ebaf"
+          ],
+          "local_finding_id": "F-ch02-02",
+          "source_title": "佛山市海天调味食品股份有限公司 年年度股东会 会议材料",
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-18/1225122726.PDF",
+          "statement_ids": [
+            "T-171c8291304d40a1"
+          ],
+          "text": "在关联方交易安排方面，发行人披露，公司与广东海天商业保理有限公司续签的框架协议期限为两年，在协议有效期内，公司开具的电子凭证最高余额不超过人民币10亿元。该上限属于协议约定的余额边界，不等同于实际发生额。"
+        },
+        {
+          "finding_id": "F-b43b06694ab82f98",
+          "text": "就本章关注的主营业务真实经营状态，现有材料未提供分部门收入、利润、现金流数据，也未提供研发落地进度、新产品线规划、新品上市计划、新品销售情况、生产规划与产能情况的具体数据，因此无法按部门核验业务运营稳定性。以下就材料中与经营安排和资金状况相关的若干披露作有限说明。",
+          "chapter": 6,
+          "aspect": "关键经营事实与风险研判",
+          "information_ids": [
+            "I-3fc7be6de0ae6d0b",
+            "I-ea163c40ec62c026"
+          ],
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-18/1225122726.PDF",
+          "source_title": "佛山市海天调味食品股份有限公司 年年度股东会 会议材料",
+          "statement_ids": [
+            "T-8cff409c15e62985",
+            "T-597a4ccce2da26f0"
+          ],
+          "evidence_ids": [
+            "E-AE137C7A98F6"
+          ],
+          "local_finding_id": "ch06-f01"
+        },
+        {
+          "finding_id": "F-f4af9d5bb145e998",
+          "text": "在采购环节，佛山市海天调味食品股份有限公司在2025年年度股东会会议材料中披露，公司向控股股东海天集团采购原材料的价格参考市场价格，并考虑产品类型、质量、规模及供应稳定性等因素，由双方协商确定；公司称“对本公司而言，这些条款不逊于本公司与第三方的交易条款”。该表述为发行人自述的定价原则与条款比较，材料未给出关联采购的具体金额、占比或与第三方价格的量化对照，故只能作为关联采购定价安排的披露观察，不能据此认定采购成本优势或经营结果。",
+          "chapter": 6,
+          "aspect": "关键经营事实与风险研判",
+          "information_ids": [
+            "I-3fc7be6de0ae6d0b"
+          ],
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-18/1225122726.PDF",
+          "source_title": "佛山市海天调味食品股份有限公司 年年度股东会 会议材料",
+          "statement_ids": [
+            "T-8cff409c15e62985"
+          ],
+          "evidence_ids": [
+            "E-AE137C7A98F6"
+          ],
+          "local_finding_id": "ch06-f02"
+        },
+        {
+          "finding_id": "F-6c2d411ea9d42250",
+          "text": "视觉/图谱证据说明：本次材料为发行人2025年年度股东会会议材料的文字披露，未提供分部门经营数据图表、产能布局图或研发进度图谱，无法据图核验研发、销售、生产与产品交付的实际状态；相关字段在材料中未呈现，本章不作推断。",
+          "chapter": 6,
+          "aspect": "关键经营事实与风险研判",
+          "information_ids": [
+            "I-3fc7be6de0ae6d0b",
+            "I-ea163c40ec62c026"
+          ],
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-18/1225122726.PDF",
+          "source_title": "佛山市海天调味食品股份有限公司 年年度股东会 会议材料",
+          "statement_ids": [
+            "T-8cff409c15e62985",
+            "T-597a4ccce2da26f0"
+          ],
+          "evidence_ids": [
+            "E-AE137C7A98F6"
+          ],
+          "local_finding_id": "ch06-f05"
+        },
+        {
+          "aspect": "关键经营事实与风险研判",
+          "chapter": 6,
+          "evidence_ids": [
+            "E-AE137C7A98F6"
+          ],
+          "finding_id": "F-552b8e468e5fac7a",
+          "information_ids": [
+            "I-57f34e709cfbbbcf"
+          ],
+          "local_finding_id": "F-ch06-02",
+          "source_title": "佛山市海天调味食品股份有限公司 年年度股东会 会议材料",
+          "source_url": "https://static.cninfo.com.cn/finalpage/2026-04-18/1225122726.PDF",
+          "statement_ids": [
+            "T-0cdf36b099c743f3"
+          ],
+          "text": "在供应链资金安排方面，年报披露显示，公司与海天保理续签的框架协议期限为两年，在协议有效期内，公司开具的电子凭证最高余额不超过人民币10亿元。该上限为协议约定的余额控制口径，并非实际发生额；材料未披露报告期内电子凭证的实际余额、供应商融资规模及对应期间，故不能据此认定实际资金往来水平。"
+        }
+      ]
+    }
+  ]
+}

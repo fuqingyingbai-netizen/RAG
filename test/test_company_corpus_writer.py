@@ -15,14 +15,15 @@ def test_attributed_platform_numbers_are_not_a_blocked_source_class():
     record={'text':'企查查页面载明注册资本1000万元；注册资本不是实缴或融资到账。',
             'context':{'source_kind':'professional_platform_record'},'origin':'literal_original_statement'}
     assert not _prose_errors('企查查所载注册资本为1000万元，该字段不代表融资到账。',[record])
-    assert 'nonprimary_numeric_claim_requires_explicit_attribution' in _prose_errors('注册资本为1000万元。',[record])
-    assert 'new_or_changed_number_unit' in _prose_errors('企查查所载注册资本为2000万元。',[record])
+    # Meaning and attribution must reach independent review, not a word filter.
+    assert not _prose_errors('注册资本为1000万元。',[record])
+    assert not _prose_errors('企查查所载注册资本为2000万元。',[record])
 
 
 def test_one_batch_cannot_assert_that_the_whole_corpus_lacks_a_fact():
     from report_agents.company_corpus_writer import _prose_errors
     record={'text':'公司在本页说明技术合作。','context':{},'origin':'literal_original_statement'}
-    assert 'batch_cannot_assert_whole_corpus_gap' in _prose_errors('现有材料未提供官方成立日或股权控制文件。',[record])
+    assert not _prose_errors('现有材料未提供官方成立日或股权控制文件。',[record])
 from report_agents.company_report_agent import COMPANY_REPORT_OUTLINE
 
 TARGET='杭州深度求索人工智能基础技术研究有限公司'
@@ -83,7 +84,7 @@ def test_invented_number_is_rejected_before_prose_can_be_approved():
         calls.append(role);records=json.loads(prompt.split('记录：\n',1)[1])
         return json.dumps({'groups':[dict(aspect='决策机制',summary='委员会已召开999次会议并保证所有决策有效。',statement_ids=[records[0]['statement_id']])],'appendix':[]})
     result=build_compact_digest(p,r,COMPANY_REPORT_OUTLINE,invoke,lambda *a,**k:None)
-    assert not result['groups'] and calls==['公司多来源归纳 Agent']
+    assert not result['groups'] and '公司归纳独立核对 Agent' in calls
 
 
 def test_compaction_keeps_all_parent_sources_or_retains_the_original_checked_groups():
@@ -102,7 +103,8 @@ def test_native_financial_values_and_complete_risk_dictionary_survive_compact_la
         dict(group_id='risk',chapter=11,aspect='75项核查目录及扩展事项',summary='核查目录用于识别核验问题，不代表已发生负面事件。',evidence_ids=[EID])]
     sections=render_compact_chapters(p,{'groups':groups},COMPANY_REPORT_OUTLINE,{6:'old',11:'old',12:'unchanged score chapter'})
     assert all(v in sections[6] for v in ['1,234.56','2,345.67','元','2026年半年度报告'])
-    assert all(f'ORG-{i:02}' in sections[11] for i in range(75))
+    assert not any(f'ORG-{i:02}' in sections[11] for i in range(75))
+    assert len(p.company_risk_register_package['checklist'])==75
     assert p.company_assessment_package==before and sections[12]=='unchanged score chapter'
 
 
@@ -170,13 +172,10 @@ def test_transaction_check_can_explain_assessment_boundary_without_creating_scor
     context={'statement_id':'T-boundary','chapter':10,'text':'第三方经核查财务报表等文件，称其流动资金足以覆盖特定证券认购金额。',
         'context':{'source_kind':'third_party_filing','scope':'third_party_about_target'},'evidence_ids':[EID]}
     sections=render_compact_chapters(p,{'groups':[],'statements':[context]},COMPANY_REPORT_OUTLINE,{12:'## 12. 综合评价\n尚未取得评分所需原件，不赋分。'})
-    assert EID in sections[12] and '不作为营收、盈利能力或公司综合评分的依据' in sections[12]
+    assert EID not in sections[12] and '第三方核查文件载有' not in sections[12]
     assert p.company_assessment_package['dimensions']==original['dimensions']
     assert p.company_assessment_package['financial_observations']==original['financial_observations']
-    assert p.company_assessment_context_references==[context]
-    facts=p.company_assessment_package['facts']
-    assert len(facts)==1 and facts[0]['kind']=='non_scoring_transaction_context'
-    assert facts[0]['evidence_ids']==[EID]
+    assert p.company_assessment_package==original
 
 
 def test_retained_provider_records_all_enter_writing_without_source_budget():

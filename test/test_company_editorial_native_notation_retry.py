@@ -18,13 +18,17 @@ def test_retry_corrects_added_units_without_weakening_native_quantity_guards(nat
     def invoke(role, prompt, trace):
         if role == '公司交付正文独立审稿':
             data = json.loads(prompt.split('资料：\n', 1)[1])
-            return json.dumps(audit([row], data['findings']))
+            qa=audit([row], data['findings'])
+            if len(writes)==1:
+                qa['criteria']['factual_support']=False;qa['findings'][0]['status']='unsupported'
+                qa['issues']=['该段应按独立审稿意见修复。']
+            return json.dumps(qa)
         writes.append(prompt)
         text = invented if len(writes) == 1 else native
         return json.dumps({'findings': [{'finding_id': 'p1', 'text': text,
                                          'information_ids': ['I-a']}]})
     result = build_editorial_package({'records': [row]}, OUTLINE, '青禾食品公司', invoke, workers=1)
     assert len(writes) == 2
-    assert any('new_or_changed_number_unit' in e for e in result['batches'][0]['attempts'][0]['errors'])
+    assert 'editorial_criterion:factual_support' in result['batches'][0]['attempts'][0]['errors']
     assert result['diagnostic']['pending_information_ids'] == []
     assert result['findings'][0]['text'] == native

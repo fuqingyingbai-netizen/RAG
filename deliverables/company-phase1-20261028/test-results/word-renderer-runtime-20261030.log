@@ -1,0 +1,9 @@
+[render_docx] $ C:\Users\wangli\.codex\worktrees\05ec\RAG\work\company-phase1-20261028\render-runtime\libreoffice\program\soffice.com -env:UserInstallation=file:///C:/Users/wangli/.codex/worktrees/05ec/RAG/work/loqa_4fc54e3c/soffice_profile_dpofe9is --invisible --headless --norestore --convert-to pdf --outdir C:\Users\wangli\.codex\worktrees\05ec\RAG\work\loqa_4fc54e3c\soffice_convert_l0ss4fxt C:\Users\wangli\.codex\worktrees\05ec\RAG\work\company-phase1-20261028\render-runtime\renderer-smoke.docx
+convert C:\Users\wangli\.codex\worktrees\05ec\RAG\work\company-phase1-20261028\render-runtime\renderer-smoke.docx as a Writer document -> C:\Users\wangli\.codex\worktrees\05ec\RAG\work\loqa_4fc54e3c\soffice_convert_l0ss4fxt\renderer-smoke.pdf using filter : writer_pdf_Export
+
+Entity: line 1: parser error : Document is empty
+
+^
+
+Pages rendered to C:\Users\wangli\.codex\worktrees\05ec\RAG\work\company-phase1-20261028\render-runtime\primary-render-console-smoke-20261030
+{"pages": 1, "input_unchanged": true, "visual_review": "pending", "shipping_report_acceptance": false}

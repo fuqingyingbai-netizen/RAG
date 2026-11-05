@@ -1,0 +1,51 @@
+{
+  "scope": "Saved real kingsoft source30 review draft v5; layout QA is separate from evidence acceptance",
+  "report_artifact_id": 25,
+  "docx_sha256": "7e6a9b222fc74994c377e6f941a40862fc59ba52408a1dd55ecf7502e8d46e65",
+  "renderer": "bundled documents/render_docx.py 26.1026.10807 via LibreOffice 24.2.7.2 console",
+  "dpi": 96,
+  "pages": 30,
+  "all_pages_contact_reviewed": true,
+  "full_resolution_spot_checks": [
+    8,
+    21
+  ],
+  "findings": "All 30 pages inspected in three contact views; pages 8 and 21 checked at full resolution. No visible overflow or clipped text. Long verification rows remain narrow and dense and continue across pages. Review draft; layout inspection does not resolve the saved semantic review issues.",
+  "contacts": [
+    "kingsoft-word-contact-1.png",
+    "kingsoft-word-contact-2.png",
+    "kingsoft-word-contact-3.png"
+  ],
+  "png_sha256": {
+    "page-1.png": "eaaa1baa5a3d23011acbfd0d33d297d863100b49ffd81dbd7bb7bfe361578f97",
+    "page-2.png": "cd8bad6d08503f035705e58baf9f55014c1030d3a02cffdd75c03bac10db390c",
+    "page-3.png": "57fdfde10ce300ee55afca150626d067781dfbdf4fc2fb0c99bd8195a953ba9e",
+    "page-4.png": "0004bf48b608ed7cd45b7b8ec87f3ecf5e1c599ac3730a05278a952e8335dcb1",
+    "page-5.png": "ecfb197b197824a08038c249ed51bfc18f9a0fbc6d43d0783ac0fdb33bddbb52",
+    "page-6.png": "aa4621f383f606e79fe6bc2aef43fcd9cb4748808700e639a18da6462bdefe3f",
+    "page-7.png": "48d66701bcee0df2668a5121f86c3b335ce39b76b4837a82898e04e2b0794f79",
+    "page-8.png": "825d7addc7d73ac1c930ae6e253cdcf6768fb39c660e494c8401f3de41acc1f8",
+    "page-9.png": "3837a5b788bd3538a904e299c671d2485e5c21b0faba7a8e83bde15911372609",
+    "page-10.png": "6853033abb02a8546a605582974b22f91522b5dbfd00fe4430c8da541706f5ee",
+    "page-11.png": "19844ee2e407d94271531f9203292d783447a9fc6bdd3899731653051690387c",
+    "page-12.png": "82bd6926f534b64fa92141b534981a32c4a35eb9db672a2a506085d7de5524b4",
+    "page-13.png": "764be1507cf60cd5bf88074790e3c2b897133bf45aa039b53852578137d26069",
+    "page-14.png": "bddb67f8d8101419f052c5261f437ea2dda4b6467825f9cc312f6c3cb2230e31",
+    "page-15.png": "d31c4e3262a610a8dacb463e70b17a69c962c8f8ad65116bc89005259a4751ca",
+    "page-16.png": "d1aa7e1e9019ed19b2dbf9744538c973b41ec99a95649e849ef0f3e5be0c405d",
+    "page-17.png": "d7212cef26851838fb8d84c2bf034c26f5c5b6d0f94a296fae2254e387cbaf4d",
+    "page-18.png": "b7e918f0a237cfd8891eb437beea4640b7fff249bcbce50c9873e6215093c6e5",
+    "page-19.png": "974f2fae74944329a983cf982be692107161045838dd7956c3dd73987e425ccb",
+    "page-20.png": "171e0840c108eaa195ed7ce9370193fb45782d67f64ea16c015fd65d5d1ea5f0",
+    "page-21.png": "bb6e3d96771c701a5c4a6d287364dd13cf20fdcc79e560a3927fdb10e9c6977a",
+    "page-22.png": "1c55797bd994941b0459f68447bdf66a71ecab03dc136c7cde98b82183a4d025",
+    "page-23.png": "4509313f934534680963e29bf0ffe142403142c306f2f15f30a772de8bdea407",
+    "page-24.png": "2156cc15b334fde420eed2c6a088f1e99cb31ad87f315ecf305caebecabfb068",
+    "page-25.png": "0399b54b82fa6c0eb245ba87cba8b743a2f2d5ab29e3aa02f0765ec46c4fb316",
+    "page-26.png": "eb03a12c0dd440eb43f7463a5d9ff7f7148a569357ef534ce706547b878910b9",
+    "page-27.png": "47543b3e49dae0775613fdcc4eb4153ecac812578a6c925de6dcf162b24447b2",
+    "page-28.png": "c61e52389c87039c972386abdc022bf95260a51a5b4fd11495fa17b557610cbb",
+    "page-29.png": "01da8c92f892c84a82ae010a31c6f9f0ca02a85ba7eeb7d8e66147e10b1d421e",
+    "page-30.png": "6f279e060f676b96fd89aca319451843e70635bc3016d5d48162a6df1e658753"
+  }
+}

@@ -1,0 +1,3 @@
+# Keep raw verification receipts byte-for-byte, including recorded trace spacing.
+*.xml binary
+*.log binary

@@ -277,6 +277,10 @@ def funding_score(history, target, as_of, originals=None):
     originals = originals or {}
     completed = []
     for r in history.get('facts', []):
+        from .company_time_context import publication_context
+        original=originals.get(r.get('source_url'))
+        timing=publication_context(original,as_of) if original is not None else {}
+        if r.get('post_cutoff_disclosure') or timing.get('post_cutoff_disclosure') or timing.get('post_cutoff_publication_hint'):continue
         quote = str(r.get('fact') or '')
         if r.get('native_listing_funding'):
             from .company_listing_funding import listing_funding_events
@@ -347,6 +351,8 @@ def capital_status_observations(sources, target, cards, as_of):
         base = source_anchor(s, cards)
         owned.append((s, base))
         raw, _ = source_body(s)
+        relationship_cutoff=filing_cutoff(pages)
+        if as_of and relationship_cutoff and relationship_cutoff>as_of:continue
         for m in re.finditer(r'分拆(?:所属|控股)?子公司\s*(' + LEGAL + ')', raw):
             name = m[1]
             relations[folded(name)] = {'entity': name, 'proof': {**base, 'kind': 'capital_subject_relation',
@@ -642,6 +648,12 @@ def build_assessment_package(cleaned, target, sources=None, *, intake=None, indu
     team_records = [row for _, rows in roster for row in rows]
     execution = [r for r in execution if _recent(r['cutoff'], as_of)]
     dimensions.append(execution_score(execution, team_records))
+    from .company_time_context import publication_context
+    source_map={str(get(s,'url')):s for s in source_list}
+    for dimension in dimensions:
+        if any(r.get('source_url') in source_map and publication_context(source_map[r['source_url']],as_of)['post_cutoff_disclosure'] for r in dimension.get('records',[])):
+            dimension['score']=None
+            dimension['reason']='支持指标为截至日后披露或日期待核材料，保留原值观察，不作为当时已知的评分依据。'
     aggregate = aggregate_scores(dimensions)
     capital, relations = capital_status_observations(source_list, target, cards, as_of)
     context = non_scoring_investment_context(source_list, target, cards)

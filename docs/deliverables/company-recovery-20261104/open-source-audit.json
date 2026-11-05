@@ -1,0 +1,86 @@
+[
+  {
+    "repository": "https://github.com/assafelovic/gpt-researcher",
+    "commit": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "license": "Apache-2.0",
+    "path": "LICENSE",
+    "sha256": "1eb85fc97224598dad1852b5d6483bbcf0aa8608790dcc657a5a2a761ae9c8c6"
+  },
+  {
+    "repository": "https://github.com/assafelovic/gpt-researcher",
+    "commit": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "license": "Apache-2.0",
+    "path": "multi_agents/agents/draft_review.py",
+    "sha256": "a0838842eee591afff1d9a1681e042096080c7a6d144f8ef992e1a8353a8ffc6"
+  },
+  {
+    "repository": "https://github.com/assafelovic/gpt-researcher",
+    "commit": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "license": "Apache-2.0",
+    "path": "multi_agents/agents/editor.py",
+    "sha256": "147c444b573cf3a0adf235b098aa562664fc0725ba2630fa1e39a4256f31c47f"
+  },
+  {
+    "repository": "https://github.com/assafelovic/gpt-researcher",
+    "commit": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "license": "Apache-2.0",
+    "path": "multi_agents/agents/reviewer.py",
+    "sha256": "2e18d5f136e6472f8f5af1205aac610a3c1cb870343bbfda386e3f7da377faef"
+  },
+  {
+    "repository": "https://github.com/langchain-ai/langgraph",
+    "commit": "ec72ddf3c28fed766f1041e12e5c3f499a490754",
+    "license": "MIT",
+    "path": "LICENSE",
+    "sha256": "ab08cf7f0b8d47e474d2e66e0212f18f6c70f5097f404de8a35c665012c9b199"
+  },
+  {
+    "repository": "https://github.com/langchain-ai/langgraph",
+    "commit": "ec72ddf3c28fed766f1041e12e5c3f499a490754",
+    "license": "MIT",
+    "path": "libs/checkpoint/langgraph/checkpoint/base/__init__.py",
+    "sha256": "516fc759adc692ff9607d7519a7326c9b636f5114a8a61860f2c2b554bc3f337"
+  },
+  {
+    "repository": "https://github.com/langchain-ai/langgraph",
+    "commit": "ec72ddf3c28fed766f1041e12e5c3f499a490754",
+    "license": "MIT",
+    "path": "libs/langgraph/langgraph/pregel/_retry.py",
+    "sha256": "8cda7bd676c7b5844725ae6422758b6e46367e4d3c70aeef4cdc4c3eee3599a7"
+  },
+  {
+    "repository": "https://github.com/langchain-ai/open_deep_research",
+    "commit": "1b7d2e80db9faa586165c60e09096dbbfd483a64",
+    "license": "MIT",
+    "path": "LICENSE",
+    "sha256": "16dc1c22355a5128f99be716f7f7b0c60eaf8d31e8f5e7a8952218bff3d7e3ba"
+  },
+  {
+    "repository": "https://github.com/langchain-ai/open_deep_research",
+    "commit": "1b7d2e80db9faa586165c60e09096dbbfd483a64",
+    "license": "MIT",
+    "path": "src/open_deep_research/deep_researcher.py",
+    "sha256": "5f702068f13ede8639883426a94f84499df7afdbb06a4ad0674123c8ddaff707"
+  },
+  {
+    "repository": "https://github.com/duhu2000/financial-services-qcc",
+    "commit": "fb1289cf1c58fa99a3af37d594488400a22974b7",
+    "license": "Apache-2.0",
+    "path": "LICENSE",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "repository": "https://github.com/duhu2000/financial-services-qcc",
+    "commit": "fb1289cf1c58fa99a3af37d594488400a22974b7",
+    "license": "Apache-2.0",
+    "path": "scripts/qcc_mcp_connector_financial.py",
+    "sha256": "d454a36906eea1b13e729de00c7d6cbf73c8533c67603208e47b3ccf350ff92a"
+  },
+  {
+    "repository": "https://github.com/duhu2000/financial-services-qcc",
+    "commit": "fb1289cf1c58fa99a3af37d594488400a22974b7",
+    "license": "Apache-2.0",
+    "path": "utils/qcc_mcp_client.py",
+    "sha256": "ef0d5ee21b7c608b853a4b577f9b1839e412bc88d69f554ccd57520e8f4ba5fc"
+  }
+]

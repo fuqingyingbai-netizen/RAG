@@ -1,0 +1,65 @@
+{
+  "at": "2026-10-30T15:17:06.728348+00:00",
+  "product_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
+  "product_git_tree": "58afdc021280ebfc3b27c8f9b759bc666f1441ce",
+  "platform": "Windows Python 3.12.14",
+  "passed": 4754,
+  "tests": 4758,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 4,
+  "warnings": 2875,
+  "elapsed_seconds": 1521.298,
+  "changed_product_paths": {
+    "backend/report_agents/company_presentation.py": {
+      "candidate_utf8_sha256": "277fd8d00a3fa5f37f57f7a04c9815a33cf0893c483ca98c070312e69d38327b"
+    },
+    "test/test_company_presentation_cache_revalidation.py": {
+      "candidate_utf8_sha256": "7c63aacb93c4d6ba3662ac8fec579d9e93f8ca93c58627c23e513d3eeff5da89"
+    },
+    "test/test_company_presentation_delivery.py": {
+      "candidate_utf8_sha256": "e7b8c27ad6a7e2eab8b5c0d569ec1e96ced7c42ad5ef0039eb0da4c568cecc2c"
+    }
+  },
+  "new_cache_revalidation_tests_passed": 16,
+  "skipped_tests": [
+    {
+      "classname": "test.test_backup_busy_workloads",
+      "name": "test_busy_job_skips_before_stopping_any_service[research]",
+      "reason": "Real flock and service guard run on Linux"
+    },
+    {
+      "classname": "test.test_backup_busy_workloads",
+      "name": "test_busy_job_skips_before_stopping_any_service[assistant]",
+      "reason": "Real flock and service guard run on Linux"
+    },
+    {
+      "classname": "test.test_backup_busy_workloads",
+      "name": "test_busy_job_skips_before_stopping_any_service[ingestion]",
+      "reason": "Real flock and service guard run on Linux"
+    },
+    {
+      "classname": "test.test_release_preparation",
+      "name": "test_first_start_allows_missing_bm25_file_when_parent_exists",
+      "reason": "Actual Linux path checks run on the target platform."
+    }
+  ],
+  "evidence_sha256": {
+    "deliverables/company-phase1-20261028/test-results/full-regression-ee16e90-windows.xml": "6c516c49f941771b7f7fad016f784086e0a8b1eeffb3680fc3dce9951fe5d846",
+    "deliverables/company-phase1-20261028/test-results/full-regression-ee16e90-windows.log": "fc8eb07bfc3a8053704f10355d6032f344b71b80a4d94d984de7d89dd963873f"
+  },
+  "full_scope": "complete backend automated test directory, including other research chains",
+  "native_read_only_replay": {
+    "source_records": 1246,
+    "information_records": 9363,
+    "revalidated_cached_jobs": 76,
+    "revalidated_cached_information_records": 2152,
+    "all_current_information_covered_exactly_once": true,
+    "baseline_fresh_review_jobs": 331,
+    "after_fix_new_review_jobs": 254,
+    "model_calls": 0,
+    "cache_modified": false
+  },
+  "three_final_reports_accepted": false,
+  "goal_complete": false
+}

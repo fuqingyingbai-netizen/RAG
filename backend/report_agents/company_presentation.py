@@ -49,9 +49,16 @@ def journal_index(project,store,binding):
     from .company_checkpoint import prefix
     try:index=json.loads(store.get_text(prefix(project)+'/presentation-current.json'))
     except Exception:return {**binding,'entries':{}}
-    if not isinstance(index,dict) or any(index.get(k)!=v for k,v in binding.items()) or not isinstance(index.get('entries'),dict):
+    # This is a pool of native candidates, not an approved whole-stage cache.
+    # Unrelated source changes must not discard exact-input receipts. The job
+    # planner and worker still check every current record hash and both reviews.
+    identity={k:v for k,v in binding.items() if k!='source_fingerprint'}
+    if (not isinstance(index,dict) or any(index.get(k)!=v for k,v in identity.items())
+            or not isinstance(index.get('entries'),dict)
+            or not isinstance(index.get('source_fingerprint'),str)
+            or not re.fullmatch(r'[0-9a-f]{64}',index['source_fingerprint'])):
         return {**binding,'entries':{}}
-    return index
+    return {**binding,'entries':index['entries'],'candidate_input_revalidation_required':True}
 
 
 def read_journal(project,store):

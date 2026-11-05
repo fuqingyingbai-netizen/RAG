@@ -1,0 +1,138 @@
+{
+  "at": "2026-10-30T16:16:48.502863+00:00",
+  "scope": "all 14 chapters of the frozen baseline text, not a current report or full-source audit",
+  "case": "kingsoft",
+  "report_artifact_id": 134,
+  "report_version": 2,
+  "report_sha256": "594884b6b486b466511b815bce0a402eba3a21fae7299b2448a73b18c6c63a76",
+  "report_characters": 34447,
+  "chapters": [
+    {
+      "chapter": 1,
+      "heading": "## 1. 摘要",
+      "characters": 565,
+      "sha256": "8bd5b85e2c2a1a6c6a0b9dcaf210152290272a8437f0e7a95082d3e91f93f276",
+      "text_read_in_full": true,
+      "semantic_acceptance": false
+    },
+    {
+      "chapter": 2,
+      "heading": "## 2. 主体工商基本信息核查股东关系与治理底盘",
+      "characters": 9325,
+      "sha256": "57388628060b4b29c45479bf77ed4e9bd8cfc4f287c4b07fa1f57ca528ad402f",
+      "text_read_in_full": true,
+      "semantic_acceptance": false
+    },
+    {
+      "chapter": 3,
+      "heading": "## 3. 历史沿革与成长质量",
+      "characters": 6072,
+      "sha256": "aa6d82739e8c8487ba53fb0a46b3c29849fff0bcfdbd67eb1514f4f441f7ccc1",
+      "text_read_in_full": true,
+      "semantic_acceptance": false
+    },
+    {
+      "chapter": 4,
+      "heading": "## 4. 组织治理与运营管理评估",
+      "characters": 628,
+      "sha256": "eb64ea8c638440ca9983c84f939645ec02f3067dbe643dc4d80339a4204d0dc7",
+      "text_read_in_full": true,
+      "semantic_acceptance": false
+    },
+    {
+      "chapter": 5,
+      "heading": "## 5. 行业口碑、产品认可度与同业竞争地位研判",
+      "characters": 640,
+      "sha256": "9dd68c2b06c9e862aaae20043f0bed2a68820357df07a9516c93b3340143f89e",
+      "text_read_in_full": true,
+      "semantic_acceptance": false
+    },
+    {
+      "chapter": 6,
+      "heading": "## 6. 主营业务真实经营情况核验",
+      "characters": 459,
+      "sha256": "8569134705e451ea9220d16cd96d17caf9a20c69593ac4b9a05e2c3ed3c431ed",
+      "text_read_in_full": true,
+      "semantic_acceptance": false
+    },
+    {
+      "chapter": 7,
+      "heading": "## 7. 核心管理团队风险研判",
+      "characters": 522,
+      "sha256": "78a8eb5e42937fa5ad37da26229591b0858cdf28f6bcfcd2ed17430e6fb995ad",
+      "text_read_in_full": true,
+      "semantic_acceptance": false
+    },
+    {
+      "chapter": 8,
+      "heading": "## 8. 企业文化及人员流失情况",
+      "characters": 469,
+      "sha256": "036d62b9b4f523ea4101af63f0a16ba9b4144d0ad98e87f7e38d1a9f13755336",
+      "text_read_in_full": true,
+      "semantic_acceptance": false
+    },
+    {
+      "chapter": 9,
+      "heading": "## 9. 企业司法负面核查",
+      "characters": 300,
+      "sha256": "62e45d3bb1fa2dd89a0186d19784ed0aac6c5b87ed3461d0c83a3f77cab45dd8",
+      "text_read_in_full": true,
+      "semantic_acceptance": false
+    },
+    {
+      "chapter": 10,
+      "heading": "## 10. 定向穿透专项尽职调查",
+      "characters": 625,
+      "sha256": "2f6418cbf1262ba81000eebdee60baa7f7a03a592e38b6af9738e7f62939cf1f",
+      "text_read_in_full": true,
+      "semantic_acceptance": false
+    },
+    {
+      "chapter": 11,
+      "heading": "## 11. 风险核查",
+      "characters": 1088,
+      "sha256": "b316a529e92599fcadd8ffbba7eaed8e4cd27f60d69d6484aafee57a1c97dfd8",
+      "text_read_in_full": true,
+      "semantic_acceptance": false
+    },
+    {
+      "chapter": 12,
+      "heading": "## 12. 综合评价",
+      "characters": 3240,
+      "sha256": "8b3949528a9f17f63982c8995631585adc2c7398a2e6e81dcf14b361afadaa69",
+      "text_read_in_full": true,
+      "semantic_acceptance": false
+    },
+    {
+      "chapter": 13,
+      "heading": "## 13. 信息来源（自动生成审计索引）",
+      "characters": 5654,
+      "sha256": "e6cf4d8bd4243efb419a1652c5b4e36abba0ad036a8cf1f1c21aa9a3751f490b",
+      "text_read_in_full": true,
+      "semantic_acceptance": false
+    },
+    {
+      "chapter": 14,
+      "heading": "## 14. 后续研究建议",
+      "characters": 4166,
+      "sha256": "ad1da255fafd70f6cf56546fdbb39d0a8f475afed84bfa06e5a9c5a0db5fd7b5",
+      "text_read_in_full": true,
+      "semantic_acceptance": false
+    }
+  ],
+  "original_context_check": {
+    "evidence_id": "E-90DB20522C7F",
+    "source_id": 332,
+    "source_title": "北京市君合律师事务所 关于北京金山办公软件股份有限公司 首次公开发行股票并在科创板上市之 补充法律意见书（一）",
+    "source_url": "http://static.sse.com.cn/stock/disclosure/announcement/c/201906/000148_20190620_3MCK.pdf",
+    "source_content_sha256": "f4c6405675d68cd6b90ca944740af91fc67dca25f8c3dceca9828c69707b67ac",
+    "parsed_physical_page": 17,
+    "excerpt": "题的答复 \n发行人招股说明书中涉及金山软件及其附属并表公司、 金山软件的股东和实\n际控制人等方面的披露内容， 与金山软件在香港联交所披露的其截至本补充法律\n意见书出具日公开信息对比如下： \n对比 \n结果 事项 发行人招股说明书披露 金山软件在香港联交所披露 \n不存\n在显\n著差\n异 \n金山软\n件的成\n立时\n间、注\n册地、\n主营业\n务 \n招股说明书“第五节 发\n行人基本情况”之“八、\n持有发行人 5%以上股\n份的主要股东及实际控\n制人的情况”之“（二）\n控股股东及实际控制人\n控制的其他主要企业的\n情况”中披露：金山软\n件成立时间为 1998年 3\n月 20日，注册地为开曼\n群岛。 \n招股说明书“第七节 公\n司治理及独立性” 之\n“八 、同业竞争 ”之\n“（二）避免同业竞争\n的承诺”中披露如下：\n金山集团，在此定义为\n金山软件有限公司（英\n文名称： Kingsoft \nCorporation Limited；股\n票代码：3888.HK）及其\n控制的法律实体（本公\n司除外）”。“金山集\n团的现有业务，游戏研\n《金山软件有限公司二零一八年年度报告》之“财务\n报表附注”之“公司及集团资料”中对金山软件的基\n本信息披露如下： \n“金山软件有限公司（「本公司」）于一九九八年三\n月二十日根据英属处女群岛公司法注册成立。于二零\n零五年十一月十五日， 本公司根据开曼群岛公司法 （二\n零零四年修订本）迁册至开曼群岛。本公司之注册办\n事处位于 Clifton House, 75 Fort Street, George Town, \nGrand Cayman, Cayman Islands。本公司股份已自二零\n零七年十月九日起于香港联合交易所有限公司上市。” \n“于本年度内，本公司及附属公司（统称「本集团」）\n主要专注于经营以下主要业务： \n‧ 游戏研发、以及提供网络游戏、手机游戏及休闲游\n戏服务； \n‧ 提供云存储及云计算服务；及 \n‧ 办公软件产品的设计、研发及销售推广以及 WPS \nOffice服务。”\n\n--- PDF page 18 ---\n8-3-17 \n对比 \n结果 事项 发行人招股说明书披露 金山软件在香港联交所披露 \n发、以及提供网络游戏、\n手机游戏及休闲游戏服\n务；提供云存储及云计\n算服务; 及办公软件产\n品的设计、研发及销售\n推广以及WPS Office服\n务。 \n不存\n在显\n著差\n异 \n金山软\n件的实\n际控制\n人 \n招股说明书“第五节 发\n行人基本情况”之“八、\n持有",
+    "finding": "Quoted 2007 Hong Kong listing belongs to Kingsoft Corporation Limited in the source, not the target issuer."
+  },
+  "current_deterministic_replay_evidence": "kingsoft-governance-baseline-replay-20261031.json",
+  "word_pages_or_figures_reviewed": false,
+  "all_source_originals_reviewed": false,
+  "new_model_or_network_calls": 0,
+  "final_report_accepted": false
+}

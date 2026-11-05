@@ -1,0 +1,12 @@
+# 开源源码与本项目适配
+
+本轮下载并实际读取固定提交的源码与许可证，字节哈希见 `open-source-audit.json`。未整套引入框架、未复制来源不明源码，以下实现是按现有流程独立适配。
+
+|仓库/固定提交/许可|已读真实函数|本地适配及验证|明确未采用的行为|
+|---|---|---|---|
+|[GPT Researcher](https://github.com/assafelovic/gpt-researcher/tree/3582a6841fe7dc801e2a34e34ee408641aea9bce)，Apache-2.0|`editor.py:EditorAgent._create_workflow/_route_draft_review`、`reviewer.py:ReviewerAgent.run`、`draft_review.py:route_draft_review`|`company_editorial.py` 按具体审稿意见区分正文修订/只补审稿/记录修复；`company_chapter_placements.py` 同一次写作提出主文取舍，由独立审稿逐项确认。回归覆盖正文不重写、成功批保留、关键限制不得隐藏附件。|其编辑路由在修订超上限后返回 accept；本项目达到额度仍保留 pending，不强制接纳。|
+|[LangGraph](https://github.com/langchain-ai/langgraph/tree/ec72ddf3c28fed766f1041e12e5c3f499a490754)，MIT|`pregel/_retry.py:run_with_retry/arun_with_retry/_should_retry_on`；`checkpoint/base/__init__.py:BaseCheckpointSaver.put/put_writes/get_tuple`|`company_transport.py` 分类退避、Retry-After、每步最多3次、禁止SDK嵌套重试；`company_flow_state.py` 小检查点与哈希绑定对象；章节、阅读、写作草稿、逐批审稿和全文审稿独立保存。覆盖发送未知/未发、认证不重试、预算不冒充服务故障、输入变化失效、仅恢复失败。|不为采用框架迁移整个工作流；不把原始平台大返回复制进每个小检查点。参考[故障处理文档](https://docs.langchain.com/oss/python/langgraph/fault-tolerance)及[检查点文档](https://docs.langchain.com/oss/python/langgraph/checkpointers)。|
+|[Open Deep Research](https://github.com/langchain-ai/open_deep_research/tree/1b7d2e80db9faa586165c60e09096dbbfd483a64)，MIT|`deep_researcher.py:final_report_generation` 及研究调用组织|`company_corpus.py` 输入超限拆分原始窗口和处理清单；子批成功回执保存，尾部原文保持。`test_company_evidence_recovery.py` 模拟413，验证父请求+两个子批、末段保存。|该函数重试时用 `findings[:findings_token_limit]` 截尾；本项目不采用丢失尾部证据的办法。|
+|[Financial Services QCC](https://github.com/duhu2000/financial-services-qcc/tree/fb1289cf1c58fa99a3af37d594488400a22974b7)，Apache-2.0|`scripts/qcc_mcp_connector_financial.py:QccMcpConnectorFinancial.MCP_SERVERS/TOOL_CATEGORIES/_call_mcp`；`utils/qcc_mcp_client.py:QccMcpClient.call_mcp_service/_parse_sse_response`|核对了 company/risk/ipr/operation 路由及 `searchKey` 工具参数；本项目仍用实际 JSON-RPC 初始化和 `tools/call`，未替换成示例 `query` 或 `tool/inputSchema` 协议。`company_platform.py` 留存完整返回、`ChapterFlow.retain_platform_sources` 进入任务资料索引；结构化回放与真实接口探测分别留证。|第三方源码不是企查查官方能力证明或合规认证；其中自动KYB/投资推荐评分与“无明显风险”结论均不采用，聚合计数不升级为目标败诉或责任。|
+
+DeepSeek 官方模型表已核实使用精确 `deepseek-flash` 与 `https://api.deepseek.com`：[模型说明](https://api-docs.deepseek.com/quick_start/pricing/)。状态分类对照[官方错误码](https://api-docs.deepseek.com/quick_start/error_codes/)，没有返回状态时不推断403或余额不足。实际生产编辑入口验证见 `model-entry-smoke.json`。密钥只在忽略的本地配置中，未放入本文或源码。

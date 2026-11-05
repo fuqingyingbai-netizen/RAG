@@ -63,7 +63,8 @@ def test_focus_role_rejects_incomplete_responses_even_if_the_body_is_valid_json(
     requested=[];w=ResearchWorkflow()
     def factory(**kwargs):requested.append(kwargs);return Model()
     monkeypatch.setattr(w,'_get_company_report_editor_model',factory)
-    assert w._invoke_company_report_editor('公司主报告事实选择独立审稿','完整原文')==''
+    with pytest.raises(ValueError,match='company_editor_response_'):
+        w._invoke_company_report_editor('公司主报告事实选择独立审稿','完整原文')
     assert requested==[{'profile':'main_focus'}]
 
 

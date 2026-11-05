@@ -1,0 +1,133 @@
+{
+  "attempts": [
+    {
+      "receipt": "20261030T135651287749-000003.json",
+      "batch": "0783cae9a34e5e2a",
+      "stage": "proposal",
+      "rows": 29,
+      "checked_in_this_response": 27,
+      "errors": {
+        "unbound_placement": 1,
+        "unknown_or_repeated_placement": 1,
+        "unreviewed_placement": 2
+      },
+      "cumulative_retained": 27
+    },
+    {
+      "receipt": "20261030T135651287749-000004.json",
+      "batch": "957af3960aeaca07",
+      "stage": "proposal",
+      "rows": 32,
+      "checked_in_this_response": 29,
+      "errors": {
+        "unbound_placement": 2,
+        "unreviewed_placement": 3
+      },
+      "cumulative_retained": 29
+    },
+    {
+      "receipt": "20261030T135651287749-000005.json",
+      "batch": "15e972acd91f4256",
+      "stage": "proposal",
+      "rows": 27,
+      "checked_in_this_response": 26,
+      "errors": {
+        "unbound_placement": 1,
+        "unreviewed_placement": 1
+      },
+      "cumulative_retained": 26
+    },
+    {
+      "receipt": "20261030T135651287749-000006.json",
+      "batch": "d6680ad753b46ec2",
+      "stage": "proposal",
+      "rows": 29,
+      "checked_in_this_response": 29,
+      "errors": {},
+      "cumulative_retained": 29
+    },
+    {
+      "receipt": "20261030T135651287749-000007.json",
+      "batch": "71e4667d2d6b0ad4",
+      "stage": "proposal",
+      "rows": 30,
+      "checked_in_this_response": 29,
+      "errors": {
+        "unbound_placement": 1,
+        "unreviewed_placement": 1
+      },
+      "cumulative_retained": 29
+    },
+    {
+      "receipt": "20261030T135651287749-000008.json",
+      "batch": "c9225115b97f5896",
+      "stage": "proposal",
+      "rows": 29,
+      "checked_in_this_response": 26,
+      "errors": {
+        "unbound_placement": 3,
+        "unreviewed_placement": 3
+      },
+      "cumulative_retained": 26
+    },
+    {
+      "receipt": "20261030T135651287749-000009.json",
+      "batch": "0783cae9a34e5e2a",
+      "stage": "proposal",
+      "rows": 29,
+      "checked_in_this_response": 2,
+      "errors": {
+        "unreviewed_placement": 27
+      },
+      "cumulative_retained": 29
+    },
+    {
+      "receipt": "20261030T135651287749-000010.json",
+      "batch": "957af3960aeaca07",
+      "stage": "proposal",
+      "rows": 32,
+      "checked_in_this_response": 3,
+      "errors": {
+        "unreviewed_placement": 29
+      },
+      "cumulative_retained": 32
+    },
+    {
+      "receipt": "20261030T135651287749-000011.json",
+      "batch": "15e972acd91f4256",
+      "stage": "proposal",
+      "rows": 27,
+      "checked_in_this_response": 1,
+      "errors": {
+        "unreviewed_placement": 26
+      },
+      "cumulative_retained": 27
+    },
+    {
+      "receipt": "20261030T135651287749-000012.json",
+      "batch": "d6680ad753b46ec2",
+      "stage": "review",
+      "rows": 29,
+      "checked_in_this_response": 27,
+      "errors": {
+        "unbound_placement": 2,
+        "unreviewed_placement": 2
+      },
+      "cumulative_retained": 27
+    },
+    {
+      "receipt": "20261030T135651287749-000013.json",
+      "batch": "71e4667d2d6b0ad4",
+      "stage": "proposal",
+      "rows": 30,
+      "checked_in_this_response": 1,
+      "errors": {
+        "unreviewed_placement": 29
+      },
+      "cumulative_retained": 30
+    }
+  ],
+  "model_calls_by_audit": 0,
+  "cache_modified": false,
+  "report_accepted": false
+}

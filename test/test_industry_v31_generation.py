@@ -15,7 +15,7 @@ from test_industry_reasoning import chain, EID
 def test_thinking_option_is_limited_to_compatible_family(name, disabled):
     assert bool(generation_options(name)) == disabled
     if disabled:
-        assert generation_options(name) == {'extra_body': {'enable_thinking': False}}
+        assert generation_options(name) == {'extra_body': {'enable_thinking': False,'thinking_budget':256}}
 
 
 def project():
@@ -43,7 +43,7 @@ def test_sdk_length_failure_is_propagated_without_format_retry_or_secret_logging
         lambda *a, **k: None, None)
     plan = p.industry_statement_plans[2]
     assert len(calls) == plan['model_attempts'] == 1 and plan['fallback']
-    assert configured[0]['extra_body'] == {'enable_thinking': False}
+    assert configured[0]['extra_body'] == {'enable_thinking': False,'thinking_budget':256}
     assert plan['plan_validation_failures'] == [{'attempt': 1, 'code': 'truncated_model_output', 'kind': 'generation_failure'}]
     assert not plan['analysis_rejections'] and f['fact_contract']['statement'] in text
     assert 'PRIVATE' not in json.dumps(plan) + json.dumps(events)
@@ -77,7 +77,7 @@ def test_all_industry_stages_send_visible_output_option_without_more_budget(monk
     elif stage == 'risk': w._invoke_industry_risk('行业风险 Agent', 'synthetic')
     else: w._invoke_industry_cleaning('行业清洗 Agent', 'synthetic')
     options = configured[0]
-    assert options['extra_body'] == {'enable_thinking': False}
+    assert options['extra_body'] == {'enable_thinking': False,'thinking_budget':256}
     assert options['max_retries'] == 0
     assert options['max_tokens'] == {'report':6000, 'support':6000, 'risk':4000, 'cleaning':2000}[stage]
 

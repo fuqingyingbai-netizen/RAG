@@ -1,0 +1,47 @@
+{
+  "stopped_at_utc": "2026-10-30T13:48:41.588455+00:00",
+  "reason": "Preserve the completed routing stage before wiring its missing per-batch persistence callback.",
+  "verified_owned_pids": [
+    11880,
+    65284
+  ],
+  "verified_cwd": "C:\\Users\\wangli\\.codex\\worktrees\\05ec\\RAG",
+  "checkpoint": {
+    "key": "projects/1/company_generation_checkpoint/e16e62826af59d59ae99255edaf0659e7a2abae1335cac724d54c376eced3e35.json",
+    "saved_at": "2026-10-30T13:48:27.666084+00:00",
+    "sha256": "e16e62826af59d59ae99255edaf0659e7a2abae1335cac724d54c376eced3e35",
+    "version": "company-generation-checkpoint-v1"
+  },
+  "checkpoint_sha_verified": true,
+  "routing_diagnostic": {
+    "cached_information_records": 8473,
+    "exact_distinct_information_records": 9374,
+    "excluded_information_is_not_used": true,
+    "literal_sentence_or_field_atoms": 17019,
+    "native_statement_records": 9737,
+    "pending_information_ids": [],
+    "prior_group_association_is_not_semantic_coverage": true,
+    "review_batches": 56,
+    "review_batches_with_errors": 0,
+    "semantic_deduplication_complete": false,
+    "states": {
+      "excluded_with_reason": 17,
+      "used_in_chapter_detail": 9357
+    },
+    "unmapped_statements": []
+  },
+  "routing_receipts": 56,
+  "online_backup": "work/company-phase1-20261028/native/haitian/pre-routing-journal-fix-20261030T134828555406.sqlite",
+  "online_backup_sha256": "dfb5910e148f449ebb632da942eaa8e12b2868fe7b80c3af6a0efc51b5f3df6d",
+  "online_backup_quick_check": "ok",
+  "ledger_sha256": "6464da6a78d541638aa9ea8c68c5af0f199a8c60586f0d3e273758632f89d81b",
+  "partial_ledger_lines": [],
+  "unfinished_logical_model_numbers": [
+    79
+  ],
+  "unfinished_counted_as_accepted": false,
+  "runtime_code_unchanged": true,
+  "report_accepted": false,
+  "goal_status": "active",
+  "actual_currency_cost": null
+}

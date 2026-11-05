@@ -42,7 +42,7 @@ const record = {id:11, project_id:1, record_label:'记录 003', can_download:tru
   const escaped=history.renderContent('<img src=x onerror=attack()>');assert.ok(escaped.includes('&lt;img'));assert.ok(!escaped.includes('<img'));
   window.SafeMarkdown={render:()=>'<p>safe preview</p>'};assert.equal(history.renderContent('<script>attack()</script>'),'<p>safe preview</p>');
   const html=fs.readFileSync('frontend/index.html','utf8');
-  assert.ok(html.indexOf('src="report-versions.js"')<html.indexOf('src="script.js"'));
+  assert.ok(html.indexOf('src="report-versions.js"')<html.search(/src="script(?:\.[a-f0-9]{12})?\.js"/));
   assert.ok(html.includes('isAuthenticated && reportVersionsOpen'));
   assert.ok(!html.includes('v{{ artifact.version }}'));
   console.log('Report history: type/page loading, exact preview/download, failures, stale list/preview rejection, unmount and sanitizer checks passed');

@@ -1,0 +1,68 @@
+[
+  {
+    "repository": "https://github.com/assafelovic/gpt-researcher",
+    "commit": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "LICENSE",
+    "status": 200
+  },
+  {
+    "repository": "https://github.com/assafelovic/gpt-researcher",
+    "commit": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "multi_agents/agents/editor.py",
+    "status": 200
+  },
+  {
+    "repository": "https://github.com/assafelovic/gpt-researcher",
+    "commit": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "multi_agents/agents/reviewer.py",
+    "status": 200
+  },
+  {
+    "repository": "https://github.com/assafelovic/gpt-researcher",
+    "commit": "3582a6841fe7dc801e2a34e34ee408641aea9bce",
+    "path": "multi_agents/agents/draft_review.py",
+    "status": 200
+  },
+  {
+    "repository": "https://github.com/langchain-ai/langgraph",
+    "commit": "ec72ddf3c28fed766f1041e12e5c3f499a490754",
+    "path": "LICENSE",
+    "status": 200
+  },
+  {
+    "repository": "https://github.com/langchain-ai/langgraph",
+    "commit": "ec72ddf3c28fed766f1041e12e5c3f499a490754",
+    "path": "libs/langgraph/langgraph/pregel/_retry.py",
+    "status": 200
+  },
+  {
+    "repository": "https://github.com/langchain-ai/langgraph",
+    "commit": "ec72ddf3c28fed766f1041e12e5c3f499a490754",
+    "path": "libs/checkpoint/langgraph/checkpoint/base/__init__.py",
+    "status": 200
+  },
+  {
+    "repository": "https://github.com/langchain-ai/open_deep_research",
+    "commit": "1b7d2e80db9faa586165c60e09096dbbfd483a64",
+    "path": "LICENSE",
+    "status": 200
+  },
+  {
+    "repository": "https://github.com/langchain-ai/open_deep_research",
+    "commit": "1b7d2e80db9faa586165c60e09096dbbfd483a64",
+    "path": "src/open_deep_research/deep_researcher.py",
+    "status": 200
+  },
+  {
+    "repository": "https://github.com/duhu2000/financial-services-qcc",
+    "commit": "fb1289cf1c58fa99a3af37d594488400a22974b7",
+    "path": "LICENSE",
+    "status": 200
+  },
+  {
+    "repository": "https://github.com/duhu2000/financial-services-qcc",
+    "commit": "fb1289cf1c58fa99a3af37d594488400a22974b7",
+    "path": "README.md",
+    "status": 200
+  }
+]

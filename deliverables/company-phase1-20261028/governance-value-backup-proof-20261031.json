@@ -1,0 +1,35 @@
+{
+  "observed_at": "2026-10-30T16:40:44.302507+00:00",
+  "native_plan": "bounded-plan-20261030T145059173514.json",
+  "native_plan_sha256": "c9b1acb88d7f4fa62c224aa9257e437352b7d4a1e7ca397864848d060affe8a9",
+  "owned_processes_observed_before_backup": [
+    {
+      "pid": 49228,
+      "created_at": 1793371854.6843247
+    },
+    {
+      "pid": 51772,
+      "created_at": 1793371854.668794
+    }
+  ],
+  "online_backup": "work/company-phase1-20261028/native/haitian/pre-governance-values-20261030T163917822583.sqlite",
+  "online_backup_sha256": "c68fe81c9553629914766090e6cd3bab5d51e4b59900c06a12ea2b6a7a9431c9",
+  "backup_quick_check": "ok",
+  "source_records": 1246,
+  "checkpoint": {
+    "key": "projects/1/company_generation_checkpoint/0c65b76808d75cfd3216817827a903eee54f46f05228e67e12d30157d5df8882.json",
+    "saved_at": "2026-10-30T15:00:16.422726+00:00",
+    "sha256": "0c65b76808d75cfd3216817827a903eee54f46f05228e67e12d30157d5df8882",
+    "version": "company-generation-checkpoint-v1"
+  },
+  "checkpoint_verified": true,
+  "information_usage_records": 9374,
+  "presentation_index_snapshot": "work/company-phase1-20261028/native/haitian/pre-governance-values-presentation-20261030T163917822583.json",
+  "presentation_index_sha256": "cfc5047b683ddeb2980a35cfac1b5d0ac5d7c4b9e6e65c77353471d2dbe6bd04",
+  "native_candidate_entries_verified": 340,
+  "all_candidates_approved_for_current_input": false,
+  "runtime_code_unchanged": true,
+  "native_processes_stopped": false,
+  "candidate_promoted": false,
+  "full_report_accepted": false
+}

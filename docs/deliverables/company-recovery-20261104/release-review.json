@@ -1,0 +1,63 @@
+{
+  "scope": "Engineering review and saved artifact evidence. Company report acceptance remains blocked by the recorded semantic issues.",
+  "reviewed_backend_commit": "efe6d33030712facbe701142587ee08205c3ae27",
+  "upstream_main_merged": "5098c1d319cda5c2c0fd90836012e8b7549f2f3f",
+  "baseline": "514f0327a6a14cd442860e1c4ecd23f74e38703c",
+  "legacy_head": "5b5acd19c53824f472731cd64c9b23e19cb81768",
+  "legacy_commits_preserved": [
+    "5b5acd19c53824f472731cd64c9b23e19cb81768",
+    "ea7a125fb075ee07258043b9d113e78b7070dc90",
+    "2440d814caf70689fdd7c281f6290a8f82e01a90",
+    "42c53990866d2e02edfa3798f4571b43809dfdfa",
+    "40dd5ad173144accb2ecc685741fcc6b9efcd2e9",
+    "9c056ddc95440f0fa088f5b9c2f97b2b1f4de6be",
+    "aa7853d3c1e22a1123bef8aa10fd0b045a01c9eb",
+    "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
+    "2199418209193f3c363a5e46d98117ed7e113c4c",
+    "3851946e37d64d47a8562f5995e0cc9432034d68",
+    "c881cfe163f2f0d81b508469a4a80cc07101e96f",
+    "68abffb0fa8fd3aec9f3edb6bdc79a63f81a3312",
+    "da684a149b4055ef4d7e715927411722cd0a882f",
+    "0c7f4aac19b7dc62a4d5674e85e00e48a5f561cd",
+    "df5419c6e86cb1632602bd2cf66ffe275bc14016"
+  ],
+  "frozen_patch_sha256": "b81218939fab9af9d2338912d95cf4a67731cd05c0738253ee8cbfadb1236672",
+  "frozen_untracked_files_verified_at_import": 18,
+  "latest_observed_unique_test_verdicts": {
+    "passed": 4945,
+    "skipped": 4
+  },
+  "frontend_files_passed": 17,
+  "latest_main_regression_passed": 145,
+  "current_backend_real_production_entry": "kingsoft v5/artifact25; exact deepseek-flash SDK retries zero; no backend file changed during invocation",
+  "saved_report_readbacks": {
+    "haitian": {
+      "artifact": 19,
+      "findings": 143,
+      "delivery_ready": false
+    },
+    "kingsoft": {
+      "artifact": 25,
+      "findings": 15,
+      "delivery_ready": false
+    }
+  },
+  "word_visual_qa": {
+    "report_artifact_id": 25,
+    "pages": 30,
+    "docx_sha256": "7e6a9b222fc74994c377e6f941a40862fc59ba52408a1dd55ecf7502e8d46e65",
+    "all_pages_contact_reviewed": true,
+    "spot_checks": [
+      8,
+      21
+    ]
+  },
+  "publication_contract": [
+    "fetch origin",
+    "require origin/main ancestor of HEAD",
+    "ordinary git push origin HEAD:main, never force",
+    "verify remote refs/heads/main equals local HEAD"
+  ],
+  "deployment_performed": false,
+  "protected_workspaces": "Used only as read-only input; implementation, database, objects and temporary output are in the independent company-recovery worktree."
+}

@@ -1,0 +1,116 @@
+{
+  "scope": "A full-suite snapshot followed by newer company and recovery reruns; not one fresh monolithic full-suite pass",
+  "runs": [
+    {
+      "file": "regression-final.xml",
+      "sha256": "45c406930f51c74ab84b6d9e1ad1ebd78311f5d80d03fb203b1b0e88039e1d4f",
+      "counts": {
+        "passed": 4918,
+        "skipped": 4,
+        "failed": 2
+      },
+      "seconds": 2187.192,
+      "started_at": [
+        "2026-11-04T18:33:00.972993+08:00"
+      ]
+    },
+    {
+      "file": "company-research-final.xml",
+      "sha256": "a51933b0dd9025ebc1b490891c9eaf6b6e65cfa9c645acd5523de93cc44f5762",
+      "counts": {
+        "passed": 2271
+      },
+      "seconds": 739.093,
+      "started_at": [
+        "2026-11-04T19:13:44.821712+08:00"
+      ]
+    },
+    {
+      "file": "recovery-final.xml",
+      "sha256": "673b63db33824326720edb4d0cbc82faf2252b5683bb4405f1569af319829991",
+      "counts": {
+        "passed": 209
+      },
+      "seconds": 31.616,
+      "started_at": [
+        "2026-11-04T19:29:08.123630+08:00"
+      ]
+    },
+    {
+      "file": "platform-final.xml",
+      "sha256": "f22bf9ec11dbd889ca64315f73f1bde6d132d71456ef74004d4908499eed1a91",
+      "counts": {
+        "passed": 18
+      },
+      "seconds": 3.499,
+      "started_at": [
+        "2026-11-04T19:43:02.115861+08:00"
+      ]
+    },
+    {
+      "file": "reading-format-final.xml",
+      "sha256": "8379506fa3bb7618bf74aade181454ed80f5ee35d94f60fbaaae88a8136c9a81",
+      "counts": {
+        "passed": 105
+      },
+      "seconds": 24.112,
+      "started_at": [
+        "2026-11-04T20:01:59.685982+08:00"
+      ]
+    },
+    {
+      "file": "format-html-final.xml",
+      "sha256": "afd11f296ece4c32104c93a244b300086e2238240f3a557948b589721b65e11c",
+      "counts": {
+        "passed": 58
+      },
+      "seconds": 13.659,
+      "started_at": [
+        "2026-11-04T20:05:03.413752+08:00"
+      ]
+    },
+    {
+      "file": "attribution-final.xml",
+      "sha256": "76c09ce472e36bb7d287e0f2dd40944c4fbbe3da17477a13abe20c592d80ad38",
+      "counts": {
+        "passed": 139
+      },
+      "seconds": 27.886,
+      "started_at": [
+        "2026-11-04T21:18:19.340057+08:00"
+      ]
+    },
+    {
+      "file": "latest-main-final.xml",
+      "sha256": "b06d08ee90181d539e0c285793d63bb6b448979eac413ba892c14985c87a92be",
+      "counts": {
+        "passed": 145
+      },
+      "seconds": 405.662,
+      "started_at": [
+        "2026-11-04T21:05:23.568052+08:00"
+      ]
+    }
+  ],
+  "latest_observed_unique_test_verdicts": {
+    "passed": 4945,
+    "skipped": 4
+  },
+  "original_failures_with_latest_verdict": [
+    {
+      "test": "test.test_company_reader_fact_boundaries::test_repeated_bad_ids_are_never_canonically_guessed_or_accepted",
+      "status": "passed",
+      "source": "recovery-final.xml"
+    },
+    {
+      "test": "test.test_company_reader_fact_boundaries::test_source_id_format_retry_does_not_waive_fresh_negative_semantic_verdict",
+      "status": "passed",
+      "source": "recovery-final.xml"
+    }
+  ],
+  "remaining_observed_failures": [],
+  "frontend": {
+    "files": 17,
+    "failed_files": []
+  }
+}

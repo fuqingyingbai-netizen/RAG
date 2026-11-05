@@ -1,0 +1,109 @@
+{
+  "haitian": {
+    "input_report_artifact_id": 143,
+    "source_count": 1246,
+    "old_review_sources": 1246,
+    "candidate_sources": 1093,
+    "candidate_windows": 43758,
+    "categories": {
+      "native_windows_require_structural_or_scope_review": {
+        "sources": 25,
+        "now_planned": 25,
+        "same_bytes": 25
+      },
+      "reviewed_literal_claims": {
+        "sources": 334,
+        "now_planned": 334,
+        "same_bytes": 329
+      },
+      "reviewed_no_accepted_claim": {
+        "sources": 189,
+        "now_planned": 189,
+        "same_bytes": 189
+      },
+      "no_target_or_industry_evidence_window": {
+        "sources": 400,
+        "now_planned": 400,
+        "same_bytes": 400
+      },
+      "original_not_available_discovery_only": {
+        "sources": 153,
+        "now_planned": 0,
+        "same_bytes": 153
+      },
+      "exact_original_without_accepted_claim": {
+        "sources": 94,
+        "now_planned": 94,
+        "same_bytes": 94
+      },
+      "no_literal_topic_window": {
+        "sources": 34,
+        "now_planned": 34,
+        "same_bytes": 34
+      },
+      "exact_original_corroboration": {
+        "sources": 16,
+        "now_planned": 16,
+        "same_bytes": 15
+      },
+      "after_research_cutoff": {
+        "sources": 1,
+        "now_planned": 1,
+        "same_bytes": 1
+      }
+    },
+    "model_calls": 0,
+    "boundary": "Coverage planning only. No model relevance judgment, report acceptance or new interface collection is asserted."
+  },
+  "kingsoft": {
+    "input_report_artifact_id": 134,
+    "source_count": 1459,
+    "old_review_sources": 1459,
+    "candidate_sources": 1242,
+    "candidate_windows": 40870,
+    "categories": {
+      "native_windows_require_structural_or_scope_review": {
+        "sources": 26,
+        "now_planned": 26,
+        "same_bytes": 26
+      },
+      "reviewed_no_accepted_claim": {
+        "sources": 213,
+        "now_planned": 213,
+        "same_bytes": 213
+      },
+      "original_not_available_discovery_only": {
+        "sources": 217,
+        "now_planned": 0,
+        "same_bytes": 217
+      },
+      "no_target_or_industry_evidence_window": {
+        "sources": 497,
+        "now_planned": 497,
+        "same_bytes": 497
+      },
+      "reviewed_literal_claims": {
+        "sources": 394,
+        "now_planned": 394,
+        "same_bytes": 393
+      },
+      "no_literal_topic_window": {
+        "sources": 14,
+        "now_planned": 14,
+        "same_bytes": 14
+      },
+      "exact_original_without_accepted_claim": {
+        "sources": 78,
+        "now_planned": 78,
+        "same_bytes": 78
+      },
+      "exact_original_corroboration": {
+        "sources": 20,
+        "now_planned": 20,
+        "same_bytes": 20
+      }
+    },
+    "model_calls": 0,
+    "boundary": "Coverage planning only. No model relevance judgment, report acceptance or new interface collection is asserted."
+  }
+}

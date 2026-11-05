@@ -103,7 +103,17 @@ def test_placement_journal_restores_only_native_source_bound_candidates(tmp_path
         lambda *a:pytest.fail('a checked unchanged placement should be reused'),previous=cache,workers=1)
     assert not reused['diagnostic']['pending_information_ids']
     project.sources[0].content+='原文已变化。'
-    assert read_journal(project,storage)==[]
+    # Whole-source changes do not approve any old answer, but unchanged native
+    # batch inputs may still be supplied to the current two-review validators.
+    candidates=read_journal(project,storage)
+    assert len(candidates)==1
+    changed=deepcopy(rows);changed[0]['text']+='新增一项实质条件。'
+    calls=[]
+    def revise(*args):calls.append(args[0]);return json.dumps(answer_for(changed))
+    current=build_presentation({'records':changed},project.target_name,presentation_scope(project),revise,
+        previous={'version':package['version'],'target_name':project.target_name,
+                  'scope':presentation_scope(project),'batches':candidates},workers=1)
+    assert len(calls)==2 and not current['diagnostic']['pending_information_ids']
 
 
 def test_corrupted_placement_journal_never_restores_a_green_flag(tmp_path):
@@ -159,6 +169,7 @@ def test_report_agent_keeps_annex_information_out_of_main_writing_only_in_reques
     main_rows=rows if mode=='detailed' else rows[:2];base=invoke_for(main_rows);roles=[]
     def invoke(role,prompt,trace):
         roles.append(role)
+        role=role.split('｜',1)[0]
         if role.startswith('公司交付正文取舍'):return json.dumps(answer_for(rows))
         if role.startswith('公司主报告事实选择'):
             data=json.loads(prompt.split('完整资料：\n',1)[1])

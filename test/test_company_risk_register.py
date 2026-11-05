@@ -140,9 +140,11 @@ def test_future_financial_statement_and_later_exchange_release_do_not_leak_into_
     s['source_metadata']['document_pages'].append({'page': 30, 'text': '本公司截至2027年12月31日尚有余额为人民币1,000万元的应付票据到期未付。'})
     s['content'] += '\n' + s['source_metadata']['document_pages'][-1]['text']
     p = build(s, intake={'as_of_date': '2026-10-14'})
-    assert not p['entries'] and p['diagnostic']['filters']['sources_after_research_cutoff'] == 1
+    assert not p['entries'] and p['diagnostic']['filters']['records_after_research_cutoff'] >= 1
+    assert p['post_cutoff_observations']
     s = report(); s['url'] = 'https://www.hkexnews.hk/listedco/listconews/sehk/2026/0422/report.pdf'
-    assert not subsidiary_relations(ROOT, [s], defaultdict(list), as_of='2026-01-01')
+    rows=subsidiary_relations(ROOT,[s],defaultdict(list),as_of='2026-01-01')
+    assert rows and all(r['time_context']['post_cutoff_publication_hint'] and not r['time_context']['publication_date'] for r in rows)
 
 
 def test_recent_h1_relation_selected_without_claiming_event_date_unchanged():

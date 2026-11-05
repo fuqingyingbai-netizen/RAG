@@ -1,0 +1,85 @@
+{
+  "at": "2026-10-30T16:13:09.568499+00:00",
+  "scope": "read-only current deterministic governance builder over frozen Kingsoft baseline; not semantic adoption or final-report approval",
+  "product_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
+  "governance_version": "company-governance-v6-complete-multiline-registry-records",
+  "source_records": 1459,
+  "facts": 60,
+  "conflicts": [
+    {
+      "field": "统一社会信用代码",
+      "period": "数据基准日未载",
+      "values": [
+        "91110108587665983J",
+        "91110108587665983J） ，公司类型为股份有限",
+        "91110108587665983J），公司类型为股份有限"
+      ],
+      "evidence_ids": [
+        "E-D86BF382B4CE",
+        "E-167E3BEC570B",
+        "E-E6869C2FBF33",
+        "E-7949749B711B",
+        "E-855D92B5718A",
+        "E-6C2B497CDDAD",
+        "E-FCDBA0451851",
+        "E-15C3A6FF86FA",
+        "E-60385D0CFDDB",
+        "E-23BB147EB98E",
+        "E-B84E7D298E09",
+        "E-BF111405F1B7"
+      ]
+    },
+    {
+      "field": "成立日期",
+      "period": "数据基准日未载",
+      "values": [
+        "2011 年 12 月 20 日",
+        "2011-12-20",
+        "2011年12月20日"
+      ],
+      "evidence_ids": [
+        "E-D86BF382B4CE",
+        "E-167E3BEC570B",
+        "E-60385D0CFDDB",
+        "E-E6869C2FBF33",
+        "E-B84E7D298E09",
+        "E-BF111405F1B7",
+        "E-23BB147EB98E",
+        "E-7949749B711B",
+        "E-855D92B5718A",
+        "E-FCDBA0451851",
+        "E-15C3A6FF86FA"
+      ]
+    },
+    {
+      "field": "注册资本",
+      "period": "数据基准日未载",
+      "values": [
+        "36,000 万元",
+        "36000万人民币",
+        "46337.2121万元",
+        "人民币 46,100 万元",
+        "人民币 46,337.2121 万元",
+        "人民币46,100万元",
+        "人民币46,337.2121万元"
+      ],
+      "evidence_ids": [
+        "E-D86BF382B4CE",
+        "E-167E3BEC570B",
+        "E-E6869C2FBF33",
+        "E-60385D0CFDDB",
+        "E-B84E7D298E09",
+        "E-BF111405F1B7",
+        "E-23BB147EB98E",
+        "E-7949749B711B",
+        "E-855D92B5718A",
+        "E-FCDBA0451851",
+        "E-6C2B497CDDAD",
+        "E-15C3A6FF86FA"
+      ]
+    }
+  ],
+  "model_or_network_calls": 0,
+  "native_cache_or_database_writes": 0,
+  "final_report_accepted": false
+}

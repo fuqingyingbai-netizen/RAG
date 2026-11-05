@@ -56,7 +56,8 @@ def test_review_cannot_bypass_native_or_scope_guards(mutation, error):
 
 def test_after_cutoff_and_search_abstract_never_become_historical_event():
     s = source(); row = selection(s)
-    assert 'after_research_cutoff' in validate_event(row, s, TARGET, '2024-12-31')
+    assert not validate_event(row,s,TARGET,'2024-12-31',require_independent=False)
+    assert 'independent_check_input_or_response_changed' in validate_event(row,s,TARGET,'2024-12-31')
     s['source_metadata']['content_kind'] = 'search_summary'
     assert 'not_usable_primary_event_source' in validate_event(row, s, TARGET, '2026-10-20')
 
@@ -195,7 +196,7 @@ def test_transaction_boundary_reference_is_registered_without_becoming_a_score()
         'source_url': 'https://www.sse.com.cn/check.pdf', 'source_title': '专项核查报告'}
     text = render_compact_chapters(project, {'groups': [], 'statements': [statement]}, COMPANY_REPORT_OUTLINE,
                                    {12: render_assessment(p)})[12]
-    assert 'E-000000000001' in text
+    assert 'E-000000000001' not in text
     assert not any('无原件定位' in e for e in assessment_errors(text, p))
     assert all(d['score'] is None for d in p['dimensions'])
     assert all(not d['records'] for d in p['dimensions'])

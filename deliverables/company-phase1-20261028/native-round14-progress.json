@@ -1,0 +1,58 @@
+{
+  "observed_at_utc": "2026-10-30T12:59:40.253327+00:00",
+  "case": "haitian",
+  "native_session_id": 72343,
+  "observed_live_processes": [
+    {
+      "ProcessId": 11880,
+      "ParentProcessId": 41020,
+      "CreationDate": "2026-10-30T19:44:48.77704+08:00"
+    },
+    {
+      "ProcessId": 65284,
+      "ParentProcessId": 11880,
+      "CreationDate": "2026-10-30T19:44:48.791293+08:00"
+    }
+  ],
+  "code_commit": "60d7aca0fbdf7f17ad85f5c8fdeb3d95c6de6dc3",
+  "runtime_source_unchanged_since_start": true,
+  "stage": "frozen-report",
+  "new_collection_acceptance": false,
+  "event_counts": {
+    "http_returned": 1,
+    "model_started": 42,
+    "model_http_started": 45,
+    "model_http_headers": 41,
+    "model_failed": 5,
+    "model_http_failed": 3,
+    "model_returned": 36
+  },
+  "finish_reasons": {
+    "stop": 36
+  },
+  "unfinished_logical_model_numbers": [
+    42
+  ],
+  "reported_tokens": {
+    "input_tokens": 183294,
+    "output_tokens": 236952,
+    "total_tokens": 420246
+  },
+  "latest_stage": {
+    "stage": "report",
+    "label": "信息逐条用途核对完成",
+    "status": "running",
+    "current_label": null,
+    "current_section": null
+  },
+  "ledger_snapshot": "work/company-phase1-20261028/round14-ledger-snapshot-20261030T125938Z.jsonl",
+  "ledger_snapshot_sha256": "3b5fcb026c46b04c5d9d39d7366236b525bb1b1719817153f04e63309046532f",
+  "ignored_partial_lines": 0,
+  "report_accepted": false,
+  "currency_cost_unknown": true,
+  "notes": [
+    "HTTP 200 headers are not stream completion.",
+    "A stop response is not a semantic approval.",
+    "Read-only process observation and source hashes do not grant final report acceptance."
+  ]
+}

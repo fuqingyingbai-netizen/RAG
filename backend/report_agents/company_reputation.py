@@ -219,7 +219,8 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000,as_of='')
         if not text or len(text)>1000:return
         record={'kind':kind,'aspect':aspect,'fact':text,'evidence_quote':fields.pop('evidence_quote',text),
                 'evidence_id':card['evidence_id'],'evidence_ids':[card['evidence_id']],
-                'source_url':card.get('source_url',''),'source_title':card.get('source_title',''),**fields}
+                'source_url':card.get('source_url',''),'source_title':card.get('source_title',''),
+                'publication_date':meta.get('publication_date',''),**fields}
         key=(kind,aspect,record.get('period'),compact(text))
         if key in seen:counts['duplicate_claim']+=1;return
         seen.add(key);records.append(record)
@@ -228,8 +229,6 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000,as_of='')
         inferred=statistics_publisher_identity(url,raw) or research_publisher_identity(url,raw)
         if inferred and not meta.get('publisher_role') and meta.get('publisher_verified') is not False:
             meta={**meta,**inferred}
-        if as_of and str(meta.get('publication_date') or '')>as_of:
-            counts['after_research_cutoff']+=1;continue
         if origin=='discovery_summary':counts['discovery_only']+=1;continue
         if meta.get('entity_validation') in {'rejected','ambiguous'}:continue
         issuer=management_issuer(source,target,hosts)
@@ -371,6 +370,8 @@ def build_reputation_package(cleaned,target,sources=None,*,limit=30000,as_of='')
             delta=Decimal(r['value'].rstrip('%'))-Decimal(r['previous_value'].rstrip('%'))
             findings.append({'aspect':'行业地位','fact':'同一统计发布记载，'+r['entity']+'份额由上年同期'+r['previous_value']+'变为'+r['value']+'，变化'+str(delta)+'个百分点；这是细分统计口径内的份额变化，不是整体产品质量结论。','evidence_ids':r['evidence_ids']})
     from .company_selection_audit import selection_audit
+    from .company_time_context import annotate_time_context
+    annotate_time_context({'facts':delivered},sources,as_of)
     return {'version':VERSION,'target_name':target,'facts':delivered,'findings':findings,'information_gaps':gaps,
             'selection_audit':selection_audit(records,delivered),
             'diagnostic':{'candidate_claims':len(records),'delivered_claims':len(delivered),

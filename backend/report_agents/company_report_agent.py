@@ -1,7 +1,9 @@
 import json
+import hashlib
+from pathlib import Path
+from copy import copy
 import os
 import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable
 
 from .report_prompts import (
@@ -35,122 +37,14 @@ from .company_source_review import build_source_review, render_reviewed_statemen
 from .company_corpus import build_corpus_review,build_corpus_review_with_recovery
 from .company_corpus_writer import corpus_cache_matches,build_compact_digest,render_compact_chapters,update_evidence_diagnostics,collect_statements
 from .company_text import company_matching_cache
+from company_chapters import chapters as company_chapters, outline as chapter_outline, prompt_contract, uses_chapter_contract, VERSION as CHAPTER_TEMPLATE_VERSION
+from .company_chapter_agent import create_chapter_agents
 
 
-COMPANY_REPORT_OUTLINE = [
-    ("摘要", ["报告概述", "核心发现点", "需关注信号", "公司所属赛道竞争格局", "总体评估"]),
-    ("主体工商基本信息核查股东关系与治理底盘", ["主体工商信息表", "股权与治理信息表", "股东/实控人/关联方关系网图", "治理底盘判断"]),
-    ("历史沿革与成长质量", ["历史工商变更", "业务发展历程与关键节点", "同口径成长质量核对", "历史遗留事项与核验边界"]),
-    ("组织治理与运营管理评估", ["组织架构合理性", "决策机制", "权责划分", "执行流程", "内部激励", "企业应变能力", "组织创新能力"]),
-    ("行业口碑、产品认可度与同业竞争地位研判", ["员工评价", "竞品评价", "合作方评价", "行业地位", "技术实力", "综合软实力", "同业对标"]),
-    ("主营业务真实经营情况核验", ["分部门业务运营数据核验表", "核心业务板块运营进展核验表", "关键经营事实与风险研判", "视觉/图谱证据说明"]),
-    ("核心管理团队风险研判", ["管理层履历与岗位配置", "任职变动与时间线", "产业资源及明确关联关系", "管理能力与团队掌控力评估", "派系斗争、人事动荡与商业腐败信号", "本章待核验事项"]),
-    ("企业文化及人员流失情况", ["内部文化价值观与文化践行引导", "团队激励与人才结构现状", "人才储备、培养与梯队建设", "销售/研发/技术等核心岗位人员流失情况", "核验判断与具体缺口"]),
-    ("企业司法负面核查", ["核心事实汇总", "风险事项分类核查表", "视觉证据/图谱证据", "结论与行动建议"]),
-    ("定向穿透专项尽职调查", ["融资情况", "资金使用合规性", "战略布局", "业务真实性", "大额资金往来", "客户指定专项", "技术/供应商/资金往来穿透"]),
-    ("风险核查", ["组织与管理风险", "业务与运营风险", "行业特殊风险", "具体事项与有边界的判断", "75项核查目录及扩展事项"]),
-    ("综合评价", ["综合判断与评分口径", "分项评价与原件依据", "经营变化、优势与制约", "历史资本事项状态", "具体风险与推进条件", "显式评分锚点"]),
-    ("信息来源", ["信息点", "来源标题", "URL", "可信度", "支持章节"]),
-    ("后续研究建议", ["待确认信息点（集中式缺口清单）", "下一步深度研究方向与优先级排序", "关键行动提示"]),
-]
+COMPANY_REPORT_OUTLINE = chapter_outline(legacy=True)
 
 
-COMPANY_SECTION_STRUCTURES = {
-    1: """
-目标公司报告专属章节输出骨架：
-## 1. 摘要
-
-必须覆盖执行摘要、核心发现、关键验证与修正、需关注信号、竞争格局、总体评估。不要使用"本章结论/事实梳理/分析判断/风险与待核验"四段式。
-""",
-    2: """
-目标公司报告专属章节输出骨架：
-## 2. 主体工商基本信息核查股东关系与治理底盘
-
-梳理企业注册信息、成立时间、公司规模、注册资本、股权架构、股权变动、注册资本减资等。
-
-必须输出以下子结构：
-- 主体工商信息表：主体名称｜成立时间｜注册资本｜经营范围/主营业务｜法定代表人/董监高｜登记状态｜来源。
-- 股权与治理信息表：股东/实控人｜持股比例/控制关系｜出资或变更情况｜角色定位｜异常/待核验｜来源。
-- 股东/实控人/关联方关系网图：仅保留本小标题和"待核验关系节点表"，不要输出 Mermaid、graph LR/TD 或字符画；系统会根据结构化证据在此处插入关系图图片。
-- 治理底盘判断：说明核心决策权是否集中、股东关系是否存在公开矛盾、投资人或资源方是否参与治理、是否存在潜在控制权或关联交易风险。
-
-待核验关系节点表建议列：节点/主体｜关系类型｜已知证据｜证据强度｜待核验问题｜建议核验渠道。
-""",
-    3: """
-目标公司报告专属章节输出骨架：
-## 3. 历史沿革与成长质量
-
-分别列明事件日期、工商/业务/资本动作、签约或完成状态及来源；以同口径经营数据核对成长质量。历史遗留事项须有具体事件证据；不从上市、融资或缺失材料推出无瑕疵或持续增长。
-""",
-    4: """
-目标公司报告专属章节输出骨架：
-## 4. 组织治理与运营管理评估
-
-评估组织架构合理性、决策机制、权责划分、执行流程、内部激励，研判企业应变与组织创新能力。重点说明治理机制是否匹配当前发展阶段。
-""",
-    5: """
-目标公司报告专属章节输出骨架：
-## 5. 行业口碑、产品认可度与同业竞争地位研判
-
-通过员工、竞品、合作方多方交叉访谈或公开口径，对标赛道同行，评估行业地位、技术实力与综合软实力。没有访谈材料时写"暂无访谈证据"，并给出访谈对象和问题清单。
-""",
-    6: """
-目标公司报告专属章节输出骨架：
-## 6. 主营业务真实经营情况核验
-
-分部门核实业务运营数据：技术部门关注研发落地、新产品线规划、新品上市计划；市场部门关注销售情况、市场前景和业绩增长预期；生产部门关注生产规划、产能和产能利用。建议表格：部门/业务｜公开数据｜公司口径｜证据强度｜异常信号｜核验动作。
-""",
-    7: """
-目标公司报告专属章节输出骨架：
-## 7. 核心管理团队（深度/基础）风险研判
-
-摸清管理层履历、产业资源及关联关系，按来源时点区分任职、候选提名、正式聘任与离任；评估管理能力、团队掌控力，核查具体治理事件。供应链few-shot与本章标题错位，不能套作无腐败/无异常结论；关联数量或亲属关系不直接证明派系或利益输送。
-""",
-    8: """
-目标公司报告专属章节输出骨架：
-## 8. 企业文化及人员流失情况
-
-了解企业内部文化价值观、践行与引导方式，关注团队激励、人才储备及培养、梯队建设，以及销售/研发/技术等核心岗位人员流失情况。
-人数、次数、人次、时数及统计范围分开；流失率保留原始公式与期间，不能机械年化或用净减员推断裁员。公司实践、计划目标和员工真实感受分开，信息缺口不直接判为高风险。
-""",
-    9: """
-目标公司报告专属章节输出骨架：
-## 9. 企业司法负面核查
-
-核查企业诉讼及违规、重大商业纠纷，以及产品/研发/供应链/渠道/品牌等潜在业务风险和重大舆情监管风险。建议表格：案件/事项｜类型｜状态｜金额/影响｜是否重大｜来源｜后续核验。
-""",
-    10: """
-目标公司报告专属章节输出骨架：
-## 10. 定向穿透专项尽职调查
-
-针对融资情况、资金使用合规性、战略布局、业务真实性、大额资金往来或客户指定事项开展专项穿透核验。标题下必须明确本项目最需要穿透的方向。
-方向来自明确委托或具体证据触发；客户指定指委托方要求，不能从“现有客户”推定。融资额度、提款、对价及净现金流、备考与实际、母公司单体和集团合并分别列示。公开未检出、案例入选及一般研究要求不证明交易合规或已完成尽调。
-""",
-    11: """
-目标公司报告专属章节输出骨架：
-## 11. 风险核查
-
-按模板三类及75项核查目录核对；模板描述不是目标公司事实。具体事项保留主体、时期、原件定位、影响判断和核验动作；核查优先级与公司整体严重程度分开，不由信息缺口或模型打分平均出风险等级。召回、司法及资金等扩展事项明确标记。
-""",
-    12: """
-目标公司报告专属章节输出骨架：
-## 12. 综合评价
-
-综合已核研究内容评价公司。公司表现分与证据可靠程度、风险严重程度分别列示；分项锚点、固定权重、原件事实与计算路径可追溯。不按证据覆盖度给企业质量分，不编造信用等级；缺项不填默认分、不剔除后假装完整均分。历史IPO/融资、名义持股、技术宣传与当前结果分别核对。
-""",
-    13: """
-目标公司报告专属章节输出骨架：
-## 13. 信息来源
-
-注明检索的信息来源，包括信息点、网址或来源说明、检索工具、可信度、支持章节。建议表格列：信息点｜来源标题/平台｜URL或来源说明｜数据获取工具｜可信度｜支持章节。
-""",
-    14: """
-目标公司报告专属章节输出骨架：
-## 14. 后续研究建议
-
-给出有待确认的信息点和下一步深度研究方向。必须按高/中/低优先级排序，并说明建议数据源/访谈对象、预期判断价值。
-""",
-}
+COMPANY_SECTION_STRUCTURES = {c['chapter']: prompt_contract(c['chapter']) for c in company_chapters()}
 
 
 COMPANY_RISK_TAXONOMY = (
@@ -160,22 +54,8 @@ COMPANY_RISK_TAXONOMY = (
 )
 
 
-COMPANY_SECTION_FEW_SHOTS = {
-    1: """
-摘要 few-shot 表达锚点：
-执行摘要：写清公司成立时间、定位、团队、网站/产品状态。核心发现要覆盖团队、产品、融资/客户、技术或经营亮点。关键验证要列修正与确认。需关注信号要包括工商/融资/产品/媒体覆盖/经营数据缺口。竞争格局要列头部/腰部/初创/海外竞品及相对劣势。评估要写优势与核心风险。
-""",
-    2: "表达参考：持股、任职及明确披露的控制关系分别列示，数据期分开；股东冲突、决策权及治理稳定性须由对应事件、协议或决议支持，不从模板示例预设结论。",
-    3: "表达参考：先列可核对的沿革事件及完成状态，再根据同口径经营变化讨论成长质量；不直接套用示例中的发展顺畅、快速增长或无重大遗留问题结论。",
-    7: "表达参考：按具体人员、岗位、任职时点及履历证据核对团队；变动和治理事件须有对应记录。原表本章few-shot实际为供应链话题，与标题错位，不作为公司无异常或无腐败判断依据。",
-    9: "表达参考：依具体主体、案号、角色、程序、金额和原件列示核查结果；接口计数、零命中、公司自报及专项法律意见各有覆盖范围，不套用示例中的全部结案、无重大影响或无上市风险结论。",
-    12: """
-综合评价 few-shot 表达锚点：
-按已取得的具体结果及明确锚点评价公司表现，写清优势、制约及下一阶段判断条件；公司分、证据可靠程度和风险严重程度分开。未评分维度保留原权重，不取任意默认分，不把创始人身份/任期或单个技术项目当作公司能力，不编造信用评级或通用交易门槛。
-""",
-    13: "信息来源 few-shot：公开可验证来源应逐项列明平台/标题/URL/工具/验证状态，例如工商数据库、司法数据库、官网、新闻、招股书、招聘平台、专利数据库、应用商店、融资数据库、访谈纪要等。",
-    14: "后续研究建议 few-shot：高优先级关注融资与注册实体、股东结构、核心产品状态、收入/客户/产能数据；中优先级关注团队关系、供应商/经销商穿透、竞品差异；低优先级关注社交媒体、长尾舆情与品牌传播。",
-}
+COMPANY_SECTION_FEW_SHOTS = {c['chapter']: c['few_shot']['text'] if c['few_shot']['status'] == 'active' else ''
+                           for c in company_chapters()}
 
 
 COMPANY_FEW_SHOT = f"""
@@ -196,6 +76,13 @@ class CompanyReportAgent:
 
     @company_matching_cache()
     def generate(
+        self, project, cleaned_json, risk_json, invoke, clip, emit, trace_emit=None,
+    ):
+        # A workflow can serve concurrent old and new tasks. Keep its shared
+        # agent instance immutable while each run binds its own chapter titles.
+        return copy(self)._generate(project, cleaned_json, risk_json, invoke, clip, emit, trace_emit)
+
+    def _generate(
         self,
         project: Any,
         cleaned_json: str,
@@ -205,6 +92,11 @@ class CompanyReportAgent:
         emit: Callable[..., None],
         trace_emit: Any = None,
     ) -> str:
+        self.outline = chapter_outline(legacy=not uses_chapter_contract(getattr(project, 'company_research_intake', {}) or {}))
+        agents = create_chapter_agents(project, emit, trace_emit)
+        project._company_chapter_agents = agents
+        project.company_chapter_agents_metadata = [a.metadata() for a in agents.values()]
+        project.company_template_version = CHAPTER_TEMPLATE_VERSION
         sections_by_index: dict[int, str] = {}
         project.company_corpus_digest_package={}
         project.company_information_usage_package={}
@@ -232,216 +124,13 @@ class CompanyReportAgent:
         all_used_urls: set[str] = set()
         for index, (section_title, requirements) in enumerate(self.outline, 1):
             package_payload: dict[str, Any]
-            if index == 1:
-                # The summary is assembled after substantive chapters. Its
-                # cards are selected and budgeted independently below.
-                package_payload = {"facts": []}
-                section_evidence_ids[1] = []
-            elif index == 2:
-                try:
-                    parsed = json.loads(cleaned_json or "{}")
-                except (ValueError, TypeError):
-                    parsed = {}
-                package_payload = build_governance_package(
-                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
-                    list(getattr(project, "sources", []) or []),
-                    as_of_date=str((getattr(project,"company_research_intake",{}) or {}).get('as_of_date') or ''),
-                )
-                project.company_governance_package = package_payload
-                chapter = self._write_governance(project, package_payload, emit, trace_emit)
-                sections_by_index[2] = chapter
-                section_evidence_ids[2] = sorted(set(cited_evidence_ids(chapter)))
-            elif index == 3:
-                try:
-                    parsed = json.loads(cleaned_json or "{}")
-                except (ValueError, TypeError):
-                    parsed = {}
-                package_payload = build_history_package(
-                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
-                    list(getattr(project, "sources", []) or []),
-                    governance=getattr(project, "company_governance_package", {}),
-                )
-                project.company_history_package = package_payload
-                chapter = self._write_history(project, package_payload, emit, trace_emit)
-                sections_by_index[3] = chapter
-                section_evidence_ids[3] = sorted(set(cited_evidence_ids(chapter)))
-            elif index == 4:
-                try:
-                    parsed = json.loads(cleaned_json or "{}")
-                except (ValueError, TypeError):
-                    parsed = {}
-                package_payload = build_operations_package(
-                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
-                    list(getattr(project, "sources", []) or []),
-                    governance=getattr(project, "company_governance_package", {}),
-                )
-                project.company_operations_package = package_payload
-                chapter = self._write_operations(project, package_payload, emit, trace_emit)
-                sections_by_index[4] = chapter
-                section_evidence_ids[4] = sorted(set(cited_evidence_ids(chapter)))
-            elif index == 5:
-                try:
-                    parsed = json.loads(cleaned_json or "{}")
-                except (ValueError, TypeError):
-                    parsed = {}
-                package_payload = build_reputation_package(
-                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
-                    list(getattr(project, "sources", []) or []),
-                    as_of=str((getattr(project, "company_research_intake", {}) or {}).get('as_of_date') or ''),
-                )
-                project.company_reputation_package = package_payload
-                chapter = self._write_reputation(project, package_payload, emit, trace_emit)
-                sections_by_index[5] = chapter
-                section_evidence_ids[5] = sorted(set(cited_evidence_ids(chapter)))
-            elif index == 6:
-                try:
-                    parsed = json.loads(cleaned_json or "{}")
-                except (ValueError, TypeError):
-                    parsed = {}
-                package_payload = build_business_package(
-                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
-                    list(getattr(project, "sources", []) or []),
-                    as_of=str((getattr(project, "company_research_intake", {}) or {}).get('as_of_date') or ''),
-                )
-                project.company_business_package = package_payload
-                chapter = self._write_business(project, package_payload, emit, trace_emit)
-                sections_by_index[6] = chapter
-                section_evidence_ids[6] = sorted(set(cited_evidence_ids(chapter)))
-            elif index == 7:
-                try:
-                    parsed = json.loads(cleaned_json or "{}")
-                except (ValueError, TypeError):
-                    parsed = {}
-                package_payload = build_management_package(
-                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
-                    list(getattr(project, "sources", []) or []),
-                    governance=getattr(project, "company_governance_package", {}),
-                )
-                project.company_management_package = package_payload
-                chapter = self._write_management(project, package_payload, emit, trace_emit)
-                sections_by_index[7] = chapter
-                section_evidence_ids[7] = sorted(set(cited_evidence_ids(chapter)))
-            elif index == 8:
-                try:
-                    parsed = json.loads(cleaned_json or "{}")
-                except (ValueError, TypeError):
-                    parsed = {}
-                package_payload = build_people_package(
-                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
-                    list(getattr(project, "sources", []) or []),
-                )
-                project.company_people_package = package_payload
-                chapter = self._write_people(project, package_payload, emit, trace_emit)
-                sections_by_index[8] = chapter
-                section_evidence_ids[8] = sorted(set(cited_evidence_ids(chapter)))
-            elif index == 9:
-                try:
-                    parsed = json.loads(cleaned_json or "{}")
-                except (ValueError, TypeError):
-                    parsed = {}
-                package_payload = build_judicial_package(
-                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
-                    list(getattr(project, "sources", []) or []),
-                    query_attempts=getattr(project, "company_judicial_query_attempts", []),
-                )
-                project.company_judicial_package = package_payload
-                chapter = self._write_judicial(project, package_payload, emit, trace_emit)
-                sections_by_index[9] = chapter
-                section_evidence_ids[9] = sorted(set(cited_evidence_ids(chapter)))
-            elif index == 10:
-                try:
-                    parsed = json.loads(cleaned_json or "{}")
-                except (ValueError, TypeError):
-                    parsed = {}
-                package_payload = build_diligence_package(
-                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
-                    list(getattr(project, "sources", []) or []),
-                    prior_packages={"history": getattr(project, "company_history_package", {}),
-                                    "judicial": getattr(project, "company_judicial_package", {})},
-                    intake=getattr(project, "company_research_intake", {}),
-                )
-                project.company_diligence_package = package_payload
-                chapter = self._write_diligence(project, package_payload, emit, trace_emit)
-                sections_by_index[10] = chapter
-                section_evidence_ids[10] = sorted(set(cited_evidence_ids(chapter)))
-            elif index == 11:
-                try:
-                    parsed = json.loads(cleaned_json or "{}")
-                except (ValueError, TypeError):
-                    parsed = {}
-                from .company_event_evidence import review_primary_events
-                project.company_event_review_package = review_primary_events(
-                    list(getattr(project, 'sources', []) or []), str(project.target_name or ''),
-                    str((getattr(project, 'company_research_intake', {}) or {}).get('as_of_date') or ''),
-                    invoke, cache=getattr(project, 'company_event_review_cache', None), trace_emit=trace_emit)
-                from .company_checkpoint import checkpoint_generation_stage
-                checkpoint_generation_stage(project, emit, trace_emit)
-                package_payload = build_risk_register(
-                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
-                    list(getattr(project, "sources", []) or []),
-                    industry=str(getattr(project, "industry", "") or ""),
-                    intake=getattr(project, "company_research_intake", {}),
-                    query_attempts=getattr(project, "company_judicial_query_attempts", []),
-                    displayed_judicial=getattr(project,"company_judicial_package",{}),
-                    event_reviews=project.company_event_review_package,
-                )
-                project.company_risk_register_package = package_payload
-                chapter = self._write_risk_register(project, package_payload, emit, trace_emit)
-                sections_by_index[11] = chapter
-                section_evidence_ids[11] = sorted(set(cited_evidence_ids(chapter)))
-            elif index == 12:
-                try:
-                    parsed = json.loads(cleaned_json or "{}")
-                except (ValueError, TypeError):
-                    parsed = {}
-                package_payload = build_assessment_package(
-                    parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
-                    list(getattr(project, "sources", []) or []),
-                    industry=str(getattr(project, "industry", "") or ""),
-                    intake=getattr(project, "company_research_intake", {}),
-                    event_reviews=getattr(project, 'company_event_review_package', None),
-                )
-                project.company_assessment_package = package_payload
-                chapter = self._write_assessment(project, package_payload, emit, trace_emit)
-                sections_by_index[12] = chapter
-                section_evidence_ids[12] = sorted(set(cited_evidence_ids(chapter)))
-            elif index <= 12:
-                package = _focused_cleaned_json(
-                    cleaned_json,
-                    section_title,
-                    requirements,
-                    str(project.target_name or ""),
-                    "company",
-                )
-                try:
-                    package_payload = json.loads(package)
-                except (TypeError, ValueError, json.JSONDecodeError):
-                    package_payload = {"facts": []}
-                evidence_budget = company_section_evidence_budget(section_title)
-                facts = [item for item in package_payload.get("facts", []) if isinstance(item, dict)][:evidence_budget]
-                for item in facts:
-                    evidence_id = str(item.get("evidence_id") or "").strip()
-                    if evidence_id:
-                        item["citation"] = f"[{evidence_id}]"
-                package_payload["facts"] = facts
-                package_payload["chapter_evidence_budget"] = evidence_budget
-                package_payload["chapter_density"] = company_section_density(facts, section_title)
-                section_evidence_ids[index] = [
-                    str(item.get("evidence_id") or "").strip()
-                    for item in facts
-                    if str(item.get("evidence_id") or "").strip()
-                ]
-                all_used_urls.update(
-                    str(item.get("source_url") or "").rstrip("/")
-                    for item in facts
-                    if str(item.get("source_url") or "").startswith(("http://", "https://"))
-                )
+            if 2 <= index <= 12:
+                text,package_payload=self.render_evidence_chapter(project,index,cleaned_json,invoke,emit,trace_emit)
+                sections_by_index[index]=text
+                section_evidence_ids[index]=sorted(set(cited_evidence_ids(text)))
             else:
-                try:
-                    package_payload = json.loads(cleaned_json or "{}")
-                except (TypeError, ValueError, json.JSONDecodeError):
-                    package_payload = {}
-                package_payload["facts"] = []
+                package_payload={'facts':[]}
+                section_evidence_ids[index]=[]
             if index <= 12:
                 all_used_urls.update(str(r.get("source_url") or "") for r in package_payload.get("facts", [])
                                      if isinstance(r, dict) and r.get("source_url"))
@@ -481,47 +170,6 @@ class CompanyReportAgent:
             if verification_gaps
             else "本次桌面研究未形成额外待核验事项。"
         )
-        workers = max(1, min(5, int(os.getenv("REPORT_SECTION_MAX_WORKERS", "3"))))
-        with ThreadPoolExecutor(max_workers=min(workers, len(self.outline))) as executor:
-            futures = {}
-            for index, (section_title, requirements) in enumerate(self.outline, 1):
-                if index in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}:
-                    continue
-                fact_count = len(json.loads(section_packages[index]).get("facts", []))
-                if index <= 12 and fact_count == 0:
-                    sections_by_index[index] = (
-                        f"## {index}. {section_title}\n\n"
-                        "本次已检索公开来源未形成可引用记录；相关核验事项见第14章。"
-                    )
-                    continue
-                section_risk_json = self._section_risk_json(
-                    risk_json,
-                    set(section_evidence_ids.get(index, [])),
-                    include_followups=index == 14,
-                )
-                future = executor.submit(
-                    self._write_section,
-                    project,
-                    section_packages[index],
-                    section_risk_json,
-                    index,
-                    section_title,
-                    requirements,
-                    invoke,
-                    clip,
-                    emit,
-                    trace_emit,
-                )
-                futures[future] = (index, section_title, requirements)
-            for future in as_completed(futures):
-                index, section_title, requirements = futures[future]
-                try:
-                    section = future.result()
-                except Exception as exc:
-                    emit(trace_emit, "report", self.trace_agent, "章节写作失败，保留待核验章节", f"{index}. {section_title} | {exc}", section=section_title, status="fallback")
-                    section = f"## {index}. {section_title}\n\n待核验。本章节需要后续补充核验：{'; '.join(requirements)}。"
-                if section.strip():
-                    sections_by_index[index] = section
         # Specialized parsers deliberately recognize narrow schemas. A missing
         # schema match is not an unusable original: review subject-bound native
         # statements and retain every source's actual disposition separately.
@@ -558,9 +206,12 @@ class CompanyReportAgent:
             else:
                 digest=build_compact_digest(project,review,self.outline,invoke,emit,trace_emit)
             project.company_corpus_digest_package=digest
+            from .company_information_journal import checkpoint_batch as checkpoint_routing, read_decisions as read_routing
             usage=build_information_usage(digest,sections_by_index,self.outline,str(project.target_name),invoke,
                 previous=getattr(project,'company_information_usage_cache',{}),review_scope=routing_scope(project),
-                emit=emit,trace_emit=trace_emit)
+                emit=emit,trace_emit=trace_emit,
+                receipt_callback=lambda batch:checkpoint_routing(project,batch,self.outline,emit,trace_emit),
+                journal_loader=lambda rows:read_routing(project,rows,self.outline))
             usage['source_map']=source_information_map(list(project.sources or []),review,usage)
             project.company_information_usage_package=usage
             checkpoint_generation_stage(project,emit,trace_emit)
@@ -589,7 +240,8 @@ class CompanyReportAgent:
                     checkpoint_generation_stage(project,emit,trace_emit)
                 editorial=build_editorial_package(editorial_usage,self.outline,str(project.target_name),invoke,
                     previous=getattr(project,'company_editorial_cache',{}),emit=emit,trace_emit=trace_emit,
-                    receipt_callback=lambda batch:checkpoint_editorial_batch(project,batch,emit,trace_emit))
+                    receipt_callback=lambda batch:checkpoint_editorial_batch(project,batch,emit,trace_emit),
+                    chapter_agents=agents,originals=getattr(project,'sources',[]) or [])
                 project.company_editorial_package=editorial
                 checkpoint_generation_stage(project,emit,trace_emit)
                 digest['groups']=digest_groups(editorial)
@@ -620,6 +272,10 @@ class CompanyReportAgent:
         sections_by_index[1] = summary
         # Only IDs actually cited in the checked summary count as its usage.
         section_evidence_ids[1] = sorted(set(cited_evidence_ids(summary)))
+        sections_by_index = {n: agents[n].execute(
+            lambda n=n, text=text: normalize_report_headings(text, {n: self.outline[n-1][0]}),
+            phase='finalize') for n, text in sections_by_index.items()}
+        project.company_chapter_agents_metadata = [a.metadata() for a in agents.values()]
         sections = [sections_by_index[index] for index in range(1, len(self.outline) + 1) if sections_by_index.get(index)]
         draft = "\n\n".join(sections)
         if not draft.strip():
@@ -633,7 +289,7 @@ class CompanyReportAgent:
             final = self._edit_batched(project, sections, section_evidence_ids, invoke, emit, trace_emit)
         else:
             final = draft
-        final = self._lock_standard_outline(final, sections_by_index)
+        final = self._lock_standard_outline(final, sections_by_index, outline=self.outline)
         # A later wording editor cannot silently replace a checked summary
         # with a fresh, ungrounded set of claims.
         final = re.sub(r"(?ms)^##\s*1[.、．][^\n]*\n.*?(?=^##\s*2[.、．]|\Z)", summary + "\n\n", final, count=1)
@@ -663,6 +319,228 @@ class CompanyReportAgent:
         final = ensure_delivery_sections(project, final, self.report_kind)
         emit(trace_emit, "report", self.trace_agent, "目标公司桌面研究报告完成", f"chars={len(final)}", chars=len(final), status="done")
         return final
+
+    def render_evidence_chapter(self, project, index, cleaned_json, invoke, emit, trace_emit=None):
+        """Run one existing specialized parser/validator, never another writer."""
+        if not 2 <= index <= 12:
+            raise ValueError('unsupported_company_evidence_chapter')
+        self=copy(self)
+        self.outline=chapter_outline()
+        agents=getattr(project,'_company_chapter_agents',None) or create_chapter_agents(project,emit,trace_emit)
+        section_title,requirements=self.outline[index-1]
+        sections_by_index={};section_evidence_ids={};all_used_urls=set()
+        if index == 1:
+            # The summary is assembled after substantive chapters. Its
+            # cards are selected and budgeted independently below.
+            package_payload = {"facts": []}
+            section_evidence_ids[1] = []
+        elif index == 2:
+            try:
+                parsed = json.loads(cleaned_json or "{}")
+            except (ValueError, TypeError):
+                parsed = {}
+            package_payload = build_governance_package(
+                parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                list(getattr(project, "sources", []) or []),
+                as_of_date=str((getattr(project,"company_research_intake",{}) or {}).get('as_of_date') or ''),
+            )
+            project.company_governance_package = package_payload
+            chapter = agents[index].execute(lambda: self._write_governance(project, package_payload, emit, trace_emit))
+            sections_by_index[2] = chapter
+            section_evidence_ids[2] = sorted(set(cited_evidence_ids(chapter)))
+        elif index == 3:
+            try:
+                parsed = json.loads(cleaned_json or "{}")
+            except (ValueError, TypeError):
+                parsed = {}
+            package_payload = build_history_package(
+                parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                list(getattr(project, "sources", []) or []),
+                governance=getattr(project, "company_governance_package", {}),
+            )
+            project.company_history_package = package_payload
+            chapter = agents[index].execute(lambda: self._write_history(project, package_payload, emit, trace_emit))
+            sections_by_index[3] = chapter
+            section_evidence_ids[3] = sorted(set(cited_evidence_ids(chapter)))
+        elif index == 4:
+            try:
+                parsed = json.loads(cleaned_json or "{}")
+            except (ValueError, TypeError):
+                parsed = {}
+            package_payload = build_operations_package(
+                parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                list(getattr(project, "sources", []) or []),
+                governance=getattr(project, "company_governance_package", {}),
+            )
+            project.company_operations_package = package_payload
+            chapter = agents[index].execute(lambda: self._write_operations(project, package_payload, emit, trace_emit))
+            sections_by_index[4] = chapter
+            section_evidence_ids[4] = sorted(set(cited_evidence_ids(chapter)))
+        elif index == 5:
+            try:
+                parsed = json.loads(cleaned_json or "{}")
+            except (ValueError, TypeError):
+                parsed = {}
+            package_payload = build_reputation_package(
+                parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                list(getattr(project, "sources", []) or []),
+                as_of=str((getattr(project, "company_research_intake", {}) or {}).get('as_of_date') or ''),
+            )
+            project.company_reputation_package = package_payload
+            chapter = agents[index].execute(lambda: self._write_reputation(project, package_payload, emit, trace_emit))
+            sections_by_index[5] = chapter
+            section_evidence_ids[5] = sorted(set(cited_evidence_ids(chapter)))
+        elif index == 6:
+            try:
+                parsed = json.loads(cleaned_json or "{}")
+            except (ValueError, TypeError):
+                parsed = {}
+            package_payload = build_business_package(
+                parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                list(getattr(project, "sources", []) or []),
+                as_of=str((getattr(project, "company_research_intake", {}) or {}).get('as_of_date') or ''),
+            )
+            project.company_business_package = package_payload
+            chapter = agents[index].execute(lambda: self._write_business(project, package_payload, emit, trace_emit))
+            sections_by_index[6] = chapter
+            section_evidence_ids[6] = sorted(set(cited_evidence_ids(chapter)))
+        elif index == 7:
+            try:
+                parsed = json.loads(cleaned_json or "{}")
+            except (ValueError, TypeError):
+                parsed = {}
+            package_payload = build_management_package(
+                parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                list(getattr(project, "sources", []) or []),
+                governance=getattr(project, "company_governance_package", {}),
+            )
+            project.company_management_package = package_payload
+            chapter = agents[index].execute(lambda: self._write_management(project, package_payload, emit, trace_emit))
+            sections_by_index[7] = chapter
+            section_evidence_ids[7] = sorted(set(cited_evidence_ids(chapter)))
+        elif index == 8:
+            try:
+                parsed = json.loads(cleaned_json or "{}")
+            except (ValueError, TypeError):
+                parsed = {}
+            package_payload = build_people_package(
+                parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                list(getattr(project, "sources", []) or []),
+            )
+            project.company_people_package = package_payload
+            chapter = agents[index].execute(lambda: self._write_people(project, package_payload, emit, trace_emit))
+            sections_by_index[8] = chapter
+            section_evidence_ids[8] = sorted(set(cited_evidence_ids(chapter)))
+        elif index == 9:
+            try:
+                parsed = json.loads(cleaned_json or "{}")
+            except (ValueError, TypeError):
+                parsed = {}
+            package_payload = build_judicial_package(
+                parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                list(getattr(project, "sources", []) or []),
+                query_attempts=getattr(project, "company_judicial_query_attempts", []),
+            )
+            project.company_judicial_package = package_payload
+            chapter = agents[index].execute(lambda: self._write_judicial(project, package_payload, emit, trace_emit))
+            sections_by_index[9] = chapter
+            section_evidence_ids[9] = sorted(set(cited_evidence_ids(chapter)))
+        elif index == 10:
+            try:
+                parsed = json.loads(cleaned_json or "{}")
+            except (ValueError, TypeError):
+                parsed = {}
+            package_payload = build_diligence_package(
+                parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                list(getattr(project, "sources", []) or []),
+                prior_packages={"history": getattr(project, "company_history_package", {}),
+                                "judicial": getattr(project, "company_judicial_package", {})},
+                intake=getattr(project, "company_research_intake", {}),
+            )
+            project.company_diligence_package = package_payload
+            chapter = agents[index].execute(lambda: self._write_diligence(project, package_payload, emit, trace_emit))
+            sections_by_index[10] = chapter
+            section_evidence_ids[10] = sorted(set(cited_evidence_ids(chapter)))
+        elif index == 11:
+            try:
+                parsed = json.loads(cleaned_json or "{}")
+            except (ValueError, TypeError):
+                parsed = {}
+            from .company_event_evidence import review_primary_events
+            project.company_event_review_package = review_primary_events(
+                list(getattr(project, 'sources', []) or []), str(project.target_name or ''),
+                str((getattr(project, 'company_research_intake', {}) or {}).get('as_of_date') or ''),
+                invoke, cache=getattr(project, 'company_event_review_cache', None), trace_emit=trace_emit)
+            from .company_checkpoint import checkpoint_generation_stage
+            checkpoint_generation_stage(project, emit, trace_emit)
+            package_payload = build_risk_register(
+                parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                list(getattr(project, "sources", []) or []),
+                industry=str(getattr(project, "industry", "") or ""),
+                intake=getattr(project, "company_research_intake", {}),
+                query_attempts=getattr(project, "company_judicial_query_attempts", []),
+                displayed_judicial=getattr(project,"company_judicial_package",{}),
+                event_reviews=project.company_event_review_package,
+            )
+            project.company_risk_register_package = package_payload
+            chapter = agents[index].execute(lambda: self._write_risk_register(project, package_payload, emit, trace_emit))
+            sections_by_index[11] = chapter
+            section_evidence_ids[11] = sorted(set(cited_evidence_ids(chapter)))
+        elif index == 12:
+            try:
+                parsed = json.loads(cleaned_json or "{}")
+            except (ValueError, TypeError):
+                parsed = {}
+            package_payload = build_assessment_package(
+                parsed if isinstance(parsed, dict) else {}, str(project.target_name or ""),
+                list(getattr(project, "sources", []) or []),
+                industry=str(getattr(project, "industry", "") or ""),
+                intake=getattr(project, "company_research_intake", {}),
+                event_reviews=getattr(project, 'company_event_review_package', None),
+            )
+            project.company_assessment_package = package_payload
+            chapter = agents[index].execute(lambda: self._write_assessment(project, package_payload, emit, trace_emit))
+            sections_by_index[12] = chapter
+            section_evidence_ids[12] = sorted(set(cited_evidence_ids(chapter)))
+        elif index <= 12:
+            package = _focused_cleaned_json(
+                cleaned_json,
+                section_title,
+                requirements,
+                str(project.target_name or ""),
+                "company",
+            )
+            try:
+                package_payload = json.loads(package)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                package_payload = {"facts": []}
+            evidence_budget = company_section_evidence_budget(section_title)
+            facts = [item for item in package_payload.get("facts", []) if isinstance(item, dict)][:evidence_budget]
+            for item in facts:
+                evidence_id = str(item.get("evidence_id") or "").strip()
+                if evidence_id:
+                    item["citation"] = f"[{evidence_id}]"
+            package_payload["facts"] = facts
+            package_payload["chapter_evidence_budget"] = evidence_budget
+            package_payload["chapter_density"] = company_section_density(facts, section_title)
+            section_evidence_ids[index] = [
+                str(item.get("evidence_id") or "").strip()
+                for item in facts
+                if str(item.get("evidence_id") or "").strip()
+            ]
+            all_used_urls.update(
+                str(item.get("source_url") or "").rstrip("/")
+                for item in facts
+                if str(item.get("source_url") or "").startswith(("http://", "https://"))
+            )
+        else:
+            try:
+                package_payload = json.loads(cleaned_json or "{}")
+            except (TypeError, ValueError, json.JSONDecodeError):
+                package_payload = {}
+            package_payload["facts"] = []
+        text=normalize_report_headings(sections_by_index[index],{index:self.outline[index-1][0]})
+        return text,package_payload
 
     def _write_governance(self, project: Any, package: dict, emit, trace_emit=None) -> str:
         chapter = render_governance(package)
@@ -806,6 +684,9 @@ class CompanyReportAgent:
         emit(trace_emit, "report", self.trace_agent, "第十二章公司评价及评分计算核对完成",
              json.dumps(project.company_assessment_diagnostic, ensure_ascii=False),
              section=self.outline[11][0], status="fallback" if errors else "done")
+        if not any(d.get('score') is not None for d in package.get('dimensions',[])):
+            project.company_assessment_diagnostic['presentation']='unscored_rubric_retained_in_metadata'
+            return '## 12. '+self.outline[11][0]
         return chapter
 
     def _write_summary(self, project: Any, cleaned_json: str, completed_sections: dict[int, str], invoke, emit, trace_emit=None) -> str:
@@ -840,8 +721,22 @@ class CompanyReportAgent:
             diagnostic.update(degraded=True, errors=["没有主体匹配的摘要证据"])
             return fallback_company_summary(project, package)
         prompt = build_company_summary_prompt(project, package, completed_sections)
-        feedback=getattr(project,'company_summary_editorial_feedback',[]) or []
+        chapter_agent = (getattr(project, '_company_chapter_agents', {}) or {}).get(1)
+        if chapter_agent:
+            native_invoke = invoke
+            invoke = lambda role, text, trace=None: chapter_agent.invoke(native_invoke, role, text, trace)
+
+        previous=getattr(project,'company_summary_receipt',{}) or {}
+        feedback=getattr(project,'company_summary_editorial_feedback',None)
+        if feedback is None:feedback=previous.get('editorial_feedback') or []
         if feedback:prompt+='\n请修复最终审稿指出的摘要问题；只依据以上事实卡，原有来源范围和归因不能扩大：'+json.dumps(feedback,ensure_ascii=False)
+        from company_flow_state import fingerprint,CompanyFlowLimit
+        signature=fingerprint(['company-summary-reviewed-input-v3',prompt,
+            hashlib.sha256(Path(__file__).with_name('company_summary.py').read_bytes()).hexdigest(),package_fingerprint(package),
+            {str(n):text for n,text in completed_sections.items() if n!=1},feedback])
+        if previous.get('input_sha256')==signature and previous.get('content') and not summary_errors(previous['content'],package):
+            diagnostic['reused']=True
+            return previous['content']
         answer = ""
         try:
             answer = normalize_company_summary(invoke(f"{self.report_kind}摘要 Agent", prompt, trace_emit))
@@ -849,6 +744,7 @@ class CompanyReportAgent:
             # A second free-form revision can introduce a different unsupported
             # relationship or absence claim. Rebuild from the same verified
             # cards as soon as the initial draft fails, then validate again.
+        except CompanyFlowLimit:raise
         except Exception as exc:
             errors = [f"摘要模型调用失败：{type(exc).__name__}"]
         diagnostic["errors"] = errors
@@ -862,6 +758,12 @@ class CompanyReportAgent:
             diagnostic["cited_evidence_ids"] = sorted(set(cited_evidence_ids(rebuilt)))
             emit(trace_emit, "report", self.trace_agent, "公司摘要已按原文事实重建", "模型草稿越界；" + "；".join(errors), status="fallback")
             return rebuilt
+        project.company_summary_receipt={'input_sha256':signature,'content':answer,'package_fingerprint':package_fingerprint(package),
+            'editorial_feedback':feedback}
+        journal=getattr(project,'_company_flow_journal',None)
+        if journal is not None:
+            journal.data['summary_receipt']=project.company_summary_receipt
+            journal.save()
         diagnostic["cited_evidence_ids"] = sorted(set(cited_evidence_ids(answer)))
         emit(trace_emit, "report", self.trace_agent, "公司摘要完成且通过结构与引用校验", f"chars={len(answer)}, delivered_cards={len(package['facts'])}", status="done")
         return answer
@@ -977,9 +879,9 @@ class CompanyReportAgent:
         return "".join(chunks)
 
     @classmethod
-    def _lock_standard_outline(cls, report: str, fallback_sections: dict[int, str]) -> str:
+    def _lock_standard_outline(cls, report: str, fallback_sections: dict[int, str], *, outline=None) -> str:
         """Keep the company delivery structure identical to the standard sample."""
-        expected_headings = {idx: title for idx, (title, _) in enumerate(cls.outline, 1)}
+        expected_headings = {idx: title for idx, (title, _) in enumerate(outline or cls.outline, 1)}
         normalized = normalize_report_headings(report or "", expected_headings)
         matches = list(REPORT_CHAPTER_HEADING_RE.finditer(normalized))
         parsed: dict[int, str] = {}
@@ -1060,7 +962,9 @@ class CompanyReportAgent:
         # Two chapters per request keeps the editor below the provider's
         # practical response-time limit.  This is company-only and preserves
         # a failed batch's original chapter drafts.
-        for start, end in ((1, 2), (3, 4), (5, 6), (7, 8), (9, 10), (11, 12)):
+        agents=getattr(project,'_company_chapter_agents',{}) or {}
+        batches=([(n,n) for n in range(1,13)] if agents else [(1,2),(3,4),(5,6),(7,8),(9,10),(11,12)])
+        for start, end in batches:
             if not any(section_evidence_ids.get(index) for index in range(start, end + 1)):
                 continue
             original = "\n\n".join(by_index[index] for index in range(start, end + 1) if index in by_index)
@@ -1095,7 +999,9 @@ class CompanyReportAgent:
 再次核验：删除或改写任何将"本次公开检索未发现/未返回"写成"无、没有、合规干净、风险为0、确定不存在"的句子；保留"待官方库/企业材料核验"的证据边界。行业、竞品和关联方材料不得用于证明目标公司事实或风险评分。
 """
             try:
-                answer = invoke(f"{self.report_kind}分批主编 Agent {start}-{end}", prompt, trace_emit)
+                call = agents[start].invoke if agents else None
+                role=f"{self.report_kind}分批主编 Agent {start}-{end}"
+                answer = call(invoke,role,prompt,trace_emit) if call else invoke(role,prompt,trace_emit)
             except Exception as exc:
                 emit(trace_emit, "report", self.trace_agent, "公司报告分批主编校订失败，保留章节草稿", f"chapters={start}-{end} | {exc}", status="fallback")
                 continue

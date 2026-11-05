@@ -87,8 +87,8 @@ def test_transient_failure_retries_only_incomplete_batch_and_counts_both_passes(
     assert result['diagnostic']['all_candidate_windows_reviewed']
     assert len(result['facts'])==7 and len(calls)==3
     assert calls.count(('7',))==1
-    assert result['diagnostic']['cached_review_batches']==1
-    assert result['diagnostic']['model_requests_including_recovery']==3
+    assert result['diagnostic']['cached_review_batches']==0
+    assert result['diagnostic']['model_requests']==3
 
 
 def test_open_transport_circuit_is_not_reset_to_repeat_all_failed_requests():
@@ -99,7 +99,7 @@ def test_open_transport_circuit_is_not_reset_to_repeat_all_failed_requests():
     result=build_corpus_review_with_recovery(p,{}, {},guarded,lambda *a,**k:None)
     assert result['diagnostic']['all_candidate_windows_reviewed'] is False
     assert any(r['error']=='provider_unavailable' and r['attempts']==0 for r in result['review_receipts'])
-    assert len(calls)==5 and not result.get('recovery_history')
+    assert len(calls)==3 and not result.get('recovery_history')
 
 
 def test_exhaustion_at_last_batch_does_not_get_a_new_provider_budget_on_second_pass():
@@ -108,11 +108,10 @@ def test_exhaustion_at_last_batch_does_not_get_a_new_provider_budget_on_second_p
     def fail(*args):calls.append(1);raise TimeoutError('provider unavailable')
     guarded=bounded_company_invoke(fail,cooldown_seconds=0)
     result=build_corpus_review_with_recovery(p,{}, {},guarded,lambda *a,**k:None)
-    assert len(calls)==5
+    assert len(calls)==3
     assert result['diagnostic']['all_candidate_windows_reviewed'] is False
-    assert result['recovery_history']
-    assert all(r['error']=='provider_unavailable' and r['attempts']==0 for r in result['review_receipts'])
-    assert result['diagnostic']['model_requests_including_recovery']==5
+    assert not result.get('recovery_history')
+    assert sum(r['attempts'] for r in result['review_receipts'])==3
 
 
 def test_recovered_provider_retries_only_failed_original_batches_and_retains_successes():
@@ -127,7 +126,11 @@ def test_recovered_provider_retries_only_failed_original_batches_and_retains_suc
         return select_all(role,prompt,trace)
     guarded=bounded_company_invoke(invoke,cooldown_seconds=0)
     result=build_corpus_review_with_recovery(p,{}, {},guarded,lambda *a,**k:None)
-    assert result['diagnostic']['all_candidate_windows_reviewed'] is True
-    assert len(result['facts'])==42
-    assert len(calls)==10
-    assert result['diagnostic']['cached_review_batches']==4
+    assert result['diagnostic']['all_candidate_windows_reviewed'] is False
+    assert len(calls)==3
+    successful={r['input_sha256'] for r in result['review_receipts'] if not r['error']}
+    p.company_corpus_analysis_cache=result
+    resumed=build_corpus_review_with_recovery(p,{}, {},bounded_company_invoke(invoke,cooldown_seconds=0),lambda *a,**k:None)
+    assert resumed['diagnostic']['all_candidate_windows_reviewed'] is True
+    assert len(resumed['facts'])==42
+    assert successful <= {r['input_sha256'] for r in resumed['review_receipts'] if r['attempts']==0}

@@ -1,0 +1,77 @@
+{
+  "observed_at": "2026-10-30T16:29:26.932680+00:00",
+  "native_session_id": 29017,
+  "case": "haitian",
+  "native_plan": "bounded-plan-20261030T145059173514.json",
+  "code_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
+  "runtime_source_unchanged_since_start": true,
+  "observed_live_processes": [
+    {
+      "pid": 49228,
+      "created_at": 1793371854.6843247
+    },
+    {
+      "pid": 51772,
+      "created_at": 1793371854.668794
+    }
+  ],
+  "stage": "frozen-report",
+  "fresh_collection_acceptance": false,
+  "resume_source_checkpoint": "40c89bb9a1dbc53d3ebe8b84c2f606a74b46bccf840558b3b41703fff281f003",
+  "reuse_events": [
+    {
+      "at": "2026-10-30T14:51:32.248482+00:00",
+      "label": "复用既有模块来源，仅补查已识别的专项缺口",
+      "detail": "queries=7"
+    },
+    {
+      "at": "2026-10-30T14:52:55.360344+00:00",
+      "label": "复用已有清洗事实库",
+      "detail": ""
+    },
+    {
+      "at": "2026-10-30T14:52:55.652672+00:00",
+      "label": "复用已有风险研判",
+      "detail": ""
+    },
+    {
+      "at": "2026-10-30T14:57:41.772327+00:00",
+      "label": "复用同一语料已完成的全量分析",
+      "detail": "逐来源原文哈希、研究主体、截至日及完整性核对通过；本次仅重新归纳写作。"
+    },
+    {
+      "at": "2026-10-30T14:57:44.121362+00:00",
+      "label": "复用同一输入的信息用途判定",
+      "detail": "cached_information=9363; changed or unbound inputs are reviewed again"
+    }
+  ],
+  "ledger_sha256": "4b67482e9e0293d28f6d74fdfac1cb60c6544aa35322033d0b520a1e9dabbe19",
+  "ignored_partial_lines": 0,
+  "event_counts": {
+    "http_returned": 1,
+    "model_started": 43,
+    "model_http_started": 43,
+    "model_http_headers": 42,
+    "model_returned": 39,
+    "model_failed": 3
+  },
+  "completed_model_finish_reasons": {
+    "stop": 39
+  },
+  "unfinished_logical_model_numbers": [
+    43
+  ],
+  "latest_event": {
+    "at": "2026-10-30T16:29:23.287827+00:00",
+    "stage": "report",
+    "label": "报告生成心跳正常",
+    "current_label": "正在调用公司报告分批主编模型"
+  },
+  "new_final_report_accepted": false,
+  "word_all_pages_review": "pending",
+  "goal_complete": false,
+  "notes": [
+    "A complete stage is not a complete report.",
+    "This liveness observation expires; re-poll the actual handle next turn."
+  ]
+}

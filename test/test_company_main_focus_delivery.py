@@ -13,7 +13,7 @@ from report_agents.company_editorial import (
     bind_proposition_spans,validate_audit,REVIEW_CRITERIA,proposal_prompt,audit_prompt,
 )
 from report_agents.company_checkpoint import read_generation_checkpoint,save_generation_checkpoint
-from test_company_editorial import record
+from test_company_editorial import record,assert_semantic_rejected
 from test_company_presentation import TARGET,SCOPE,placements
 from test_company_checkpoint import project,store
 
@@ -50,7 +50,7 @@ def test_same_source_bound_focus_contract_for_different_companies_and_sectors(ta
     assert not annex_errors(usage,render_annex(usage,placement,target),placement)
     assert len(retention_propositions(focused))==1
     assert record_payload(focused)!=record_payload(rows[0])
-    assert prose_errors(target+'披露产品已交付，收入为999元。',[focused])
+    assert_semantic_rejected({'findings':[{'finding_id':'p','text':target+'披露产品已交付，收入为999元。','information_ids':[focused['information_id']]}]},[focused])
 
 
 def test_independent_reader_selection_promotes_extra_facts_without_dropping_first_choice():
@@ -121,8 +121,11 @@ def test_body_audit_requires_selected_numbers_and_retains_full_source_support_ch
     bind_proposition_spans([focused],audit)
     assert not validate_audit([focused],findings,audit)
     changed=deepcopy(findings);changed[0]['text']='公司收入增长。'
-    assert any(e.startswith('lost_numeric_information') for e in validate_audit([focused],changed,audit))
-    assert prose_errors('公司收入为999万元。',[focused])
+    assert 'unbound_semantic_span:I-a' in validate_audit([focused],changed,audit)
+    rejected=deepcopy(audit);rejected['criteria']['semantic_retention']=False
+    rejected['information'][0]['status']='lost';rejected['issues']=['遗漏所选核心收入金额。']
+    assert 'editorial_criterion:semantic_retention' in validate_audit([focused],changed,rejected)
+    assert_semantic_rejected({'findings':[{'finding_id':'p','text':'公司收入为999万元。','information_ids':[focused['information_id']]}]},[focused])
     assert '完整text' in proposal_prompt([focused],TARGET,6,'实际经营')
     assert '事实筛选漏掉' in audit_prompt([focused],findings,TARGET)
     assert 'source_text_sha256' not in proposal_prompt([focused],TARGET,6,'实际经营')

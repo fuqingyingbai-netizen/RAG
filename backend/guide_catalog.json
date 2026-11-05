@@ -1,14 +1,10 @@
 {
   "schema_version": 1,
-  "reviewed_base": "84072c2",
+  "reviewed_base": "514f0327a6a14cd442860e1c4ecd23f74e38703c + company recovery 2026-11-04",
   "pages": {
     "home": {
       "title": "个人首页",
       "summary": "登录后查看当前账号自己的任务概况、最近任务和最近报告；管理员的个人首页也只统计自己的项目。可进入任务、下载成果、查看历史版本。"
-    },
-    "submit": {
-      "title": "提交尽调任务",
-      "summary": "新建公司、人物或行业研究，填写研究对象、范围、重点问题和资料，提交后上传资料并启动第一阶段研究。"
     },
     "tasks": {
       "title": "任务管理",
@@ -29,6 +25,22 @@
     "accounts": {
       "title": "账号管理",
       "summary": "仅管理员可进入。管理普通账号和管理员账号、角色专属邀请码、知识库资格、账号资料、停用归档恢复、密码重置和操作日志。"
+    },
+    "intake": {
+      "title": "收集资料",
+      "summary": "先保存任务、研究范围与资料；核对上传状态后再开始生成。公司章节目录由服务端模板加载。"
+    },
+    "workbench": {
+      "title": "工作台",
+      "summary": "查看研究任务概览和各工作入口，进入尽调任务的资料、交付与复核步骤。"
+    },
+    "research": {
+      "title": "研究任务",
+      "summary": "从研究任务列表进入已有任务，核对状态、成果与下一步操作。"
+    },
+    "deliverables": {
+      "title": "生成与交付",
+      "summary": "确认资料后生成桌面研究报告与建议书，查看真实进度、待复核状态、下载及历史版本。"
     }
   },
   "topics": [
@@ -158,8 +170,8 @@
     },
     {
       "id": "create-task",
-      "page": "submit",
-      "title": "填写项目并提交第一阶段研究",
+      "page": "intake",
+      "title": "创建任务并保存资料后开始生成",
       "aliases": [
         "新建任务",
         "创建任务",
@@ -170,7 +182,7 @@
         "开始时间",
         "结束时间"
       ],
-      "body": "路径：提交尽调任务 → 新建尽调任务。先填写项目名称、开始/结束时间，选择“BDD目标公司报告”“BDD目标人报告”或“CDD目标行业报告”，再填写对应研究对象、尽调类型、重点模块、关键词和重点问题，按需上传资料，最后点“提交任务”。项目名称是页面必填项；研究对象和范围应尽量准确。提交会先创建项目，再逐个上传所选文件，最后启动研究并切到任务管理。若上传或启动中途失败，先在任务管理查看是否已有项目，避免盲目重复提交。项目周期是任务信息，不代表已设置自动定时执行。",
+      "body": "在收集资料步骤填写项目名、研究对象、类型、范围和重点问题，保存任务并上传资料；确认已保存记录后点击开始生成，进入生成与交付。保存任务不等于研究已完成，页面只按实际状态显示进度。",
       "roles": [
         "user",
         "admin"
@@ -179,12 +191,16 @@
         {
           "path": "frontend/script.js",
           "anchor": "async submitTask()"
+        },
+        {
+          "path": "frontend/script.js",
+          "anchor": "async runExistingWorkflow("
         }
       ]
     },
     {
       "id": "company-intake",
-      "page": "submit",
+      "page": "intake",
       "title": "公司报告的身份信息与重点模块",
       "aliases": [
         "目标公司",
@@ -194,21 +210,29 @@
         "公司官网",
         "公司研究"
       ],
-      "body": "选择“BDD目标公司报告”，填写目标公司准确全称，建议补充官网或统一社会信用代码，并填写行业、地区、尽调类型和重点模块。在重点问题中写清关注经营、股东融资、管理层、司法或舆情中的哪些事项，可上传企业原件、财务资料或已有研究材料。精确主体信息有助于排除同名公司和集团/子公司混用。专业平台未配置、余额不足或权限不足属于采集缺口，不能据此得出公司没有风险的结论。",
+      "body": "公司报告采用服务端统一的十四节模板。前端显示第1—12章，其中摘要和综合评估自动汇总，第2—11章可选择重点；默认选择十个实质章节，显式不选也保留完整目录。各章依次核对本地原文、补读、按缺口补查、写作审稿并保存；新证据会刷新受影响章节及摘要、综合评估和引用。预算、失败或待复核保留原文与检查点；不因平台、短字段或没有关键词就认定资料无用。",
       "roles": [
         "user",
         "admin"
       ],
       "code_refs": [
         {
-          "path": "frontend/index.html",
-          "anchor": "统一社会信用代码"
+          "path": "frontend/script.js",
+          "anchor": "companyRunFields("
+        },
+        {
+          "path": "backend/company_chapters.json",
+          "anchor": "company.ch14"
+        },
+        {
+          "path": "backend/company_chapter_flow.py",
+          "anchor": "def run_chapter("
         }
       ]
     },
     {
       "id": "person-intake",
-      "page": "submit",
+      "page": "intake",
       "title": "人物报告、身份线索与同名排除",
       "aliases": [
         "BDD目标人报告",
@@ -244,7 +268,7 @@
     },
     {
       "id": "industry-scope",
-      "page": "submit",
+      "page": "intake",
       "title": "行业报告的赛道、地域与数据截止日",
       "aliases": [
         "CDD目标行业报告",
@@ -272,7 +296,7 @@
     },
     {
       "id": "capital-markets",
-      "page": "submit",
+      "page": "intake",
       "title": "资本市场研究开关",
       "aliases": [
         "纳入资本市场研究",
@@ -296,7 +320,7 @@
     },
     {
       "id": "research-inputs",
-      "page": "submit",
+      "page": "intake",
       "title": "检索词、重点问题与AI搜索开关",
       "aliases": [
         "检索关键词",
@@ -335,7 +359,7 @@
     },
     {
       "id": "intake-upload",
-      "page": "submit",
+      "page": "intake",
       "title": "任务上传资料与身份提取",
       "aliases": [
         "任务上传资料",
@@ -717,7 +741,7 @@
       "code_refs": [
         {
           "path": "frontend/index.html",
-          "anchor": "人工修订产物覆盖"
+          "anchor": "人工修订后的桌面研究报告"
         }
       ]
     },
@@ -767,7 +791,7 @@
       "code_refs": [
         {
           "path": "backend/research_api.py",
-          "anchor": "已关闭在线搜索，将优先利用人工复核产物和一手资料"
+          "anchor": "_run_saved_proposal_stream"
         }
       ]
     },
@@ -867,7 +891,7 @@
       "code_refs": [
         {
           "path": "frontend/company-knowledge.js",
-          "anchor": "今天要研究什么？"
+          "anchor": "summarizeMyProjects"
         }
       ]
     },
@@ -1601,7 +1625,7 @@
     },
     {
       "id": "professional-platforms",
-      "page": "submit",
+      "page": "intake",
       "title": "专业平台、检索服务与采集失败",
       "aliases": [
         "企查查",

@@ -1,0 +1,715 @@
+{
+  "source": {
+    "file": "桌面研究报告与建议书内容模板.xlsx",
+    "sha256": "8dd0d1b1f366aa0a2602b98c3d82d378b5d1ebd9b5b5e49130d45a43d5683adf",
+    "sheet": "目标公司桌面研究"
+  },
+  "chapters": [
+    {
+      "chapter": 1,
+      "id": "company.ch01",
+      "agent_id": "company_chapter_01_agent",
+      "title": "摘要",
+      "legacy_title": "摘要",
+      "short_title": "摘要",
+      "selectable": false,
+      "mode": "synthesis",
+      "description": "• 整篇报告的摘要，包含报告概述、核心发现点、需关注信号、公司所属赛道竞争格局以及总体评估",
+      "sections": [
+        "报告概述",
+        "核心发现点",
+        "需关注信号",
+        "公司所属赛道竞争格局",
+        "总体评估"
+      ],
+      "questions": [
+        "{target}有哪些已经核实的核心发现、风险信号和未解决问题？"
+      ],
+      "query_terms": [],
+      "original_fields": [],
+      "routes": [],
+      "aliases": [],
+      "source_cells": {
+        "sheet": "目标公司桌面研究",
+        "title": "A2",
+        "description": [
+          "B2"
+        ],
+        "example": null
+      },
+      "few_shot": {
+        "status": "absent",
+        "text": "",
+        "reason": ""
+      }
+    },
+    {
+      "chapter": 2,
+      "id": "company.ch02",
+      "agent_id": "company_chapter_02_agent",
+      "title": "主体工商基本信息核查股东关系与治理底盘",
+      "legacy_title": "主体工商基本信息核查股东关系与治理底盘",
+      "short_title": "工商、股东与控制关系",
+      "selectable": true,
+      "mode": "research",
+      "description": "• 梳理企业注册信息、成立时间、公司规模、股权架构、股权变动、注册资本减资等信息",
+      "sections": [
+        "主体工商信息表",
+        "股权与治理信息表",
+        "股东/实控人/关联方关系网图",
+        "治理底盘判断"
+      ],
+      "questions": [
+        "{target}登记全称、信用代码、资本及单位、状态与历史变更是否一致？",
+        "{target}股东、实控人和关联关系的有效期及控制依据是什么？"
+      ],
+      "query_terms": [
+        "统一社会信用代码 登记 股东 实际控制人 公司章程 原文",
+        "工商变更 股权变动 减资 生效日期 原文"
+      ],
+      "original_fields": [
+        "企业全称",
+        "统一社会信用代码",
+        "登记状态",
+        "注册资本及单位",
+        "股东及比例",
+        "控制依据",
+        "变更前后值",
+        "有效期"
+      ],
+      "routes": [
+        "qcc_registration",
+        "qcc_profile",
+        "qcc_shareholders",
+        "tyc_profile",
+        "tyc_group",
+        "xiniu_basic"
+      ],
+      "aliases": [
+        "公司背景",
+        "股东高管"
+      ],
+      "source_cells": {
+        "sheet": "目标公司桌面研究",
+        "title": "A3",
+        "description": [
+          "B3"
+        ],
+        "example": "C3"
+      },
+      "few_shot": {
+        "status": "active",
+        "text": "目标公司主要股东之间暂未发现重大公开矛盾或实质性冲突，核心决策权仍较集中，其他股东多以投资人或资源支持角色参与。现阶段未发现股东关系对公司经营稳定性造成重大不利影响。",
+        "reason": ""
+      }
+    },
+    {
+      "chapter": 3,
+      "id": "company.ch03",
+      "agent_id": "company_chapter_03_agent",
+      "title": "历史沿革与成长质量",
+      "legacy_title": "历史沿革与成长质量",
+      "short_title": "历史沿革与成长质量",
+      "selectable": true,
+      "mode": "research",
+      "description": "• 明确企业历史工商变更情况、业务发展历程、历史沿革及历史遗留问题等",
+      "sections": [
+        "历史工商变更",
+        "业务发展历程与关键节点",
+        "同口径成长质量核对",
+        "历史遗留事项与核验边界"
+      ],
+      "questions": [
+        "{target}有哪些工商、业务与资本发展节点，分别处于计划、签约还是完成状态？",
+        "{target}同期间、同范围的经营变化能否支持成长判断，有哪些历史遗留事项？"
+      ],
+      "query_terms": [
+        "历史沿革 并购 重组 交割 年度报告 原文"
+      ],
+      "original_fields": [
+        "事件主体",
+        "事件类型",
+        "原文",
+        "日期含义",
+        "签约或完成状态",
+        "比较口径"
+      ],
+      "routes": [
+        "qcc_profile",
+        "xiniu_funding"
+      ],
+      "aliases": [],
+      "source_cells": {
+        "sheet": "目标公司桌面研究",
+        "title": "A4",
+        "description": [
+          "B4"
+        ],
+        "example": "C4"
+      },
+      "few_shot": {
+        "status": "active",
+        "text": "目标公司发展路径整体较为顺畅，已完成从单一配件生产到多品类业务布局的扩张，业务规模实现较快增长。经调研，暂未发现重大历史遗留问题、未决事项或影响上市规范性的重大瑕疵。",
+        "reason": ""
+      }
+    },
+    {
+      "chapter": 4,
+      "id": "company.ch04",
+      "agent_id": "company_chapter_04_agent",
+      "title": "组织治理与运营管理评估",
+      "legacy_title": "组织治理与运营管理评估",
+      "short_title": "组织治理与运营管理",
+      "selectable": true,
+      "mode": "research",
+      "description": "• 评估组织架构合理性，考察决策机制、权责划分、执行流程、内部激励，研判企业应变与组织创新能力",
+      "sections": [
+        "组织架构合理性",
+        "决策机制",
+        "权责划分",
+        "执行流程",
+        "内部激励",
+        "企业应变能力",
+        "组织创新能力"
+      ],
+      "questions": [
+        "{target}组织架构、决策权限与执行流程是否有制度和实际事件依据？",
+        "{target}激励、应变与组织创新有何具体执行证据？"
+      ],
+      "query_terms": [
+        "组织架构 授权 董事会 内部控制 激励 执行 原文"
+      ],
+      "original_fields": [
+        "机构与职责",
+        "决策权限",
+        "制度与执行事件",
+        "生效日期",
+        "激励对象与结果"
+      ],
+      "routes": [
+        "qcc_profile"
+      ],
+      "aliases": [],
+      "source_cells": {
+        "sheet": "目标公司桌面研究",
+        "title": "A5",
+        "description": [
+          "B5"
+        ],
+        "example": null
+      },
+      "few_shot": {
+        "status": "absent",
+        "text": "",
+        "reason": ""
+      }
+    },
+    {
+      "chapter": 5,
+      "id": "company.ch05",
+      "agent_id": "company_chapter_05_agent",
+      "title": "行业口碑，产品认可度与同业竞争地位研判",
+      "legacy_title": "行业口碑、产品认可度与同业竞争地位研判",
+      "short_title": "行业口碑与同业竞争",
+      "selectable": true,
+      "mode": "research",
+      "description": "•通过员工、竞品、合作方多方交叉访谈，对标赛道同行，评估行业地位、技术实力与综合软实力。",
+      "sections": [
+        "员工评价",
+        "竞品评价",
+        "合作方评价",
+        "行业地位",
+        "技术实力",
+        "综合软实力",
+        "同业对标"
+      ],
+      "questions": [
+        "员工、竞品与合作方如何评价{target}，发布者、样本、期间和事实依据是什么？",
+        "{target}与哪些同行可比，市场、产品与技术指标的口径和分母是什么？"
+      ],
+      "query_terms": [
+        "员工评价 合作方评价 产品 竞品 市场份额 测评 口径 原文"
+      ],
+      "original_fields": [
+        "评价主体",
+        "发布者",
+        "样本与方法",
+        "期间",
+        "产品及同业范围",
+        "分母",
+        "原文",
+        "反向信息"
+      ],
+      "routes": [
+        "xiniu_market"
+      ],
+      "aliases": [
+        "负面新闻",
+        "舆情",
+        "竞品公司",
+        "竞品情况",
+        "行业市场",
+        "技术实力"
+      ],
+      "source_cells": {
+        "sheet": "目标公司桌面研究",
+        "title": "A9",
+        "description": [
+          "B9"
+        ],
+        "example": null
+      },
+      "few_shot": {
+        "status": "absent",
+        "text": "",
+        "reason": ""
+      }
+    },
+    {
+      "chapter": 6,
+      "id": "company.ch06",
+      "agent_id": "company_chapter_06_agent",
+      "title": "主营业务真实经营情况核验",
+      "legacy_title": "主营业务真实经营情况核验",
+      "short_title": "主营业务与经营核验",
+      "selectable": true,
+      "mode": "research",
+      "description": "•分部门核实业务运营数据，技术部门关注研发落地进度、新产品线规划及新品上市计划等，市场部门关注新产品的销售情况以及公司内部该产品的市场前景和业绩增长预期，生产部门关注生产规划、产能情况等，验证业务运营稳定性",
+      "sections": [
+        "分部门业务运营数据核验表",
+        "核心业务板块运营进展核验表",
+        "关键经营事实与风险研判",
+        "视觉/图谱证据说明"
+      ],
+      "questions": [
+        "{target}各业务的收入、利润、现金流对应什么会计期间、币种、合并范围及调整口径？",
+        "{target}研发、销售、生产、产能与产品交付处于什么实际状态？"
+      ],
+      "query_terms": [
+        "年度报告 半年度报告 财务报表 经营活动现金流量净额 比较数 附注 原文",
+        "分产品收入 研发进展 销售 产量 产能 交付 验收 原文"
+      ],
+      "original_fields": [
+        "会计期间",
+        "合并或母公司范围",
+        "币种及单位",
+        "收入",
+        "利润及扣非调整口径",
+        "现金流",
+        "比较数及附注",
+        "研发生产销售状态"
+      ],
+      "routes": [
+        "qcc_profile",
+        "xiniu_basic",
+        "tyc_patents"
+      ],
+      "aliases": [
+        "收入情况",
+        "上下游业务"
+      ],
+      "source_cells": {
+        "sheet": "目标公司桌面研究",
+        "title": "A14",
+        "description": [
+          "B14"
+        ],
+        "example": null
+      },
+      "few_shot": {
+        "status": "absent",
+        "text": "",
+        "reason": ""
+      }
+    },
+    {
+      "chapter": 7,
+      "id": "company.ch07",
+      "agent_id": "company_chapter_07_agent",
+      "title": "核心管理团队（深度/基础）风险研判",
+      "legacy_title": "核心管理团队风险研判",
+      "short_title": "核心管理团队",
+      "selectable": true,
+      "mode": "research",
+      "description": "•摸清管理层履历、产业资源及关联关系，评估管理能力、团队掌控力，排查派系斗争、人事动荡等治理隐患。",
+      "sections": [
+        "管理层履历与岗位配置",
+        "任职变动与时间线",
+        "产业资源及明确关联关系",
+        "管理能力与团队掌控力评估",
+        "派系斗争、人事动荡与商业腐败信号",
+        "本章待核验事项"
+      ],
+      "questions": [
+        "{target}管理层和创始人的履历、岗位、任期及变动由什么具名原件支持？",
+        "{target}管理团队的资源、关系和治理事件有哪些证据，能否支持能力或掌控力判断？"
+      ],
+      "query_terms": [
+        "董事 高级管理人员 创始人 履历 任期 换届 辞任 原文"
+      ],
+      "original_fields": [
+        "姓名身份",
+        "岗位",
+        "履历来源",
+        "任职起止",
+        "变动状态",
+        "关联主体及有效期",
+        "具体治理事件"
+      ],
+      "routes": [
+        "qcc_people",
+        "tyc_people",
+        "xiniu_team"
+      ],
+      "aliases": [
+        "管理团队",
+        "创始人背景",
+        "核心管理团队（深度/基础）风险研判"
+      ],
+      "source_cells": {
+        "sheet": "目标公司桌面研究",
+        "title": "A16",
+        "description": [
+          "B16"
+        ],
+        "example": "C16"
+      },
+      "few_shot": {
+        "status": "quarantined",
+        "text": "采购、供应商及经销体系整体保持运转稳定，暂未发现商业贿赂、商业腐败、压货或虚增业绩等重大异常。但核心供应商质量稳定性、老板关系型合作、经销商人员交叉及国内销售商业关系仍需作为后续核验重点。",
+        "reason": "原表C16为供应商采购和经销主题，与管理团队标题不符。"
+      }
+    },
+    {
+      "chapter": 8,
+      "id": "company.ch08",
+      "agent_id": "company_chapter_08_agent",
+      "title": "企业文化及人员流失情况",
+      "legacy_title": "企业文化及人员流失情况",
+      "short_title": "企业文化与人员流失",
+      "selectable": true,
+      "mode": "research",
+      "description": "•了解企业内部文化价值观以及如何践行与引导等，关注团队内部激励措施、人才储备及培养、团队梯队建设等，以及核心部门（销售/研发/技术等）重要岗位人员流失情况",
+      "sections": [
+        "内部文化价值观与文化践行引导",
+        "团队激励与人才结构现状",
+        "人才储备、培养与梯队建设",
+        "销售/研发/技术等核心岗位人员流失情况",
+        "核验判断与具体缺口"
+      ],
+      "questions": [
+        "{target}的文化、激励与人才培养有何实际做法及员工反馈？",
+        "{target}分岗位人员结构与流失数据的期间、分母和计算公式是什么？"
+      ],
+      "query_terms": [
+        "可持续发展报告 ESG 员工流失率 计算公式 培训 激励 原文"
+      ],
+      "original_fields": [
+        "文化实践",
+        "激励与培养记录",
+        "岗位及人员范围",
+        "期间",
+        "人数或人次",
+        "流失率公式及分母"
+      ],
+      "routes": [
+        "qcc_recruitment",
+        "xiniu_team"
+      ],
+      "aliases": [],
+      "source_cells": {
+        "sheet": "目标公司桌面研究",
+        "title": "A17",
+        "description": [
+          "B17"
+        ],
+        "example": null
+      },
+      "few_shot": {
+        "status": "absent",
+        "text": "",
+        "reason": ""
+      }
+    },
+    {
+      "chapter": 9,
+      "id": "company.ch09",
+      "agent_id": "company_chapter_09_agent",
+      "title": "企业司法负面核查",
+      "legacy_title": "企业司法负面核查",
+      "short_title": "司法负面与监管事项",
+      "selectable": true,
+      "mode": "research",
+      "description": "•核查企业诉讼及违规情况、重大商业纠纷，以及产品/研发/供应链/渠道/品牌等潜在业务风险和重大舆情监管风险",
+      "sections": [
+        "核心事实汇总",
+        "风险事项分类核查表",
+        "视觉证据/图谱证据",
+        "结论与行动建议"
+      ],
+      "questions": [
+        "{target}在具体案件、执行、处罚或监管事件中是什么角色，当前程序及后续状态是什么？",
+        "请求、判赔、执行及实际履行金额、单位和义务主体分别是什么？"
+      ],
+      "query_terms": [
+        "案号 当事人 裁判文书 判项 执行 原文",
+        "行政处罚决定 监管措施 整改 后续 原文"
+      ],
+      "original_fields": [
+        "案号",
+        "当事人与角色",
+        "义务主体",
+        "请求判赔执行金额及单位",
+        "程序状态",
+        "事件日期及含义",
+        "相反信息"
+      ],
+      "routes": [
+        "qcc_risk",
+        "qcc_penalty",
+        "xiniu_risk"
+      ],
+      "aliases": [
+        "诉讼/制裁"
+      ],
+      "source_cells": {
+        "sheet": "目标公司桌面研究",
+        "title": "A19",
+        "description": [
+          "B19"
+        ],
+        "example": "C19"
+      },
+      "few_shot": {
+        "status": "active",
+        "text": "目标公司名下存在若干司法案件，主要涉及劳动争议及外观设计专利纠纷，相关案件均已结案，未对公司业务造成重大实质影响。现阶段未发现足以影响上市进程的重大诉讼或负面信息。",
+        "reason": ""
+      }
+    },
+    {
+      "chapter": 10,
+      "id": "company.ch10",
+      "agent_id": "company_chapter_10_agent",
+      "title": "定向穿透专项尽职调查",
+      "legacy_title": "定向穿透专项尽职调查",
+      "short_title": "定向穿透专项",
+      "selectable": true,
+      "mode": "research",
+      "description": "• 针对融资情况、资金使用合规性、战略布局、业务真实性、大额资金往来或客户指定开展专项穿透核验",
+      "sections": [
+        "融资情况",
+        "资金使用合规性",
+        "战略布局",
+        "业务真实性",
+        "大额资金往来",
+        "客户指定专项",
+        "技术/供应商/资金往来穿透"
+      ],
+      "questions": [
+        "对{target}有哪些明确委托或具体证据触发的专项穿透方向？",
+        "{target}融资计划、发行、费用、净额、到账与资金使用分别由什么原件证明？"
+      ],
+      "query_terms": [
+        "融资 发行 配售 募集资金净额 费用 实际使用 原文"
+      ],
+      "original_fields": [
+        "专项委托",
+        "融资主体",
+        "计划签约完成状态",
+        "毛额费用净额",
+        "币种单位",
+        "收款主体",
+        "到账日期",
+        "用途"
+      ],
+      "routes": [
+        "xiniu_funding"
+      ],
+      "aliases": [
+        "融资情报"
+      ],
+      "source_cells": {
+        "sheet": "目标公司桌面研究",
+        "title": "A20",
+        "description": [
+          "B20"
+        ],
+        "example": null
+      },
+      "few_shot": {
+        "status": "absent",
+        "text": "",
+        "reason": ""
+      }
+    },
+    {
+      "chapter": 11,
+      "id": "company.ch11",
+      "agent_id": "company_chapter_11_agent",
+      "title": "风险核查",
+      "legacy_title": "风险核查",
+      "short_title": "风险核查",
+      "selectable": true,
+      "mode": "synthesis",
+      "description": "•根据上述检索信息进行风险识别\n风险点：\n-组织与管理风险：管理层缺乏执行战斗力/战略缺乏延续性/缺乏行业经验/能力与企业发展需求不匹配/决策流程不科学/决策保守，错失市场机会/创始人缺乏决策话语权/核心团队年纪偏大或能力不足/家族化管理，任人唯亲/交叉管理，职责不清晰/团队文化导向不健康/内部资源分配不均/团队不和谐，派系内斗严重/内部利益小团体、信息不共享/高、中、基层员工流失率高/核心岗位人才流失严重/排外，外部人才发挥空间不足/员工成长性差，无明确晋升路径/内部缺乏有效监察制度/员工工作积极性差，缺乏主观意识/管理流于表面形式/管理理念落后/创始人缺乏对企业核心资源的掌控造假等\n-业务与运营风险：业绩收入大幅造假/管理层或总部带头造假/经销体系紊乱、经销商粘性差/为了追求业绩，随意压货/业绩刷单/客户数量造假/产品参数性能严重不符/美化报表/用实验室数据误导投资人/研发进度及投入夸大/用户数量夸大/供应链能力夸大/专利侵权/销售区域恶意竞争/销售个人行为获利/不正当手段获取市场/偷税漏税、少缴或不缴社保/区域内塌方腐败业务及运营/产品壁垒不足/研发投入回报周期长/消防、环评风险/劳动力用工风险/中美双边贸易风险/现金流不足等\n-行业特殊风险：消费行业（业绩夸大、造假/虚假宣传/商业模式单一，业务可持续性差/战略规划、产品定位不清晰/产品线单一/供应链薄弱/产品质量安全存在隐患；医药/医疗器械行业：产品研发和审批进度风险/临床前或临床阶段的数据验真/产业化落地风险/临床医生对产品不认可/专利知识产权合作风险/医疗机构管理经验不足/渠道风险）；硬科技行业（芯片贪腐/PPT公司，无实际落地产品/产品研发进度慢/商务能力差/闭门造车，缺乏市场需求的把握/应用场景局限/缺乏造血能力、人才流失严重）；新能源行业（虚假项目，单纯融资套现/重炒作，轻业务/个人资源与业务需求不匹配/业务冗杂，竞争力不明显/不舍得投入或盲目投入/不尊重技术团队、管理及生产模式落后/客情关系差等）",
+      "sections": [
+        "组织与管理风险",
+        "业务与运营风险",
+        "行业特殊风险",
+        "具体事项与有边界的判断",
+        "75项核查目录及扩展事项"
+      ],
+      "questions": [
+        "上述已核信息揭示{target}哪些组织管理、业务运营及适用行业风险？",
+        "各项风险的主体、时间、适用政策、反向信息、影响依据和待核验缺口是什么？"
+      ],
+      "query_terms": [
+        "风险 适用政策 合规 决定 经营异常 反向信息 原文"
+      ],
+      "original_fields": [
+        "风险类别",
+        "责任主体",
+        "适用政策",
+        "事件及期间",
+        "影响依据",
+        "反向信息",
+        "未解决缺口"
+      ],
+      "routes": [
+        "qcc_risk",
+        "qcc_penalty",
+        "xiniu_risk"
+      ],
+      "aliases": [
+        "行业政策"
+      ],
+      "source_cells": {
+        "sheet": "目标公司桌面研究",
+        "title": "A23",
+        "description": [
+          "B23",
+          "B24"
+        ],
+        "example": null
+      },
+      "few_shot": {
+        "status": "absent",
+        "text": "",
+        "reason": ""
+      }
+    },
+    {
+      "chapter": 12,
+      "id": "company.ch12",
+      "agent_id": "company_chapter_12_agent",
+      "title": "综合评估",
+      "legacy_title": "综合评价",
+      "short_title": "综合评估",
+      "selectable": false,
+      "mode": "synthesis",
+      "description": "•综合上述研究内容，对目标公司进行总结打分",
+      "sections": [
+        "综合判断与评分口径",
+        "分项评价与原件依据",
+        "经营变化、优势与制约",
+        "历史资本事项状态",
+        "具体风险与推进条件",
+        "显式评分锚点"
+      ],
+      "questions": [
+        "基于已核研究内容怎样综合评估{target}，评分锚点、原权重与未评分项是什么？"
+      ],
+      "query_terms": [],
+      "original_fields": [],
+      "routes": [],
+      "aliases": [],
+      "source_cells": {
+        "sheet": "目标公司桌面研究",
+        "title": "A25",
+        "description": [
+          "B25"
+        ],
+        "example": null
+      },
+      "few_shot": {
+        "status": "absent",
+        "text": "",
+        "reason": ""
+      }
+    },
+    {
+      "chapter": 13,
+      "id": "company.ch13",
+      "agent_id": "company_chapter_13_agent",
+      "title": "信息来源",
+      "legacy_title": "信息来源",
+      "short_title": "信息来源",
+      "selectable": false,
+      "mode": "derived",
+      "description": "•注明检索的信息来源，包括信息点、网址等，以及检索用的数据获取工具",
+      "sections": [
+        "信息点",
+        "来源标题",
+        "URL",
+        "可信度",
+        "支持章节"
+      ],
+      "questions": [
+        "正文各信息点实际引用了哪些原件、网址、平台和获取工具？"
+      ],
+      "query_terms": [],
+      "original_fields": [],
+      "routes": [],
+      "aliases": [],
+      "source_cells": {
+        "sheet": "目标公司桌面研究",
+        "title": "A26",
+        "description": [
+          "B26"
+        ],
+        "example": null
+      },
+      "few_shot": {
+        "status": "absent",
+        "text": "",
+        "reason": ""
+      }
+    },
+    {
+      "chapter": 14,
+      "id": "company.ch14",
+      "agent_id": "company_chapter_14_agent",
+      "title": "后续研究点",
+      "legacy_title": "后续研究建议",
+      "short_title": "后续研究点",
+      "selectable": false,
+      "mode": "derived",
+      "description": "•给出有待确认的信息点和进行下一步更加深度的研究所需要关注的研究方向",
+      "sections": [
+        "待确认信息点（集中式缺口清单）",
+        "下一步深度研究方向与优先级排序",
+        "关键行动提示"
+      ],
+      "questions": [
+        "哪些问题仍待确认，下一步需要什么原件或访谈，优先级为何？"
+      ],
+      "query_terms": [],
+      "original_fields": [],
+      "routes": [],
+      "aliases": [],
+      "source_cells": {
+        "sheet": "目标公司桌面研究",
+        "title": "A27",
+        "description": [
+          "B27"
+        ],
+        "example": null
+      },
+      "few_shot": {
+        "status": "absent",
+        "text": "",
+        "reason": ""
+      }
+    }
+  ]
+}

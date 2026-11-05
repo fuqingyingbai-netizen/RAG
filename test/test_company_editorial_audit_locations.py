@@ -7,7 +7,7 @@ from report_agents.company_editorial import (
     audit_location_only,build_editorial_package,numeric_tokens,parse_proposal,
     native_propositions,validate_audit,bind_proposition_spans,
 )
-from test_company_editorial import record,proposal,audit,OUTLINE
+from test_company_editorial import record,proposal,audit,OUTLINE,assert_semantic_rejected
 
 
 def short_fragment_review():
@@ -53,8 +53,7 @@ def test_real_denomination_stays_bound_and_cannot_be_dropped_or_added():
     assert numeric_tokens('100分分别列示')=={'100分'}
     for original,text in [('原值100分。','原值100分别列示。'),('原值100。','原值100分。')]:
         row=record(text=original)
-        assert parse_proposal({'findings':[{'finding_id':'p','text':text,'information_ids':[row['information_id']]}]},
-                              [row],6,OUTLINE[5][1][0])[1]
+        assert_semantic_rejected({'findings':[{'finding_id':'p','text':text,'information_ids':[row['information_id']]}]},[row])
 
 
 @pytest.mark.parametrize('error',[

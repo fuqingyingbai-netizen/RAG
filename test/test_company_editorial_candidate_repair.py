@@ -17,26 +17,20 @@ def draft(rows, *, bad_unit=False, unsupported=False):
          'information_ids':['I-b']}]}
 
 
-def test_quantity_repair_preserves_candidates_but_freshly_audits_every_record():
+def test_native_count_label_does_not_trigger_token_repair_or_candidate_freezing():
     rows=inputs();original=deepcopy(rows);writes=[];reviews=[]
     def invoke(role,prompt,trace):
         if role=='公司交付正文独立审稿':
             data=json.loads(prompt.split('资料：\n',1)[1]);reviews.append(data)
             return json.dumps(audit(rows,data['findings']))
-        writes.append(prompt)
-        if len(writes)==1:return json.dumps(draft(rows,bad_unit=True))
-        assert '固定待审草稿：' in prompt and '尚未获独立语义审稿支持' in prompt
-        assert '固定已审正文：' not in prompt
-        return json.dumps({'findings':[{'finding_id':'ADD_fixed','text':rows[1]['text'],'information_ids':['I-b']}]})
+        writes.append(prompt);return json.dumps(draft(rows,bad_unit=True))
     result=build_editorial_package({'records':rows},OUTLINE,'青禾食品公司',invoke,workers=1)
-    assert rows==original and len(writes)==2 and len(reviews)==1
+    assert rows==original and len(writes)==1 and len(reviews)==1
     assert {r['information_id'] for r in reviews[0]['records']}=={'I-a','I-b'}
-    assert {f['finding_id'] for f in reviews[0]['findings']}=={'stable','ADD_fixed'}
     assert not result['diagnostic']['pending_information_ids']
-    assert result['batches'][0]['attempts'][1]['repair_mode']=='native_quantity_repair'
 
 
-def test_semantic_failure_of_a_preserved_candidate_releases_it_for_full_rewrite():
+def test_real_semantic_failure_requests_full_rewrite_and_fresh_audit():
     rows=inputs();writes=[];reviews=0
     def invoke(role,prompt,trace):
         nonlocal reviews
@@ -47,30 +41,20 @@ def test_semantic_failure_of_a_preserved_candidate_releases_it_for_full_rewrite(
                 answer['findings'][0].update(status='unsupported',reason='收入不能证明全部收款。')
             return json.dumps(answer)
         writes.append(prompt)
-        if len(writes)==1:return json.dumps(draft(rows,bad_unit=True,unsupported=True))
-        if len(writes)==2:return json.dumps({'findings':[{'finding_id':'ADD_fixed','text':rows[1]['text'],'information_ids':['I-b']}]})
-        assert '固定待审草稿：' not in prompt and '固定已审正文：' not in prompt
-        return json.dumps(draft(rows))
+        return json.dumps(draft(rows,unsupported=len(writes)==1))
     result=build_editorial_package({'records':rows},OUTLINE,'青禾食品公司',invoke,workers=1)
-    assert len(writes)==3 and reviews==2 and not result['diagnostic']['pending_information_ids']
+    assert len(writes)==2 and reviews==2 and not result['diagnostic']['pending_information_ids']
     assert all('全部收款' not in f['text'] for f in result['findings'])
 
 
-def test_candidate_tampering_is_rejected_before_any_semantic_acceptance():
-    rows=inputs();writes=0;reviews=0
-    def invoke(role,prompt,trace):
-        nonlocal writes,reviews
-        if role=='公司交付正文独立审稿':
-            reviews+=1;data=json.loads(prompt.split('资料：\n',1)[1]);return json.dumps(audit(rows,data['findings']))
-        writes+=1
-        if writes==1:return json.dumps(draft(rows,bad_unit=True))
-        if writes==2:
-            proposal=draft(rows);proposal['findings'][0]['text']='公司披露本期收入999元。'
-            return json.dumps(proposal)
-        return json.dumps(draft(rows))
-    result=build_editorial_package({'records':rows},OUTLINE,'青禾食品公司',invoke,workers=1)
-    assert writes==3 and reviews==1 and not result['diagnostic']['pending_information_ids']
-    assert result['batches'][0]['attempts'][1]['errors']==['editorial_call_failed:FrozenProseConflict']
+def test_tampered_cached_prose_is_not_authorized_by_its_old_true_flags():
+    from test_company_editorial import invoke_for
+    rows=inputs();first=build_editorial_package({'records':rows},OUTLINE,'公司',invoke_for(rows),workers=1)
+    corrupt=deepcopy(first);corrupt['batches'][0]['findings'][0]['text']='公司披露本期收入999元。'
+    calls=[]
+    result=build_editorial_package({'records':rows},OUTLINE,'公司',invoke_for(rows,calls),previous=corrupt,workers=1)
+    assert len(calls)==2 and not result['batches'][0].get('reused')
+    assert all('999' not in f['text'] for f in result['findings'])
 
 
 def test_nonquantity_defects_never_authorize_candidate_freezing():

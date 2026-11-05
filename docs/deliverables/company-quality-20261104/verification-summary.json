@@ -1,0 +1,127 @@
+{
+  "scope": "Full-suite snapshot plus newer affected-module reruns, reconciled against final collection; not one fresh monolithic green run",
+  "runs": [
+    {
+      "file": "company-quality-full-initial.xml",
+      "sha256": "6e055359add63d2e3cb53507d29b5cf24c0bf46114a2479e189d2f3e67c26fcf",
+      "counts": {
+        "passed": 4886,
+        "skipped": 4,
+        "failed": 70
+      },
+      "seconds": 2063.309
+    },
+    {
+      "file": "company-quality-company-current.xml",
+      "sha256": "cd015b5522842e8d0325c615cafd93b3a88aa16ed6febc74a83eb2498b590a21",
+      "counts": {
+        "passed": 2309,
+        "failed": 46
+      },
+      "seconds": 885.055
+    },
+    {
+      "file": "company-quality-focused-final.xml",
+      "sha256": "f55401e5730bec453e447be8bcc7d96ebb8ecb9c766f53aaa7e6ff9afa160c03",
+      "counts": {
+        "passed": 263
+      },
+      "seconds": 24.274
+    },
+    {
+      "file": "company-quality-policy-final.xml",
+      "sha256": "15319499e2ab79bf01b992c41c52bf2d6318d204a3f7aaefe3ea569b9c55d3d8",
+      "counts": {
+        "passed": 202
+      },
+      "seconds": 8.536
+    },
+    {
+      "file": "company-quality-regressions-final.xml",
+      "sha256": "00e597d539c7a1088b353c1e5a7e6f3238a5de89f620f2474e246542c36bd3b8",
+      "counts": {
+        "passed": 743
+      },
+      "seconds": 24.911
+    },
+    {
+      "file": "company-quality-final-core.xml",
+      "sha256": "9af4205634e0196a4ce76c2388f7f5b61a4563cd5416fd09249d9b66a271a09d",
+      "counts": {
+        "passed": 184
+      },
+      "seconds": 38.369
+    },
+    {
+      "file": "company-quality-delivery-final.xml",
+      "sha256": "44a8bde5e1a4b203f59d208f5d6cab673d01d99e2ca089ab5517e2e7ad9bec4e",
+      "counts": {
+        "passed": 163
+      },
+      "seconds": 25.873
+    },
+    {
+      "file": "company-quality-last-cache.xml",
+      "sha256": "852ea9578d33e88a46c68e32ca242e25d341cdc34ba57572dba2288fabf6d642",
+      "counts": {
+        "passed": 169
+      },
+      "seconds": 17.769
+    },
+    {
+      "file": "company-quality-summary-cache-final.xml",
+      "sha256": "1d0681316f98971606580a6216e1d701ab81f84e01fb5230f9dcf3841d0df7b6",
+      "counts": {
+        "passed": 50
+      },
+      "seconds": 3.798
+    },
+    {
+      "file": "company-quality-targeted-final.xml",
+      "sha256": "22b78940ca5282ddef12fe369f87920d57bc34c287c86ec23939258ed191d37a",
+      "counts": {
+        "passed": 375
+      },
+      "seconds": 30.566
+    },
+    {
+      "file": "company-quality-empty-optional-final.xml",
+      "sha256": "a043cc2fdbd49082ddb6f38d69fc6646578b35ffe470493e5ec19ecd4df57018",
+      "counts": {
+        "passed": 217
+      },
+      "seconds": 26.606
+    },
+    {
+      "file": "company-quality-shared-rules-final.xml",
+      "sha256": "6abb354d7ff9b06dac6dc4877501d0ff6d7c303102c9f043217767eb4e506867",
+      "counts": {
+        "passed": 212
+      },
+      "seconds": 32.274
+    },
+    {
+      "file": "company-quality-stage-separation.xml",
+      "sha256": "29b61e04043ce0ab42a5ca270d9d276878fea50e01a7dee91b7b59cd2a8e90b9",
+      "counts": {
+        "passed": 470
+      },
+      "seconds": 41.959
+    },
+    {
+      "file": "company-quality-support-binding-final.xml",
+      "sha256": "08bc67615418e41d6ceeb7006841242fbb440fff4871465fb87cce72377024ad",
+      "counts": {
+        "passed": 1059
+      },
+      "seconds": 40.572
+    }
+  ],
+  "current_collected": 4980,
+  "effective_counts": {
+    "passed": 4976,
+    "skipped": 4
+  },
+  "unverified_current_tests": [],
+  "unresolved_test_failures": {}
+}

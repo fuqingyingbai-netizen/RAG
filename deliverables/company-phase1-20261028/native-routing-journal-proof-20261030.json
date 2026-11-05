@@ -1,0 +1,51 @@
+{
+  "at": "2026-10-30T14:12:03.175589+00:00",
+  "scope": "actual native per-batch routing journal readback",
+  "generator_sha256": "330acb3cfd12796d9aef4b37d7c62b73a0db305f8bd63481cd9f186a98e222ed",
+  "native_plan": "bounded-plan-20261030T135651080519.json",
+  "native_code_commit": "3851946e37d64d47a8562f5995e0cc9432034d68",
+  "runtime_source_unchanged": true,
+  "whole_usage_checkpoint_sha256": "40c89bb9a1dbc53d3ebe8b84c2f606a74b46bccf840558b3b41703fff281f003",
+  "whole_usage_records": 9374,
+  "native_journal_index_sha256": "b4283d672ec16b4119a02846f8adefd4eb30b1f1c786de4c42f2ceba05ec0c2b",
+  "journal_version": "company-information-routing-journal-v1",
+  "revalidated_native_decisions": 6,
+  "entries": {
+    "I-08e1b96829414cff": {
+      "receipt_sha256": "f65371e2d0b7dda8f75bee438ae8a9a0daf791e125c8bf3f93281086063da207",
+      "input_sha256": "2081bc5dea6ccc0bbb3a87340760c725eee8cb27219ccad0f667d8bfca660c39",
+      "revalidated_status": "use"
+    },
+    "I-27cc51e3c5de0e8d": {
+      "receipt_sha256": "f65371e2d0b7dda8f75bee438ae8a9a0daf791e125c8bf3f93281086063da207",
+      "input_sha256": "b8fc8b6b5aeed5e0d82977a15e628da4b8d7dd39293980e0dbeeceaf674029b3",
+      "revalidated_status": "use"
+    },
+    "I-5b99e3e89ac228c8": {
+      "receipt_sha256": "f65371e2d0b7dda8f75bee438ae8a9a0daf791e125c8bf3f93281086063da207",
+      "input_sha256": "530cc0fddb0475e8b3d0346bce0db8e1484b2ba5c53bc0880089e6cfe8160abf",
+      "revalidated_status": "use"
+    },
+    "I-6309a1457c82b85f": {
+      "receipt_sha256": "f65371e2d0b7dda8f75bee438ae8a9a0daf791e125c8bf3f93281086063da207",
+      "input_sha256": "1b8dd76d0d5b9c80b232e7b1b3c75fdb3c67e2a478d7cba0397b9a2e5249b251",
+      "revalidated_status": "use"
+    },
+    "I-69bcf2827a326140": {
+      "receipt_sha256": "f65371e2d0b7dda8f75bee438ae8a9a0daf791e125c8bf3f93281086063da207",
+      "input_sha256": "0b6c1d13e9a53db89df88f918916ef9c696cb8085901b6f9d0006c9b75d50a53",
+      "revalidated_status": "use"
+    },
+    "I-cd84f15248e917cc": {
+      "receipt_sha256": "f65371e2d0b7dda8f75bee438ae8a9a0daf791e125c8bf3f93281086063da207",
+      "input_sha256": "1172c6cdd80b7f5ada54d0463f73acb4d9d0fa665685afbb7248c04d44d7b538",
+      "revalidated_status": "use"
+    }
+  },
+  "validation": "production read_decisions validates current text, context, provenance, evidence, scope, template and decision",
+  "business_data_or_cache_written_by_this_verifier": false,
+  "model_or_network_calls": 0,
+  "diagnostic_responses_transplanted": false,
+  "full_report_accepted": false,
+  "goal_complete": false
+}

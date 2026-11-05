@@ -1,0 +1,58 @@
+{
+  "at": "2026-10-30T16:21:48.740517+00:00",
+  "case": "kingsoft",
+  "scope": "isolated staged builder over complete frozen baseline inputs",
+  "baseline_cleaned_artifact_id": 73,
+  "source_records": 1459,
+  "input_digest": "d38c42c2a3fae72604b1a577d60560d5038145cbf657541ad292b0ea28d20df7",
+  "candidate": {
+    "base_product_commit": "ee16e907d7a72d109fa413ad74531e5ab3920fd7",
+    "base_utf8_sha256": "6a6bc31cf5b0882bad28ad3e9a8432a802d1d788e64870fbe31604f30ce99e96",
+    "candidate_utf8_sha256": "6b161d79a5096566816829311551f12a576d939ea4fd3ba46334901bf1d094f2",
+    "runtime_backend_modified": false,
+    "promoted": false
+  },
+  "current_governance_version": "company-governance-v6-complete-multiline-registry-records",
+  "candidate_governance_version": "company-governance-v7-literal-identifier-and-calendar-equivalence",
+  "current_fact_count": 60,
+  "candidate_fact_count": 58,
+  "removed_format_or_boundary_conflicts": [
+    "成立日期",
+    "统一社会信用代码"
+  ],
+  "all_original_date_records_preserved": true,
+  "all_credit_code_evidence_ids_preserved": true,
+  "real_capital_conflict_preserved": {
+    "field": "注册资本",
+    "period": "数据基准日未载",
+    "values": [
+      "36,000 万元",
+      "36000万人民币",
+      "46337.2121万元",
+      "人民币 46,100 万元",
+      "人民币 46,337.2121 万元",
+      "人民币46,100万元",
+      "人民币46,337.2121万元"
+    ],
+    "evidence_ids": [
+      "E-D86BF382B4CE",
+      "E-167E3BEC570B",
+      "E-E6869C2FBF33",
+      "E-60385D0CFDDB",
+      "E-B84E7D298E09",
+      "E-BF111405F1B7",
+      "E-23BB147EB98E",
+      "E-7949749B711B",
+      "E-855D92B5718A",
+      "E-FCDBA0451851",
+      "E-6C2B497CDDAD",
+      "E-15C3A6FF86FA"
+    ]
+  },
+  "input_objects_unchanged": true,
+  "model_or_network_calls": 0,
+  "business_data_or_cache_writes": 0,
+  "runtime_backend_modified": false,
+  "promoted": false,
+  "final_report_accepted": false
+}

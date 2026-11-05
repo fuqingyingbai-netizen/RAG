@@ -1,0 +1,61 @@
+[
+  {
+    "provider": "qcc",
+    "tool": "get_company_registration_info",
+    "arguments": {
+      "searchKey": "佛山市海天调味食品股份有限公司"
+    },
+    "tool_calls": 0,
+    "initialization_attempts": 1,
+    "status": "initialization_failed",
+    "collection_gap": true,
+    "failure_kind": "unauthorized",
+    "seconds": 0.094
+  },
+  {
+    "provider": "tyc",
+    "tool": "search_companies",
+    "arguments": {
+      "query": "佛山市海天调味食品股份有限公司",
+      "page": 1,
+      "page_size": 1
+    },
+    "tool_calls": 0,
+    "initialization_attempts": 1,
+    "status": "transport_failed",
+    "collection_gap": true,
+    "error": {
+      "category": "timeout",
+      "exception_type": "ReadTimeout",
+      "http_status": null,
+      "provider_request_id": "",
+      "stage": "platform_tyc",
+      "input_sha256": "",
+      "retryable": true,
+      "retry_after_seconds": null,
+      "attempts": 1,
+      "seconds": 0,
+      "request_invoked": true,
+      "request_sent": null,
+      "usage": {}
+    },
+    "seconds": 15.125
+  },
+  {
+    "provider": "xiniu",
+    "tool": "get_company_info",
+    "arguments": {
+      "firm_name": "佛山市海天调味食品股份有限公司",
+      "aspect": "企业基本信息"
+    },
+    "tool_calls": 1,
+    "initialization_attempts": 1,
+    "status": "failed",
+    "collection_gap": true,
+    "failure_kind": "quota_exceeded",
+    "raw_sha256": "89f10b19b168c3a37e6cf5f38d2d7eba74e38005ce3895740ab69edeb71e8419",
+    "raw_chars": 178,
+    "boundary": "Returned platform assertions are not independently verified legal or financial facts.",
+    "seconds": 0.703
+  }
+]

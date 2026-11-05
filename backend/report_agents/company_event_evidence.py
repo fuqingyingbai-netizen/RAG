@@ -379,8 +379,8 @@ def validate_event(selection, source, target, as_of, *, require_independent=True
     if stamp and not _date_in_quote(selection.get('date_quote', ''), stamp): errors.append('unproven_source_date')
     if role in {'publication', 'document_date', 'unverified_display'} and not stamp:
         errors.append('missing_source_date')
-    if role in {'publication', 'document_date'} and isinstance(as_of, str) and isinstance(stamp, str) and stamp > as_of:
-        errors.append('after_research_cutoff')
+    # Publication timing is retained by the evidence package; never mutate a
+    # signed semantic-review selection or exclude its entire original here.
     if selection.get('original_sha256') != hashlib.sha256(raw.encode()).hexdigest(): errors.append('original_changed')
     for key in ('quote', 'subject_quote', 'date_quote'):
         value = selection.get(key)

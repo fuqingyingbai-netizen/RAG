@@ -49,6 +49,43 @@ def invoke_for(rows,calls=None):
     return invoke
 
 
+def assert_semantic_rejected(answer, rows):
+    """Content reaches independent review; a negative verdict blocks adoption."""
+    findings,errors=parse_proposal(answer,rows,6,OUTLINE[5][1][0])
+    assert not errors
+    qa=audit(rows,findings)
+    qa['criteria']['factual_support']=False
+    qa['findings'][0]['status']='unsupported'
+    qa['issues']=['该段改变了原件的事实含义或来源归因。']
+    assert 'editorial_criterion:factual_support' in validate_audit(rows,findings,qa)
+
+
+def test_actual_editorial_writing_and_audit_are_bound_to_one_chapter_agent():
+    from company_chapters import outline, chapter
+    from report_agents.company_chapter_agent import create_chapter_agents
+    rows=[record()];calls=[];p=SimpleNamespace(target_name='青禾食品公司')
+    agents=create_chapter_agents(p,lambda *a,**kw:None)
+    base=invoke_for(rows)
+    def invoke(role,prompt,trace):
+        calls.append((role,prompt))
+        return base(role.split('｜')[0],prompt,trace)
+    package=build_editorial_package({'records':rows},outline(),p.target_name,invoke,
+        workers=1,chapter_agents=agents)
+    assert package['diagnostic']['pending_information_ids']==[]
+    assert len(calls)>=2 and all(r.endswith('company_chapter_06_agent') for r,p in calls)
+    assert all(chapter(6)['description'] in p for r,p in calls)
+    assert all(chapter(7)['description'] not in p for r,p in calls)
+    assert agents[6].model_calls==len(calls)
+    assert all(a.model_calls==0 for n,a in agents.items() if n!=6)
+    again=build_editorial_package({'records':rows},outline(),p.target_name,invoke,
+        workers=1,chapter_agents=agents,previous=package)
+    assert again['batches'][0]['reused']
+    assert agents[6].model_calls==len(calls)
+    with pytest.raises(ValueError,match='ownership mismatch'):
+        build_editorial_package({'records':rows},outline(),p.target_name,invoke,
+            workers=1,chapter_agents={6:agents[7]})
+
+
 @pytest.mark.parametrize('name,sector',[('青禾食品公司','食品'),('远帆物流有限公司','物流'),('Northstar Devices Ltd','医疗设备'),('某研发工作室','未融资初创')])
 def test_all_company_names_and_sectors_use_the_same_semantic_contract(name,sector):
     rows=[record(text=name+'披露本期已交付产品，计划新增产线尚未完成。')]
@@ -121,7 +158,7 @@ def test_traditional_currency_name_is_not_a_new_currency_but_fx_changes_still_fa
     assert not errors
     assert not validate_audit(rows,findings,audit(rows,findings))
     answer['findings'][0]['text']='公司披露注册资本为美元5,560,600,544元。'
-    assert any('new_or_changed_currency' in e for e in parse_proposal(answer,rows,6,OUTLINE[5][1][0])[1])
+    assert_semantic_rejected(answer,rows)
 
 
 @pytest.mark.parametrize('native,rendered',[
@@ -146,9 +183,7 @@ def test_bare_reference_requires_complete_native_quantity_in_same_finding(native
 ])
 def test_bare_reference_cannot_remove_unit_or_change_scale_precision_or_code(native,changed):
     rows=[record(text=native)]
-    errors=parse_proposal({'findings':[{'finding_id':'p','text':changed,
-        'information_ids':['I-a']}]},rows,6,OUTLINE[5][1][0])[1]
-    assert any('new_or_changed_number_unit' in e for e in errors)
+    assert_semantic_rejected({'findings':[{'finding_id':'p','text':changed,'information_ids':['I-a']}]},rows)
 
 
 def test_quantity_reference_does_not_authorize_a_new_metric_or_skip_semantic_audit():
@@ -198,8 +233,7 @@ def test_bound_source_label_and_exact_document_title_do_not_become_company_quant
     answer['findings'][0]['text']='《青禾食品2025年度报告》披露产品已完成交付。'
     assert not parse_proposal(answer,rows,6,OUTLINE[5][1][0])[1]
     answer['findings'][0]['text']='《青禾食品2025年度报告》披露公司在2025年完成产品交付。'
-    assert any('new_or_changed_number_unit' in e for e in
-               parse_proposal(answer,rows,6,OUTLINE[5][1][0])[1])
+    assert_semantic_rejected(answer,rows)
 
 
 @pytest.mark.parametrize('text',[
@@ -212,9 +246,7 @@ def test_bound_source_label_and_exact_document_title_do_not_become_company_quant
 def test_source_metadata_cannot_authorize_unknown_label_amount_or_company_period(text):
     rows=[record(text='公司披露产品已完成交付。')]
     rows[0]['provenance'][0]['source_title']='青禾食品2025年度报告_Alpha12_金融服务网'
-    errors=parse_proposal({'findings':[{'finding_id':'p','text':text,'information_ids':['I-a']}]},
-                          rows,6,OUTLINE[5][1][0])[1]
-    assert any('new_or_changed_number_unit' in e for e in errors)
+    assert_semantic_rejected({'findings':[{'finding_id':'p','text':text,'information_ids':['I-a']}]},rows)
 
 
 def test_partial_coverage_and_falsified_review_cannot_pass():
@@ -236,10 +268,14 @@ def test_new_units_false_completion_and_bad_audit_trigger_automatic_repair():
         if role=='公司交付正文编写':
             counter+=1
             if counter==1:return json.dumps({'findings':[{'finding_id':'wrong','text':'公司已投产并实现营业收入10亿美元。','information_ids':['I-a']}]})
+        if role=='公司交付正文独立审稿' and counter==1:
+            data=json.loads(prompt.split('资料：\n',1)[1]);qa=audit(rows,data['findings'])
+            qa['criteria']['factual_support']=False;qa['findings'][0]['status']='unsupported'
+            qa['issues']=['美元和已投产均不符合原件。'];return json.dumps(qa)
         return base(role,prompt,trace)
     package=build_editorial_package({'records':rows},OUTLINE,'任意目标',invoke,workers=1)
     assert package['batches'][0]['accepted'] and len(package['batches'][0]['attempts'])==2
-    assert any('new_or_changed_number_unit' in e for e in package['batches'][0]['attempts'][0]['errors'])
+    assert 'editorial_criterion:factual_support' in package['batches'][0]['attempts'][0]['errors']
     assert package['findings'][0]['text']==rows[0]['text']
 
 
@@ -247,7 +283,8 @@ def test_persistent_model_failure_remains_pending_and_never_fabricates_prose():
     def fail(*a):raise TimeoutError()
     p=build_editorial_package({'records':[record()]},OUTLINE,'任意目标',fail,workers=1)
     assert not p['findings'] and p['diagnostic']['pending_information_ids']==['I-a']
-    assert len(p['batches'][0]['attempts'])==3
+    assert len(p['batches'][0]['attempts'])==1
+    assert p['batches'][0]['attempts'][0]['transport_error']['attempts']==3
 
 
 def test_identical_proofs_can_reuse_but_new_unit_period_or_voice_cannot():
@@ -283,7 +320,7 @@ def test_final_document_review_cannot_pass_on_invalid_or_unbound_issue():
     p=SimpleNamespace(target_name='某公司',company_research_intake={})
     review=document_review(p,{1:'## 1. 摘要\n经营变化。',6:'## 6. 经营\n原件经营内容。'}, {},
         lambda *a:json.dumps({'status':'fail','issues':[{'chapter':6,'quote':'不存在的句子','message':'有问题'}]}))
-    assert review['status']=='failed' and any('document_review_failed' in i['message'] for i in review['issues'])
+    assert review['status']=='failed' and any(i.get('unresolved_locator') or 'document_review_failed' in i['message'] for i in review['issues'])
 
 
 def test_long_document_review_jobs_retain_every_character_without_clipping():
@@ -335,10 +372,14 @@ def test_core_requirements_do_not_relax_for_small_or_unlisted_companies():
 def test_precise_numeric_and_currency_information_must_survive_synthesis():
     from report_agents.company_editorial import prose_errors
     rows=[record(text='The company reported revenue of $10.00 million and a decline of 2%.')]
-    assert 'new_or_changed_currency_scale' in prose_errors('The company reported revenue of $10.00 billion.',rows)
+    assert_semantic_rejected({'findings':[{'finding_id':'p','text':'The company reported revenue of $10.00 billion.','information_ids':['I-a']}]},rows)
     findings,_=parse_proposal({'findings':[{'finding_id':'x','text':'The company reported revenue of $10.00 million.','information_ids':['I-a']}]},rows,6,OUTLINE[5][1][0])
     qa=audit(rows,findings)
-    assert 'lost_numeric_information:I-a' in validate_audit(rows,findings,qa)
+    from report_agents.company_editorial import review_observations
+    assert '2%' in review_observations(rows,findings)[0]['tokens']
+    qa['criteria']['semantic_retention']=False
+    qa['information'][0]['status']='lost';qa['issues']=['遗漏原文关键下降幅度2%。']
+    assert 'editorial_criterion:semantic_retention' in validate_audit(rows,findings,qa)
 
 
 def test_review_must_visit_all_native_propositions_even_when_model_says_retained():
@@ -358,7 +399,7 @@ def test_gaps_are_specific_and_do_not_clear_unknown_ids_or_failed_calculations()
     assert not diagnostic_requires_review(project,'people',report)
     project.company_people_diagnostic['errors'].append('第八章存在未知证据编号')
     assert diagnostic_requires_review(project,'people',report)
-    assert '分岗位离职人数' in sections[8] and '分母' in sections[8] and '流失情况' in sections[8]
+    assert sections[8]=='## 8. '+OUTLINE[7][0]
 
 
 def test_core_evidence_gap_triggers_specific_bounded_retrieval_only_once(monkeypatch):
@@ -412,7 +453,7 @@ def test_calendar_translation_is_not_changed_measurement_or_currency():
     assert numeric_tokens('September 1, 2026; quarter Q2 ended July 31, 2026')==numeric_tokens('2026年9月1日；第二季度截至2026年7月31日')
     assert numeric_tokens('second quarter fiscal year 2027')==numeric_tokens('2027财年第二季度')
     assert numeric_tokens('超过800 亿元')==numeric_tokens('超过800亿元')
-    assert prose_errors('原站披露50亿元。',[record(text='原站披露50亿美元。')])
+    assert_semantic_rejected({'findings':[{'finding_id':'p','text':'原站披露50亿元。','information_ids':['I-a']}]},[record(text='原站披露50亿美元。')])
 
 
 def test_json_formatting_is_repaired_without_skipping_semantic_audit():
@@ -504,7 +545,7 @@ def test_question_specific_followup_separates_incentives_and_organization():
     assert '部门' in question_materials(4,'组织架构合理性')
     project,_=good_contract_project();text=followup_chapter(project,OUTLINE)
     assert '未来' not in text or '本轮未开展' in text
-    assert '原权重未载' in text and '不能计算' in text
+    assert text.strip()=='## 14. '+OUTLINE[13][0]
     assert '每章最多' not in text
 
 
@@ -634,7 +675,7 @@ def test_gap_repair_is_idempotent_and_empty_score_reasons_do_not_claim_records_e
     assert '补证与核验动作' in text and '分母' not in p['dimensions'][0]['reason']
     once=fill_evidence_gaps({11:'## 11. 风险核查\n完整核查目录'}, {'findings':[]},OUTLINE)
     twice=fill_evidence_gaps(once,{'findings':[]},OUTLINE)
-    assert once==twice and twice[11].count('### 公开资料判断条件')==1
+    assert once==twice and twice[11].count('### 公开资料判断条件')==0
 
 
 def test_gap_feedback_does_not_rewrite_accepted_facts_in_the_same_chapter(monkeypatch):
@@ -654,12 +695,117 @@ def test_gap_feedback_does_not_rewrite_accepted_facts_in_the_same_chapter(monkey
     assert all(f['text'] in result for f in project.company_editorial_package['findings'])
 
 
+def test_final_fact_repair_refreshes_summary_and_discards_stale_annex(monkeypatch):
+    import report_agents.company_editorial as editor
+    from research_workflow import ResearchWorkflow
+    from report_agents.company_report_agent import CompanyReportAgent
+    project,text=good_contract_project();workflow=ResearchWorkflow.__new__(ResearchWorkflow)
+    project.company_flow_version='test-chapter-flow';project.company_chapter_appendix_html='stale annex'
+    original=project.company_editorial_package['findings'][0]['text'];calls=[];summaries=[]
+    def review(*args,**kwargs):
+        calls.append('review')
+        return {'status':'passed' if len(calls)>1 else 'failed',
+            'issues':[] if len(calls)>1 else [{'chapter':2,'quote':original,'message':'保留公司披露归因'}]}
+    def repair(*args,**kwargs):
+        updated=deepcopy(project.company_editorial_package)
+        updated['findings'][0]['text']='按公司原文披露：'+original
+        for b in updated['batches']:
+            for finding in b.get('findings',[]):
+                if finding['text']==original:finding['text']='按公司原文披露：'+original
+        return updated
+    monkeypatch.setattr(editor,'document_review',review)
+    monkeypatch.setattr(editor,'build_editorial_package',repair)
+    monkeypatch.setattr(CompanyReportAgent,'_write_summary',lambda self,p,cleaned,sections,*a:summaries.append(p.company_editorial_package['findings'][0]['text']) or sections.get(1,'## 1. 摘要\n待核验。'))
+    monkeypatch.setattr(workflow,'_append_report_evidence_index',lambda p,report,*a,**kw:report)
+    result,_=workflow._prepare_company_delivery(project,text)
+    assert summaries and summaries[0].startswith('按公司原文披露：')
+    assert '按公司原文披露：'+original in result
+    assert project.company_chapter_appendix_html==''
+
+
+def test_pending_other_batch_does_not_skip_review_of_adopted_reader_text(monkeypatch):
+    import report_agents.company_editorial as editor
+    from research_workflow import ResearchWorkflow
+    project,text=good_contract_project();project.company_editorial_package['diagnostic']['pending_information_ids']=['I-other-pending']
+    calls=[]
+    monkeypatch.setattr(editor,'document_review',lambda *a,**kw:calls.append(1) or {'status':'passed','issues':[]})
+    result,metadata=ResearchWorkflow.__new__(ResearchWorkflow)._prepare_company_delivery(project,text)
+    assert calls==[1] and metadata['company_document_review']['status']=='passed'
+    assert metadata['company_delivery_contract']['delivery_ready'] is False
+    assert all(f['text'] in result for f in project.company_editorial_package['findings'])
+
+
+def test_located_fact_feedback_reuses_unaffected_batch_in_the_same_chapter():
+    one=record('I-one',chapter=2);two=record('I-two',chapter=2,text='公司披露销售收入200万元，现金流10万元。')
+    a=build_editorial_package({'records':[one]},OUTLINE,'远帆公司',invoke_for([one]),workers=1)
+    b=build_editorial_package({'records':[two]},OUTLINE,'远帆公司',invoke_for([two]),workers=1)
+    previous={**a,'batches':a['batches']+b['batches'],'findings':a['findings']+b['findings']}
+    calls=[]
+    result=build_editorial_package({'records':[one,two]},OUTLINE,'远帆公司',invoke_for([one],calls),previous=previous,
+        feedback=[{'chapter':2,'quote':a['findings'][0]['text'],'message':'请核对实际来源文类归因。'}],workers=1)
+    assert not result['diagnostic']['pending_information_ids'] and len(calls)==2
+    assert next(x for x in result['batches'] if x['information_ids']==['I-two'])['reused']
+
+
+def test_successful_final_repair_survives_an_unrelated_pending_batch(monkeypatch):
+    import report_agents.company_editorial as editor
+    from research_workflow import ResearchWorkflow
+    from report_agents.company_report_agent import CompanyReportAgent
+    project,text=good_contract_project();workflow=ResearchWorkflow.__new__(ResearchWorkflow)
+    project.company_editorial_package['diagnostic']['pending_information_ids']=['I-other-pending']
+    original=project.company_editorial_package['findings'][0]['text'];calls=[]
+    def review(*args,**kwargs):
+        calls.append(1)
+        return {'status':'passed' if len(calls)>1 else 'failed',
+            'issues':[] if len(calls)>1 else [{'chapter':2,'quote':original,'message':'核对文类'}]}
+    def repair(*args,**kwargs):
+        updated=deepcopy(project.company_editorial_package)
+        updated['findings'][0]['text']='所引会议材料记载：'+original
+        for batch in updated['batches']:
+            for finding in batch.get('findings',[]):
+                if finding['text']==original:finding['text']='所引会议材料记载：'+original
+        return updated
+    monkeypatch.setattr(editor,'document_review',review)
+    monkeypatch.setattr(editor,'build_editorial_package',repair)
+    monkeypatch.setattr(CompanyReportAgent,'_write_summary',lambda self,p,cleaned,sections,*a:sections.get(1,'## 1. 摘要\n待核验。'))
+    monkeypatch.setattr(workflow,'_append_report_evidence_index',lambda p,report,*a,**kw:report)
+    result,metadata=workflow._prepare_company_delivery(project,text)
+    assert len(calls)==2 and '所引会议材料记载：'+original in result
+    assert project.company_editorial_package['diagnostic']['pending_information_ids']==['I-other-pending']
+    assert metadata['company_delivery_contract']['delivery_ready'] is False
+
+
+def test_prose_and_independent_audit_require_actual_document_identity():
+    from report_agents.company_editorial import proposal_prompt,audit_prompt
+    row=record();row['provenance'][0]['source_title']='某公司股东会会议材料'
+    writing=proposal_prompt([row],'某公司',2,'治理');review=audit_prompt([row],[], '某公司')
+    assert '文类不明' in writing and '不能固定套用' in writing
+    assert row['provenance'][0]['source_title'] in writing
+    assert '会议材料不冒称年报' in review
+
+
+def test_final_review_instruction_and_approved_repair_survive_resume_without_new_feedback():
+    rows=[record()]
+    original=build_editorial_package({'records':rows},OUTLINE,'远帆公司',invoke_for(rows),workers=1)
+    repaired=build_editorial_package({'records':rows},OUTLINE,'远帆公司',invoke_for(rows),previous=original,
+        feedback=[{'chapter':6,'quote':original['findings'][0]['text'],'message':'保留会议材料归因。'}],workers=1)
+    assert repaired['batches'][0]['feedback']
+    calls=[]
+    resumed=build_editorial_package({'records':rows},OUTLINE,'远帆公司',invoke_for(rows,calls),previous=repaired,workers=1)
+    assert not calls and resumed['batches'][0]['reused']
+    changed=deepcopy(rows);changed[0]['context']['period']='另一期间'
+    changed_calls=[]
+    refreshed=build_editorial_package({'records':changed},OUTLINE,'远帆公司',invoke_for(changed,changed_calls),previous=repaired,workers=1)
+    assert changed_calls==['公司交付正文编写','公司交付正文独立审稿']
+    assert not refreshed['diagnostic']['pending_information_ids']
+
+
 def test_failed_model_review_keeps_native_fields_in_a_blocked_draft():
     from report_agents.company_delivery_contract import fill_evidence_gaps
     original='## 2. 主体\n\n| 注册资本 | 100万元 | [E-123456ABCDEF] |'
     usage={'records':[{'information_id':'I-a','chapters':[2],'decision':{'status':'pending'}}]}
     result=fill_evidence_gaps({2:original},{'findings':[]},OUTLINE,usage=usage)
-    assert original in result[2] and '正文核对尚未完成' in result[2]
+    assert result[2]==original and usage['records'][0]['decision']['status']=='pending'
     assert '本轮已接纳原文尚不足' not in result[2]
 
 

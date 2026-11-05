@@ -40,7 +40,8 @@ def test_original_research_view_is_attributed_without_invented_market_share_or_p
     assert '原发布机构研究观点／非完整定量对标' in text
     assert '尚无达到同产品、同期间、同地区及同分母条件的完整对标组' in text
     assert not any(r['kind']=='benchmark' for r in p['facts'])
-    assert not package(name,(c,s),as_of='2026-10-01')['facts']
+    late=package(name,(c,s),as_of='2026-10-01')['facts']
+    assert late and all(r['post_cutoff_disclosure'] and not r['eligible_for_risk_scoring'] for r in late)
     c['eligible_for_report']=False
     assert not package(name,(c,s))['facts']
 

@@ -160,7 +160,7 @@ def _chapter_summary_cards(packages: dict[str, Any]) -> list[dict[str, Any]]:
     """Use admitted fields, not chapter prose, to synchronize the summary."""
     result = []
     editorial=packages.get('editorial') or {}
-    if editorial.get('version','').startswith('company-editorial-') and not editorial.get('diagnostic',{}).get('pending_information_ids'):
+    if editorial.get('version','').startswith('company-editorial-'):
         for f in editorial.get('findings',[]):
             ids=f.get('evidence_ids') or []
             if not ids:continue
@@ -240,7 +240,7 @@ def build_company_summary_package(
 
     def add(fact: dict[str, Any], text: str, topic: str, *, raw: bool = False, period: str = "", verified: bool = False) -> None:
         text = re.sub(r"\s+", " ", text).strip()
-        if topic not in SUMMARY_TOPICS or not 10 <= len(text) <= 650 or NATIONAL_DATA.search(text) or any(x in text for x in PROCESS_NOISE) or re.search(r"(?:的企业名称|：企业名称)为", text):
+        if topic not in SUMMARY_TOPICS or not text or (not verified and (not 10 <= len(text) <= 650 or NATIONAL_DATA.search(text) or any(x in text for x in PROCESS_NOISE) or re.search(r"(?:的企业名称|：企业名称)为", text))):
             counts["unsuitable_claim"] += 1
             return
         original_source = source_by_url.get(str(fact.get("source_url") or ""))
@@ -404,7 +404,8 @@ def build_company_summary_package(
     if any(c.get('original_record_kind')=='regulatory_remediation' for c in candidates):quotas['risk']=2
     topic_counts: Counter[str] = Counter()
     package: dict[str, Any] = {"facts": [], "query_observations": list({x["source_title"]: x for x in observations}.values())[:3],
-                               "evidence_boundary": "仅摘要所需的目标主体原文事实；其他主体或全库未覆盖状态不得由本章推定。"}
+                               "evidence_boundary": "仅摘要所需的目标主体原文事实；其他主体或全库未覆盖状态不得由本章推定。",
+                               "pending_information_ids":(chapter_packages or {}).get("editorial",{}).get("diagnostic",{}).get("pending_information_ids",[])}
     for _ in range(4):
         for topic in topics:
             if topic_counts[topic] >= quotas[topic]:
@@ -550,7 +551,7 @@ def normalize_company_summary(text: str) -> str:
     return "\n".join(line.rstrip() for line in text.splitlines()).strip()
 
 
-def summary_errors(text: str, package: dict[str, Any]) -> list[str]:
+def summary_observations(text: str, package: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     by_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for fact in package["facts"]:
@@ -632,91 +633,33 @@ def summary_errors(text: str, package: dict[str, Any]) -> list[str]:
     return list(dict.fromkeys(errors))
 
 
+def summary_errors(text: str, package: dict[str, Any]) -> list[str]:
+    """Check format and citation closure; semantic observations go to review."""
+    observations = summary_observations(text, package)
+    structural = ('必须保留模板', '摘要不得出现表格', '未知或未投递的证据编号',
+                  '事实段落没有就近引用', '多来源归纳的摘要缺少共同支持的原件编号')
+    return [message for message in observations if message.startswith(structural)]
+
+
 def fallback_company_summary(project: Any, package: dict[str, Any]) -> str:
-    """Rebuild all five template blocks from literal, already-budgeted cards.
-
-    This is a complete evidence summary, not an invented narrative or a list of
-    failure placeholders. It receives the same validator as a model draft.
-    """
-    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for fact in package["facts"]:
-        groups[fact["summary_topic"]].append(fact)
-
-    def refs(cards):
-        return "".join(f"[{eid}]" for eid in dict.fromkeys(e for f in cards for e in (f.get('support_evidence_ids') or [f['evidence_id']])))
-
-    def literal(fact):
-        # A personnel row's term is not the start date of every current role.
-        text = re.sub(r"，任期[^。]+", "", fact["fact"]).strip().rstrip("。")
-        return text + "。"
-
-    native_urls={}
-    for source in getattr(project,'sources',[]) or []:
-        url=str(_get(source,'url'));title=str(_get(source,'title'))
-        seed='\n'.join(re.sub(r'\s+',' ',v.strip()) for v in (url,title,''))
-        native_urls['E-'+hashlib.sha256(seed.encode()).hexdigest()[:12].upper()]=url
-    source_count=len({native_urls.get(eid) or f.get('source_url') for f in package['facts']
-        for eid in (f.get('support_evidence_ids') or [f['evidence_id']]) if native_urls.get(eid) or f.get('source_url')})
-    lines = ["## 1. 摘要", "", "### 报告概述", f"本报告对{project.target_name}开展公开资料桌面研究。本章直接引用{source_count}个来源，结论限于所引发布者、资料期和统计范围；本轮未开展访谈、现场或银行流水核验。", "", "### 核心发现点"]
-    identity = groups["identity"][:1]
-    management = [f for f in groups["governance"] if "主要人员记录" in f["fact"]][:1]
-    if identity or management:
-        cards = identity + management
-        lines.append("- " + "".join(literal(f) for f in cards) + refs(cards))
-    if groups["business"]:
-        f = groups["business"][0]
-        lines.append("- " + literal(f) + refs([f]))
-    financial = groups["financial"][:3]
-    if financial:
-        period = financial[0].get("period", "")
-        financial = [f for f in financial if f.get("period", "") == period]
-        # Compress only an identical group/period prefix. Parent-company and
-        # mixed-scope statements must retain their own original subject.
-        prefix=f'本集团{period}：'
-        grouped=bool(period and all(literal(f).startswith(prefix) for f in financial))
-        claims=[(literal(f)[len(prefix):] if grouped else literal(f)).rstrip('。') for f in financial]
-        heading=(('本集团' if grouped else '')+period+'，') if period else ''
-        lines.append('- '+heading+'；'.join(claims)+'。'+refs(financial))
-    shareholders = [f for f in groups["governance"] if "股东记录" in f["fact"]][:1]
-    if groups['funding']:
-        lines.append('- ' + literal(groups['funding'][0]) + refs(groups['funding'][:1]))
-    elif shareholders:
-        lines.append("- " + literal(shareholders[0]) + refs(shareholders))
-    if not any(line.startswith("- ") for line in lines):
-        lines.append("本章尚未形成可直接摘录的事实，待核验。")
-    lines += ["", "### 需关注信号"]
-    if groups["risk"]:
-        risks=groups['risk'][:2] if any(f.get('original_record_kind')=='regulatory_remediation' for f in groups['risk']) else groups['risk'][:1]
-        for f in risks:
-            followup = ("历史决定与后续评估分别看待，原件范围以第九、十一章为准。" if f.get('original_record_kind') in {'administrative_penalty','regulatory_remediation'} else
-                        "应核对对应资产组、减值测试假设及后续变化；已确认年度损失与后续影响分别核查。"
-                        if f.get('original_record_kind')=='goodwill_impairment_loss' else
-                        "应追踪整改覆盖、后续状态和实际影响；公告不证明已发生事故或损失。"
-                        if f.get('original_record_kind')=='recall' else
-                        "本次仅确认平台返回记录，案件性质、审理状态及实际影响需调取明细核验。" if f.get('source_url','').startswith('structured://') else
-                        "以上接续所引来源的事件记载；原始文件、历史日期及后续处理仍需核验，不能据此判定当前状态。")
-            lines.append("- " + literal(f) + followup + refs([f]))
-    else:
-        lines.append("本章所引材料未包含可直接摘录的风险事件详情，具体事件仍待核验，不据此判断是否存在司法或监管事项。后续需按目标主体标识、研究截至日与查询范围核对对应原件。")
-    lines += ["", "### 公司所属赛道竞争格局"]
-    competitors = groups["competition"][:2]
-    if competitors:
-        for f in competitors:
-            period = f.get("period", "")
-            lines.append((f"{period}，" if period and not f['fact'].startswith(period) else "") + literal(f) + refs([f]))
-        lines.append("统计范围与数据期按各来源分别保留，相关份额不能外推其他市场或其他产品类别的排名。" + refs(competitors))
-    else:
-        lines.append("本章所引材料尚未形成同期间、同产品或服务范围的同业比较依据，该比较待核验；需先明确可比企业、指标定义与数据期，再以原始披露核对相对位置。")
-    lines += ["", "### 总体评估"]
-    if financial:
-        lines.append("本章可直接复述的是所引披露的具体指标及变化，不能由这些片段推定整体经营稳健或未来结果；判断需回到相同主体与期间的完整财务和业务原件。" + refs(financial))
-    else:
-        lines.append("现阶段结论限于上述来源披露的企业与业务记录，整体经营判断待核验，不能据此判断风险已排除或全面尽调已完成；具体问题及所需原件集中列于后续研究建议章。")
-    if groups["risk"]:
-        lines.append("具体风险事项的实际影响及后续处理仍需核验，不能根据记录数量给出风险等级。" + refs(groups["risk"][:1]))
-    if not package["facts"]:
-        lines.append("综合判断需人工复核。")
-    return "\n".join(lines)
+    """Format literal verified cards only. Missing content stays in metadata."""
+    blocks = {heading: [] for heading in SUMMARY_HEADINGS}
+    seen = set()
+    for card in package.get('facts', []):
+        text = str(card.get('fact') or '').strip()
+        ids = card.get('support_evidence_ids') or [card['evidence_id']]
+        key = (text, tuple(ids))
+        if not text or key in seen:
+            continue
+        seen.add(key)
+        topic = card.get('summary_topic')
+        heading = ('需关注信号' if topic == 'risk' else
+                   '公司所属赛道竞争格局' if topic == 'competition' else '核心发现点')
+        blocks[heading].append('- ' + text + ''.join(f'[{eid}]' for eid in dict.fromkeys(ids)))
+    lines = ['## 1. 摘要']
+    for heading in SUMMARY_HEADINGS:
+        lines += ['', '### ' + heading, *blocks[heading]]
+    return '\n'.join(lines)
 
 
 def package_fingerprint(package: dict[str, Any]) -> str:
