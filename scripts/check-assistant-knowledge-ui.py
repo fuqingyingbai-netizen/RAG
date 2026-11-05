@@ -107,7 +107,10 @@ def main():
                     page.screenshot(path=str(args.output_dir/f'assistant-over-note-{theme}.png'),animations='disabled')
                 page.set_viewport_size({'width':390,'height':844})
                 expect(composer).to_be_visible(); composer.fill('表格只有3乘3吗？')
-                expect(panel.get_by_role('button',name='发送',exact=True)).to_be_enabled(); composer.press('Enter')
+                expect(panel.get_by_role('button',name='发送',exact=True)).to_be_enabled()
+                expect(composer).to_have_value('表格只有3乘3吗？')
+                expect(composer).to_be_focused()
+                composer.press('Enter')
                 expect(panel.locator('.assistant-msg.bot').last).to_contain_text('下方加行')
                 box=panel.bounding_box(); assert box['x']>=0 and box['x']+box['width']<=391
                 page.screenshot(path=str(args.output_dir/'assistant-mobile.png'),animations='disabled')

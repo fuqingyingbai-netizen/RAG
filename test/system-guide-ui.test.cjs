@@ -79,6 +79,14 @@ test('knowledge help sends scope IDs only and drops scope on other pages', async
   assert.equal(sent[1].knowledge_context,undefined);
 });
 
+test('modal focus only yields to the open assistant, keeping other modal trapping intact', () => {
+  const {state}=context();let stopped=0;
+  const event={target:{closest:()=>true},relatedTarget:{closest:()=>true},stopPropagation(){stopped++}};
+  state.assistantOpen=false;state.allowAssistantFocus(event);assert.equal(stopped,0);
+  state.assistantOpen=true;state.allowAssistantFocus(event);assert.equal(stopped,1);
+  state.allowAssistantFocus({...event,relatedTarget:{closest:()=>false}});assert.equal(stopped,1);
+});
+
 test('a newly signed-in account cannot inherit the previous account conversation', async () => {
   const { state } = context();
   state.currentUser = { username: 'alice' };

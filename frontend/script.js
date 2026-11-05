@@ -154,6 +154,7 @@ createApp({
     async mounted() {
       this.updateAssistantViewport();
       window.addEventListener('resize', this.updateAssistantViewport);
+      document.addEventListener('focusout', this.allowAssistantFocus, true);
       window.visualViewport?.addEventListener('resize', this.updateAssistantViewport);
       window.visualViewport?.addEventListener('scroll', this.updateAssistantViewport);
       this.nowTimer = setInterval(() => { this.nowTick = Date.now(); }, 1000);
@@ -171,6 +172,7 @@ createApp({
     if (this.nowTimer) clearInterval(this.nowTimer);
     if (this.taskRefreshTimer) clearInterval(this.taskRefreshTimer);
     window.removeEventListener('resize', this.updateAssistantViewport);
+    document.removeEventListener('focusout', this.allowAssistantFocus, true);
     window.visualViewport?.removeEventListener('resize', this.updateAssistantViewport);
     window.visualViewport?.removeEventListener('scroll', this.updateAssistantViewport);
     this.stopAssistantDrag();
@@ -1384,6 +1386,12 @@ createApp({
     updateAssistantViewport() {
       const viewport = readAssistantViewport();
       this.assistantViewportWidth = viewport.width; this.assistantViewportHeight = viewport.height; this.assistantViewportTop = viewport.top;
+    },
+    allowAssistantFocus(event) {
+      // Element dialogs otherwise schedule a return to their last focused
+      // field, stealing typing from the separate, topmost help surface.
+      if (this.assistantOpen && event.relatedTarget?.closest?.('.system-assistant-layer') &&
+          event.target?.closest?.('.el-dialog, .el-message-box, .el-drawer')) event.stopPropagation();
     },
     toggleAssistant() {
       if (this.assistantWasDragged || this.assistantSuppressClick) {
