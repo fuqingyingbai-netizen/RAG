@@ -94,7 +94,9 @@ async def model_settings(client, cfg):
 
 def model_request_options(config):
     from model_provider_options import official_deepseek
-    return ({'thinking': {'type': 'disabled'}} if official_deepseek(config['model'], config['base_url'])
+    # GLM-5.2 uses the thinking object; enable_thinking is a Qwen extension.
+    return ({'thinking': {'type': 'disabled'}} if str(config['model']).lower() == 'glm-5.2'
+            or official_deepseek(config['model'], config['base_url'])
             else {'enable_thinking': False})
 
 

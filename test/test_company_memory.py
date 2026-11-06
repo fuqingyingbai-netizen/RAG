@@ -279,7 +279,7 @@ def test_ambiguous_followup_failure_clarifies_without_retrieval(env,monkeypatch)
 
 def test_knowledge_provider_covers_summary_rewrite_and_answer_without_changing_report_settings(env, monkeypatch):
     shared={'MODEL':'report-model','BASE_URL':'https://reports.example.test/v1','ARK_API_KEY':'report-key'}
-    for key,value in {**shared,'COMPANY_KNOWLEDGE_MODEL':'knowledge-model',
+    for key,value in {**shared,'COMPANY_KNOWLEDGE_MODEL':'glm-5.2',
             'COMPANY_KNOWLEDGE_BASE_URL':'https://knowledge-relay.example.test/v1/',
             'COMPANY_KNOWLEDGE_API_KEY':'knowledge-key'}.items():
         monkeypatch.setenv(key,value)
@@ -295,7 +295,8 @@ def test_knowledge_provider_covers_summary_rewrite_and_answer_without_changing_r
                 'doc_id':'cloud-a','content':'豆包提供广告与企业服务。'}}]}})
         assert str(request.url)=='https://knowledge-relay.example.test/v1/chat/completions'
         assert request.headers['Authorization']=='Bearer knowledge-key'
-        assert body['model']=='knowledge-model'
+        assert body['model']=='glm-5.2'
+        assert body['thinking']=={'type':'disabled'} and 'enable_thinking' not in body
         if not body['stream']:
             content='{"query":"豆包的商业化情况"}' if '独立检索' in body['messages'][0]['content'] else '研究豆包业务，结果附引用。'
             return httpx.Response(200,json={'choices':[{'message':{'content':content}}]})
