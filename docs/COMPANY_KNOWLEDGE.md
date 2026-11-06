@@ -1,5 +1,11 @@
 # 公司知识工作台
 
+## 2026-11-06 独立知识库模型
+
+回答生成、追问补全和长对话摘要统一读取 `COMPANY_KNOWLEDGE_MODEL`、`COMPANY_KNOWLEDGE_BASE_URL`、`COMPANY_KNOWLEDGE_API_KEY`。生产知识库固定为中转站 `https://llm.goaichat.top/v1` 的 `glm-5.2`，密钥只保存在受保护的环境配置中。文档解析、索引、检索和重排继续使用 `BAILIAN_KNOWLEDGE_*`。创建背调任务及其全局模型配置保持不变。
+
+三项独立配置必须同时填写；部分填写时报配置错误，不能悄悄切回其他服务。兼容未配置独立模型的旧部署：优先使用完整的全局模型三项，再使用百炼 Agent 模型。推理不再分别选择两个服务。补全调用的权限、连接和格式错误会显示为服务错误；只有模型明确返回对象不明时，才要求用户补充对象。补全与摘要的单次总超时为 90 秒，生成的读取超时为 120 秒，会话总时限为 330 秒，低于写入租约的 360 秒。
+
 ## 2026-11-03 知识工作区与案例库
 
 导航为研究首页、资料库、研究问答、案例库。查找历史案例先进入案例库浏览项目、关键词或标签；比较资料结论先进入资料库，明确勾选至少两份可检索资料后，再进入研究问答确认问题，不自动发送。方法与模板保留原分类及历史数据，移至案例库导航下，与项目经验、案例复盘和培训分享共同归集。
@@ -28,6 +34,9 @@ BAILIAN_KNOWLEDGE_BASE_URL=https://YOUR_WORKSPACE_ID.cn-beijing.maas.aliyuncs.co
 BAILIAN_KNOWLEDGE_AGENT_ID=your_published_chat_agent_id
 BAILIAN_KNOWLEDGE_INDEX_ID=your_knowledge_index_id
 BAILIAN_KNOWLEDGE_CATEGORY_ID=default
+COMPANY_KNOWLEDGE_MODEL=glm-5.2
+COMPANY_KNOWLEDGE_BASE_URL=https://llm.goaichat.top/v1
+COMPANY_KNOWLEDGE_API_KEY=your_knowledge_model_key
 COMPANY_KNOWLEDGE_USERS=employee_username_1,employee_username_2
 COMPANY_KNOWLEDGE_OBJECT_STORE=local
 COMPANY_KNOWLEDGE_LOCAL_STORE=E:/persistent-data/company-knowledge
@@ -54,7 +63,7 @@ COMPANY_KNOWLEDGE_BUCKET=company-knowledge
 
 目录、原件、预览、问答均在后端校验。后端计算可访问的云端文件 ID，传递 `search_filters: [{doc_id: [...]}]` 给百炼检索，再校验每个返回片段的文件 ID 和知识库 ID。提问中明确出现可访问资料的项目或行业完整标签时，先在相应目录范围检索；项目标签无需出现在正文中。检索显式设置 rerank_top_n=20，避免默认只返回五条片段；生成证据先保留不同文件，再限制同文件片段数量，防止大量表格行挤掉其他文件。空范围或无命中直接说明“当前资料中未找到依据”，绝不退回不受限的全库问答。
 
-原云端问答接口没有公开的逐请求文件范围参数，因此采用：受权限约束的云端检索 → 后端校验证据 → 模型流式生成。`MODEL`、`BASE_URL`、`ARK_API_KEY` 三项均已配置时，回答使用项目配置的模型，通过 `BASE_URL/chat/completions` 调用；这里的 `ARK_API_KEY` 是历史变量名，也用于兼容接口的第三方模型密钥。否则使用百炼已发布 Agent 最新数字版本的 `agent_model`。提示词在后端统一管理，保留引用、资料不足、冲突和待复核说明。控制台的其他 Agent 工具规划/策略不参与此路径；只修改控制台提示词不会修改本系统提示词。
+原云端问答接口没有公开的逐请求文件范围参数，因此采用：受权限约束的云端检索 → 后端校验证据 → 模型流式生成。回答、追问补全和摘要共用上述独立知识库模型配置，兼容回退顺序见本页首节。提示词在后端统一管理，保留引用、资料不足、冲突和待复核说明。控制台的其他 Agent 工具规划/策略不参与此路径；只修改控制台提示词不会修改本系统提示词。
 
 ### 检索完成后生成失败
 
@@ -62,7 +71,7 @@ COMPANY_KNOWLEDGE_BUCKET=company-knowledge
 
 服务器生产配置位于 `/etc/supermew/app.env`。更换兼容接口时，成套更新 `BASE_URL`、`ARK_API_KEY` 和 `MODEL`；`BASE_URL` 以 `/v1` 结尾，代码会追加 `/chat/completions`。密钥必须由对应接口提供，模型 ID 需在该接口可用。`BAILIAN_KNOWLEDGE_*` 继续用于文档解析与检索，不能替换成第三方模型接口或密钥。
 
-更新前备份配置，确认没有正在运行的研究任务，保留文件 `root:supermew`、`0640` 权限，运行生产配置检查并重启 `supermew`。随后验证版本接口，再用已授权资料进行一次问答验收。仅修改本地 `.env` 不会改变服务器配置；这些全局模型变量也影响其他使用项目默认模型的研究功能。会话摘要与追问补全目前仍使用百炼模型接口，需单独保留其模型调用权限。
+更新前备份配置，确认没有正在运行的研究任务，保留文件 `root:supermew`、`0640` 权限，运行生产配置检查并重启 `supermew`。随后验证版本接口，再用已授权资料进行一次问答验收。仅修改本地 `.env` 不会改变服务器配置。只切换知识库时修改 `COMPANY_KNOWLEDGE_*` 模型三项，不修改影响创建背调任务的全局模型变量；百炼仍需保留解析、索引与检索权限。
 
 仅用户问题用于承接对话，历史助手回答不再作为模型上下文，避免范围变化或权限撤销后带入旧证据。SSE 展示连接、检索、生成及用时，每 3 秒空闲发送心跳；断开时取消生成，不暴露模型内部推理。引用按文件 ID 合并，片段保留独立编号。
 

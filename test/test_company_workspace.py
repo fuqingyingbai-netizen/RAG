@@ -22,7 +22,8 @@ real_sync_catalog = ws.sync_catalog
 
 @pytest.fixture
 def setup(monkeypatch, tmp_path):
-    for key in ('MODEL', 'BASE_URL', 'ARK_API_KEY'):
+    for key in ('MODEL', 'BASE_URL', 'ARK_API_KEY', 'COMPANY_KNOWLEDGE_MODEL',
+                'COMPANY_KNOWLEDGE_BASE_URL', 'COMPANY_KNOWLEDGE_API_KEY'):
         monkeypatch.delenv(key, raising=False)
     for key, value in {'API_KEY': 'test-secret', 'BASE_URL': 'https://test.cn-beijing.maas.aliyuncs.com',
                        'AGENT_ID': 'aid-test', 'INDEX_ID': 'test-index'}.items():

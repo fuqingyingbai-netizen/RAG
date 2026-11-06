@@ -21,7 +21,6 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from model_provider_options import official_deepseek
 import company_knowledge as kb
 from company_catalog import (AUDIO_FORMATS, VIDEO_FORMATS, CONFIDENTIALITY_LABELS, CompanyAccessRequest,
                              CompanyDocument, CompanyProject, can_manage, can_read, document_store, backfill_company_projects,
@@ -850,26 +849,10 @@ async def grounded_answer(cfg, question):
             yield {'type': 'answer_delta', 'text': (portfolio_text + '\n\n' if portfolio_text else '') + '当前资料中未找到依据。请调整问题或选择其他资料后重试。'}
             yield {'type': 'done', 'usage': {}}
             return
-        # Keep retrieval on Bailian while sharing the project's configured answer model.
-        model = os.getenv('MODEL', '').strip()
-        model_base = os.getenv('BASE_URL', '').strip().rstrip('/')
-        model_key = os.getenv('ARK_API_KEY', '').strip()
-        if model and model_base and model_key:
-            answer_url = model_base + '/chat/completions'
-            answer_headers = kb.headers({'api_key': model_key})
-            answer_provider = '回答模型'
-        else:
-            info = await kb.cloud_rpc(client, cfg, '/api/v1/indices/rag/app/get', {'agent_id': cfg['agent_id']})
-            versions = [row for row in info.get('agent_details', []) if str(row.get('agent_version', '')).isdigit()]
-            if not versions:
-                raise kb.KnowledgeError('未找到已发布的问答模型配置，请管理员检查应用。')
-            config = max(versions, key=lambda row: int(row['agent_version'])).get('agent_config') or {}
-            model = config.get('agent_model')
-            if not model:
-                raise kb.KnowledgeError('已发布应用没有模型配置。')
-            answer_url = cfg['base_url'] + '/compatible-mode/v1/chat/completions'
-            answer_headers = kb.headers(cfg)
-            answer_provider = '百炼'
+        config = await kb.model_settings(client, cfg)
+        model = config['model']
+        answer_url = config['base_url'] + '/chat/completions'
+        answer_headers = kb.headers(config)
         evidence = '\n\n'.join(f'[id_{ref["id"]}] {ref["title"]} | V{ref["version"]} | {ref["review"]}'
             f' | 目录项目={ref["project"]} | 目录行业={ref["industry"]}\n{ref["text"]}' for ref in refs)
         system = ('你是公司内部知识库助手。可以自然回复问候。业务问题仅依据本轮提供的资料片段回答，每个关键结论标注[id_编号]。'
@@ -895,9 +878,10 @@ async def grounded_answer(cfg, question):
         received, ended = False, False
         async with client.stream('POST', answer_url,
             headers=answer_headers, json={'model': model, 'messages': messages, 'stream': True,
-                **({'thinking':{'type':'disabled'}} if official_deepseek(model, model_base) else {'enable_thinking':False}), 'stream_options': {'include_usage': True}}) as response:
+                **kb.model_request_options(config), 'stream_options': {'include_usage': True}},
+            timeout=kb.httpx.Timeout(120, connect=20)) as response:
             if response.status_code != 200:
-                raise kb.provider_error(response.status_code, provider=answer_provider)
+                raise kb.provider_error(response.status_code, provider=config['provider'])
             usage = {}
             async for frame in kb.sse_frames(response.aiter_lines()):
                 if frame.get('error'):

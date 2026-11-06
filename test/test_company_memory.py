@@ -19,6 +19,9 @@ from models import User
 
 @pytest.fixture
 def env(monkeypatch, tmp_path):
+    for key in ('MODEL', 'BASE_URL', 'ARK_API_KEY', 'COMPANY_KNOWLEDGE_MODEL',
+                'COMPANY_KNOWLEDGE_BASE_URL', 'COMPANY_KNOWLEDGE_API_KEY'):
+        monkeypatch.delenv(key, raising=False)
     for key, value in {'API_KEY':'test-key', 'BASE_URL':'https://test.cn-beijing.maas.aliyuncs.com',
                        'AGENT_ID':'test-app', 'INDEX_ID':'memory-index'}.items():
         monkeypatch.setenv('BAILIAN_KNOWLEDGE_'+key,value)
@@ -272,3 +275,74 @@ def test_ambiguous_followup_failure_clarifies_without_retrieval(env,monkeypatch)
     monkeypatch.setattr(memory,'complete',ambiguous)
     response=call(env,sid,'那它呢','two')
     assert '未能确认' in response.text and len([p for p,_ in calls if p.endswith('/retrieve')])==1
+
+
+def test_knowledge_provider_covers_summary_rewrite_and_answer_without_changing_report_settings(env, monkeypatch):
+    shared={'MODEL':'report-model','BASE_URL':'https://reports.example.test/v1','ARK_API_KEY':'report-key'}
+    for key,value in {**shared,'COMPANY_KNOWLEDGE_MODEL':'knowledge-model',
+            'COMPANY_KNOWLEDGE_BASE_URL':'https://knowledge-relay.example.test/v1/',
+            'COMPANY_KNOWLEDGE_API_KEY':'knowledge-key'}.items():
+        monkeypatch.setenv(key,value)
+    requests=[]
+    def handler(request):
+        body=json.loads(request.content);requests.append((request.url.host,request.url.path,body))
+        if request.url.path.endswith('/retrieve'):
+            assert request.url.host=='test.cn-beijing.maas.aliyuncs.com'
+            assert request.headers['Authorization']=='Bearer test-key'
+            assert body['query']=='豆包的商业化情况'
+            assert body['search_filters']==[{'doc_id':['cloud-a']}]
+            return httpx.Response(200,json={'data':{'nodes':[{'metadata':{
+                'doc_id':'cloud-a','content':'豆包提供广告与企业服务。'}}]}})
+        assert str(request.url)=='https://knowledge-relay.example.test/v1/chat/completions'
+        assert request.headers['Authorization']=='Bearer knowledge-key'
+        assert body['model']=='knowledge-model'
+        if not body['stream']:
+            content='{"query":"豆包的商业化情况"}' if '独立检索' in body['messages'][0]['content'] else '研究豆包业务，结果附引用。'
+            return httpx.Response(200,json={'choices':[{'message':{'content':content}}]})
+        frames=[{'choices':[{'delta':{'content':'广告与企业服务 [id_1]'},'finish_reason':None}]},
+                {'choices':[{'delta':{},'finish_reason':'stop'}]}]
+        return httpx.Response(200,text=''.join('data: '+json.dumps(f)+'\n\n' for f in frames))
+    original=httpx.AsyncClient
+    monkeypatch.setattr(kb.httpx,'AsyncClient',lambda **kw:original(transport=httpx.MockTransport(handler),**kw))
+    sid=create(env)
+    with env.db() as db:
+        deps={'doc-a':memory.fingerprint(db.get(CompanyDocument,'doc-a'))}
+        for n in range(44):
+            db.add(memory.KnowledgeChatMessage(thread_id=sid,request_id=str(n),
+                role='user' if n%2==0 else 'assistant',content='研究豆包的业务布局与商业化。'*45,dependencies=deps))
+        db.commit()
+    response=call(env,sid,'那么它的商业化情况呢？','scoped-turn')
+    assert '"type": "done"' in response.text and '广告与企业服务' in response.text
+    assert '已补全追问' in response.text and '"status": "compressed' in response.text
+    model_calls=[body for host,path,body in requests if path.endswith('/chat/completions')]
+    assert len(model_calls)==3 and sum(bool(b['stream']) for b in model_calls)==1
+    import os
+    assert {key:os.environ[key] for key in shared}==shared
+
+
+@pytest.mark.parametrize('failure', ['permission','timeout','invalid-json','non-object'])
+def test_rewrite_service_failures_are_not_reported_as_ambiguous_questions(env,monkeypatch,failure):
+    upstream(monkeypatch);sid=create(env);call(env,sid)
+    async def fail(*args,**kwargs):
+        if failure=='permission':raise kb.provider_error(403,provider='知识库模型')
+        if failure=='timeout':raise TimeoutError()
+        if failure=='non-object':return '[]'
+        return 'broken JSON'
+    monkeypatch.setattr(memory,'complete',fail)
+    response=call(env,sid,'那么它呢？','failed-rewrite')
+    assert '未能确认' not in response.text and '"type": "done"' not in response.text
+    assert '"type": "error"' in response.text
+    assert {'permission':'知识库模型访问权限不足','timeout':'追问补全服务响应超时',
+        'invalid-json':'追问补全服务返回格式异常','non-object':'追问补全服务返回格式异常'}[failure] in response.text
+
+
+def test_partial_knowledge_provider_does_not_fall_back_to_report_provider(env,monkeypatch):
+    monkeypatch.setenv('COMPANY_KNOWLEDGE_MODEL','knowledge-model')
+    monkeypatch.setenv('MODEL','report-model')
+    monkeypatch.setenv('BASE_URL','https://report.example.test/v1')
+    monkeypatch.setenv('ARK_API_KEY','report-secret')
+    async def check():
+        async with httpx.AsyncClient() as client:
+            await kb.model_settings(client,kb.settings())
+    with pytest.raises(kb.KnowledgeError,match='模型配置不完整'):
+        asyncio.run(check())

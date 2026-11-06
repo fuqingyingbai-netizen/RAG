@@ -265,28 +265,20 @@ def window(rows, budget=RECENT_CHARS, count=12):
 
 
 async def model_name(client, cfg):
-    if cfg.get('_chat_model'):
-        return cfg['_chat_model']
-    info = await kb.cloud_rpc(client, cfg, '/api/v1/indices/rag/app/get', {'agent_id': cfg['agent_id']})
-    versions = [row for row in info.get('agent_details', []) if str(row.get('agent_version', '')).isdigit()]
-    model = (max(versions, key=lambda row: int(row['agent_version'])).get('agent_config') or {}).get('agent_model') if versions else None
-    if not model:
-        raise kb.KnowledgeError('未找到已发布的问答模型配置，请管理员检查应用。')
-    cfg['_chat_model'] = model
-    return model
+    return (await kb.model_settings(client, cfg))['model']
 
 
 async def complete(cfg, instruction, data, max_tokens=1800):
-    async with asyncio.timeout(20):
-        async with kb.httpx.AsyncClient(timeout=18, trust_env=False) as client:
-            model = await model_name(client, cfg)
-            response = await client.post(cfg['base_url'] + '/compatible-mode/v1/chat/completions',
-                headers=kb.headers(cfg), json={'model': model, 'stream': False, 'enable_thinking': False,
+    async with asyncio.timeout(90):
+        async with kb.httpx.AsyncClient(timeout=85, trust_env=False) as client:
+            config = await kb.model_settings(client, cfg)
+            response = await client.post(config['base_url'] + '/chat/completions',
+                headers=kb.headers(config), json={'model': config['model'], 'stream': False, **kb.model_request_options(config),
                 'temperature': 0, 'max_tokens': max_tokens, 'messages': [
                     {'role': 'system', 'content': instruction},
                     {'role': 'user', 'content': json.dumps(data, ensure_ascii=False)}]})
             if response.status_code != 200:
-                raise kb.provider_error(response.status_code)
+                raise kb.provider_error(response.status_code, provider=config['provider'])
             return str(response.json()['choices'][0]['message']['content']).strip()
 
 
@@ -351,10 +343,21 @@ async def retrieval_question(cfg, question, context):
             '{"query":"补全的问题"}，不超过1500字。',
             {'任务摘要': context['summary'], '近期对话': safe_history(context), '本轮追问': question}, max_tokens=1100)
         result = re.sub(r'^```(?:json)?\s*|\s*```$', '', result).strip()
-        query = json.loads(result).get('query')
-        return query.strip() if isinstance(query, str) and 0 < len(query.strip()) <= 1500 else None
-    except Exception:
-        return None
+        payload = json.loads(result)
+        if not isinstance(payload, dict) or 'query' not in payload:
+            raise ValueError('missing query')
+        query = payload['query']
+        if query is None:
+            return None
+        if not isinstance(query, str) or not 0 < len(query.strip()) <= 1500:
+            raise ValueError('invalid query')
+        return query.strip()
+    except kb.KnowledgeError:
+        raise
+    except (kb.httpx.HTTPError, TimeoutError):
+        raise kb.KnowledgeError('追问补全服务响应超时或连接失败，请稍后重试。', 503) from None
+    except (ValueError, KeyError, TypeError):
+        raise kb.KnowledgeError('追问补全服务返回格式异常，请稍后重试。', 502) from None
 
 
 def still_allowed(user, cfg, deps):

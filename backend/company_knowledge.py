@@ -68,6 +68,36 @@ def settings():
     return cfg
 
 
+async def model_settings(client, cfg):
+    """Use one inference provider for knowledge answers and conversation memory."""
+    names = ('MODEL', 'BASE_URL', 'API_KEY')
+    scoped = {name.lower(): os.getenv('COMPANY_KNOWLEDGE_' + name, '').strip() for name in names}
+    if any(scoped.values()):
+        if not all(scoped.values()):
+            raise KnowledgeError('公司知识库模型配置不完整，请同时配置模型、接口地址和密钥。', 503)
+        scoped['base_url'] = scoped['base_url'].rstrip('/')
+        return {**scoped, 'provider': '知识库模型'}
+    shared = {'model': os.getenv('MODEL', '').strip(), 'base_url': os.getenv('BASE_URL', '').strip().rstrip('/'),
+              'api_key': os.getenv('ARK_API_KEY', '').strip()}
+    if all(shared.values()):
+        return {**shared, 'provider': '回答模型'}
+    if not cfg.get('_chat_model'):
+        info = await cloud_rpc(client, cfg, '/api/v1/indices/rag/app/get', {'agent_id': cfg['agent_id']})
+        versions = [row for row in info.get('agent_details', []) if str(row.get('agent_version', '')).isdigit()]
+        config = (max(versions, key=lambda row: int(row['agent_version'])).get('agent_config') or {}) if versions else {}
+        if not config.get('agent_model'):
+            raise KnowledgeError('未找到已发布的问答模型配置，请管理员检查应用。')
+        cfg['_chat_model'] = config['agent_model']
+    return {'model': cfg['_chat_model'], 'base_url': cfg['base_url'] + '/compatible-mode/v1',
+            'api_key': cfg['api_key'], 'provider': '百炼'}
+
+
+def model_request_options(config):
+    from model_provider_options import official_deepseek
+    return ({'thinking': {'type': 'disabled'}} if official_deepseek(config['model'], config['base_url'])
+            else {'enable_thinking': False})
+
+
 def has_access(user: User) -> bool:
     if getattr(user, 'is_active', True) is False:
         return False
@@ -89,9 +119,10 @@ def headers(cfg):
 
 def provider_error(status: int, *, provider: str = '百炼') -> KnowledgeError:
     message = {401: f'{provider}接口认证失败，请联系管理员核对 API Key、接口地址及密钥状态。',
+               402: f'{provider}余额不足，请联系管理员核对账户额度。',
                403: f'{provider}访问权限不足，请核对服务与模型权限。',
                404: f'{provider}服务未找到，请核对接口地址和服务或模型 ID。',
-               429: '知识库请求较多，请稍后重试。'}.get(status, '云端知识库暂时不可用，请稍后重试。')
+               429: '知识库请求较多，请稍后重试。'}.get(status, f'{provider}服务暂时不可用，请稍后重试。')
     return KnowledgeError(message, 429 if status == 429 else 502)
 
 
@@ -229,7 +260,7 @@ class KnowledgeQuestion(BaseModel):
 async def cloud_answer(cfg, question):
     if cfg.get('_conversation'):
         from company_memory import conversation_stream
-        async with asyncio.timeout(270):
+        async with asyncio.timeout(330):
             async for event in conversation_stream(*cfg['_conversation']):
                 yield event
         return
