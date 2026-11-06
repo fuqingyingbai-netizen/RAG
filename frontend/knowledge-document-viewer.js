@@ -43,12 +43,16 @@
           </style></head><body><div id="pages"></div><script src="${engine}"><\/script><script nonce="${nonce}">
           const channel=${channel};let factor=1;let active=false;let sourceOutline=[];
           const send=(type,extra={})=>parent.postMessage({channel,type,...extra},'*');
-          function findSource(query){
+          function findSource(query,heading=false){
             document.querySelectorAll('.source-match').forEach(e=>e.classList.remove('source-match'));if(CSS.highlights)CSS.highlights.delete('source');
-            const nodes=[],offsets=[];let full='';const walker=document.createTreeWalker(document.getElementById('pages'),NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement.closest('.viewer-watermark,style,script')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
+            const compact=value=>String(value||'').replace(/\\s/g,'').toLocaleLowerCase();
+            // Word's printed table of contents repeats chapter names. Prefer the
+            // actual heading paragraph, rather than a substring in the TOC.
+            const target=heading?[...document.querySelectorAll('article p')].find(p=>compact(p.textContent)===compact(query)):null;
+            const nodes=[],offsets=[];let full='';const walker=document.createTreeWalker(target||document.getElementById('pages'),NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement.closest('.viewer-watermark,style,script')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
             while(walker.nextNode()){const node=walker.currentNode;nodes.push(node);for(let i=0;i<node.textContent.length;i++){if(!/\\s/.test(node.textContent[i])){full+=node.textContent[i].toLocaleLowerCase();offsets.push([nodes.length-1,i]);}}}
-            const terms=String(query||'').split('\\n').map(t=>t.replace(/^[#*\\s]+/,'').trim()).filter(t=>t.length>=4).slice(0,8);let found=false;
-            for(const term of terms){const needle=term.replace(/\\s/g,'').toLocaleLowerCase().slice(0,120),index=full.indexOf(needle);if(index<0||!needle)continue;const start=offsets[index],end=offsets[index+needle.length-1];if(!start||!end)continue;const range=document.createRange();range.setStart(nodes[start[0]],start[1]);range.setEnd(nodes[end[0]],end[1]+1);if(CSS.highlights&&typeof Highlight!=='undefined')CSS.highlights.set('source',new Highlight(range));else nodes[start[0]].parentElement.classList.add('source-match');nodes[start[0]].parentElement.scrollIntoView({block:'center'});found=true;break;}
+            const terms=String(query||'').split('\\n').map(t=>t.replace(/^[#*\\s]+/,'').trim()).filter(t=>t.length>=(heading?1:4)).slice(0,8);let found=false;
+            for(const term of terms){const needle=term.replace(/\\s/g,'').toLocaleLowerCase().slice(0,120),index=full.indexOf(needle);if(index<0||!needle)continue;const start=offsets[index],end=offsets[index+needle.length-1];if(!start||!end)continue;const range=document.createRange();range.setStart(nodes[start[0]],start[1]);range.setEnd(nodes[end[0]],end[1]+1);if(CSS.highlights&&typeof Highlight!=='undefined')CSS.highlights.set('source',new Highlight(range));else nodes[start[0]].parentElement.classList.add('source-match');const rect=range.getBoundingClientRect();scrollTo({top:Math.max(0,scrollY+rect.top-innerHeight*.22),left:0,behavior:'instant'});found=true;break;}
             send('located',{result:{matched:found,message:found?'已高亮原文':'原文未找到精确匹配，请对照引用片段核对。'}});
           }
           function fit(){const pages=document.querySelectorAll('section.docx');const width=pages[0]?.offsetWidth||794;document.getElementById('pages').style.zoom=Math.min(1,(innerWidth-12)/(width+48))*factor;}
@@ -72,7 +76,7 @@
           }
           addEventListener('resize',fit);
           addEventListener('message',async event=>{if(event.source!==parent||event.data?.channel!==channel)return;const data=event.data;
-            if(data.type==='find'){findSource(data.text);return;}
+            if(data.type==='find'||data.type==='heading'){findSource(data.text,data.type==='heading');return;}
             if(data.type==='zoom'){factor=data.value/100;fit();return;}
             if(data.type!=='render'||active)return;active=true;
             try{
@@ -84,12 +88,19 @@
               lines.forEach((line,n)=>{const t=document.createElementNS(svg.namespaceURI,'text');t.setAttribute('x','220');t.setAttribute('y',String(145+n*18));t.setAttribute('text-anchor','middle');t.setAttribute('transform','rotate(-24 220 150)');t.setAttribute('font-family','Arial,sans-serif');t.setAttribute('font-size','12');t.setAttribute('fill','#355b83');t.setAttribute('fill-opacity','.13');t.textContent=line;svg.append(t);});
               const tile='url("data:image/svg+xml,'+encodeURIComponent(new XMLSerializer().serializeToString(svg))+'")';
               pages.forEach(page=>{const mark=document.createElement('div');mark.className='viewer-watermark';mark.setAttribute('aria-hidden','true');mark.textContent=data.identity+' '+data.trace;mark.style.backgroundImage=tile;page.append(mark);});
-              fit();send('rendered',{pages:pages.length,outline:sourceOutline});
+              // The sandbox can finish its DOM while the dialog is still laying
+              // out. Wait for layout, then establish the first page's viewport
+              // before announcing that the original is ready to read.
+              await new Promise(requestAnimationFrame);fit();
+              await new Promise(requestAnimationFrame);
+              scrollTo({top:Math.max(0,scrollY+pages[0].getBoundingClientRect().top-8),left:0,behavior:'instant'});
+              await new Promise(requestAnimationFrame);
+              send('rendered',{pages:pages.length,outline:sourceOutline});
             }catch(_){send('error');}
           });send('ready');
           <\/script></body></html>`;
       },
-      jumpHeading(text) { this.$refs.frame?.contentWindow.postMessage({channel:this.channel,type:'find',text},'*'); },
+      jumpHeading(text) { if(text)this.$refs.frame?.contentWindow.postMessage({channel:this.channel,type:'heading',text},'*'); },
       findSource() {
         if(this.loading || !this.findText?.trim())return;
         if(this.format==='DOCX')this.$refs.frame?.contentWindow.postMessage({channel:this.channel,type:'find',text:this.findText},'*');

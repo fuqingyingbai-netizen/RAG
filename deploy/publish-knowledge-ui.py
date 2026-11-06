@@ -62,6 +62,7 @@ def publish(package):
     notes_only=manifest.get('kind')=='note-editor'
     assistant_only=manifest.get('kind')=='assistant-style'
     assistant_surface=manifest.get('kind')=='assistant-surface'
+    reader_only=manifest.get('kind')=='document-reader'
     patterns={'optics':r'knowledge-glass-optics\.[0-9a-f]{12}\.js',
               'viewer':r'knowledge-document-viewer\.[0-9a-f]{12}\.js',
               'engine':r'vendor/knowledge-reader/knowledge-document-engine\.[0-9a-f]{12}\.js',
@@ -78,6 +79,8 @@ def publish(package):
     if assistant_surface:
         patterns={'assistant_style':r'assistant\.[0-9a-f]{12}\.css',
                   'assistant_surface':r'assistant-surface\.[0-9a-f]{12}\.html'}
+    if reader_only:
+        patterns={'viewer':r'knowledge-document-viewer\.[0-9a-f]{12}\.js'}
     for row in manifest['assets']:
         role=row['role'];name=row['path']
         if role not in patterns or not re.fullmatch(patterns[role],name):raise RuntimeError('Unapproved UI asset')
@@ -119,6 +122,9 @@ def publish(package):
                     pattern=r'('+attribute+r'=")knowledge-note-editor(?:\.[0-9a-f]{12})?\.'+extension+r'(")'
                     html,count=re.subn(pattern,lambda m:m[1]+assets[role][0]+m[2],html)
                     if count!=1:raise RuntimeError('Expected one note editor '+extension+' entry')
+            elif reader_only:
+                html,count=re.subn(r'(src=")knowledge-document-viewer(?:\.[0-9a-f]{12})?\.js(")',lambda m:m[1]+assets['viewer'][0]+m[2],html)
+                if count!=1:raise RuntimeError('Expected one document reader entry')
             else:
                 for role,stem in [('component','company-knowledge'),('optics','knowledge-glass-optics'),('viewer','knowledge-document-viewer')]:
                     pattern=r'(<script\b[^>]*\bsrc=")'+stem+r'(?:\.[0-9a-f]{12})?\.js("[^>]*></script>)'
@@ -156,7 +162,7 @@ def publish(package):
                 index=release/'frontend/index.html';stat=index.stat()
                 atomic_write(index,prepared[release],stat.st_mode&0o777,(stat.st_uid,stat.st_gid));changed.append(release)
             with urllib.request.urlopen('http://127.0.0.1:8010/',timeout=10) as response:served=response.read()
-            served_roles=('assistant_style',) if assistant_only or assistant_surface else ('note_editor','note_style') if notes_only else ('component','optics','viewer','style')
+            served_roles=('viewer',) if reader_only else ('assistant_style',) if assistant_only or assistant_surface else ('note_editor','note_style') if notes_only else ('component','optics','viewer','style')
             if not all(assets[role][0].encode() in served for role in served_roles):raise RuntimeError('Running service did not load the UI entrypoint')
             if assistant_surface and assets['assistant_surface'][1] not in served:raise RuntimeError('Running service did not load the assistant template')
             for name,payload in assets.values():
