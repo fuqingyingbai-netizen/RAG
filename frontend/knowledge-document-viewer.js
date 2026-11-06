@@ -39,7 +39,7 @@
         window.addEventListener('message', this.receive);
         this.deadline = setTimeout(() => this.fail(), 45000);
         this.source = `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src ${origin} 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data: blob:; font-src data: blob:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><style>
-          *{box-sizing:border-box}html,body{margin:0;background:#e5eaf0;color:#1c2939;font-family:Arial,'Microsoft YaHei',sans-serif}#pages{padding:24px;min-height:100vh}.docx-wrapper{background:transparent!important;padding:0!important}.docx-wrapper>section.docx{position:relative;background:white;margin:0 auto 22px!important;box-shadow:0 3px 16px #26384b20!important;overflow:hidden}.docx-wrapper>section.docx article{position:relative;z-index:1}.viewer-watermark{position:absolute;inset:0;z-index:10;pointer-events:none;background-repeat:repeat;background-size:440px 300px;overflow:hidden;font-size:0;color:transparent}::highlight(source){background:#ffe08a;color:#18263a}.source-match{outline:2px solid #e8ae34;background:#fff0b8}a{color:inherit;text-decoration:none}img{max-width:100%}
+          *{box-sizing:border-box}html,body{margin:0;background:#e5eaf0;color:#1c2939;font-family:Arial,'Microsoft YaHei',sans-serif}#pages{position:absolute;left:0;top:0;padding:24px;transform-origin:0 0}.docx-wrapper{background:transparent!important;padding:0!important}.docx-wrapper>section.docx{position:relative;background:white;margin:0 auto 22px!important;box-shadow:0 3px 16px #26384b20!important;overflow:hidden}.docx-wrapper>section.docx article{position:relative;z-index:1}.viewer-watermark{position:absolute;inset:0;z-index:10;pointer-events:none;background-repeat:repeat;background-size:440px 300px;overflow:hidden;font-size:0;color:transparent}::highlight(source){background:#ffe08a;color:#18263a}.source-match{outline:2px solid #e8ae34;background:#fff0b8}a{color:inherit;text-decoration:none}img{max-width:100%}
           </style></head><body><div id="pages"></div><script src="${engine}"><\/script><script nonce="${nonce}">
           const channel=${channel};let factor=1;let active=false;let sourceOutline=[];
           const send=(type,extra={})=>parent.postMessage({channel,type,...extra},'*');
@@ -55,7 +55,20 @@
             for(const term of terms){const needle=term.replace(/\\s/g,'').toLocaleLowerCase().slice(0,120),index=full.indexOf(needle);if(index<0||!needle)continue;const start=offsets[index],end=offsets[index+needle.length-1];if(!start||!end)continue;const range=document.createRange();range.setStart(nodes[start[0]],start[1]);range.setEnd(nodes[end[0]],end[1]+1);if(CSS.highlights&&typeof Highlight!=='undefined')CSS.highlights.set('source',new Highlight(range));else nodes[start[0]].parentElement.classList.add('source-match');const rect=range.getBoundingClientRect();scrollTo({top:Math.max(0,scrollY+rect.top-innerHeight*.22),left:0,behavior:'instant'});found=true;break;}
             send('located',{result:{matched:found,message:found?'已高亮原文':'原文未找到精确匹配，请对照引用片段核对。'}});
           }
-          function fit(){const pages=document.querySelectorAll('section.docx');const width=pages[0]?.offsetWidth||794;document.getElementById('pages').style.zoom=Math.min(1,(innerWidth-12)/(width+48))*factor;}
+          function fit(){
+            const pages=document.querySelectorAll('section.docx'),width=pages[0]?.offsetWidth||794;
+            // Keep Word's layout in its original units. CSS zoom on the iframe's
+            // document can leave a stale paint surface inside a frosted dialog.
+            const scale=Math.max(.1,Math.min(1,(innerWidth-12)/(width+48))*factor),container=document.getElementById('pages');
+            container.style.width=Math.max(width+48,innerWidth/scale)+'px';
+            container.style.transform='scale('+scale+')';
+            document.body.style.height=Math.ceil(container.offsetHeight*scale)+'px';
+            document.body.style.width=Math.ceil(Math.max(innerWidth,(width+48)*scale))+'px';
+          }
+          function firstBody(){
+            const page=[...document.querySelectorAll('section.docx')].find(p=>(p.querySelector('article')?.textContent||'').replace(/\\s/g,'').length>160)||document.querySelector('section.docx');
+            if(page)scrollTo({top:Math.max(0,scrollY+page.getBoundingClientRect().top-8),left:0,behavior:'instant'});
+          }
           async function displayPackage(buffer){
             // Browsers lay Word's floating watermark out as a 6-inch header.
             // Replace only our tagged header drawings with the page overlays below.
@@ -77,6 +90,8 @@
           addEventListener('resize',fit);
           addEventListener('message',async event=>{if(event.source!==parent||event.data?.channel!==channel)return;const data=event.data;
             if(data.type==='find'||data.type==='heading'){findSource(data.text,data.type==='heading');return;}
+            if(data.type==='body'){firstBody();return;}
+            if(data.type==='reflow'){fit();requestAnimationFrame(()=>{scrollBy(0,1);requestAnimationFrame(()=>scrollBy(0,-1));});return;}
             if(data.type==='zoom'){factor=data.value/100;fit();return;}
             if(data.type!=='render'||active)return;active=true;
             try{
@@ -100,6 +115,8 @@
           });send('ready');
           <\/script></body></html>`;
       },
+      reflow() { this.$refs.frame?.contentWindow.postMessage({channel:this.channel,type:'reflow'},'*'); },
+      firstBody() { this.$refs.frame?.contentWindow.postMessage({channel:this.channel,type:'body'},'*'); },
       jumpHeading(text) { if(text)this.$refs.frame?.contentWindow.postMessage({channel:this.channel,type:'heading',text},'*'); },
       findSource() {
         if(this.loading || !this.findText?.trim())return;
@@ -110,7 +127,7 @@
       fail() { if (this.disposed) return; clearTimeout(this.deadline); this.loading = false; this.error = '这份文件的在线排版未能完成，请下载带水印的原格式文件查看。'; },
       changeZoom(delta) { this.zoom = Math.min(160, Math.max(60, this.zoom + delta)); this.$refs.frame?.contentWindow.postMessage({ channel: this.channel, type: 'zoom', value: this.zoom }, '*'); },
     },
-    template: `<div class="ckb-native-document"><div class="ckb-document-controls"><span><i class="fa-regular fa-file-lines" aria-hidden="true"></i>{{ format === 'DOCX' ? '文档版式' : '完整正文' }}<small v-if="pages">连续阅读</small></span><div v-if="format === 'DOCX'"><select v-if="outline.length" aria-label="Word 章节目录" @change="jumpHeading($event.target.value)"><option value="">章节目录</option><option v-for="(heading,index) in outline" :key="index" :value="heading">{{ heading }}</option></select><button :disabled="loading || zoom <= 60" aria-label="缩小文档" @click="changeZoom(-10)">−</button><span>{{ zoom }}%</span><button :disabled="loading || zoom >= 160" aria-label="放大文档" @click="changeZoom(10)">+</button></div></div><p v-if="loading" class="ckb-document-loading" role="status"><i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i>正在铺开完整文档…</p><p v-if="error" class="ckb-document-failure" role="alert">{{ error }}</p><iframe v-if="format === 'DOCX' && !error" ref="frame" :srcdoc="source" sandbox="allow-scripts" referrerpolicy="no-referrer" title="完整 Word 文档预览" class="ckb-document-frame"></iframe><div v-else-if="!error && !loading" class="ckb-fulltext-document"><div class="ckb-text-watermark" aria-hidden="true">{{ identity }} · {{ trace }}</div><pre>{{ textParts().before }}<mark v-if="textParts().hit">{{ textParts().hit }}</mark>{{ textParts().after }}</pre></div><small class="ckb-document-footnote">{{ format === 'DOCX' ? '在线排版可能与 Word 略有差异，可下载原格式水印副本核对。' : '展示完整文件正文，检索片段仅作为问答依据。' }}</small></div>`,
+    template: `<div class="ckb-native-document"><div class="ckb-document-controls"><span><i class="fa-regular fa-file-lines" aria-hidden="true"></i>{{ format === 'DOCX' ? '文档版式' : '完整正文' }}<small v-if="pages">连续阅读</small></span><div v-if="format === 'DOCX'"><button :disabled="loading" style="width:auto;min-width:64px;white-space:nowrap;flex-shrink:0" @click="reflow" aria-label="重排预览">重排预览</button><button :disabled="loading" style="width:auto;min-width:64px;white-space:nowrap;flex-shrink:0" @click="firstBody" aria-label="跳到正文">跳到正文</button><select v-if="outline.length" aria-label="Word 章节目录" @change="jumpHeading($event.target.value)"><option value="">章节目录</option><option v-for="(heading,index) in outline" :key="index" :value="heading">{{ heading }}</option></select><button :disabled="loading || zoom <= 60" aria-label="缩小文档" @click="changeZoom(-10)">−</button><span>{{ zoom }}%</span><button :disabled="loading || zoom >= 160" aria-label="放大文档" @click="changeZoom(10)">+</button></div></div><p v-if="loading" class="ckb-document-loading" role="status"><i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i>正在铺开完整文档…</p><p v-if="error" class="ckb-document-failure" role="alert">{{ error }}</p><iframe v-if="format === 'DOCX' && !error" ref="frame" :srcdoc="source" sandbox="allow-scripts" referrerpolicy="no-referrer" title="完整 Word 文档预览" class="ckb-document-frame"></iframe><div v-else-if="!error && !loading" class="ckb-fulltext-document"><div class="ckb-text-watermark" aria-hidden="true">{{ identity }} · {{ trace }}</div><pre>{{ textParts().before }}<mark v-if="textParts().hit">{{ textParts().hit }}</mark>{{ textParts().after }}</pre></div><small class="ckb-document-footnote">{{ format === 'DOCX' ? '在线排版可能与 Word 略有差异，可下载原格式水印副本核对。' : '展示完整文件正文，检索片段仅作为问答依据。' }}</small></div>`,
   };
 })();
 

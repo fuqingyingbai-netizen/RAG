@@ -77,6 +77,12 @@ with sync_playwright() as pw:
         picture = Image.open(io.BytesIO(shot)).convert('RGB')
         point = (round(iframe['x'] + rect['x'] + 5), round(iframe['y'] + max(0, rect['y']) + 5))
         assert min(picture.getpixel(point)) >= 248, 'First paper was laid out but not painted'
+        # A white cover alone is not evidence that the report body can be read.
+        assert frame.locator('article').all_text_contents(), 'Missing Word body'
+        page.get_by_role('button', name='跳到正文', exact=True).click()
+        frame.wait_for_function("[...document.querySelectorAll('section.docx')].some(p=>(p.querySelector('article')?.textContent||'').replace(/\\s/g,'').length>160&&p.getBoundingClientRect().top>=0&&p.getBoundingClientRect().top<40)")
+        page.screenshot(path=str(args.output_dir / 'body.png'))
+        page.get_by_role('button', name='重排预览', exact=True).click()
         heading = page.get_by_label('Word 章节目录')
         options = heading.locator('option').all_text_contents()[1:]
         checks = []
