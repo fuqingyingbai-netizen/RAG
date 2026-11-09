@@ -274,3 +274,21 @@ def test_missing_oss_credentials_fails_before_network_or_metadata_credentials(mo
     monkeypatch.setattr(policy,'command',lambda *a,**kw:(_ for _ in ()).throw(AssertionError('No network command without explicit OSS credentials')))
     with pytest.raises(policy.BackupError,match='OSS access credentials'):
         policy.restic(config,['cat','config'])
+
+
+def test_failed_cloud_pruning_cannot_authorize_local_backup_retirement(host,monkeypatch):
+    config=dict(policy.DEFAULTS)
+    proof(host,config)
+    stage=host/'runtime/current';stage.mkdir(parents=True)
+    monkeypatch.setattr(policy,'RUNTIME',stage.parent)
+    monkeypatch.setattr(policy,'prepare_metadata',lambda cfg:(stage,{}))
+    def restic(cfg,args,**kwargs):
+        if args[0]=='forget':raise policy.BackupError('synthetic prune failure')
+        return b'{"message_type":"summary","snapshot_id":"new-snapshot"}\n' if args[0]=='backup' else b'{}'
+    monkeypatch.setattr(policy,'restic',restic)
+    monkeypatch.setattr(policy,'verify_restore',lambda *args:{
+        'verified_at':datetime.now(timezone.utc).isoformat(),'snapshot_id':'new-snapshot',
+        'repository_key':policy.repository_key(config),'database_restored':True,'sample_restored':True})
+    with pytest.raises(policy.BackupError,match='prune'):
+        policy.backup(config)
+    assert policy.fresh_offsite_proof(config) is False

@@ -193,6 +193,8 @@ def fresh_offsite_proof(policy):
     if not policy['repository'] or not file.is_file():
         return False
     proof = json.loads(file.read_text())
+    if proof.get('retention_verified', True) is not True:
+        return False
     age = (datetime.now(timezone.utc) - datetime.fromisoformat(proof['verified_at'])).total_seconds()
     drill_at = proof.get('database_drill_verified_at', proof.get('verified_at') if proof.get('database_restored') else None)
     drill_age = ((datetime.now(timezone.utc) - datetime.fromisoformat(drill_at)).total_seconds()
@@ -438,6 +440,11 @@ def retain_local_database(policy, stage):
 
 def backup(policy, initialize=False):
     validate_repository(policy['repository'])
+    proof_file = ROOT / 'backup-policy/offsite-verified.json'
+    if proof_file.is_file():
+        previous_proof = json.loads(proof_file.read_text())
+        previous_proof['retention_verified'] = False
+        atomic_json(proof_file, previous_proof)
     if initialize:
         # Only an explicit operator invocation initializes the selected repository.
         restic(policy, ['init'])
@@ -454,14 +461,17 @@ def backup(policy, initialize=False):
         snapshot = summaries[-1]['snapshot_id']
         restic(policy, ['check'])
         proof = verify_restore(policy, snapshot, stage, manifest)
-        atomic_json(ROOT / 'backup-policy/offsite-verified.json', proof)
-        if proof['database_restored']:
-            atomic_json(ROOT / 'backup-policy/database-drill.json', proof)
+        proof['retention_verified'] = False
+        atomic_json(proof_file, proof)
         # Only the verified snapshot permits local retirement or cloud retention.
         restic(policy, ['forget', '--host', HOST, '--tag', TAG, '--group-by', 'host,tags',
                         '--keep-last', '1', '--keep-within-daily', str(policy['keep_daily_days']) + 'd',
                         '--keep-weekly', str(policy['keep_weekly']), '--prune'], timeout=7200)
         restic(policy, ['check'])
+        proof['retention_verified'] = True
+        atomic_json(proof_file, proof)
+        if proof['database_restored']:
+            atomic_json(ROOT / 'backup-policy/database-drill.json', proof)
         cleanup = guard(policy)
         local = retain_local_database(policy, stage)
         return {'status': 'offsite_verified', **proof, 'local_database': local, 'cleanup': cleanup,
