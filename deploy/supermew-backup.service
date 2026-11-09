@@ -17,3 +17,5 @@ IOSchedulingClass=best-effort
 IOSchedulingPriority=7
 TimeoutStartSec=18000
 TimeoutStopSec=180
+Restart=on-failure
+RestartSec=15min

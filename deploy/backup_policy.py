@@ -469,6 +469,9 @@ def backup(policy, initialize=False):
         restic(policy, ['init'])
     else:
         restic(policy, ['cat', 'config'])
+    # Only Restic's default stale-lock cleanup is allowed; live locks survive.
+    # This permits a scheduled retry after an interrupted upload, never --remove-all.
+    restic(policy, ['unlock'])
     # Pin the release/configuration only while making the small local snapshot.
     # The long cloud transfer uses a separate lock and must not block releases.
     with managed_locks():
