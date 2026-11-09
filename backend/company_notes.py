@@ -42,6 +42,7 @@ class CompanyNote(Base):
     content: Mapped[dict] = mapped_column(JSON, default=lambda: copy.deepcopy(EMPTY))
     revision: Mapped[int] = mapped_column(Integer, default=1)
     published_revision: Mapped[int] = mapped_column(Integer, default=0)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     current_document_id: Mapped[str] = mapped_column(String(64), default='')
     pending_document_id: Mapped[str] = mapped_column(String(64), default='')
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -80,7 +81,7 @@ def editable(note,user):
 
 def find_note(db,note_id,user,manage=False):
     note=db.get(CompanyNote,note_id)
-    if not note or note.index_id!=kb.settings()['index_id']:
+    if not note or note.deleted_at or note.index_id!=kb.settings()['index_id']:
         raise HTTPException(404,'笔记不存在或没有访问权限。')
     project=find_project(db,note.project_id,user,manage=manage)
     if project.category not in EXPERIENCE_CATEGORIES:
@@ -159,6 +160,50 @@ def notes(project_id:str='',folder_id:str='',user=Depends(kb.require_knowledge_u
 def read_note(note_id:str,user=Depends(kb.require_knowledge_user)):
     with ws.SessionLocal() as db:
         note,_=find_note(db,note_id,user);return public_view(db,note,user)
+
+
+def note_deletion_scope(db,note,user):
+    docs=list(db.scalars(select(CompanyDocument).where(CompanyDocument.note_id==note.id)
+        .order_by(CompanyDocument.id).with_for_update()))
+    assets=list(db.scalars(select(CompanyNoteAsset).where(CompanyNoteAsset.note_id==note.id).order_by(CompanyNoteAsset.id)))
+    if any(not can_manage(d,user) for d in docs if d.state!='deleted'):
+        raise HTTPException(403,'笔记包含无管理权限的发布文件，请联系管理员。')
+    if any(d.state in ('queued','uploading','parsing','indexing','deleting') or
+        (d.lease_until and d.lease_until>datetime.utcnow()) for d in docs if d.state!='deleted'):
+        raise HTTPException(409,'笔记仍在发布或建立索引，请处理完成后再删除。')
+    token=hashlib.sha256(json.dumps([note.id,note.revision,str(note.updated_at),
+        [(d.id,d.state,str(d.updated_at)) for d in docs],[a.id for a in assets]],ensure_ascii=False).encode()).hexdigest()
+    return {'title':note.title,'confirmation':token,'publication_count':sum(d.state!='deleted' for d in docs),
+        'image_count':len(assets)},docs
+
+
+@notes_router.get('/notes/{note_id}/deletion-preview')
+def note_deletion_preview(note_id:str,user=Depends(kb.require_knowledge_user)):
+    with ws.SessionLocal() as db:
+        note,_=find_note(db,note_id,user,manage=True)
+        preview,_=note_deletion_scope(db,note,user)
+        return preview
+
+
+class NoteDeletion(BaseModel):
+    confirmation:str = Field(pattern='^[a-f0-9]{64}$')
+
+
+@notes_router.delete('/notes/{note_id}')
+def delete_note(note_id:str,body:NoteDeletion,user=Depends(kb.require_knowledge_user)):
+    with ws.SessionLocal() as db:
+        note,_=find_note(db,note_id,user,manage=True)
+        preview,docs=note_deletion_scope(db,note,user)
+        if body.confirmation!=preview['confirmation']:
+            raise HTTPException(409,'笔记内容已变化，请重新查看删除范围并确认。')
+        for doc in docs:
+            if doc.state=='deleted':continue
+            before=snapshot(doc);doc.state='deleted';doc.status_message='所属笔记已删除';mark_modified(doc,user)
+            record(db,user,'document.delete',doc,before=before,details={'source':'note.delete'})
+        before=snapshot(note);note.deleted_at=datetime.utcnow();mark_modified(note,user)
+        record(db,user,'note.delete',note,before=before,details={**preview,'deleted':True})
+        db.commit()
+        return {'deleted':True}
 
 
 class NoteEdit(BaseModel):

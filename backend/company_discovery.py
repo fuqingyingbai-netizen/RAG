@@ -19,7 +19,7 @@ from company_catalog import document_store, serialize
 from company_watermark import ExportIdentity, WatermarkError, export_copy, office_to_pdf, run, ffmpeg_binary
 
 discovery_router = APIRouter()
-OFFICE_PAGES = {'DOC', 'XLS', 'XLSX', 'PPT', 'PPTX'}
+OFFICE_PAGES = {'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX'}
 conversion_lock = threading.Lock()
 
 
@@ -106,6 +106,14 @@ def reading_pdf(doc):
     raise HTTPException(422, '此格式使用文档或图片阅读器。')
 
 
+@lru_cache(maxsize=24)
+def reading_page(object_key, digest, fmt, page):
+    """Cache unmarked derived pages; callers authorize before and after stamping."""
+    from types import SimpleNamespace
+    doc = SimpleNamespace(object_key=object_key, sha256=digest, format=fmt)
+    return ws.render_pdf_page(reading_pdf(doc), page)
+
+
 def image_thumbnail(data, fmt):
     from PIL import Image, ImageOps
     with Image.open(io.BytesIO(data)) as original:
@@ -120,7 +128,7 @@ def thumbnail_bytes(doc):
     if doc.format in {'PNG', 'JPG', 'JPEG'}:
         return image_thumbnail(document_store().get_bytes(doc.object_key), doc.format)
     if doc.format == 'PDF' or doc.format in OFFICE_PAGES:
-        data, _ = ws.render_pdf_page(reading_pdf(doc), 1)
+        data, _ = reading_page(doc.object_key, doc.sha256, doc.format, 1)
         return image_thumbnail(data, 'PNG')
     if doc.format in {'MP4', 'WEBM'}:
         binary = ffmpeg_binary()

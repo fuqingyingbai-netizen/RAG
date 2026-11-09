@@ -15,7 +15,9 @@
           try {
             const buffer = await this.blob.arrayBuffer();
             if (this.disposed) return;
-            this.text = new TextDecoder('utf-8').decode(buffer);
+            const bytes=new Uint8Array(buffer),charset=(this.blob.type?.match(/charset=([^;]+)/i)||[])[1];
+            const encoding=bytes[0]===255&&bytes[1]===254?'utf-16le':bytes[0]===254&&bytes[1]===255?'utf-16be':charset?.replace(/utf-8-sig/i,'utf-8').replace(/utf-16-le/i,'utf-16le').replace(/utf-16-be/i,'utf-16be')||'utf-8';
+            this.text = new TextDecoder(encoding).decode(buffer);
             if (this.text.includes('\uFFFD')) this.text = new TextDecoder('gb18030').decode(buffer);
             this.loading = false; this.$nextTick(() => this.findSource());
           } catch (_) { this.fail(); }

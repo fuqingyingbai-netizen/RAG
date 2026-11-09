@@ -129,20 +129,20 @@ test('a failed cloud chunk service does not block the complete original document
     if(url.endsWith('/preview'))throw new Error('cloud unavailable');
     return new Response('complete document body',{headers:{'X-Watermark-Trace':'trace-b'}});
   });
-  await f.state.openDocument({id:'word',format:'DOCX',has_original:true,can_read:true});
+  await f.state.openDocument({id:'word',format:'TXT',has_original:true,can_read:true});
   assert.equal(await f.state.readerBlob.text(),'complete document body');
   assert.equal(f.state.readerMode,'original');assert.equal(f.state.readerError,'');
   assert.equal(f.state.readerTrace,'trace-b');assert.equal(f.state.readerOriginalLoading,false);
 });
 
-test('a late original cannot replace the Word document currently being read',async()=>{
+test('a late original cannot replace the text document currently being read',async()=>{
   const old=deferred(),f=fixture(async url=>{
     if(url.endsWith('/preview'))return new Response('{"references":[],"total":0}');
     if(url.includes('/a/'))return old.promise;
     return new Response('new document',{headers:{'X-Watermark-Trace':'new-trace'}});
   });
-  const first=f.state.openDocument({id:'a',format:'DOCX',has_original:true,can_read:true});
-  await f.state.openDocument({id:'b',format:'DOCX',has_original:true,can_read:true});
+  const first=f.state.openDocument({id:'a',format:'TXT',has_original:true,can_read:true});
+  await f.state.openDocument({id:'b',format:'TXT',has_original:true,can_read:true});
   old.resolve(new Response('old document'));await first;
   assert.equal(await f.state.readerBlob.text(),'new document');
   assert.equal(f.state.readerTrace,'new-trace');assert.equal(f.state.readerOriginalLoading,false);

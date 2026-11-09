@@ -55,7 +55,7 @@ COMPANY_KNOWLEDGE_BUCKET=company-knowledge
 - 批量上传：支持 PDF、DOC/DOCX、XLS/XLSX、PPT/PPTX、TXT/MD、JPG/JPEG/PNG，每个文件最大 32 MiB。Word、PDF、图片使用智能文档解析，其他格式自动选择解析器。
 - 同上传者、项目和文件名下，相同内容返回重复提示；不同内容作为新版本保留。旧版本独立展示和授权，也参与检索，比较时需选择对应版本。
 - 状态：等待、上传、解析/OCR、建立索引、可检索、失败。浏览器每 6 秒刷新，只有文件状态 FINISH 才视为可检索。
-- 原件阅读：本系统上传的 PDF 逐页渲染原件（支持翻页），图片直接预览原件，Office 等展示云端解析片段并提供带水印的原格式副本下载。解析文字不保证保留原件版式。历史资料没有受控原件时暂不提供下载。
+- 原件阅读：本系统上传的 PDF、DOC/DOCX、XLS/XLSX、PPT/PPTX 通过服务端分页预览连续阅读，图片直接预览，TXT/MD 按原文编码显示。首次 Office 转换使用 LibreOffice，按原件 SHA256 缓存版式和有限页数，每次交付仍校验权限并添加个人水印；下载保留原格式。解析文字不保证保留原件版式。历史资料没有受控原件时暂不提供下载。
 - 全部资料或勾选最多 20 份已完成索引的文件提问；阅读区可围绕原件提问。范围变化开始新对话。
 - 上传者和管理员可管理分类、复核状态及可见范围，重试失败任务或删除资料。处理中的资料需等待完成后删除。
 
@@ -186,7 +186,7 @@ node --test test/company-knowledge-ui.test.cjs
 
 ### 转换环境
 
-Python 依赖随 `pyproject.toml` / `uv.lock` 安装，新增 ReportLab；FFmpeg 优先使用系统或指定程序，否则使用 imageio-ffmpeg。DOCX/XLSX/PPTX 不依赖 LibreOffice；旧版 DOC/XLS/PPT 需要 LibreOffice。Linux 部署建议安装中文字体、espeak-ng 和旧版兼容处理工具，例如 Debian/Ubuntu：
+Python 依赖随 `pyproject.toml` / `uv.lock` 安装，新增 ReportLab；FFmpeg 优先使用系统或指定程序，否则使用 imageio-ffmpeg。DOCX/XLSX/PPTX 下载标记不依赖 LibreOffice；Office 在线分页预览和旧版 DOC/XLS/PPT 下载需要 LibreOffice。Linux 部署建议安装中文字体、espeak-ng 和旧版兼容处理工具，例如 Debian/Ubuntu：
 
 ```sh
 sudo apt-get install --no-install-recommends libreoffice-writer libreoffice-calc libreoffice-impress fonts-noto-cjk espeak-ng ffmpeg
@@ -210,3 +210,12 @@ sudo apt-get install --no-install-recommends libreoffice-writer libreoffice-calc
 
 项目设置支持删除整个项目：先预览全部版本资料、图文笔记与子目录数量，再二次确认。确认令牌绑定当前树的版本；新增或修改后必须重新确认，处理中的资料及无管理权限内容会阻止删除。项目通过 nullable deleted_at 墓碑移除，目录、草稿和原件保留为受控恢复副本，所有页面和访问路径立即撤销；不在请求中清除云端或本地恢复资产。
 图文笔记区分保存、发布提交和索引完成，响应丢失后通过 GET 核对已提交修订；无法确认时仅查询状态，不自动重复发布。
+
+
+## 连续上传、阅读搜索与单独删除（2026-11-09）
+
+上传结果立即并入当前目录，后端目录读取落后于上传时会重新读取，旧响应不会擦除新文件。“完成，查看资料”清除筛选并同时显示已有资料和新文件处理状态；项目、子目录和文件正文区域支持双击打开，按钮与选择框保持各自操作。
+
+阅读搜索统一分页读取可用解析文字，定位命中片段并高亮，OCR 文本支持忽略空白匹配；已知页码才提供原件跳转。片段可能跨页、重叠或缺少未识别内容，不保证等于整个原件；音视频只索引说明，未自动转写。
+
+经验文件支持单独确认删除；笔记编辑器、草稿列表和已发布笔记管理入口均可单独删除整篇笔记及发布版本。GET /notes/{id}/deletion-preview 返回范围和版本令牌，DELETE /notes/{id} 复核令牌并写入 nullable deleted_at；拒绝活动任务及无管理权限版本，保留原件为受控恢复副本，所有正常访问和检索立即撤销。

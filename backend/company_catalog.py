@@ -191,6 +191,11 @@ def ensure_company_schema(engine):
             for clause in additions:
                 connection.exec_driver_sql('ALTER TABLE company_documents ' + clause)
     Base.metadata.create_all(bind=engine)
+    if 'company_notes' in inspector.get_table_names():
+        note_columns = {column['name'] for column in inspect(engine).get_columns('company_notes')}
+        if 'deleted_at' not in note_columns:
+            with engine.begin() as connection:
+                connection.exec_driver_sql('ALTER TABLE company_notes ADD COLUMN deleted_at TIMESTAMP NULL')
     if 'company_projects' in inspector.get_table_names():
         project_columns = {column['name'] for column in inspect(engine).get_columns('company_projects')}
         with engine.begin() as connection:

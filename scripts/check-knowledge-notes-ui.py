@@ -22,7 +22,7 @@ import company_notes
 
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--output-dir',type=Path,required=True);parser.add_argument('--assets-dir',type=Path,required=True);parser.add_argument('--writing-regression',action='store_true');parser.add_argument('--table-regression',action='store_true');parser.add_argument('--publish-regression',action='store_true');parser.add_argument('--project-regression',action='store_true');args=parser.parse_args();args.output_dir.mkdir(parents=True,exist_ok=True)
+    parser=argparse.ArgumentParser();parser.add_argument('--output-dir',type=Path,required=True);parser.add_argument('--assets-dir',type=Path,required=True);parser.add_argument('--writing-regression',action='store_true');parser.add_argument('--table-regression',action='store_true');parser.add_argument('--publish-regression',action='store_true');parser.add_argument('--project-regression',action='store_true');parser.add_argument('--reader-regression',action='store_true');parser.add_argument('--formats-dir',type=Path);args=parser.parse_args();args.output_dir.mkdir(parents=True,exist_ok=True)
     with TemporaryDirectory(prefix='note-qa-',ignore_cleanup_errors=True) as temp:
         patch=pytest.MonkeyPatch();generator=setup.__wrapped__(patch,Path(temp));state=next(generator)
         import company_memory
@@ -31,6 +31,11 @@ def main():
         company_notes.recognize_image=lambda data:'现场测试流程：访谈、记录、复核。'
         p=project(state,'经验图文验证',category='手稿笔记')
         note=state.client.post('/company-knowledge/notes',json={'project_id':p['id']}).json()
+        reader_config = None
+        if getattr(args, 'reader_regression', False):
+            import runpy
+            reader_config = runpy.run_path(str(ROOT/'scripts/check-knowledge-reader-ui.py'))
+            reader_config = reader_config['configure'](state, args, patch)
         class Handler(SimpleHTTPRequestHandler):
             def log_message(self,*args):pass
             def do_GET(self):
@@ -47,7 +52,8 @@ def main():
             def do_DELETE(self):self.api()
             def api(self):
                 payload=self.rfile.read(int(self.headers.get('Content-Length',0)))
-                response=state.client.request(self.command,self.path,content=payload,headers={'Content-Type':self.headers.get('Content-Type','application/json')})
+                response=reader_config['response'](self.path) if reader_config and self.command=='GET' else None
+                if response is None:response=state.client.request(self.command,self.path,content=payload,headers={'Content-Type':self.headers.get('Content-Type','application/json')})
                 self.send_response(response.status_code)
                 for key,value in response.headers.items():
                     if key.lower() not in ('transfer-encoding','connection','content-encoding'):self.send_header(key,value)
@@ -57,12 +63,15 @@ def main():
         html='''<!doctype html><html lang="zh-CN" data-knowledge-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/qa-vendor/element.css"><link rel="stylesheet" href="/qa-vendor/icons.css"><link rel="stylesheet" href="/company-knowledge.css"><link rel="stylesheet" href="/company-knowledge-universe.css"><link rel="stylesheet" href="/company-knowledge-glass.css"><link rel="stylesheet" href="/knowledge-note-editor.css"><style>body{margin:0;background:radial-gradient(ellipse at 15% 60%,#9cdbe5aa,transparent 60%),linear-gradient(120deg,#d5e6f7,#e8dff4);font-family:system-ui,sans-serif}.backdrop{padding:80px;color:#42687b;font-size:32px}</style></head><body><div class="backdrop">经验沉淀 · 项目空间</div><div id="app"><knowledge-note-editor v-if="opened" :note-id="noteId" :fetch-api="api" username="alice" @close="opened=false"></knowledge-note-editor><button v-else id="reopen" @click="opened=true">继续编辑</button></div><script src="/qa-vendor/vue.js"></script><script src="/qa-vendor/element.js"></script><script src="/knowledge-glass-optics.js"></script><script src="/knowledge-note-editor.js"></script><script>const app=Vue.createApp({components:{KnowledgeNoteEditor},data:()=>({opened:true,noteId:NOTEID}),methods:{api:(url,options)=>fetch(url,options)}});app.use(ElementPlus);window.app=app.mount('#app');</script></body></html>'''.replace('NOTEID',json.dumps(note['id']))
         styles=re.findall(r'href="(knowledge-(?:home-simple|palette|typography)\.[a-f0-9]{12}\.css)"',(ROOT/'frontend/index.html').read_text(encoding='utf-8'))
         html=html.replace('</head>',''.join('<link rel="stylesheet" href="/'+name+'">' for name in styles)+'</head>')
-        full_html=html.replace('<knowledge-note-editor v-if="opened" :note-id="noteId" :fetch-api="api" username="alice" @close="opened=false"></knowledge-note-editor><button v-else id="reopen" @click="opened=true">继续编辑</button>', '<company-knowledge/>').replace('<script src="/knowledge-note-editor.js"></script>', '<script src="/knowledge-note-editor.js"></script><script src="/company-knowledge.js"></script>').replace('components:{KnowledgeNoteEditor}', 'components:{KnowledgeNoteEditor,CompanyKnowledge}')
+        full_html=html.replace('<knowledge-note-editor v-if="opened" :note-id="noteId" :fetch-api="api" username="alice" @close="opened=false"></knowledge-note-editor><button v-else id="reopen" @click="opened=true">继续编辑</button>', '<company-knowledge ref="knowledge"/>').replace('<script src="/knowledge-note-editor.js"></script>', '<script src="/knowledge-note-editor.js"></script><script src="/knowledge-document-viewer.js"></script><script src="/company-knowledge.js"></script>').replace('components:{KnowledgeNoteEditor}', 'components:{KnowledgeNoteEditor,CompanyKnowledge}')
         server=ThreadingHTTPServer(('127.0.0.1',0),partial(Handler,directory=str(ROOT/'frontend')));threading.Thread(target=server.serve_forever,daemon=True).start()
         with sync_playwright() as playwright:
             print('QA: launching browser',flush=True);browser=playwright.chromium.launch(channel='msedge',headless=True);page=browser.new_page(viewport={'width':1440,'height':1000},accept_downloads=True);errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
             try:
                 print('QA: opening editor',flush=True);page.goto('http://127.0.0.1:'+str(server.server_port)+'/');expect(page.get_by_role('textbox',name='笔记正文')).to_be_visible()
+                if getattr(args, 'reader_regression', False):
+                    reader_config['check'](page, state, p, args, Path(temp), errors)
+                    browser.close();server.shutdown();generator.close();patch.undo();return
                 if args.project_regression:
                     check_project_and_publish(page,state,p,args,Path(temp),errors)
                     browser.close();server.shutdown();generator.close();patch.undo();return

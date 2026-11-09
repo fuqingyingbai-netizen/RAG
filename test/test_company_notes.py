@@ -194,3 +194,35 @@ def test_nested_editor_blocks_save_publish_and_export(setup):
     for fmt in ['docx','markdown']:
         assert setup.client.get('/company-knowledge/notes/'+note['id']+'/export',params={'draft':True,'format':fmt}).status_code==200
     assert publish(setup,saved)['pending_document_id']
+
+
+def test_note_delete_revokes_draft_assets_publications_and_preserves_project(setup):
+    p,note=create(setup);note=publish(setup,save(setup,note));ready(setup,note)
+    url='/company-knowledge/notes/'+note['id'];doc_id=note['pending_document_id']
+    with setup.db() as db:
+        doc=db.get(CompanyDocument,doc_id);doc.lease_until=None;doc.worker_id='';db.commit()
+    scope=setup.client.get(url+'/deletion-preview');assert scope.status_code==200
+    note=setup.client.get(url).json();note=save(setup,note,title='保留草稿直到确认')
+    assert setup.client.request('DELETE',url,json={'confirmation':scope.json()['confirmation']}).status_code==409
+    setup.user.username,setup.user.id='bob',2
+    assert setup.client.get(url+'/deletion-preview').status_code==403
+    setup.user.username,setup.user.id='alice',1
+    scope=setup.client.get(url+'/deletion-preview').json();assert scope['publication_count']==1
+    assert setup.client.request('DELETE',url,json={'confirmation':scope['confirmation']}).status_code==200
+    for role in ('user','admin'):
+        setup.user.role=role
+        for suffix in ('','/export','/history'):
+            assert setup.client.get(url+suffix).status_code==404
+        assert setup.client.get('/company-knowledge/documents/'+doc_id+'/original').status_code==404
+    assert setup.client.get('/company-knowledge/notes').json()['notes']==[]
+    assert p['id'] in [p['id'] for p in setup.client.get('/company-knowledge/projects').json()['projects']]
+    # A deleted note must not prevent deleting the remaining project.
+    preview=setup.client.get('/company-knowledge/projects/'+p['id']+'/deletion-preview').json()
+    assert preview['note_count']==0
+    assert setup.client.request('DELETE','/company-knowledge/projects/'+p['id'],json={'confirmation':preview['confirmation']}).status_code==200
+
+
+def test_processing_note_cannot_be_deleted(setup):
+    _,note=create(setup);note=publish(setup,save(setup,note))
+    response=setup.client.get('/company-knowledge/notes/'+note['id']+'/deletion-preview')
+    assert response.status_code==409

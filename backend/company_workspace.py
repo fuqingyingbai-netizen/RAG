@@ -696,7 +696,14 @@ async def preview(doc_id: str, page: int = Query(1, ge=1), user: User = Depends(
             continue
         refs.append(kb.citation({**meta, 'content': meta.get('content') or node.get('text', ''),
                                 'doc_name': title, '_citation_index': (page - 1) * 20 + index + 1}))
-    return {'references': refs, 'total': result.get('total', 0), 'page': page}
+    with SessionLocal() as db:
+        current = find_doc(db, doc_id, user)
+        if current.cloud_id != cloud_id or current.state != 'ready':
+            raise HTTPException(409, '资料版本已变化，请重新打开后查看片段。')
+    total = max(int(result.get('total') or 0), (page - 1) * 20 + len(refs))
+    return {'references': refs, 'total': total, 'page': page,
+            'has_more': page * 20 < total or (not result.get('total') and len(result.get('nodes', [])) == 20),
+            'message': '解析片段是可检索文字，可能合并多页、存在重叠或缺少图片及识别失败的内容；完整内容请查看原件。'}
 
 
 def render_pdf_page(data, page):
@@ -714,7 +721,7 @@ def render_pdf_page(data, page):
                 bitmap = pdf_page.render(scale=scale)
                 try:
                     output = io.BytesIO()
-                    bitmap.to_pil().save(output, format='PNG')
+                    bitmap.to_pil().save(output, format='PNG', compress_level=3)
                     return output.getvalue(), count
                 finally:
                     bitmap.close()
@@ -728,15 +735,12 @@ def render_pdf_page(data, page):
 async def pdf_page(doc_id: str, page: int = Query(1, ge=1), user: User = Depends(kb.require_knowledge_user)):
     with SessionLocal() as db:
         doc = find_doc(db, doc_id, user)
-        from company_discovery import OFFICE_PAGES, reading_pdf
+        from company_discovery import OFFICE_PAGES, reading_page
         if doc.format not in OFFICE_PAGES | {'PDF'} or not doc.object_key:
             raise HTTPException(404, '该资料没有可预览的 PDF 原件。')
-        try:
-            data = await asyncio.to_thread(reading_pdf, doc)
-        except WatermarkError as error:
-            raise HTTPException(error.status, str(error)) from None
+        key, digest, fmt = doc.object_key, doc.sha256, doc.format
     try:
-        image, count = await asyncio.to_thread(render_pdf_page, data, page)
+        image, count = await asyncio.to_thread(reading_page, key, digest, fmt, page)
         identity = ExportIdentity(user.username, getattr(user, 'id', None), datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'), uuid.uuid4().hex)
         image, _, _ = await asyncio.to_thread(export_copy, image, 'PNG', 'preview.png', identity)
     except HTTPException:
@@ -747,11 +751,13 @@ async def pdf_page(doc_id: str, page: int = Query(1, ge=1), user: User = Depends
         raise HTTPException(422, 'PDF 无法预览，可能已加密或损坏，请下载原件核对。') from None
     with SessionLocal() as db:
         doc = find_doc(db, doc_id, user)
+        if (doc.object_key, doc.sha256, doc.format) != (key, digest, fmt):
+            raise HTTPException(409, '资料版本已变化，请重新打开预览。')
         record(db, user, 'document.preview', doc, before=snapshot(doc), event_id=identity.trace_id,
             details={'trace_id': identity.trace_id, 'page': page, 'watermarked': True})
         db.commit()
     return Response(image, media_type='image/png', headers={'Cache-Control': 'private, no-store',
-        'X-Document-Pages': str(count), 'X-Content-Type-Options': 'nosniff'})
+        'X-Document-Pages': str(count), 'X-Watermark-Trace': identity.trace_id, 'X-Content-Type-Options': 'nosniff'})
 
 
 def catalogue_scope(message, allowed):

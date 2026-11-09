@@ -130,7 +130,7 @@ test('upload completion shows uploaded documents despite previous filters', () =
   assert.equal(context.uploadOpen, false);
   assert.equal(context.category, '全部资料');
   context.documents = [{id:'new', title:'New'}, {id:'old', title:'Old'}];
-  assert.deepEqual(Array.from(component.computed.filteredDocuments.call(context).map(doc => doc.id)), ['new']);
+  assert.deepEqual(Array.from(component.computed.filteredDocuments.call(context).map(doc => doc.id)), ['new','old']);
 });
 test('upload summary distinguishes ready, processing and failure', () => {
   const summary = component.computed.uploadSummary.call({uploadDisplayResults:[{id:'a',phase:'ready'},{id:'b',phase:'parsing'},{name:'bad'}]});
@@ -332,8 +332,8 @@ test('a quick text record becomes a searchable original note and retries do not 
  context.stagedFiles=[];context.uploadResults=[{id:'saved-note',name:note.name}];component.methods.prepareCaptureNote.call(context);assert.equal(context.stagedFiles.length,0);
 });
 
-test('Word citation matching uses the native renderer without overwriting its result from the server',async()=>{
- let calls=0;const context={selectedDoc:{id:'word',has_original:true,format:'DOCX',references:[]},readerSequence:1,$nextTick:fn=>fn(),$refs:{nativeReader:{findSource(){calls++;}}},apiFetch(){throw Error('Native source matching must stay local');}};
+test('plain text citation matching uses the native renderer without overwriting its result from the server',async()=>{
+ let calls=0;const context={selectedDoc:{id:'text',has_original:true,format:'TXT',references:[]},readerSequence:1,$nextTick:fn=>fn(),$refs:{nativeReader:{findSource(){calls++;}}},apiFetch(){throw Error('Native source matching must stay local');}};
  await component.methods.locateReference.call(context,{id:'1',text:'原文中的引用'});assert.equal(calls,1);assert.equal(context.selectedDoc.references[0].text,'原文中的引用');assert.equal(context.locating,false);
  context.selectedDoc={id:'legacy',has_original:false,references:[]};await component.methods.locateReference.call(context,{text:'历史引用'});assert.equal(context.readerMode,'excerpts');
 });

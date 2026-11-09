@@ -145,3 +145,23 @@ def test_pdf_outline_uses_original_bookmarks():
     pdf.drawString(40, 700, 'Second page')
     pdf.save()
     assert discovery.pdf_outline(output.getvalue()) == [{'title': 'Evidence chapter', 'page': 2}]
+
+
+def test_docx_page_cache_reuses_conversion_but_marks_each_account_and_checks_acl(setup,monkeypatch):
+    from docx import Document
+    source=io.BytesIO();document=Document();document.add_paragraph('Full document first page');document.save(source)
+    row=upload(setup,name='long.docx',payload=source.getvalue()).json()
+    pdf=io.BytesIO();c=canvas.Canvas(pdf);c.drawString(40,700,'Full document first page');c.showPage();c.drawString(40,700,'Last page');c.save()
+    calls=[]
+    monkeypatch.setattr(discovery,'office_pdf',lambda *args:(calls.append(args) or pdf.getvalue()))
+    discovery.reading_page.cache_clear()
+    first=setup.client.get('/company-knowledge/documents/'+row['id']+'/page');assert first.status_code==200,first.text[:100] if first.status_code!=200 else ''
+    assert first.headers['x-document-pages']=='2' and first.headers['x-watermark-trace']
+    setup.user.username,setup.user.id='bob',2
+    second=setup.client.get('/company-knowledge/documents/'+row['id']+'/page');assert second.status_code==200
+    assert len(calls)==1 and first.content!=second.content
+    with setup.db() as db:
+        doc=db.get(CompanyDocument,row['id']);doc.visibility='restricted';db.commit()
+    assert setup.client.get('/company-knowledge/documents/'+row['id']+'/page').status_code==404
+    assert stored_original(setup,row['id'])==source.getvalue()
+    discovery.reading_page.cache_clear()

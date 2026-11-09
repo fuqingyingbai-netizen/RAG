@@ -197,7 +197,7 @@ def deletion_scope(db, project, user):
     from company_notes import CompanyNote
     docs = list(db.scalars(select(CompanyDocument).where(
         CompanyDocument.knowledge_project_id == project.id).order_by(CompanyDocument.id).with_for_update()))
-    notes = list(db.scalars(select(CompanyNote).where(CompanyNote.project_id == project.id)
+    notes = list(db.scalars(select(CompanyNote).where(CompanyNote.project_id == project.id, CompanyNote.deleted_at.is_(None))
         .order_by(CompanyNote.id).with_for_update()))
     folders = list(db.scalars(select(CompanyFolder).where(CompanyFolder.project_id == project.id)
         .order_by(CompanyFolder.id).with_for_update()))
@@ -309,7 +309,7 @@ def delete_empty_folder(project_id: str, folder_id: str, user: User = Depends(kb
                 CompanyDocument.state != 'deleted').limit(1)):
             raise HTTPException(409, '目录不为空，请先处理其中的文件和子目录。')
         from company_notes import CompanyNote
-        if db.scalar(select(CompanyNote.id).where(CompanyNote.project_id == project.id, CompanyNote.folder_id == folder.id).limit(1)):
+        if db.scalar(select(CompanyNote.id).where(CompanyNote.project_id == project.id, CompanyNote.folder_id == folder.id, CompanyNote.deleted_at.is_(None)).limit(1)):
             raise HTTPException(409, '目录中仍有图文笔记或草稿，请保留目录。')
         record(db, user, 'folder.delete', folder, before=snapshot(folder), details={'deleted': True})
         db.delete(folder)
