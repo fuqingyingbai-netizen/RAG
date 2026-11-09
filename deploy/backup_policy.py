@@ -39,6 +39,10 @@ class BackupError(RuntimeError):
     pass
 
 
+class LockBusy(BackupError):
+    pass
+
+
 def now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -112,7 +116,22 @@ def managed_locks():
             try:
                 fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
-                raise BackupError('A deployment or backup is active; retry later') from None
+                raise LockBusy('A deployment or backup is active; retry later') from None
+        yield
+
+
+@contextmanager
+def offsite_backup_lock():
+    """Serialize cloud jobs without occupying any application deployment lock."""
+    import fcntl
+    if os.geteuid() != 0 or not (ROOT / '.deployment-owned').is_file():
+        raise BackupError('Expected root on the managed SuperMew server')
+    os.umask(0o077)
+    with (ROOT / 'backups/.offsite-backup.lock').open('a') as handle:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise LockBusy('An offsite backup is active; retry later') from None
         yield
 
 
@@ -450,7 +469,10 @@ def backup(policy, initialize=False):
         restic(policy, ['init'])
     else:
         restic(policy, ['cat', 'config'])
-    stage, manifest = prepare_metadata(policy)
+    # Pin the release/configuration only while making the small local snapshot.
+    # The long cloud transfer uses a separate lock and must not block releases.
+    with managed_locks():
+        stage, manifest = prepare_metadata(policy)
     try:
         raw = restic(policy, ['backup', '--json', '--host', HOST, '--tag', TAG,
                               str(ROOT / 'shared/data'), str(stage)], timeout=7200)
@@ -472,8 +494,14 @@ def backup(policy, initialize=False):
         atomic_json(proof_file, proof)
         if proof['database_restored']:
             atomic_json(ROOT / 'backup-policy/database-drill.json', proof)
-        cleanup = guard(policy)
-        local = retain_local_database(policy, stage)
+        try:
+            with managed_locks():
+                cleanup = guard(policy)
+                local = retain_local_database(policy, stage)
+        except LockBusy:
+            # The next capacity timer can retire old archives after publication.
+            cleanup = {'status': 'deferred_active_deployment', 'deleted': []}
+            local = {'status': 'deferred_active_deployment'}
         return {'status': 'offsite_verified', **proof, 'local_database': local, 'cleanup': cleanup,
                 'data_added': summaries[-1].get('data_added'), 'application_restart': False}
     finally:
@@ -509,11 +537,12 @@ def main(argv=None):
     result = None
     exit_code = 0
     try:
-        with managed_locks():
-            if args.guard:
+        if args.guard:
+            with managed_locks():
                 result = {'status': 'guard_checked', **guard(policy)}
                 exit_code = 2 if result['warnings'] else 0
-            else:
+        else:
+            with offsite_backup_lock():
                 result = backup(policy, args.init_repository)
     except (BackupError, OSError, ValueError, subprocess.SubprocessError) as exc:
         # Exceptions are intentionally generic; upstream bodies are not published.

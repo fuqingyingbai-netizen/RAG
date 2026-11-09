@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 import os
+from contextlib import nullcontext
 from types import SimpleNamespace
 
 import pytest
@@ -145,6 +146,7 @@ def test_offsite_configuration_rejects_local_insecure_or_ambiguous_destinations(
 
 
 def test_failed_remote_snapshot_does_not_publish_proof_or_prune(host, monkeypatch):
+    monkeypatch.setattr(policy, 'managed_locks', nullcontext)
     stage = host / 'runtime/current'
     stage.mkdir(parents=True)
     monkeypatch.setattr(policy, 'RUNTIME', stage.parent)
@@ -164,6 +166,7 @@ def test_failed_remote_snapshot_does_not_publish_proof_or_prune(host, monkeypatc
 
 
 def test_failed_restore_does_not_publish_proof_or_prune(host, monkeypatch):
+    monkeypatch.setattr(policy, 'managed_locks', nullcontext)
     stage = host / 'runtime/current'
     stage.mkdir(parents=True)
     monkeypatch.setattr(policy, 'RUNTIME', stage.parent)
@@ -182,6 +185,7 @@ def test_failed_restore_does_not_publish_proof_or_prune(host, monkeypatch):
 
 
 def test_complete_snapshot_checks_recovery_before_retention(host, monkeypatch):
+    monkeypatch.setattr(policy, 'managed_locks', nullcontext)
     stage = host / 'runtime/current'
     stage.mkdir(parents=True)
     monkeypatch.setattr(policy, 'RUNTIME', stage.parent)
@@ -282,6 +286,7 @@ def test_failed_cloud_pruning_cannot_authorize_local_backup_retirement(host,monk
     stage=host/'runtime/current';stage.mkdir(parents=True)
     monkeypatch.setattr(policy,'RUNTIME',stage.parent)
     monkeypatch.setattr(policy,'prepare_metadata',lambda cfg:(stage,{}))
+    monkeypatch.setattr(policy,'managed_locks',nullcontext)
     def restic(cfg,args,**kwargs):
         if args[0]=='forget':raise policy.BackupError('synthetic prune failure')
         return b'{"message_type":"summary","snapshot_id":"new-snapshot"}\n' if args[0]=='backup' else b'{}'
@@ -292,3 +297,49 @@ def test_failed_cloud_pruning_cannot_authorize_local_backup_retirement(host,monk
     with pytest.raises(policy.BackupError,match='prune'):
         policy.backup(config)
     assert policy.fresh_offsite_proof(config) is False
+
+
+@pytest.mark.skipif(os.name=='nt',reason='Linux flock integration')
+def test_cloud_job_lock_allows_deployment_but_serializes_other_cloud_jobs(host,monkeypatch):
+    (host/'.deployment-owned').touch()
+    (host/'staging').mkdir()
+    monkeypatch.setattr(os,'geteuid',lambda:0)
+    with policy.offsite_backup_lock():
+        with policy.managed_locks():
+            pass
+        with pytest.raises(policy.LockBusy,match='offsite backup'):
+            with policy.offsite_backup_lock():
+                pass
+
+
+@pytest.mark.skipif(os.name=='nt',reason='Linux flock integration')
+def test_cloud_upload_releases_deployment_locks_and_defers_cleanup_during_release(host,monkeypatch):
+    (host/'.deployment-owned').touch()
+    (host/'staging').mkdir()
+    monkeypatch.setattr(os,'geteuid',lambda:0)
+    config=dict(policy.DEFAULTS,repository='s3:https://oss-cn-beijing.aliyuncs.com/test/policy')
+    stage=host/'runtime/current';stage.mkdir(parents=True)
+    monkeypatch.setattr(policy,'RUNTIME',stage.parent)
+    def metadata(cfg):
+        with pytest.raises(policy.LockBusy):
+            with policy.managed_locks():
+                pass
+        return stage,{}
+    monkeypatch.setattr(policy,'prepare_metadata',metadata)
+    deployment=nullcontext()
+    def cloud(cfg,args,**kw):
+        nonlocal deployment
+        if args[0]=='backup':
+            # A real deployment can acquire all its locks while upload runs.
+            deployment=policy.managed_locks();deployment.__enter__()
+            return b'{"message_type":"summary","snapshot_id":"new-snapshot"}\n'
+        return b'{}'
+    monkeypatch.setattr(policy,'restic',cloud)
+    monkeypatch.setattr(policy,'verify_restore',lambda *a:{'database_restored':True})
+    monkeypatch.setattr(policy,'guard',lambda cfg:(_ for _ in ()).throw(AssertionError('Do not clean during a deployment')))
+    try:
+        with policy.offsite_backup_lock():result=policy.backup(config)
+    finally:deployment.__exit__(None,None,None)
+    assert result['status']=='offsite_verified'
+    assert result['cleanup']=={'status':'deferred_active_deployment','deleted':[]}
+    assert result['local_database']['status']=='deferred_active_deployment'
