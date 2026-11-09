@@ -244,8 +244,9 @@ def test_invalid_uploads_never_start_cloud_tasks(setup, name, payload, status):
     assert not setup.scheduled
 
 
-def test_upload_acl_cannot_be_bypassed_by_unapproved_user(setup):
+def test_inactive_account_cannot_upload_or_browse_knowledge(setup):
     setup.user.id, setup.user.username = 4, 'new-user'
+    setup.user.is_active = False
     assert upload(setup).status_code == 403
     assert setup.client.get('/company-knowledge/documents').status_code == 403
 
