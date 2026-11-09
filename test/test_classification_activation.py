@@ -31,7 +31,8 @@ def activation(tmp_path,monkeypatch):
     monkeypatch.setattr(module,'link_release',lambda p:None)
     monkeypatch.setattr(module.time,'sleep',lambda _:None)
     real_copy=module.shutil.copyfile
-    config=root/'app.env';config.write_bytes(b'SYNTHETIC CONFIG')
+    config=root/'app.env';config.write_bytes(b'COMPANY_KNOWLEDGE_MODEL=glm-5.2\nMODEL=report-model\nKEY=synthetic-secret\n')
+    monkeypatch.setattr(module,'ENV_FILE',config)
     monkeypatch.setattr(module.shutil,'copyfile',lambda source,destination:real_copy(config if str(source)=='/etc/supermew/app.env' else source,destination))
     calls=[]
     def run(args,**kwargs):
@@ -68,6 +69,24 @@ def test_backup_scope_is_explicit_and_does_not_modify_originals(activation,metad
 def test_other_release_types_cannot_select_metadata_backup(activation,monkeypatch):
     module,root,candidate,calls=activation
     monkeypatch.setattr(module,'verify',lambda p:{'kind':'other-release','commit':'a'*40})
-    with pytest.raises(RuntimeError,match='classification overlay'):
+    with pytest.raises(RuntimeError,match='validated knowledge overlay'):
         module.activate(candidate,root/'current',30,'company.test',True)
     assert not calls and not [p for p in (root/'backups').iterdir() if p.is_dir()]
+
+
+def test_model_switch_changes_only_the_scoped_model_and_restores_on_failed_start(activation,monkeypatch):
+    module,root,candidate,calls=activation
+    original=module.ENV_FILE.read_bytes()
+    monkeypatch.setattr(module,'verify',lambda p:{'kind':'knowledge-reliability-overlay','commit':'a'*40,
+        'knowledge_model_update':{'expected':'glm-5.2','target':'glm-5.3-flash'}})
+    starts=[]
+    def ready():
+        starts.append(module.ENV_FILE.read_bytes())
+        if len(starts)==1:raise RuntimeError('Synthetic failed startup')
+        return {'instance_id':'restored'}
+    monkeypatch.setattr(module,'await_ready',ready)
+    with pytest.raises(RuntimeError,match='Synthetic failed startup'):
+        module.activate(candidate,root/'current',30,'company.test',True)
+    assert starts[0]==original.replace(b'glm-5.2',b'glm-5.3-flash')
+    assert starts[1]==original and module.ENV_FILE.read_bytes()==original
+    assert not module.FLAG.exists()

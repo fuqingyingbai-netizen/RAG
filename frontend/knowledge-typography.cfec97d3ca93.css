@@ -1,0 +1,80 @@
+/* A restrained type scale shared by the four knowledge views. */
+:root[data-knowledge-theme] .ckb-workbench { font-size:13px; }
+#app .company-knowledge-shell .compact-topbar .compact-page-heading > h1 { font-size:18px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-tab-copy strong { font-size:14px; line-height:21px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-tab-indicator { display:none; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-library-heading h2 { font-size:24px; line-height:32px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-library-heading .ckb-heading-count { font-size:13px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-library-sidebar > button { font-size:13px; line-height:21px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-library-tools .ckb-search input { font-size:14px; line-height:22px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-library-tools .ckb-search > i { font-size:14px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-library-heading .ckb-library-tools .ckb-button { font-size:14px!important; line-height:22px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-catalog-toolbar .ckb-search-modes > button,
+:root[data-knowledge-theme] .ckb-workbench .ckb-catalog-toolbar > button,
+:root[data-knowledge-theme] .ckb-workbench .ckb-catalog-controls select,
+:root[data-knowledge-theme] .ckb-workbench .ckb-catalog-controls input[type="date"] { font-size:14px; line-height:22px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-catalog-advanced > label,
+:root[data-knowledge-theme] .ckb-workbench .ckb-catalog-date { font-size:12px; line-height:19px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-simple-home h3 { font-size:16px; line-height:24px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-simple-atlas > summary strong { font-size:15px; line-height:23px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-simple-home p { font-size:13px; line-height:21px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-home-activity-tabs > button { font-size:14px; line-height:22px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-simple-files .ckb-simple-file-name strong { font-size:14px; line-height:22px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-simple-files .ckb-simple-file-name > span { font-size:13px; line-height:20px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-simple-review,
+:root[data-knowledge-theme] .ckb-workbench .ckb-simple-files time { font-size:12px; line-height:19px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-simple-home .ckb-simple-button,
+:root[data-knowledge-theme] .ckb-workbench .ckb-simple-search-row input { font-size:14px; line-height:22px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-simple-link { font-size:13px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-simple-atlas .ckb-atlas-node > span { font-size:12px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-simple-atlas .ckb-atlas-node > strong { font-size:24px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-simple-atlas .ckb-atlas-core > strong { font-size:35px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-chat-welcome h3 { font-size:26px; line-height:1.4; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-live-answer,
+:root[data-knowledge-theme] .ckb-workbench .ckb-user-question { font-size:13px; line-height:1.75; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-answer-table :is(th,td) { font-size:12px; line-height:1.7; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-composer textarea { font-size:13px; line-height:1.75; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-case-title { font-size:13px!important; line-height:1.65; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-case-empty h3 { font-size:20px; }
+:root[data-knowledge-theme] .ckb-project-detail-popover .ckb-project-preview-header strong { font-size:16px; line-height:23px; }
+:root[data-knowledge-theme] .ckb-project-detail-popover .ckb-project-preview-description { font-size:13px; line-height:1.75; }
+:root[data-knowledge-theme] .ckb-project-detail-popover .ckb-project-preview-stats strong { font-size:20px; }
+:root[data-knowledge-theme] .ckb-project-detail-popover .ckb-project-preview dl { font-size:12px; line-height:20px; }
+:root[data-knowledge-theme] .ckb-project-detail-popover .ckb-project-preview-footer button { font-size:13px; }
+:root[data-knowledge-theme] .ckb-dialog .el-dialog__title { font-size:16px; }
+
+/* Header and project rows use identical column geometry and leading icon space. */
+.ckb-workbench { --kt-meta-width:108px; --kt-action-width:68px; --kt-column-gap:20px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-project-list-head {
+  grid-template-columns:minmax(0,1fr) var(--kt-meta-width) var(--kt-meta-width) var(--kt-action-width);
+  gap:var(--kt-column-gap); min-height:34px; padding:7px 16px; margin-bottom:2px;
+  border:1px solid transparent; border-bottom-color:var(--ku-day-line); border-radius:6px;
+  background:var(--ku-day-surface-soft); color:var(--ku-day-ink); font-size:12px; font-weight:500; line-height:18px;
+}
+:root[data-knowledge-theme] .ckb-workbench .ckb-project-list-head > span:first-child { padding-left:34px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-project-list-head > :last-child { text-align:center; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-library-content .ckb-directory-grid > .ckb-project-directory.ckb-project-row {
+  grid-template-columns:minmax(0,1fr) var(--kt-action-width); gap:var(--kt-column-gap); min-height:60px;
+}
+:root[data-knowledge-theme] .ckb-workbench .ckb-project-row .ckb-project-door {
+  grid-template-columns:minmax(0,1fr) calc(var(--kt-meta-width) + var(--kt-meta-width) + var(--kt-column-gap));
+  gap:var(--kt-column-gap); min-height:60px; padding:12px 0;
+}
+:root[data-knowledge-theme] .ckb-workbench .ckb-project-row h3 { gap:10px; font-size:14px; line-height:22px; font-weight:550; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-project-row .ckb-project-folder-icon { width:24px; height:24px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-project-row .ckb-project-card-meta { grid-template-columns:minmax(0,1fr) var(--kt-meta-width); gap:var(--kt-column-gap); font-size:12px; line-height:20px; }
+@media(max-width:700px) {
+  :root[data-knowledge-theme] .ckb-workbench .ckb-tab-copy strong { font-size:13px; }
+  :root[data-knowledge-theme] .ckb-workbench .ckb-library-heading h2 { font-size:22px; line-height:30px; }
+  :root[data-knowledge-theme] .ckb-workbench .ckb-chat-welcome h3 { font-size:23px; }
+  :root[data-knowledge-theme] .ckb-workbench .ckb-project-list-head { display:none; }
+  :root[data-knowledge-theme] .ckb-workbench .ckb-library-content .ckb-directory-grid > .ckb-project-directory.ckb-project-row { gap:12px; }
+  :root[data-knowledge-theme] .ckb-workbench .ckb-project-row .ckb-project-door { grid-template-columns:minmax(0,1fr); gap:6px; min-height:78px; }
+  :root[data-knowledge-theme] .ckb-workbench .ckb-project-row .ckb-project-card-meta { grid-template-columns:minmax(0,1fr) auto; gap:10px; }
+}
+@media(max-width:600px) {
+  :root[data-knowledge-theme] .ckb-workbench .ckb-library-tools .ckb-search input,
+  :root[data-knowledge-theme] .ckb-workbench .ckb-simple-search-row input,
+  :root[data-knowledge-theme] .ckb-workbench .ckb-catalog-controls select,
+  :root[data-knowledge-theme] .ckb-workbench .ckb-composer textarea { font-size:16px; }
+}

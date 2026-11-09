@@ -94,6 +94,12 @@ async def model_settings(client, cfg):
 
 def model_request_options(config):
     from model_provider_options import official_deepseek
+    model = str(config['model']).lower().rsplit('/', 1)[-1]
+    # GLM-5.3 models require thinking; Qwen's enable_thinking is not portable.
+    if model.startswith('glm-5.3-flash'):
+        return {'reasoning_effort': 'low'}
+    if model.startswith('glm-5.3'):
+        return {}
     # GLM-5.2 uses the thinking object; enable_thinking is a Qwen extension.
     return ({'thinking': {'type': 'disabled'}} if str(config['model']).lower() == 'glm-5.2'
             or official_deepseek(config['model'], config['base_url'])

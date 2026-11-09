@@ -10,6 +10,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import signal
@@ -21,6 +22,29 @@ import urllib.request
 ROOT=Path('/opt/supermew')
 FLAG=Path('/run/supermew-release-draining.flag')
 INGRESS=Path('/etc/nginx/snippets/supermew-public-proxy.conf')
+ENV_FILE=Path('/etc/supermew/app.env')
+
+
+def replace_environment(data):
+    """Atomically preserve protected environment ownership and permissions."""
+    mode=ENV_FILE.stat();temporary=ENV_FILE.with_name('.'+ENV_FILE.name+'.release-next')
+    with temporary.open('xb') as stream:
+        os.chmod(temporary,mode.st_mode & 0o777)
+        if os.name!='nt':os.chown(temporary,mode.st_uid,mode.st_gid)
+        stream.write(data);stream.flush();os.fsync(stream.fileno())
+    temporary.replace(ENV_FILE)
+
+
+def update_knowledge_model(expected,target):
+    if target!='glm-5.3-flash':raise RuntimeError('Unvalidated knowledge model target')
+    original=ENV_FILE.read_bytes();text=original.decode()
+    pattern=r'(?m)^(COMPANY_KNOWLEDGE_MODEL=)([^\r\n]*)'
+    values=re.findall(pattern,text)
+    if len(values)!=1 or values[0][1].strip().strip('\"\'')!=expected:
+        raise RuntimeError('Knowledge model configuration changed since preflight')
+    changed,count=re.subn(pattern,lambda match:match[1]+target,text);assert count==1
+    replace_environment(changed.encode())
+    return original
 
 
 def run(args,timeout=300,**kwargs):
@@ -85,8 +109,11 @@ def activate(candidate,expected,wait,public_host,metadata_backup=False):
             lock=stack.enter_context((ROOT/name).open('a'))
             fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         manifest=verify(candidate)
-        if metadata_backup and manifest.get('kind')!='knowledge-two-levels-overlay':
-            raise RuntimeError('Metadata-only backup is limited to the classification overlay')
+        if metadata_backup and manifest.get('kind') not in ('knowledge-two-levels-overlay','knowledge-reliability-overlay'):
+            raise RuntimeError('Metadata-only backup is limited to a validated knowledge overlay')
+        model_update=manifest.get('knowledge_model_update')
+        if model_update and manifest.get('kind')!='knowledge-reliability-overlay':
+            raise RuntimeError('Model configuration update requires its validated knowledge overlay')
         old=(ROOT/'current').resolve(strict=True)
         if old!=expected.resolve(strict=True):raise RuntimeError('Current version changed during preparation')
         config=INGRESS.read_text()
@@ -95,7 +122,7 @@ def activate(candidate,expected,wait,public_host,metadata_backup=False):
         run(['nginx','-t'])
         if FLAG.exists():raise RuntimeError('Another maintenance gate is present')
         FLAG.write_text(datetime.now(timezone.utc).isoformat());FLAG.chmod(0o644)
-        stopped=False;vector_stopped=False;success=False;backup=None
+        stopped=False;vector_stopped=False;success=False;backup=None;previous_environment=None
         try:
             # Verify the active ingress actually refuses new writes before trusting it.
             code=run(['curl','-sS','-o','/dev/null','-w','%{http_code}','--resolve',
@@ -128,7 +155,7 @@ def activate(candidate,expected,wait,public_host,metadata_backup=False):
             for name in (() if metadata_backup else ('data','milvus')):
                 with tarfile.open(backup/(name+'.tar.gz'),'w:gz',compresslevel=1) as archive:
                     archive.add(ROOT/'shared'/name,arcname=name)
-            shutil.copyfile('/etc/supermew/app.env',backup/'app.env')
+            shutil.copyfile(ENV_FILE,backup/'app.env')
             shutil.copyfile(old/'release-manifest.json',backup/'previous-release-manifest.json')
             checksums={}
             for path in backup.iterdir():
@@ -138,6 +165,7 @@ def activate(candidate,expected,wait,public_host,metadata_backup=False):
             (backup/'verification.json').write_text(json.dumps({'previous':str(old),'new_commit':manifest['commit'],'scope':scope,'checksums':checksums},indent=2))
             (backup/('METADATA_COMPLETE' if metadata_backup else 'COMPLETE')).touch(mode=0o600)
             if vector_stopped:run(['docker','start','supermew-milvus']);vector_stopped=False
+            if model_update:previous_environment=update_knowledge_model(model_update['expected'],model_update['target'])
             link_release(candidate)
             run(['systemctl','start','supermew'])
             loaded=await_ready()
@@ -151,6 +179,7 @@ def activate(candidate,expected,wait,public_host,metadata_backup=False):
                 if vector_stopped:run(['docker','start','supermew-milvus'])
                 if stopped and not success:
                     run(['systemctl','stop','supermew'])
+                    if previous_environment is not None:replace_environment(previous_environment)
                     if (ROOT/'current').resolve()!=old:link_release(old)
                     run(['systemctl','start','supermew']);await_ready()
                     print(json.dumps({'status':'rolled_back','current':str(old),'backup':str(backup)}),flush=True)

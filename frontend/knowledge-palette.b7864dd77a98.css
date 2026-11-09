@@ -1,0 +1,82 @@
+/* One blue palette for knowledge chrome; source media and file-type colours stay intact. */
+:root[data-knowledge-theme="light"] {
+  --ku-day-canvas:#eaf1f8; --ku-day-surface:#f6f9fd; --ku-day-surface-soft:#edf3fa; --ku-day-surface-tint:#dfeaf6;
+  --ku-day-ink-strong:#233e60; --ku-day-ink:#415d7a; --ku-day-muted:#5c738d; --ku-day-inverse:#fff;
+  --ku-day-line:#cad8e8; --ku-day-line-soft:#dce5ef; --ku-day-glow:#6e97bf18; --ku-day-shadow:#25466c14;
+  --ku-day-accent:#315e91; --ku-day-link:#315e91; --ku-day-violet:#6282a4; --ku-day-violet-soft:#e5eef8;
+  --ku-day-success:#287252; --ku-day-success-soft:#e7f3ec; --ku-day-warning:#8e621d; --ku-day-warning-soft:#fbf2e1; --ku-day-danger:#a74a4a; --ku-day-danger-soft:#faeded;
+  --kb-primary-hover:#244e7c; --kb-selected:#dfeaf7; --kb-field:#f8fbff; --kb-rim:#ffffffd9;
+}
+:root[data-knowledge-theme="dark"] {
+  --ku-day-canvas:#101d2d; --ku-day-surface:#15263b; --ku-day-surface-soft:#1b3048; --ku-day-surface-tint:#23415f;
+  --ku-day-ink-strong:#dce7f3; --ku-day-ink:#b2c4d8; --ku-day-muted:#91a9c3; --ku-day-inverse:#14283f;
+  --ku-day-line:#34506e; --ku-day-line-soft:#29435f; --ku-day-glow:#739ac51a; --ku-day-shadow:#04101f40;
+  --ku-day-accent:#8fb2db; --ku-day-link:#8fb2db; --ku-day-violet:#9aafc7; --ku-day-violet-soft:#203851;
+  --ku-day-success:#8bc9ac; --ku-day-success-soft:#193c32; --ku-day-warning:#e1c18a; --ku-day-warning-soft:#3c3122; --ku-day-danger:#f0a8a8; --ku-day-danger-soft:#432b34;
+  --kb-primary-hover:#aac7e8; --kb-selected:#244362; --kb-field:#172b42; --kb-rim:#b8d1ee24;
+}
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-project-detail-popover) {
+  --kp-surface:var(--ku-day-surface); --kp-hover:var(--ku-day-surface-soft); --kp-line:var(--ku-day-line);
+  --kp-icon:var(--ku-day-accent); --kp-icon-bg:var(--ku-day-surface-tint); --kp-muted:var(--ku-day-muted); --kp-ink:var(--ku-day-ink-strong);
+}
+:root[data-knowledge-theme] .ckb-workbench[data-simple-home="true"] {
+  --hs-bg:var(--ku-day-canvas); --hs-paper:var(--ku-day-surface); --hs-soft:var(--ku-day-surface-soft);
+  --hs-text:var(--ku-day-ink-strong); --hs-muted:var(--ku-day-muted); --hs-line:var(--ku-day-line); --hs-accent:var(--ku-day-accent);
+}
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog,.ckb-glass-surface) {
+  --kg-dialog:var(--ku-day-surface); --kg-card:var(--ku-day-surface); --kg-field:var(--kb-field);
+  --kg-edge:var(--ku-day-line); --kg-rim:var(--kb-rim); --kg-glint:var(--ku-day-glow);
+  --kg-shadow:var(--ku-day-shadow); --kg-frost:var(--ku-day-glow); --kg-lens-fill:var(--ku-day-surface);
+  --kg-lens-edge:var(--ku-day-surface-tint); --kg-optic-shadow:var(--ku-day-shadow); --kg-lens-line:var(--ku-day-line);
+}
+:root[data-knowledge-theme] .company-knowledge-shell > .el-main {
+  background:linear-gradient(135deg,var(--ku-day-surface-soft),var(--ku-day-canvas));
+}
+:root[data-knowledge-theme] .ckb-workbench .ckb-navigation {
+  background:var(--ku-day-surface)!important; border-color:var(--ku-day-line); box-shadow:none;
+}
+:root[data-knowledge-theme] .ckb-workbench .ckb-navigation .ckb-tabs > button.active {
+  background:var(--kb-selected)!important; color:var(--ku-day-accent)!important; box-shadow:none;
+}
+:root[data-knowledge-theme] .ckb-tabs > button.active :is(i,strong),
+:root[data-knowledge-theme] .ckb-workbench .ckb-theme-toggle { color:var(--ku-day-accent); text-shadow:none; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-tabs > button.active::after,
+:root[data-knowledge-theme] .ckb-workbench .ckb-tab-indicator { background:var(--ku-day-accent); box-shadow:none; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-library-sidebar > button.active {
+  background:var(--kb-selected); color:var(--ku-day-accent); box-shadow:inset 3px 0 var(--ku-day-accent);
+}
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) .ckb-button-primary,
+:root[data-knowledge-theme] .ckb-simple-home .ckb-simple-button.is-primary,
+:root[data-knowledge-theme] .ckb-workbench .ckb-composer button {
+  background:var(--ku-day-accent); border-color:var(--ku-day-accent); color:var(--ku-day-inverse); box-shadow:none;
+}
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) .ckb-button-primary:hover:not(:disabled),
+:root[data-knowledge-theme] .ckb-simple-home .ckb-simple-button.is-primary:hover:not(:disabled),
+:root[data-knowledge-theme] .ckb-workbench .ckb-composer button:hover:not(:disabled) {
+  background:var(--kb-primary-hover); border-color:var(--kb-primary-hover); color:var(--ku-day-inverse);
+}
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) .ckb-button-outline { background:var(--ku-day-surface-soft); border-color:var(--ku-day-line); color:var(--ku-day-link); }
+:root[data-knowledge-theme] .ckb-workbench :is(.ckb-chat-aside,.ckb-chat-main,.ckb-user-question,.ckb-case-card,.ckb-case-empty,.ckb-project-art,.ckb-file-art,.ckb-mini-cover) {
+  background:var(--ku-day-surface); border-color:var(--ku-day-line);
+}
+:root[data-knowledge-theme] .ckb-workbench .ckb-chat-aside { --kg-rail-fill:var(--ku-day-surface-soft); --kg-rail-glow:var(--ku-day-glow); background:var(--ku-day-surface-soft); }
+:root[data-knowledge-theme] .ckb-workbench .ckb-chat-aside > .ckb-new-conversation { background:var(--kb-selected); color:var(--ku-day-link); border-color:var(--ku-day-line); box-shadow:none; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-suggestions > button { background:var(--ku-day-surface-soft); border-color:var(--ku-day-line); }
+:root[data-knowledge-theme] .ckb-workbench .ckb-user-question { background:var(--kb-selected); color:var(--ku-day-ink-strong); }
+:root[data-knowledge-theme] .ckb-workbench :is(.ckb-file-card.selected,.ckb-case-card.selected) { background:var(--kb-selected); border-color:var(--ku-day-accent); box-shadow:0 0 0 1px var(--ku-day-accent); }
+:root[data-knowledge-theme] .ckb-workbench .ckb-chat-ambience > span { background:var(--ku-day-glow); }
+:root[data-knowledge-theme] .ckb-workbench .ckb-composer::before { background-image:linear-gradient(115deg,transparent 10%,var(--ku-day-accent) 40%,var(--ku-day-violet) 56%,transparent 88%); }
+:root[data-knowledge-theme] .ckb-workbench .ckb-atlas-node { background:var(--ku-day-surface); border-color:var(--ku-day-line); box-shadow:0 5px 16px var(--ku-day-shadow); }
+:root[data-knowledge-theme] .ckb-workbench :is(.ckb-atlas-cases,.ckb-atlas-templates) { border-color:var(--ku-day-line); }
+:root[data-knowledge-theme] .ckb-workbench :is(.ckb-atlas-cases,.ckb-atlas-templates) > span > i:first-child { color:var(--ku-day-accent); }
+:root[data-knowledge-theme] .ckb-workbench .ckb-orbit-core { fill:var(--ku-day-accent); }
+:root[data-knowledge-theme] .ckb-glass-surface > .ckb-glass-rim { background:linear-gradient(145deg,var(--kb-rim),var(--ku-day-surface-tint),var(--kb-rim)); }
+:root[data-knowledge-theme] .ckb-project-dialog .ckb-project-editor > aside { background:linear-gradient(155deg,var(--ku-day-surface-soft),var(--ku-day-surface-tint)); border-color:var(--ku-day-line); }
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) .ckb-folder-back { background:linear-gradient(145deg,var(--ku-day-violet),var(--ku-day-accent)); border-color:var(--ku-day-line); }
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) .ckb-folder-lid { background:linear-gradient(145deg,var(--ku-day-surface-tint),var(--ku-day-accent)); border-color:var(--ku-day-line); box-shadow:inset 0 1px var(--kb-rim),0 5px 14px var(--ku-day-shadow); }
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) .ckb-folder-lid > i { color:var(--ku-day-inverse); }
+:root[data-knowledge-theme] .ckb-dialog .el-dialog__title { color:var(--ku-day-ink-strong); }
+:root[data-knowledge-theme] .kn-dialog.el-dialog {
+  --kn-ink:var(--ku-day-ink-strong); --kn-muted:var(--ku-day-muted); --kn-line:var(--ku-day-line);
+  --kn-panel:var(--ku-day-surface-soft); --kn-hover:var(--kb-selected); --kn-accent:var(--ku-day-accent); --kn-danger:var(--ku-day-danger);
+}

@@ -2,11 +2,11 @@
 
 ## 2026-11-06 独立知识库模型
 
-回答生成、追问补全和长对话摘要统一读取 `COMPANY_KNOWLEDGE_MODEL`、`COMPANY_KNOWLEDGE_BASE_URL`、`COMPANY_KNOWLEDGE_API_KEY`。生产知识库固定为中转站 `https://llm.goaichat.top/v1` 的 `glm-5.2`，密钥只保存在受保护的环境配置中。文档解析、索引、检索和重排继续使用 `BAILIAN_KNOWLEDGE_*`。创建背调任务及其全局模型配置保持不变。
+回答生成、追问补全和长对话摘要统一读取 `COMPANY_KNOWLEDGE_MODEL`、`COMPANY_KNOWLEDGE_BASE_URL`、`COMPANY_KNOWLEDGE_API_KEY`。2026-11-09 实测原 `glm-5.2` 通道超时后，生产知识库已切为同一中转站 `https://llm.goaichat.top/v1` 的 `glm-5.3-flash`，密钥只保存在受保护的环境配置中。文档解析、索引、检索和重排继续使用 `BAILIAN_KNOWLEDGE_*`。创建背调任务及其全局模型配置保持不变。
 
 三项独立配置必须同时填写；部分填写时报配置错误，不能悄悄切回其他服务。兼容未配置独立模型的旧部署：优先使用完整的全局模型三项，再使用百炼 Agent 模型。推理不再分别选择两个服务。补全调用的权限、连接和格式错误会显示为服务错误；只有模型明确返回对象不明时，才要求用户补充对象。补全与摘要的单次总超时为 90 秒，生成的读取超时为 120 秒，会话总时限为 330 秒，低于写入租约的 360 秒。
 
-GLM-5.2 请求使用 `thinking: {type: disabled}`，而非 Qwen 的 `enable_thinking` 字段，避免非预期的长思考占用回复和 JSON 补全预算。该参数仅对已验证支持的 GLM-5.2 启用，不套用于强制思考的 GLM-5.3。参数依据：[智谱思考模式文档](https://docs.bigmodel.cn/cn/guide/capabilities/thinking-mode)。
+GLM-5.3-Flash 不发送关闭思考参数，使用 `reasoning_effort: low` 控制延迟；推理内容不作为回答展示。模型名替换后必须验证普通和流式请求，不能把通道故障视为未接入中转站。GLM-5.2 兼容请求使用 `thinking: {type: disabled}`，而非 Qwen 的 `enable_thinking` 字段，避免非预期的长思考占用回复和 JSON 补全预算。该参数仅对已验证支持的 GLM-5.2 启用，不套用于强制思考的 GLM-5.3。参数依据：[智谱思考模式文档](https://docs.bigmodel.cn/cn/guide/capabilities/thinking-mode)。
 
 ## 2026-11-03 知识工作区与案例库
 
@@ -36,7 +36,7 @@ BAILIAN_KNOWLEDGE_BASE_URL=https://YOUR_WORKSPACE_ID.cn-beijing.maas.aliyuncs.co
 BAILIAN_KNOWLEDGE_AGENT_ID=your_published_chat_agent_id
 BAILIAN_KNOWLEDGE_INDEX_ID=your_knowledge_index_id
 BAILIAN_KNOWLEDGE_CATEGORY_ID=default
-COMPANY_KNOWLEDGE_MODEL=glm-5.2
+COMPANY_KNOWLEDGE_MODEL=glm-5.3-flash
 COMPANY_KNOWLEDGE_BASE_URL=https://llm.goaichat.top/v1
 COMPANY_KNOWLEDGE_API_KEY=your_knowledge_model_key
 COMPANY_KNOWLEDGE_USERS=employee_username_1,employee_username_2
@@ -205,3 +205,5 @@ sudo apt-get install --no-install-recommends libreoffice-writer libreoffice-calc
 相同项目中不同子目录允许同名文件。相同目录内相同内容提示重复，内容不同创建新版本。文件原件的对象存储键不随目录/文件名变化。历史原件与现有问答权限过滤继续生效。
 
 升级增加 company_projects、company_folders 及文档的 knowledge_project_id/folder_id/inherits_project 字段；旧的全项目同名唯一索引改为目录维度唯一索引。旧资料按知识库、上传者和项目名称建立项目 ID，空项目名归入“未归档资料”，保留旧属性与文件 ACL，不迁移或复制原件字节。重复执行不产生重复项目。项目更名同步目录内资料的项目名称；项目属性变化后需要的音视频说明会重新索引，正在处理时拒绝冲突编辑。
+
+2026-11-09 兼容修复：保留线上项目列表、悬停详情及其配套样式，发布按成套组件/样式校验；空笔记和仅标题笔记在前端禁用发布并给出填写提示，后端仍以 422 校验防绕过。有内容的笔记按保存草稿→发布快照→索引完成执行。权限申请由所有启用管理员共享审批，页面定时刷新待审批数量，不发送邮件或短信。

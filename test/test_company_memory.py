@@ -363,3 +363,9 @@ def test_partial_knowledge_provider_does_not_fall_back_to_report_provider(env,mo
             await kb.model_settings(client,kb.settings())
     with pytest.raises(kb.KnowledgeError,match='模型配置不完整'):
         asyncio.run(check())
+
+
+@pytest.mark.parametrize('model',['glm-5.3','glm-5.3-flash','ZHIPU/GLM-5.3'])
+def test_forced_thinking_models_do_not_receive_disable_thinking_options(model):
+    expected={'reasoning_effort':'low'} if model=='glm-5.3-flash' else {}
+    assert kb.model_request_options({'model':model,'base_url':'https://relay.example/v1'})==expected
