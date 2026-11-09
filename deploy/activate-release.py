@@ -20,6 +20,7 @@ import urllib.request
 
 ROOT=Path('/opt/supermew')
 FLAG=Path('/run/supermew-release-draining.flag')
+INGRESS=Path('/etc/nginx/snippets/supermew-public-proxy.conf')
 
 
 def run(args,timeout=300,**kwargs):
@@ -75,7 +76,7 @@ def await_ready(timeout=90):
     raise RuntimeError('Application did not become ready')
 
 
-def activate(candidate,expected,wait,public_host):
+def activate(candidate,expected,wait,public_host,metadata_backup=False):
     if os.geteuid()!=0 or not (ROOT/'.deployment-owned').is_file():
         raise RuntimeError('Expected root on the managed supermew deployment')
     os.umask(0o077)
@@ -84,9 +85,11 @@ def activate(candidate,expected,wait,public_host):
             lock=stack.enter_context((ROOT/name).open('a'))
             fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         manifest=verify(candidate)
+        if metadata_backup and manifest.get('kind')!='knowledge-two-levels-overlay':
+            raise RuntimeError('Metadata-only backup is limited to the classification overlay')
         old=(ROOT/'current').resolve(strict=True)
         if old!=expected.resolve(strict=True):raise RuntimeError('Current version changed during preparation')
-        config=Path('/etc/nginx/snippets/supermew-public-proxy.conf').read_text()
+        config=INGRESS.read_text()
         if '# supermew-release-drain-v1' not in config or str(FLAG) not in config:
             raise RuntimeError('Validated public mutation gate is not installed')
         run(['nginx','-t'])
@@ -113,14 +116,16 @@ def activate(candidate,expected,wait,public_host):
             stopped=True;run(['systemctl','stop','supermew'])
             backup=ROOT/'backups'/datetime.now(timezone.utc).strftime('knowledge-release-%Y%m%dT%H%M%SZ')
             backup.mkdir(mode=0o700)
-            if run(['docker','inspect','--format','{{.State.Running}}','supermew-milvus']).strip()==b'true':
+            if not metadata_backup and run(['docker','inspect','--format','{{.State.Running}}','supermew-milvus']).strip()==b'true':
                 vector_stopped=True;run(['docker','stop','-t','30','supermew-milvus'])
             print(json.dumps({'phase':'consistent_backup','directory':str(backup)}),flush=True)
             with (backup/'database.dump').open('xb') as out:
                 result=subprocess.run(['runuser','-u','postgres','--','pg_dump','-d','supermew','-Fc'],stdout=out,stderr=subprocess.PIPE,timeout=300)
                 if result.returncode:raise RuntimeError('Database backup failed')
             run(['pg_restore','--list',str(backup/'database.dump')])
-            for name in ('data','milvus'):
+            # This bounded overlay changes only database classification metadata;
+            # original files and vector data are not migration targets.
+            for name in (() if metadata_backup else ('data','milvus')):
                 with tarfile.open(backup/(name+'.tar.gz'),'w:gz',compresslevel=1) as archive:
                     archive.add(ROOT/'shared'/name,arcname=name)
             shutil.copyfile('/etc/supermew/app.env',backup/'app.env')
@@ -129,14 +134,15 @@ def activate(candidate,expected,wait,public_host):
             for path in backup.iterdir():
                 if path.is_file():
                     with path.open('rb') as stream:checksums[path.name]=hashlib.file_digest(stream,'sha256').hexdigest()
-            (backup/'verification.json').write_text(json.dumps({'previous':str(old),'new_commit':manifest['commit'],'checksums':checksums},indent=2))
-            (backup/'COMPLETE').touch(mode=0o600)
+            scope='database-and-config' if metadata_backup else 'full'
+            (backup/'verification.json').write_text(json.dumps({'previous':str(old),'new_commit':manifest['commit'],'scope':scope,'checksums':checksums},indent=2))
+            (backup/('METADATA_COMPLETE' if metadata_backup else 'COMPLETE')).touch(mode=0o600)
             if vector_stopped:run(['docker','start','supermew-milvus']);vector_stopped=False
             link_release(candidate)
             run(['systemctl','start','supermew'])
             loaded=await_ready()
             success=True
-            receipt={'status':'activated','commit':manifest['commit'],'previous':str(old),'backup':str(backup),
+            receipt={'status':'activated','commit':manifest['commit'],'previous':str(old),'backup':str(backup),'backup_scope':scope,
                      'time_utc':datetime.now(timezone.utc).isoformat(),'loaded':loaded,'drained_workloads':busy}
             (ROOT/('knowledge-release-receipt-'+candidate.name[:12]+'.json')).write_text(json.dumps(receipt,indent=2))
             print(json.dumps(receipt),flush=True)
@@ -158,9 +164,10 @@ if __name__=='__main__':
     parser.add_argument('--wait-seconds',type=int,default=1800)
     parser.add_argument('--public-host',required=True)
     parser.add_argument('--run',action='store_true',required=True)
+    parser.add_argument('--metadata-only-backup',action='store_true',help='Only for the validated two-level classification overlay; originals and vectors are unchanged.')
     args=parser.parse_args()
     def interrupted(signum,frame):raise InterruptedError('Deployment interrupted; restoring the previous service')
     signal.signal(signal.SIGTERM,interrupted)
     if not args.public_host or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-' for c in args.public_host):
         parser.error('Expected a public hostname')
-    activate(args.candidate,args.expected_current,args.wait_seconds,args.public_host)
+    activate(args.candidate,args.expected_current,args.wait_seconds,args.public_host,args.metadata_only_backup)

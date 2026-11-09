@@ -2,7 +2,7 @@
 import hashlib
 from sqlalchemy import select
 
-from company_catalog import CompanyDocument, document_store
+from company_catalog import CompanyDocument, document_store, normalize_confidentiality
 from models import User
 
 
@@ -34,9 +34,9 @@ def archive_report(db, project, artifact):
         raise ValueError('该报告已从知识库删除，请生成新版本后再归档。')
     if doc is None:
         level = 'internal'
-        order = {'internal': 0, 'confidential': 1, 'secret': 2}
+        order = {'internal': 0, 'secret': 1}
         for source in project.sources or []:
-            candidate = (source.source_metadata or {}).get('confidentiality', 'internal')
+            candidate = normalize_confidentiality((source.source_metadata or {}).get('confidentiality', 'internal'))
             if order.get(candidate, 0) > order[level]:
                 level = candidate
         # The version header also prevents repeated report bodies colliding with

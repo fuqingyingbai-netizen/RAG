@@ -133,7 +133,7 @@ class CompanyAuditEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 
-CONFIDENTIALITY_LABELS = {'internal': '内部', 'confidential': '敏感', 'secret': '机密'}
+CONFIDENTIALITY_LABELS = {'internal': '内部', 'secret': '机密'}
 AUDIO_FORMATS = {'MP3', 'WAV', 'M4A', 'OGG', 'FLAC'}
 VIDEO_FORMATS = {'MP4', 'WEBM'}
 
@@ -142,11 +142,25 @@ def media_kind(doc):
     return 'audio' if doc.format in AUDIO_FORMATS else 'video' if doc.format in VIDEO_FORMATS else ''
 
 
+def normalize_confidentiality(value):
+    # Old open tabs and archived source metadata may still send the former level.
+    return 'secret' if value == 'confidential' else value
+
+
+def migrate_confidentiality_levels(engine):
+    """Consolidate the former sensitive level without broadening any access."""
+    with engine.begin() as connection:
+        for table in ('company_projects', 'company_documents'):
+            connection.exec_driver_sql(
+                "UPDATE " + table + " SET confidentiality='secret' WHERE confidentiality='confidential'")
+
+
 def ensure_company_schema(engine):
     """Install additive catalogue columns when upgrading an existing preview DB."""
     inspector = inspect(engine)
     if 'company_documents' not in inspector.get_table_names():
         Base.metadata.create_all(bind=engine)
+        migrate_confidentiality_levels(engine)
         return
     columns = {column['name'] for column in inspector.get_columns('company_documents')}
     additions = []
@@ -188,6 +202,7 @@ def ensure_company_schema(engine):
         for name in ('uq_company_active_content', 'uq_company_file_version'):
             connection.exec_driver_sql('DROP INDEX IF EXISTS ' + name)
     backfill_company_projects(engine)
+    migrate_confidentiality_levels(engine)
 
 
 def backfill_company_projects(engine):

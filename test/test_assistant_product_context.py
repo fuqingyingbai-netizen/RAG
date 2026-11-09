@@ -75,7 +75,7 @@ def test_current_note_help_and_save_failure_route_to_operating_instructions(setu
 
 def test_version_reports_release_notes_without_model_or_secrets():
     text = answer_for_request(ResearchAssistantRequest(message='现在系统是什么版本，更新了什么？'))
-    assert '2026.11.09.1' in text and '图文笔记' in text and '不跨库' in text
+    assert '2026.11.09.2' in text and '图文笔记' in text and '不跨库' in text
     assert '默认可用' in text and '仅能访问内部资料' in text
     assert '密钥' not in text
     assert '历史版本' in answer_for_request(ResearchAssistantRequest(message='怎么查看历史版本？'))

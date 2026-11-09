@@ -183,10 +183,11 @@ def test_failed_knowledge_config_keeps_report_and_can_be_retried(archive_db, mon
     assert 'knowledge_sync_error' not in artifact.artifact_metadata
 
 
-def test_report_archive_inherits_highest_source_confidentiality(archive_db):
+@pytest.mark.parametrize('source_level', ['confidential', 'secret'])
+def test_report_archive_inherits_highest_source_confidentiality(archive_db, source_level):
     db, project, owner = archive_db
     db.add(ResearchSource(project_id=project.id, source_type='upload', title='机密资料',
-                          source_metadata={'confidentiality': 'secret'}))
+                          source_metadata={'confidentiality': source_level}))
     db.commit(); db.expire(project, ['sources'])
     assert archive_report(db, project, report(db, project)).confidentiality == 'secret'
 

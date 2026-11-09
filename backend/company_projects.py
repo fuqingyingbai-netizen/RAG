@@ -53,11 +53,12 @@ def project_values(project):
 def restrict_to_project(values, project):
     """Project ACL is a ceiling. File exceptions may be narrower, never broader."""
     result = dict(values)
-    validate_confidentiality(result['confidentiality'])
+    result['confidentiality'] = validate_confidentiality(result['confidentiality'])
     result['readers'] = validate_acl(result['visibility'], result['readers'])
-    rank = {'internal': 0, 'confidential': 1, 'secret': 2}
-    if rank[result['confidentiality']] < rank[project.confidentiality]:
-        result['confidentiality'] = project.confidentiality
+    rank = {'internal': 0, 'secret': 1}
+    ceiling = validate_confidentiality(project.confidentiality)
+    if rank[result['confidentiality']] < rank[ceiling]:
+        result['confidentiality'] = ceiling
     if project.visibility == 'restricted' or project.confidentiality != 'internal':
         readers = list(project.readers or [])
         if result['visibility'] == 'restricted':
@@ -92,7 +93,7 @@ class ProjectValues(BaseModel):
         values = self.model_dump()
         values['name'] = clean_name(values['name'])
         values['tags'] = validate_tags(values['tags'])
-        validate_confidentiality(values['confidentiality'], user)
+        values['confidentiality'] = validate_confidentiality(values['confidentiality'], user)
         if values['confidentiality'] != 'internal':
             values['visibility'] = 'restricted'
         values['readers'] = validate_acl(values['visibility'], values['readers'])

@@ -24,7 +24,8 @@ from sqlalchemy.exc import IntegrityError
 import company_knowledge as kb
 from company_catalog import (AUDIO_FORMATS, VIDEO_FORMATS, CONFIDENTIALITY_LABELS, CompanyAccessRequest,
                              CompanyDocument, CompanyProject, can_manage, can_read, document_store, backfill_company_projects,
-                             ensure_company_schema, is_owner, media_kind, serialize, classification_allowed)
+                             ensure_company_schema, is_owner, media_kind, serialize, classification_allowed,
+                             normalize_confidentiality)
 from database import SessionLocal
 from models import User
 from company_audit import record, snapshot, mark_modified, history
@@ -216,10 +217,11 @@ def validate_acl(visibility, readers):
 
 
 def validate_confidentiality(value, user=None):
+    value = normalize_confidentiality(value)
     if value not in CONFIDENTIALITY_LABELS:
         raise HTTPException(422, '请选择有效的保密等级。')
     if user is not None and user.role != 'admin' and value != 'internal':
-        raise HTTPException(403, '普通账号仅可使用内部资料；敏感、机密资料由管理员管理。')
+        raise HTTPException(403, '普通账号仅可使用内部资料；机密资料由管理员管理。')
     return value
 
 
@@ -274,7 +276,7 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
         raise HTTPException(422, '成员账号格式不正确。') from None
     if category not in CATEGORIES or review not in ('待复核', '已复核', '参考资料'):
         raise HTTPException(422, '请选择有效的资料分类和复核状态。')
-    validate_confidentiality(confidentiality, user)
+    confidentiality = validate_confidentiality(confidentiality, user)
     if confidentiality != 'internal':
         visibility = 'restricted'
         acl = validate_acl(visibility, json.loads(readers))
@@ -400,6 +402,8 @@ async def edit_document(doc_id: str, values: DocumentMetadata, user: User = Depe
                         (doc.lease_until and doc.lease_until > datetime.utcnow())):
             raise HTTPException(409, '文字说明仍在建立索引，请处理完成后再修改。')
         confidentiality = validate_confidentiality(changed.get('confidentiality', doc.confidentiality), user)
+        if 'confidentiality' in changed:
+            changed['confidentiality'] = confidentiality
         if confidentiality != 'internal':
             changed['visibility'] = 'restricted'
         acl = validate_acl(changed.get('visibility', doc.visibility), changed.get('readers', doc.readers))
@@ -513,7 +517,7 @@ def decide_access(request_id: str, values: AccessRequestDecision,
         before = snapshot(doc)
         if values.decision == 'approved':
             if doc.confidentiality != 'internal':
-                raise HTTPException(403, '敏感、机密资料不向普通账号开放，不能通过文件授权突破保密等级。')
+                raise HTTPException(403, '机密资料不向普通账号开放，不能通过文件授权突破保密等级。')
             doc.readers = list(dict.fromkeys([*(doc.readers or []), request.requester_username]))
             doc.visibility = 'restricted'
             mark_modified(doc, user)
