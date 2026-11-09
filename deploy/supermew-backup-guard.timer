@@ -1,0 +1,11 @@
+[Unit]
+Description=Check SuperMew backup capacity every 15 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+AccuracySec=1min
+Unit=supermew-backup-guard.service
+
+[Install]
+WantedBy=timers.target

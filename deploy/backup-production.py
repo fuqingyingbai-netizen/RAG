@@ -94,14 +94,14 @@ def backup(retain=7):
 
 
 def main():
-    parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--run',action='store_true',required=True)
-    parser.add_argument('--retain',type=int,default=7)
-    args=parser.parse_args()
-    if not 1<=args.retain<=90:parser.error('retain must be between 1 and 90')
-    def interrupted(signum,frame):raise InterruptedError('Backup interrupted')
-    signal.signal(signal.SIGTERM,interrupted)
-    print(json.dumps(backup(args.retain),indent=2))
+    # Older units may still pass --retain. It no longer enables local full copies.
+    import sys
+    from backup_policy import main as policy_main
+    arguments=list(sys.argv[1:])
+    if '--retain' in arguments:
+        index=arguments.index('--retain')
+        del arguments[index:index+2]
+    return policy_main(arguments)
 
 
-if __name__=='__main__':main()
+if __name__=='__main__':raise SystemExit(main())

@@ -87,6 +87,14 @@ def activate(candidate,expected,wait,public_host,metadata_backup=False):
         manifest=verify(candidate)
         if metadata_backup and manifest.get('kind')!='knowledge-two-levels-overlay':
             raise RuntimeError('Metadata-only backup is limited to the classification overlay')
+        capacity_guard=ROOT/'ops/backup/backup_policy.py'
+        if capacity_guard.is_file():
+            estimated=int(sql("SELECT pg_database_size('supermew')"))+50_000_000
+            if not metadata_backup:
+                for group in ('data','milvus'):
+                    estimated+=int(run(['du','-sxB1',str(ROOT/'shared'/group)]).split()[0])
+            # Check before the ingress gate or any service interruption.
+            run(['python3',str(capacity_guard),'--preflight-bytes',str(estimated)])
         old=(ROOT/'current').resolve(strict=True)
         if old!=expected.resolve(strict=True):raise RuntimeError('Current version changed during preparation')
         config=INGRESS.read_text()
