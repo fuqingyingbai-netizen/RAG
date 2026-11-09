@@ -1,5 +1,7 @@
 """Persistent project/folder workspaces, with inherited upload defaults."""
 import uuid
+import hashlib
+import json
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -189,6 +191,67 @@ async def edit_project(project_id: str, data: ProjectValues, user: User = Depend
         import company_workspace as workspace
         workspace.schedule_document(doc_id)
     return result
+
+
+def deletion_scope(db, project, user):
+    from company_notes import CompanyNote
+    docs = list(db.scalars(select(CompanyDocument).where(
+        CompanyDocument.knowledge_project_id == project.id).order_by(CompanyDocument.id).with_for_update()))
+    notes = list(db.scalars(select(CompanyNote).where(CompanyNote.project_id == project.id)
+        .order_by(CompanyNote.id).with_for_update()))
+    folders = list(db.scalars(select(CompanyFolder).where(CompanyFolder.project_id == project.id)
+        .order_by(CompanyFolder.id).with_for_update()))
+    live = [d for d in docs if d.state != 'deleted']
+    if any(not can_manage(d, user) for d in live) or any(not can_manage(n, user) for n in notes):
+        raise HTTPException(403, '项目内含有你不能管理的资料或笔记，请联系管理员删除整个项目。')
+    if any(d.state in ('queued', 'uploading', 'parsing', 'indexing', 'deleting') or
+            (d.lease_until and d.lease_until > datetime.utcnow()) for d in live):
+        raise HTTPException(409, '项目内仍有资料正在处理，请等待完成后再删除。')
+    fingerprint = [snapshot(project), [(d.id, d.state, str(d.updated_at)) for d in docs],
+        [(n.id, n.revision, str(n.updated_at)) for n in notes], [(f.id, f.name, f.parent_id) for f in folders]]
+    token = hashlib.sha256(json.dumps(fingerprint, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+    preview = {'project_id': project.id, 'name': project.name, 'document_count': len(live),
+        'note_count': len(notes), 'folder_count': len(folders), 'confirmation': token}
+    return preview, live, notes
+
+
+@projects_router.get('/projects/{project_id}/deletion-preview')
+def project_deletion_preview(project_id: str, user: User = Depends(kb.require_knowledge_user)):
+    with SessionLocal() as db:
+        project = find_project(db, project_id, user, manage=True)
+        preview, _, _ = deletion_scope(db, project, user)
+        return preview
+
+
+class ProjectDeletion(BaseModel):
+    confirmation: str = Field(pattern='^[a-f0-9]{64}$')
+
+
+@projects_router.delete('/projects/{project_id}')
+def delete_project(project_id: str, body: ProjectDeletion, user: User = Depends(kb.require_knowledge_user)):
+    with SessionLocal() as db:
+        project = find_project(db, project_id, user, manage=True)
+        preview, docs, notes = deletion_scope(db, project, user)
+        if body.confirmation != preview['confirmation']:
+            raise HTTPException(409, '项目内容已变化，请重新查看删除范围并确认。')
+        before = snapshot(project)
+        for doc in docs:
+            previous = snapshot(doc)
+            doc.state = 'deleted'
+            doc.status_message = '所属项目已删除'
+            mark_modified(doc, user)
+            record(db, user, 'document.delete', doc, before=previous, details={'source': 'project.delete'})
+        for note in notes:
+            record(db, user, 'note.delete', note, before=snapshot(note), details={'source': 'project.delete'})
+        project.deleted_at = datetime.utcnow()
+        # Retain the tree and originals for controlled recovery; release the active name.
+        project.name = '已删除项目 · ' + project.id
+        mark_modified(project, user)
+        event = record(db, user, 'project.delete', project, before=before,
+            details={**preview, 'deleted_at': project.deleted_at.isoformat() + 'Z'})
+        event.target_name = preview['name']
+        db.commit()
+        return {'deleted': True, **{key: preview[key] for key in ('project_id', 'document_count', 'note_count', 'folder_count')}}
 
 
 class FolderValues(BaseModel):

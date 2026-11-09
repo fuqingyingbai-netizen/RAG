@@ -556,3 +556,5 @@
 .ckb-document-controls select{max-width:190px;border:1px solid #b7c7d8;border-radius:6px;padding:4px 6px;background:#f8fbff;color:#27465e;font-size:11px}
 @media(max-width:700px){.ckb-document-controls select{max-width:95px}.ckb-pdf-controls>span{display:none}}
 @media(max-width:700px){.ckb-document-controls{flex-wrap:wrap;row-gap:4px}.ckb-document-controls>span{min-width:0}}
+
+.ckb-project-dialog .el-dialog__footer{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.ckb-project-dialog .ckb-project-delete{margin-right:auto;color:#b93849;border:1px solid rgba(185,56,73,.3);background:rgba(185,56,73,.06)}.ckb-project-dialog .ckb-project-delete:hover{background:rgba(185,56,73,.14)}

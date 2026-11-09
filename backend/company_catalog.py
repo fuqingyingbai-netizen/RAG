@@ -74,6 +74,7 @@ class CompanyProject(Base):
     owner_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_by: Mapped[str] = mapped_column(String(100), default='')
     modified_by: Mapped[str] = mapped_column(String(100), default='')
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     industry: Mapped[str] = mapped_column(String(100), default='')
     tags: Mapped[list] = mapped_column(JSON, default=list)
     description: Mapped[str] = mapped_column(Text, default='')
@@ -193,6 +194,8 @@ def ensure_company_schema(engine):
     if 'company_projects' in inspector.get_table_names():
         project_columns = {column['name'] for column in inspect(engine).get_columns('company_projects')}
         with engine.begin() as connection:
+            if 'deleted_at' not in project_columns:
+                connection.exec_driver_sql('ALTER TABLE company_projects ADD COLUMN deleted_at TIMESTAMP NULL')
             for column in ('created_by', 'modified_by'):
                 if column not in project_columns:
                     connection.exec_driver_sql("ALTER TABLE company_projects ADD COLUMN " + column + " VARCHAR(100) DEFAULT '' NOT NULL")
@@ -262,6 +265,8 @@ def classification_allowed(doc, user):
 
 
 def can_read(doc, user):
+    if getattr(doc, 'deleted_at', None):
+        return False
     # Classification is a ceiling, including for legacy owners and reader grants.
     if not classification_allowed(doc, user):
         return False
@@ -273,7 +278,7 @@ def can_read(doc, user):
 def can_manage(doc, user):
     # Notes inherit their project's ceiling in find_note/find_project.
     permitted = not hasattr(doc, 'confidentiality') or classification_allowed(doc, user)
-    return permitted and (user.role == 'admin' or is_owner(doc, user))
+    return not getattr(doc, 'deleted_at', None) and permitted and (user.role == 'admin' or is_owner(doc, user))
 
 
 STATE_LABELS = {'queued': '等待处理', 'uploading': '上传到知识库', 'parsing': '解析 / OCR 中',

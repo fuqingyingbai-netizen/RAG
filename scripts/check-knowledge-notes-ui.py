@@ -22,7 +22,7 @@ import company_notes
 
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--output-dir',type=Path,required=True);parser.add_argument('--assets-dir',type=Path,required=True);parser.add_argument('--writing-regression',action='store_true');parser.add_argument('--table-regression',action='store_true');parser.add_argument('--publish-regression',action='store_true');args=parser.parse_args();args.output_dir.mkdir(parents=True,exist_ok=True)
+    parser=argparse.ArgumentParser();parser.add_argument('--output-dir',type=Path,required=True);parser.add_argument('--assets-dir',type=Path,required=True);parser.add_argument('--writing-regression',action='store_true');parser.add_argument('--table-regression',action='store_true');parser.add_argument('--publish-regression',action='store_true');parser.add_argument('--project-regression',action='store_true');args=parser.parse_args();args.output_dir.mkdir(parents=True,exist_ok=True)
     with TemporaryDirectory(prefix='note-qa-',ignore_cleanup_errors=True) as temp:
         patch=pytest.MonkeyPatch();generator=setup.__wrapped__(patch,Path(temp));state=next(generator)
         import company_memory
@@ -44,6 +44,7 @@ def main():
                 super().do_GET()
             def do_POST(self):self.api()
             def do_PATCH(self):self.api()
+            def do_DELETE(self):self.api()
             def api(self):
                 payload=self.rfile.read(int(self.headers.get('Content-Length',0)))
                 response=state.client.request(self.command,self.path,content=payload,headers={'Content-Type':self.headers.get('Content-Type','application/json')})
@@ -62,6 +63,9 @@ def main():
             print('QA: launching browser',flush=True);browser=playwright.chromium.launch(channel='msedge',headless=True);page=browser.new_page(viewport={'width':1440,'height':1000},accept_downloads=True);errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
             try:
                 print('QA: opening editor',flush=True);page.goto('http://127.0.0.1:'+str(server.server_port)+'/');expect(page.get_by_role('textbox',name='笔记正文')).to_be_visible()
+                if args.project_regression:
+                    check_project_and_publish(page,state,p,args,Path(temp),errors)
+                    browser.close();server.shutdown();generator.close();patch.undo();return
                 if args.publish_regression:
                     button=page.get_by_role('button',name='发布笔记',exact=True)
                     expect(button).to_be_disabled();expect(page.locator('.kn-writing-hint')).to_contain_text('先写正文或插入图片')
@@ -211,5 +215,72 @@ def check_writing(page,state,note,args,temp):
     assert page.evaluate('document.documentElement.scrollWidth')<=390
     page.screenshot(path=str(args.output_dir/'continue-writing-mobile.png'),animations='disabled')
 
+
+
+def check_project_and_publish(page,state,p,args,temp,errors):
+    from sqlalchemy import select
+    from company_catalog import CompanyDocument,document_store
+    from company_notes import CompanyNote
+    import company_ingestion
+    page.goto(page.url+'full');page.get_by_role('tab',name='经验沉淀',exact=True).click()
+    page.get_by_role('button',name='进入项目：'+p['name'],exact=True).click()
+    expect(page.get_by_role('heading',name=p['name'],exact=True)).to_be_visible()
+    page.get_by_role('button',name='新建图文笔记',exact=True).click()
+    title=page.get_by_role('textbox',name='笔记标题');expect(title).to_be_visible()
+    title.fill('正文和图片发布验证')
+    body=page.get_by_role('textbox',name='笔记正文');body.fill('有内容笔记：保存与发布的结果必须清楚。')
+    picture=io.BytesIO();Image.new('RGB',(250,100),'#d6eefa').save(picture,'PNG');file=temp/'proof.png';file.write_bytes(picture.getvalue())
+    page.locator('.kn-dialog input[type=file]').set_input_files(str(file));expect(body.locator('.kn-image img')).to_be_visible(timeout=30000)
+    page.get_by_role('textbox',name='图片说明',exact=True).fill('用于核对图文归档的图片说明')
+    # Let the server commit, then lose the HTTP response, exactly the ambiguous success case.
+    def lose_response(route):
+        response=route.fetch();assert response.status==200
+        route.abort()
+    page.route('**/company-knowledge/notes/*/publish',lose_response)
+    page.get_by_role('button',name='发布笔记',exact=True).click()
+    expect(page.get_by_role('button',name='已提交发布',exact=True)).to_be_disabled(timeout=30000)
+    expect(page.locator('.kn-publication')).to_contain_text('发布提交成功')
+    expect(page.locator('.kn-dialog .kn-error')).to_have_count(0)
+    page.unroute('**/company-knowledge/notes/*/publish')
+    with state.db() as db:
+        note=db.scalar(select(CompanyNote).where(CompanyNote.title=='正文和图片发布验证'))
+        assert note.project_id==p['id']
+        doc=db.get(CompanyDocument,note.pending_document_id);doc_id=doc.id;key=doc.object_key
+        doc.worker_id='qa-worker';db.commit()
+    with __import__('zipfile').ZipFile(io.BytesIO(document_store().get_bytes(key))) as archive:
+        assert '有内容笔记'.encode() in archive.read('word/document.xml')
+        assert any(name.startswith('word/media/') for name in archive.namelist())
+    company_ingestion.checkpoint(doc_id,'qa-worker',state='ready')
+    with state.db() as db:
+        doc=db.get(CompanyDocument,doc_id);doc.worker_id='';doc.lease_until=None;db.commit()
+    expect(page.get_by_role('button',name='已发布',exact=True)).to_be_disabled(timeout=15000)
+    expect(page.locator('.kn-publication')).to_contain_text('索引完成')
+    page.screenshot(path=str(args.output_dir/'nonempty-publish-confirmed.png'),animations='disabled')
+    page.locator('.kn-dialog .el-dialog__headerbtn').click()
+    page.get_by_role('button',name='项目空间',exact=True).click()
+    # The same settings entry and cancellation work in both independent collections.
+    library=project(state,'资料库删除验证')
+    page.reload()
+    for name,tab in [(p['name'],'经验沉淀'),(library['name'],'资料库')]:
+        page.get_by_role('tab',name=tab,exact=True).click()
+        page.get_by_role('button',name='编辑项目：'+name,exact=True).click()
+        dialog=page.locator('.ckb-project-dialog');expect(dialog).to_be_visible()
+        dialog.get_by_role('button',name='删除项目',exact=True).click()
+        confirm=page.locator('.el-message-box');expect(confirm).to_contain_text('确定删除项目“'+name+'”')
+        confirm.get_by_role('button',name='取消',exact=True).click()
+        expect(dialog).to_be_visible()
+        assert name in [r['name'] for r in state.client.get('/company-knowledge/projects').json()['projects']]
+        dialog.get_by_role('button',name='删除项目',exact=True).click()
+        expect(confirm).to_contain_text('子目录')
+        page.set_viewport_size({'width':390,'height':844})
+        assert page.evaluate('document.documentElement.scrollWidth')<=390
+        page.screenshot(path=str(args.output_dir/('delete-'+tab+'.png')),animations='disabled')
+        confirm.get_by_role('button',name='确认删除整个项目',exact=True).click()
+        expect(dialog).not_to_be_visible(timeout=30000)
+        expect(page.get_by_role('button',name='编辑项目：'+name,exact=True)).to_have_count(0)
+        page.set_viewport_size({'width':1440,'height':1000})
+    assert state.client.get('/company-knowledge/documents/'+doc_id+'/original').status_code==404
+    assert not errors,errors
+    print(json.dumps({'status':'passed','checks':['integrated parent API','text and image publication','server commit with lost response confirmed','ready polling','DOCX text and embedded image','cancel deletion preserves project','delete experience project with note','delete library project','mobile confirmation'],'console_errors':errors},ensure_ascii=False),flush=True)
 
 if __name__=='__main__':main()
