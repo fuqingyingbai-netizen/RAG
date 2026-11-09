@@ -317,6 +317,19 @@ def prepare_metadata(policy):
     for name in ('pyproject.toml', 'uv.lock', 'requirements.txt', 'release-manifest.json'):
         if (current / name).is_file():
             shutil.copyfile(current / name, code / name)
+    operations = stage / 'operations'
+    operations.mkdir()
+    operational_files = {
+        'backup_policy.py': ROOT / 'ops/backup/backup_policy.py',
+        'backup-policy.json': CONFIG,
+        'backup-oss.env': Path('/etc/supermew/backup-oss.env'),
+    }
+    for unit in ('supermew-backup.service', 'supermew-backup.timer',
+                 'supermew-backup-guard.service', 'supermew-backup-guard.timer'):
+        operational_files[unit] = Path('/etc/systemd/system') / unit
+    for name, source in operational_files.items():
+        if source.is_file():
+            shutil.copyfile(source, operations / name)
     sample = next((p for p in (ROOT / 'shared/data/company_knowledge/originals').glob('*')
                    if p.is_file() and not p.is_symlink() and p.stat().st_size <= policy['max_daily_sample_bytes']), None)
     manifest = {'time_utc': now(), 'database_sha256': digest(dump),
