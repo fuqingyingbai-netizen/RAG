@@ -265,3 +265,12 @@ def test_expired_database_rehearsal_prevents_local_retirement(host):
     location.write_text(json.dumps(row))
     policy.guard(config)
     assert older.exists() and newer.exists()
+
+
+def test_missing_oss_credentials_fails_before_network_or_metadata_credentials(monkeypatch):
+    config=dict(policy.DEFAULTS,repository='s3:https://oss-cn-beijing.aliyuncs.com/test/policy')
+    monkeypatch.delenv('AWS_ACCESS_KEY_ID',raising=False)
+    monkeypatch.delenv('AWS_SECRET_ACCESS_KEY',raising=False)
+    monkeypatch.setattr(policy,'command',lambda *a,**kw:(_ for _ in ()).throw(AssertionError('No network command without explicit OSS credentials')))
+    with pytest.raises(policy.BackupError,match='OSS access credentials'):
+        policy.restic(config,['cat','config'])

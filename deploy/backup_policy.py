@@ -250,6 +250,10 @@ def guard(policy):
         warnings.append('local_backup_budget_exceeded')
     if not policy['repository']:
         warnings.append('oss_not_configured_existing_recovery_copies_preserved')
+    elif not os.environ.get('AWS_ACCESS_KEY_ID') or not os.environ.get('AWS_SECRET_ACCESS_KEY'):
+        warnings.append('oss_access_credentials_missing')
+    elif not fresh_offsite_proof(policy):
+        warnings.append('offsite_restore_verification_required')
     return {'time_utc': now(), 'free_bytes': free, 'local_backup_bytes': size,
             'warnings': warnings, 'deleted': deleted,
             'retained_verified_local': verified['path'] if verified else None}
@@ -269,6 +273,8 @@ def preflight(policy, estimated_bytes):
 
 def restic(policy, args, timeout=3600):
     validate_repository(policy['repository'])
+    if not os.environ.get('AWS_ACCESS_KEY_ID') or not os.environ.get('AWS_SECRET_ACCESS_KEY'):
+        raise BackupError('OSS access credentials are required before backup')
     if not os.environ.get('RESTIC_PASSWORD_FILE') and not os.environ.get('RESTIC_PASSWORD'):
         raise BackupError('A separately preserved repository encryption key is required')
     env = dict(os.environ, RESTIC_REPOSITORY=policy['repository'])
