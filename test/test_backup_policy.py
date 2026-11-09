@@ -211,3 +211,57 @@ def test_changed_archive_invalidates_previous_checksum_cache(host):
     (p/'data.tar.gz').write_bytes(b'new corrupt content')
     with pytest.raises(policy.BackupError, match='checksum'):
         policy.verify_legacy(p, cache)
+
+
+@pytest.mark.parametrize('age,expected', [(1,True),(8,False),(-1,False)])
+def test_database_rehearsal_expires_and_rejects_future_clock(host, age, expected):
+    config=dict(policy.DEFAULTS, repository='s3:https://oss-cn-beijing.aliyuncs.com/test/policy')
+    policy.atomic_json(host/'backup-policy/database-drill.json',{
+        'verified_at':(datetime.now(timezone.utc)-timedelta(days=age)).isoformat(),
+        'database_restored':True,'repository_key':policy.repository_key(config),'snapshot_id':'old-drill'})
+    assert bool(policy.recent_database_drill(config))==expected
+
+
+def test_daily_check_restores_manifest_and_small_original_without_full_database_download(host,monkeypatch):
+    monkeypatch.chdir(host)
+    runtime=host/'runtime';runtime.mkdir()
+    monkeypatch.setattr(policy,'RUNTIME',runtime)
+    stage=Path('stage');stage.mkdir()
+    (stage/'database.dump').write_bytes(b'synthetic database archive')
+    original=Path('original.txt');original.write_bytes(b'synthetic original')
+    manifest={'database_sha256':policy.digest(stage/'database.dump'),
+              'sample':{'path':str(original),'sha256':policy.digest(original)}}
+    (stage/'recovery.json').write_text(json.dumps(manifest))
+    config=dict(policy.DEFAULTS,repository='s3:https://oss-cn-beijing.aliyuncs.com/test/policy')
+    timestamp=(datetime.now(timezone.utc)-timedelta(days=1)).isoformat()
+    policy.atomic_json(host/'backup-policy/database-drill.json',{
+        'verified_at':timestamp,'database_restored':True,
+        'repository_key':policy.repository_key(config),'snapshot_id':'previous-weekly-drill'})
+    observed=[]
+    def restic(cfg,args,**kwargs):
+        observed.extend(args)
+        target=Path(args[args.index('--target')+1])
+        for source in (stage/'recovery.json',original):
+            destination=target/str(source)
+            destination.parent.mkdir(parents=True,exist_ok=True)
+            destination.write_bytes(source.read_bytes())
+        return b''
+    monkeypatch.setattr(policy,'restic',restic)
+    monkeypatch.setattr(policy,'command',lambda *a,**kw:(_ for _ in ()).throw(AssertionError('No database restore on daily sample check')))
+    result=policy.verify_restore(config,'new-daily-snapshot',stage,manifest)
+    assert str(stage/'database.dump') not in observed
+    assert result['database_restored'] is False and result['database_drill_verified_at']==timestamp
+    assert result['manifest_restored'] and result['sample_restored']
+
+
+def test_expired_database_rehearsal_prevents_local_retirement(host):
+    older=archive(host,'backup-20261104T190437Z')
+    newer=archive(host,'backup-20261106T190226Z')
+    config=dict(policy.DEFAULTS)
+    proof(host,config)
+    location=host/'backup-policy/offsite-verified.json'
+    row=json.loads(location.read_text())
+    row.update(database_restored=False,database_drill_verified_at=(datetime.now(timezone.utc)-timedelta(days=9)).isoformat())
+    location.write_text(json.dumps(row))
+    policy.guard(config)
+    assert older.exists() and newer.exists()

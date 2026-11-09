@@ -31,6 +31,7 @@ DEFAULTS = {
     'keep_local_full': 1, 'keep_local_database': 2,
     'max_database_bytes': GB, 'stale_partial_hours': 24,
     'keep_daily_days': 7, 'keep_weekly': 4,
+    'database_restore_interval_days': 7, 'max_daily_sample_bytes': 1_000_000,
 }
 
 
@@ -66,7 +67,7 @@ def load_policy(path=CONFIG):
         raise BackupError('Unsupported backup policy schema')
     for key in ('min_free_bytes', 'max_local_bytes', 'keep_local_full',
                 'keep_local_database', 'max_database_bytes', 'stale_partial_hours',
-                'keep_daily_days', 'keep_weekly'):
+                'keep_daily_days', 'keep_weekly', 'database_restore_interval_days', 'max_daily_sample_bytes'):
         if type(policy[key]) is not int or policy[key] <= 0:
             raise BackupError('Invalid positive policy limit: ' + key)
     return policy
@@ -193,8 +194,12 @@ def fresh_offsite_proof(policy):
         return False
     proof = json.loads(file.read_text())
     age = (datetime.now(timezone.utc) - datetime.fromisoformat(proof['verified_at'])).total_seconds()
+    drill_at = proof.get('database_drill_verified_at', proof.get('verified_at') if proof.get('database_restored') else None)
+    drill_age = ((datetime.now(timezone.utc) - datetime.fromisoformat(drill_at)).total_seconds()
+                 if drill_at else float('inf'))
     return (0 <= age < 36 * 3600 and proof.get('repository_key') == repository_key(policy)
-            and proof.get('database_restored') is True and proof.get('sample_restored') is True
+            and 0 <= drill_age <= (policy['database_restore_interval_days'] + 1) * 86400
+            and proof.get('sample_restored') is True
             and bool(proof.get('snapshot_id')))
 
 
@@ -307,7 +312,7 @@ def prepare_metadata(policy):
         if (current / name).is_file():
             shutil.copyfile(current / name, code / name)
     sample = next((p for p in (ROOT / 'shared/data/company_knowledge/originals').glob('*')
-                   if p.is_file() and not p.is_symlink() and p.stat().st_size <= 32_000_000), None)
+                   if p.is_file() and not p.is_symlink() and p.stat().st_size <= policy['max_daily_sample_bytes']), None)
     manifest = {'time_utc': now(), 'database_sha256': digest(dump),
                 'sample': {'path': str(sample), 'sha256': digest(sample)} if sample else None,
                 'scope': 'postgresql, shared/data originals and artifacts, app configuration, release source',
@@ -316,8 +321,22 @@ def prepare_metadata(policy):
     return stage, manifest
 
 
+def recent_database_drill(policy):
+    path = ROOT / 'backup-policy/database-drill.json'
+    if not path.is_file():
+        return None
+    proof = json.loads(path.read_text())
+    age = (datetime.now(timezone.utc) - datetime.fromisoformat(proof['verified_at'])).total_seconds()
+    if (proof.get('repository_key') == repository_key(policy) and proof.get('database_restored') is True
+            and 0 <= age < policy['database_restore_interval_days'] * 86400):
+        return proof
+    return None
+
+
 def verify_restore(policy, snapshot, stage, manifest):
-    if shutil.disk_usage(RUNTIME).free < (stage / 'database.dump').stat().st_size * 2 + 96_000_000:
+    previous_drill = recent_database_drill(policy)
+    do_database_drill = previous_drill is None
+    if do_database_drill and shutil.disk_usage(RUNTIME).free < (stage / 'database.dump').stat().st_size * 2 + 96_000_000:
         raise BackupError('Insufficient bounded runtime space for restore verification')
     target = RUNTIME / 'restore-check'
     if target.is_symlink() or target.resolve().parent != RUNTIME.resolve():
@@ -325,17 +344,28 @@ def verify_restore(policy, snapshot, stage, manifest):
     if target.exists():
         shutil.rmtree(target)
     target.mkdir(mode=0o700)
-    args = ['restore', snapshot, '--target', str(target), '--include', str(stage / 'database.dump')]
+    args = ['restore', snapshot, '--target', str(target), '--include', str(stage / 'recovery.json')]
+    if do_database_drill:
+        args += ['--include', str(stage / 'database.dump')]
     if manifest['sample']:
         args += ['--include', manifest['sample']['path']]
     restic(policy, args)
+    if json.loads((target / str(stage / 'recovery.json').lstrip('/')).read_text()) != manifest:
+        raise BackupError('Restored recovery manifest mismatch')
     restored = target / str(stage / 'database.dump').lstrip('/')
-    if digest(restored) != manifest['database_sha256']:
+    if do_database_drill and digest(restored) != manifest['database_sha256']:
         raise BackupError('Restored database archive checksum mismatch')
     if manifest['sample']:
         sample = manifest['sample']
         if digest(target / sample['path'].lstrip('/')) != sample['sha256']:
             raise BackupError('Restored original checksum mismatch')
+    if not do_database_drill:
+        shutil.rmtree(target)
+        return {'verified_at': now(), 'snapshot_id': snapshot, 'repository_key': repository_key(policy),
+                'database_restored': False, 'database_drill_verified_at': previous_drill['verified_at'],
+                'database_drill_snapshot': previous_drill['snapshot_id'],
+                'manifest_restored': True, 'sample_restored': True,
+                'sample_present': bool(manifest['sample'])}
     # Restore the whole database into a disposable database, never over production.
     if shutil.disk_usage(ROOT).free < restored.stat().st_size * 3 + 2 * GB:
         raise BackupError('Insufficient reserve for isolated database restore test')
@@ -357,8 +387,11 @@ def verify_restore(policy, snapshot, stage, manifest):
     finally:
         command(['runuser', '-u', 'postgres', '--', 'dropdb', database])
     shutil.rmtree(target)
-    return {'verified_at': now(), 'snapshot_id': snapshot, 'repository_key': repository_key(policy),
+    timestamp = now()
+    return {'verified_at': timestamp, 'snapshot_id': snapshot, 'repository_key': repository_key(policy),
             'database_restored': True, 'sample_restored': True,
+            'database_drill_verified_at': timestamp, 'database_drill_snapshot': snapshot,
+            'manifest_restored': True,
             'sample_present': bool(manifest['sample'])}
 
 
@@ -403,6 +436,8 @@ def backup(policy, initialize=False):
         restic(policy, ['check'])
         proof = verify_restore(policy, snapshot, stage, manifest)
         atomic_json(ROOT / 'backup-policy/offsite-verified.json', proof)
+        if proof['database_restored']:
+            atomic_json(ROOT / 'backup-policy/database-drill.json', proof)
         # Only the verified snapshot permits local retirement or cloud retention.
         restic(policy, ['forget', '--host', HOST, '--tag', TAG, '--group-by', 'host,tags',
                         '--keep-last', '1', '--keep-within-daily', str(policy['keep_daily_days']) + 'd',
