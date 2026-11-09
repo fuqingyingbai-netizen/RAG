@@ -24,7 +24,7 @@ from sqlalchemy.exc import IntegrityError
 import company_knowledge as kb
 from company_catalog import (AUDIO_FORMATS, VIDEO_FORMATS, CONFIDENTIALITY_LABELS, CompanyAccessRequest,
                              CompanyDocument, CompanyProject, can_manage, can_read, document_store, backfill_company_projects,
-                             ensure_company_schema, is_owner, media_kind, serialize)
+                             ensure_company_schema, is_owner, media_kind, serialize, classification_allowed)
 from database import SessionLocal
 from models import User
 from company_audit import record, snapshot, mark_modified, history
@@ -203,6 +203,7 @@ async def documents(page_number: int = Query(1, ge=1), page_size: int = Query(10
                 CompanyAccessRequest.requester_id == user_id).order_by(CompanyAccessRequest.created_at.desc()))
             for request in requests:
                 request_states.setdefault(request.document_id, request.status)
+        docs = [doc for doc in docs if classification_allowed(doc, user)]
         start = (page_number - 1) * page_size
         return {'documents': [serialize(doc, user, request_states.get(doc.id, '')) for doc in docs[start:start + page_size]],
                 'total_count': len(docs), 'page_number': page_number, 'page_size': page_size, 'warning': warning}
@@ -214,9 +215,11 @@ def validate_acl(visibility, readers):
     return list(dict.fromkeys(name.strip() for name in readers)) if visibility == 'restricted' else []
 
 
-def validate_confidentiality(value):
+def validate_confidentiality(value, user=None):
     if value not in CONFIDENTIALITY_LABELS:
         raise HTTPException(422, '请选择有效的保密等级。')
+    if user is not None and user.role != 'admin' and value != 'internal':
+        raise HTTPException(403, '普通账号仅可使用内部资料；敏感、机密资料由管理员管理。')
     return value
 
 
@@ -271,7 +274,7 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
         raise HTTPException(422, '成员账号格式不正确。') from None
     if category not in CATEGORIES or review not in ('待复核', '已复核', '参考资料'):
         raise HTTPException(422, '请选择有效的资料分类和复核状态。')
-    validate_confidentiality(confidentiality)
+    validate_confidentiality(confidentiality, user)
     if confidentiality != 'internal':
         visibility = 'restricted'
         acl = validate_acl(visibility, json.loads(readers))
@@ -396,7 +399,7 @@ async def edit_document(doc_id: str, values: DocumentMetadata, user: User = Depe
         if reindex and (doc.state in ('queued', 'uploading', 'parsing', 'indexing', 'deleting') or
                         (doc.lease_until and doc.lease_until > datetime.utcnow())):
             raise HTTPException(409, '文字说明仍在建立索引，请处理完成后再修改。')
-        confidentiality = validate_confidentiality(changed.get('confidentiality', doc.confidentiality))
+        confidentiality = validate_confidentiality(changed.get('confidentiality', doc.confidentiality), user)
         if confidentiality != 'internal':
             changed['visibility'] = 'restricted'
         acl = validate_acl(changed.get('visibility', doc.visibility), changed.get('readers', doc.readers))
@@ -447,7 +450,7 @@ def request_access(doc_id: str, values: AccessRequestCreate,
                    user: User = Depends(kb.require_knowledge_user)):
     with SessionLocal() as db:
         doc = db.get(CompanyDocument, doc_id)
-        if not doc or doc.index_id != kb.settings()['index_id'] or doc.state == 'deleted':
+        if not doc or doc.index_id != kb.settings()['index_id'] or doc.state == 'deleted' or not classification_allowed(doc, user):
             raise HTTPException(404, '资料不存在。')
         if can_read(doc, user):
             raise HTTPException(409, '当前账号已经有权访问这份资料。')
@@ -476,7 +479,8 @@ def my_access_requests(user: User = Depends(kb.require_knowledge_user)):
         requests = list(db.scalars(select(CompanyAccessRequest).where(
             CompanyAccessRequest.requester_id == user_id).order_by(CompanyAccessRequest.created_at.desc())))
         docs = {request.document_id: db.get(CompanyDocument, request.document_id) for request in requests}
-        return {'requests': [serialize_access_request(request, docs[request.document_id]) for request in requests]}
+        return {'requests': [serialize_access_request(request, docs[request.document_id]) for request in requests
+                             if docs[request.document_id] and classification_allowed(docs[request.document_id], user)]}
 
 
 @workspace_router.get('/access-requests')
@@ -508,6 +512,8 @@ def decide_access(request_id: str, values: AccessRequestDecision,
             raise HTTPException(409, '资料已删除，无法继续审批。')
         before = snapshot(doc)
         if values.decision == 'approved':
+            if doc.confidentiality != 'internal':
+                raise HTTPException(403, '敏感、机密资料不向普通账号开放，不能通过文件授权突破保密等级。')
             doc.readers = list(dict.fromkeys([*(doc.readers or []), request.requester_username]))
             doc.visibility = 'restricted'
             mark_modified(doc, user)
@@ -529,11 +535,11 @@ def my_projects(user: User = Depends(kb.require_knowledge_user), scope: str = 'm
     with SessionLocal() as db:
         docs = [doc for doc in db.scalars(select(CompanyDocument).where(
             CompanyDocument.index_id == kb.settings()['index_id'], CompanyDocument.state != 'deleted'))
-            if is_owner(doc, user) and in_scope(doc, scope)]
+            if is_owner(doc, user) and can_read(doc, user) and in_scope(doc, scope)]
         groups = {}
         owned_directories = {}
         for project_row in db.scalars(select(CompanyProject).where(CompanyProject.index_id == kb.settings()['index_id'])):
-            if is_owner(project_row, user) and in_scope(project_row, scope):
+            if is_owner(project_row, user) and can_read(project_row, user) and in_scope(project_row, scope):
                 owned_directories[project_row.id] = project_row
                 groups[project_row.name] = {'name': project_row.name, 'document_count': 0, 'ready_count': 0,
                     'industries': {project_row.industry} if project_row.industry else set(),

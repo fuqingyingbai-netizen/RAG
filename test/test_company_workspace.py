@@ -435,11 +435,11 @@ def test_partial_metadata_patch_does_not_publish_restricted_file(setup):
     assert response.json()['project'] == 'Private project'
 
 
-def test_confidential_document_request_admin_approval_grants_read_download_and_qa_scope(setup):
-    uploaded = upload(setup, project='Orion', confidentiality='secret', visibility='members').json()
+def test_restricted_internal_request_admin_approval_grants_read_download_and_qa_scope(setup):
+    uploaded = upload(setup, project='Orion', confidentiality='internal', visibility='restricted').json()
     doc_id = uploaded['id']
     ready(setup, doc_id)
-    assert uploaded['confidentiality'] == 'secret' and uploaded['visibility'] == 'restricted'
+    assert uploaded['confidentiality'] == 'internal' and uploaded['visibility'] == 'restricted'
 
     setup.user.id, setup.user.username = 2, 'bob'
     locked = next(doc for doc in setup.client.get('/company-knowledge/documents').json()['documents'] if doc['id'] == doc_id)
@@ -467,7 +467,7 @@ def test_confidential_document_request_admin_approval_grants_read_download_and_q
 
 
 def test_rejected_request_does_not_grant_access(setup):
-    doc_id = upload(setup, confidentiality='confidential').json()['id']
+    doc_id = upload(setup, visibility='restricted').json()['id']
     setup.user.id, setup.user.username = 3, 'charlie'
     request = setup.client.post(f'/company-knowledge/documents/{doc_id}/access-requests', json={}).json()
     setup.user.id, setup.user.username, setup.user.role = 99, 'admin', 'admin'
@@ -510,7 +510,7 @@ def test_project_summary_uses_account_catalogue_counts_without_claiming_personal
 
 
 def test_ordinary_employee_cannot_approve_requests_or_manage_secret_documents(setup):
-    doc_id = upload(setup, confidentiality='secret').json()['id']
+    doc_id = upload(setup, visibility='restricted').json()['id']
     setup.user.id, setup.user.username = 2, 'bob'
     request = setup.client.post(f'/company-knowledge/documents/{doc_id}/access-requests', json={'reason': '培训'}).json()
     assert setup.client.get('/company-knowledge/access-requests').status_code == 403
@@ -774,6 +774,7 @@ def test_experience_categories_support_photo_handwriting_and_prevent_reclassific
 
 
 def test_project_upload_inherits_metadata_and_versions_are_local_to_folder(setup):
+    setup.user.role='admin'
     p=project(setup,industry='AI',tags=['项目标签'],confidentiality='secret',readers=['bob'])
     a=folder(setup,p['id'],'报告'); b=folder(setup,p['id'],'笔录')
     first=upload(setup,project_id=p['id'],folder_id=a['id'],tags='["伪造标签"]',confidentiality='internal').json()
@@ -792,10 +793,11 @@ def test_project_upload_inherits_metadata_and_versions_are_local_to_folder(setup
 
 
 def test_project_access_cannot_be_bypassed_by_folder_or_file_requests(setup):
+    setup.user.role='admin'
     p=project(setup,confidentiality='secret',readers=[])
     f=folder(setup,p['id'])
     row=upload(setup,project_id=p['id'],folder_id=f['id']).json()
-    setup.user.id,setup.user.username=2,'bob'
+    setup.user.id,setup.user.username,setup.user.role=2,'bob','user'
     assert setup.client.get('/company-knowledge/projects').json()['projects']==[]
     assert upload(setup,project_id=p['id']).status_code==404
     assert setup.client.post('/company-knowledge/projects/'+p['id']+'/folders',json={'name':'不能建'}).status_code==404
@@ -809,6 +811,7 @@ def test_project_access_cannot_be_bypassed_by_folder_or_file_requests(setup):
 def test_project_rename_and_acl_edits_update_inherited_files_without_losing_originals(setup):
     p=project(setup,tags=['原标签'])
     row=upload(setup,project_id=p['id']).json()
+    setup.user.role='admin'
     values={'name':'新的项目名称','industry':'新行业','tags':['修正标签'],'confidentiality':'confidential','readers':['bob']}
     response=setup.client.patch('/company-knowledge/projects/'+p['id'],json=values)
     assert response.status_code==200,response.text
@@ -817,7 +820,7 @@ def test_project_rename_and_acl_edits_update_inherited_files_without_losing_orig
         assert doc.project=='新的项目名称' and doc.industry=='新行业' and doc.tags==['修正标签']
         assert doc.visibility=='restricted' and doc.readers==['bob']
     assert stored_original(setup, row['id']) == b'Company knowledge evidence'
-    setup.user.id,setup.user.username=3,'charlie'
+    setup.user.id,setup.user.username,setup.user.role=3,'charlie','user'
     assert setup.client.get('/company-knowledge/documents/'+row['id']+'/original').status_code==404
 
 

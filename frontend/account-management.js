@@ -252,7 +252,7 @@ const AccountManagement = {
             <el-table-column label="注册时间" min-width="165"><template #default="{row}">{{formatDate(row.created_at)}}<div v-if="row.archived_at" class="table-subtext">归档 {{formatDate(row.archived_at)}}</div></template></el-table-column>
             <el-table-column label="最近登录" min-width="165"><template #default="{row}">{{formatDate(row.last_login_at)}}</template></el-table-column>
             <el-table-column label="邀请来源" min-width="135"><template #default="{row}">{{row.invitation_id ? '#' + row.invitation_id + ' · ' + row.invited_by : '已有账号'}}</template></el-table-column>
-            <el-table-column label="公司知识库" width="130"><template #default="{row}"><span v-if="row.role === 'admin'" class="table-subtext">管理员权限</span><el-switch v-else :model-value="row.knowledge_access" :disabled="busy || !!row.archived_at" :aria-label="row.username + '的知识库权限'" @change="value => updateUser(row, {knowledge_access:value})"></el-switch></template></el-table-column>
+            <el-table-column label="公司知识库" width="130"><template #default="{row}"><span class="table-subtext">{{ !row.is_active || row.archived_at ? '账号不可用' : row.role === 'admin' ? '管理员权限' : '默认开通 · 仅内部资料' }}</span></template></el-table-column>
             <el-table-column label="操作" width="230" fixed="right">
               <template #default="{row}">
                 <div v-if="row.archived_at" class="account-actions"><div class="account-primary-actions"><el-button size="small" plain type="primary" :disabled="busy" @click="restoreUser(row)">恢复账号</el-button></div><div class="table-subtext">历史资料已保留</div></div>

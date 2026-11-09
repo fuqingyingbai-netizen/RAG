@@ -61,9 +61,10 @@ def test_private_draft_cas_history_and_resume(setup):
 def test_note_cannot_enter_library_or_exceed_project_acl(setup):
     p=project(setup,'原件项目')
     assert setup.client.post('/company-knowledge/notes',json={'project_id':p['id']}).status_code==422
+    setup.user.role='admin'
     p,note=create(setup,confidentiality='secret',visibility='restricted',readers=[])
     note=publish(setup,save(setup,note));ready(setup,note)
-    setup.user.username,setup.user.id='bob',2
+    setup.user.username,setup.user.id,setup.user.role='bob',2,'user'
     assert setup.client.get('/company-knowledge/notes/'+note['id']).status_code==404
     assert setup.client.get('/company-knowledge/notes/'+note['id']+'/export').status_code==404
 

@@ -192,6 +192,22 @@ def test_revocation_redacts_questions_answers_citations_summary_and_title(env,mo
     assert len([path for path,_ in requests if path.endswith('/retrieve')])==1
 
 
+@pytest.mark.parametrize('level', ['confidential', 'secret'])
+def test_classification_ceiling_redacts_old_granted_history_and_citations(env,monkeypatch,level):
+    requests=upstream(monkeypatch);sid=create(env);call(env,sid)
+    with env.db() as db:
+        doc=db.get(CompanyDocument,'doc-a')
+        # Preserve the owner/grant and all content; only classification changes.
+        doc.confidentiality=level
+        db.commit()
+    result=env.client.get('/company-knowledge/conversations/'+sid).json()
+    assert result['scope_unavailable'] and all(row['redacted'] for row in result['messages'])
+    assert all(not row['references'] for row in result['messages'])
+    assert '豆包' not in json.dumps(result,ensure_ascii=False)
+    assert call(env,sid,'继续','classification-ceiling').status_code==403
+    assert len([path for path,_ in requests if path.endswith('/retrieve')])==1
+
+
 def test_document_update_invalidates_history_and_scope_cannot_be_forged(env,monkeypatch):
     upstream(monkeypatch);sid=create(env);call(env,sid)
     with env.db() as db:

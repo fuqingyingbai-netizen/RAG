@@ -242,14 +242,23 @@ def is_owner(doc, user):
             or (doc.owner_user_id is None and doc.owner == user.username))
 
 
+def classification_allowed(doc, user):
+    return user.role == 'admin' or doc.confidentiality == 'internal'
+
+
 def can_read(doc, user):
+    # Classification is a ceiling, including for legacy owners and reader grants.
+    if not classification_allowed(doc, user):
+        return False
     if user.role == 'admin' or is_owner(doc, user) or user.username in (doc.readers or []):
         return True
     return doc.confidentiality == 'internal' and doc.visibility == 'members'
 
 
 def can_manage(doc, user):
-    return user.role == 'admin' or is_owner(doc, user)
+    # Notes inherit their project's ceiling in find_note/find_project.
+    permitted = not hasattr(doc, 'confidentiality') or classification_allowed(doc, user)
+    return permitted and (user.role == 'admin' or is_owner(doc, user))
 
 
 STATE_LABELS = {'queued': '等待处理', 'uploading': '上传到知识库', 'parsing': '解析 / OCR 中',

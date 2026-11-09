@@ -35,13 +35,14 @@ def log_in(client, role='admin', username='admin'):
     client.app.dependency_overrides[kb.get_current_user] = lambda: SimpleNamespace(role=role, username=username)
 
 
-def test_anonymous_and_newly_registered_accounts_cannot_read_company_data(client):
+def test_anonymous_is_denied_but_new_and_legacy_members_can_enter(client):
     assert client.get('/company-knowledge/documents').status_code == 401
     assert client.post('/company-knowledge/chat/stream', json={'message': 'test'}).status_code == 401
     log_in(client, 'user', 'new-user')
-    assert client.get('/company-knowledge/status').json()['access_allowed'] is False
-    assert client.get('/company-knowledge/documents').status_code == 403
-    assert client.post('/company-knowledge/chat/stream', json={'message': 'test'}).status_code == 403
+    assert client.get('/company-knowledge/status').json()['access_allowed'] is True
+    assert kb.has_access(SimpleNamespace(role='user', username='legacy', knowledge_access=False))
+    assert not kb.has_access(SimpleNamespace(role='user', username='disabled', is_active=False))
+    assert not kb.has_access(SimpleNamespace(role='user', username='archived', archived_at='2026-11-09'))
 
 
 def test_explicitly_allowed_employee_can_access_without_receiving_secret(client, monkeypatch):

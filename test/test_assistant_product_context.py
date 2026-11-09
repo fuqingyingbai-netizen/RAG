@@ -40,14 +40,16 @@ def test_open_note_uses_stored_directory_not_the_background_page(setup):
 
 
 def test_scope_cannot_leak_private_names_cross_index_or_folder(setup):
+    setup.user.role = 'admin'
     secret = project(setup, '不可泄露的目录', category='项目经验', confidentiality='secret', visibility='restricted')
     other = project(setup, '另一个项目', category='项目经验')
     folder = setup.client.post('/company-knowledge/projects/' + other['id'] + '/folders', json={'name': '私有子目录'}).json()
+    setup.user.role = 'user'
     assert '不能确认' in answer(setup, request(project_id=secret['id'], folder_id=folder['id']))
     setup.user.username, setup.user.id = 'bob', 2
     text = answer(setup, request(project_id=secret['id']))
     assert '不可泄露' not in text and '不能确认' in text
-    setup.user.knowledge_access = False
+    setup.user.is_active = False
     assert '不能确认' in answer(setup, request(project_id=other['id']))
 
 

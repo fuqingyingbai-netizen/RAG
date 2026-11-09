@@ -114,11 +114,12 @@ def test_invitation_lifecycle_does_not_expose_secrets(setup):
     assert response.json()["role"] == "user"
     employee = {"Authorization": "Bearer " + response.json()["access_token"]}
     assert client.get("/business", headers=employee).status_code == 200
-    assert client.get("/knowledge", headers=employee).status_code == 403
+    assert client.get("/knowledge", headers=employee).status_code == 200
     assert register(client, token, "another").status_code == 400
     assert client.post(f'/admin/invitations/{invitation["id"]}/revoke', headers=admin).status_code == 409
     row = client.get("/admin/users?q=employee", headers=admin).json()["items"][0]
     assert row["invited_by"] == "admin" and row["invitation_id"] == invitation["id"]
+    assert row["knowledge_access"] is True
     assert "password" not in str(row) .replace("must_change_password", "")
     with factory() as db:
         stored = db.scalar(select(AccountInvitation))
@@ -225,11 +226,12 @@ def test_user_management_revokes_tokens_and_preserves_data(setup):
     employee = login(client, "existing")
     row = client.get("/admin/users?q=existing", headers=admin).json()["items"][0]
     uid = row["id"]
+    assert row["knowledge_access"] is True
     assert row["last_login_at"] is not None
     assert client.patch(f"/admin/users/{uid}", headers=admin, json={"knowledge_access": True}).status_code == 200
     assert client.get("/knowledge", headers=employee).status_code == 200
-    assert client.patch(f"/admin/users/{uid}", headers=admin, json={"knowledge_access": False}).status_code == 200
-    assert client.get("/knowledge", headers=employee).status_code == 403
+    assert client.patch(f"/admin/users/{uid}", headers=admin, json={"knowledge_access": False}).status_code == 400
+    assert client.get("/knowledge", headers=employee).status_code == 200
     assert client.patch(f"/admin/users/{uid}", headers=admin, json={"is_active": False}).status_code == 200
     assert client.get("/business", headers=employee).status_code == 401
     assert client.post("/auth/login", json={"username": "existing", "password": PASSWORD}).status_code == 401

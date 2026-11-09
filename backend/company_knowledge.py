@@ -101,17 +101,15 @@ def model_request_options(config):
 
 
 def has_access(user: User) -> bool:
-    if getattr(user, 'is_active', True) is False:
-        return False
-    granted = getattr(user, 'knowledge_access', None)
-    allowed = {name.strip() for name in os.getenv('COMPANY_KNOWLEDGE_USERS', '').split(',') if name.strip()}
-    return user.role == 'admin' or (granted if granted is not None else user.username in allowed)
+    # Membership grants entry; document classification is checked separately.
+    # Ignore legacy opt-in flags for both existing and newly registered accounts.
+    return (getattr(user, 'is_active', True) is not False
+            and not getattr(user, 'archived_at', None) and user.role in ('admin', 'user'))
 
 
 def require_knowledge_user(user: User = Depends(get_current_user)) -> User:
-    # Invitation registration does not automatically grant internal documents.
     if not has_access(user):
-        raise HTTPException(403, '该账号尚未获得公司知识库访问权限，请联系管理员。')
+        raise HTTPException(403, '当前账号不可使用公司知识库，请联系管理员检查账号状态。')
     return user
 
 

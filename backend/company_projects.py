@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 import company_knowledge as kb
 from company_catalog import (CompanyDocument, CompanyProject, CompanyFolder, can_read, can_manage,
-                             backfill_company_projects, media_kind)
+                             backfill_company_projects, media_kind, classification_allowed)
 from company_workspace import CATEGORIES, validate_acl, validate_tags, validate_confidentiality, schedule_document
 from database import SessionLocal
 from models import User
@@ -88,11 +88,11 @@ class ProjectValues(BaseModel):
     visibility: str = 'members'
     readers: list[str] = Field(default_factory=list, max_length=100)
 
-    def validated(self):
+    def validated(self, user=None):
         values = self.model_dump()
         values['name'] = clean_name(values['name'])
         values['tags'] = validate_tags(values['tags'])
-        validate_confidentiality(values['confidentiality'])
+        validate_confidentiality(values['confidentiality'], user)
         if values['confidentiality'] != 'internal':
             values['visibility'] = 'restricted'
         values['readers'] = validate_acl(values['visibility'], values['readers'])
@@ -121,6 +121,7 @@ def list_projects(user: User = Depends(kb.require_knowledge_user)):
         folders = list(db.scalars(select(CompanyFolder).join(CompanyProject).where(
             CompanyProject.index_id == kb.settings()['index_id'])))
         allowed = {p.id for p in projects if can_read(p, user)}
+        docs = [doc for doc in docs if classification_allowed(doc, user)]
         return {'projects': [serialize_project(p, user, [d for d in docs if d.knowledge_project_id == p.id],
                     [f for f in folders if f.project_id == p.id]) for p in projects if p.id in allowed],
                 'folders': [{'id': f.id, 'project_id': f.project_id, 'parent_id': f.parent_id, 'name': f.name}
@@ -129,7 +130,7 @@ def list_projects(user: User = Depends(kb.require_knowledge_user)):
 
 @projects_router.post('/projects', status_code=201)
 def create_project(data: ProjectValues, user: User = Depends(kb.require_knowledge_user)):
-    values = data.validated()
+    values = data.validated(user)
     with SessionLocal() as db:
         project = CompanyProject(id=uuid.uuid4().hex, index_id=kb.settings()['index_id'],
             owner=user.username, owner_user_id=getattr(user, 'id', None), created_by=user.username, modified_by=user.username, **values)
@@ -141,7 +142,7 @@ def create_project(data: ProjectValues, user: User = Depends(kb.require_knowledg
 
 @projects_router.patch('/projects/{project_id}')
 async def edit_project(project_id: str, data: ProjectValues, user: User = Depends(kb.require_knowledge_user)):
-    values = data.validated()
+    values = data.validated(user)
     with SessionLocal() as db:
         project = find_project(db, project_id, user, manage=True)
         if (values['category'] in EXPERIENCE_CATEGORIES) != (project.category in EXPERIENCE_CATEGORIES):

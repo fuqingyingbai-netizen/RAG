@@ -135,7 +135,7 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         if invitation.expires_at <= utcnow():
             db.rollback()
             raise HTTPException(400, "邀请链接已过期")
-        user = User(username=username, password_hash=password_hash, role=invitation.role, knowledge_access=False)
+        user = User(username=username, password_hash=password_hash, role=invitation.role, knowledge_access=True)
         db.add(user)
         db.flush()
         db.execute(update(AccountInvitation).where(AccountInvitation.id == invitation_id).values(used_by_id=user.id))
@@ -308,7 +308,7 @@ def list_users(q: str = Query("", max_length=100), state: str = Query("all", pat
     items = [{"id": user.id, "username": user.username, "is_active": user.is_active, "role": user.role,
               "display_name": user.display_name, "notes": user.notes,
               "is_self": user.id == admin.id,
-              "knowledge_access": user.knowledge_access, "must_change_password": user.must_change_password,
+              "knowledge_access": bool(user.is_active and not user.archived_at), "must_change_password": user.must_change_password,
               "created_at": timestamp(user.created_at), "last_login_at": timestamp(user.last_login_at), "archived_at": timestamp(user.archived_at),
               "invitation_id": invitation_id, "invited_by": invited_by}
              for user, invitation_id, invited_by in rows]
@@ -439,11 +439,8 @@ def update_user(user_id: int, request: UserUpdate, http_request: Request, db: Se
         user.is_active = request.is_active
         user.token_version += 1
         changes["is_active"] = user.is_active
-    if request.knowledge_access is not None and user.knowledge_access != request.knowledge_access:
-        if user.role == "admin":
-            raise HTTPException(400, "管理员按角色拥有公司知识库权限")
-        user.knowledge_access = request.knowledge_access
-        changes["knowledge_access"] = user.knowledge_access
+    if request.knowledge_access is False:
+        raise HTTPException(400, "正常账号默认可使用公司知识库，无需单独授权；普通账号仅可读取内部资料。")
     if changes:
         audit(db, admin.id, "account_updated", target_id=user.id, details=changes)
     db.commit()
