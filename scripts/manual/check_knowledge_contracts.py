@@ -8,7 +8,7 @@ from uuid import uuid4
 import httpx
 import schemathesis
 from schemathesis import GenerationMode
-from schemathesis.checks import not_a_server_error, response_schema_conformance, content_type_conformance
+from schemathesis.checks import not_a_server_error, response_schema_conformance, content_type_conformance, negative_data_rejection
 from hypothesis import given, settings, HealthCheck
 from hypothesis.errors import Unsatisfiable
 from hypothesis.stateful import RuleBasedStateMachine, initialize, rule, invariant, run_state_machine_as_test
@@ -65,7 +65,7 @@ def run(base_url, destination):
                     def exercise(case):
                         response=case.call(base_url=base_url,headers=auth)
                         row['requests']+=1;report['requests']+=1
-                        case.validate_response(response,checks=[not_a_server_error,response_schema_conformance,content_type_conformance])
+                        case.validate_response(response,checks=[not_a_server_error,response_schema_conformance,content_type_conformance,negative_data_rejection])
                     exercise()
                 except Unsatisfiable:
                     if row['requests']:
@@ -84,7 +84,7 @@ def run(base_url, destination):
         case=schema[path][method].Case(**kwargs)
         response=case.call(base_url=base_url,headers={'Authorization':'Bearer audit-'+role})
         report['stateful_requests']+=1
-        case.validate_response(response,checks=[not_a_server_error,response_schema_conformance,content_type_conformance])
+        case.validate_response(response,checks=[not_a_server_error,response_schema_conformance,content_type_conformance,negative_data_rejection])
         if expected is not None:assert response.status_code==expected,(path,response.status_code,response.text)
         return response.json()
 
@@ -135,7 +135,7 @@ def run(base_url, destination):
                     files={'file':('flow-'+uuid4().hex+'.txt',b'isolated stateful evidence','text/plain')})
             report['stateful_requests']+=1
             response.request.read()
-            schema['/company-knowledge/uploads']['POST'].Case().validate_response(response,checks=[not_a_server_error,response_schema_conformance,content_type_conformance])
+            schema['/company-knowledge/uploads']['POST'].Case().validate_response(response,checks=[not_a_server_error,response_schema_conformance,content_type_conformance,negative_data_rejection])
             assert response.status_code==202,response.text
             doc=response.json();assert doc['folder_id']==folder;self.files.append(doc)
         @rule()
