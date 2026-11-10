@@ -13,6 +13,14 @@ REFS = [{'id':'1','local_id':'doc-a','document_id':'cloud-a','title':'收入表'
     'text':'2025年甲项目收入120万元，乙项目收入80万元。','evidence_id':'evidence-a'}]
 
 
+def test_excel_rejects_cells_that_would_be_silently_truncated():
+    from fastapi import HTTPException
+    answer='| 内容 | 来源 |\n|---|---|\n|'+('资料'*17000)+'|[id_1]|'
+    with pytest.raises(HTTPException) as exc:
+        exports.workbook(answer,REFS,'问题',exports.ExportRequest(format='xlsx'),{'time':'now','user':'tester','trace':'test'})
+    assert exc.value.status_code==422 and '不会截断' in exc.value.detail
+
+
 def saved(env, answer=ANSWER, refs=None, status='completed'):
     CompanyAuditEvent.__table__.create(env.db.kw['bind'],checkfirst=True)
     sid = create(env)

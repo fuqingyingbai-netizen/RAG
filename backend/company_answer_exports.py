@@ -95,6 +95,8 @@ def workbook(answer, refs, title, request, identity):
     from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
     table = selected_table(answer, request)
+    if any(len(value.encode('utf-16-le'))//2 > 32767 for row in [table['headers'],*table['rows']] for value in row):
+        raise HTTPException(422, '表格单元格内容过长，请拆分后导出；不会截断原文。')
     wb = Workbook(); sheet = wb.active; sheet.title = '整理结果'
     sheet.append([title]); sheet.append([NOTE]); sheet.append(['生成时间', identity['time'], '下载账号', identity['user']])
     sheet.append(['追踪编号', identity['trace']]); sheet.append([])
