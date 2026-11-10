@@ -1,0 +1,27 @@
+{
+  "endpoint": "/company-knowledge/conversations/{session_id}/messages/{message_id}/export",
+  "requests": 15,
+  "modes": [
+    {
+      "mode": "positive",
+      "requests": 1,
+      "status": "failed"
+    },
+    {
+      "mode": "negative",
+      "requests": 14,
+      "status": "failed"
+    }
+  ],
+  "failures": [
+    {
+      "mode": "positive",
+      "error": "Schemathesis found 1 distinct failure\n\n- ST105 Undocumented Content-Type\n\n    Received: image/png\n    Documented: application/json\n\n[200] OK:\n\n    <BINARY>\n\nReproduce with:\n\n    curl -X POST -H 'Authorization: [Filtered]' -H 'Content-Type: application/json' -d '{\"format\": \"png\"}' http://127.0.0.1:8903/company-knowledge/conversations/bfa1ab5918864cfc835934c09ec94522/messages/2/export\n\n (1 sub-exception)"
+    },
+    {
+      "mode": "negative",
+      "error": "Schemathesis found 2 distinct failures\n\n- ST105 Undocumented Content-Type\n\n    Received: application/vnd.openxmlformats-officedocument.wordprocessingml.document\n    Documented: application/json\n\n- ST201 Schema-violating request accepted\n\n    Invalid data should have been rejected\n    Expected: 400, 401, 403, 404, 405, 406, 409, 415, 422, 428, 429, 5xx\n    Invalid component: in body - violates `type` at /properties/value_column/anyOf/0 (was integer, became boolean)\n\n[200] OK:\n\n    <BINARY>\n\nReproduce with:\n\n    curl -X POST -H 'Authorization: [Filtered]' -H 'Content-Type: application/json' -d '{\"\": {\"\\u00aeh\\f\": -7.023909409172557e+16, \"\\u008bz\": \"\", \"A\\u008c\\u00f1\\u00a2\\u0096j\\u00fc\\u0084f\\u0098\": \"\\u00a2!\\u00ed\\u00ab\"}, \"A{\\u00f5\\ud912\\udc72\\u00b8\\u00aa\\u0080PYbv\": [{}, 4807, {\"\\u0087\": [null], \":\": \"\", \"v\\u0014\\ud921\\udf59/\\u0098\\u000f\\u001af\\u0004X\\u00c6yn\": {\"GF\": -12898, \"InvalidRegexPattern\": -96064291684248}}], \"table_index\": 11, \"value_column\": false, \"format\": \"docx\"}' http://127.0.0.1:8903/company-knowledge/conversations/bfa1ab5918864cfc835934c09ec94522/messages/2/export\n\n (2 sub-exceptions)"
+    }
+  ],
+  "status": "failed"
+}

@@ -12,6 +12,14 @@ function fixture(){
  state.cloudDocuments=[{id:'a',title:'A',can_read:true,state:'ready',category:'项目原件',knowledge_project_id:'p',folder_id:'g'}];
  state.loadChatHistory=()=>{};return {state,notices,saved};
 }
+test('search misses have a recovery message rather than claiming the current directory has no files',()=>{
+ const{state:s}=fixture();s.openDirectory(s.projectDirectories[0],'g');s.loading=false;
+ assert.equal(s.libraryEmptyMessage,'当前目录暂无资料。');
+ s.query='not-found';assert.match(s.libraryEmptyMessage,/未找到匹配.*清空搜索/);
+ s.loading=true;assert.equal(s.libraryEmptyMessage,'正在加载资料…');
+ s.loading=false;s.query='';s.showProjectRoot();assert.match(s.libraryEmptyMessage,/清空筛选/);
+});
+
 test('retry receipt survives success, failed-list filtering and reload without persisting document metadata',async()=>{
  const{state:s,saved}=fixture();s.cloudDocuments[0].state='failed';s.statusFilter='failed';s.withFeedback=async(_key,_text,run)=>run();s.apiFetch=async()=>({ok:true,json:async()=>({})});s.loadDocuments=async()=>{};
  await s.retryDocument(s.cloudDocuments[0]);assert.equal(s.cloudDocuments[0].state,'queued');assert.deepEqual(Array.from(s.retryTrackingIds),['a']);assert.equal(saved[s.retryTrackingKey()],JSON.stringify(['a']));

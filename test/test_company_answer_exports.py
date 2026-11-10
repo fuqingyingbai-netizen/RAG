@@ -13,6 +13,28 @@ REFS = [{'id':'1','local_id':'doc-a','document_id':'cloud-a','title':'收入表'
     'text':'2025年甲项目收入120万元，乙项目收入80万元。','evidence_id':'evidence-a'}]
 
 
+def test_export_openapi_describes_binary_files_instead_of_json():
+    from fastapi import FastAPI
+    app=FastAPI();app.include_router(exports.router)
+    operation=app.openapi()['paths']['/conversations/{session_id}/messages/{message_id}/export']['post']
+    content=operation['responses']['200']['content']
+    assert set(content)=={'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','image/png'}
+    assert all(item['schema']=={'type':'string','format':'binary'} for item in content.values())
+
+
+@pytest.mark.parametrize('field',['table_index','value_column'])
+@pytest.mark.parametrize('value',[True,False,'0',1.0,-1,31])
+def test_export_indices_reject_coercion_and_out_of_bounds_values(field,value):
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):exports.ExportRequest(format='docx',**{field:value})
+
+
+def test_export_indices_accept_integer_boundaries_and_an_automatic_value_column():
+    assert exports.ExportRequest(format='png',table_index=0,value_column=30).value_column==30
+    assert exports.ExportRequest(format='docx',table_index=30,value_column=None).value_column is None
+
+
 def test_excel_rejects_cells_that_would_be_silently_truncated():
     from fastapi import HTTPException
     answer='| 内容 | 来源 |\n|---|---|\n|'+('资料'*17000)+'|[id_1]|'

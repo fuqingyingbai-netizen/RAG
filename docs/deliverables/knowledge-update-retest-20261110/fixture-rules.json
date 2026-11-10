@@ -1,0 +1,8 @@
+{
+  "owned_department": "market",
+  "other_department": "project",
+  "export_document_id": "audit-export-income",
+  "export_question": "请生成合成收入表",
+  "model": "explicit synthetic provider only",
+  "source_text": "甲项目收入120万元，乙项目收入80万元。"
+}

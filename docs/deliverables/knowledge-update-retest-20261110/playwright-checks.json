@@ -1,0 +1,117 @@
+[
+  {
+    "name": "department market",
+    "passed": true,
+    "detail": "market has owned project only"
+  },
+  {
+    "name": "empty department",
+    "passed": true,
+    "detail": "empty does not fall back to all-library"
+  },
+  {
+    "name": "owner menu actions",
+    "passed": true,
+    "detail": "actions bound to exact owned file"
+  },
+  {
+    "name": "menu Escape",
+    "passed": false,
+    "detail": "menu closes without acting"
+  },
+  {
+    "name": "folder-only state",
+    "passed": true,
+    "detail": "child folder present with global filters absent"
+  },
+  {
+    "name": "branch search excludes sibling",
+    "passed": false,
+    "detail": "sibling file is not returned"
+  },
+  {
+    "name": "branch search data boundary",
+    "passed": true,
+    "detail": "no sibling data leaked; empty wording separately flagged"
+  },
+  {
+    "name": "two-file chat scope",
+    "passed": true,
+    "detail": "explicit two-file scope"
+  },
+  {
+    "name": "return location and selection",
+    "passed": true,
+    "detail": "exact nested path and both selections restored"
+  },
+  {
+    "name": "theme retains scope",
+    "passed": true,
+    "detail": "theme change preserves location and selection"
+  },
+  {
+    "name": "layout 375",
+    "passed": true,
+    "detail": "{\"bodyWidth\":360,\"documentWidth\":360,\"width\":375}"
+  },
+  {
+    "name": "layout 768",
+    "passed": true,
+    "detail": "{\"bodyWidth\":753,\"documentWidth\":753,\"width\":768}"
+  },
+  {
+    "name": "layout 1440",
+    "passed": true,
+    "detail": "{\"bodyWidth\":1425,\"documentWidth\":1425,\"width\":1440}"
+  },
+  {
+    "name": "fixed trigger Escape",
+    "passed": true,
+    "detail": "native trigger focus Escape closes its dropdown"
+  },
+  {
+    "name": "fixed search empty feedback",
+    "passed": true,
+    "detail": "search miss is distinguished from an empty directory"
+  },
+  {
+    "name": "fixed clear search restores file",
+    "passed": true,
+    "detail": "clear recovers the same directory"
+  },
+  {
+    "name": "Word browser download",
+    "passed": true,
+    "detail": "知识库回答-2.docx"
+  },
+  {
+    "name": "Excel browser download",
+    "passed": true,
+    "detail": "知识库回答-2-表格1.xlsx"
+  },
+  {
+    "name": "PNG browser download",
+    "passed": true,
+    "detail": "知识库回答-2.png"
+  },
+  {
+    "name": "fixed nested filter controls absent",
+    "passed": true,
+    "detail": "exact forbidden controls absent; current-directory search and upload are allowed"
+  },
+  {
+    "name": "read-only project UI guards",
+    "passed": true,
+    "detail": "read-only reason visible, create/upload disabled, owner menu absent"
+  },
+  {
+    "name": "experience collection isolated",
+    "passed": true,
+    "detail": "experience excludes library project"
+  },
+  {
+    "name": "library collection isolated",
+    "passed": true,
+    "detail": "library excludes experience project"
+  }
+]

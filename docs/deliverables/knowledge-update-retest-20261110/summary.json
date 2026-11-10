@@ -1,0 +1,149 @@
+{
+  "backend_tests": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "112",
+    "time": "1534.717",
+    "timestamp": "2026-11-10T18:22:05.559128+08:00",
+    "hostname": "DESKTOP-226P4DF"
+  },
+  "schemathesis": {
+    "failures": [],
+    "requests": 505,
+    "stateful_requests": 218,
+    "status": "passed"
+  },
+  "testsprite_runs": [
+    {
+      "name": "UPDATE-MENU-FOCUSED Exact owned-file actions and trigger Escape",
+      "test_id": "5456b3f1-ee78-431a-8bc9-0bb01e50e137",
+      "run_id": "1e438c3c-a321-4dbf-b9c0-f881e3160eb4",
+      "status": "passed",
+      "assertions": 1,
+      "assertion_descriptions": [
+        "访谈材料23.txt remained in the project list after Escape."
+      ]
+    },
+    {
+      "name": "UPDATE-NAV-FOCUSED Exact filter controls absent in nested directory",
+      "test_id": "4dbc9908-3123-45c0-a26d-05e6bdf5e835",
+      "run_id": "0edb97e9-e5f3-4609-a234-ab0302a6f1da",
+      "status": "passed",
+      "assertions": 1,
+      "assertion_descriptions": [
+        "After returning to 研究资料, the child folder 访谈记录 is visible."
+      ]
+    },
+    {
+      "name": "UPDATE-EXPORT Saved synthetic answer exposes three export formats",
+      "test_id": "c8102791-7377-4da8-9ae3-d80405a294ae",
+      "run_id": "388440d0-b988-4406-8953-75787c76c986",
+      "status": "failed",
+      "assertions": 1,
+      "assertion_descriptions": [
+        "The saved answer table shows both project values with source citations."
+      ]
+    },
+    {
+      "name": "UPDATE-NOTE Published experience is readable by another member",
+      "test_id": "b42ff331-a2f5-46f4-9455-1fe622146103",
+      "run_id": "45072f63-78ad-42ab-ac19-6e06de0e219f",
+      "status": "blocked",
+      "assertions": 1,
+      "assertion_descriptions": [
+        "Bob can read the published paragraph in the rendered original."
+      ]
+    },
+    {
+      "name": "UPDATE-THEME Theme changes preserve directory and selection",
+      "test_id": "076fac90-bfb4-406c-add8-0722f829ce0a",
+      "run_id": "9850a05a-4b88-47b2-9b1c-e9c45f2f8a3e",
+      "status": "passed",
+      "assertions": 2,
+      "assertion_descriptions": [
+        "After the theme toggles, the 访谈记录 directory and 访谈材料01.txt selection remain in place.",
+        "The file’s 阅读 action remains visible after the theme is restored."
+      ]
+    },
+    {
+      "name": "UPDATE-EXPERIENCE Experience and library switching keeps collection boundaries",
+      "test_id": "b98e9ee5-98ae-4d54-addb-118755cea5ab",
+      "run_id": "2af39312-fd8e-468d-ba23-4841128a92d3",
+      "status": "passed",
+      "assertions": 1,
+      "assertion_descriptions": [
+        "总资料库中显示验收项目甲。"
+      ]
+    },
+    {
+      "name": "UPDATE-SCOPE Two selected files retain scope and return location",
+      "test_id": "f593518a-86f0-4418-8ab6-3d90cab82da4",
+      "run_id": "03373425-be1a-4dc0-b397-03df81c2f367",
+      "status": "passed",
+      "assertions": 1,
+      "assertion_descriptions": [
+        "返回“访谈记录”后，两个指定文件仍保持选中。"
+      ]
+    },
+    {
+      "name": "UPDATE-MENU Owner file menu has clear actions and dismisses cleanly",
+      "test_id": "67d26d30-103c-4f68-9536-a052d4e30dea",
+      "run_id": "9dcbb2eb-0f39-4b99-891c-43cbee72a97c",
+      "status": "failed",
+      "assertions": 1,
+      "assertion_descriptions": [
+        "After Escape, TS-收入表.txt remains visible in the list."
+      ]
+    },
+    {
+      "name": "UPDATE-READONLY Shared project management stays denied",
+      "test_id": "08823043-97c2-41d1-82f6-0275dc5ba699",
+      "run_id": "b7515740-3de7-4eb3-a349-7178d49482cc",
+      "status": "passed",
+      "assertions": 1,
+      "assertion_descriptions": [
+        "Alice can open and read “访谈材料25.txt” from the shared project."
+      ]
+    },
+    {
+      "name": "UPDATE-DEPT Department filter and empty department isolation",
+      "test_id": "ea267d6c-f7d0-44fe-9116-0e53a9924e22",
+      "run_id": "c5455b68-6d98-4e2f-b86c-bdc54961bae9",
+      "status": "passed",
+      "assertions": 0,
+      "assertion_descriptions": []
+    },
+    {
+      "name": "UPDATE-SEARCH Branch search rejects a sibling file",
+      "test_id": "d2f3fb89-8f0e-4c85-93d2-07679b5d989e",
+      "run_id": "91ed3823-d0f1-4315-9144-43a585c5cb10",
+      "status": "passed",
+      "assertions": 1,
+      "assertion_descriptions": [
+        "访谈材料01.txt is visible again in the current folder."
+      ]
+    },
+    {
+      "name": "UPDATE-NAV Nested location and back navigation",
+      "test_id": "363982f5-d143-48e5-82a0-b354b057a99f",
+      "run_id": "02b881ac-41d9-48d0-afa4-87c06cba18b1",
+      "status": "failed",
+      "assertions": 1,
+      "assertion_descriptions": [
+        "The 访谈记录 directory should not show a search toolbar."
+      ]
+    }
+  ],
+  "testsprite_counts": {
+    "passed": 8,
+    "failed": 3,
+    "blocked": 1,
+    "running": 0
+  },
+  "credits_after": 109,
+  "production_snapshot_still_current": true,
+  "production_js": "company-knowledge.91207d95f2dd.js",
+  "production_css": "knowledge-workspace.da04ae7fa4c2.css"
+}

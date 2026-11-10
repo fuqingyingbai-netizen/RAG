@@ -1,0 +1,17 @@
+[
+  {
+    "format": "docx",
+    "bytes": 38018,
+    "browser_download_and_reopen": "passed"
+  },
+  {
+    "format": "xlsx",
+    "bytes": 6952,
+    "browser_download_and_reopen": "passed"
+  },
+  {
+    "format": "png",
+    "bytes": 37872,
+    "browser_download_and_reopen": "passed"
+  }
+]
