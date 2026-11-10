@@ -23,6 +23,7 @@ const CompanyKnowledge = {
     feedback: {type:Function, default:null}, operationState:{type:Object, default:() => ({})} },
   data() {
     return {
+      retryTrackingIds: [],
       uploadTargetProjectId: '', uploadTargetFolderId: '', reuploadContext:null, moveOpen: false, moveDoc: null, moveProjectId: '', moveFolderId: '', moveBusy: false, moveError: '',
       catalogueMutation:0,catalogueRefreshQueued:false,noteDeleting:false,noteEditorId: '', noteDrafts: [], noteError: '', noteCreating: false,
       searchMode: 'metadata', contentMatches: [], contentTotal: 0, contentPage: 1, contentBusy: false, contentError: '', contentSearched: false, searchSequence: 0, readerLocation: null, readerFind: '', readerFocus: false, locating: false, quickCapture: false, captureTitle: '', captureScene: '', captureMethod: '',
@@ -49,6 +50,7 @@ const CompanyKnowledge = {
     };
   },
   computed: {
+    retryTrackedDocuments() { const docs=new Map(this.collectionDocuments.filter(doc=>doc.can_read).map(doc=>[doc.id,doc]));return this.retryTrackingIds.map(id=>docs.get(id)).filter(Boolean); },
     uploadDestinationLabel() {
       if(this.quickCapture)return '经验沉淀 / 随手记录 · 待整理 / 项目根目录';
       const saved=this.uploadDisplayResults.find(item=>item.document)?.document;
@@ -564,6 +566,7 @@ const CompanyKnowledge = {
         this.service = await response.json();
         if (!this.service.access_allowed) throw new Error('当前账号不可使用公司知识库，请联系管理员检查账号状态。');
         if (!this.service.configured) throw new Error('公司知识库尚未配置，请联系管理员。');
+        this.restoreRetryTracking();
         try { this.favorites = JSON.parse(localStorage.getItem('companyKnowledgeFavorites:' + this.service.username) || '[]'); } catch { this.favorites = []; }
         if (!this.viewRestored) this.restoreLibraryView();
         try { const saved=JSON.parse(sessionStorage.getItem('companyKnowledgeReturn:'+this.service.username)||'null');if(saved?.view&&['library','cases'].includes(saved.view.mode))this.returnLocation=saved; }catch{}
@@ -572,6 +575,7 @@ const CompanyKnowledge = {
           this.browseLibrary(); this.mineOnly = true;
         }
         await Promise.all([this.loadDocuments(), this.loadMyProjects(), this.loadAccessRequests()]);
+        await this.loadRecentRetryTracking();
         if (this.mode === 'cases') this.chatScope = 'experience';
         await this.loadChatHistory();
       } catch (error) { this.serviceError = error.message; }
@@ -865,7 +869,12 @@ const CompanyKnowledge = {
       }
       this.stagedFiles = failed; this.uploadBusy = false; await Promise.all([this.loadDocuments(), this.loadMyProjects()]);
     },
-    async retryDocument(doc) { try { await this.withFeedback('retry:' + doc.id, '正在重试知识库资料处理', async () => { const response = await this.apiFetch('/company-knowledge/documents/' + doc.id + '/retry', { method: 'POST' }); const result = await response.json(); if (!response.ok) throw new Error(result.detail || '重试失败'); ElementPlus.ElMessage.success('处理请求已提交，请查看资料状态'); await this.loadDocuments(); }); } catch (error) { ElementPlus.ElMessage.error(error.message); } },
+    retryTrackingKey() { return 'companyKnowledgeRetryIds:'+(this.service.account_id??this.service.username); },
+    restoreRetryTracking() { this.retryTrackingIds=[];try{const ids=JSON.parse(localStorage.getItem(this.retryTrackingKey())||'[]');if(Array.isArray(ids))this.retryTrackingIds=[...new Set(ids.filter(id=>typeof id==='string'&&id.length>0&&id.length<=64))].slice(0,3);}catch{} },
+    rememberRetry(id) { this.retryTrackingIds=[id,...this.retryTrackingIds.filter(value=>value!==id)].slice(0,3);try{localStorage.setItem(this.retryTrackingKey(),JSON.stringify(this.retryTrackingIds));}catch{} },
+    async loadRecentRetryTracking() { if(!this.service.is_admin)return;try{const response=await this.apiFetch('/company-knowledge/audit-events?page=1&page_size=100');if(!response.ok)return;const result=await response.json();const visible=new Set(this.cloudDocuments.filter(doc=>doc.can_read).map(doc=>doc.id));const ids=(result.events||[]).filter(event=>event.action==='document.retry'&&event.actor_username===this.service.username&&visible.has(event.target_id)).map(event=>event.target_id);for(const id of [...new Set(ids)].slice(0,3).reverse())this.rememberRetry(id);}catch{} },
+    retryResultLabel(doc) { return doc.state==='ready'?'重试成功，已可检索':doc.state==='failed'?'重试未成功，请查看失败详情':['queued','uploading','parsing','indexing'].includes(doc.state)?'已提交重试，正在处理':doc.label||'请查看资料状态'; },
+    async retryDocument(doc) { try { await this.withFeedback('retry:' + doc.id, '正在重试知识库资料处理', async () => { const response = await this.apiFetch('/company-knowledge/documents/' + doc.id + '/retry', { method: 'POST' }); const result = await response.json(); if (!response.ok) throw new Error(result.detail || '重试失败');this.rememberRetry(doc.id);this.catalogueMutation++;this.cloudDocuments=this.cloudDocuments.map(row=>row.id===doc.id?{...row,state:'queued',label:'等待处理',status_message:'已提交重试，原归档位置不变'}:row);ElementPlus.ElMessage.success('重试已提交，完整路径和后续结果会保留在“最近重试的资料”。'); await this.loadDocuments(); }); } catch (error) { ElementPlus.ElMessage.error(error.message); } },
     editDocument(doc) { if(doc.note_id){this.editRichNote(doc.note_id);return;} this.editingDoc = doc; this.uploadForm = { title: doc.title, folder_id: doc.folder_id || '', project: doc.project || '', industry: doc.industry || '', category: doc.category, review: doc.review, confidentiality: doc.confidentiality === 'confidential' ? 'secret' : doc.confidentiality || 'internal', tagsText: (doc.tags || []).join('，'), description: doc.description || '', visibility: doc.visibility, readersText: (doc.readers || []).join(', ') }; this.metadataOpen = true; },
     async saveMetadata() {
       try { await this.withFeedback('save:' + this.editingDoc.id, '正在保存资料信息', async () => {
@@ -1115,6 +1124,7 @@ const CompanyKnowledge = {
           <div v-if="libraryIntent === 'compare'" class="ckb-compare-intent" role="status"><div><strong>先选择资料，再比较结论</strong><span>勾选至少 2 份可检索资料，下一步进入问答确认比较问题。</span></div><button @click="libraryIntent = ''">退出比较</button></div>
           <div v-if="mineOnly && mode!=='cases'" class="ckb-inline-project-summary"><span>共 {{ collectionMineCount }} 个项目、{{ collectionMineDocumentCount }} 份资料，只统计当前库中本人上传的内容。</span><button class="ckb-button ckb-button-primary" :disabled="!collectionMineDocumentCount || busy" @click="summarizeMyProjects">AI 总结项目</button></div>
 
+          <section v-if="retryTrackedDocuments.length" class="ckb-retry-receipts" aria-label="最近重试的资料"><header><strong>最近重试的资料</strong><small>重试沿用原位置。处理完成后会退出失败列表，结果仍可在这里查看。</small></header><article v-for="doc in retryTrackedDocuments" :key="doc.id" :data-retry-document-id="doc.id"><div><strong>{{doc.title}}</strong><small>{{documentLocationLabel(doc)}}</small><span :class="'ckb-retry-result-'+doc.state">{{retryResultLabel(doc)}}</span></div><nav :aria-label="'重试结果操作：'+doc.title"><button @click="openDocumentDirectory(doc)">打开所在目录</button><button @click="openDocument(doc)">查看文件</button><button v-if="doc.state==='failed'" @click="showFailureDetails(doc)">失败详情</button></nav></article></section>
           <section v-if="!activeProjectId &amp;&amp; !(mode==='cases' &amp;&amp; (mineOnly || statusFilter==='failed'))" class="ckb-catalog-controls" aria-label="搜索与筛选">
             <div class="ckb-catalog-toolbar"><select v-model="industryFilter" aria-label="筛选行业"><option value="">全部行业</option><option v-for="item in industryOptions" :key="item">{{ item }}</option></select><select v-model="reviewFilter" aria-label="筛选复核状态"><option value="">全部复核状态</option><option>待复核</option><option>已复核</option><option>参考资料</option></select><button type="button" class="ckb-more-filters" :aria-expanded="advancedFiltersOpen" aria-controls="ckb-catalog-advanced" @click="advancedFiltersOpen = !advancedFiltersOpen">更多筛选<span v-if="advancedFilterCount" class="ckb-filter-count">{{ advancedFilterCount }}</span><i class="fa-solid" :class="advancedFiltersOpen ? 'fa-chevron-up' : 'fa-chevron-down'" aria-hidden="true"></i></button><button type="button" class="ckb-clear-filters" aria-label="清空筛选" title="清空筛选" @click="resetFilters">清空</button><button v-if="showingProjects" type="button" class="ckb-catalog-files" @click="showAllFiles">全部文件<i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button></div>
             <div v-show="advancedFiltersOpen" id="ckb-catalog-advanced" class="ckb-catalog-advanced"><div class="ckb-catalog-date"><span>时间范围</span><div class="ckb-date-filter"><select v-model="dateField" aria-label="时间类型"><option value="created_at">上传时间</option><option value="modified_at">更新时间</option></select><input type="date" v-model="dateFrom" aria-label="开始日期" :max="dateTo || undefined"><span>至</span><input type="date" v-model="dateTo" aria-label="结束日期" :min="dateFrom || undefined"></div></div></div>

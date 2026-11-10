@@ -2,7 +2,7 @@ const test=require('node:test');const assert=require('node:assert/strict');
 const fs=require('node:fs');const vm=require('node:vm');
 function fixture(){
  const notices=[],saved={};const component=vm.runInNewContext(fs.readFileSync('frontend/company-knowledge.js','utf8')+'\nCompanyKnowledge;',{
-  AbortController,File,FormData,clearTimeout,setTimeout,sessionStorage:{setItem:(k,v)=>saved[k]=v},
+  AbortController,File,FormData,clearTimeout,setTimeout,sessionStorage:{setItem:(k,v)=>saved[k]=v},localStorage:{getItem:k=>saved[k]??null,setItem:(k,v)=>saved[k]=v},
   ElementPlus:{ElMessage:Object.fromEntries(['info','warning','error','success'].map(k=>[k,v=>notices.push(v)]))}});
  const state=component.data();for(const [k,f]of Object.entries(component.methods))state[k]=f.bind(state);
  for(const[k,f]of Object.entries(component.computed))Object.defineProperty(state,k,{get:()=>f.call(state)});
@@ -12,6 +12,19 @@ function fixture(){
  state.cloudDocuments=[{id:'a',title:'A',can_read:true,state:'ready',category:'项目原件',knowledge_project_id:'p',folder_id:'g'}];
  state.loadChatHistory=()=>{};return {state,notices,saved};
 }
+test('retry receipt survives success, failed-list filtering and reload without persisting document metadata',async()=>{
+ const{state:s,saved}=fixture();s.cloudDocuments[0].state='failed';s.statusFilter='failed';s.withFeedback=async(_key,_text,run)=>run();s.apiFetch=async()=>({ok:true,json:async()=>({})});s.loadDocuments=async()=>{};
+ await s.retryDocument(s.cloudDocuments[0]);assert.equal(s.cloudDocuments[0].state,'queued');assert.deepEqual(Array.from(s.retryTrackingIds),['a']);assert.equal(saved[s.retryTrackingKey()],JSON.stringify(['a']));
+ s.cloudDocuments[0].state='ready';assert.equal(s.filteredDocuments.length,0);assert.equal(s.retryTrackedDocuments[0].id,'a');assert.match(s.retryResultLabel(s.retryTrackedDocuments[0]),/重试成功/);assert.equal(s.documentLocationLabel(s.retryTrackedDocuments[0]),'资料库 / 项目甲 / 二级 / 三级');
+ s.retryTrackingIds=[];s.restoreRetryTracking();assert.equal(s.retryTrackedDocuments[0].id,'a');s.cloudDocuments[0].can_read=false;assert.equal(s.retryTrackedDocuments.length,0);
+});
+test('rejected retry never creates a success receipt',async()=>{
+ const{state:s,notices}=fixture();s.withFeedback=async(_key,_text,run)=>run();s.apiFetch=async()=>({ok:false,json:async()=>({detail:'无权处理'})});await s.retryDocument(s.cloudDocuments[0]);assert.equal(s.retryTrackingIds.length,0);assert.match(notices[0],/无权处理/);assert.equal(s.cloudDocuments[0].state,'ready');
+});
+test('admin retry history only restores current actor and currently readable documents',async()=>{
+ const{state:s}=fixture();let calls=0;s.apiFetch=async()=>{calls++;return {ok:true,json:async()=>({events:[{action:'document.retry',actor_username:'bob',target_id:'a'},{action:'document.retry',actor_username:'alice',target_id:'hidden'},{action:'document.update',actor_username:'alice',target_id:'a'},{action:'document.retry',actor_username:'alice',target_id:'a'}]})};};
+ await s.loadRecentRetryTracking();assert.equal(calls,0);s.service.is_admin=true;await s.loadRecentRetryTracking();assert.deepEqual(Array.from(s.retryTrackingIds),['a']);
+});
 test('arrow navigation immediately opens exactly one directory and clears obsolete search mode',()=>{
  const{state:s}=fixture();s.searchMode='content';s.openDirectory(s.projectDirectories[0],'g');
  assert.equal(s.mode,'library');assert.equal(s.activeFolderId,'g');assert.equal(s.searchMode,'metadata');assert.equal(s.visibleFolders.length,0);assert.equal(s.filteredDocuments.length,1);
