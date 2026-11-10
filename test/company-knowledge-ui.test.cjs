@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const component = vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../frontend/company-knowledge.js'), 'utf8') + '\nCompanyKnowledge;', {AbortController,File});
+const component = vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../frontend/company-knowledge.js'), 'utf8') + '\nCompanyKnowledge;', {AbortController,File,clearTimeout,setTimeout});
 
 test('multiple chunks from one file become one card without losing citation IDs', () => {
   const references = [1, 2, 3, 4, 5].map(id => ({ id: String(id), document_id: 'file-a', title: 'Report' }));
@@ -54,10 +54,10 @@ test('changing evidence scope starts a new conversation and never changes it mid
   const context = { busy: false, selectedIds: [], documents: [], caseCategories: [], currentCollection:'library', reset: 0, newConversation() { this.reset++; } };
   component.methods.changeScope.call(context, ['one']);
   assert.equal(context.reset, 1);
-  assert.deepEqual(context.selectedIds, ['one']);
+  assert.deepEqual(Array.from(context.selectedIds), ['one']);
   context.busy = true;
   component.methods.changeScope.call(context, ['two']);
-  assert.deepEqual(context.selectedIds, ['one']);
+  assert.deepEqual(Array.from(context.selectedIds), ['one']);
 });
 
 test('filters combine project, industry, processing and review state', () => {

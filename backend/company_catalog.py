@@ -267,7 +267,18 @@ def is_owner(doc, user):
 
 
 def classification_allowed(doc, user):
-    return user.role == 'admin' or doc.confidentiality == 'internal'
+    return user.role == 'admin' or shared_experience(doc) or doc.confidentiality == 'internal'
+
+
+def shared_experience(doc):
+    from company_collections import EXPERIENCE_CATEGORIES
+    return getattr(doc, 'category', '') in EXPERIENCE_CATEGORIES
+
+
+def effective_acl(doc):
+    return ({'confidentiality': 'internal', 'visibility': 'members', 'readers': []}
+            if shared_experience(doc) else
+            {'confidentiality': doc.confidentiality, 'visibility': doc.visibility, 'readers': list(doc.readers or [])})
 
 
 def can_read(doc, user):
@@ -276,6 +287,8 @@ def can_read(doc, user):
     # Classification is a ceiling, including for legacy owners and reader grants.
     if not classification_allowed(doc, user):
         return False
+    if shared_experience(doc):
+        return user.role in ('admin', 'user') and getattr(user, 'is_active', True) is not False and not getattr(user, 'archived_at', None)
     if user.role == 'admin' or is_owner(doc, user) or user.username in (doc.readers or []):
         return True
     return doc.confidentiality == 'internal' and doc.visibility == 'members'
@@ -298,10 +311,12 @@ def serialize(doc, user, request_status=''):
               'project', 'industry', 'category', 'review', 'version', 'visibility', 'confidentiality', 'state',
               'research_project_id', 'research_artifact_id', 'is_current', 'knowledge_project_id', 'folder_id', 'inherits_project', 'is_root')}
     values['status_message'] = doc.status_message if readable else '需要管理员批准后才能阅读、下载或用于问答。'
+    if shared_experience(doc):
+        values.update(effective_acl(doc))
     return values | {
         'note_id': doc.note_id if readable else '',
-        'confidentiality_label': CONFIDENTIALITY_LABELS.get(doc.confidentiality, doc.confidentiality),
-        'readers': doc.readers if can_manage(doc, user) else [],
+        'confidentiality_label': CONFIDENTIALITY_LABELS.get(values['confidentiality'], values['confidentiality']),
+        'readers': effective_acl(doc)['readers'] if can_manage(doc, user) else [],
         'cloud_id': doc.cloud_id if readable else None,
         'status': ('FINISH' if doc.state == 'ready' else doc.state.upper()) if readable else 'LOCKED',
         'label': STATE_LABELS.get(doc.state, doc.state) if readable else '需要授权',

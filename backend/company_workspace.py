@@ -25,7 +25,7 @@ import company_knowledge as kb
 from company_catalog import (AUDIO_FORMATS, VIDEO_FORMATS, CONFIDENTIALITY_LABELS, CompanyAccessRequest,
                              CompanyDocument, CompanyProject, can_manage, can_read, document_store, backfill_company_projects,
                              ensure_company_schema, is_owner, media_kind, serialize, classification_allowed,
-                             normalize_confidentiality)
+                             normalize_confidentiality, shared_experience, effective_acl)
 from database import SessionLocal
 from models import User
 from company_audit import record, snapshot, mark_modified, history
@@ -51,6 +51,7 @@ tasks = {}
 scanner = None
 sync_lock = asyncio.Lock()
 last_sync = {}
+catalogue_sync_tasks = {}
 pdf_render_lock = threading.Lock()
 
 
@@ -114,7 +115,7 @@ async def stop_ingestion():
         scanner.cancel()
         with suppress(asyncio.CancelledError):
             await scanner
-    pending = list(tasks.values())
+    pending = list(tasks.values()) + list(catalogue_sync_tasks.values())
     for task in pending:
         task.cancel()
     await asyncio.gather(*pending, return_exceptions=True)
@@ -157,11 +158,28 @@ async def sync_catalog(cfg, force=False):
         last_sync[cfg['index_id']] = time.monotonic()
 
 
+def sync_catalog_in_background(cfg):
+    """The local catalogue is authoritative for browsing; cloud discovery must not hold up navigation."""
+    import time
+    key = cfg['index_id']
+    if key in catalogue_sync_tasks or time.monotonic() - last_sync.get(key, 0) < 30:
+        return
+    async def discover():
+        try:
+            await sync_catalog(cfg)
+        except (kb.KnowledgeError, kb.httpx.HTTPError, ValueError, KeyError):
+            pass
+        finally:
+            catalogue_sync_tasks.pop(key, None)
+    catalogue_sync_tasks[key] = asyncio.create_task(discover())
+
+
 async def prepare_scope(cfg, user, requested, scope='accessible'):
     if scope not in KNOWLEDGE_SCOPES:
         raise HTTPException(422, '请选择资料库或经验沉淀中的有效问答范围。')
     cfg['knowledge_scope'] = scope
-    await sync_catalog(cfg)
+    if not requested:
+        await sync_catalog(cfg)
     with SessionLocal() as migration_db:
         backfill_company_projects(migration_db.get_bind())
     with SessionLocal() as db:
@@ -186,11 +204,14 @@ async def prepare_scope(cfg, user, requested, scope='accessible'):
 
 @workspace_router.get('/documents')
 async def documents(page_number: int = Query(1, ge=1), page_size: int = Query(100, ge=1, le=100),
-                    refresh: bool = False, user: User = Depends(kb.require_knowledge_user)):
+                    refresh: bool = False, local_only: bool = False, user: User = Depends(kb.require_knowledge_user)):
     warning = ''
     cfg = kb.settings()
     try:
-        await sync_catalog(cfg, force=refresh)
+        if local_only and not refresh:
+            sync_catalog_in_background(cfg)
+        else:
+            await sync_catalog(cfg, force=refresh)
     except (kb.KnowledgeError, kb.httpx.HTTPError, ValueError, KeyError):
         warning = '云端目录同步暂不可用，正在显示本系统已保存的资料。'
     with SessionLocal() as db:
@@ -208,6 +229,53 @@ async def documents(page_number: int = Query(1, ge=1), page_size: int = Query(10
         start = (page_number - 1) * page_size
         return {'documents': [serialize(doc, user, request_states.get(doc.id, '')) for doc in docs[start:start + page_size]],
                 'total_count': len(docs), 'page_number': page_number, 'page_size': page_size, 'warning': warning}
+
+
+class KnowledgeSelection(BaseModel):
+    scope: str = Field(default='accessible', pattern='^(accessible|experience)$')
+    project_ids: list[str] = Field(default_factory=list, max_length=1000)
+    folder_ids: list[str] = Field(default_factory=list, max_length=1000)
+    document_ids: list[str] = Field(default_factory=list, max_length=1000)
+
+
+@workspace_router.post('/selection')
+def resolve_selection(body: KnowledgeSelection, user: User = Depends(kb.require_knowledge_user)):
+    """Resolve subtree unions against current ACLs, never substitute all documents for an empty selection."""
+    from company_catalog import CompanyFolder
+    index_id = kb.settings()['index_id']
+    if not (body.project_ids or body.folder_ids or body.document_ids):
+        raise HTTPException(422, '请先选择项目、目录或文件。')
+    with SessionLocal() as db:
+        projects = {p.id: p for p in db.scalars(select(CompanyProject).where(CompanyProject.index_id == index_id))
+                    if can_read(p, user) and in_scope(p, body.scope)}
+        folders = {f.id: f for f in db.scalars(select(CompanyFolder).join(CompanyProject).where(CompanyProject.index_id == index_id))
+                   if f.project_id in projects}
+        if any(key not in projects for key in body.project_ids) or any(key not in folders for key in body.folder_ids):
+            raise HTTPException(403, '所选项目或目录已失效或没有访问权限，请刷新列表。')
+        subtree = set(body.folder_ids)
+        children = {}
+        for folder in folders.values():
+            children.setdefault((folder.project_id, folder.parent_id), []).append(folder.id)
+        queue = list(subtree)
+        while queue:
+            current = queue.pop()
+            for child in children.get((folders[current].project_id, current), []):
+                if child not in subtree:
+                    subtree.add(child)
+                    queue.append(child)
+        rows = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == index_id,
+                    CompanyDocument.state != 'deleted', CompanyDocument.is_current == 1)))
+        visible = {doc.id: doc for doc in rows if can_read(doc, user) and in_scope(doc, body.scope)}
+        if any(key not in visible for key in body.document_ids):
+            raise HTTPException(403, '所选文件已失效或没有访问权限，请刷新列表。')
+        chosen = [doc for doc in visible.values() if doc.id in body.document_ids or
+                  doc.knowledge_project_id in body.project_ids or doc.folder_id in subtree]
+        ready = [doc.id for doc in chosen if doc.state == 'ready' and doc.cloud_id]
+        if not ready:
+            raise HTTPException(409, '所选范围没有已完成索引的可访问资料，请等待处理完成或重新选择。')
+        if len(ready) > 1000:
+            raise HTTPException(422, '所选范围超过 1000 份资料，请缩小到需要的项目或目录。')
+        return {'document_ids': ready, 'document_count': len(ready), 'skipped_count': len(chosen) - len(ready), 'scope': body.scope}
 
 
 def validate_acl(visibility, readers):
@@ -279,6 +347,8 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
         raise HTTPException(422, '成员账号格式不正确。') from None
     if category not in CATEGORIES or review not in ('待复核', '已复核', '参考资料'):
         raise HTTPException(422, '请选择有效的资料分类和复核状态。')
+    if category in EXPERIENCE_CATEGORIES:
+        confidentiality, visibility, acl = 'internal', 'members', []
     confidentiality = validate_confidentiality(confidentiality, user)
     if confidentiality != 'internal':
         visibility = 'restricted'
@@ -309,6 +379,8 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
             owner, owner_id = directory.owner, directory.owner_user_id
             project, industry, category, review = directory.name, directory.industry, directory.category, directory.review
             confidentiality, visibility, acl = directory.confidentiality, directory.visibility, list(directory.readers or [])
+            if shared_experience(directory):
+                confidentiality, visibility, acl = 'internal', 'members', []
             labels = list(directory.tags or [])
             mark_modified(directory, user)
         # PostgreSQL serializes uploads from one user so concurrent submissions
@@ -439,7 +511,7 @@ async def edit_document(doc_id: str, values: DocumentMetadata, user: User = Depe
             directory = find_project(db, doc.knowledge_project_id, user, manage=True)
             if 'project' in changed and changed['project'] != doc.project:
                 raise HTTPException(422, '项目名称请在项目设置中修改，归档位置请使用目录选择。')
-            if doc.inherits_project and any(key in changed and changed[key] != getattr(doc, key)
+            if doc.inherits_project and any(key in changed and changed[key] != (effective_acl(doc)[key] if key in ('confidentiality','visibility','readers') else getattr(doc, key))
                     for key in ('project', 'industry', 'tags', 'category', 'review', 'confidentiality', 'visibility', 'readers')):
                 raise HTTPException(422, '此文件继承项目属性，请在项目设置中修改。')
             acl_values = {key: changed.get(key, getattr(doc, key)) for key in ('confidentiality', 'visibility', 'readers')}
@@ -455,6 +527,8 @@ async def edit_document(doc_id: str, values: DocumentMetadata, user: User = Depe
         if reindex and (doc.state in ('queued', 'uploading', 'parsing', 'indexing', 'deleting') or
                         (doc.lease_until and doc.lease_until > datetime.utcnow())):
             raise HTTPException(409, '文字说明仍在建立索引，请处理完成后再修改。')
+        if shared_experience(doc):
+            changed.update(effective_acl(doc))
         confidentiality = validate_confidentiality(changed.get('confidentiality', doc.confidentiality), user)
         if 'confidentiality' in changed:
             changed['confidentiality'] = confidentiality

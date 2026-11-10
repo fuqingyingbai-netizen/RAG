@@ -635,7 +635,7 @@ def test_many_table_rows_cannot_crowd_another_document_out_of_evidence():
 
 
 def test_tags_description_editing_and_locked_metadata_redaction(setup):
-    row = upload(setup, project='案例项目', category='项目经验', visibility='restricted',
+    row = upload(setup, project='案例项目', category='项目原件', visibility='restricted',
                  tags='["行业背景", "行业背景", "访谈"]', description='只给授权账号阅读的说明').json()
     assert row['tags'] == ['行业背景', '访谈'] and row['created_at']
     assert row['description'] == '只给授权账号阅读的说明'

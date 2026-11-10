@@ -17,6 +17,7 @@ from database import SessionLocal
 from models import User
 from company_audit import record, snapshot, mark_modified
 from company_collections import EXPERIENCE_CATEGORIES
+from company_catalog import effective_acl, shared_experience
 
 projects_router = APIRouter()
 
@@ -49,12 +50,14 @@ def find_folder(db, project_id, folder_id):
 def project_values(project):
     return dict(project=project.name, industry=project.industry, category=project.category,
         review=project.review, confidentiality=project.confidentiality, visibility=project.visibility,
-        readers=list(project.readers or []), tags=list(project.tags or []))
+        readers=list(project.readers or []), tags=list(project.tags or [])) | effective_acl(project)
 
 
 def restrict_to_project(values, project):
     """Project ACL is a ceiling. File exceptions may be narrower, never broader."""
     result = dict(values)
+    if shared_experience(project):
+        return result | effective_acl(project)
     result['confidentiality'] = validate_confidentiality(result['confidentiality'])
     result['readers'] = validate_acl(result['visibility'], result['readers'])
     rank = {'internal': 0, 'secret': 1}
@@ -77,6 +80,8 @@ def serialize_project(project, user, docs, folders):
         modified_at=project.updated_at.isoformat()+'Z', document_count=len(docs),
         ready_count=sum(doc.state == 'ready' and can_read(doc, user) for doc in docs),
         folder_count=len(folders), media_count=sum(bool(media_kind(doc)) and can_read(doc, user) for doc in docs))
+    if shared_experience(project):
+        values.update(effective_acl(project))
     return values
 
 
@@ -95,6 +100,8 @@ class ProjectValues(BaseModel):
         values = self.model_dump()
         values['name'] = clean_name(values['name'])
         values['tags'] = validate_tags(values['tags'])
+        if values['category'] in EXPERIENCE_CATEGORIES:
+            values.update(confidentiality='internal', visibility='members', readers=[])
         values['confidentiality'] = validate_confidentiality(values['confidentiality'], user)
         if values['confidentiality'] != 'internal':
             values['visibility'] = 'restricted'
@@ -125,8 +132,13 @@ def list_projects(user: User = Depends(kb.require_knowledge_user)):
             CompanyProject.index_id == kb.settings()['index_id'])))
         allowed = {p.id for p in projects if can_read(p, user)}
         docs = [doc for doc in docs if classification_allowed(doc, user)]
-        return {'projects': [serialize_project(p, user, [d for d in docs if d.knowledge_project_id == p.id],
-                    [f for f in folders if f.project_id == p.id]) for p in projects if p.id in allowed],
+        docs_by_project, folders_by_project = {}, {}
+        for doc in docs:
+            docs_by_project.setdefault(doc.knowledge_project_id, []).append(doc)
+        for folder in folders:
+            folders_by_project.setdefault(folder.project_id, []).append(folder)
+        return {'projects': [serialize_project(p, user, docs_by_project.get(p.id, []),
+                    folders_by_project.get(p.id, [])) for p in projects if p.id in allowed],
                 'folders': [{'id': f.id, 'project_id': f.project_id, 'parent_id': f.parent_id, 'name': f.name}
                     for f in folders if f.project_id in allowed]}
 

@@ -168,7 +168,7 @@ def snapshot(user, index_id, session_id=None, before_id=None, activate=False, co
 
 class NewConversation(BaseModel):
     scope: str = Field(default='accessible', pattern='^(accessible|my-projects|experience|my-experience)$')
-    document_ids: list[str] = Field(default_factory=list, max_length=20)
+    document_ids: list[str] = Field(default_factory=list, max_length=1000)
 
 
 @memory_router.get('/conversations')

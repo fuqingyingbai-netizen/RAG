@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
     ('为什么文件不能勾选问答？', 'knowledge-processing', ['可检索', '阅读权限', '重试']),
     ('小助手和知识库有什么区别？', 'assistant-role', ['主要职责', '不读取', '不能替你']),
     ('管理员能看到我的聊天吗？', 'assistant-privacy', ['按登录账号ID隔离', '不能通过小助手接口', '数据库运维']),
-    ('怎么只对我选的文件提问？', 'knowledge-qa', ['向选中资料提问', '1500', '空范围']),
+    ('怎么只对我选的文件提问？', 'knowledge-qa', ['向所选范围提问', '1500', '空范围']),
     ('报告已经完成怎么我的项目还没有？', 'report-archive', ['重试归档', '限制访问', '索引']),
     ('怎么保存资料库筛选条件？', 'knowledge-filters', ['浏览器', '排序', '分页']),
     ('可以一次删掉所有任务吗？', 'delete-task', ['没有批量', '运行中', '公司知识库']),
@@ -108,7 +108,7 @@ def test_model_can_find_local_guide_details_without_any_public_search(monkeypatc
     events = []
     answer = guide.model_answer(SimpleNamespace(_get_model=lambda: model),
         ResearchAssistantRequest(message='在这个系统里，我只想回答依据三份我挑的文件，该怎么做？'), 'user', events.append)
-    assert '向选中资料提问' in answer
+    assert '向所选范围提问' in answer
     assert {schema['function']['name'] for schema in model.schemas} == {'search_system_guide'}
     assert model.options[0]['tool_choice']['function']['name'] == 'search_system_guide'
     assert len(model.messages) == 1

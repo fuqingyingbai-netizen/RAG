@@ -47,13 +47,13 @@ def test_upload_root_help_matches_selected_destination(setup):
 
 def test_scope_cannot_leak_private_names_cross_index_or_folder(setup):
     setup.user.role = 'admin'
-    secret = project(setup, '不可泄露的目录', category='项目经验', confidentiality='secret', visibility='restricted')
+    secret = project(setup, '不可泄露的目录', category='项目原件', confidentiality='secret', visibility='restricted')
     other = project(setup, '另一个项目', category='项目经验')
     folder = setup.client.post('/company-knowledge/projects/' + other['id'] + '/folders', json={'name': '私有子目录'}).json()
     setup.user.role = 'user'
     assert '不能确认' in answer(setup, request(project_id=secret['id'], folder_id=folder['id']))
     setup.user.username, setup.user.id = 'bob', 2
-    text = answer(setup, request(project_id=secret['id']))
+    text = answer(setup, request(mode='library', collection='library', project_id=secret['id']))
     assert '不可泄露' not in text and '不能确认' in text
     setup.user.is_active = False
     assert '不能确认' in answer(setup, request(project_id=other['id']))
@@ -81,7 +81,7 @@ def test_current_note_help_and_save_failure_route_to_operating_instructions(setu
 
 def test_version_reports_release_notes_without_model_or_secrets():
     text = answer_for_request(ResearchAssistantRequest(message='现在系统是什么版本，更新了什么？'))
-    assert '2026.11.10.2' in text and '图文笔记' in text and '不跨库' in text
+    assert '2026.11.10.3' in text and '图文笔记' in text and '不跨库' in text
     assert '默认可用' in text and '仅能访问内部资料' in text
     assert '密钥' not in text
     assert '历史版本' in answer_for_request(ResearchAssistantRequest(message='怎么查看历史版本？'))

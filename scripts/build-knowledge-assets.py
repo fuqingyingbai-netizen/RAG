@@ -11,7 +11,7 @@ def build():
     index=frontend/'index.html'
     html=index.read_text(encoding='utf-8')
     files=[]
-    for name in ('knowledge-glass-optics.js','knowledge-document-viewer.js','knowledge-note-editor.js','knowledge-note-editor.css','company-knowledge.js','company-knowledge-glass.css'):
+    for name in ('knowledge-glass-optics.js','knowledge-document-viewer.js','knowledge-note-editor.js','knowledge-note-editor.css','company-knowledge.js','company-knowledge-glass.css','knowledge-workspace.css'):
         source=frontend/name
         # Git checks these files out with LF. Hash the same bytes on Windows too.
         payload=source.read_text(encoding='utf-8').encode('utf-8')
