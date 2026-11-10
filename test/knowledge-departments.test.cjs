@@ -40,3 +40,17 @@ test('clearing explicit department evidence cannot silently submit an all-librar
 test('home and experience keep their existing global scope',()=>{
  const{s}=fixture();s.openDepartment('market');s.loadChatHistory=()=>{};s.browseCases();assert.equal(s.departmentFilter,'');assert.equal(s.currentCollection,'experience');s.openHome();assert.equal(s.mode,'home');assert.equal(s.departmentFilter,'');
 });
+test('late initialization cannot reapply a department after the user returns to the total catalogue',async()=>{
+ const{s}=fixture();let finishHistory;const history=new Promise(resolve=>finishHistory=resolve);
+ s.departmentEntry={department:'market'};s.restoreLibraryView=()=>{s.viewRestored=true};
+ s.apiFetch=async()=>({ok:true,json:async()=>s.service});s.loadDocuments=async()=>{};s.loadMyProjects=async()=>{};s.loadAccessRequests=async()=>{};s.loadChatHistory=()=>history;
+ const loading=s.loadService();await new Promise(setImmediate);assert.equal(s.departmentFilter,'market');s.browseLibrary();finishHistory();await loading;
+ assert.equal(s.departmentFilter,'');s.startUpload();assert.equal(s.uploadForm.department,'');
+});
+test('department navigation during a slow status request survives initialization without restoring an old view',async()=>{
+ const{s}=fixture();let finishStatus;const status=new Promise(resolve=>finishStatus=resolve);let restores=0;
+ s.departmentEntry={department:'market'};s.restoreLibraryView=()=>{restores++;s.departmentFilter='market';s.viewRestored=true};
+ s.apiFetch=()=>status;s.loadDocuments=async()=>{};s.loadMyProjects=async()=>{};s.loadAccessRequests=async()=>{};s.loadChatHistory=async()=>{};
+ const loading=s.loadService();s.openDepartment('market');s.browseLibrary();finishStatus({ok:true,json:async()=>s.service});await loading;
+ assert.equal(restores,0);assert.equal(s.departmentFilter,'');assert.equal(s.viewRestored,true);
+});

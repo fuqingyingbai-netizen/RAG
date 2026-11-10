@@ -25,7 +25,7 @@ const CompanyKnowledge = {
   data() {
     return {
       retryTrackingIds: [],
-      departmentFilter: '', departmentOptions: [{id:'market',label:'市场部'},{id:'project',label:'项目部'},{id:'policy',label:'制度文件'},{id:'expert',label:'专家资料'}],
+      departmentEntryApplied:false, departmentFilter: '', departmentOptions: [{id:'market',label:'市场部'},{id:'project',label:'项目部'},{id:'policy',label:'制度文件'},{id:'expert',label:'专家资料'}],
       uploadTargetProjectId: '', uploadTargetFolderId: '', reuploadContext:null, moveOpen: false, moveDoc: null, moveProjectId: '', moveFolderId: '', moveBusy: false, moveError: '',
       catalogueMutation:0,catalogueRefreshQueued:false,noteDeleting:false,noteEditorId: '', noteDrafts: [], noteError: '', noteCreating: false,
       searchMode: 'metadata', contentMatches: [], contentTotal: 0, contentPage: 1, contentBusy: false, contentError: '', contentSearched: false, searchSequence: 0, readerLocation: null, readerFind: '', readerFocus: false, locating: false, quickCapture: false, captureTitle: '', captureScene: '', captureMethod: '',
@@ -220,7 +220,7 @@ const CompanyKnowledge = {
     },
     openDepartment(value) {
       if(this.busy){ElementPlus.ElMessage.info('请先停止当前回答，再切换部门资料。');return;}
-      this.browseLibrary();this.setDepartmentFilter(value);
+      this.departmentEntryApplied=true;this.browseLibrary();this.setDepartmentFilter(value);
     },
     openChat() { if(this.mode==='chat')return;if(this.currentCollection==='library'&&this.departmentFilter){this.askLibrary();return;}this.mode='chat'; },
     async openRecycle(page=1) {
@@ -594,7 +594,10 @@ const CompanyKnowledge = {
         if (!this.service.configured) throw new Error('公司知识库尚未配置，请联系管理员。');
         this.restoreRetryTracking();
         try { this.favorites = JSON.parse(localStorage.getItem('companyKnowledgeFavorites:' + this.service.username) || '[]'); } catch { this.favorites = []; }
-        if (!this.viewRestored) this.restoreLibraryView();
+        if (!this.viewRestored) {
+          if(this.departmentEntryApplied)this.viewRestored=true;
+          else { this.restoreLibraryView();if(this.departmentEntry)this.openDepartment(this.departmentEntry.department); }
+        }
         try { const saved=JSON.parse(sessionStorage.getItem('companyKnowledgeReturn:'+this.service.username)||'null');if(saved?.view&&['library','cases'].includes(saved.view.mode))this.returnLocation=saved; }catch{}
         if (sessionStorage.getItem('companyKnowledgeOpenMyProjects') === '1') {
           sessionStorage.removeItem('companyKnowledgeOpenMyProjects');
@@ -604,7 +607,6 @@ const CompanyKnowledge = {
         await this.loadRecentRetryTracking();
         if (this.mode === 'cases') this.chatScope = 'experience';
         await this.loadChatHistory();
-        if(this.departmentEntry)this.openDepartment(this.departmentEntry.department);
       } catch (error) { this.serviceError = error.message; }
     },
     async loadDocuments(more = false, refresh = false) {
