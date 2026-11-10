@@ -616,7 +616,7 @@ const CompanyKnowledge = {
         await Promise.all([this.loadDocuments(), this.loadMyProjects(), this.loadAccessRequests()]);
         await this.loadRecentRetryTracking();
         if (this.mode === 'cases') this.chatScope = 'experience';
-        await this.loadChatHistory();
+        if(this.departmentEntryApplied)await this.refreshChatSessions();else await this.loadChatHistory();
       } catch (error) { this.serviceError = error.message; }
     },
     async loadDocuments(more = false, refresh = false) {
