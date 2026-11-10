@@ -119,9 +119,17 @@ def check(page,state,p,args,temp,errors):
     page.set_viewport_size({'width':1440,'height':1000})
     receipt.get_by_role('button',name='打开所在目录',exact=True).click()
     expect(page.locator('.ckb-directory-path')).to_contain_text(p['name'])
+    expect(panel).to_have_count(0)
+    page.get_by_role('button',name='处理失败',exact=False).click()
+    expect(panel).to_be_visible()
     receipt.get_by_role('button',name='查看文件',exact=True).click()
     expect(reader).to_be_visible();expect(reader).to_contain_text('经验失败.txt')
     reader.locator('.el-dialog__headerbtn').click();expect(reader).not_to_be_visible()
+    # The retry receipts belong only to the failure view, including experience.
+    for name in ('全部经验','我的笔记','我的收藏'):
+        page.get_by_role('button',name=re.compile('^'+name)).click()
+        expect(panel).to_have_count(0)
+    page.get_by_role('button',name='处理失败',exact=False).click();expect(panel).to_be_visible()
     # Server refusal before registration offers discard and a fresh selection.
     page.get_by_role('tab',name=re.compile('^(总)?资料库$')).click();page.get_by_role('button',name='上传文件',exact=True).click()
     upload_dialog=page.get_by_role('dialog',name='上传文件',exact=True)
