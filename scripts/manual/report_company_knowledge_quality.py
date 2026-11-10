@@ -29,6 +29,9 @@ def build(dataset, results, output):
     after=all_scores['context_recall']
     refusals=[r for r in rows if r['unanswerable']]
     refusal_score=sum(r.get('judgment',{}).get('refusal_correct') is True for r in refusals)/len(refusals) if refusals else None
+    generation_retries=[r['id'] for r in rows if any(a.get('stage')=='generation' for a in r.get('prior_attempts',[]))]
+    judgment_retries=[r['id'] for r in rows if r.get('prior_errors') or any(a.get('stage')=='judge' for a in r.get('prior_attempts',[]))]
+    annotation_revisions=[r['id'] for r in rows if r.get('prior_annotation_judgments')]
     fingerprints={r.get('fingerprint') for r in rows}
     checks={
         'all_expected_cases_present':not missing and len(rows)==len(cases),
@@ -44,12 +47,13 @@ def build(dataset, results, output):
     report={'status':'passed' if all(checks.values()) else 'not_passed','cases':len(cases),'completed':len(rows),'missing':missing,
         'gates':GATES,'checks':checks,'all':all_scores,'holdout':holdout,'baseline_context_recall':before,'optimized_context_recall':after,
         'refusal_correct':refusal_score,'categories':dict(Counter(c['category'] for c in cases)),
+        'generation_retries':generation_retries,'judgment_retries':judgment_retries,'reference_annotation_revisions':annotation_revisions,
         'scope':'four original documents; 70 development / 30 held-out questions; independent automated judge, not a corpus-wide guarantee',
         'selection_comparison':'same candidate nodes; old/new selection scored per final answer; no claim of full-production A/B accuracy lift'}
     output.mkdir(parents=True,exist_ok=True)
     (output/'acceptance.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     def pct(v):return '未测' if v is None else f'{v:.1%}'
-    metrics=[('原文依据进入最终上下文',before,after),('保留题事实正确率',None,holdout['answer_correct']),
+    metrics=[('原文依据进入最终上下文',before,after),('保留题自动答案核对通过率',None,holdout['answer_correct']),
         ('保留题依据忠实度',None,holdout['faithful']),('保留题引用支持程度',None,holdout['citation_supported']),
         ('无答案及范围限制题正确拒答',None,refusal_score)]
     table=''.join('<tr><td>'+escape(name)+'</td><td>'+pct(old)+'</td><td>'+pct(new)+'</td></tr>' for name,old,new in metrics)
@@ -57,12 +61,15 @@ def build(dataset, results, output):
     for row in sorted(rows,key=lambda r:r['id']):
         j=row.get('judgment',{});ok=not row.get('error') and all(j.get(k) is True for k in ('answer_correct','complete','faithful','citation_supported'))
         refs=''.join('<li><b>'+escape(str(r.get('title','')))+' V'+escape(str(r.get('version','')))+' [id_'+escape(str(r.get('id','')))+']</b><pre>'+escape(r.get('text',''))+'</pre></li>' for r in row.get('references',[]))
-        details.append('<details><summary>'+escape(row['id']+' · '+row.get('split','')+' · '+('通过' if ok else '需查看')+' · '+row['question'])+'</summary><p>'+escape(j.get('reason',row.get('error','')))+'</p><h3>参考答案</h3><pre>'+escape(row.get('expected_answer',''))+'</pre><h3>实际回答</h3><pre>'+escape(row.get('answer',''))+'</pre><h3>本轮依据</h3><ol>'+refs+'</ol></details>')
+        prior=''.join('<p>参考条目修订前的答案和评分（生成回答未修改）</p><pre>'+escape(json.dumps(a,ensure_ascii=False,indent=2))+'</pre>' for a in row.get('prior_annotation_judgments',[]))
+        details.append('<details><summary>'+escape(row['id']+' · '+row.get('split','')+' · '+('通过' if ok else '需查看')+' · '+row['question'])+'</summary><p>'+escape(j.get('reason',row.get('error','')))+'</p>'+prior+'<h3>参考答案</h3><pre>'+escape(row.get('expected_answer',''))+'</pre><h3>实际回答</h3><pre>'+escape(row.get('answer',''))+'</pre><h3>本轮依据</h3><ol>'+refs+'</ol></details>')
     html='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>企业知识库问答质量验收</title><style>body{font:16px/1.65 system-ui,"Microsoft YaHei",sans-serif;color:#17212f;background:#f5f7fa;max-width:1100px;margin:40px auto;padding:0 24px}h1{font-size:28px}section,details{background:white;border:1px solid #dce2e9;border-radius:8px;padding:18px;margin:16px 0}table{width:100%;border-collapse:collapse}td,th{padding:12px;text-align:left;border-bottom:1px solid #e1e6ed}th{background:#edf2f7}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.7 inherit}summary{cursor:pointer}small{color:#5b687b}</style><h1>企业知识库问答质量验收</h1>'''
     html+='<p>最终状态：'+('通过' if report['status']=='passed' else '尚未通过')+'。完成 '+str(len(rows))+' / '+str(len(cases))+' 道真实原件题目。</p>'
     html+='<p>评测覆盖4份原件，70道开发题、30道保留题。事实与引用核对来自独立模型调用，仍需人工抽查；不能将本样本分数视为整个知识库的准确率。</p>'
+    html+='<p>回答生成重试 '+str(len(generation_retries))+' 题；评分调用重试 '+str(len(judgment_retries))+' 题；参考条目修订 '+str(len(annotation_revisions))+' 题。原失败、原评分与回答均保留，不能理解为首次调用全部成功。</p>'
     html+='<section><table><tr><th>检查项</th><th>旧证据选择</th><th>最终版本</th></tr>'+table+'</table><p>旧新证据选择使用相同候选片段；事实正确率只报告最终版本，不把此前试验中的不等量样本冒充完整A/B测试。</p></section>'
     html+='<section><h2>验收条件</h2><ul>'+''.join('<li>'+escape(k)+'：'+('通过' if v else '未通过')+'</li>' for k,v in checks.items())+'</ul></section>'
+    html+='<section><h2>原文复核说明</h2><p>Q020、Q056按资料分别给出不同职务或价格说法，并包含参考答案要点，符合保留真实冲突的要求。自动评分对“不能确定唯一结论”较严格；本报告保留其自动判错，标为参考答案歧义，不擅自改为通过。Q088修正了参考条目索引错误，问题和生成回答均未修改。此复核由Codex完成，不代替人工业务审核。</p><p>云端表格的换行标记不作为文字丢失。召回匹配修正前的指标及所有候选证据ID均保留在原始记录中。</p></section>'
     html+='<h2>逐题记录</h2>'+''.join(details)+'</html>'
     (output/'report.html').write_text(html,encoding='utf-8')
     return report
