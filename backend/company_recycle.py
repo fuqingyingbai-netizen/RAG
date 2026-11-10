@@ -28,7 +28,7 @@ def initialize(engine):
         known = select(RecycleItem.target_id).where(RecycleItem.kind == 'document')
         for doc in db.scalars(select(CompanyDocument).where(CompanyDocument.state == 'deleted',
                 CompanyDocument.object_key != '', ~CompanyDocument.id.in_(known))):
-            capture(db, 'document.delete', doc, {'state': 'ready'})
+            capture(db, 'document.delete', doc, {'state': 'ready'}, group=False)
         for kind, model in (('note', CompanyNote), ('project', CompanyProject)):
             known = select(RecycleItem.target_id).where(RecycleItem.kind == kind)
             for obj in db.scalars(select(model).where(model.deleted_at.is_not(None), ~model.id.in_(known))):
@@ -37,7 +37,7 @@ def initialize(engine):
                     event = db.scalar(select(CompanyAuditEvent).where(CompanyAuditEvent.target_id == obj.id,
                         CompanyAuditEvent.action == 'project.delete').order_by(CompanyAuditEvent.created_at.desc()))
                     before['name'] = event.target_name if event else obj.name
-                capture(db, kind+'.delete', obj, before)
+                capture(db, kind+'.delete', obj, before, group=False)
         db.commit()
 
 
@@ -64,7 +64,7 @@ def models():
     return {'document': CompanyDocument, 'project': CompanyProject, 'note': CompanyNote}
 
 
-def capture(db, action, target, before=None):
+def capture(db, action, target, before=None, *, group=True):
     """Called by the audit writer, in exactly the deletion transaction."""
     kind = action.split('.')[0]
     if action not in ('document.delete', 'project.delete', 'note.delete'):
@@ -81,7 +81,7 @@ def capture(db, action, target, before=None):
         captured.clear()
         captured.update(transaction=transaction, ids=set())
     captured['ids'].add(item.id)
-    if kind in ('note', 'project'):
+    if group and kind in ('note', 'project'):
         from company_catalog import CompanyDocument
         docs = list(db.scalars(select(CompanyDocument).where(
             (CompanyDocument.note_id == target.id) if kind == 'note' else
