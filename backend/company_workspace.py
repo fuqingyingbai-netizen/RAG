@@ -253,6 +253,7 @@ class KnowledgeSelection(BaseModel):
     project_ids: list[str] = Field(default_factory=list, max_length=1000)
     folder_ids: list[str] = Field(default_factory=list, max_length=1000)
     document_ids: list[str] = Field(default_factory=list, max_length=1000)
+    department: str | None = Field(default=None, max_length=30)
 
 
 @workspace_router.post('/selection')
@@ -260,7 +261,10 @@ def resolve_selection(body: KnowledgeSelection, user: User = Depends(kb.require_
     """Resolve subtree unions against current ACLs, never substitute all documents for an empty selection."""
     from company_catalog import CompanyFolder
     index_id = kb.settings()['index_id']
-    if not (body.project_ids or body.folder_ids or body.document_ids):
+    from company_departments import validate_department
+    if body.department is not None:
+        validate_department(body.department)
+    if not (body.project_ids or body.folder_ids or body.document_ids) and body.department is None:
         raise HTTPException(422, '请先选择项目、目录或文件。')
     with SessionLocal() as db:
         projects = {p.id: p for p in db.scalars(select(CompanyProject).where(CompanyProject.index_id == index_id))
@@ -285,14 +289,18 @@ def resolve_selection(body: KnowledgeSelection, user: User = Depends(kb.require_
         visible = {doc.id: doc for doc in rows if can_read(doc, user) and in_scope(doc, body.scope)}
         if any(key not in visible for key in body.document_ids):
             raise HTTPException(403, '所选文件已失效或没有访问权限，请刷新列表。')
-        chosen = [doc for doc in visible.values() if doc.id in body.document_ids or
-                  doc.knowledge_project_id in body.project_ids or doc.folder_id in subtree]
+        explicit = bool(body.project_ids or body.folder_ids or body.document_ids)
+        chosen = [doc for doc in visible.values() if
+                  (body.department is None or doc.department == body.department) and
+                  (not explicit or doc.id in body.document_ids or
+                   doc.knowledge_project_id in body.project_ids or doc.folder_id in subtree)]
         ready = [doc.id for doc in chosen if doc.state == 'ready' and doc.cloud_id]
         if not ready:
             raise HTTPException(409, '所选范围没有已完成索引的可访问资料，请等待处理完成或重新选择。')
         if len(ready) > 1000:
             raise HTTPException(422, '所选范围超过 1000 份资料，请缩小到需要的项目或目录。')
-        return {'document_ids': ready, 'document_count': len(ready), 'skipped_count': len(chosen) - len(ready), 'scope': body.scope}
+        return {'document_ids': ready, 'document_count': len(ready), 'skipped_count': len(chosen) - len(ready), 'scope': body.scope,
+                'department': body.department}
 
 
 def validate_acl(visibility, readers):
@@ -346,15 +354,18 @@ def validate_bytes(payload, extension):
 
 
 @workspace_router.post('/uploads', status_code=202)
-async def upload(file: UploadFile = File(...), project: str = Form('', max_length=200),
+async def upload(request: Request, file: UploadFile = File(...), project: str = Form('', max_length=200),
                  industry: str = Form('', max_length=100), category: str = Form('项目原件'),
                  review: str = Form('待复核'), visibility: str = Form('members'), readers: str = Form('[]'),
                  confidentiality: str = Form('internal'), tags: str = Form('[]'),
                  description: str = Form('', max_length=10000),
                  project_id: str = Form('', max_length=64), folder_id: str = Form('', max_length=64),
-                 root: bool = Form(False),
+                 root: bool = Form(False), department: str | None = Form(None, max_length=30),
                  user: User = Depends(kb.require_knowledge_user)):
     cfg = kb.settings()
+    from company_departments import validate_department
+    department_supplied = 'department' in await request.form()
+    department = validate_department(department or '')
     if root and (project_id or folder_id or project.strip()):
         raise HTTPException(422, '根目录文件不能同时指定项目或子目录。')
     try:
@@ -392,6 +403,7 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
         if project_id:
             from company_projects import find_project, find_folder
             directory = find_project(db, project_id, user, manage=True)
+            department = directory.department
             find_folder(db, directory.id, folder_id)
             owner, owner_id = directory.owner, directory.owner_user_id
             project, industry, category, review = directory.name, directory.industry, directory.category, directory.review
@@ -407,6 +419,8 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
             CompanyDocument.owner == owner, CompanyDocument.title == title,
             CompanyDocument.knowledge_project_id == project_id, CompanyDocument.folder_id == folder_id,
             CompanyDocument.project == project.strip())))
+        if not project_id and category not in EXPERIENCE_CATEGORIES and department_supplied and not department and not previous:
+            raise HTTPException(422, '请选择所属部门／栏目。')
         duplicate = next((doc for doc in previous if doc.sha256 == digest and doc.state != 'deleted'), None)
         if duplicate:
             raise HTTPException(409, '相同内容已上传，请在资料列表查看原任务；如处理失败可点击重试。')
@@ -414,7 +428,7 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
             format=extension.upper(), size=len(payload), sha256=digest, owner=owner,
             uploaded_by=user.username, uploaded_by_user_id=getattr(user, 'id', None), modified_by=user.username,
             owner_user_id=owner_id, knowledge_project_id=project_id, folder_id=folder_id, inherits_project=int(bool(project_id)), is_root=int(root), confidentiality=confidentiality,
-            project=project.strip(), industry=industry.strip(), category=category, review=review,
+            project=project.strip(), industry=industry.strip(), department=department, category=category, review=review,
             tags=labels, description=description.strip(),
             visibility=visibility, readers=acl, version=max((row.version for row in previous), default=0) + 1,
             state='archived' if extension in MEDIA_FORMATS and not description.strip() else 'queued',
@@ -494,6 +508,7 @@ class DocumentMetadata(BaseModel):
     title: str = Field(default='', max_length=255)
     project: str = Field(default='', max_length=200)
     industry: str = Field(default='', max_length=100)
+    department: str = Field(default='', max_length=30)
     category: str = '项目原件'
     review: str = '待复核'
     visibility: str = 'members'
@@ -511,6 +526,9 @@ async def edit_document(doc_id: str, values: DocumentMetadata, user: User = Depe
             raise HTTPException(422, '请使用“编辑笔记”修改图文笔记；继承属性请在项目设置中修改。')
         before = snapshot(doc)
         changed = values.model_dump(exclude_unset=True)
+        if 'department' in changed:
+            from company_departments import validate_department
+            changed['department'] = validate_department(changed['department'])
         if doc.is_root and (changed.get('project') or changed.get('folder_id')):
             raise HTTPException(422, '请使用“移动”选择项目；根目录文件不能直接填写项目名称或子目录。')
         if 'category' in changed and ((changed['category'] in EXPERIENCE_CATEGORIES) != (doc.category in EXPERIENCE_CATEGORIES)):
@@ -526,6 +544,8 @@ async def edit_document(doc_id: str, values: DocumentMetadata, user: User = Depe
             if 'folder_id' in changed:
                 find_folder(db, doc.knowledge_project_id, changed['folder_id'])
             directory = find_project(db, doc.knowledge_project_id, user, manage=True)
+            if 'department' in changed and changed['department'] != directory.department:
+                raise HTTPException(422, '所属部门／栏目跟随项目，请在项目设置中修改。')
             if 'project' in changed and changed['project'] != doc.project:
                 raise HTTPException(422, '项目名称请在项目设置中修改，归档位置请使用目录选择。')
             if doc.inherits_project and any(key in changed and changed[key] != (effective_acl(doc)[key] if key in ('confidentiality','visibility','readers') else getattr(doc, key))

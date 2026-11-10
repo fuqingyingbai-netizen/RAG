@@ -18,6 +18,7 @@ from models import User
 from company_audit import record, snapshot, mark_modified
 from company_collections import EXPERIENCE_CATEGORIES
 from company_catalog import effective_acl, shared_experience
+from company_departments import Department
 
 projects_router = APIRouter()
 
@@ -48,7 +49,7 @@ def find_folder(db, project_id, folder_id):
 
 
 def project_values(project):
-    return dict(project=project.name, industry=project.industry, category=project.category,
+    return dict(project=project.name, industry=project.industry, department=project.department, category=project.category,
         review=project.review, confidentiality=project.confidentiality, visibility=project.visibility,
         readers=list(project.readers or []), tags=list(project.tags or [])) | effective_acl(project)
 
@@ -73,7 +74,7 @@ def restrict_to_project(values, project):
 
 
 def serialize_project(project, user, docs, folders):
-    values = {key: getattr(project, key) for key in ('id', 'name', 'owner', 'owner_user_id', 'industry',
+    values = {key: getattr(project, key) for key in ('id', 'name', 'owner', 'owner_user_id', 'industry', 'department',
         'category', 'review', 'confidentiality', 'visibility', 'description', 'created_by', 'modified_by')}
     values.update(tags=list(project.tags or []), readers=list(project.readers or []) if can_manage(project, user) else [],
         can_manage=can_manage(project, user), created_at=project.created_at.isoformat()+'Z',
@@ -88,6 +89,7 @@ def serialize_project(project, user, docs, folders):
 class ProjectValues(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     industry: str = Field(default='', max_length=100)
+    department: Department | None = None
     description: str = Field(default='', max_length=10000)
     tags: list[str] = Field(default_factory=list, max_length=20)
     category: str = '项目原件'
@@ -98,6 +100,9 @@ class ProjectValues(BaseModel):
 
     def validated(self, user=None):
         values = self.model_dump()
+        # Omission preserves compatibility with existing clients and generated archives.
+        if values['department'] is None:
+            values.pop('department')
         values['name'] = clean_name(values['name'])
         values['tags'] = validate_tags(values['tags'])
         if values['category'] in EXPERIENCE_CATEGORIES:
@@ -146,6 +151,8 @@ def list_projects(user: User = Depends(kb.require_knowledge_user)):
 @projects_router.post('/projects', status_code=201)
 def create_project(data: ProjectValues, user: User = Depends(kb.require_knowledge_user)):
     values = data.validated(user)
+    if data.department == '' and values['category'] not in EXPERIENCE_CATEGORIES:
+        raise HTTPException(422, '请选择所属部门／栏目。')
     with SessionLocal() as db:
         project = CompanyProject(id=uuid.uuid4().hex, index_id=kb.settings()['index_id'],
             owner=user.username, owner_user_id=getattr(user, 'id', None), created_by=user.username, modified_by=user.username, **values)
@@ -177,6 +184,9 @@ async def edit_project(project_id: str, data: ProjectValues, user: User = Depend
         queued = []
         for doc in docs:
             doc_before = snapshot(doc)
+            # Attribution belongs to the project even for legacy files with narrower ACLs.
+            if 'department' in values:
+                doc.department = project.department
             if renamed:
                 doc.project = project.name
             if doc.inherits_project:
