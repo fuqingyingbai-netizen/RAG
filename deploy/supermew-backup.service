@@ -1,14 +1,21 @@
 [Unit]
-Description=Consistent idle-time backup for SuperMew
+Description=Verified incremental offsite backup for SuperMew
 After=supermew.service postgresql.service docker.service
 
 [Service]
 Type=oneshot
 User=root
 UMask=0077
-ExecStart=/opt/supermew/current/.venv/bin/python /opt/supermew/current/deploy/backup-production.py --run --retain 7
+EnvironmentFile=-/etc/supermew/backup-oss.env
+RuntimeDirectory=supermew-backup
+RuntimeDirectoryMode=0700
+ExecStart=/usr/bin/python3 /opt/supermew/ops/backup/backup_policy.py --run
 Nice=10
+CPUWeight=10
+IOWeight=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7
-TimeoutStartSec=900
+TimeoutStartSec=18000
 TimeoutStopSec=180
+Restart=on-failure
+RestartSec=15min

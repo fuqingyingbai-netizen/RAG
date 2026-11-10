@@ -1,0 +1,13 @@
+[Unit]
+Description=SuperMew backup capacity and stale partial archive guard
+After=supermew.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+EnvironmentFile=-/etc/supermew/backup-oss.env
+ExecStart=/usr/bin/python3 /opt/supermew/ops/backup/backup_policy.py --run --guard
+Nice=15
+IOSchedulingClass=idle
+TimeoutStartSec=600

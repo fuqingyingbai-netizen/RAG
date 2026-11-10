@@ -411,3 +411,5 @@ from company_discovery import discovery_router
 router.include_router(discovery_router)
 from company_notes import notes_router
 router.include_router(notes_router)
+from company_recycle import router as recycle_router
+router.include_router(recycle_router)

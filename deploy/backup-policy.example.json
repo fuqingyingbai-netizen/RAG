@@ -1,0 +1,16 @@
+{
+  "schema": 2,
+  "repository": "",
+  "region": "",
+  "restic": "/usr/local/bin/restic",
+  "min_free_bytes": 10000000000,
+  "max_local_bytes": 8000000000,
+  "keep_local_full": 1,
+  "keep_local_database": 2,
+  "max_database_bytes": 1000000000,
+  "stale_partial_hours": 24,
+  "keep_daily_days": 7,
+  "keep_weekly": 4,
+  "database_restore_interval_days": 7,
+  "max_daily_sample_bytes": 1000000
+}

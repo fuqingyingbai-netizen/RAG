@@ -32,6 +32,9 @@ def record(db, user, action, target, *, before=None, details=None, event_id=None
         actor_id=getattr(user, 'id', None), actor_username=user.username, action=action,
         changes=changes, details=details or {})
     db.add(event)
+    if action in ('document.delete', 'project.delete', 'note.delete'):
+        from company_recycle import capture
+        capture(db, action, target, before)
     return event
 
 
