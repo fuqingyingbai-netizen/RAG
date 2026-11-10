@@ -38,3 +38,19 @@ def test_missing_receipt_or_unexpected_files_preserves_archives(tmp_path):
     assert m.candidates(tmp_path,m.inventory(tmp_path),{})==[]
     (p/'untracked').write_text('unknown')
     assert m.inventory(tmp_path)==[]
+
+
+def test_complete_metadata_archive_is_never_treated_as_stale_partial(tmp_path, monkeypatch):
+    import os
+    spec=importlib.util.spec_from_file_location('backup_policy_test',Path(__file__).parents[1]/'deploy/backup_policy.py')
+    policy=importlib.util.module_from_spec(spec);spec.loader.exec_module(policy)
+    old=archive(tmp_path,1)
+    os.utime(old,(1,1))
+    full=tmp_path/'backups'/'knowledge-release-20261102T000000Z';full.mkdir()
+    (full/'database.dump').write_bytes(b'full');(full/'COMPLETE').touch()
+    monkeypatch.setattr(policy,'ROOT',tmp_path)
+    monkeypatch.setattr(policy,'verify_legacy',lambda *a,**kw:{'path':str(full)})
+    monkeypatch.setattr(policy,'fresh_offsite_proof',lambda *a:False)
+    monkeypatch.setattr(policy,'live_references',lambda *a:False)
+    result=policy.guard(dict(policy.DEFAULTS))
+    assert old.exists() and result['deleted']==[]
