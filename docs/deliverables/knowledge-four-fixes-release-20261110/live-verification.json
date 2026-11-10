@@ -1,0 +1,39 @@
+{
+  "status": "verified",
+  "release": "/opt/supermew/releases/48043e466e51d4e33517c0a40f8a34e0ebb74b22",
+  "version": {
+    "service": "rag-backend",
+    "instance_id": "a2582bc3-7233-40d4-9ea6-32bb5890cb9d",
+    "loaded_at_utc": "2026-11-10T15:08:13.734290+00:00",
+    "industry": {
+      "cleaning": "industry-evidence-v30-source-context",
+      "risk": "industry-risk-v25-reason-review-repair",
+      "report": "industry-report-evidence-v70-bound-citations-risk-review",
+      "proposal": "industry-proposal-content-v4-research-responsibility",
+      "sources": "industry-source-review-v2-text-integrity"
+    },
+    "workflow": {
+      "version": "due-diligence-three-step-v1",
+      "proposal": "proposal-client-requirements-v1"
+    }
+  },
+  "binary_content_types": [
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "image/png"
+  ],
+  "invalid_index_requests": 12,
+  "all_invalid_status": 422,
+  "valid_index_with_missing_session_status": 404,
+  "anonymous_export_status": 401,
+  "frontend_css_preserved": true,
+  "index_only_asset_reference_changed": true,
+  "backup_scope": "full",
+  "backup_checksums_verified": true,
+  "backup_archives_readable": true,
+  "services": [
+    "active",
+    "active",
+    "active"
+  ]
+}
