@@ -5,6 +5,14 @@ function state(){const s=component.data();for(const [k,v] of Object.entries(comp
 const response=data=>({ok:true,status:200,json:async()=>data});
 const tick=()=>new Promise(setImmediate);
 
+test('reader context never claims the original is visible while encrypted or still loading',()=>{
+ const s=state();s.selectedDoc={has_original:true};s.readerMode='original';s.readerOriginalLoading=true;
+ assert.match(s.readerContextHint,/正在准备/);assert.doesNotMatch(s.readerContextHint,/正在查看/);
+ s.readerOriginalLoading=false;s.readerOriginalError='该 PDF 已加密';assert.match(s.readerContextHint,/未打开/);
+ s.readerOriginalError='';assert.match(s.readerContextHint,/正在查看归档原件/);
+ s.readerMode='excerpts';s.selectedDoc.has_original=false;assert.match(s.readerContextHint,/尚未归档/);assert.doesNotMatch(s.readerContextHint,/可切回/);
+});
+
 test('large XLSX opens the row reader without starting a PDF conversion',async()=>{
  const s=state(),calls=[],table={mode:'table',page:1,values:[['first']]};
  s.apiFetch=async url=>{calls.push(url);return url.endsWith('/sheet')?new Response(JSON.stringify(table),{headers:{'Content-Type':'application/json','X-Watermark-Trace':'sheet-trace'}}):response({references:[],total:0});};
