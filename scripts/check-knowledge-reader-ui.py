@@ -36,7 +36,7 @@ def configure(state, args, patch):
             rows[result['id']]=item
     def response(path):
         parsed=urlparse(path)
-        match=re.fullmatch('/company-knowledge/documents/([^/]+)/(original|page|preview|outline|thumbnail)', parsed.path)
+        match=re.fullmatch('/company-knowledge/documents/([^/]+)/(original|page|preview|outline|thumbnail|sheet)', parsed.path)
         if not match:return None
         doc_id, action=match.groups()
         if action=='preview':
@@ -45,6 +45,7 @@ def configure(state, args, patch):
             return httpx.Response(200,json={'references':refs,'total':21,'has_more':page==1,'page':page})
         if doc_id not in rows:return None
         item=rows[doc_id]
+        if action=='sheet':return httpx.Response(200,json={'mode':'pdf'})
         if action=='outline':return httpx.Response(200,json={'entries':[]})
         headers={'X-Watermark-Trace':item['trace']}
         if action=='page':

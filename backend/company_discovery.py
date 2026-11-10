@@ -90,6 +90,10 @@ async def content_search(body: ContentSearch, user=Depends(kb.require_knowledge_
 @lru_cache(maxsize=3)
 def office_pdf(object_key, digest, fmt):
     # Bounded process-local cache of derived bytes, never exposed without an ACL check.
+    if fmt == 'XLSX':
+        from company_sheet_preview import sheet_info
+        if sheet_info(object_key, digest)['mode'] == 'table':
+            raise WatermarkError('此表格数据量较大，请刷新页面后使用按行分页预览。', 422, 'spreadsheet_table_available')
     with conversion_lock, tempfile.TemporaryDirectory(prefix='ckb-reading-') as directory:
         data = document_store().get_bytes(object_key)
         result = office_to_pdf(data, fmt, Path(directory))
@@ -104,6 +108,37 @@ def reading_pdf(doc):
     if doc.format in OFFICE_PAGES:
         return office_pdf(doc.object_key, doc.sha256, doc.format)
     raise HTTPException(422, '此格式使用文档或图片阅读器。')
+
+
+@discovery_router.get('/documents/{doc_id}/sheet')
+async def spreadsheet(doc_id: str, sheet: int = 0, page: int = 1, column: int = 1,
+                      user=Depends(kb.require_knowledge_user)):
+    from company_sheet_preview import sheet_page
+    if sheet < 0 or page < 1 or column < 1:
+        raise HTTPException(422, '表格页码、工作表和列号无效。')
+    with ws.SessionLocal() as db:
+        doc = ws.find_doc(db, doc_id, user)
+        if doc.format != 'XLSX' or not doc.object_key:
+            raise HTTPException(404, '这份资料没有可读取的 XLSX 原件。')
+        source = (doc.object_key, doc.sha256, doc.format)
+    try:
+        result = await asyncio.to_thread(sheet_page, source[0], source[1], sheet, page, column)
+    except WatermarkError as error:
+        raise HTTPException(error.status, str(error), headers={'X-Preview-Error': error.code}) from None
+    except FileNotFoundError:
+        raise HTTPException(404, '归档原件已缺失，请联系管理员补传原件。', headers={'X-Preview-Error': 'original_missing'}) from None
+    with ws.SessionLocal() as db:
+        doc = ws.find_doc(db, doc_id, user)
+        if source != (doc.object_key, doc.sha256, doc.format):
+            raise HTTPException(409, '资料已更新，请重新打开。')
+        identity = ExportIdentity(user.username, getattr(user, 'id', None), datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'), uuid.uuid4().hex)
+        if result['mode'] == 'table':
+            ws.record(db, user, 'document.preview', doc, before=ws.snapshot(doc), event_id=identity.trace_id,
+                      details={'trace_id': identity.trace_id, 'sheet': sheet, 'row_page': page, 'column': column})
+            db.commit()
+    from fastapi.responses import JSONResponse
+    return JSONResponse({**result, 'watermark': identity.lines}, headers={'Cache-Control': 'private, no-store',
+                        'X-Watermark-Trace': identity.trace_id, 'X-Content-Type-Options': 'nosniff'})
 
 
 @lru_cache(maxsize=24)

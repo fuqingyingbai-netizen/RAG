@@ -219,3 +219,12 @@ sudo apt-get install --no-install-recommends libreoffice-writer libreoffice-calc
 阅读搜索统一分页读取可用解析文字，定位命中片段并高亮，OCR 文本支持忽略空白匹配；已知页码才提供原件跳转。片段可能跨页、重叠或缺少未识别内容，不保证等于整个原件；音视频只索引说明，未自动转写。
 
 经验文件支持单独确认删除；笔记编辑器、草稿列表和已发布笔记管理入口均可单独删除整篇笔记及发布版本。GET /notes/{id}/deletion-preview 返回范围和版本令牌，DELETE /notes/{id} 复核令牌并写入 nullable deleted_at；拒绝活动任务及无管理权限版本，保留原件为受控恢复副本，所有正常访问和检索立即撤销。
+
+
+## 预览异常处理（2026-11-10）
+
+PDFium 的密码错误独立映射为 `X-Preview-Error: pdf_encrypted`，损坏文件为 `pdf_invalid`；需要打开密码的文件明确提示解除密码后上传，不尝试猜测或保存密码。归档缺失使用 `original_missing`，历史无原件资料提供管理者补传入口；POST `/documents/{id}/original` 需管理权限、资料确认和格式/体积校验。原子保存成功后清除旧 cloud_id、job_id 并安排重新索引，保留资料编号、归档位置和ACL；索引未就绪不返回旧片段。
+
+大XLSX（超过一万行、256列或20万单元格）通过 GET `/documents/{id}/sheet` 按工作表及50行/40列窗口提供受权限保护的数据预览。跳过前置行时使用流式XML解析，只将所选窗口交给openpyxl解码；日期和单元格类型沿用原样，公式显示原式。原件不改写，图表、图片和打印版式仍以原件为准，小表继续走原分页PDF预览。每次返回检查最新ACL和源哈希并记录个人追踪信息；解析/问答就绪状态与本地原件预览状态独立。
+
+转换超时会终止该转换的整个子进程组，避免LibreOffice启动器退出后残留soffice进程。

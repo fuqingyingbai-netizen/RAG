@@ -3,6 +3,7 @@ import asyncio
 import base64
 import hashlib
 import uuid
+from pathlib import Path
 from datetime import datetime, timedelta
 
 from sqlalchemy import or_, update
@@ -73,8 +74,12 @@ async def _process_document(doc_id):
                 payload = summary.encode('utf-8') if media else await asyncio.to_thread(document_store().get_bytes, values['object_key'])
                 # A previous upload may have completed before process exit. A new lease is
                 # safe until registration; the registered ID is persisted before import.
+                filename = values['title'][:251] + '.md' if media else values['title']
+                if not media and Path(filename).suffix.lower() != '.' + values['format'].lower():
+                    suffix = '.' + values['format'].lower()
+                    filename = filename[:255-len(suffix)] + suffix
                 lease = await kb.cloud_rpc(client, cfg, '/api/v1/connector/dash/applyFileUploadLease', {
-                    'category': kb.upload_category(), 'fileName': values['title'][:251] + '.md' if media else values['title'],
+                    'category': kb.upload_category(), 'fileName': filename,
                     'sizeBytes': str(len(payload)),
                     'contentMd5': base64.b64encode(hashlib.md5(payload).digest()).decode(),
                     'categoryType': 'UNSTRUCTURED'})

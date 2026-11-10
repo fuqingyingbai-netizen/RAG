@@ -4,6 +4,22 @@ const component=vm.runInNewContext(fs.readFileSync('frontend/company-knowledge.j
 function state(){const s=component.data();for(const [k,v] of Object.entries(component.methods))s[k]=v.bind(s);for(const [k,v] of Object.entries(component.computed))Object.defineProperty(s,k,{get:()=>v.call(s)});s.$nextTick=fn=>fn();s.$refs={};return s;}
 const response=data=>({ok:true,status:200,json:async()=>data});
 const tick=()=>new Promise(setImmediate);
+
+test('large XLSX opens the row reader without starting a PDF conversion',async()=>{
+ const s=state(),calls=[],table={mode:'table',page:1,values:[['first']]};
+ s.apiFetch=async url=>{calls.push(url);return url.endsWith('/sheet')?new Response(JSON.stringify(table),{headers:{'Content-Type':'application/json','X-Watermark-Trace':'sheet-trace'}}):response({references:[],total:0});};
+ await s.openDocument({id:'large',format:'XLSX',has_original:true,can_read:true});assert.equal(s.readerSheet.mode,'table');assert.equal(s.readerTrace,'sheet-trace');assert.ok(!calls.some(url=>url.includes('/page?')));assert.equal(s.readerOriginalLoading,false);
+});
+
+test('small XLSX preserves the existing PDF layout preview',async()=>{
+ const s=state(),calls=[];s.apiFetch=async url=>{calls.push(url);return url.endsWith('/sheet')?new Response(JSON.stringify({mode:'pdf'})):url.endsWith('/preview')?response({references:[],total:0}):new Response('image',{headers:{'X-Document-Pages':'2'}});};
+ await s.openDocument({id:'small',format:'XLSX',has_original:true,can_read:true});assert.equal(s.readerSheet,null);assert.equal(s.readerPDFPages,2);assert.ok(calls.some(url=>url.includes('/page?page=1')));
+});
+
+test('encrypted PDF preserves the specific password error separately from excerpts',async()=>{
+ const s=state();s.apiFetch=async url=>url.endsWith('/preview')?response({references:[],total:0}):new Response(JSON.stringify({detail:'该 PDF 已加密，需要打开密码'}),{status:422,headers:{'X-Preview-Error':'pdf_encrypted'}});
+ await s.openDocument({id:'protected',format:'PDF',has_original:true,can_read:true});assert.equal(s.readerOriginalCode,'pdf_encrypted');assert.match(s.readerOriginalError,/打开密码/);assert.equal(s.readerExcerptError,'');
+});
 test('upload completion keeps older ready files and new pending files visible',()=>{
  const s=state();s.mode='library';s.cloudDocuments=[{id:'old',category:'项目原件',state:'ready',title:'old'},{id:'new',category:'项目原件',state:'queued',title:'new'}];s.uploadResults=[{id:'new'}];s.recentUploadIds=['new'];s.query='stale';s.viewUploaded();
  assert.deepEqual(Array.from(s.filteredDocuments,d=>d.id),['old','new']);assert.equal(s.query,'');assert.equal(s.recentUploadIds.length,0);

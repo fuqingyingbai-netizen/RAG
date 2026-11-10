@@ -348,6 +348,55 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
     return result
 
 
+@workspace_router.post('/documents/{doc_id}/original', status_code=202)
+async def restore_original(doc_id: str, file: UploadFile = File(...), confirmation: str = Form(''),
+                           user: User = Depends(kb.require_knowledge_user)):
+    """Attach an explicitly selected source, then rebuild its index to avoid stale evidence."""
+    with SessionLocal() as db:
+        doc = find_doc(db, doc_id, user, manage=True)
+        if doc.object_key:
+            raise HTTPException(409, '原件已存在，请使用正常上传流程保留新版本。')
+        if confirmation != doc.id:
+            raise HTTPException(422, '补传确认与当前资料不匹配。')
+        fmt = doc.format
+    name = Path((file.filename or '').replace('\\', '/')).name
+    extension = Path(name).suffix.lower().lstrip('.')
+    if extension.upper() != fmt:
+        raise HTTPException(422, '补传文件格式必须与当前资料一致。')
+    limit = MAX_MEDIA_BYTES if extension in MEDIA_FORMATS else MAX_BYTES
+    payload = await file.read(limit + 1)
+    await file.close()
+    if len(payload) > limit:
+        raise HTTPException(413, '补传原件超过大小限制。')
+    validate_bytes(payload, extension)
+    key = 'originals/' + uuid.uuid4().hex + '.' + extension
+    await asyncio.to_thread(document_store().put_bytes, key, payload,
+                            mimetypes.guess_type(name)[0] or 'application/octet-stream')
+    try:
+        with SessionLocal() as db:
+            doc = find_doc(db, doc_id, user, manage=True)
+            if doc.object_key:
+                raise HTTPException(409, '其他窗口已补齐原件，请刷新后查看。')
+            if doc.state in ('queued', 'uploading', 'parsing', 'indexing', 'deleting'):
+                raise HTTPException(409, '资料仍在处理，请等待完成后补传。')
+            before = snapshot(doc)
+            doc.object_key, doc.sha256, doc.size = key, hashlib.sha256(payload).hexdigest(), len(payload)
+            doc.stale_cloud_id = doc.cloud_id or doc.stale_cloud_id
+            doc.cloud_id, doc.job_id, doc.lease_id = None, '', ''
+            doc.parser = 'DOCMIND' if extension in ('pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png') else 'AUTO_SELECT'
+            doc.state, doc.status_message = 'queued', '原件已补齐，正在重新解析与索引'
+            mark_modified(doc, user)
+            record(db, user, 'document.original_restore', doc, before=before,
+                   details={'source_filename': name, 'reindex_required': True})
+            db.commit()
+            result = serialize(doc, user)
+    except Exception:
+        await asyncio.to_thread(document_store().delete_object, key)
+        raise
+    schedule_document(doc_id)
+    return result
+
+
 class DocumentMetadata(BaseModel):
     folder_id: str = Field(default='', max_length=64)
     title: str = Field(default='', max_length=255)
@@ -640,7 +689,7 @@ async def original(doc_id: str, request: Request, download: bool = False,
     with SessionLocal() as db:
         doc = find_doc(db, doc_id, user)
         if not doc.object_key:
-            raise HTTPException(404, '这份历史资料尚无受控原件，暂不能生成带水印副本。')
+            raise HTTPException(404, '这份历史资料尚无受控原件，请联系资料管理者补传后再预览或下载。', headers={'X-Preview-Error': 'original_missing'})
         object_key, fmt, title = doc.object_key, doc.format, doc.title
     update = export_progress.begin(user, doc_id, request_id) if request_id else None
     try:
@@ -710,7 +759,14 @@ def render_pdf_page(data, page):
     import pypdfium2 as pdfium
     # PDFium calls must not overlap across worker threads.
     with pdf_render_lock:
-        pdf = pdfium.PdfDocument(data)
+        try:
+            pdf = pdfium.PdfDocument(data)
+        except pdfium.PdfiumError as error:
+            if error.err_code == pdfium.raw.FPDF_ERR_PASSWORD:
+                raise WatermarkError('该 PDF 已加密，需要打开密码，当前无法预览。请上传已解除打开密码的版本。',
+                                     422, 'pdf_encrypted') from None
+            raise WatermarkError('PDF 文件损坏或格式异常，无法预览，请重新上传有效原件。',
+                                 422, 'pdf_invalid') from None
         try:
             count = len(pdf)
             if page > count:
@@ -736,7 +792,9 @@ async def pdf_page(doc_id: str, page: int = Query(1, ge=1), user: User = Depends
     with SessionLocal() as db:
         doc = find_doc(db, doc_id, user)
         from company_discovery import OFFICE_PAGES, reading_page
-        if doc.format not in OFFICE_PAGES | {'PDF'} or not doc.object_key:
+        if not doc.object_key:
+            raise HTTPException(404, '这份资料尚未归档原件，请联系资料管理者补传。', headers={'X-Preview-Error': 'original_missing'})
+        if doc.format not in OFFICE_PAGES | {'PDF'}:
             raise HTTPException(404, '该资料没有可预览的 PDF 原件。')
         key, digest, fmt = doc.object_key, doc.sha256, doc.format
     try:
@@ -746,7 +804,9 @@ async def pdf_page(doc_id: str, page: int = Query(1, ge=1), user: User = Depends
     except HTTPException:
         raise
     except WatermarkError as error:
-        raise HTTPException(error.status, str(error)) from None
+        raise HTTPException(error.status, str(error), headers={'X-Preview-Error': error.code}) from None
+    except FileNotFoundError:
+        raise HTTPException(404, '归档原件已缺失，请联系管理员处理。', headers={'X-Preview-Error': 'original_missing'}) from None
     except Exception:
         raise HTTPException(422, 'PDF 无法预览，可能已加密或损坏，请下载原件核对。') from None
     with SessionLocal() as db:

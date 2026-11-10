@@ -21,8 +21,9 @@ AUDIO_FORMATS = {'MP3', 'WAV', 'M4A', 'OGG', 'FLAC'}
 
 
 class WatermarkError(Exception):
-    def __init__(self, message, status=503):
+    def __init__(self, message, status=503, code='preview_failed'):
         self.status = status
+        self.code = code
         super().__init__(message)
 
 
@@ -97,7 +98,8 @@ def watermark_layer(size, identity, footer=True):
 def stamp_pdf(data, identity, progress=None):
     reader = PdfReader(io.BytesIO(data), strict=False)
     if reader.is_encrypted and not reader.decrypt(''):
-        raise WatermarkError('加密 PDF 无法加水印，请先上传可处理的版本。', 422)
+        raise WatermarkError('该 PDF 已加密，需要打开密码，当前无法预览或生成水印副本。请上传已解除打开密码的版本。',
+                             422, 'pdf_encrypted')
     if not 0 < len(reader.pages) <= 1000:
         raise WatermarkError('PDF 页数超出水印导出范围（1–1000 页）。', 422)
     writer = PdfWriter()
@@ -143,12 +145,26 @@ def stamp_pdf(data, identity, progress=None):
 
 
 def run(args, *, timeout=180, cwd=None, env=None):
+    process = None
     try:
-        result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout,
-            cwd=cwd, env=env, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-    except (OSError, subprocess.TimeoutExpired):
-        raise WatermarkError('带水印副本生成失败或超时，请联系管理员；不会提供无水印原件。') from None
-    if result.returncode:
+        process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            cwd=cwd, env=env, start_new_session=os.name != 'nt',
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # LibreOffice's launcher creates a child process. Killing only the launcher
+        # leaves that child consuming CPU and holding a conversion slot indefinitely.
+        import signal
+        if os.name != 'nt':
+            try: os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError: pass
+        else:
+            process.kill()
+        process.communicate()
+        raise WatermarkError('文件转换超时，请稍后重试或联系管理员处理该文件。', 503, 'conversion_timeout') from None
+    except OSError:
+        raise WatermarkError('文件转换服务无法启动，请联系管理员。', 503, 'conversion_unavailable') from None
+    if process.returncode:
         raise WatermarkError('带水印副本生成失败，请联系管理员；不会提供无水印原件。')
 
 

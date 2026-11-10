@@ -135,6 +135,20 @@
 
 /* Reuse the authenticated, watermarked page endpoint. Only nearby pages are read;
    scrolling never downloads the unmarked original or starts a new export job. */
+window.KnowledgeSheetViewer = {
+  props: { documentId:String, initial:Object, fetchPage:Function },
+  data() { return { sheet:this.initial, busy:false, error:'', pageInput:this.initial.page }; },
+  beforeUnmount() { this.disposed=true;this.controller?.abort(); },
+  methods: {
+    async load(sheet=this.sheet.sheet,page=this.sheet.page,column=this.sheet.column) {
+      if(this.busy)return;this.busy=true;this.error='';this.controller=new AbortController();
+      try { const response=await this.fetchPage('/company-knowledge/documents/'+encodeURIComponent(this.documentId)+'/sheet?sheet='+sheet+'&page='+page+'&column='+column,{signal:this.controller.signal});const value=await response.json();if(!response.ok)throw Error(value.detail||'表格加载失败');if(!this.disposed){this.sheet=value;this.pageInput=value.page;this.$refs.scroll?.scrollTo({top:0,left:0});} }
+      catch(error){if(!this.disposed)this.error=error.message;}finally{if(!this.disposed)this.busy=false;}
+    },
+    jump() { const number=Number(this.pageInput);if(Number.isInteger(number)&&number>=1&&number<=this.sheet.pages)this.load(this.sheet.sheet,number,this.sheet.column);else this.pageInput=this.sheet.page; },
+  },
+  template:`<div class="ckb-sheet-reader" :aria-busy="busy"><div class="ckb-sheet-controls"><label>工作表<select aria-label="选择工作表" :disabled="busy" :value="sheet.sheet" @change="load(Number($event.target.value),1,1)"><option v-for="(item,index) in sheet.sheets" :key="index" :value="index">{{item.name}}{{item.hidden?'（隐藏表）':''}} · {{item.rows}} 行</option></select></label><span>第 {{sheet.first_row}}–{{sheet.last_row}} 行</span><button :disabled="busy||sheet.page<=1" @click="load(sheet.sheet,sheet.page-1,sheet.column)">上一页行</button><label>第<input type="number" aria-label="表格行页码" min="1" :max="sheet.pages" v-model="pageInput" :disabled="busy" @keydown.enter="jump" @change="jump"> / {{sheet.pages}} 页</label><button :disabled="busy||sheet.page>=sheet.pages" @click="load(sheet.sheet,sheet.page+1,sheet.column)">下一页行</button><template v-if="sheet.total_columns>40"><button :disabled="busy||sheet.column<=1" @click="load(sheet.sheet,sheet.page,Math.max(1,sheet.column-40))">前40列</button><button :disabled="busy||sheet.column+40>sheet.total_columns" @click="load(sheet.sheet,sheet.page,sheet.column+40)">后40列</button></template></div><p class="ckb-sheet-watermark">{{sheet.watermark?.join(' · ')}}</p><p class="ckb-sheet-notice">{{sheet.notice}}</p><p v-if="error" role="alert">{{error}} <button @click="load()">重试表格</button></p><p v-if="busy" role="status">正在读取这一页表格…</p><div ref="scroll" class="ckb-sheet-scroll"><table><thead><tr><th>行号</th><th v-for="column in sheet.columns" :key="column">{{column}}</th></tr></thead><tbody><tr v-for="(row,index) in sheet.values" :key="index"><th>{{sheet.first_row+index}}</th><td v-for="(value,n) in row" :key="n">{{value}}</td></tr></tbody></table></div></div>`,
+};
 window.KnowledgePdfViewer = {
   props: { format: String, documentId: String, firstPage: String, pages: Number, fetchPage: Function, location: Object },
   data() { return { sheets: [], visiblePage: 1, zoom: 100, pageInput: 1, outline: [] }; },
