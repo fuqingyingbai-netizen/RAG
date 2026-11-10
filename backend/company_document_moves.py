@@ -15,6 +15,7 @@ from company_audit import mark_modified, record, snapshot
 from company_catalog import CompanyDocument, CompanyProject, can_manage, can_read, media_kind, serialize
 from company_collections import EXPERIENCE_CATEGORIES
 from company_projects import find_folder, project_values
+from company_departments import department_label
 from models import User
 
 moves_router = APIRouter()
@@ -107,6 +108,8 @@ def prepare(db, doc_id, data, user):
         source=(source.name if source else '根目录'),
         destination=(target.name + (' / ' + folder.name if folder else ' / 项目根目录') if target else '根目录'),
         before_access=acl_label(before_acl), after_access=acl_label(after_acl),
+        before_department=department_label(doc.department),
+        after_department=department_label(values.get('department', doc.department)),
         permission_note=('移入后继承目标项目的分类、标签、保密等级与访问权限；文件管理权跟随目标项目归属人。'
                          if target else '移回根目录后保留各版本现有保密等级、访问权限和归属人，不自动扩大可见范围。'),
         access_changes=any(any(getattr(v, k) != after_acl[k] for k in before_acl) for v in versions) if target else False,

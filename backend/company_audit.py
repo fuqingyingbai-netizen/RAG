@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 
 from company_catalog import CompanyAuditEvent, CompanyDocument, CompanyProject, can_manage, can_read
 
-FIELDS = ('name', 'title', 'industry', 'category', 'review', 'confidentiality', 'visibility',
+FIELDS = ('name', 'title', 'industry', 'department', 'category', 'review', 'confidentiality', 'visibility',
           'readers', 'tags', 'description', 'folder_id', 'parent_id', 'state', 'version',
           'content', 'revision', 'published_revision', 'knowledge_project_id', 'is_root', 'inherits_project', 'owner')
 

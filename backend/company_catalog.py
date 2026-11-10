@@ -44,6 +44,7 @@ class CompanyDocument(Base):
     is_root: Mapped[int] = mapped_column(Integer, default=0)
     project: Mapped[str] = mapped_column(String(200), default='')
     industry: Mapped[str] = mapped_column(String(100), default='')
+    department: Mapped[str] = mapped_column(String(30), default='', server_default='')
     tags: Mapped[list] = mapped_column(JSON, default=list)
     description: Mapped[str] = mapped_column(Text, default='')
     stale_cloud_id: Mapped[str] = mapped_column(String(200), default='')
@@ -77,6 +78,7 @@ class CompanyProject(Base):
     modified_by: Mapped[str] = mapped_column(String(100), default='')
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     industry: Mapped[str] = mapped_column(String(100), default='')
+    department: Mapped[str] = mapped_column(String(30), default='', server_default='')
     tags: Mapped[list] = mapped_column(JSON, default=list)
     description: Mapped[str] = mapped_column(Text, default='')
     category: Mapped[str] = mapped_column(String(50), default='项目原件')
@@ -166,6 +168,8 @@ def ensure_company_schema(engine):
         return
     columns = {column['name'] for column in inspector.get_columns('company_documents')}
     additions = []
+    if 'department' not in columns:
+        additions.append("ADD COLUMN department VARCHAR(30) DEFAULT '' NOT NULL")
     for column, definition in (('note_id', "VARCHAR(64) DEFAULT '' NOT NULL"), ('knowledge_project_id', "VARCHAR(64) DEFAULT '' NOT NULL"), ('folder_id', "VARCHAR(64) DEFAULT '' NOT NULL"), ('inherits_project', 'INTEGER DEFAULT 0 NOT NULL'), ('is_root', 'INTEGER DEFAULT 0 NOT NULL')):
         if column not in columns:
             additions.append('ADD COLUMN ' + column + ' ' + definition)
@@ -200,6 +204,8 @@ def ensure_company_schema(engine):
     if 'company_projects' in inspector.get_table_names():
         project_columns = {column['name'] for column in inspect(engine).get_columns('company_projects')}
         with engine.begin() as connection:
+            if 'department' not in project_columns:
+                connection.exec_driver_sql("ALTER TABLE company_projects ADD COLUMN department VARCHAR(30) DEFAULT '' NOT NULL")
             if 'deleted_at' not in project_columns:
                 connection.exec_driver_sql('ALTER TABLE company_projects ADD COLUMN deleted_at TIMESTAMP NULL')
             for column in ('created_by', 'modified_by'):
@@ -237,13 +243,14 @@ def backfill_company_projects(engine):
                         name = base[:180] + '（历史归档' + str(suffix) + '）'
                         suffix += 1
                     project = CompanyProject(id=uuid.uuid4().hex, index_id=doc.index_id, name=name, legacy_key=key,
-                        owner=doc.owner, owner_user_id=doc.owner_user_id, industry=doc.industry,
+                        owner=doc.owner, owner_user_id=doc.owner_user_id, industry=doc.industry, department=doc.department,
                         category=doc.category, review=doc.review, tags=[], description='', created_at=doc.created_at, updated_at=doc.updated_at)
                     db.add(project)
                     db.flush()
                 project.created_at = min(project.created_at, doc.created_at)
                 project.updated_at = max(project.updated_at, doc.updated_at)
                 doc.knowledge_project_id = project.id
+                doc.department = project.department
             db.commit()
         except IntegrityError:
             db.rollback()  # Concurrent migration won; the next catalogue read retries.
@@ -308,7 +315,7 @@ def serialize(doc, user, request_status=''):
     readable = can_read(doc, user)
     locked = not readable
     values = {key: getattr(doc, key) for key in ('id', 'title', 'format', 'size', 'owner', 'owner_user_id', 'uploaded_by', 'modified_by',
-              'project', 'industry', 'category', 'review', 'version', 'visibility', 'confidentiality', 'state',
+              'project', 'industry', 'department', 'category', 'review', 'version', 'visibility', 'confidentiality', 'state',
               'research_project_id', 'research_artifact_id', 'is_current', 'knowledge_project_id', 'folder_id', 'inherits_project', 'is_root')}
     values['status_message'] = doc.status_message if readable else '需要管理员批准后才能阅读、下载或用于问答。'
     if shared_experience(doc):
