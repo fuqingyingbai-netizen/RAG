@@ -122,3 +122,10 @@ test('project list is requested before the first document page resolves and rema
 test('private draft alone cannot silently expand a personal question to all experience',async()=>{
  const{state:s,notices}=fixture();s.browseMyNotes();await s.askLibrary();assert.equal(s.mode,'cases');assert.match(notices[0],/暂无可检索资料/);
 });
+
+test('experience note list follows its selected category and exposes only readable current published documents',()=>{
+ const{state:s}=fixture();s.mode='cases';s.projectDirectories.push({id:'xp',name:'经验',owner:'alice',category:'项目经验'});s.noteDrafts=[{id:'n',title:'项目经验笔记',project_id:'xp'}];
+ s.cloudDocuments.push({id:'published',note_id:'n',category:'项目经验',can_read:true,is_current:1},{id:'old',note_id:'n',category:'项目经验',can_read:true,is_current:0},{id:'locked',note_id:'private',category:'项目经验',can_read:false});
+ s.category='案例复盘';assert.equal(s.visibleNoteDrafts.length,0);s.category='项目经验';assert.equal(s.visibleNoteDrafts.length,1);
+ assert.equal(s.publishedNoteDocuments.n.id,'published');assert.equal(s.publishedNoteDocuments.private,undefined);s.category='案例复盘';s.browseMyNotes();assert.equal(s.category,'全部资料');assert.equal(s.visibleNoteDrafts.length,1);s.favorites=['published'];assert.equal(s.collectionFavoritesCount,1);
+});
