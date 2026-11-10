@@ -87,14 +87,20 @@
   <el-container class="app-frame" v-else>
     <el-aside width="248px" class="sidebar" :class="{ 'mobile-nav-open': mobileNavOpen }" @keydown.esc="mobileNavOpen = false">
       <div class="sidebar-brand"><div class="sidebar-wordmark"><img src="logo.png" alt="观复咨询" class="sidebar-logo" /><span>AI 研究工作台</span></div><button type="button" class="mobile-nav-toggle" :aria-expanded="mobileNavOpen" aria-controls="primary-navigation" @click="mobileNavOpen = !mobileNavOpen"><i :class="mobileNavOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars'" aria-hidden="true"></i>{{ mobileNavOpen ? '收起导航' : '展开导航' }}</button></div>
-      <el-menu id="primary-navigation" :default-active="isTaskWorkspace ? 'due-diligence' : activeView" :default-openeds="['workbench']" class="side-menu" @select="switchView">
+      <el-menu id="primary-navigation" :default-active="isTaskWorkspace ? 'due-diligence' : activeView==='company-knowledge' &amp;&amp; knowledgeDepartment ? 'knowledge-department-'+knowledgeDepartment : activeView" :default-openeds="['workbench','company-knowledge-group']" class="side-menu" @select="switchView">
         <el-menu-item index="home"><i class="fa-solid fa-house" aria-hidden="true"></i><span>个人首页</span></el-menu-item>
         <el-sub-menu index="workbench" class="research-nav-group" :class="{ 'section-is-current': activeView === 'workbench' }">
           <template #title><button type="button" class="menu-section-link" aria-label="打开工作台概览" :aria-current="activeView === 'workbench' ? 'page' : undefined" @click.stop="switchView('workbench')"><i class="fa-solid fa-folder-tree" aria-hidden="true"></i><span>工作台</span></button></template>
           <el-menu-item index="due-diligence" class="due-diligence-nav" @keydown.enter.prevent.stop="switchView('due-diligence')" @keydown.space.prevent.stop="switchView('due-diligence')"><i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>尽调任务</span></el-menu-item>
           <el-menu-item index="research" class="research-task-nav" @keydown.enter.prevent.stop="switchView('research')" @keydown.space.prevent.stop="switchView('research')"><i class="fa-solid fa-magnifying-glass-chart" aria-hidden="true"></i><span>研究任务</span></el-menu-item>
         </el-sub-menu>
-        <el-menu-item index="company-knowledge" class="company-knowledge-nav"><i class="fa-solid fa-book-open" aria-hidden="true"></i><span>公司知识库</span></el-menu-item>
+        <el-sub-menu index="company-knowledge-group" class="research-nav-group" :class="{'section-is-current':activeView==='company-knowledge'}">
+          <template #title><button type="button" class="menu-section-link" aria-label="打开公司知识库" @click.stop="openKnowledgeHome"><i class="fa-solid fa-book-open" aria-hidden="true"></i><span>公司知识库</span></button></template>
+          <el-menu-item index="knowledge-department-market" :disabled="!!$refs.knowledgeWorkspace?.busy"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i><span>市场部</span></el-menu-item>
+          <el-menu-item index="knowledge-department-project" :disabled="!!$refs.knowledgeWorkspace?.busy"><i class="fa-solid fa-briefcase" aria-hidden="true"></i><span>项目部</span></el-menu-item>
+          <el-menu-item index="knowledge-department-policy" :disabled="!!$refs.knowledgeWorkspace?.busy"><i class="fa-solid fa-file-lines" aria-hidden="true"></i><span>制度文件</span></el-menu-item>
+          <el-menu-item index="knowledge-department-expert" :disabled="!!$refs.knowledgeWorkspace?.busy"><i class="fa-solid fa-user-tie" aria-hidden="true"></i><span>专家资料</span></el-menu-item>
+        </el-sub-menu>
         <el-menu-item v-if="currentUser?.role === 'admin'" index="accounts"><i class="fa-solid fa-users-gear"></i><span>账号管理</span></el-menu-item>
       </el-menu>
       <div class="sidebar-signature"><span class="sidebar-signature-icon" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></span><div><strong>每一份洞察，都有依据</strong><span>观复咨询 · 尽调与研究</span></div></div>
@@ -134,7 +140,7 @@
           <div class="task-workspace-actions"><el-button plain :class="{ 'is-active': activeView === 'sources' }" :aria-current="activeView === 'sources' ? 'page' : undefined" @click="switchView('sources')"><i class="fa-solid fa-database" aria-hidden="true"></i><span>溯源库</span></el-button><el-button type="primary" :disabled="submitting" @click="switchView('submit')"><i class="fa-solid fa-plus" aria-hidden="true"></i><span>新建任务</span></el-button></div>
         </div>
         <personal-home v-if="activeView === 'home'" :request="authFetch" :read="readJSON" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @filter-tasks="openHomeTaskFilter" @open-project="openHomeProject" @view-versions="report => openReportVersions({id:report.project_id, title:report.project_title}, report.artifact_type)"></personal-home>
-        <company-knowledge ref="knowledgeWorkspace" v-if="activeView === 'company-knowledge'" :projects="projects" :feedback="runAction" :operation-state="pendingActions"></company-knowledge>
+        <company-knowledge :department-entry="knowledgeDepartmentEntry" @department-change="knowledgeDepartment=$event" ref="knowledgeWorkspace" v-if="activeView === 'company-knowledge'" :projects="projects" :feedback="runAction" :operation-state="pendingActions"></company-knowledge>
 
         <account-management v-if="activeView === 'accounts' && currentUser?.role === 'admin'" :request="authFetch" @session-invalidated="handleLogout"></account-management>
         <el-dialog v-model="taskCreateOpen" title="新建尽调任务" width="min(860px, 94vw)" :close-on-click-modal="false" class="task-create-dialog">
@@ -480,11 +486,11 @@
 <script defer src="knowledge-document-viewer.2e5d6c14d28b.js"></script>
 <link rel="stylesheet" href="knowledge-note-editor.70b7481352b4.css">
 <script defer src="knowledge-note-editor.0a99b2e4f8bd.js"></script>
-<script defer src="company-knowledge.047cecb2e6ec.js"></script>
+<script defer src="company-knowledge.744b2b335a21.js"></script>
 <script defer src="account-management.4fe826d3dfce.js"></script>
 <script defer src="personal-home.b7312d97a31e.js"></script>
 <script defer src="report-versions.js"></script>
-<script defer src="script.3ec4d72c2dbc.js"></script>
+<script defer src="script.904624c4a6cb.js"></script>
 </body>
 </html>
 

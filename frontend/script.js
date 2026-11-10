@@ -42,6 +42,7 @@ createApp({
       authForm: { username: '', password: '', confirm_password: '', invitation: '' },
       inviteStatus: '', inviteValid: false, inviteChecking: false, inviteRequestId: 0,
       passwordOpen: false, passwordLoading: false, passwordForm: { current_password: '', new_password: '', confirm_password: '' },
+      knowledgeDepartment:'', knowledgeDepartmentEntry:null,
       activeView: 'home', mobileNavOpen: false, taskCreateOpen: false, projects: [], projectSummary: {}, projectMeta: {}, projectDetails: {}, artifactsByProject: {}, sourcesByProject: {}, traceByProject: {},
       artifactHistory: {}, artifactHistoryRequests: {},
       traceActivityByProject: {},
@@ -402,12 +403,24 @@ createApp({
         await this.acceptAuthentication(data, { openHome: !!this.currentUser?.must_change_password }); ElementPlus.ElMessage.success('密码已修改，其他登录凭证已失效');
       } catch (e) { ElementPlus.ElMessage.error(e.message); } finally { this.passwordLoading = false; }
     },
+    openKnowledgeHome() {
+      if(this.$refs?.knowledgeWorkspace?.busy){ElementPlus.ElMessage.info('请先停止当前回答，再切换知识库页面。');return;}
+      this.knowledgeDepartmentEntry=null;this.switchView('company-knowledge');this.$nextTick?.(()=>this.$refs?.knowledgeWorkspace?.openHome());
+    },
+    openKnowledgeDepartment(department) {
+      if(!['market','project','policy','expert'].includes(department))return;
+      if(this.$refs?.knowledgeWorkspace?.busy){ElementPlus.ElMessage.info('请先停止当前回答，再切换部门资料。');return;}
+      this.knowledgeDepartmentEntry={department,request:Date.now()};this.switchView('company-knowledge');
+    },
     switchView(view) {
+      if(view.startsWith('knowledge-department-')){this.openKnowledgeDepartment(view.slice('knowledge-department-'.length));return;}
+
       if (!['home', 'workbench', 'due-diligence', 'research', 'submit', 'tasks', 'intake', 'deliverables', 'review', 'sources', 'company-knowledge', 'accounts'].includes(view)) return;
       if (view === 'accounts' && this.currentUser?.role !== 'admin') return;
       if (view === 'submit') { this.taskCreateOpen = true; this.mobileNavOpen = false; return; }
       this.taskCreateOpen = false;
       if (view === 'due-diligence') view = 'tasks';
+      if (view !== 'company-knowledge') this.knowledgeDepartmentEntry=null;
       if (this.activeView !== view) this.taskPage = 1;
       this.activeView = view; this.mobileNavOpen = false; localStorage.setItem('activeView', view);
       this.$nextTick?.(() => {
