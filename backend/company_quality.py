@@ -1,9 +1,13 @@
 """Evidence-first evaluation helpers. Scores never replace saved per-case reasons."""
 import re
 import unicodedata
+import html
 
 
 def normalize(text):
+    # Managed table parsers insert HTML line breaks inside ordinary words.
+    # Ignore that presentation markup, while retaining numbers and punctuation.
+    text=re.sub(r'<br\s*/?>',' ',html.unescape(text),flags=re.I)
     return re.sub(r'\s+', '', unicodedata.normalize('NFKC', text)).casefold()
 
 

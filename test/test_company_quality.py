@@ -10,6 +10,12 @@ def test_metrics_count_required_evidence_and_unanswerable_is_not_free_recall():
     assert coverage(gold,[{'document_id':'wrong','text':'利润120万元'}])==0
 
 
+def test_cloud_table_line_break_markup_is_not_a_false_retrieval_miss():
+    gold=[{'document_id':'a','quote':'引进了阿里、拓竹等互联网公司或3D打印厂商人员'}]
+    assert coverage(gold,[{'document_id':'a','text':'引进了阿里、拓竹<br>等互联网公司或 3D打印厂商人员'}])==1
+    assert coverage([{'document_id':'a','quote':'金额<5万元'}],[{'document_id':'a','text':'金额<50万元'}])==0
+
+
 def test_metric_reports_dropped_evidence_and_invalid_citations_separately():
     case={'evidence':[{'document_id':'a','quote':'原文依据'}],'answer':'结论[id_999]'}
     metrics=retrieval_metrics(case,[{'document_id':'a','text':'原文依据'}],[{'id':'1','document_id':'b','text':'其他文字'}])
