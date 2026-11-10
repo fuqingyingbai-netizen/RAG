@@ -129,3 +129,15 @@ test('experience note list follows its selected category and exposes only readab
  s.category='案例复盘';assert.equal(s.visibleNoteDrafts.length,0);s.category='项目经验';assert.equal(s.visibleNoteDrafts.length,1);
  assert.equal(s.publishedNoteDocuments.n.id,'published');assert.equal(s.publishedNoteDocuments.private,undefined);s.category='案例复盘';s.browseMyNotes();assert.equal(s.category,'全部资料');assert.equal(s.visibleNoteDrafts.length,1);s.favorites=['published'];assert.equal(s.collectionFavoritesCount,1);
 });
+
+test('personal notes share one sorted paginated list with files and each publication appears once',()=>{
+ const{state:s}=fixture();s.projectDirectories.push({id:'xp',name:'我的经验',owner:'alice',category:'项目经验'});
+ s.noteDrafts=[{id:'draft',project_id:'xp',title:'B 草稿',updated_at:'2026-11-10'},{id:'published',project_id:'xp',title:'C 图文',updated_at:'2026-11-09',published_revision:1}];
+ s.cloudDocuments.push({id:'note-doc',note_id:'published',title:'C 图文.docx',category:'项目经验',can_read:true,is_owner:true,is_current:1,state:'ready'},
+ {id:'file',title:'A 文件',category:'项目经验',can_read:true,is_owner:true,state:'ready'});
+ s.browseMyNotes();s.sortOrder='title';s.libraryPageSize=2;
+ assert.equal(s.myExperienceCount,3);assert.equal(s.libraryPageRange.total,3);assert.equal(s.libraryPageCount,2);
+ assert.deepEqual(Array.from(s.pagedLibraryRows,row=>row.title),['A 文件','B 草稿']);assert.equal(s.pagedLibraryRows[1].document,undefined);
+ s.libraryPage=2;assert.equal(s.pagedLibraryRows.length,1);assert.equal(s.pagedLibraryRows[0].document.id,'note-doc');assert.equal(s.libraryPageRange.end,3);
+ assert.equal(s.libraryRows.filter(row=>row.document?.id==='note-doc').length,1);
+});

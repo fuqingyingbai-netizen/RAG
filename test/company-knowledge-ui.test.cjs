@@ -162,6 +162,7 @@ test('project research uses current ready files and preserves an explicit select
 
 function paginationContext(count, page = 1, size = 10) {
  const context = {sortedDocuments:Array.from({length:count},(_,id)=>({id})),libraryPage:page,libraryPageSize:size};
+ Object.defineProperty(context,'libraryRows',{get:()=>context.sortedDocuments.map(document=>({kind:'file',document}))});
  for(const key of ['libraryPageCount','currentLibraryPage','pagedDocuments','libraryPageRange','libraryPageNumbers']) Object.defineProperty(context,key,{get:()=>component.computed[key].call(context)});
  return context;
 }

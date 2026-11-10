@@ -89,15 +89,6 @@
 :root[data-knowledge-theme] .ckb-workbench .ckb-document-table tbody tr:hover { background:var(--ku-day-surface-soft); }
 :root[data-knowledge-theme] .ckb-workbench .ckb-case-intro { justify-content:flex-start; margin:0 0 14px; padding:0 0 12px; border-bottom:1px solid var(--ku-day-line-soft); }
 :root[data-knowledge-theme] .ckb-workbench .ckb-note-tools { margin-left:0; flex-wrap:wrap; }
-:root[data-knowledge-theme] .ckb-workbench .ckb-note-drafts { max-height:260px; margin:0 0 16px; padding:12px 14px; border:1px solid var(--ku-day-line); border-radius:6px; background:var(--ku-day-surface-soft); }
-:root[data-knowledge-theme] .ckb-workbench .ckb-note-drafts > summary { font-size:14px; line-height:24px; }
-:root[data-knowledge-theme] .ckb-workbench .ckb-note-drafts > summary small { margin-left:12px; color:var(--ku-day-muted); }
-:root[data-knowledge-theme] .ckb-workbench .ckb-note-drafts > div { display:flex; flex-direction:column; gap:0; }
-:root[data-knowledge-theme] .ckb-workbench .ckb-note-draft-entry { display:flex; align-items:center; gap:8px; padding:8px 0; border-top:1px solid var(--ku-day-line-soft); }
-:root[data-knowledge-theme] .ckb-workbench .ckb-note-draft-entry > button { display:flex; flex-direction:column; align-items:flex-start; gap:4px; text-align:left; border:0; background:transparent; padding:6px; max-width:none; border-radius:4px; cursor:pointer; font-size:13px; }
-:root[data-knowledge-theme] .ckb-workbench .ckb-note-draft-entry > button:first-child { flex:1; min-width:0; }
-:root[data-knowledge-theme] .ckb-workbench .ckb-note-draft-entry strong { max-width:100%; font-size:14px; }
-:root[data-knowledge-theme] .ckb-workbench .ckb-note-draft-entry small { color:var(--ku-day-muted); font-size:12px; }
 :root[data-knowledge-theme] .ckb-workbench .ckb-case-intro > :is(p,span,small) { display:none; }
 :root[data-knowledge-theme] .ckb-workbench :is(.ckb-chat-aside,.ckb-chat-main) { border:1px solid var(--ku-day-line); border-radius:6px; background:var(--ku-day-surface)!important; }
 :root[data-knowledge-theme] .ckb-workbench :is(.ckb-chat-space,.ckb-chat-aside-foot,.ckb-live-presence,.ckb-welcome-decoration,.ckb-intelligence-visual,.ckb-welcome-eyebrow,.ckb-chat-header small) { display:none; }
