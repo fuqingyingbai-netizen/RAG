@@ -1,0 +1,19 @@
+{
+  "status": "published",
+  "frontend_commit": "76ca8a785acad575264120f5f870881b927f67ba",
+  "release": "/opt/supermew/releases/5d19f70221953cd9f0e1de3e800df2cee6c94acd",
+  "backup": "/opt/supermew/backups/knowledge-office-timeout-20261110T090400Z-76ca8a785aca",
+  "backend_pid_unchanged": 1423561,
+  "backend_instance_unchanged": "6fe8544a-debd-4c6a-bd5f-0b1c760ef1ec",
+  "application_restart": false,
+  "time_utc": "2026-11-10T09:04:00.096663+00:00",
+  "assets": {
+    "company-knowledge": "company-knowledge.291ca7ad255b.js"
+  },
+  "hashes": {
+    "frontend/company-knowledge.291ca7ad255b.js": "291ca7ad255bd051c27c6dd37d5b63369837dca6cc8f7a82cfdd85554a31de9a",
+    "frontend/company-knowledge.js": "291ca7ad255bd051c27c6dd37d5b63369837dca6cc8f7a82cfdd85554a31de9a"
+  },
+  "unrelated_backend_files_preserved": 207,
+  "index_sha256": "f02087a6ad02a4378669ef1f4b9858799ce2dc186d1e6aaf1faaa0cfb97b7ba9"
+}
