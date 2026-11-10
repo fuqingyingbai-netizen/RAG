@@ -254,6 +254,7 @@ def delete_project(project_id: str, body: ProjectDeletion, user: User = Depends(
             mark_modified(doc, user)
             record(db, user, 'document.delete', doc, before=previous, details={'source': 'project.delete'})
         for note in notes:
+            note.deleted_at = datetime.utcnow()
             record(db, user, 'note.delete', note, before=snapshot(note), details={'source': 'project.delete'})
         project.deleted_at = datetime.utcnow()
         # Retain the tree and originals for controlled recovery; release the active name.

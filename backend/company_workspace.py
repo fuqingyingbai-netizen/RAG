@@ -49,6 +49,7 @@ FORMATS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md', 'jpg
 CATEGORIES = ('项目原件', '研究成果', '方法与模板', '访谈纪要', '行业资料', '项目经验', '案例复盘', '培训分享', '现场照片', '手稿笔记', '影音随记')
 tasks = {}
 scanner = None
+recycle_scanner = None
 sync_lock = asyncio.Lock()
 last_sync = {}
 catalogue_sync_tasks = {}
@@ -85,9 +86,21 @@ def schedule_document(doc_id):
 
 @workspace_router.on_event('startup')
 async def resume_ingestion():
-    global scanner
+    global scanner, recycle_scanner
     from database import engine
     ensure_company_schema(engine)
+    from company_recycle import initialize, purge_due
+    initialize(engine)
+    async def recycle_scan():
+        while True:
+            try:
+                # Separate event loop/thread: cloud calls and disk IO never block HTTP requests.
+                await asyncio.to_thread(lambda: asyncio.run(purge_due()))
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception('Recycle maintenance failed')
+            await asyncio.sleep(900)
+    recycle_scanner = asyncio.create_task(recycle_scan())
     # create_all does not add indexes to an already-existing table. This feature's
     # additive indexes also need to be installed when upgrading an initial preview.
     for index in CompanyDocument.__table__.indexes:
@@ -111,6 +124,10 @@ async def resume_ingestion():
 
 @workspace_router.on_event('shutdown')
 async def stop_ingestion():
+    if recycle_scanner:
+        recycle_scanner.cancel()
+        with suppress(asyncio.CancelledError):
+            await recycle_scanner
     if scanner:
         scanner.cancel()
         with suppress(asyncio.CancelledError):
