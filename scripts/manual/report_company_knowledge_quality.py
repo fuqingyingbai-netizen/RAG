@@ -31,7 +31,7 @@ def build(dataset, results, output):
     refusal_score=sum(r.get('judgment',{}).get('refusal_correct') is True for r in refusals)/len(refusals) if refusals else None
     generation_retries=[r['id'] for r in rows if any(a.get('stage')=='generation' for a in r.get('prior_attempts',[]))]
     judgment_retries=[r['id'] for r in rows if r.get('prior_errors') or any(a.get('stage')=='judge' for a in r.get('prior_attempts',[]))]
-    annotation_revisions=[r['id'] for r in rows if r.get('prior_annotation_judgments')]
+    annotation_revisions=[r['id'] for r in rows if r.get('prior_annotation_judgments') or r.get('annotation_revision')]
     fingerprints={r.get('fingerprint') for r in rows}
     checks={
         'all_expected_cases_present':not missing and len(rows)==len(cases),
@@ -50,6 +50,8 @@ def build(dataset, results, output):
         'generation_retries':generation_retries,'judgment_retries':judgment_retries,'reference_annotation_revisions':annotation_revisions,
         'scope':'four original documents; 70 development / 30 held-out questions; independent automated judge, not a corpus-wide guarantee',
         'selection_comparison':'same candidate nodes; old/new selection scored per final answer; no claim of full-production A/B accuracy lift'}
+    report['retrieval_modes']=sorted({r.get('retrieval_mode','live') for r in rows})
+    report['generation_source_hashes']=sorted({r.get('generation_source_sha256','legacy') for r in rows})
     output.mkdir(parents=True,exist_ok=True)
     (output/'acceptance.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     def pct(v):return '未测' if v is None else f'{v:.1%}'
@@ -67,9 +69,11 @@ def build(dataset, results, output):
     html+='<p>最终状态：'+('通过' if report['status']=='passed' else '尚未通过')+'。完成 '+str(len(rows))+' / '+str(len(cases))+' 道真实原件题目。</p>'
     html+='<p>评测覆盖4份原件，70道开发题、30道保留题。事实与引用核对来自独立模型调用，仍需人工抽查；不能将本样本分数视为整个知识库的准确率。</p>'
     html+='<p>回答生成重试 '+str(len(generation_retries))+' 题；评分调用重试 '+str(len(judgment_retries))+' 题；参考条目修订 '+str(len(annotation_revisions))+' 题。原失败、原评分与回答均保留，不能理解为首次调用全部成功。</p>'
+    if 'verified_candidate_replay' in report['retrieval_modes']:
+        html+='<p>首轮完成真实百炼检索。日期归因修复后，本轮重放首轮已核对的原文候选，重新调用真实回答模型和评分模型，以固定证据检查修复效果。30道保留题属于修复后的回归验收，不能作为未见过问题的泛化能力估计。</p>'
     html+='<section><table><tr><th>检查项</th><th>旧证据选择</th><th>最终版本</th></tr>'+table+'</table><p>旧新证据选择使用相同候选片段；事实正确率只报告最终版本，不把此前试验中的不等量样本冒充完整A/B测试。</p></section>'
     html+='<section><h2>验收条件</h2><ul>'+''.join('<li>'+escape(k)+'：'+('通过' if v else '未通过')+'</li>' for k,v in checks.items())+'</ul></section>'
-    html+='<section><h2>原文复核说明</h2><p>Q020、Q056按资料分别给出不同职务或价格说法，并包含参考答案要点，符合保留真实冲突的要求。自动评分对“不能确定唯一结论”较严格；本报告保留其自动判错，标为参考答案歧义，不擅自改为通过。Q088修正了参考条目索引错误，问题和生成回答均未修改。此复核由Codex完成，不代替人工业务审核。</p><p>云端表格的换行标记不作为文字丢失。召回匹配修正前的指标及所有候选证据ID均保留在原始记录中。</p></section>'
+    html+='<section><h2>原文复核说明</h2><p>首轮Q020、Q056按资料分别给出不同职务或价格说法，并包含参考答案要点，符合保留真实冲突的要求；首轮自动判错保留在原始记录中，后续评分明确允许有依据的冲突说明。Q088修正了参考条目索引错误，首轮问题和回答均保留，后续按同一问题验证正确参考依据。此复核由Codex完成，不代替人工业务审核。</p><p>云端表格的换行标记不作为文字丢失。召回匹配修正前的指标及所有候选证据ID均保留在原始记录中。</p></section>'
     html+='<h2>逐题记录</h2>'+''.join(details)+'</html>'
     (output/'report.html').write_text(html,encoding='utf-8')
     return report
