@@ -25,6 +25,14 @@ test('admin retry history only restores current actor and currently readable doc
  const{state:s}=fixture();let calls=0;s.apiFetch=async()=>{calls++;return {ok:true,json:async()=>({events:[{action:'document.retry',actor_username:'bob',target_id:'a'},{action:'document.retry',actor_username:'alice',target_id:'hidden'},{action:'document.update',actor_username:'alice',target_id:'a'},{action:'document.retry',actor_username:'alice',target_id:'a'}]})};};
  await s.loadRecentRetryTracking();assert.equal(calls,0);s.service.is_admin=true;await s.loadRecentRetryTracking();assert.deepEqual(Array.from(s.retryTrackingIds),['a']);
 });
+test('retry details start compact and respect a saved user choice across refresh and history recovery',async()=>{
+ const{state:s,saved}=fixture();s.rememberRetry('a');s.restoreRetryTracking();assert.equal(s.retryReceiptsExpanded,false);assert.equal(s.retryReceiptSummary,'1 成功');
+ s.setRetryReceiptsExpanded(true);s.restoreRetryTracking();assert.equal(s.retryReceiptsExpanded,true);
+ s.setRetryReceiptsExpanded(false);s.service.is_admin=true;s.apiFetch=async()=>({ok:true,json:async()=>({events:[{action:'document.retry',actor_username:'alice',target_id:'a'}]})});await s.loadRecentRetryTracking();assert.equal(s.retryReceiptsExpanded,false);
+ s.restoreRetryTracking();assert.equal(s.retryReceiptsExpanded,false);assert.equal(saved[s.retryTrackingKey()+':expanded'],'false');
+ s.cloudDocuments.push({id:'b',can_read:true,category:'项目原件',state:'parsing'},{id:'c',can_read:true,category:'项目原件',state:'failed'});s.rememberRetry('b');s.rememberRetry('c');assert.equal(s.retryReceiptSummary,'1 处理中 · 1 成功 · 1 失败');
+ s.service.username='bob';s.restoreRetryTracking();assert.equal(s.retryReceiptsExpanded,false);assert.equal(s.retryTrackingIds.length,0);
+});
 test('arrow navigation immediately opens exactly one directory and clears obsolete search mode',()=>{
  const{state:s}=fixture();s.searchMode='content';s.openDirectory(s.projectDirectories[0],'g');
  assert.equal(s.mode,'library');assert.equal(s.activeFolderId,'g');assert.equal(s.searchMode,'metadata');assert.equal(s.visibleFolders.length,0);assert.equal(s.filteredDocuments.length,1);
