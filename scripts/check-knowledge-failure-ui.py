@@ -89,6 +89,24 @@ def check(page,state,p,args,temp,errors):
     experience=page.locator('[data-failure-id="'+data[2]['id']+'"]');expect(experience).to_be_visible()
     experience.get_by_role('button',name='重试处理',exact=True).click();expect(experience).to_have_count(0,timeout=30000)
     assert data[2]['id'] in state.scheduled
+    receipt=page.locator('[data-retry-document-id="'+data[2]['id']+'"]')
+    expect(receipt).to_contain_text('已提交重试，正在处理')
+    with state.db() as db:
+        d=db.get(CompanyDocument,data[2]['id']);d.state='ready';d.status_message='已可检索';db.commit()
+    page.reload();page.get_by_role('tab',name='经验沉淀',exact=True).click();page.get_by_role('button',name='处理失败',exact=False).click()
+    expect(receipt).to_contain_text('重试成功，已可检索')
+    expect(receipt).to_contain_text('经验沉淀 / '+p['name'])
+    expect(page.locator('[data-failure-id="'+data[2]['id']+'"]')).to_have_count(0)
+    page.screenshot(path=str(args.output_dir/'retry-ready-receipt.png'),animations='disabled')
+    page.set_viewport_size({'width':390,'height':844})
+    assert page.evaluate('document.documentElement.scrollWidth')<=390
+    page.screenshot(path=str(args.output_dir/'retry-ready-mobile.png'),animations='disabled')
+    page.set_viewport_size({'width':1440,'height':1000})
+    receipt.get_by_role('button',name='打开所在目录',exact=True).click()
+    expect(page.locator('.ckb-directory-path')).to_contain_text(p['name'])
+    receipt.get_by_role('button',name='查看文件',exact=True).click()
+    expect(reader).to_be_visible();expect(reader).to_contain_text('经验失败.txt')
+    reader.locator('.el-dialog__headerbtn').click();expect(reader).not_to_be_visible()
     # Server refusal before registration offers discard and a fresh selection.
     page.get_by_role('tab',name='资料库',exact=True).click();page.get_by_role('button',name='上传文件',exact=True).click()
     upload_dialog=page.get_by_role('dialog',name='上传文件',exact=True)
