@@ -48,6 +48,30 @@ test('a timed out body aborts only the read and never automatically retries',asy
   body.resolve({documents:[]});await tick();assert.equal(f.state.pendingReads.size,0);
 });
 
+for (const phase of ['headers','body']) test(`a transport abort during ${phase} preserves the actionable timeout message`,async()=>{
+  let calls=0;
+  const f=fixture((url,{signal})=>{
+    calls++;
+    const transport=new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(new DOMException('signal is aborted without reason','AbortError')),{once:true}));
+    return phase==='headers'?transport:Promise.resolve({status:200,ok:true,json:()=>transport});
+  });
+  const pending=phase==='headers'?f.state.apiFetch('/company-knowledge/status'):(await f.state.apiFetch('/company-knowledge/status')).json();
+  const check=assert.rejects(pending,/读取超时，请重试/);
+  [...f.timers.values()].find(timer=>timer.ms===30000).fn();
+  await check;assert.equal(calls,1);assert.equal(f.state.pendingReads.size,0);
+});
+
+test('Office preview permits conversion beyond the normal read deadline and still has a bounded actionable timeout',async()=>{
+  const body=deferred(),f=fixture(async()=>({status:200,ok:true,blob:()=>body.promise}));
+  const response=await f.state.apiFetch('/company-knowledge/documents/word/page?page=1');
+  const pending=response.blob();
+  assert.equal([...f.timers.values()].some(timer=>timer.ms===30000),false);
+  const deadline=[...f.timers.values()].find(timer=>timer.ms===210000);
+  assert.ok(deadline);
+  const check=assert.rejects(pending,/原件转换等待超时.*重试预览.*下载水印副本/);
+  deadline.fn();await check;assert.equal(f.state.pendingReads.size,0);
+});
+
 test('leaving the component cancels both header and body reads without leaving spinners indefinitely',async()=>{
   const body=deferred(),header=deferred();let calls=0;
   const f=fixture(async()=>++calls===1?{status:200,ok:true,json:()=>body.promise}:header.promise);

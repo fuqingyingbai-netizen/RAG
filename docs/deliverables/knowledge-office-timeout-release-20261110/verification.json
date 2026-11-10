@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "public_asset": "company-knowledge.291ca7ad255b.js",
+  "sha256": "291ca7ad255bd051c27c6dd37d5b63369837dca6cc8f7a82cfdd85554a31de9a",
+  "public_http_status": 200,
+  "html_only_script_reference_changed": true,
+  "public_stylesheet_preserved": "knowledge-workspace.7ed3aaa457df.css",
+  "backend_instance_unchanged": true,
+  "checks_before_release": 94
+}
