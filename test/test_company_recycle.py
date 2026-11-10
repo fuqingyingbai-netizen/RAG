@@ -94,3 +94,19 @@ def test_shared_original_survives_expired_tombstone(setup):
         db.commit()
     assert asyncio.run(purge_due())==1
     assert document_store().get_bytes(key)
+
+
+def test_legacy_parent_restore_does_not_resurrect_unknown_old_deletions(setup):
+    p=project(setup,'历史项目')
+    row=upload(setup,project_id=p['id']).json()
+    with setup.db() as db:
+        db.get(CompanyDocument,row['id']).state='deleted'
+        db.get(CompanyProject,p['id']).deleted_at=datetime.utcnow()-timedelta(days=100)
+        db.commit()
+        initialize(db.get_bind())
+    items=setup.client.get('/company-knowledge/recycle-bin').json()['items']
+    assert len(items)==2
+    item=next(i for i in items if i['kind']=='project')
+    assert setup.client.post('/company-knowledge/recycle-bin/'+item['id']+'/restore').status_code==200
+    with setup.db() as db:
+        assert db.get(CompanyDocument,row['id']).state=='deleted'
