@@ -1,5 +1,6 @@
 """Build a private HTML/JSON acceptance report without calling any model."""
 import argparse
+import ast
 from collections import Counter
 from html import escape
 import json
@@ -16,7 +17,33 @@ GATES={'holdout_answer_correct':.90,'holdout_faithful':.95,'holdout_citation_sup
        'unanswerable_refusal_correct':1.0,'max_errors':0,'max_invalid_citations':0}
 
 
-def build(dataset, results, output):
+def generation_integration(reference, current):
+    """Prove only already-reviewed department upload/selection endpoints changed.
+
+    Never permit prompt, retrieval, ACL scope preparation, imports, constants,
+    new global statements, or a caller of changed endpoints to differ.
+    """
+    allowed={'KnowledgeSelection','resolve_selection','upload','DocumentMetadata','edit_document'}
+    def parts(source):
+        named={};other=[]
+        for node in ast.parse(source).body:
+            if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef)):
+                if node.name in named:raise ValueError('Duplicate top-level definition')
+                named[node.name]=node
+            else:other.append(ast.dump(node,include_attributes=False))
+        return named,other
+    before,old_other=parts(reference);after,new_other=parts(current)
+    changed={key for key in before.keys()|after.keys() if key not in before or key not in after or
+        ast.dump(before[key],include_attributes=False)!=ast.dump(after[key],include_attributes=False)}
+    protected_callers={key for key,node in after.items() if key not in allowed and
+        any(isinstance(n,ast.Name) and n.id in changed for n in ast.walk(node))}
+    return {'passed':old_other==new_other and changed<=allowed and not protected_callers,
+        'changed_endpoint_definitions':sorted(changed),'protected_callers':sorted(protected_callers),
+        'measured_source_sha256':hashlib.sha256(reference.encode()).hexdigest(),
+        'candidate_source_sha256':hashlib.sha256(current.encode()).hexdigest()}
+
+
+def build(dataset, results, output, generation_reference=None):
     cases=json.loads(dataset.read_text(encoding='utf-8')); rows=[];missing=[]
     for case in cases:
         p=results/(case['id']+'-optimized.json')
@@ -34,6 +61,9 @@ def build(dataset, results, output):
     judgment_retries=[r['id'] for r in rows if r.get('prior_errors') or any(a.get('stage')=='judge' for a in r.get('prior_attempts',[]))]
     annotation_revisions=[r['id'] for r in rows if r.get('prior_annotation_judgments') or r.get('annotation_revision')]
     fingerprints={r.get('fingerprint') for r in rows}
+    current_source=(Path(__file__).resolve().parents[2]/'backend/company_workspace.py').read_text(encoding='utf-8')
+    measured_source=generation_reference.read_text(encoding='utf-8') if generation_reference else current_source
+    integration=generation_integration(measured_source,current_source)
     checks={
         'all_expected_cases_present':not missing and len(rows)==len(cases),
         'no_provider_or_judge_errors':all_scores['errors']==0,
@@ -44,8 +74,8 @@ def build(dataset, results, output):
         'unanswerable_and_scope_refusals':refusal_score==GATES['unanswerable_refusal_correct'],
         'context_recall_does_not_regress':before is not None and after is not None and after+1e-12>=before,
         'every_case_bound_to_inputs_and_code':None not in fingerprints,
-        'one_reviewed_generation_version':{r.get('generation_source_sha256') for r in rows}=={
-            hashlib.sha256((Path(__file__).resolve().parents[2]/'backend/company_workspace.py').read_text(encoding='utf-8').encode()).hexdigest()},
+        'one_reviewed_generation_version':{r.get('generation_source_sha256') for r in rows}=={integration['measured_source_sha256']},
+        'generation_unchanged_by_endpoint_integration':integration['passed'],
         'one_reviewed_selection_version':{r.get('selection_source_sha256') for r in rows}=={
             hashlib.sha256((Path(__file__).resolve().parents[2]/'backend/company_retrieval.py').read_text(encoding='utf-8').encode()).hexdigest()},
     }
@@ -57,6 +87,7 @@ def build(dataset, results, output):
         'selection_comparison':'same candidate nodes; old/new selection scored per final answer; no claim of full-production A/B accuracy lift'}
     report['retrieval_modes']=sorted({r.get('retrieval_mode','live') for r in rows})
     report['generation_source_hashes']=sorted({r.get('generation_source_sha256','legacy') for r in rows})
+    report['generation_integration']=integration
     output.mkdir(parents=True,exist_ok=True)
     (output/'acceptance.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
     def pct(v):return '未测' if v is None else f'{v:.1%}'
@@ -76,6 +107,8 @@ def build(dataset, results, output):
     html+='<p>回答生成重试 '+str(len(generation_retries))+' 题；评分调用重试 '+str(len(judgment_retries))+' 题；参考条目修订 '+str(len(annotation_revisions))+' 题。原失败、原评分与回答均保留，不能理解为首次调用全部成功。</p>'
     if 'verified_candidate_replay' in report['retrieval_modes']:
         html+='<p>首轮完成真实百炼检索。日期归因修复后，本轮重放首轮已核对的原文候选，重新调用真实回答模型和评分模型，以固定证据检查修复效果。30道保留题属于修复后的回归验收，不能作为未见过问题的泛化能力估计。</p>'
+    if integration['measured_source_sha256']!=integration['candidate_source_sha256']:
+        html+='<p>评测期间线上另行发布部门管理。候选版本合并了部门选择、上传和元数据接口；AST检查要求只允许这五个接口定义变化，禁止问答、证据组织、范围权限准备、导入、全局常量或其调用路径变化。两个完整模块哈希及差异定义保存在JSON中，接口集成另行运行软件回归；这不等于重新进行部门功能的模型效果评测。</p>'
     html+='<section><table><tr><th>检查项</th><th>旧证据选择</th><th>最终版本</th></tr>'+table+'</table><p>旧新证据选择使用相同候选片段；事实正确率只报告最终版本，不把此前试验中的不等量样本冒充完整A/B测试。</p></section>'
     html+='<section><h2>验收条件</h2><ul>'+''.join('<li>'+escape(k)+'：'+('通过' if v else '未通过')+'</li>' for k,v in checks.items())+'</ul></section>'
     html+='<section><h2>原文复核说明</h2><p>首轮Q020、Q056按资料分别给出不同职务或价格说法，并包含参考答案要点，符合保留真实冲突的要求；首轮自动判错保留在原始记录中，后续评分明确允许有依据的冲突说明。Q088修正了参考条目索引错误，首轮问题和回答均保留，后续按同一问题验证正确参考依据。此复核由Codex完成，不代替人工业务审核。</p><p>云端表格的换行标记不作为文字丢失。召回匹配修正前的指标及所有候选证据ID均保留在原始记录中。</p></section>'
@@ -86,4 +119,5 @@ def build(dataset, results, output):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--dataset',type=Path,required=True);p.add_argument('--results',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
-    a=p.parse_args();print(json.dumps(build(a.dataset,a.results,a.output),ensure_ascii=False))
+    p.add_argument('--generation-reference',type=Path,help='Frozen measured module; only bounded department endpoint integration may differ')
+    a=p.parse_args();print(json.dumps(build(a.dataset,a.results,a.output,a.generation_reference),ensure_ascii=False))
