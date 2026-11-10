@@ -151,6 +151,7 @@ const CompanyKnowledge = {
     allReferences() { const references = new Map(); for (const message of this.messages) for (const reference of message.references || []) references.set((reference.document_id || reference.url) + ':' + reference.id, reference); return [...references.values()]; },
   },
   watch: {
+    activeProjectId(value) { if (value) { for (const key of ['projectFilter','industryFilter','statusFilter','reviewFilter','tagFilter','dateFrom','dateTo']) this[key] = ''; this.advancedFiltersOpen = false; } },
     visibleProjectDirectories(rows) { if ((this.projectPreview.id && !rows.some(row => row.id === this.projectPreview.id)) || (this.projectPreview.pendingId && !rows.some(row => row.id === this.projectPreview.pendingId))) this.dismissProjectPreview(); },
     mode(value) { this.dismissProjectPreview?.(); this.$nextTick(() => this.syncTabIndicator()); if (value === 'chat') this.scrollChat(); },
     libraryView: { deep: true, handler() { this.saveLibraryView(); } },
@@ -420,7 +421,7 @@ const CompanyKnowledge = {
       if (!project || (folderId && !this.projectFolders.some(folder => folder.id === folderId && folder.project_id === project.id))) return;
       clearTimeout(this.directoryTimer); this.dismissProjectPreview?.(); this.searchMode='metadata';
       this.mode=this.caseCategories.includes(project.category)?'cases':'library'; this.activeProjectId = project.id; this.activeFolderId = folderId;
-      this.projectDisplay = 'contents'; this.openingDirectoryId = ''; this.resetFilters(); this.category='全部资料'; this.libraryIntent=''; this.scrollLibraryTop();
+      this.projectDisplay = 'contents'; this.openingDirectoryId = ''; this.resetFilters(); this.advancedFiltersOpen=false; this.category='全部资料'; this.libraryIntent=''; this.scrollLibraryTop();
     },
     goUpDirectory() { if (!this.activeProject) return this.showProjectRoot(); const folder=this.projectFolders.find(f=>f.id===this.activeFolderId&&f.project_id===this.activeProjectId); if(folder)this.openDirectory(this.activeProject,folder.parent_id||'');else this.showProjectRoot(); },
     startProjectEditor(project = null) {
@@ -1061,7 +1062,7 @@ const CompanyKnowledge = {
           <div v-if="libraryIntent === 'compare'" class="ckb-compare-intent" role="status"><div><strong>先选择资料，再比较结论</strong><span>勾选至少 2 份可检索资料，下一步进入问答确认比较问题。</span></div><button @click="libraryIntent = ''">退出比较</button></div>
           <div v-if="mineOnly" class="ckb-inline-project-summary"><span>共 {{ collectionMineCount }} 个项目、{{ collectionMineDocumentCount }} 份资料，只统计当前库中本人上传的内容。</span><button class="ckb-button ckb-button-primary" :disabled="!collectionMineDocumentCount || busy" @click="summarizeMyProjects">AI 总结项目</button></div>
 
-          <section class="ckb-catalog-controls" aria-label="搜索与筛选">
+          <section v-if="!activeProjectId" class="ckb-catalog-controls" aria-label="搜索与筛选">
             <div class="ckb-catalog-toolbar"><select v-model="industryFilter" aria-label="筛选行业"><option value="">全部行业</option><option v-for="item in industryOptions" :key="item">{{ item }}</option></select><select v-model="reviewFilter" aria-label="筛选复核状态"><option value="">全部复核状态</option><option>待复核</option><option>已复核</option><option>参考资料</option></select><button type="button" class="ckb-more-filters" :aria-expanded="advancedFiltersOpen" aria-controls="ckb-catalog-advanced" @click="advancedFiltersOpen = !advancedFiltersOpen">更多筛选<span v-if="advancedFilterCount" class="ckb-filter-count">{{ advancedFilterCount }}</span><i class="fa-solid" :class="advancedFiltersOpen ? 'fa-chevron-up' : 'fa-chevron-down'" aria-hidden="true"></i></button><button type="button" class="ckb-clear-filters" aria-label="清空筛选" title="清空筛选" @click="resetFilters">清空</button><button v-if="mode === 'cases'" class="ckb-button ckb-button-outline" :disabled="!canAsk" @click="openQuickCapture"><i class="fa-solid fa-pen-nib" aria-hidden="true"></i>随手记录</button><button v-if="showingProjects" type="button" class="ckb-catalog-files" @click="showAllFiles">全部文件<i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button></div>
             <div v-show="advancedFiltersOpen" id="ckb-catalog-advanced" class="ckb-catalog-advanced"><div class="ckb-catalog-date"><span>时间范围</span><div class="ckb-date-filter"><select v-model="dateField" aria-label="时间类型"><option value="created_at">上传时间</option><option value="modified_at">更新时间</option></select><input type="date" v-model="dateFrom" aria-label="开始日期" :max="dateTo || undefined"><span>至</span><input type="date" v-model="dateTo" aria-label="结束日期" :min="dateFrom || undefined"></div></div></div>
           </section>
