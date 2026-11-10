@@ -78,7 +78,11 @@ def test_new_forms_require_a_valid_department_but_old_clients_and_experience_rem
         assert setup.client.post('/company-knowledge/selection', json={'department': invalid}).status_code == 422
     assert project(setup, '旧客户端')['department'] == ''
     assert project(setup, '经验项目', category='项目经验', department='')['department'] == ''
-    assert upload(setup, root='true').status_code == 202
+    legacy = upload(setup, root='true')
+    assert legacy.status_code == 202
+    assert setup.client.patch('/company-knowledge/documents/' + legacy.json()['id'],
+                              json={'department': 'unknown'}).status_code == 422
+    assert stored_original(setup, legacy.json()['id']) == b'Company knowledge evidence'
 
 
 def test_moving_version_family_inherits_department_without_replacing_originals(setup):
