@@ -58,15 +58,18 @@ def test_private_draft_cas_history_and_resume(setup):
     assert setup.client.patch('/company-knowledge/notes/'+note['id'],json={'revision':2,'title':'越权','content':content()}).status_code==403
 
 
-def test_note_cannot_enter_library_or_exceed_project_acl(setup):
+def test_note_stays_in_experience_and_published_content_is_member_readable(setup):
     p=project(setup,'原件项目')
     assert setup.client.post('/company-knowledge/notes',json={'project_id':p['id']}).status_code==422
     setup.user.role='admin'
     p,note=create(setup,confidentiality='secret',visibility='restricted',readers=[])
     note=publish(setup,save(setup,note));ready(setup,note)
     setup.user.username,setup.user.id,setup.user.role='bob',2,'user'
-    assert setup.client.get('/company-knowledge/notes/'+note['id']).status_code==404
-    assert setup.client.get('/company-knowledge/notes/'+note['id']+'/export').status_code==404
+    # Published experience is shared, including historical restricted/secret input.
+    public=setup.client.get('/company-knowledge/notes/'+note['id'])
+    assert public.status_code==200 and not public.json()['can_manage']
+    assert setup.client.get('/company-knowledge/notes/'+note['id']+'/export').status_code==200
+    assert setup.client.get('/company-knowledge/notes/'+note['id']+'/export?draft=true').status_code==403
 
 
 def test_published_snapshot_is_readable_but_updates_remain_private(setup):

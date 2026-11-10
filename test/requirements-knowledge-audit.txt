@@ -1,0 +1,3 @@
+# Optional, isolated tooling for scripts/manual/check_knowledge_contracts.py.
+schemathesis==4.33.1
+hypothesis==6.170.15
