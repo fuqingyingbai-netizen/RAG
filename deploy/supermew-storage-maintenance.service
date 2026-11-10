@@ -1,0 +1,16 @@
+[Unit]
+Description=Bound regenerable package caches without blocking publication
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+WorkingDirectory=/
+ExecStart=/usr/bin/python3 /opt/supermew/ops/storage-maintenance/storage_maintenance.py --run
+Nice=19
+CPUWeight=10
+IOWeight=10
+IOSchedulingClass=idle
+TimeoutStartSec=1200
+Restart=on-failure
+RestartSec=15min
