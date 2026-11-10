@@ -95,7 +95,7 @@
           <el-menu-item index="research" class="research-task-nav" @keydown.enter.prevent.stop="switchView('research')" @keydown.space.prevent.stop="switchView('research')"><i class="fa-solid fa-magnifying-glass-chart" aria-hidden="true"></i><span>研究任务</span></el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="company-knowledge-group" class="research-nav-group" :class="{'section-is-current':activeView==='company-knowledge'}">
-          <template #title><button type="button" class="menu-section-link" aria-label="打开公司知识库" @click.stop="openKnowledgeHome"><i class="fa-solid fa-book-open" aria-hidden="true"></i><span>公司知识库</span></button></template>
+          <template #title><button type="button" class="menu-section-link" aria-label="打开公司知识库" @click.stop="knowledgeDepartmentEntry=null; switchView('company-knowledge'); $nextTick(() => $refs.knowledgeWorkspace?.openHome())"><i class="fa-solid fa-book-open" aria-hidden="true"></i><span>公司知识库</span></button></template>
           <el-menu-item index="knowledge-department-market" :disabled="!!$refs.knowledgeWorkspace?.busy"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i><span>市场部</span></el-menu-item>
           <el-menu-item index="knowledge-department-project" :disabled="!!$refs.knowledgeWorkspace?.busy"><i class="fa-solid fa-briefcase" aria-hidden="true"></i><span>项目部</span></el-menu-item>
           <el-menu-item index="knowledge-department-policy" :disabled="!!$refs.knowledgeWorkspace?.busy"><i class="fa-solid fa-file-lines" aria-hidden="true"></i><span>制度文件</span></el-menu-item>
