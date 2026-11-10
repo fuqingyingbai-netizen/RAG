@@ -1,5 +1,5 @@
 """Failed upload controls against real routes and an isolated catalogue."""
-import json
+import json,re
 from playwright.sync_api import expect
 
 
@@ -24,7 +24,7 @@ def check(page,state,p,args,temp,errors):
     note=publish(state,save(state,note,title='失败图文笔记'))
     with state.db() as db:
         d=db.get(CompanyDocument,note['pending_document_id']);d.state='failed';d.status_message='笔记索引失败测试';db.commit()
-    page.goto(page.url+'full');page.get_by_role('tab',name='资料库',exact=True).click()
+    page.goto(page.url+'full');page.get_by_role('tab',name=re.compile('^(总)?资料库$')).click()
     root=page.locator('[data-failure-id="'+data[0]['id']+'"]');expect(root).to_be_visible()
     expect(root.get_by_role('button',name='重试处理',exact=True)).to_be_visible()
     expect(root.get_by_role('button',name='重新上传',exact=True)).to_be_visible()
@@ -98,9 +98,24 @@ def check(page,state,p,args,temp,errors):
     expect(receipt).to_contain_text('经验沉淀 / '+p['name'])
     expect(page.locator('[data-failure-id="'+data[2]['id']+'"]')).to_have_count(0)
     page.screenshot(path=str(args.output_dir/'retry-ready-receipt.png'),animations='disabled')
+    panel=page.get_by_role('region',name='最近重试的资料',exact=True)
+    toggle=panel.locator('.ckb-retry-toggle')
+    expect(toggle).to_have_attribute('aria-expanded','true')
+    expanded_height=panel.bounding_box()['height']
+    toggle.click();expect(receipt).not_to_be_visible()
+    assert panel.bounding_box()['height']<=48,panel.bounding_box()
+    assert expanded_height-panel.bounding_box()['height']>70
+    expect(toggle).to_contain_text('1 成功')
+    page.screenshot(path=str(args.output_dir/'retry-compact-desktop.png'),animations='disabled')
+    page.reload();page.get_by_role('tab',name='经验沉淀',exact=True).click();page.get_by_role('button',name='处理失败',exact=False).click()
+    expect(toggle).to_have_attribute('aria-expanded','false');expect(receipt).not_to_be_visible()
+    page.get_by_role('button',name='刷新',exact=True).click();expect(toggle).to_have_attribute('aria-expanded','false')
     page.set_viewport_size({'width':390,'height':844})
     assert page.evaluate('document.documentElement.scrollWidth')<=390
-    page.screenshot(path=str(args.output_dir/'retry-ready-mobile.png'),animations='disabled')
+    panel.scroll_into_view_if_needed();assert panel.bounding_box()['height']<=48
+    page.screenshot(path=str(args.output_dir/'retry-compact-mobile.png'),animations='disabled')
+    toggle.focus();page.keyboard.press('Enter');expect(receipt).to_be_visible();expect(toggle).to_have_attribute('aria-expanded','true')
+    assert page.evaluate('document.documentElement.scrollWidth')<=390
     page.set_viewport_size({'width':1440,'height':1000})
     receipt.get_by_role('button',name='打开所在目录',exact=True).click()
     expect(page.locator('.ckb-directory-path')).to_contain_text(p['name'])
@@ -108,8 +123,9 @@ def check(page,state,p,args,temp,errors):
     expect(reader).to_be_visible();expect(reader).to_contain_text('经验失败.txt')
     reader.locator('.el-dialog__headerbtn').click();expect(reader).not_to_be_visible()
     # Server refusal before registration offers discard and a fresh selection.
-    page.get_by_role('tab',name='资料库',exact=True).click();page.get_by_role('button',name='上传文件',exact=True).click()
+    page.get_by_role('tab',name=re.compile('^(总)?资料库$')).click();page.get_by_role('button',name='上传文件',exact=True).click()
     upload_dialog=page.get_by_role('dialog',name='上传文件',exact=True)
+    upload_dialog.get_by_label('上传所属部门／栏目',exact=True).select_option('market')
     source=temp/'failed.txt';source.write_text('upload',encoding='utf-8')
     page.route('**/company-knowledge/uploads',lambda route:route.fulfill(status=422,json={'detail':'测试上传拒绝'}))
     upload_dialog.get_by_label('选择上传资料',exact=True).set_input_files(str(source));upload_dialog.get_by_role('button',name='上传并归档',exact=True).click()
@@ -120,14 +136,14 @@ def check(page,state,p,args,temp,errors):
     upload_dialog.get_by_role('button',name='取消',exact=True).click();page.unroute('**/company-knowledge/uploads')
     # A reader cannot delete or replace someone else's data in either UI or API.
     state.user.username='bob';state.user.id=2
-    page.reload();page.get_by_role('tab',name='资料库',exact=True).click();page.get_by_role('button',name='处理失败',exact=False).click()
+    page.reload();page.get_by_role('tab',name=re.compile('^(总)?资料库$')).click();page.get_by_role('button',name='处理失败',exact=False).click()
     expect(root).to_contain_text('归属人 alice')
     for name in ('重试处理','重新上传','删除'):
         expect(root.get_by_role('button',name=name,exact=True)).to_have_count(0)
     assert state.client.post('/company-knowledge/documents/'+data[0]['id']+'/retry').status_code==403
     assert state.client.delete('/company-knowledge/documents/'+data[0]['id']).status_code==403
     page.screenshot(path=str(args.output_dir/'failed-reader-permission.png'),animations='disabled')
-    state.user.role='admin';page.reload();page.get_by_role('tab',name='资料库',exact=True).click();page.get_by_role('button',name='处理失败',exact=False).click()
+    state.user.role='admin';page.reload();page.get_by_role('tab',name=re.compile('^(总)?资料库$')).click();page.get_by_role('button',name='处理失败',exact=False).click()
     expect(root.get_by_role('button',name='重试处理',exact=True)).to_be_visible()
     page.screenshot(path=str(args.output_dir/'failed-admin-actions.png'),animations='disabled')
     page.set_viewport_size({'width':390,'height':844})
