@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import DateTime, JSON, String, select
+from sqlalchemy import DateTime, Index, JSON, String, select, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
@@ -20,6 +20,11 @@ def initialize(engine):
     from company_catalog import CompanyDocument, CompanyProject, CompanyAuditEvent
     from company_notes import CompanyNote
     with ws.SessionLocal() as db:
+        if engine.dialect.name == 'postgresql':
+            # Multiple application workers may start together after a release.
+            db.execute(text('SELECT pg_advisory_xact_lock(731101010)'))
+        for index in RecycleItem.__table__.indexes:
+            index.create(bind=db.connection(), checkfirst=True)
         known = select(RecycleItem.target_id).where(RecycleItem.kind == 'document')
         for doc in db.scalars(select(CompanyDocument).where(CompanyDocument.state == 'deleted',
                 CompanyDocument.object_key != '', ~CompanyDocument.id.in_(known))):
@@ -38,6 +43,8 @@ def initialize(engine):
 
 class RecycleItem(Base):
     __tablename__ = 'company_recycle_items'
+    __table_args__ = (Index('uq_company_recycle_active', 'kind', 'target_id', unique=True,
+        postgresql_where=text("status = 'deleted'"), sqlite_where=text("status = 'deleted'")),)
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     index_id: Mapped[str] = mapped_column(String(100), index=True)
     kind: Mapped[str] = mapped_column(String(20))
