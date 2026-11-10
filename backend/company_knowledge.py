@@ -20,7 +20,15 @@ from auth import get_current_user
 from models import User
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
-router = APIRouter(prefix='/company-knowledge', tags=['Company knowledge'])
+
+
+class KnowledgeValidationError(BaseModel):
+    """Business rejections use text; request validation uses FastAPI's error list."""
+    detail: str | list[dict]
+
+
+router = APIRouter(prefix='/company-knowledge', tags=['Company knowledge'],
+                  responses={422: {'model': KnowledgeValidationError}})
 
 
 class KnowledgeError(Exception):

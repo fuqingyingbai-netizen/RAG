@@ -23,6 +23,16 @@ test('every category entry leaves body-search state and stale project scope',()=
  s.searchMode='content';s.selectFailed();assert.equal(s.searchMode,'metadata');assert.equal(s.statusFilter,'failed');assert.equal(s.projectDisplay,'files');
 });
 
+test('directory search includes descendants but never siblings or the project root',()=>{
+ const{state:s}=fixture();s.projectFolders.push({id:'sibling',project_id:'p',parent_id:'',name:'同级分支'});
+ s.cloudDocuments.push({id:'sibling-file',title:'same.txt',can_read:true,state:'ready',category:'项目原件',knowledge_project_id:'p',folder_id:'sibling'},
+  {id:'root-file',title:'same.txt',can_read:true,state:'ready',category:'项目原件',knowledge_project_id:'p',folder_id:''});
+ s.openDirectory(s.projectDirectories[0],'f');s.query='same';assert.equal(s.filteredDocuments.length,0);
+ s.query='A';assert.deepEqual(Array.from(s.filteredDocuments,d=>d.id),['a']);
+ s.query='三级';assert.deepEqual(Array.from(s.visibleFolders,f=>f.id),['g']);
+ s.query='同级';assert.equal(s.visibleFolders.length,0);s.query='';assert.deepEqual(Array.from(s.visibleFolders,f=>f.id),['g']);
+});
+
 test('owned project root and nested folders keep creation and upload in the current location',async()=>{
  const{state:s}=fixture();s.projectDirectories[0].can_manage=true;s.openDirectory(s.projectDirectories[0]);
  const requests=[];s.apiFetch=async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});return {ok:true,json:async()=>({id:'created'})}};
