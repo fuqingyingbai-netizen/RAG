@@ -2,8 +2,8 @@ const test=require('node:test');const assert=require('node:assert/strict');
 const fs=require('node:fs');const vm=require('node:vm');
 function fixture(){
  const notices=[],saved={};const component=vm.runInNewContext(fs.readFileSync('frontend/company-knowledge.js','utf8')+'\nCompanyKnowledge;',{
-  AbortController,File,clearTimeout,setTimeout,sessionStorage:{setItem:(k,v)=>saved[k]=v},
-  ElementPlus:{ElMessage:Object.fromEntries(['info','warning','error'].map(k=>[k,v=>notices.push(v)]))}});
+  AbortController,File,FormData,clearTimeout,setTimeout,sessionStorage:{setItem:(k,v)=>saved[k]=v},
+  ElementPlus:{ElMessage:Object.fromEntries(['info','warning','error','success'].map(k=>[k,v=>notices.push(v)]))}});
  const state=component.data();for(const [k,f]of Object.entries(component.methods))state[k]=f.bind(state);
  for(const[k,f]of Object.entries(component.computed))Object.defineProperty(state,k,{get:()=>f.call(state)});
  state.$nextTick=async fn=>fn?.();state.$refs={documentTable:{scrollTop:140},composer:{focus(){}}};state.service={username:'alice'};
@@ -31,6 +31,46 @@ test('directory search includes descendants but never siblings or the project ro
  s.query='A';assert.deepEqual(Array.from(s.filteredDocuments,d=>d.id),['a']);
  s.query='三级';assert.deepEqual(Array.from(s.visibleFolders,f=>f.id),['g']);
  s.query='同级';assert.equal(s.visibleFolders.length,0);s.query='';assert.deepEqual(Array.from(s.visibleFolders,f=>f.id),['g']);
+});
+
+test('favorite counts follow the current library rather than all saved favorites',()=>{
+ const{state:s}=fixture();s.cloudDocuments.push({id:'experience-file',title:'经验.txt',can_read:true,state:'ready',category:'项目经验'});
+ s.favorites=['a','experience-file','removed-file'];assert.equal(s.collectionFavoritesCount,1);
+ s.mode='cases';assert.equal(s.collectionFavoritesCount,1);s.favorites=['a'];assert.equal(s.collectionFavoritesCount,0);
+});
+
+test('my notes counts only personal experience and does not duplicate its published document',()=>{
+ const{state:s}=fixture();s.projectDirectories.push({id:'xp',name:'我的经验',owner:'alice',category:'项目经验'});
+ s.noteDrafts=[{id:'n',project_id:'xp',title:'我的笔记',created_by:'alice',folder_id:''}];
+ s.cloudDocuments.push({id:'published',note_id:'n',title:'我的笔记',category:'项目经验',is_owner:true,state:'ready'},
+  {id:'capture',title:'随手记录',category:'项目经验',is_owner:true,state:'failed'},
+  {id:'other-xp',title:'他人经验',category:'项目经验',is_owner:false,state:'ready'});
+ s.browseMyNotes();assert.equal(s.currentCollection,'experience');assert.equal(s.myExperienceCount,2);
+ assert.deepEqual(Array.from(s.visibleNoteDrafts,n=>n.id),['n']);assert.deepEqual(Array.from(s.filteredDocuments,d=>d.id),['capture']);
+ s.selectFailed();assert.equal(s.currentCollection,'experience');assert.deepEqual(Array.from(s.filteredDocuments,d=>d.id),['capture']);
+});
+
+test('my notes default question uses personal experience scope rather than the entire library',async()=>{
+ const{state:s}=fixture();s.cloudDocuments.push({id:'mine',category:'项目经验',is_owner:true,can_read:true,state:'ready'});s.browseMyNotes();await s.askLibrary();assert.equal(s.chatScope,'my-experience');assert.equal(s.mode,'chat');assert.equal(s.returnLocation.view.mineOnly,true);assert.equal(s.selectedIds.length,0);
+});
+
+test('reupload pins original project folder and filename despite other current navigation',async()=>{
+ const{state:s}=fixture();s.projectDirectories[0].can_manage=true;s.activeProjectId='q';
+ const doc={id:'failed',title:'original.txt',state:'failed',can_manage:true,has_original:true,knowledge_project_id:'p',folder_id:'g',category:'项目原件'};
+ s.startReupload(doc);assert.equal(s.uploadTargetProjectId,'p');assert.equal(s.uploadTargetFolderId,'g');
+ s.uploadTargetProjectId='q';s.uploadTargetFolderId='';s.stagedFiles=[new File(['new content'],'local-name.txt')];
+ let sent;s.apiFetch=async(url,options)=>{sent={url,form:options.body};return {ok:true,json:async()=>({...doc,id:'new-version',state:'ready'})}};
+ s.loadDocuments=async()=>{};s.loadMyProjects=async()=>{};await s.uploadFiles();
+ assert.equal(sent.form.get('project_id'),'p');assert.equal(sent.form.get('folder_id'),'g');assert.equal(sent.form.get('file').name,'original.txt');
+});
+
+test('missing original uses the repair route and readonly reupload stays blocked',async()=>{
+ const{state:s}=fixture();s.projectDirectories[0].can_manage=true;
+ const doc={id:'missing',title:'original.txt',state:'failed',can_manage:true,has_original:false,knowledge_project_id:'p',folder_id:'g',category:'项目原件'};
+ s.startReupload(doc);s.stagedFiles=[new File(['repaired'],'original.txt')];let sent;
+ s.apiFetch=async(url,options)=>{sent={url,form:options.body};return {ok:true,json:async()=>({...doc,has_original:true,state:'ready'})}};
+ s.loadDocuments=async()=>{};s.loadMyProjects=async()=>{};await s.uploadFiles();assert.equal(sent.url,'/company-knowledge/documents/missing/original');assert.equal(sent.form.get('confirmation'),'missing');
+ s.uploadOpen=false;s.startReupload({...doc,can_manage:false});assert.equal(s.uploadOpen,false);
 });
 
 test('owned project root and nested folders keep creation and upload in the current location',async()=>{
@@ -77,4 +117,27 @@ test('project list is requested before the first document page resolves and rema
  s.loadProjectDirectories=async()=>{directories=true;};s.loadNotes=()=>{};
  s.apiFetch=async url=>{const page=+new URL('http://local'+url).searchParams.get('page_number');if(page===1)await first;active++;max=Math.max(max,active);await new Promise(setImmediate);active--;return {ok:true,json:async()=>({documents:[{id:String(page),category:'项目原件'}],total_count:501})}};
  const pending=s.loadDocuments();assert.equal(directories,true);release();await pending;assert.equal(s.cloudDocuments.length,6);assert.equal(max,3);
+});
+
+test('private draft alone cannot silently expand a personal question to all experience',async()=>{
+ const{state:s,notices}=fixture();s.browseMyNotes();await s.askLibrary();assert.equal(s.mode,'cases');assert.match(notices[0],/暂无可检索资料/);
+});
+
+test('experience note list follows its selected category and exposes only readable current published documents',()=>{
+ const{state:s}=fixture();s.mode='cases';s.projectDirectories.push({id:'xp',name:'经验',owner:'alice',category:'项目经验'});s.noteDrafts=[{id:'n',title:'项目经验笔记',project_id:'xp'}];
+ s.cloudDocuments.push({id:'published',note_id:'n',category:'项目经验',can_read:true,is_current:1},{id:'old',note_id:'n',category:'项目经验',can_read:true,is_current:0},{id:'locked',note_id:'private',category:'项目经验',can_read:false});
+ s.category='案例复盘';assert.equal(s.visibleNoteDrafts.length,0);s.category='项目经验';assert.equal(s.visibleNoteDrafts.length,1);
+ assert.equal(s.publishedNoteDocuments.n.id,'published');assert.equal(s.publishedNoteDocuments.private,undefined);s.category='案例复盘';s.browseMyNotes();assert.equal(s.category,'全部资料');assert.equal(s.visibleNoteDrafts.length,1);s.favorites=['published'];assert.equal(s.collectionFavoritesCount,1);
+});
+
+test('personal notes share one sorted paginated list with files and each publication appears once',()=>{
+ const{state:s}=fixture();s.projectDirectories.push({id:'xp',name:'我的经验',owner:'alice',category:'项目经验'});
+ s.noteDrafts=[{id:'draft',project_id:'xp',title:'B 草稿',updated_at:'2026-11-10'},{id:'published',project_id:'xp',title:'C 图文',updated_at:'2026-11-09',published_revision:1}];
+ s.cloudDocuments.push({id:'note-doc',note_id:'published',title:'C 图文.docx',category:'项目经验',can_read:true,is_owner:true,is_current:1,state:'ready'},
+ {id:'file',title:'A 文件',category:'项目经验',can_read:true,is_owner:true,state:'ready'});
+ s.browseMyNotes();s.sortOrder='title';s.libraryPageSize=2;
+ assert.equal(s.myExperienceCount,3);assert.equal(s.libraryPageRange.total,3);assert.equal(s.libraryPageCount,2);
+ assert.deepEqual(Array.from(s.pagedLibraryRows,row=>row.title),['A 文件','B 草稿']);assert.equal(s.pagedLibraryRows[1].document,undefined);
+ s.libraryPage=2;assert.equal(s.pagedLibraryRows.length,1);assert.equal(s.pagedLibraryRows[0].document.id,'note-doc');assert.equal(s.libraryPageRange.end,3);
+ assert.equal(s.libraryRows.filter(row=>row.document?.id==='note-doc').length,1);
 });

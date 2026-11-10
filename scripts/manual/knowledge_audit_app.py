@@ -8,6 +8,7 @@ import hashlib
 import ipaddress
 import json
 import os
+import re
 from pathlib import Path
 import socket
 import sys
@@ -139,6 +140,8 @@ def build_app(data_dir):
     def preview():
         html=(repo/'frontend/index.html').read_text(encoding='utf-8')
         head=html.split('</head>')[0]+'</head>'
+        for link in re.findall(r'<link\b[^>]*rel="stylesheet"[^>]*>',html):
+            if link not in head: head=head.replace('</head>',link+'</head>')
         scripts=''.join('<script src="/'+name+'"></script>' for name in ['vendor/vue-3.5.44/vue.global.prod.js',
             'vendor/element-plus-2.14.7/index.full.min.js','vendor/marked-18.1.2/marked.umd.js',
             'vendor/purify-3.4.17.min.js','safe-markdown.js','knowledge-document-viewer.js',
