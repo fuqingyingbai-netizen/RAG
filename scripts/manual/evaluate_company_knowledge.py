@@ -27,6 +27,9 @@ async def evaluate(args):
     args.output_dir.mkdir(parents=True,exist_ok=True)
     corpus={d['id']:d for d in json.loads(args.corpus.read_text(encoding='utf-8'))}
     cases=json.loads(args.dataset.read_text(encoding='utf-8'))
+    if args.case_id:
+        selected=set(args.case_id);cases=[c for c in cases if c['id'] in selected]
+        if len(cases)!=len(selected):raise ValueError('Unknown case ID')
     groups={}
     for case in cases:
         validate_case(case,corpus)
@@ -59,6 +62,7 @@ async def evaluate(args):
             stored_nodes.set({});results=[]
             for policy in args.policies:
                 path=args.output_dir/(case['id']+'-'+policy+'.json')
+                previous=None
                 fingerprint=hashlib.sha256(json.dumps({'case':case,'model':model['model'],
                     'source_hashes':{k:corpus[k]['sha256'] for k in case['scope_ids']},
                     'generation_source':Path(ws.__file__).read_text(encoding='utf-8'),
@@ -119,6 +123,10 @@ async def evaluate(args):
                         'answer':answer,'references':refs,'metrics':metrics,'trace':evaluation.get('trace'),'stage':stage,
                         'judge_raw':raw,'provider_status':provider_status.get(),'error_message':str(exc) if isinstance(exc,kb.KnowledgeError) else '',
                         'http_status':getattr(getattr(exc,'response',None),'status_code',None),'seconds':time.monotonic()-started,'fingerprint':fingerprint,'answer_seconds':answer_seconds}
+                if previous and previous.get('error'):
+                    history=deepcopy(previous.get('prior_attempts',[]))
+                    history.append({k:v for k,v in previous.items() if k!='prior_attempts'})
+                    row['prior_attempts']=history
                 path.write_text(json.dumps(row,ensure_ascii=False,indent=2),encoding='utf-8');results.append(row)
                 with (args.output_dir/'attempts.jsonl').open('a',encoding='utf-8') as f:
                     f.write(json.dumps({'id':case['id'],'policy':policy,'error':row['error'],'fingerprint':fingerprint,'time':time.time()},ensure_ascii=False)+'\n')
@@ -134,8 +142,9 @@ async def evaluate(args):
     result['method']={'same_retrieval_candidates':True,'baseline':'previous 12-fragment selection; same generation prompt to isolate evidence assembly',
         'gold_originals_verified':True,'judge':'independent model call, needs human sampling','document_count':len(corpus),'question_count':len(cases),
         'generation_policies':args.policies,'selection_comparison':'old/new evidence selection is scored from exactly the same candidate nodes for every final answer'}
-    (args.output_dir/'summary.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
-    with (args.output_dir/'ragas-input.jsonl').open('w',encoding='utf-8') as f:
+    suffix='-'+'-'.join(args.case_id) if args.case_id else ''
+    (args.output_dir/('summary'+suffix+'.json')).write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+    with (args.output_dir/('ragas-input'+suffix+'.jsonl')).open('w',encoding='utf-8') as f:
         for r in rows:
             if not r.get('error'):f.write(json.dumps({'user_input':r['question'],'response':r['answer'],'reference':r['expected_answer'],
                 'retrieved_contexts':[ref['text'] for ref in r['references']]},ensure_ascii=False)+'\n')
@@ -146,4 +155,5 @@ if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--corpus',type=Path,required=True);p.add_argument('--dataset',type=Path,required=True)
     p.add_argument('--output-dir',type=Path,required=True);p.add_argument('--concurrency',type=int,default=3,choices=range(1,9));p.add_argument('--fresh',action='store_true')
     p.add_argument('--policies',nargs='+',choices=['baseline','optimized'],default=['baseline','optimized'])
+    p.add_argument('--case-id',nargs='+',help='Retry named cases without overwriting the full-run summary')
     asyncio.run(evaluate(p.parse_args()))
