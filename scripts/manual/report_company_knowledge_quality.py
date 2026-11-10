@@ -3,6 +3,7 @@ import argparse
 from collections import Counter
 from html import escape
 import json
+import hashlib
 from pathlib import Path
 import sys
 
@@ -43,6 +44,10 @@ def build(dataset, results, output):
         'unanswerable_and_scope_refusals':refusal_score==GATES['unanswerable_refusal_correct'],
         'context_recall_does_not_regress':before is not None and after is not None and after+1e-12>=before,
         'every_case_bound_to_inputs_and_code':None not in fingerprints,
+        'one_reviewed_generation_version':{r.get('generation_source_sha256') for r in rows}=={
+            hashlib.sha256((Path(__file__).resolve().parents[2]/'backend/company_workspace.py').read_text(encoding='utf-8').encode()).hexdigest()},
+        'one_reviewed_selection_version':{r.get('selection_source_sha256') for r in rows}=={
+            hashlib.sha256((Path(__file__).resolve().parents[2]/'backend/company_retrieval.py').read_text(encoding='utf-8').encode()).hexdigest()},
     }
     report={'status':'passed' if all(checks.values()) else 'not_passed','cases':len(cases),'completed':len(rows),'missing':missing,
         'gates':GATES,'checks':checks,'all':all_scores,'holdout':holdout,'baseline_context_recall':before,'optimized_context_recall':after,
