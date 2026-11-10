@@ -22,7 +22,7 @@ import company_notes
 
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--output-dir',type=Path,required=True);parser.add_argument('--assets-dir',type=Path,required=True);parser.add_argument('--writing-regression',action='store_true');parser.add_argument('--table-regression',action='store_true');parser.add_argument('--publish-regression',action='store_true');parser.add_argument('--project-regression',action='store_true');parser.add_argument('--reader-regression',action='store_true');parser.add_argument('--formats-dir',type=Path);parser.add_argument('--root-regression',action='store_true');parser.add_argument('--preview-regression',action='store_true');parser.add_argument('--large-sheet',type=Path);args=parser.parse_args();args.output_dir.mkdir(parents=True,exist_ok=True)
+    parser=argparse.ArgumentParser();parser.add_argument('--output-dir',type=Path,required=True);parser.add_argument('--assets-dir',type=Path,required=True);parser.add_argument('--writing-regression',action='store_true');parser.add_argument('--table-regression',action='store_true');parser.add_argument('--publish-regression',action='store_true');parser.add_argument('--project-regression',action='store_true');parser.add_argument('--reader-regression',action='store_true');parser.add_argument('--formats-dir',type=Path);parser.add_argument('--failure-regression',action='store_true');parser.add_argument('--root-regression',action='store_true');parser.add_argument('--preview-regression',action='store_true');parser.add_argument('--large-sheet',type=Path);args=parser.parse_args();args.output_dir.mkdir(parents=True,exist_ok=True)
     with TemporaryDirectory(prefix='note-qa-',ignore_cleanup_errors=True) as temp:
         patch=pytest.MonkeyPatch();generator=setup.__wrapped__(patch,Path(temp));state=next(generator)
         import company_memory
@@ -32,9 +32,9 @@ def main():
         p=project(state,'经验图文验证',category='手稿笔记')
         note=state.client.post('/company-knowledge/notes',json={'project_id':p['id']}).json()
         reader_config = None
-        if getattr(args, 'reader_regression', False) or args.preview_regression or args.root_regression:
+        if getattr(args, 'reader_regression', False) or args.preview_regression or args.root_regression or args.failure_regression:
             import runpy
-            reader_config = runpy.run_path(str(ROOT/('scripts/check-knowledge-root-ui.py' if args.root_regression else 'scripts/check-knowledge-preview-ui.py' if args.preview_regression else 'scripts/check-knowledge-reader-ui.py')))
+            reader_config = runpy.run_path(str(ROOT/('scripts/check-knowledge-failure-ui.py' if args.failure_regression else 'scripts/check-knowledge-root-ui.py' if args.root_regression else 'scripts/check-knowledge-preview-ui.py' if args.preview_regression else 'scripts/check-knowledge-reader-ui.py')))
             reader_config = reader_config['configure'](state, args, patch)
         class Handler(SimpleHTTPRequestHandler):
             def log_message(self,*args):pass
@@ -64,12 +64,13 @@ def main():
         styles=re.findall(r'href="(knowledge-(?:home-simple|palette|typography)\.[a-f0-9]{12}\.css)"',(ROOT/'frontend/index.html').read_text(encoding='utf-8'))
         html=html.replace('</head>',''.join('<link rel="stylesheet" href="/'+name+'">' for name in styles)+'</head>')
         full_html=html.replace('<knowledge-note-editor v-if="opened" :note-id="noteId" :fetch-api="api" username="alice" @close="opened=false"></knowledge-note-editor><button v-else id="reopen" @click="opened=true">继续编辑</button>', '<company-knowledge ref="knowledge"/>').replace('<script src="/knowledge-note-editor.js"></script>', '<script src="/knowledge-note-editor.js"></script><script src="/knowledge-document-viewer.js"></script><script src="/company-knowledge.js"></script>').replace('components:{KnowledgeNoteEditor}', 'components:{KnowledgeNoteEditor,CompanyKnowledge}')
+        if args.failure_regression:full_html=full_html.replace('</head>','<link rel="stylesheet" href="/knowledge-workspace.css"></head>')
         server=ThreadingHTTPServer(('127.0.0.1',0),partial(Handler,directory=str(ROOT/'frontend')));threading.Thread(target=server.serve_forever,daemon=True).start()
         with sync_playwright() as playwright:
             print('QA: launching browser',flush=True);browser=playwright.chromium.launch(channel='msedge',headless=True);page=browser.new_page(viewport={'width':1440,'height':1000},accept_downloads=True);errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
             try:
                 print('QA: opening editor',flush=True);page.goto('http://127.0.0.1:'+str(server.server_port)+'/');expect(page.get_by_role('textbox',name='笔记正文')).to_be_visible()
-                if getattr(args, 'reader_regression', False) or args.preview_regression or args.root_regression:
+                if getattr(args, 'reader_regression', False) or args.preview_regression or args.root_regression or args.failure_regression:
                     reader_config['check'](page, state, p, args, Path(temp), errors)
                     browser.close();server.shutdown();generator.close();patch.undo();return
                 if args.project_regression:
