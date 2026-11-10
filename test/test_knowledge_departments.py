@@ -122,12 +122,15 @@ def test_department_is_preserved_across_delete_restore_and_schema_upgrade(setup)
     assert stored_original(setup, d['id']) == b'Company knowledge evidence'
 
 
-def test_legacy_named_upload_joins_existing_project_department(setup):
-    p = project(setup, '兼容旧归档', department='market')
-    d = upload(setup, project=p['name']).json()
+def test_legacy_named_upload_keeps_its_original_grouping_and_department(setup):
+    p = project(setup, '兼容旧归档', department='project')
+    d = upload(setup, project=p['name'], department='market').json()
     ready(setup, d['id'])
+    projects = setup.client.get('/company-knowledge/projects').json()['projects']
     rows = setup.client.get('/company-knowledge/documents?local_only=true').json()['documents']
     found = next(row for row in rows if row['id'] == d['id'])
-    assert found['knowledge_project_id'] == p['id'] and found['department'] == 'market'
+    # Legacy name-based groups remain distinct from explicitly created project IDs.
+    assert found['knowledge_project_id'] != p['id'] and found['department'] == 'market'
+    assert next(row for row in projects if row['id'] == found['knowledge_project_id'])['department'] == 'market'
     selection = setup.client.post('/company-knowledge/selection', json={'department': 'market'})
     assert selection.status_code == 200 and selection.json()['document_ids'] == [d['id']]
