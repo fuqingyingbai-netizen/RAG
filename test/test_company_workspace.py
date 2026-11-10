@@ -636,6 +636,23 @@ def test_many_table_rows_cannot_crowd_another_document_out_of_evidence():
     assert not ws.reference_candidates(nodes, {}, 'test-index')
 
 
+def test_generated_unknown_citation_cannot_be_marked_complete(setup, monkeypatch):
+    doc_id=upload(setup).json()['id'];ready(setup,doc_id)
+    def handler(request):
+        if request.url.path.endswith('/retrieve'):
+            return httpx.Response(200,json={'data':{'nodes':[{'metadata':{'doc_id':'cloud-a','content':'真实依据'}}]}})
+        if request.url.path.endswith('/app/get'):
+            return httpx.Response(200,json={'data':{'agent_details':[{'agent_version':'1','agent_config':{'agent_model':'test'}}]}})
+        frames=[{'choices':[{'delta':{'content':'错误引用[id_999]'},'finish_reason':None}]},
+                {'choices':[{'delta':{},'finish_reason':'stop'}]}]
+        return httpx.Response(200,text=''.join('data: '+json.dumps(f)+'\n\n' for f in frames),headers={'Content-Type':'text/event-stream'})
+    transport(monkeypatch,handler)
+    response=setup.client.post('/company-knowledge/chat/stream',json={'message':'核实资料','document_ids':[doc_id]})
+    events=[json.loads(line[6:]) for line in response.text.splitlines() if line.startswith('data: ')]
+    assert events[-1]['type']=='error' and '引用检查' in events[-1]['message']
+    assert not any(event['type']=='done' for event in events)
+
+
 def test_tags_description_editing_and_locked_metadata_redaction(setup):
     row = upload(setup, project='案例项目', category='项目原件', visibility='restricted',
                  tags='["行业背景", "行业背景", "访谈"]', description='只给授权账号阅读的说明').json()

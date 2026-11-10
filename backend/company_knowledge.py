@@ -421,3 +421,5 @@ from company_notes import notes_router
 router.include_router(notes_router)
 from company_recycle import router as recycle_router
 router.include_router(recycle_router)
+from company_answer_exports import router as answer_exports_router
+router.include_router(answer_exports_router)

@@ -14,7 +14,7 @@ function fixture(fetcher) {
     setTimeout(fn,ms){const id=++timerId;timers.set(id,{fn,ms});return id;},clearTimeout:id=>timers.delete(id),
     setInterval(){return 1;},clearInterval(){},
     URL:{createObjectURL(){return 'blob:synthetic';},revokeObjectURL(){}},
-    document:{createElement(){return {click(){downloads++;}};}},
+    document:{body:{appendChild(){}},createElement(){return {click(){downloads++;},remove(){}};}},
     ElementPlus:{ElMessage:Object.fromEntries(['success','error','info','warning'].map(kind=>[kind,message=>notices.push({kind,message})]))},
   });
   const state=component.data();
@@ -22,6 +22,35 @@ function fixture(fetcher) {
   state.allReferences=[];state.service={username:'owner'};
   return {state,component,timers,notices,switchAccount(){token='other';},downloads:()=>downloads};
 }
+
+test('saved answer exports download only for the same account and conversation',async()=>{
+  const body=deferred();let request;
+  const f=fixture(async(url,options)=>{request={url,options};return {ok:true,status:200,blob:()=>body.promise};});
+  f.state.chatSessionId='thread-a';f.state.chatGeneration=1;
+  const message={id:42,complete:true,text:'table',references:[{id:'1'}]};
+  const pending=f.state.exportAnswer(message,'xlsx',2);await tick();
+  f.switchAccount();body.resolve(new Blob(['workbook']));await pending;
+  assert.equal(f.downloads(),0);assert.equal(message.exportBusy,false);
+  assert.match(request.url,/thread-a\/messages\/42\/export$/);
+  assert.deepEqual(JSON.parse(request.options.body),{format:'xlsx',table_index:2,value_column:null});
+});
+
+test('switching conversations during export discards a late file',async()=>{
+  const body=deferred();const f=fixture(async()=>({ok:true,status:200,blob:()=>body.promise}));
+  f.state.chatSessionId='thread-a';f.state.chatGeneration=1;
+  const pending=f.state.exportAnswer({id:42,complete:true},'docx');await tick();
+  f.state.chatSessionId='thread-b';f.state.chatGeneration=2;body.resolve(new Blob(['old']));await pending;
+  assert.equal(f.downloads(),0);
+});
+
+test('redacted or unsaved answers cannot request exports and server refusal never downloads',async()=>{
+  let calls=0;const f=fixture(async()=>{calls++;return new Response('{"detail":"资料版本已变化"}',{status:409,headers:{'Content-Type':'application/json'}});});
+  await f.state.exportAnswer({complete:true},'xlsx');
+  await f.state.exportAnswer({id:1,complete:true,redacted:true},'docx');
+  assert.equal(calls,0);
+  f.state.chatSessionId='t';await f.state.exportAnswer({id:1,complete:true},'docx');
+  assert.equal(calls,1);assert.equal(f.downloads(),0);assert.ok(f.notices.some(n=>n.message.includes('资料版本')));
+});
 
 test('body parsing preserves native Response methods and releases the read deadline',async()=>{
   const {state,timers}=fixture(async()=>new Response('{"ready":true}',{headers:{'Content-Type':'application/json'}}));

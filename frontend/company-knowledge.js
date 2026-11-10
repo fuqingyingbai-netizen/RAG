@@ -971,6 +971,27 @@ const CompanyKnowledge = {
     scrollChat(force = false) { this.$nextTick(() => { const feed = this.$refs.chatFeed; if (feed && (force || this.chatAtBottom)) { feed.scrollTop = feed.scrollHeight; this.chatAtBottom = true; } }); },
     onChatScroll() { const feed = this.$refs.chatFeed; if (feed) this.chatAtBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 90; },
     async copyAnswer(message) { try { await navigator.clipboard.writeText(message.text); ElementPlus.ElMessage.success('回答已复制'); } catch (_) { ElementPlus.ElMessage.warning('浏览器未允许复制，请选中文字复制。'); } },
+    async exportAnswer(message, format, tableIndex = 0, valueColumn = null) {
+      if (!message.id || message.exportBusy || message.redacted || !message.complete || this.busy) return;
+      const sessionId = this.chatSessionId, generation = this.chatGeneration;
+      const sentToken = localStorage.getItem('accessToken'); message.exportBusy = true;
+      try {
+        const response = await this.apiFetch('/company-knowledge/conversations/' + encodeURIComponent(sessionId) + '/messages/' + message.id + '/export', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({format,table_index:tableIndex,value_column:valueColumn})
+        });
+        if (!response.ok) { const data = await response.json(); throw new Error(data.detail || '文件生成失败，请重试。'); }
+        const blob = await response.blob();
+        if (this.chatDisposed || generation !== this.chatGeneration || sessionId !== this.chatSessionId || sentToken !== localStorage.getItem('accessToken')) return;
+        const url = URL.createObjectURL(blob), link = document.createElement('a');
+        link.href = url; link.download = '知识库回答-' + message.id + (format === 'xlsx' ? '-表格' + (tableIndex+1) : '') + '.' + format;
+        document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (error) { if (!this.chatDisposed && generation === this.chatGeneration) ElementPlus.ElMessage.error(error.message); }
+      finally { message.exportBusy = false; }
+    },
+    answerTables(message) { return this.answerBlocks(message.text).filter(block => block.type === 'table'); },
+    chartColumns(table) {
+      return table.headers.map((name,index) => ({name,index})).filter(({name,index}) => index > 0 && !/年份|年度|日期|编号|序号|代码|引用|来源/.test(name) && table.rows.some(row => /^[+-]?[\d,]+(?:\.\d+)?\s*[^\d\s]{0,8}$/.test((row[index] || '').replace(/\[id_[^\]]+\]/g,'').replace(/\*\*/g,'').trim())));
+    },
     async sendQuestion(question) {
       const content = (typeof question === 'string' ? question : this.draft).trim();
       if (!content || this.busy || this.chatHistoryBusy || !this.canAsk) return;
@@ -1011,6 +1032,8 @@ const CompanyKnowledge = {
           if (event.type === 'heartbeat') return;
           if (event.type === 'progress') this.updateProgress(answer, event);
           if (event.type === 'answer_delta') answer.text += event.text;
+          if (event.type === 'saved') answer.id = event.message_id;
+          if (event.type === 'evidence_scope') answer.evidenceScope = event.message;
           if (event.type === 'status') this.answerStatus = event.message;
           if (event.type === 'citations') { for (const reference of event.citations) { const existing = answer.references.findIndex(ref => ref.id === reference.id && ref.document_id === reference.document_id); if (existing >= 0) answer.references[existing] = reference; else answer.references.push(reference); } }
           if (event.type === 'done') { answer.complete = true; answer.usage = event.usage; this.finishProgress(answer); }
@@ -1141,7 +1164,9 @@ const CompanyKnowledge = {
                 <div v-if="!message.text &amp;&amp; !message.complete &amp;&amp; !message.error &amp;&amp; busy" class="ckb-thinking-ribbon" role="status"><span aria-hidden="true"><b></b><b></b><b></b><b></b><b></b></span>正在连接资料与问题…</div><div class="ckb-live-answer"><template v-for="(block, blockIndex) in answerBlocks(message.text)" :key="blockIndex"><div v-if="block.type === 'table'" class="ckb-answer-table"><table><thead><tr><th v-for="(header, n) in block.headers" :key="n">{{ header }}</th></tr></thead><tbody><tr v-for="(row, n) in block.rows" :key="n"><td v-for="(cell, m) in row" :key="m">{{ cell }}</td></tr></tbody></table></div><span v-else>{{ block.text }}</span></template></div><p v-if="message.error" class="ckb-service-error" role="alert">{{ message.error }}</p>
                 <div v-if="message.references.length" class="ckb-citation-heading">参考文件 <span>{{ referenceGroups(message.references).length }} 份文件 · {{ message.references.length }} 个片段</span></div>
                 <button v-for="(group, n) in referenceGroups(message.references)" :key="group.key" :class="['ckb-citation', 'kind-' + fileAppearance(citationDocument(group))]" @click="openCitation(group)"><span>{{ n + 1 }}</span><span class="ckb-citation-file" aria-hidden="true"><knowledge-file-artwork :format="citationDocument(group).format" :kind="fileAppearance(citationDocument(group))" :media-kind="citationDocument(group).media_kind"/></span><div><strong>{{ group.title }}</strong><small>{{ group.references.length }} 个片段 · 引用 {{ referenceIds(group) }} · 点击展开</small></div><i aria-hidden="true" class="fa-solid fa-angle-right"></i></button>
-                <div v-if="message.complete &amp;&amp; message.text &amp;&amp; !message.redacted" class="ckb-answer-actions"><button @click="copyAnswer(message)" aria-label="复制回答"><i class="fa-regular fa-copy" aria-hidden="true"></i>复制回答</button><span><i class="fa-solid fa-check" aria-hidden="true"></i>回答完成<span v-if="message.references.length"> · {{ referenceGroups(message.references).length }} 份参考文件</span></span></div>
+                <p v-if="message.complete &amp;&amp; message.references.length" class="ckb-evidence-scope">{{ message.evidenceScope || '回答依据本轮检索片段，未逐份通读全部资料。' }}</p>
+                <div v-if="message.complete &amp;&amp; message.text &amp;&amp; !message.redacted" class="ckb-answer-actions"><button @click="copyAnswer(message)" aria-label="复制回答"><i class="fa-regular fa-copy" aria-hidden="true"></i>复制回答</button><button v-if="message.id &amp;&amp; message.references.length" :disabled="message.exportBusy || busy" @click="exportAnswer(message,'docx')">{{message.exportBusy?'正在生成文件…':'下载 Word'}}</button><button v-if="message.id &amp;&amp; message.references.length &amp;&amp; !answerTables(message).length" :disabled="busy" @click="sendQuestion('请根据当前资料把刚才问题的答案整理为表格，每行注明来源引用，缺失项明确标注，保留单位和期间。')">整理成表格</button><span><i class="fa-solid fa-check" aria-hidden="true"></i>回答完成<span v-if="message.references.length"> · {{ referenceGroups(message.references).length }} 份参考文件</span></span></div>
+                <div v-if="message.complete &amp;&amp; message.id &amp;&amp; !message.redacted &amp;&amp; message.references.length" class="ckb-answer-exports"><div v-for="(table,tableIndex) in answerTables(message)" :key="tableIndex" class="ckb-answer-export-row"><span>表格 {{tableIndex+1}}</span><button :disabled="message.exportBusy || busy" @click="exportAnswer(message,'xlsx',tableIndex)">下载 Excel</button><template v-if="chartColumns(table).length"><label>图表指标 <select :value="message.chartColumn?.[tableIndex] ?? chartColumns(table)[0].index" @change="message.chartColumn = {...(message.chartColumn || {}),[tableIndex]:Number($event.target.value)}" :aria-label="'表格'+(tableIndex+1)+'图表指标'"><option v-for="column in chartColumns(table)" :key="column.index" :value="column.index">{{column.name}}</option></select></label><button :disabled="message.exportBusy || busy" @click="exportAnswer(message,'png',tableIndex,message.chartColumn?.[tableIndex] ?? chartColumns(table)[0].index)">下载图表 PNG</button></template></div><small v-if="answerTables(message).length">Excel 附原文依据。图表要求同单位数值和有效行引用，不能直接核对的计算值会提示补充依据。</small></div>
               </template>
             </div>
           </div>
