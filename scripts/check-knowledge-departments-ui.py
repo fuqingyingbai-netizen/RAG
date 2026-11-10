@@ -68,6 +68,12 @@ def main():
             expect(page.get_by_text('公共资料部',exact=True)).to_have_count(0)
             page.get_by_role('menuitem',name='市场部',exact=True).click()
             expect(page.get_by_label('筛选所属部门／栏目',exact=True)).to_have_value('market')
+            expect(page.get_by_role('tablist',name='知识库视图',exact=True)).not_to_be_visible()
+            expect(page.get_by_role('navigation',name='当前部门位置',exact=True)).to_contain_text('市场部')
+            expect(page.get_by_role('button',name='检索本部门资料',exact=False)).to_be_visible()
+            page.get_by_role('button',name='本部门全部文件',exact=False).click()
+            expect(page.locator('.ckb-library-heading h2')).to_have_text('本部门全部文件')
+            page.get_by_role('button',name='全部资料',exact=False).first.click()
             expect(page.locator('.ckb-heading-count')).to_contain_text('1 个项目')
             page.get_by_role('button',name='创建项目',exact=True).click()
             project_dialog = page.get_by_role('dialog',name='创建项目',exact=True)
@@ -115,6 +121,8 @@ def main():
                 reader.get_by_role('button',name='下载水印副本',exact=True).first.click()
             assert downloaded.value.failure() is None
             reader.locator('.el-dialog__headerbtn').click()
+            page.get_by_role('button',name='返回公司知识库',exact=True).click()
+            expect(page.get_by_role('tablist',name='知识库视图',exact=True)).to_be_visible()
             page.get_by_role('tab',name='总资料库',exact=True).click()
             expect(page.get_by_label('筛选所属部门／栏目',exact=True)).to_have_value('')
             page.get_by_role('button',name='上传文件',exact=True).click()
@@ -130,6 +138,7 @@ def main():
             upload_dialog.get_by_role('button',name='完成，查看资料',exact=True).click()
             page.get_by_role('menuitem',name=re.compile(r'^专家(?:部)?资料$')).click()
             expect(page.locator('.ckb-root-file-row')).to_contain_text('专家独立验收.txt')
+            page.get_by_role('button',name='返回公司知识库',exact=True).click()
             page.get_by_role('tab',name='总资料库',exact=True).click()
             page.get_by_label('筛选所属部门／栏目',exact=True).select_option('unassigned')
             expect(page.locator('.ckb-root-file-row')).to_contain_text('历史独立资料.txt')
@@ -145,7 +154,8 @@ def main():
             assert not errors,errors
             result={'status':'passed','real_frontend':True,'real_knowledge_routes':True,'synthetic_providers':True,
                 'department_inheritance':True,'explicit_chat_scope':True,'original_download':True,'readonly_controls':True,
-                'root_department_required':True,'mobile_overflow':False,'page_errors':errors}
+                'root_department_required':True,'department_tabs_hidden':True,'global_tabs_restored':True,
+                'department_scope_labels':True,'mobile_overflow':False,'page_errors':errors}
             (args.artifacts/'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
             print(json.dumps(result,ensure_ascii=False))
             browser.close()
