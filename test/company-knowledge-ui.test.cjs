@@ -129,7 +129,7 @@ test('upload completion shows uploaded documents despite previous filters', () =
   context.viewUploaded();
   assert.equal(context.uploadOpen, false);
   assert.equal(context.category, '全部资料');
-  context.documents = [{id:'new', title:'New'}, {id:'old', title:'Old'}];
+  context.documents = [{id:'new', title:'New',is_root:1}, {id:'old', title:'Old',is_root:1}];
   assert.deepEqual(Array.from(component.computed.filteredDocuments.call(context).map(doc => doc.id)), ['new','old']);
 });
 test('upload summary distinguishes ready, processing and failure', () => {
@@ -167,7 +167,7 @@ function paginationContext(count, page = 1, size = 10) {
 }
 
 test('my projects filters by ownership and summary uses a server-owned scope', () => {
- const context = libraryContext(); context.documents=[{id:'mine',is_owner:true},{id:'other',is_owner:false}];
+ const context = libraryContext(); context.documents=[{id:'mine',is_owner:true,is_root:1},{id:'other',is_owner:false,is_root:1}];
  context.browseMyProject();
  assert.equal(context.mineOnly,true);
  assert.deepEqual(Array.from(component.computed.filteredDocuments.call(context).map(doc=>doc.id)),['mine']);
@@ -256,7 +256,7 @@ test('case entry browses experience while comparison always asks for a deliberat
 test('custom tags and inclusive local calendar dates combine with other filters',()=>{
  const context=libraryContext();
  assert.deepEqual(Array.from(context.parseTags('行业背景，市场进入,行业背景\n访谈方法')),['行业背景','市场进入','访谈方法']);
- Object.assign(context,{mode:'cases',tagFilter:'行业背景',dateFrom:'2026-11-02',dateTo:'2026-11-02',documents:[
+ Object.assign(context,{mode:'cases',projectDisplay:'files',tagFilter:'行业背景',dateFrom:'2026-11-02',dateTo:'2026-11-02',documents:[
   {id:'a',title:'访谈',category:'项目经验',tags:['行业背景'],created_at:'2026-11-02T23:59:59'},
   {id:'b',title:'报告',category:'项目经验',tags:['行业背景'],created_at:'2026-11-03T00:00:00'},
   {id:'c',title:'其他',category:'项目原件',tags:['行业背景'],created_at:'2026-11-02T12:00:00'},

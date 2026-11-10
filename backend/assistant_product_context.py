@@ -69,7 +69,9 @@ def location_text(location):
         return '当前打开的是「随手记录」：会归入你自己的「随手记录 · 待整理」项目，不会跟随当前浏览目录。'
     path = location.get('path')
     if not path:
-        return '当前没有进入具体项目目录；新建图文笔记会归入你自己的「随手记录 · 待整理」。上传文件请先创建或打开项目。'
+        if location.get('dialog') == 'upload':
+            return '当前上传位置为根目录，文件将作为独立文件与项目同级展示，默认内部、所有正常账号共享；也可在上传位置中选择可管理的项目及子目录。'
+        return '当前没有进入具体项目目录；可直接在根目录上传独立文件，或选择项目及子目录上传。新建图文笔记会归入你自己的「随手记录 · 待整理」。'
     label = json.dumps(' / '.join(path), ensure_ascii=False)
     where = '项目根目录' if len(path) == 1 else '子目录'
     text = f'当前目录：{label}（{where}）。'

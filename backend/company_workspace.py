@@ -267,8 +267,11 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
                  confidentiality: str = Form('internal'), tags: str = Form('[]'),
                  description: str = Form('', max_length=10000),
                  project_id: str = Form('', max_length=64), folder_id: str = Form('', max_length=64),
+                 root: bool = Form(False),
                  user: User = Depends(kb.require_knowledge_user)):
     cfg = kb.settings()
+    if root and (project_id or folder_id or project.strip()):
+        raise HTTPException(422, '根目录文件不能同时指定项目或子目录。')
     try:
         acl = validate_acl(visibility, json.loads(readers))
         labels = validate_tags(json.loads(tags))
@@ -321,7 +324,7 @@ async def upload(file: UploadFile = File(...), project: str = Form('', max_lengt
         doc = CompanyDocument(id=uuid.uuid4().hex, index_id=cfg['index_id'], title=title,
             format=extension.upper(), size=len(payload), sha256=digest, owner=owner,
             uploaded_by=user.username, uploaded_by_user_id=getattr(user, 'id', None), modified_by=user.username,
-            owner_user_id=owner_id, knowledge_project_id=project_id, folder_id=folder_id, inherits_project=int(bool(project_id)), confidentiality=confidentiality,
+            owner_user_id=owner_id, knowledge_project_id=project_id, folder_id=folder_id, inherits_project=int(bool(project_id)), is_root=int(root), confidentiality=confidentiality,
             project=project.strip(), industry=industry.strip(), category=category, review=review,
             tags=labels, description=description.strip(),
             visibility=visibility, readers=acl, version=max((row.version for row in previous), default=0) + 1,
@@ -419,6 +422,8 @@ async def edit_document(doc_id: str, values: DocumentMetadata, user: User = Depe
             raise HTTPException(422, '请使用“编辑笔记”修改图文笔记；继承属性请在项目设置中修改。')
         before = snapshot(doc)
         changed = values.model_dump(exclude_unset=True)
+        if doc.is_root and (changed.get('project') or changed.get('folder_id')):
+            raise HTTPException(422, '请使用“移动”选择项目；根目录文件不能直接填写项目名称或子目录。')
         if 'category' in changed and ((changed['category'] in EXPERIENCE_CATEGORIES) != (doc.category in EXPERIENCE_CATEGORIES)):
             raise HTTPException(422, '资料库与经验沉淀分别归档，不能通过修改分类跨库移动文件。')
         if 'title' in changed:
@@ -599,6 +604,8 @@ def my_projects(user: User = Depends(kb.require_knowledge_user), scope: str = 'm
                     'categories': {project_row.category} if project_row.category else set(), 'document_ids': [],
                     'updated_at': project_row.updated_at}
         for doc in docs:
+            if doc.is_root:
+                continue
             directory = owned_directories.get(doc.knowledge_project_id)
             name = directory.name if directory else doc.project.strip() or '未归类项目'
             group = groups.setdefault(name, {'name': name, 'document_count': 0, 'ready_count': 0,
@@ -617,7 +624,8 @@ def my_projects(user: User = Depends(kb.require_knowledge_user), scope: str = 'm
             rows.append(group)
         rows.sort(key=lambda row: row['updated_at'], reverse=True)
         return {'account_id': getattr(user, 'id', None), 'username': user.username,
-                'project_count': len(rows), 'document_count': len(docs), 'projects': rows}
+                'project_count': len(rows), 'document_count': len(docs),
+                'root_document_count': sum(bool(doc.is_root) for doc in docs), 'projects': rows}
 
 
 @workspace_router.post('/documents/{doc_id}/retry', status_code=202)
@@ -976,3 +984,5 @@ async def grounded_answer(cfg, question):
 
 from company_projects import projects_router
 workspace_router.include_router(projects_router)
+from company_document_moves import moves_router
+workspace_router.include_router(moves_router)

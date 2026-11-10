@@ -21,7 +21,7 @@ test('encrypted PDF preserves the specific password error separately from excerp
  await s.openDocument({id:'protected',format:'PDF',has_original:true,can_read:true});assert.equal(s.readerOriginalCode,'pdf_encrypted');assert.match(s.readerOriginalError,/打开密码/);assert.equal(s.readerExcerptError,'');
 });
 test('upload completion keeps older ready files and new pending files visible',()=>{
- const s=state();s.mode='library';s.cloudDocuments=[{id:'old',category:'项目原件',state:'ready',title:'old'},{id:'new',category:'项目原件',state:'queued',title:'new'}];s.uploadResults=[{id:'new'}];s.recentUploadIds=['new'];s.query='stale';s.viewUploaded();
+ const s=state();s.mode='library';s.cloudDocuments=[{id:'old',is_root:1,category:'项目原件',state:'ready',title:'old'},{id:'new',is_root:1,category:'项目原件',state:'queued',title:'new'}];s.uploadResults=[{id:'new'}];s.recentUploadIds=['new'];s.query='stale';s.viewUploaded();
  assert.deepEqual(Array.from(s.filteredDocuments,d=>d.id),['old','new']);assert.equal(s.query,'');assert.equal(s.recentUploadIds.length,0);
 });
 test('a catalogue snapshot started before an upload cannot erase the newly registered row',async()=>{

@@ -10,7 +10,7 @@ from company_catalog import CompanyAuditEvent, CompanyDocument, CompanyProject, 
 
 FIELDS = ('name', 'title', 'industry', 'category', 'review', 'confidentiality', 'visibility',
           'readers', 'tags', 'description', 'folder_id', 'parent_id', 'state', 'version',
-          'content', 'revision', 'published_revision')
+          'content', 'revision', 'published_revision', 'knowledge_project_id', 'is_root', 'inherits_project', 'owner')
 
 
 def snapshot(target):
