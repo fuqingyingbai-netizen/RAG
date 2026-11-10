@@ -5,17 +5,19 @@
   --ku-day-line:#e2e5e9; --ku-day-line-soft:#eceef1; --ku-day-accent:#315e91; --ku-day-link:#315e91;
   --ku-day-glow:transparent; --ku-day-shadow:#1018280b; --kb-selected:#edf3fa; --kb-field:#fff; --kb-rim:transparent;
   --kg-dialog:#fff; --kg-card:#fff; --kg-field:#fff;
+  --kb-control-border:#aab4c2; --kb-control-error:#b7373d;
 }
 :root[data-knowledge-theme="dark"] {
   --ku-day-canvas:#181a1e; --ku-day-surface:#202328; --ku-day-surface-soft:#272b31; --ku-day-surface-tint:#30353d;
   --ku-day-ink-strong:#f0f1f3; --ku-day-ink:#d1d5db; --ku-day-muted:#a5adb8;
   --ku-day-line:#3b414b; --ku-day-line-soft:#30353d; --ku-day-accent:#99bce7; --ku-day-link:#99bce7;
   --ku-day-glow:transparent; --ku-day-shadow:#0003; --kb-selected:#2b3d54; --kb-field:#202328; --kb-rim:transparent;
+  --kb-control-border:#718096; --kb-control-error:#ff9ba1;
 }
 :root[data-knowledge-theme] .company-knowledge-shell > .el-main { background:var(--ku-day-canvas)!important; }
 :root[data-knowledge-theme] .ckb-workbench { color:var(--ku-day-ink-strong); font-size:14px; --kt-action-width:118px; --kt-column-gap:16px; }
 :root[data-knowledge-theme] .ckb-workbench :is(button,input,select,textarea) { font-family:inherit; }
-:root[data-knowledge-theme] .ckb-workbench :is(button,input,select,textarea):focus-visible { outline:2px solid var(--ku-day-accent); outline-offset:2px; }
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog,.ckb-input-prompt) :is(button,a,input,select,textarea,[contenteditable=true],[tabindex]):focus-visible { outline:2px solid var(--ku-day-accent)!important; outline-offset:-2px!important; }
 :root[data-knowledge-theme] .ckb-workbench :is(button,input,select,textarea):disabled { cursor:not-allowed; }
 :root[data-knowledge-theme] .ckb-workbench :is(.ckb-navigation,.ckb-catalog-controls,.ckb-library-sidebar,.ckb-chat-aside,.ckb-chat-main) { box-shadow:none!important; backdrop-filter:none!important; }
 :root[data-knowledge-theme] .ckb-workbench .ckb-navigation {
@@ -111,10 +113,9 @@
 :root[data-knowledge-theme] .ckb-project-dialog .ckb-project-editor { display:block; }
 :root[data-knowledge-theme] .ckb-project-dialog .ckb-project-editor > aside { display:none; }
 :root[data-knowledge-theme] .ckb-dialog .ckb-form-grid :is(input,textarea,select) { border-radius:5px; border-color:var(--ku-day-line); background:var(--kb-field); box-shadow:none; }
-:root[data-knowledge-theme] .ckb-dialog:not(.ckb-workbench-reader) .el-dialog__body { padding:16px 20px!important; scrollbar-gutter:stable; }
+:root[data-knowledge-theme] .ckb-dialog:not(.ckb-workbench-reader):not(.kn-dialog) .el-dialog__body { padding:16px 20px!important; scrollbar-gutter:stable; }
 :root[data-knowledge-theme] .ckb-dialog .ckb-upload-fields { min-width:0; padding:2px; margin:0; border:0; }
 :root[data-knowledge-theme] .ckb-dialog .ckb-capture-context :is(input,textarea) { min-width:0; border:1px solid var(--ku-day-line); border-radius:5px; background:var(--kb-field); }
-:root[data-knowledge-theme] .ckb-dialog :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select):focus-visible { outline:none!important; border-color:var(--ku-day-accent)!important; box-shadow:inset 0 0 0 1px var(--ku-day-accent)!important; }
 :root[data-knowledge-theme] .ckb-dialog :is(.ckb-attribution,.ckb-file-editor-hero,.ckb-reader-sidebar) { border-color:var(--ku-day-line); background:var(--ku-day-surface-soft); }
 :root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) * { text-shadow:none!important; }
 :root[data-knowledge-theme] .ckb-workbench :is(.ckb-folder-object,.ckb-prism,.ckb-suggestion-glyph,.ckb-orbit-runner,.ckb-message,.ckb-welcome-symbol,.ckb-chat-orbit) { animation:none!important; }
@@ -150,3 +151,46 @@
 :root[data-knowledge-theme] .ckb-answer-export-row button:disabled { opacity:.55; cursor:wait; }
 :root[data-knowledge-theme] .ckb-answer-export-row label { display:flex; align-items:center; gap:7px; max-width:100%; }
 .ckb-failed-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;max-width:300px;white-space:normal}.ckb-failed-actions small{flex-basis:100%;font-size:11px;color:#64748b;line-height:1.6;overflow-wrap:anywhere}.ckb-failed-actions button{white-space:nowrap}.ckb-failure-reason{max-width:260px;white-space:normal;overflow-wrap:anywhere;line-height:1.5}.ckb-failure-dialog .el-message-box__message p{white-space:pre-line;overflow-wrap:anywhere}.ckb-upload-results li .ckb-failed-actions{max-width:100%;flex-basis:100%}.ckb-root-file-row:has(.ckb-failed-actions) .ckb-root-file-actions{flex-wrap:wrap}
+
+/* Input boundaries are stronger than decorative dividers. Keep focus inside
+   scrollable panels; composite inputs draw their boundary on the outer group. */
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) :is(input,textarea,select) { box-sizing:border-box; min-width:0; max-width:100%; }
+:root[data-knowledge-theme] .ckb-dialog :is(fieldset,.ckb-form-grid > label,.ckb-capture-context > label) { min-width:0; }
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) select,
+:root[data-knowledge-theme] .ckb-dialog :is(.ckb-form-grid,.ckb-capture-context) :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea),
+:root[data-knowledge-theme] .ckb-workbench :is(.ckb-simple-search-row,.ckb-date-filter) input,
+:root[data-knowledge-theme] .ckb-dialog :is(.ckb-document-controls,.ckb-sheet-controls) input,
+:root[data-knowledge-theme] .ckb-dialog :is(.ckb-reader-ask,.kn-image-ocr) textarea {
+  border:1px solid var(--kb-control-border); border-radius:5px; background:var(--kb-field); color:var(--ku-day-ink-strong); box-shadow:none!important;
+}
+:root[data-knowledge-theme] .ckb-workbench .ckb-selection-bar select { min-height:32px; padding:4px 8px; }
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) :is(input:not([type=file]),textarea,select):disabled {
+  border-color:var(--kb-control-border); color:var(--ku-day-muted); background:var(--ku-day-surface-soft); opacity:1;
+}
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) :is(input,textarea,select)[aria-invalid=true] { border-color:var(--kb-control-error); outline-color:var(--kb-control-error)!important; }
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) :is(.ckb-search,.ckb-composer,.ckb-reader-locate-tools,.ckb-file-drop,.ckb-restore-original) { border-color:var(--kb-control-border); }
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) :is(.ckb-search,.ckb-composer,.ckb-reader-locate-tools,.ckb-file-drop,.ckb-restore-original):focus-within {
+  border-color:var(--ku-day-accent); box-shadow:inset 0 0 0 1px var(--ku-day-accent)!important; translate:none;
+}
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) :is(.ckb-search,.ckb-composer,.ckb-reader-locate-tools) :is(input,textarea):focus-visible { outline:none!important; box-shadow:none!important; }
+:root[data-knowledge-theme] .ckb-dialog .ckb-file-drop input { max-width:100%; }
+:root[data-knowledge-theme] .ckb-dialog input[type=file]::file-selector-button { border:1px solid var(--kb-control-border); border-radius:4px; padding:6px 10px; background:var(--ku-day-surface-soft); color:var(--ku-day-ink-strong); font:inherit; cursor:pointer; }
+:root[data-knowledge-theme] .ckb-dialog .ckb-reader-ask textarea { width:100%; }
+/* The writing surface intentionally has no permanent box around every paragraph. */
+:root[data-knowledge-theme] .kn-dialog .el-dialog__body { padding:0!important; }
+:root[data-knowledge-theme] .kn-dialog .kn-title { padding:4px 8px 20px!important; border-bottom-color:var(--kb-control-border)!important; }
+:root[data-knowledge-theme] .kn-dialog .kn-prose { padding:6px 8px; box-sizing:border-box; }
+:root[data-knowledge-theme] .kn-dialog .kn-image-caption {
+  border:1px solid var(--kb-control-border)!important; border-radius:4px!important; padding:6px 8px!important; background:var(--kb-field)!important;
+}
+:root[data-knowledge-theme] .ckb-input-prompt {
+  --el-text-color-primary:var(--ku-day-ink-strong); --el-text-color-regular:var(--ku-day-ink);
+  --el-text-color-placeholder:var(--ku-day-muted); --el-bg-color:var(--ku-day-surface); --el-color-danger:var(--kb-control-error);
+  background:var(--ku-day-surface); color:var(--ku-day-ink-strong); border-color:var(--kb-control-border);
+}
+:root[data-knowledge-theme] .ckb-input-prompt .el-input__wrapper { border:1px solid var(--kb-control-border); background:var(--kb-field); box-shadow:none; }
+:root[data-knowledge-theme] .ckb-input-prompt .el-input__wrapper:focus-within { border-color:var(--ku-day-accent); box-shadow:inset 0 0 0 1px var(--ku-day-accent); }
+:root[data-knowledge-theme] .ckb-input-prompt .el-input__inner:focus-visible { outline:none!important; }
+:root[data-knowledge-theme] .ckb-input-prompt :is(.el-message-box__input.is-error,.el-input.is-error,.el-input.invalid,.el-input:has(input[aria-invalid=true])) .el-input__wrapper { border-color:var(--kb-control-error); box-shadow:inset 0 0 0 1px var(--kb-control-error); }
+.ckb-upload-destination{display:grid;gap:7px;margin:10px 0 16px;padding:14px 16px;border:1px solid #c8d9ec;border-radius:10px;background:rgba(232,242,251,.55);line-height:1.6}.ckb-upload-destination>span{font-size:12px;color:#58718e}.ckb-upload-destination>strong{font-size:15px;white-space:normal;overflow-wrap:anywhere}.ckb-upload-destination>small,.ckb-upload-result-path{font-size:12px;overflow-wrap:anywhere;white-space:normal}.ckb-upload-results li .ckb-upload-result-path{display:block;flex-basis:100%;color:#58718e}.ckb-upload-result-open,.ckb-location-link{border:0;background:none;padding:0;color:#315f98;cursor:pointer;text-align:left;line-height:1.6}.ckb-location-link{white-space:normal;overflow-wrap:anywhere;max-width:100%;font-size:12px}.ckb-location-link:hover,.ckb-upload-result-open:hover{text-decoration:underline}
+.ckb-project-preview-access { margin: 0; padding: 0 18px 12px; color: var(--ku-day-muted, #667085); font-size: 12px; line-height: 1.6; }

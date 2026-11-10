@@ -11,8 +11,10 @@ def check(page,state,p,args,temp,errors):
     from test_company_workspace import upload,project,stored_original
     from company_catalog import CompanyDocument
     library=project(state,'失败资料测试')
+    parent=state.client.post('/company-knowledge/projects/'+library['id']+'/folders',json={'name':'访谈资料'}).json()
+    child=state.client.post('/company-knowledge/projects/'+library['id']+'/folders',json={'name':'团队','parent_id':parent['id']}).json()
     data=[]
-    for name,fields in [('根目录失败.txt',{'root':'true'}),('项目失败.txt',{'project_id':library['id']}),('经验失败.txt',{'project_id':p['id']})]:
+    for name,fields in [('根目录失败.txt',{'root':'true'}),('项目失败.txt',{'project_id':library['id'],'folder_id':child['id']}),('经验失败.txt',{'project_id':p['id']})]:
         row=upload(state,payload=b'original evidence',name=name,**fields).json()
         with state.db() as db:
             d=db.get(CompanyDocument,row['id']);d.state='failed';d.status_message='测试解析失败：可重试或重新上传修正文件';db.commit()
@@ -34,15 +36,41 @@ def check(page,state,p,args,temp,errors):
     failed.get_by_role('button',name='重新上传',exact=True).click()
     dialog=page.get_by_role('dialog',name='重新上传到原位置',exact=True)
     expect(dialog.get_by_label('上传位置',exact=True)).to_have_value(library['id'])
+    destination=dialog.get_by_role('region',name='文件保存位置')
+    # A named section is exposed as a region, and includes every ancestor.
+    expect(destination).to_contain_text('资料库 / 失败资料测试 / 访谈资料 / 团队')
+    page.screenshot(path=str(args.output_dir/'reupload-full-destination.png'),animations='disabled')
     source=temp/'修正版.txt';source.write_text('Corrected evidence',encoding='utf-8')
     dialog.get_by_label('选择上传资料',exact=True).set_input_files(str(source))
     dialog.get_by_role('button',name='上传并归档',exact=True).click()
-    expect(dialog.get_by_role('button',name='完成，查看资料',exact=True)).to_be_visible(timeout=30000)
+    expect(dialog.get_by_role('button',name='打开所在目录',exact=True)).to_be_visible(timeout=30000)
+    expect(destination).to_contain_text('已保存到')
+    expect(destination).to_contain_text('资料库 / 失败资料测试 / 访谈资料 / 团队')
     docs=state.client.get('/company-knowledge/documents').json()['documents']
     corrected=next(d for d in docs if d['title']==data[1]['title'] and d['version']==2)
     assert corrected['knowledge_project_id']==library['id']
+    assert corrected['folder_id']==child['id']
     assert stored_original(state,data[1]['id'])==b'original evidence'
-    dialog.get_by_role('button',name='完成，查看资料',exact=True).click()
+    page.screenshot(path=str(args.output_dir/'reupload-result-destination.png'),animations='disabled')
+    page.set_viewport_size({'width':390,'height':844});expect(destination).to_be_visible()
+    assert page.evaluate('document.documentElement.scrollWidth')<=390
+    page.screenshot(path=str(args.output_dir/'reupload-result-mobile.png'),animations='disabled')
+    page.set_viewport_size({'width':1440,'height':1000})
+    dialog.get_by_role('button',name='查看本次上传文件',exact=True).click()
+    reader=page.locator('.ckb-reader-dialog');expect(reader).to_be_visible()
+    expect(reader).to_contain_text('项目失败.txt')
+    expect(reader).to_contain_text('V2')
+    reader.locator('.el-dialog__headerbtn').click();expect(reader).not_to_be_visible()
+    # Reopen the original failed item to verify the directory action as well.
+    failed.get_by_role('button',name='重新上传',exact=True).click()
+    source.write_text('Corrected evidence third version',encoding='utf-8')
+    dialog.get_by_label('选择上传资料',exact=True).set_input_files(str(source))
+    dialog.get_by_role('button',name='上传并归档',exact=True).click()
+    expect(dialog.get_by_role('button',name='打开所在目录',exact=True)).to_be_visible(timeout=30000)
+    dialog.get_by_role('button',name='打开所在目录',exact=True).click()
+    expect(page.locator('.ckb-directory-path')).to_contain_text('失败资料测试')
+    expect(page.locator('.ckb-directory-path')).to_contain_text('访谈资料')
+    expect(page.locator('.ckb-directory-path')).to_contain_text('团队')
     # Return to failures; cancellation never changes a stored record.
     page.get_by_role('button',name='处理失败',exact=False).click()
     failed.get_by_role('button',name='删除失败资料：项目失败.txt',exact=True).click()
@@ -89,4 +117,4 @@ def check(page,state,p,args,temp,errors):
     assert page.evaluate('document.documentElement.scrollWidth')<=390
     page.screenshot(path=str(args.output_dir/'failed-mobile.png'),animations='disabled')
     assert not errors,errors
-    print(json.dumps({'status':'passed','checks':['root failure actions','failure reason','reupload at original project creates V2','original retained','cancel deletion','confirmed recycle deletion','experience retry','pre-registration discard and reselect','reader buttons hidden and server returns 403','administrator controls','mobile'],'console_errors':errors},ensure_ascii=False),flush=True)
+    print(json.dumps({'status':'passed','checks':['full destination before and after reupload','open uploaded V2 directly','open exact nested directory','mobile destination','root failure actions','failure reason','reupload at original project creates V2','original retained','cancel deletion','confirmed recycle deletion','experience retry','pre-registration discard and reselect','reader buttons hidden and server returns 403','administrator controls','mobile'],'console_errors':errors},ensure_ascii=False),flush=True)
