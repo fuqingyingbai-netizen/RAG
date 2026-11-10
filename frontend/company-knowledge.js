@@ -554,6 +554,7 @@ const CompanyKnowledge = {
       const token = localStorage.getItem('accessToken');
       const readOnly = ['GET', 'HEAD'].includes((options.method || 'GET').toUpperCase());
       const backgroundDownload = readOnly && (/\/original\?download=true(?:&|$)/.test(url) || /\/download(?:\?|$)/.test(url));
+      const convertedPreview = readOnly && /\/documents\/[^/]+\/(?:page|thumbnail)(?:\?|$)/.test(url);
       if (this.requestsActive === false) throw new Error('已离开知识库页面，请重新打开后再试。');
       const assertCurrent = () => {
         if (readOnly && !backgroundDownload && this.requestsActive === false) throw new Error('已离开知识库页面，请重新打开后再试。');
@@ -566,9 +567,11 @@ const CompanyKnowledge = {
       let timer, cancel;
       const cleanup = () => { clearTimeout(timer); this.pendingReads?.delete(cancel); if (cancel) options.signal?.removeEventListener('abort', cancel); };
       const deadline = readOnly ? new Promise((_, reject) => {
-        cancel = () => { cleanup(); controller.abort(); reject(new Error('读取已停止，请重新打开资料。')); };
+        const stop = message => { const error = new Error(message); cleanup(); reject(error); controller.abort(error); };
+        cancel = () => stop('读取已停止，请重新打开资料。');
         if (!backgroundDownload) this.pendingReads?.add(cancel);
-        timer = setTimeout(() => { cleanup(); controller.abort(); reject(new Error('读取超时，请重试；未重复提交任何操作。')); }, backgroundDownload || url.includes('/original') || /\/notes\/[^/]+\/export/.test(url) ? 600000 : 30000);
+        // Office previews may need the server's 180-second conversion window.
+        timer = setTimeout(() => stop(convertedPreview ? '原件转换等待超时，请重试预览或下载水印副本。' : '读取超时，请重试；未重复提交任何操作。'), backgroundDownload || url.includes('/original') || /\/notes\/[^/]+\/export/.test(url) ? 600000 : convertedPreview ? 210000 : 30000);
         if (options.signal?.aborted) cancel(); else options.signal?.addEventListener('abort', cancel, {once:true});
       }) : null;
       const wait = promise => deadline ? Promise.race([promise, deadline]) : promise;
