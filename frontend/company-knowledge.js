@@ -897,7 +897,7 @@ const CompanyKnowledge = {
     async requestAccess(doc) {
       if (!doc.can_request && doc.request_status === 'pending') { ElementPlus.ElMessage.info('该资料的权限申请正在审批中。'); return; }
       try {
-        const prompt = await ElementPlus.ElMessageBox.prompt('请说明需要阅读《' + doc.title + '》的原因，管理员将根据项目和保密等级审批。', '申请访问权限', { confirmButtonText: '提交申请', cancelButtonText: '取消', inputPlaceholder: '例如：新员工培训，需要学习项目方法', inputValidator: value => Boolean(value && value.trim()) || '请填写申请原因' });
+        const prompt = await ElementPlus.ElMessageBox.prompt('请说明需要阅读《' + doc.title + '》的原因，管理员将根据项目和保密等级审批。', '申请访问权限', { customClass:'ckb-input-prompt', confirmButtonText: '提交申请', cancelButtonText: '取消', inputPlaceholder: '例如：新员工培训，需要学习项目方法', inputValidator: value => Boolean(value && value.trim()) || '请填写申请原因' });
         await this.withFeedback('access:' + doc.id, '正在提交访问权限申请', async () => {
         const response = await this.apiFetch('/company-knowledge/documents/' + encodeURIComponent(doc.id) + '/access-requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: prompt.value.trim() }) });
         const result = await response.json(); if (!response.ok) throw new Error(result.detail || '申请提交失败。');
@@ -908,7 +908,7 @@ const CompanyKnowledge = {
     async decideAccess(request, decision) {
       try {
         let note = '';
-        if (decision === 'rejected') { const prompt = await ElementPlus.ElMessageBox.prompt('请填写拒绝原因。', '拒绝访问申请', { confirmButtonText: '确认拒绝', cancelButtonText: '取消', inputValidator: value => Boolean(value && value.trim()) || '请填写拒绝原因' }); note = prompt.value.trim(); }
+        if (decision === 'rejected') { const prompt = await ElementPlus.ElMessageBox.prompt('请填写拒绝原因。', '拒绝访问申请', { customClass:'ckb-input-prompt', confirmButtonText: '确认拒绝', cancelButtonText: '取消', inputValidator: value => Boolean(value && value.trim()) || '请填写拒绝原因' }); note = prompt.value.trim(); }
         await this.withFeedback('decision:' + request.id, '正在保存权限审批结果', async () => {
         const response = await this.apiFetch('/company-knowledge/access-requests/' + request.id + '/decision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision, note }) });
         const result = await response.json(); if (!response.ok) throw new Error(result.detail || '审批失败。');
@@ -1199,7 +1199,7 @@ const CompanyKnowledge = {
 
 
       <knowledge-note-editor v-if="noteEditorId" :key="noteEditorId" :note-id="noteEditorId" :fetch-api="apiFetch" :username="service.username" @close="noteEditorId=''; loadNotes()" @changed="noteChanged" @delete="deleteRichNote($event)"/>
-      <el-dialog v-model="recycleOpen" title="回收站 · 保留 10 天" width="min(760px, 94vw)" append-to-body>
+      <el-dialog v-model="recycleOpen" title="回收站 · 保留 10 天" width="min(760px, 94vw)" class="ckb-dialog ckb-recycle-dialog" append-to-body>
         <p>删除的文件、笔记和项目保留 10 天。恢复项目会一同恢复该次删除的内容；到期后自动清理本地原件。OSS 历史备份按恢复点策略另行到期。</p>
         <p v-if="recycleError" role="alert" class="ckb-service-error">{{recycleError}} <button @click="openRecycle(recyclePage)">重试</button></p>
         <p v-if="recycleLoading" role="status">正在加载回收站…</p>
