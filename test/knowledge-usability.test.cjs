@@ -73,6 +73,18 @@ test('missing original uses the repair route and readonly reupload stays blocked
  s.uploadOpen=false;s.startReupload({...doc,can_manage:false});assert.equal(s.uploadOpen,false);
 });
 
+test('reupload destination includes all ancestors and completed results use the server record',()=>{
+ const {state:s}=fixture();s.projectDirectories[0].can_manage=true;
+ const doc={id:'failed',title:'evidence.txt',state:'failed',can_manage:true,has_original:true,knowledge_project_id:'p',folder_id:'g',category:'项目原件'};
+ s.openDirectory(s.projectDirectories[1]);s.startReupload(doc);
+ assert.equal(s.uploadDestinationLabel,'资料库 / 项目甲 / 二级 / 三级');
+ s.uploadResults=[{id:'new',name:'evidence.txt'}];s.cloudDocuments.push({...doc,id:'new',version:2,state:'queued'});
+ s.uploadTargetProjectId='q';s.uploadTargetFolderId='';
+ assert.equal(s.uploadDestinationLabel,'资料库 / 项目甲 / 二级 / 三级');
+ s.openDocumentDirectory(s.cloudDocuments.at(-1));assert.equal(s.activeProjectId,'p');assert.equal(s.activeFolderId,'g');assert.equal(s.statusFilter,'');
+ assert.equal(s.documentLocationLabel({category:'项目经验',is_root:1}),'经验沉淀 / 根目录（独立文件）');
+});
+
 test('owned project root and nested folders keep creation and upload in the current location',async()=>{
  const{state:s}=fixture();s.projectDirectories[0].can_manage=true;s.openDirectory(s.projectDirectories[0]);
  const requests=[];s.apiFetch=async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});return {ok:true,json:async()=>({id:'created'})}};

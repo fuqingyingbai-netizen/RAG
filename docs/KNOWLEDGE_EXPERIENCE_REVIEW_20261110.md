@@ -134,4 +134,4 @@ python scripts/manual/check_knowledge_business.py --url http://127.0.0.1:8892 --
 | 缺失原件阅读及禁用提问状态 | 2 | 1 |
 | 缺失原件补传控件 | 1 | 0 |
 
-所有写入使用标记保护的隔离验收数据库和样本文件，没有写入正式业务数据。浏览器使用 computer-use 提供的 Playwright 接口，逐控件检查实际计算样式、焦点所在元素及横向裁切；截图在本地 `work/knowledge-border-review-20261110`。Office 版式预览共用 PDF 控件，本轮实际打开了 PDF 页码及大 XLSX 工作表/行页码；不把本地未配置的小 Office 转换计入成功结果。前端 86 项回归通过。
+所有写入使用标记保护的隔离验收数据库和样本文件，没有写入正式业务数据。浏览器使用 computer-use 提供的 Playwright 接口，逐控件检查实际计算样式、焦点所在元素及横向裁切；截图在本地 `work/knowledge-border-review-20261110`。Office 版式预览共用 PDF 控件，本轮实际打开了 PDF 页码及大 XLSX 工作表/行页码；不把本地未配置的小 Office 转换计入成功结果。合并最新上传位置改动后，前端 87 项回归通过。
