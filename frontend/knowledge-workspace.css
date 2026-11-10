@@ -236,6 +236,9 @@
 :root[data-knowledge-theme] .ckb-workbench .ckb-name-cell > div,
 :root[data-knowledge-theme] .ckb-workbench .ckb-document-table td > small { font-size:12px; line-height:1.7; color:var(--ku-day-muted); margin-top:5px; }
 :root[data-knowledge-theme] .ckb-workbench .ckb-document-table .ckb-location-link { font-size:12px; line-height:1.7; }
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) :is(.ckb-location-link,.ckb-upload-result-open) { color:var(--ku-day-link); }
+:root[data-knowledge-theme] .ckb-workbench .ckb-failed-actions button { color:var(--ku-day-link); min-height:32px; }
+:root[data-knowledge-theme] .ckb-workbench .ckb-failed-actions .ckb-delete-button { color:var(--ku-day-danger)!important; }
 :root[data-knowledge-theme] .ckb-workbench .ckb-confidentiality { font-size:11px; }
 :root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) .ckb-state { display:inline-flex; align-items:center; padding:3px 7px; border-radius:4px; font-size:12px; line-height:18px; font-weight:500; white-space:nowrap; }
 :root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) .ckb-state-ready { color:var(--ku-day-success); background:var(--ku-day-success-soft); }

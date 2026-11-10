@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 function fixture(){
  const notices=[],saved={};
  const c=vm.runInNewContext(fs.readFileSync('frontend/company-knowledge.js','utf8')+';CompanyKnowledge',{
-  AbortController,File,FormData,setTimeout,clearTimeout,sessionStorage:{setItem:(k,v)=>saved[k]=v},
+  AbortController,File,FormData,setTimeout,clearTimeout,sessionStorage:{getItem:k=>saved[k]??null,setItem:(k,v)=>saved[k]=v},
   ElementPlus:{ElMessage:Object.fromEntries(['info','error','warning','success'].map(k=>[k,m=>notices.push(m)]))}});
  const s=c.data();for(const[k,f]of Object.entries(c.methods))s[k]=f.bind(s);for(const[k,f]of Object.entries(c.computed))Object.defineProperty(s,k,{get:()=>f.call(s)});
  s.$refs={documentTable:{scrollTop:70},composer:{focus(){}}};s.$nextTick=async f=>f?.();s.service={username:'alice',configured:true,access_allowed:true};s.mode='library';
@@ -53,4 +53,12 @@ test('department navigation during a slow status request survives initialization
  s.apiFetch=()=>status;s.loadDocuments=async()=>{};s.loadMyProjects=async()=>{};s.loadAccessRequests=async()=>{};s.loadChatHistory=async()=>{};
  const loading=s.loadService();s.openDepartment('market');s.browseLibrary();finishStatus({ok:true,json:async()=>s.service});await loading;
  assert.equal(restores,0);assert.equal(s.departmentFilter,'');assert.equal(s.viewRestored,true);
+});
+test('initialization after department navigation refreshes conversation titles without restoring an unrelated scope',async()=>{
+ const{s}=fixture();let finishProjects;const projects=new Promise(resolve=>finishProjects=resolve);let restored=0,listed=0;
+ s.restoreLibraryView=()=>{s.viewRestored=true};s.apiFetch=async()=>({ok:true,json:async()=>s.service});
+ s.loadDocuments=async()=>{};s.loadMyProjects=()=>projects;s.loadAccessRequests=async()=>{};
+ s.loadChatHistory=async()=>{restored++;s.departmentFilter='';s.selectedIds=['foreign-session-file']};s.refreshChatSessions=async()=>{listed++};
+ const loading=s.loadService();await new Promise(setImmediate);s.openDepartment('market');finishProjects();await loading;
+ assert.equal(restored,0);assert.equal(listed,1);assert.equal(s.departmentFilter,'market');assert.equal(s.selectionCount,0);
 });

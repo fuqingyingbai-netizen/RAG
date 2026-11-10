@@ -44,5 +44,5 @@ knowledge-workspace.css; do not add another theme stylesheet.
 
 Verify menu keyboard access, permission-dependent actions, unchanged selection
 and document navigation, original/excerpt switching, failure messages, light
-and dark modes, 375/768/1024/1440px layouts, and 200% browser zoom. Use only the
+and dark modes, and 375/768/1024/1440 CSS-pixel layouts. Use only the
 disposable local audit application for interaction checks.
