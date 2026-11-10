@@ -22,6 +22,23 @@ test('every category entry leaves body-search state and stale project scope',()=
  assert.equal(s.searchMode,'metadata');assert.equal(s.activeProjectId,'');assert.equal(s.category,'研究成果');assert.equal(s.projectDisplay,'projects');
  s.searchMode='content';s.selectFailed();assert.equal(s.searchMode,'metadata');assert.equal(s.statusFilter,'failed');assert.equal(s.projectDisplay,'files');
 });
+
+test('owned project root and nested folders keep creation and upload in the current location',async()=>{
+ const{state:s}=fixture();s.projectDirectories[0].can_manage=true;s.openDirectory(s.projectDirectories[0]);
+ const requests=[];s.apiFetch=async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});return {ok:true,json:async()=>({id:'created'})}};
+ s.loadProjectDirectories=async()=>{};
+ for(const parent of ['', 'f', 'g']){
+  s.openDirectory(s.projectDirectories[0],parent);s.startFolderEditor();assert.equal(s.folderEditorOpen,true);s.folderName='新增目录';await s.saveFolder();
+  assert.equal(requests.at(-1).url,'/company-knowledge/projects/p/folders');assert.equal(requests.at(-1).body.parent_id,parent);
+  s.startUpload();assert.equal(s.uploadOpen,true);assert.equal(s.uploadTargetProjectId,'p');assert.equal(s.uploadTargetFolderId,parent);s.uploadOpen=false;
+ }
+});
+
+test('readonly project cannot open creation or silently redirect an upload to the library root',async()=>{
+ const{state:s,notices}=fixture();s.projectDirectories[0].can_manage=false;s.openDirectory(s.projectDirectories[0],'g');
+ let writes=0;s.apiFetch=async()=>{writes++;throw Error('unexpected write')};s.startFolderEditor();s.startUpload();await s.saveFolder();
+ assert.equal(s.folderEditorOpen,false);assert.equal(s.uploadOpen,false);assert.equal(writes,0);assert.equal(notices.length,2);assert.ok(notices.every(message=>message.includes('只读')));
+});
 test('project selection resolves a union, enters chat, and returns to the exact prior folder and filters',async()=>{
  const{state:s,saved}=fixture();s.activeProjectId='p';s.activeFolderId='g';s.projectDisplay='contents';s.query='A';s.libraryLayout='list';s.selectedProjectIds=['q'];
  let body;s.apiFetch=async(_url,options)=>{body=JSON.parse(options.body);return {ok:true,json:async()=>({document_ids:['a'],document_count:1,skipped_count:0})}};
