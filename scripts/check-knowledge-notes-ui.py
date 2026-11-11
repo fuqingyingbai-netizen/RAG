@@ -27,7 +27,7 @@ def main():
         patch=pytest.MonkeyPatch();generator=setup.__wrapped__(patch,Path(temp));state=next(generator)
         import company_memory
         patch.setattr(company_memory,'factory',lambda:state.db)
-        for model in (company_memory.KnowledgeChatState,company_memory.KnowledgeChatThread,company_memory.KnowledgeChatMessage):model.__table__.create(state.db.kw['bind'])
+        for model in (company_memory.KnowledgeChatState,company_memory.KnowledgeChatThread,company_memory.KnowledgeChatMessage, company_memory.KnowledgeChatTask):model.__table__.create(state.db.kw['bind'])
         company_notes.recognize_image=lambda data:'现场测试流程：访谈、记录、复核。'
         p=project(state,'经验图文验证',category='手稿笔记')
         note=state.client.post('/company-knowledge/notes',json={'project_id':p['id']}).json()

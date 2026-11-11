@@ -7,7 +7,7 @@ import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import sessionmaker
 
 import company_knowledge as kb
@@ -27,7 +27,10 @@ def env(monkeypatch, tmp_path):
         monkeypatch.setenv('BAILIAN_KNOWLEDGE_'+key,value)
     monkeypatch.setenv('COMPANY_KNOWLEDGE_USERS','alice,bob')
     engine=create_engine('sqlite:///'+str(tmp_path/'memory.db'),connect_args={'check_same_thread':False})
-    for model in (User, CompanyDocument, CompanyProject, CompanyFolder, memory.KnowledgeChatState, memory.KnowledgeChatThread, memory.KnowledgeChatMessage):
+    @event.listens_for(engine, 'connect')
+    def disposable_db(connection, _):
+        connection.execute('PRAGMA synchronous=OFF')
+    for model in (User, CompanyDocument, CompanyProject, CompanyFolder, memory.KnowledgeChatState, memory.KnowledgeChatThread, memory.KnowledgeChatMessage, memory.KnowledgeChatTask):
         model.__table__.create(engine)
     db=sessionmaker(engine,expire_on_commit=False)
     monkeypatch.setattr(ws,'SessionLocal',db)
@@ -402,3 +405,8 @@ def test_partial_knowledge_provider_does_not_fall_back_to_report_provider(env,mo
 def test_forced_thinking_models_do_not_receive_disable_thinking_options(model):
     expected={'reasoning_effort':'low'} if model=='glm-5.3-flash' else {}
     assert kb.model_request_options({'model':model,'base_url':'https://relay.example/v1'})==expected
+
+
+@pytest.mark.parametrize('model',['glm-4.7-flash','ZHIPU/GLM-4.7-FLASH','glm-5.2'])
+def test_glm_optional_thinking_uses_vendor_thinking_object(model):
+    assert kb.model_request_options({'model':model,'base_url':'https://open.bigmodel.cn/api/paas/v4'})=={'thinking':{'type':'disabled'}}

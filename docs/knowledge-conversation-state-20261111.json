@@ -1,0 +1,212 @@
+{
+  "date": "2026-11-11 Asia/Shanghai",
+  "this_change_deployed": false,
+  "automated": {
+    "passed": 116,
+    "failed": 0,
+    "rapid_serial_turns": 120,
+    "rapid_rewrite_calls": 30,
+    "rapid_model": "mocked; not model accuracy or concurrent load testing"
+  },
+  "official": {
+    "model": "glm-4.7-flash",
+    "endpoint": "https://open.bigmodel.cn/api/paas/v4",
+    "interval_seconds": 25,
+    "retries": 0,
+    "retrieval": "controlled synthetic; not production retrieval recall or Ragas",
+    "turns_attempted": 12,
+    "cases_passed": 3,
+    "api_calls": 10,
+    "http_statuses": {
+      "200": 3,
+      "429": 7
+    },
+    "acceptance_passed": false,
+    "meaning": "Case pass includes correct clarification; this is not a general model accuracy estimate.",
+    "cases": [
+      {
+        "turn": 1,
+        "question": "请列出甲公司2025年的营业收入与客户数量，每项注明来源。",
+        "expected_subject": "甲公司",
+        "retrieval_query": "请列出甲公司2025年的营业收入与客户数量，每项注明来源。",
+        "answer": "甲公司2025年营业收入为1200万元[id_1]，客户数量为87家[id_1]。",
+        "passed": true,
+        "errors": [],
+        "cited_documents": [
+          "甲公司2025年测试资料"
+        ]
+      },
+      {
+        "turn": 2,
+        "question": "客户数呢？",
+        "expected_subject": "甲公司",
+        "retrieval_query": null,
+        "answer": "",
+        "passed": false,
+        "errors": [
+          {
+            "type": "error",
+            "message": "知识库请求较多，请稍后重试。",
+            "elapsed_seconds": 22
+          }
+        ],
+        "cited_documents": []
+      },
+      {
+        "turn": 3,
+        "question": "整理成表格",
+        "expected_subject": "甲公司",
+        "retrieval_query": null,
+        "answer": "未能确认这次追问的具体对象，请补充公司、项目或文件名称后再试。",
+        "passed": false,
+        "errors": [],
+        "cited_documents": []
+      },
+      {
+        "turn": 4,
+        "question": "那乙公司呢？",
+        "expected_subject": "乙公司",
+        "retrieval_query": "请列出乙公司2025年的营业收入与客户数量，每项注明来源，整理成表格",
+        "answer": "根据提供的资料片段，乙公司2025年的营业收入与客户数量如下：\n\n| 指标 | 2025年数值 | 单位 | 来源 |\n| :--- | :--- | :--- | :--- |\n| 营业收入 | 2600 | 万元 | [id_2] |\n| 客户数量 | 143 | 家 | [id_2] |",
+        "passed": true,
+        "errors": [],
+        "cited_documents": [
+          "乙公司2025年测试资料"
+        ]
+      },
+      {
+        "turn": 5,
+        "question": "它怎么收费？",
+        "expected_subject": "乙公司",
+        "retrieval_query": "乙公司怎么收费？；每项注明来源；整理成表格",
+        "answer": "",
+        "passed": false,
+        "errors": [
+          {
+            "type": "error",
+            "message": "知识库请求较多，请稍后重试。",
+            "elapsed_seconds": 7
+          }
+        ],
+        "cited_documents": []
+      },
+      {
+        "turn": 6,
+        "question": "请比较甲公司和乙公司的收费方式。",
+        "expected_subject": "甲公司、乙公司",
+        "retrieval_query": "请比较甲公司和乙公司的收费方式。",
+        "answer": "",
+        "passed": false,
+        "errors": [
+          {
+            "type": "error",
+            "message": "知识库请求较多，请稍后重试。",
+            "elapsed_seconds": 24
+          }
+        ],
+        "cited_documents": []
+      },
+      {
+        "turn": 7,
+        "question": "它的客户数量是多少？",
+        "expected_subject": "clarify",
+        "retrieval_query": null,
+        "answer": "未能确认这次追问的具体对象，请补充公司、项目或文件名称后再试。",
+        "passed": true,
+        "errors": [],
+        "cited_documents": []
+      },
+      {
+        "turn": 8,
+        "question": "我指的是乙公司",
+        "expected_subject": "乙公司",
+        "retrieval_query": null,
+        "answer": "",
+        "passed": false,
+        "errors": [
+          {
+            "type": "error",
+            "message": "知识库请求较多，请稍后重试。",
+            "elapsed_seconds": 24
+          }
+        ],
+        "cited_documents": []
+      },
+      {
+        "turn": 9,
+        "question": "客户数呢？",
+        "expected_subject": "乙公司",
+        "retrieval_query": null,
+        "answer": "未能确认这次追问的具体对象，请补充公司、项目或文件名称后再试。",
+        "passed": false,
+        "errors": [],
+        "cited_documents": []
+      },
+      {
+        "turn": 10,
+        "question": "请介绍丙公司2025年的营业收入。",
+        "expected_subject": "丙公司",
+        "retrieval_query": "请介绍丙公司2025年的营业收入。",
+        "answer": "",
+        "passed": false,
+        "errors": [
+          {
+            "type": "error",
+            "message": "知识库请求较多，请稍后重试。",
+            "elapsed_seconds": 25
+          }
+        ],
+        "cited_documents": []
+      },
+      {
+        "turn": 11,
+        "question": "它怎么收费？",
+        "expected_subject": "丙公司",
+        "retrieval_query": "丙公司怎么收费？；2025年",
+        "answer": "",
+        "passed": false,
+        "errors": [
+          {
+            "type": "error",
+            "message": "知识库请求较多，请稍后重试。",
+            "elapsed_seconds": 24
+          }
+        ],
+        "cited_documents": []
+      },
+      {
+        "turn": 12,
+        "question": "丙公司2025年的净利润是多少？不要推算。",
+        "expected_subject": "refuse",
+        "retrieval_query": "丙公司2025年的净利润是多少？不要推算。",
+        "answer": "",
+        "passed": false,
+        "errors": [
+          {
+            "type": "error",
+            "message": "知识库请求较多，请稍后重试。",
+            "elapsed_seconds": 24
+          }
+        ],
+        "cited_documents": []
+      }
+    ]
+  },
+  "source_sha256": {
+    "backend/company_chat_task.py": "4658bd84218a4d52020f3ab232a5f1ad5938ce4a931867019d0ea45ef10d8e52",
+    "backend/company_memory.py": "f242330a9ca2432c52c2d48907d340fea68f3f6f03520d84809daed9da8f51f9",
+    "backend/company_workspace.py": "8951739d2e047846779fb5b4bba7d68c767c0ac1987a7b9132aae3d5b4806eff",
+    "backend/company_knowledge.py": "12439fabf262155f53f7e6e6778b7b0435a88d3de8d417fefa28d753dd9ad5f9",
+    "scripts/manual/check_company_conversation.py": "15f17577dd65361f6452fd92810a6ccae3e15982d1e54660bc46db665ff0b0a8"
+  },
+  "private_evidence_directory": "E:\\projects\\RAG\\work\\knowledge-conversation-state-run-20261111",
+  "evidence_sha256": {
+    "official-final.json": "02112a0588249c97869a35cbb8027d82d7e7bec8b55d8e6b5df3be57091591df",
+    "tests-final.xml": "bba3d3b6d04668e88663c1bd04a02d6421b5b51e7c3d3b1367dc18c450d4270b"
+  },
+  "limitations": [
+    "Only two factual answers and one rewrite succeeded in the final run; seven official requests returned HTTP429.",
+    "Synthetic retrieval cannot establish production recall, citation faithfulness or Ragas metrics.",
+    "Complex language remains model dependent; no high concurrency acceptance or production deployment performed."
+  ]
+}
