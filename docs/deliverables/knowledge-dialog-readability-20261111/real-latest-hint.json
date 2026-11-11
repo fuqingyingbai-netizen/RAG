@@ -1,0 +1,27 @@
+{
+  "cases": 3,
+  "passed": 1,
+  "results": [
+    {
+      "case": "latest_object",
+      "question": "怎么收费？",
+      "passed": false,
+      "error": "知识库请求较多，请稍后重试。",
+      "seconds": 57.834
+    },
+    {
+      "case": "ambiguous_objects",
+      "question": "它的客户规模呢？",
+      "query": null,
+      "passed": true,
+      "seconds": 81.852
+    },
+    {
+      "case": "changed_object",
+      "question": "那乙公司呢？",
+      "query": null,
+      "passed": false,
+      "seconds": 31.448
+    }
+  ]
+}

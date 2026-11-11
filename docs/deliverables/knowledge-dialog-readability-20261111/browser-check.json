@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "checks": [
+    "headings/lists/emphasis/tables",
+    "exact fragment citation by mouse/keyboard",
+    "390px no page overflow",
+    "light/dark",
+    "untrusted HTML/URL/image isolation",
+    "unknown citation visibly unverified",
+    "code sample unchanged",
+    "streaming updates",
+    "cached repeated render"
+  ],
+  "performance": {
+    "cached_1000_renders_ms": 3.5
+  },
+  "console_errors": [],
+  "external_requests": []
+}

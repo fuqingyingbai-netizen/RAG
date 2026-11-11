@@ -1,0 +1,20 @@
+{
+  "cases": 2,
+  "passed": 1,
+  "results": [
+    {
+      "case": "latest_object",
+      "question": "怎么收费？",
+      "query": "丙公司怎么收费？",
+      "passed": true,
+      "seconds": 67.051
+    },
+    {
+      "case": "changed_object",
+      "question": "那乙公司呢？",
+      "passed": false,
+      "error": "知识库请求较多，请稍后重试。",
+      "seconds": 52.592
+    }
+  ]
+}

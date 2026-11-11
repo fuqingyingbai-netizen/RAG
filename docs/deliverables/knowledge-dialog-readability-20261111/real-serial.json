@@ -1,0 +1,233 @@
+{
+  "method": "Real configured completion model; synthetic histories; no answer generation or business writes",
+  "cases": 16,
+  "passed": 14,
+  "model_calls": 8,
+  "results": [
+    {
+      "dialogue": 1,
+      "turn": 1,
+      "question": "请分析甲公司的产品定位和目标用户。",
+      "expected_model_call": false,
+      "model_calls": 0,
+      "query": "请分析甲公司的产品定位和目标用户。",
+      "passed": true,
+      "seconds": 0.0
+    },
+    {
+      "dialogue": 1,
+      "turn": 2,
+      "question": "收费方式呢？",
+      "expected_model_call": true,
+      "model_calls": 1,
+      "provider_responses": [
+        {
+          "status": 429,
+          "finish_reason": null,
+          "content_length": 0,
+          "reasoning_length": 0
+        }
+      ],
+      "passed": false,
+      "error": "KnowledgeError",
+      "error_message": "知识库请求较多，请稍后重试。",
+      "seconds": 9.9687
+    },
+    {
+      "dialogue": 1,
+      "turn": 3,
+      "question": "换个问题，乙公司的收入是多少？",
+      "expected_model_call": false,
+      "model_calls": 0,
+      "query": "换个问题，乙公司的收入是多少？",
+      "passed": true,
+      "seconds": 0.0
+    },
+    {
+      "dialogue": 1,
+      "turn": 4,
+      "question": "客户数呢？",
+      "expected_model_call": true,
+      "model_calls": 1,
+      "provider_responses": [
+        {
+          "status": 200,
+          "finish_reason": "stop",
+          "content_length": 23,
+          "reasoning_length": 959
+        }
+      ],
+      "query": "乙公司的客户数是多少？",
+      "passed": true,
+      "seconds": 25.0512
+    },
+    {
+      "dialogue": 1,
+      "turn": 5,
+      "question": "请把所选资料中的数据整理成表格，不要推算。",
+      "expected_model_call": false,
+      "model_calls": 0,
+      "query": "请把所选资料中的数据整理成表格，不要推算。",
+      "passed": true,
+      "seconds": 0.0
+    },
+    {
+      "dialogue": 1,
+      "turn": 6,
+      "question": "那甲公司呢？",
+      "expected_model_call": true,
+      "model_calls": 1,
+      "provider_responses": [
+        {
+          "status": 200,
+          "finish_reason": "stop",
+          "content_length": 36,
+          "reasoning_length": 576
+        }
+      ],
+      "query": "请将所选资料中甲公司的数据整理成表格，不要推算。",
+      "passed": true,
+      "seconds": 6.9543
+    },
+    {
+      "dialogue": 1,
+      "turn": 7,
+      "question": "请分析丙公司的客户数量。",
+      "expected_model_call": false,
+      "model_calls": 0,
+      "query": "请分析丙公司的客户数量。",
+      "passed": true,
+      "seconds": 0.0
+    },
+    {
+      "dialogue": 1,
+      "turn": 8,
+      "question": "怎么收费？",
+      "expected_model_call": true,
+      "model_calls": 1,
+      "provider_responses": [
+        {
+          "status": 200,
+          "finish_reason": "stop",
+          "content_length": 15,
+          "reasoning_length": 365
+        }
+      ],
+      "query": null,
+      "passed": false,
+      "seconds": 22.1509
+    },
+    {
+      "dialogue": 2,
+      "turn": 1,
+      "question": "比较丁公司和戊公司的产品定位。",
+      "expected_model_call": false,
+      "model_calls": 0,
+      "query": "比较丁公司和戊公司的产品定位。",
+      "passed": true,
+      "seconds": 0.0
+    },
+    {
+      "dialogue": 2,
+      "turn": 2,
+      "question": "它的客户规模呢？",
+      "expected_model_call": true,
+      "model_calls": 1,
+      "provider_responses": [
+        {
+          "status": 200,
+          "finish_reason": "stop",
+          "content_length": 14,
+          "reasoning_length": 42
+        }
+      ],
+      "query": null,
+      "passed": true,
+      "seconds": 44.1397
+    },
+    {
+      "dialogue": 2,
+      "turn": 3,
+      "question": "我问的是戊公司的客户数量。",
+      "expected_model_call": false,
+      "model_calls": 0,
+      "query": "我问的是戊公司的客户数量。",
+      "passed": true,
+      "seconds": 0.0
+    },
+    {
+      "dialogue": 2,
+      "turn": 4,
+      "question": "同样比较丁公司",
+      "expected_model_call": true,
+      "model_calls": 1,
+      "provider_responses": [
+        {
+          "status": 200,
+          "finish_reason": "stop",
+          "content_length": 32,
+          "reasoning_length": 4409
+        }
+      ],
+      "query": "同样地，比较丁公司和戊公司的客户数量。",
+      "passed": true,
+      "seconds": 58.6428
+    },
+    {
+      "dialogue": 2,
+      "turn": 5,
+      "question": "请根据所选文档的数据整理成表格，每行注明来源。",
+      "expected_model_call": false,
+      "model_calls": 0,
+      "query": "请根据所选文档的数据整理成表格，每行注明来源。",
+      "passed": true,
+      "seconds": 0.0
+    },
+    {
+      "dialogue": 2,
+      "turn": 6,
+      "question": "之前的答案有什么依据？",
+      "expected_model_call": true,
+      "model_calls": 1,
+      "provider_responses": [
+        {
+          "status": 200,
+          "finish_reason": "stop",
+          "content_length": 53,
+          "reasoning_length": 12303
+        }
+      ],
+      "query": "请说明之前根据所选文档数据整理的丁公司和戊公司客户规模对比表格的答案有什么依据？",
+      "passed": true,
+      "seconds": 82.2635
+    },
+    {
+      "dialogue": 2,
+      "turn": 7,
+      "question": "重新分析己公司的目标用户。",
+      "expected_model_call": false,
+      "model_calls": 0,
+      "query": "重新分析己公司的目标用户。",
+      "passed": true,
+      "seconds": 0.0
+    },
+    {
+      "dialogue": 2,
+      "turn": 8,
+      "question": "有哪些风险？",
+      "expected_model_call": true,
+      "model_calls": 1,
+      "provider_responses": [
+        {
+          "status": 200,
+          "finish_reason": "stop",
+          "content_length": 27,
+          "reasoning_length": 6299
+        }
+      ],
+      "query": "己公司的目标用户存在哪些风险？",
+      "passed": true,
+      "seconds": 85.0699
+    }
+  ]
+}
