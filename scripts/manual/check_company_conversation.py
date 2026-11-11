@@ -17,6 +17,14 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / 'backend'), str(ROOT / 'test')]
 
 
+def grounded_refusal(answer):
+    # Citation digits are identifiers, not a claimed profit amount.
+    plain = re.sub(r'\[(?:id_)?\d+\]', '', answer)
+    return (bool(re.search(r'未披露|未找到|没有.*(?:依据|披露)|无法.*(?:确定|提供)', plain))
+        and not re.search(r'净利润.{0,10}\d', plain)
+        and not re.search(r'\[\d+\]', answer))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
@@ -49,7 +57,13 @@ def main():
             await pace()
             started = time.monotonic()
             response = await super().post(url, **kwargs)
-            requests.append({'kind': 'rewrite', 'status': response.status_code, 'seconds': round(time.monotonic() - started, 3)})
+            record = {'kind': 'rewrite', 'status': response.status_code, 'seconds': round(time.monotonic() - started, 3)}
+            if response.status_code == 200:
+                try:
+                    record['rewrite_payload'] = response.json()['choices'][0]['message'].get('content')
+                except (ValueError, KeyError, IndexError, TypeError):
+                    record['rewrite_payload_unavailable'] = True
+            requests.append(record)
             return response
 
         @asynccontextmanager
@@ -138,7 +152,7 @@ def main():
                 if subject == 'clarify':
                     correct = '请补充公司' in answer and len(retrievals) == previous_retrieval
                 elif subject == 'refuse':
-                    correct = bool(re.search(r'未披露|未找到|没有.*(?:依据|披露)|无法.*(?:确定|提供)', answer)) and not re.search(r'净利润.{0,10}\d', answer)
+                    correct = grounded_refusal(answer) and cited.issubset({str(index) for index in range(1, len(refs) + 1)})
                 else:
                     correct = (all(value in answer for value in required) and not any(value in answer for value in forbidden)
                         and all(any(name in title for title in cited_names) for name in subject.split('、')))
