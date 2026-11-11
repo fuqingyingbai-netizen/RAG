@@ -21,5 +21,6 @@
     "failed": 0,
     "seconds": 622.06,
     "junit_sha256": "81650d8127801899faebd95aa3ee70ccf7a0cfa70a753f76928e88eef1be99e2"
-  }
+  },
+  "source_sha256_policy": "UTF-8 with LF line endings, equal to Git blob contents; Windows CRLF working-tree byte hashes differ without changing source behavior."
 }
