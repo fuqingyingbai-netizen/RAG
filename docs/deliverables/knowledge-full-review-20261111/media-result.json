@@ -1,0 +1,14 @@
+{
+  "name": "SYNTHETIC-audio-832de7.wav",
+  "doc_id": "5995721ba9884d1a8f3b746dd144a54f",
+  "root_missing_description_status": 422,
+  "root_missing_description_detail": {
+    "detail": "请填写音视频的文字说明；本轮仅检索说明，不自动转写录音或视频。"
+  },
+  "project_archival_status": 202,
+  "project_state": "archived",
+  "watermarked_media_status": 200,
+  "media_content_type": "audio/mpeg",
+  "media_bytes": 1137457,
+  "has_trace": true
+}

@@ -1099,6 +1099,8 @@ async def grounded_answer(cfg, question):
         messages.append({'role': 'user', 'content': question.message})
         yield {'type': 'progress', 'stage': 'answering', 'label': '正在生成回答', 'detail': '正在依据检索片段整理答案与引用。'}
         received, ended, answer_parts = False, False, []
+        from company_citations import CitationFormatter
+        formatter = CitationFormatter(ref['id'] for ref in refs)
         async with client.stream('POST', answer_url,
             headers=answer_headers, json={'model': model, 'messages': messages, 'stream': True,
                 **kb.model_request_options(config), 'stream_options': {'include_usage': True}},
@@ -1114,15 +1116,24 @@ async def grounded_answer(cfg, question):
                     text = (choice.get('delta') or {}).get('content')
                     if text:
                         received = True
-                        answer_parts.append(text)
-                        yield {'type': 'answer_delta', 'text': text}
+                        formatted = formatter.feed(text)
+                        if formatted:
+                            answer_parts.append(formatted)
+                            yield {'type': 'answer_delta', 'text': formatted}
                     ended = ended or choice.get('finish_reason') == 'stop'
         if not received or not ended:
             raise kb.KnowledgeError('云端回答未完整返回，请重试。')
+        tail = formatter.feed('', final=True)
+        if tail:
+            answer_parts.append(tail)
+            yield {'type': 'answer_delta', 'text': tail}
         answer = ''.join(answer_parts)
         cited = set(re.findall(r'\[id_([^\]]+)\]', answer))
-        if cited - {str(ref['id']) for ref in refs} or re.search(r'[［【]id_', answer):
+        if formatter.unknown or cited - {str(ref['id']) for ref in refs} or re.search(r'[［【]id_', answer):
             raise kb.KnowledgeError('回答的引用编号或格式有误，本轮未通过引用检查，请重新提问。')
+        if formatter.changed:
+            yield {'type': 'progress', 'stage': 'citations', 'label': '已统一引用格式',
+                   'detail': '已将可确认的本轮来源编号转换为标准引用标记。', 'finished': True}
         yield {'type': 'done', 'usage': usage, 'model': model}
 
 

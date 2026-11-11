@@ -1,0 +1,25 @@
+{
+  "measured_repo_commit": "48db02f",
+  "measured_generation_sha256": "964cf082a34a6a95259f387b1435aaf8e65b9e0c29a5bed58000cebcee875ab0",
+  "integrated_generation_sha256": "bd0fe6a2652ddf219143513d5e059124436a3090b1464df3105843516b5f7c4f",
+  "provider_request_prefix_equal": true,
+  "request_prefix_sha256": "50cd41df8faedb542985039ccc1f1f04530342894f64434b58d000505ad0d2cc",
+  "same_model_config_and_selection_modules": true,
+  "answer_count": 100,
+  "chunk_sizes": [
+    1,
+    5,
+    97,
+    10000
+  ],
+  "identity_replays": 400,
+  "new_provider_calls": 0,
+  "scope": "Single-turn measured evidence/messages/request construction identical; new main formatter only postprocesses streamed text and leaves all100 measured final answers unchanged. This is integration verification, not a new model evaluation.",
+  "native_runner_sha256": "6ca377e5d9ffb12c6458030f55b6fbca984c74dcefbaf1bd3bfc967f2422841a",
+  "software_regression": {
+    "passed": 263,
+    "failed": 0,
+    "seconds": 622.06,
+    "junit_sha256": "81650d8127801899faebd95aa3ee70ccf7a0cfa70a753f76928e88eef1be99e2"
+  }
+}
