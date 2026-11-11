@@ -97,6 +97,7 @@ class CompanyFolder(Base):
     project_id: Mapped[str] = mapped_column(ForeignKey('company_projects.id', ondelete='CASCADE'), index=True)
     parent_id: Mapped[str] = mapped_column(String(64), default='')
     name: Mapped[str] = mapped_column(String(200))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -164,8 +165,7 @@ def ensure_company_schema(engine):
     inspector = inspect(engine)
     if 'company_documents' not in inspector.get_table_names():
         Base.metadata.create_all(bind=engine)
-        migrate_confidentiality_levels(engine)
-        return
+        inspector = inspect(engine)
     columns = {column['name'] for column in inspector.get_columns('company_documents')}
     additions = []
     if 'department' not in columns:
@@ -196,6 +196,11 @@ def ensure_company_schema(engine):
             for clause in additions:
                 connection.exec_driver_sql('ALTER TABLE company_documents ' + clause)
     Base.metadata.create_all(bind=engine)
+    if 'company_folders' in inspector.get_table_names():
+        folder_columns = {column['name'] for column in inspect(engine).get_columns('company_folders')}
+        if 'deleted_at' not in folder_columns:
+            with engine.begin() as connection:
+                connection.exec_driver_sql('ALTER TABLE company_folders ADD COLUMN deleted_at TIMESTAMP NULL')
     if 'company_notes' in inspector.get_table_names():
         note_columns = {column['name'] for column in inspect(engine).get_columns('company_notes')}
         if 'deleted_at' not in note_columns:

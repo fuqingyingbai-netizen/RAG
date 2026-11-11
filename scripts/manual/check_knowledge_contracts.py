@@ -29,6 +29,7 @@ def run(base_url, destination):
         '/company-knowledge/projects/{project_id}':['PATCH'],
         '/company-knowledge/projects/{project_id}/folders':['POST'],
         '/company-knowledge/projects/{project_id}/folders/{folder_id}':['PATCH','DELETE'],
+        '/company-knowledge/projects/{project_id}/folders/{folder_id}/deletion-preview':['GET'],
         '/company-knowledge/documents':['GET'],
         '/company-knowledge/documents/{doc_id}':['PATCH'],
         '/company-knowledge/selection':['POST'],
