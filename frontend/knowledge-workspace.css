@@ -29,7 +29,7 @@
   --kb-control-border:#718096; --kb-control-error:#ff9ba1;
 }
 :root[data-knowledge-theme] .company-knowledge-shell > .el-main { background:var(--ku-day-canvas)!important; }
-:root[data-knowledge-theme] .ckb-workbench { color:var(--ku-day-ink-strong); font-size:14px; line-height:1.6; --kt-action-width:118px; --kt-column-gap:16px; }
+:root[data-knowledge-theme] .ckb-workbench { max-width:none; width:100%; min-width:0; margin-inline:0; color:var(--ku-day-ink-strong); font-size:14px; line-height:1.6; --kt-action-width:118px; --kt-column-gap:16px; }
 :root[data-knowledge-theme] .ckb-workbench :is(button,input,select,textarea) { font-family:inherit; }
 :root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog,.ckb-input-prompt) :is(button,a,input,select,textarea,[contenteditable=true],[tabindex]):focus-visible { outline:2px solid var(--ku-day-accent)!important; outline-offset:-2px!important; }
 :root[data-knowledge-theme] .ckb-workbench :is(button,input,select,textarea):disabled { cursor:not-allowed; }
