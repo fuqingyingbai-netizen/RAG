@@ -47,6 +47,8 @@ test('upload completion keeps older ready files and new pending files visible',(
 });
 test('a catalogue snapshot started before an upload cannot erase the newly registered row',async()=>{
  const s=state();s.service.access_allowed=true;s.loadNotes=()=>{};s.loadProjectDirectories=async()=>{};s.loadMyProjects=async()=>{};
+ // XHR progress is covered separately; keep this check on catalogue ordering.
+ s.transferUpload=(url,form)=>s.apiFetch(url,{method:'POST',body:form});
  let release,catalogueCalls=0;const old={id:'old',category:'项目原件',state:'ready'},fresh={id:'new',category:'项目原件',state:'queued'};s.cloudDocuments=[old];
  s.apiFetch=async url=>{if(url.endsWith('/uploads'))return response(fresh);if(++catalogueCalls===1)return new Promise(resolve=>release=()=>resolve(response({documents:[old],total_count:1})));return response({documents:[old,fresh],total_count:2});};
  const reading=s.loadDocuments();await tick();s.activeProjectId='p';s.stagedFiles=[new File(['hello'],'new.txt')];await s.uploadFiles();assert.equal(s.cloudDocuments.length,2);

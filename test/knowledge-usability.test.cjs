@@ -5,6 +5,8 @@ function fixture(){
   AbortController,File,FormData,clearTimeout,setTimeout,sessionStorage:{setItem:(k,v)=>saved[k]=v},localStorage:{getItem:k=>saved[k]??null,setItem:(k,v)=>saved[k]=v},
   ElementPlus:{ElMessage:Object.fromEntries(['info','warning','error','success'].map(k=>[k,v=>notices.push(v)]))}});
  const state=component.data();for(const [k,f]of Object.entries(component.methods))state[k]=f.bind(state);
+ // Keep request spies for destination tests; dedicated XHR tests cover transport.
+ state.transferUpload=(url,form)=>state.apiFetch(url,{method:'POST',body:form});
  for(const[k,f]of Object.entries(component.computed))Object.defineProperty(state,k,{get:()=>f.call(state)});
  state.$nextTick=async fn=>fn?.();state.$refs={documentTable:{scrollTop:140},composer:{focus(){}}};state.service={username:'alice'};
  state.mode='library';state.projectDirectories=[{id:'p',name:'项目甲',category:'项目原件'},{id:'q',name:'项目乙',category:'项目原件'}];
