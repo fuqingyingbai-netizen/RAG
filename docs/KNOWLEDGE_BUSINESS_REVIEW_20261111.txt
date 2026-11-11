@@ -42,3 +42,5 @@ scripts/manual/check_knowledge_business_ui.cua.js保存8组业务规则检查，
 证据reproduce是本轮本机隔离工作树的复现材料，有明确合成账号、假服务和本机路径，不能部署到生产，也不是通用可移植验收器。
 
 证据目录：docs/deliverables/knowledge-business-review-20261111。
+
+收尾核对：本地源码已合入main，隔离端口8911/8912已关闭，TestSprite临时隧道为空；没有进行正式部署。

@@ -1,0 +1,10 @@
+{
+  "audit_ports_closed": [
+    8911,
+    8912
+  ],
+  "testsprite_tunnels": [],
+  "production_deployed": false,
+  "local_head": "51d5396c0b120725499ff4901acd51001e668e1c",
+  "ui_sha256": "4e61d5171d4d8eaad72d96a06c4988f07e42ef9312d34b783b7b5959a43fd013"
+}
