@@ -1,0 +1,182 @@
+[
+  {
+    "id": "experience-draft-private",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "library-note-creation-rejected",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "empty-note-cannot-publish",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "concurrent-note-save-conflict",
+    "passed": true,
+    "actual": {
+      "status": 409
+    }
+  },
+  {
+    "id": "note-image-upload",
+    "passed": true,
+    "actual": {
+      "keys": [
+        "id",
+        "width",
+        "height"
+      ]
+    }
+  },
+  {
+    "id": "note-image-deduplicated",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "invalid-image-rejected",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "unpublished-image-not-readable-by-member",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "ocr-result-or-explicit-degradation",
+    "passed": true,
+    "actual": {
+      "status": 200,
+      "classification": "local-ocr-or-explicit-degradation-not-recognition-quality"
+    }
+  },
+  {
+    "id": "experience-publish",
+    "passed": true,
+    "actual": {
+      "status": 200
+    }
+  },
+  {
+    "id": "published-experience-readable-by-member",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "unreferenced-draft-image-not-exposed-with-publication",
+    "passed": true,
+    "actual": {
+      "status": 404
+    }
+  },
+  {
+    "id": "new-draft-does-not-replace-published-view",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "member-cannot-read-draft-export",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "draft-export-docx",
+    "passed": true,
+    "actual": {
+      "status": 200,
+      "embedded_identity": true
+    }
+  },
+  {
+    "id": "draft-export-markdown",
+    "passed": true,
+    "actual": {
+      "status": 200,
+      "embedded_identity": true
+    }
+  },
+  {
+    "id": "owner-note-history",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "member-cannot-read-management-history",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "pending-access-request-deduplicated",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "member-cannot-list-admin-requests",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "member-cannot-approve-request",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "admin-synthetic-request-approval",
+    "passed": true,
+    "actual": {
+      "status": 200
+    }
+  },
+  {
+    "id": "decided-request-cannot-be-replayed",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "file-exception-does-not-expose-private-project",
+    "passed": true,
+    "actual": {
+      "status": 403
+    }
+  },
+  {
+    "id": "approved-file-exception-readable",
+    "passed": true,
+    "actual": {
+      "status": 200
+    }
+  },
+  {
+    "id": "owner-audit-history",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "member-cannot-read-owner-audit",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "synthetic-note-soft-delete",
+    "passed": true,
+    "actual": {}
+  },
+  {
+    "id": "synthetic-note-restore",
+    "passed": true,
+    "actual": {
+      "status": 200
+    }
+  }
+]

@@ -1,0 +1,353 @@
+- navigation "隔离验收账号":
+  - text: 当前验收账号：alice · 隔离验收：
+  - link "创建者 Alice":
+    - /url: /audit/login/alice
+  - text: ·
+  - link "成员 Bob":
+    - /url: /audit/login/bob
+  - text: ·
+  - link "管理员":
+    - /url: /audit/login/audit-admin
+- navigation "隔离部门入口":
+  - button "进入市场部"
+  - button "进入项目部"
+  - button "进入制度文件"
+  - button "进入专家资料"
+  - button "解除模拟故障"
+- main:
+  - navigation "知识库导航":
+    - tablist "知识库视图":
+      - tab "知识库首页":
+        - generic: 
+        - strong: 知识库首页
+      - tab "总资料库":
+        - generic: 
+        - strong: 总资料库
+        - emphasis: "57"
+      - tab "智能问答":
+        - generic: 
+        - strong: 智能问答
+      - tab "经验沉淀" [selected]:
+        - generic: 
+        - strong: 经验沉淀
+        - emphasis: "4"
+    - button "回收站":
+      - generic: 
+      - text: 回收站
+    - button "切换知识库主题":
+      - generic: 
+    - button "我的申请":
+      - generic: 
+      - text: 我的申请
+  - tabpanel "经验沉淀":
+    - complementary:
+      - text: 
+      - generic: 知识分类
+      - button "全部经验 4":
+        - text: 全部经验
+        - generic: "4"
+      - button "项目经验 4":
+        - text: 项目经验
+        - generic: "4"
+      - button "案例复盘 0":
+        - text: 案例复盘
+        - generic: "0"
+      - button "方法与模板 0":
+        - text: 方法与模板
+        - generic: "0"
+      - button "培训分享 0":
+        - text: 培训分享
+        - generic: "0"
+      - button "现场照片 0":
+        - text: 现场照片
+        - generic: "0"
+      - button "手稿笔记 0":
+        - text: 手稿笔记
+        - generic: "0"
+      - button "影音随记 0":
+        - text: 影音随记
+        - generic: "0"
+      - generic: 我的工作
+      - button "我的笔记 4":
+        - text: 我的笔记
+        - generic: "4"
+      - button "我的收藏 0":
+        - text: 我的收藏
+        - generic: "0"
+      - button "处理失败 0":
+        - text: 处理失败
+        - generic: "0"
+    - navigation "项目目录路径":
+      - button "返回上一级":
+        - generic: 
+        - text: 返回上一级
+      - generic: "|"
+      - button "经验空间"
+      - generic: 我的笔记
+    - heading "我的笔记" [level=2]
+    - generic: 4 条笔记与经验
+    - generic: 
+    - textbox "搜索知识库资料":
+      - /placeholder: 搜索经验、笔记或项目
+    - button "刷新":
+      - generic: 
+      - generic: 刷新
+    - button "上传文件":
+      - generic: 
+      - text: 上传文件
+    - button "创建项目":
+      - generic: +
+      - text: 创建项目
+    - button "新建图文笔记":
+      - generic: 
+      - text: 新建图文笔记
+    - button "随手记录":
+      - generic: 
+      - text: 随手记录
+    - generic: 
+    - text: 勾选项目或文件，限定问答范围
+    - combobox "资料排序":
+      - option "最近更新" [selected]
+      - option "名称排序"
+    - button "向我的笔记提问":
+      - text: 向我的笔记提问
+      - generic: 
+    - generic "资料列表，可滚动":
+      - table:
+        - rowgroup:
+          - row "资料名称 项目 / 行业 复核与索引 更新 / 版本 操作":
+            - columnheader
+            - columnheader "资料名称"
+            - columnheader "项目 / 行业"
+            - columnheader "复核与索引"
+            - columnheader "更新 / 版本"
+            - columnheader "操作"
+        - rowgroup:
+          - row "选择笔记：巡检合成笔记：只读草稿与发布边界 巡检合成笔记：只读草稿与发布边界 图文笔记 随手记录 · 待整理 未标记行业 已发布 待复核 2026/11/11 R4 · alice 编辑笔记：巡检合成笔记：只读草稿与发布边界 收藏笔记：巡检合成笔记：只读草稿与发布边界 阅读已发布版本 删除笔记：巡检合成笔记：只读草稿与发布边界":
+            - cell "选择笔记：巡检合成笔记：只读草稿与发布边界":
+              - checkbox "选择笔记：巡检合成笔记：只读草稿与发布边界"
+            - cell "巡检合成笔记：只读草稿与发布边界 图文笔记":
+              - button "巡检合成笔记：只读草稿与发布边界":
+                - generic: 
+                - strong: 巡检合成笔记：只读草稿与发布边界
+              - generic: 图文笔记
+            - cell "随手记录 · 待整理 未标记行业":
+              - text: 随手记录 · 待整理
+              - generic: 未标记行业
+            - cell "已发布 待复核":
+              - generic: 已发布
+              - generic: 待复核
+            - cell "2026/11/11 R4 · alice":
+              - text: 2026/11/11
+              - generic: R4 · alice
+            - cell "编辑笔记：巡检合成笔记：只读草稿与发布边界 收藏笔记：巡检合成笔记：只读草稿与发布边界 阅读已发布版本 删除笔记：巡检合成笔记：只读草稿与发布边界":
+              - button "编辑笔记：巡检合成笔记：只读草稿与发布边界": 编辑
+              - button "收藏笔记：巡检合成笔记：只读草稿与发布边界": 收藏
+              - button "阅读已发布版本"
+              - button "删除笔记：巡检合成笔记：只读草稿与发布边界": 删除
+          - row "选择笔记：TS-FULL-DRAFT-20261111-Alice-01 TS-FULL-DRAFT-20261111-Alice-01 图文笔记 · 私有草稿 随手记录 · 待整理 未标记行业 草稿 尚未发布 2026/11/11 R3 · alice 编辑笔记：TS-FULL-DRAFT-20261111-Alice-01 删除笔记：TS-FULL-DRAFT-20261111-Alice-01":
+            - cell "选择笔记：TS-FULL-DRAFT-20261111-Alice-01":
+              - checkbox "选择笔记：TS-FULL-DRAFT-20261111-Alice-01" [disabled]
+            - cell "TS-FULL-DRAFT-20261111-Alice-01 图文笔记 · 私有草稿":
+              - button "TS-FULL-DRAFT-20261111-Alice-01":
+                - generic: 
+                - strong: TS-FULL-DRAFT-20261111-Alice-01
+              - generic: 图文笔记 · 私有草稿
+            - cell "随手记录 · 待整理 未标记行业":
+              - text: 随手记录 · 待整理
+              - generic: 未标记行业
+            - cell "草稿 尚未发布":
+              - generic: 草稿
+              - generic: 尚未发布
+            - cell "2026/11/11 R3 · alice":
+              - text: 2026/11/11
+              - generic: R3 · alice
+            - cell "编辑笔记：TS-FULL-DRAFT-20261111-Alice-01 删除笔记：TS-FULL-DRAFT-20261111-Alice-01":
+              - button "编辑笔记：TS-FULL-DRAFT-20261111-Alice-01": 编辑
+              - button "删除笔记：TS-FULL-DRAFT-20261111-Alice-01": 删除
+          - row "选择笔记：EXT-未发布第二版 EXT-未发布第二版 图文笔记 · 有未发布修改 EXT-NOTE-ff38fb08 未标记行业 已发布 待复核 2026/11/11 R3 · alice 编辑笔记：EXT-未发布第二版 收藏笔记：EXT-未发布第二版 阅读已发布版本 删除笔记：EXT-未发布第二版":
+            - cell "选择笔记：EXT-未发布第二版":
+              - checkbox "选择笔记：EXT-未发布第二版"
+            - cell "EXT-未发布第二版 图文笔记 · 有未发布修改":
+              - button "EXT-未发布第二版":
+                - generic: 
+                - strong: EXT-未发布第二版
+              - generic: 图文笔记 · 有未发布修改
+            - cell "EXT-NOTE-ff38fb08 未标记行业":
+              - text: EXT-NOTE-ff38fb08
+              - generic: 未标记行业
+            - cell "已发布 待复核":
+              - generic: 已发布
+              - generic: 待复核
+            - cell "2026/11/11 R3 · alice":
+              - text: 2026/11/11
+              - generic: R3 · alice
+            - cell "编辑笔记：EXT-未发布第二版 收藏笔记：EXT-未发布第二版 阅读已发布版本 删除笔记：EXT-未发布第二版":
+              - button "编辑笔记：EXT-未发布第二版": 编辑
+              - button "收藏笔记：EXT-未发布第二版": 收藏
+              - button "阅读已发布版本"
+              - button "删除笔记：EXT-未发布第二版": 删除
+          - row "选择笔记：EXT-未发布第二版 EXT-未发布第二版 图文笔记 · 有未发布修改 EXT-NOTE-97f5d1dc 未标记行业 已发布 待复核 2026/11/11 R3 · alice 编辑笔记：EXT-未发布第二版 收藏笔记：EXT-未发布第二版 阅读已发布版本 删除笔记：EXT-未发布第二版":
+            - cell "选择笔记：EXT-未发布第二版":
+              - checkbox "选择笔记：EXT-未发布第二版"
+            - cell "EXT-未发布第二版 图文笔记 · 有未发布修改":
+              - button "EXT-未发布第二版":
+                - generic: 
+                - strong: EXT-未发布第二版
+              - generic: 图文笔记 · 有未发布修改
+            - cell "EXT-NOTE-97f5d1dc 未标记行业":
+              - text: EXT-NOTE-97f5d1dc
+              - generic: 未标记行业
+            - cell "已发布 待复核":
+              - generic: 已发布
+              - generic: 待复核
+            - cell "2026/11/11 R3 · alice":
+              - text: 2026/11/11
+              - generic: R3 · alice
+            - cell "编辑笔记：EXT-未发布第二版 收藏笔记：EXT-未发布第二版 阅读已发布版本 删除笔记：EXT-未发布第二版":
+              - button "编辑笔记：EXT-未发布第二版": 编辑
+              - button "收藏笔记：EXT-未发布第二版": 收藏
+              - button "阅读已发布版本"
+              - button "删除笔记：EXT-未发布第二版": 删除
+    - navigation "资料分页":
+      - generic: 共 4 条 · 第 1–4 条
+      - combobox "每页资料数量":
+        - option "10 条 / 页" [selected]
+        - option "20 条 / 页"
+        - option "50 条 / 页"
+      - button "上一页资料" [disabled]:
+        - generic: 
+      - button "第 1 页资料": "1"
+      - button "下一页资料" [disabled]:
+        - generic: 
+      - generic: 1 / 1 页
+- text: 
+- dialog "图文笔记":
+  - banner:
+    - generic: 
+    - strong: 图文笔记
+    - generic: 记录洞察 · 沉淀经验
+    - button "Close this dialog":
+  - banner:
+    - generic: EXPERIENCE / NOTES
+    - strong: 把经验，写成下一次的起点。
+    - status:
+      - text: 草稿已保存
+      - generic: 14:11
+    - button "保存"
+    - button "已发布" [disabled]
+  - toolbar "正文格式工具":
+    - combobox "段落格式":
+      - option "正文" [selected]
+      - option "一级标题"
+      - option "二级标题"
+      - option "三级标题"
+    - button "加粗": B
+    - button "斜体": I
+    - button "下划线": U
+    - button "• 列表"
+    - button "1. 列表"
+    - button "引用"
+    - button "▦ 表格"
+    - button "＋ 图片"
+    - button "撤销": ↶
+    - button "重做": ↷
+  - generic: 表格操作
+  - button "下方加行"
+  - button "右侧加列"
+  - button "删行"
+  - button "删列"
+  - button "合并 / 拆分"
+  - button "删除表格"
+  - textbox "笔记标题":
+    - /placeholder: 给这份经验起个名字
+    - text: 巡检合成笔记：只读草稿与发布边界
+  - textbox "笔记正文":
+    - table:
+      - rowgroup:
+        - row:
+          - columnheader:
+            - paragraph
+          - columnheader:
+            - paragraph
+          - columnheader:
+            - paragraph
+        - row:
+          - cell:
+            - paragraph
+          - cell:
+            - paragraph
+          - cell:
+            - paragraph
+        - row:
+          - cell:
+            - paragraph
+          - cell:
+            - paragraph
+          - cell:
+            - paragraph
+    - paragraph: 这是一份隔离环境的合成经验。未发布时应仅创建者和管理员可见，发布后正常成员可读。
+    - table:
+      - rowgroup:
+        - row:
+          - columnheader:
+            - paragraph
+          - columnheader:
+            - paragraph
+          - columnheader:
+            - paragraph
+        - row:
+          - cell:
+            - paragraph
+          - cell:
+            - paragraph
+          - cell:
+            - paragraph
+        - row:
+          - cell:
+            - paragraph
+          - cell:
+            - paragraph
+          - cell:
+            - paragraph
+    - paragraph
+  - contentinfo:
+    - generic: 40 字 · 0 张图片
+    - generic: 支持粘贴截图 / 拖入图片 · Ctrl+Z 撤销
+  - complementary:
+    - generic: 
+    - text: 写作与发布
+    - generic: FROM EXPERIENCE TO KNOWLEDGE
+    - generic: 发布状态
+    - strong: 已发布 · 可检索
+    - status: 发布提交成功，正在建立索引；完成后即可检索。
+    - paragraph: 编辑时自动保存草稿，点击发布后才更新检索。资料库与经验沉淀保持独立。
+    - generic: 草稿 R4 · 可检索 R4
+    - generic: 随笔记一起保存
+    - paragraph: 标题、正文、表格、图片说明与校正后的识别文字会进入检索；图片本身作为附件保留。
+    - paragraph:
+      - generic: 
+      - text: 继承所在项目的保密等级与访问权限。
+    - text: 创建人：alice
+    - text: 最近修改：alice
+    - generic: 导出当前草稿
+    - button "W Word 文档 可编辑 · 内嵌图片 · 下载水印 ↗":
+      - generic: W
+      - strong:
+        - text: Word 文档
+        - generic: 可编辑 · 内嵌图片 · 下载水印
+      - generic: ↗
+    - button "M↓ MD ＋ 图片 完整 ZIP 包 · 保留图片相对路径 ↗":
+      - generic: M↓
+      - strong:
+        - text: MD ＋ 图片
+        - generic: 完整 ZIP 包 · 保留图片相对路径
+      - generic: ↗
+    - button "删除笔记"
+    - paragraph: 删除前会确认草稿、发布版本和配图范围。
+    - button "操作提示 ＋":
+      - text: 操作提示
+      - generic: ＋
+    - button "修改记录 ＋":
+      - text: 修改记录
+      - generic: ＋

@@ -1,0 +1,303 @@
+[
+  {
+    "id": "authentication-anonymous",
+    "passed": true,
+    "actual": {
+      "status": 401
+    }
+  },
+  {
+    "id": "authentication-disabled",
+    "passed": true,
+    "actual": {
+      "status": 403
+    }
+  },
+  {
+    "id": "project-role-alice",
+    "passed": true,
+    "actual": {
+      "can_manage": true
+    }
+  },
+  {
+    "id": "project-role-bob",
+    "passed": true,
+    "actual": {
+      "can_manage": false
+    }
+  },
+  {
+    "id": "project-role-audit-admin",
+    "passed": true,
+    "actual": {
+      "can_manage": true
+    }
+  },
+  {
+    "id": "selection-denial-5",
+    "passed": true,
+    "actual": {
+      "status": 422,
+      "request": {}
+    }
+  },
+  {
+    "id": "selection-denial-6",
+    "passed": true,
+    "actual": {
+      "status": 409,
+      "request": {
+        "project_ids": [
+          "empty"
+        ]
+      }
+    }
+  },
+  {
+    "id": "selection-denial-7",
+    "passed": true,
+    "actual": {
+      "status": 403,
+      "request": {
+        "project_ids": [
+          "private"
+        ]
+      }
+    }
+  },
+  {
+    "id": "selection-denial-8",
+    "passed": true,
+    "actual": {
+      "status": 403,
+      "request": {
+        "project_ids": [
+          "owned"
+        ],
+        "scope": "experience"
+      }
+    }
+  },
+  {
+    "id": "parent-folder-subtree",
+    "passed": true,
+    "actual": {
+      "count": 21
+    }
+  },
+  {
+    "id": "multi-project-union-deduplicated",
+    "passed": true,
+    "actual": {
+      "count": 27
+    }
+  },
+  {
+    "id": "member-direct-create-denied",
+    "passed": true,
+    "actual": {
+      "status": 403
+    }
+  },
+  {
+    "id": "member-direct-upload-denied",
+    "passed": true,
+    "actual": {
+      "status": 403
+    }
+  },
+  {
+    "id": "nested-create-current-parent",
+    "passed": true,
+    "actual": {
+      "status": 201
+    }
+  },
+  {
+    "id": "rename-cannot-reparent-folder",
+    "passed": true,
+    "actual": {
+      "status": 200,
+      "parent_id": ""
+    }
+  },
+  {
+    "id": "pdf-page-real-render",
+    "passed": true,
+    "actual": {
+      "status": 200,
+      "bytes": 66586
+    }
+  },
+  {
+    "id": "pdf-download-watermarked",
+    "passed": true,
+    "actual": {
+      "status": 200
+    }
+  },
+  {
+    "id": "xlsx-native-sheet-0",
+    "passed": true,
+    "actual": {
+      "status": 200,
+      "mode": "workbook"
+    }
+  },
+  {
+    "id": "xlsx-native-sheet-1",
+    "passed": true,
+    "actual": {
+      "status": 200,
+      "mode": "workbook"
+    }
+  },
+  {
+    "id": "xlsx-invalid-sheet-rejected",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "encrypted-pdf-explicit-error",
+    "passed": true,
+    "actual": {
+      "status": 422,
+      "error": "pdf_encrypted"
+    }
+  },
+  {
+    "id": "docx-page-environment",
+    "passed": false,
+    "actual": {
+      "status": 503,
+      "seconds": 0.75,
+      "classification": "blocked",
+      "error": "Office 转换服务未配置，请联系管理员；不会提供无水印原件。"
+    }
+  },
+  {
+    "id": "saved-synthetic-stream",
+    "passed": true,
+    "actual": {
+      "status": 200
+    }
+  },
+  {
+    "id": "answer-export-docx",
+    "passed": true,
+    "actual": {
+      "status": 200,
+      "bytes": 38018
+    }
+  },
+  {
+    "id": "answer-export-xlsx",
+    "passed": true,
+    "actual": {
+      "status": 200,
+      "bytes": 6952
+    }
+  },
+  {
+    "id": "answer-export-png",
+    "passed": true,
+    "actual": {
+      "status": 200,
+      "bytes": 37983
+    }
+  },
+  {
+    "id": "strict-index-table_index-True",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "strict-index-table_index-False",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "strict-index-table_index-'0'",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "strict-index-table_index-1.0",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "strict-index-table_index--1",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "strict-index-table_index-31",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "strict-index-value_column-True",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "strict-index-value_column-False",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "strict-index-value_column-'0'",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "strict-index-value_column-1.0",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "strict-index-value_column--1",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "strict-index-value_column-31",
+    "passed": true,
+    "actual": {
+      "status": 422
+    }
+  },
+  {
+    "id": "conversation-not-readable-by-other-account",
+    "passed": true,
+    "actual": {
+      "status": 404
+    }
+  }
+]

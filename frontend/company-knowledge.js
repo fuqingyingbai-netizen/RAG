@@ -557,7 +557,7 @@ const CompanyKnowledge = {
       catch (error) { this.folderError = error.message; }
       finally { this.folderSaving = false; }
     },
-    async deleteEmptyFolder() { if (!this.editingFolder || this.folderSaving) return; this.folderSaving = true; this.folderError = ''; try { const response = await this.apiFetch('/company-knowledge/projects/' + this.activeProject.id + '/folders/' + this.editingFolder.id, {method:'DELETE'}); const result = await response.json(); if (!response.ok) throw new Error(result.detail || '删除目录失败'); this.folderEditorOpen = false; await this.loadProjectDirectories(); } catch (error) { this.folderError = error.message; } finally { this.folderSaving = false; } },
+    async deleteEmptyFolder() { if (!this.editingFolder || this.folderSaving) return; this.folderSaving = true; this.folderError = ''; try { await ElementPlus.ElMessageBox.confirm('确认删除空目录《' + this.editingFolder.name + '》？删除后无法恢复，不会进入回收站。仅空目录可以删除。', '删除空目录', {confirmButtonText:'删除目录',cancelButtonText:'取消',type:'warning'}); const response = await this.apiFetch('/company-knowledge/projects/' + this.activeProject.id + '/folders/' + this.editingFolder.id, {method:'DELETE'}); const result = await response.json(); if (!response.ok) throw new Error(result.detail || '删除目录失败'); this.folderEditorOpen = false; await this.loadProjectDirectories(); } catch (error) { if(error!=='cancel' && error!=='close')this.folderError = error.message; } finally { this.folderSaving = false; } },
     setTheme(value, persist = true) {
       if (!['light', 'dark'].includes(value)) return;
       this.theme = value;

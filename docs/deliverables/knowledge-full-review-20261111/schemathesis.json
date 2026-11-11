@@ -1,0 +1,332 @@
+{
+  "tool": "schemathesis",
+  "version": "4.33.1",
+  "operations": [
+    {
+      "path": "/company-knowledge/projects",
+      "method": "GET",
+      "mode": "positive",
+      "requests": 1,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/projects",
+      "method": "GET",
+      "mode": "negative",
+      "requests": 0,
+      "status": "not_applicable",
+      "reason": "No invalid inputs remain after fixing required identifiers"
+    },
+    {
+      "path": "/company-knowledge/projects",
+      "method": "POST",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/projects",
+      "method": "POST",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/projects/{project_id}",
+      "method": "PATCH",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/projects/{project_id}",
+      "method": "PATCH",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/projects/{project_id}/folders",
+      "method": "POST",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/projects/{project_id}/folders",
+      "method": "POST",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/projects/{project_id}/folders/{folder_id}",
+      "method": "PATCH",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/projects/{project_id}/folders/{folder_id}",
+      "method": "PATCH",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/projects/{project_id}/folders/{folder_id}",
+      "method": "DELETE",
+      "mode": "positive",
+      "requests": 1,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/projects/{project_id}/folders/{folder_id}",
+      "method": "DELETE",
+      "mode": "negative",
+      "requests": 0,
+      "status": "not_applicable",
+      "reason": "No invalid inputs remain after fixing required identifiers"
+    },
+    {
+      "path": "/company-knowledge/documents",
+      "method": "GET",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/documents",
+      "method": "GET",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/documents/{doc_id}",
+      "method": "PATCH",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/documents/{doc_id}",
+      "method": "PATCH",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/selection",
+      "method": "POST",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/selection",
+      "method": "POST",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/conversations",
+      "method": "GET",
+      "mode": "positive",
+      "requests": 3,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/conversations",
+      "method": "GET",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/conversations",
+      "method": "POST",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/conversations",
+      "method": "POST",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/conversations/{session_id}",
+      "method": "GET",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/conversations/{session_id}",
+      "method": "GET",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/conversations/{session_id}",
+      "method": "DELETE",
+      "mode": "positive",
+      "requests": 1,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/conversations/{session_id}",
+      "method": "DELETE",
+      "mode": "negative",
+      "requests": 0,
+      "status": "not_applicable",
+      "reason": "No invalid inputs remain after fixing required identifiers"
+    },
+    {
+      "path": "/company-knowledge/notes",
+      "method": "GET",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/notes",
+      "method": "GET",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/notes",
+      "method": "POST",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/notes",
+      "method": "POST",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/notes/{note_id}",
+      "method": "GET",
+      "mode": "positive",
+      "requests": 1,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/notes/{note_id}",
+      "method": "GET",
+      "mode": "negative",
+      "requests": 0,
+      "status": "not_applicable",
+      "reason": "No invalid inputs remain after fixing required identifiers"
+    },
+    {
+      "path": "/company-knowledge/notes/{note_id}",
+      "method": "PATCH",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/notes/{note_id}",
+      "method": "PATCH",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/my-projects",
+      "method": "GET",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/my-projects",
+      "method": "GET",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/recycle-bin",
+      "method": "GET",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/recycle-bin",
+      "method": "GET",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/recycle-bin/{item_id}/restore",
+      "method": "POST",
+      "mode": "positive",
+      "requests": 1,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/recycle-bin/{item_id}/restore",
+      "method": "POST",
+      "mode": "negative",
+      "requests": 0,
+      "status": "not_applicable",
+      "reason": "No invalid inputs remain after fixing required identifiers"
+    },
+    {
+      "path": "/company-knowledge/access-requests/mine",
+      "method": "GET",
+      "mode": "positive",
+      "requests": 1,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/access-requests/mine",
+      "method": "GET",
+      "mode": "negative",
+      "requests": 0,
+      "status": "not_applicable",
+      "reason": "No invalid inputs remain after fixing required identifiers"
+    },
+    {
+      "path": "/company-knowledge/documents/{doc_id}/access-requests",
+      "method": "POST",
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "/company-knowledge/documents/{doc_id}/access-requests",
+      "method": "POST",
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    }
+  ],
+  "failures": [],
+  "requests": 505,
+  "business_checks": [
+    "owner/admin management, member read-only",
+    "direct unauthorized upload/create, anonymous and inactive denied",
+    "recursive scope, denied private/cross-library/empty selections",
+    "conversation IDs do not bypass account ownership",
+    "generated create/nest/upload/delete/restore sequences preserve scope and tree"
+  ],
+  "stateful_requests": 218,
+  "schema_operations": 54,
+  "status": "passed"
+}

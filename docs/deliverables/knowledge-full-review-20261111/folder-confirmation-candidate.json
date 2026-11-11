@@ -1,0 +1,7 @@
+{
+  "kind": "production overlay, one method only",
+  "production_sha256": "caa25d7aa4cf777b6604c6c48f31cd84c78731b1a31e0e840687b0e4da8bfb4f",
+  "candidate_sha256": "9e96e4cd8438020458373c868678b3fe599d914ef21602659631fce889548219",
+  "asset": "company-knowledge.9e96e4cd8438.js",
+  "production_deployed": false
+}
