@@ -1,0 +1,24 @@
+{
+  "status": "published",
+  "frontend_commit": "2494e1aff7a2612859a3a216a4376c4f5d2d52af",
+  "release": "/opt/supermew/releases/4304e9e7d1f1278d3d7117f5c0eb42c6309ecb74",
+  "backup": "/opt/supermew/backups/knowledge-media-loading-20261111T084327Z-2494e1aff7a2",
+  "backend_pid_unchanged": 1533317,
+  "backend_instance_unchanged": "d9eeefe6-cd9c-4e11-94a3-7d83a5f85f3e",
+  "application_restart": false,
+  "unrelated_frontend_files_preserved": 224,
+  "time_utc": "2026-11-11T08:43:27.837641+00:00",
+  "assets": {
+    "company-knowledge": "company-knowledge.032ec025acea.js",
+    "knowledge-workspace": "knowledge-workspace.0526d2956385.css"
+  },
+  "hashes": {
+    "frontend/company-knowledge.032ec025acea.js": "032ec025aceaa45f5cdf5c1326503b9c3c8502676c3835f9e624b70fdab1845a",
+    "frontend/company-knowledge.js": "032ec025aceaa45f5cdf5c1326503b9c3c8502676c3835f9e624b70fdab1845a",
+    "frontend/knowledge-workspace.0526d2956385.css": "0526d29563857b1e23b7978ca929811e6e65f1698c55aa8a636f41133f165c8f",
+    "frontend/knowledge-workspace.css": "0526d29563857b1e23b7978ca929811e6e65f1698c55aa8a636f41133f165c8f"
+  },
+  "unrelated_backend_files_preserved": 214,
+  "index_sha256": "de793c762cf3e9cfe170c24a58831e21cf41b9ab2faded89675352ab83bf6a1e",
+  "stage": "/opt/supermew/staging/media-loading-2494e1aff7a2"
+}

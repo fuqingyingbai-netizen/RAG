@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "homepage": 200,
+  "assets_sha256_verified": [
+    "company-knowledge.032ec025acea.js",
+    "knowledge-workspace.0526d2956385.css"
+  ],
+  "server_instance_unchanged": true,
+  "index_sha256_matches_receipt": true
+}

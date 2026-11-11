@@ -1,0 +1,38 @@
+[
+  {
+    "id": "minimize-shows-queue-in-target-list",
+    "passed": true,
+    "rows": [
+      "进度演示甲.txt传输完成，正在保存查看进度",
+      "进度演示乙.txt等待上传查看进度"
+    ]
+  },
+  {
+    "id": "click-row-reopens-upload-progress",
+    "passed": true
+  },
+  {
+    "id": "saved-files-replace-upload-placeholders",
+    "passed": true
+  },
+  {
+    "id": "audio-preparation-visible-animated-status",
+    "passed": true,
+    "message": "隔离演示：正在准备播放版本，完成后会自动开始加载。",
+    "animation": "ckb-loading-turn"
+  },
+  {
+    "id": "video-preparation-visible-animated-status",
+    "passed": true
+  },
+  {
+    "id": "mobile-upload-row-fits-and-remains-clickable",
+    "passed": true,
+    "clientWidth": 295,
+    "height": 98.234375,
+    "left": 25,
+    "right": 320,
+    "scrollWidth": 295,
+    "viewport": 375
+  }
+]
