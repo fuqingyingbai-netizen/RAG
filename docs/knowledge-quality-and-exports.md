@@ -61,6 +61,10 @@ python scripts/manual/report_company_ragas.py --root private-paired-run --output
 
 `private-answers.json` 是按固定金标准顺序排列的逐题记录数组，包含 `id, split, question, expected_answer, answer, references, unanswerable`。引用保留原始 `id` 与 `text`；无答案标记从冻结题集获取，不能靠回答是否拒答推定。调用模型通过 `RAG_EVAL_MODEL / RAG_EVAL_BASE_URL / RAG_EVAL_API_KEY / RAG_EVAL_MODEL_OPTIONS` 环境变量注入，仅沿用已批准的服务。评测禁用外部追踪。逐次请求、响应及原始资料只保留在受限私有目录，不打印密钥、不提交 Git。
 
+生成记录同时保存 `generation_config`（模型、接口地址哈希、请求选项）。更换模型服务时，冻结旧代码与修复代码都通过同一接口、模型和选项重新生成，使用逐片段相同的证据；原服务的历史回答和未完成评分另外存档。配对报告读取 `generation-provenance.json`，当 `kind=controlled_same_provider` 时，校验两组生成配置、旧代码哈希及检索代码哈希，避免把换模型或换服务的影响算作代码优化。
+
+本轮修复将片段封装为带引用编号的 JSON，保留全文，并用原文连续窗口提示相关位置；读完长资料后再次核对用户所问维度，避免产品定位遗漏收费方式或客群经验条件。引用要求逐片段支持，越界编号及全角引用格式均拒绝标记为完整回答。GLM-4.7-Flash 使用原生 `thinking.type` 参数，不能把千问的 `enable_thinking` 参数套到它上面。
+
 原生指标为 ContextRecall（参考事实是否已召回）、Faithfulness（回答事实是否有片段支持）、FactualCorrectness 的 F1 和 recall 模式（与参考必要事实核对）。均为 0–1 分，不等于题目通过率或人工准确率。参考之外但有原文支持的补充，也可能降低事实 F1。90 道有答案题计算这些指标，10 道无答案题单独复核拒答和边界，不能把它们强行记成满分召回。
 
 引用专项探针使用原生 Faithfulness，但只输入回答实际标注的片段；同文件未引用片段不能补证。它仍不是逐句引用准确率，已知问题需结合原文逐句复核。正确拒答且未引用的题记为不适用，不能记成满分。
