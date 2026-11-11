@@ -1,0 +1,47 @@
+[
+  {
+    "id": "fixed-department-creation-four-entries",
+    "status": "passed",
+    "actual": [
+      "市场部",
+      "项目部",
+      "制度文件",
+      "专家资料"
+    ]
+  },
+  {
+    "id": "global-project-department-is-editable",
+    "status": "passed",
+    "actual": "Choice enabled; empty name cannot submit"
+  },
+  {
+    "id": "upload-inheritance-and-global-choice",
+    "status": "passed",
+    "actual": "Inherited department is text; independent upload retains choice"
+  },
+  {
+    "id": "reupload-path-is-explicit-and-fixed",
+    "status": "passed",
+    "actual": "Original path and file name are explicit; no fixed-value dropdowns"
+  },
+  {
+    "id": "member-readonly-ui-with-reason",
+    "status": "passed",
+    "actual": "Read allowed; create/upload disabled with reason; owner menu absent"
+  },
+  {
+    "id": "parent-directory-bounded-scope",
+    "status": "passed",
+    "actual": "检索范围\n总资料库 · 市场部 · 选中 22 份资料\n\n回答仅依据选中文件的检索片段。\n\n选择资料改为全部资料\nTXT\n访谈材料01.txt\nTXT\n访谈材料02.txt\nTXT\n访谈材料03.tx"
+  },
+  {
+    "id": "processing-and-failure-not-ready-evidence",
+    "status": "passed",
+    "actual": "Both pending and failed documents are unavailable for selection"
+  },
+  {
+    "id": "existing-project-settings-editable-and-cancel-safe",
+    "status": "passed",
+    "actual": "Owner setting is genuinely editable; cancel leaves original department unchanged"
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "id": "reader-citation-count-fallback",
+  "passed": true,
+  "actual": [
+    "  - generic: 1 / 1 个命中片段",
+    "  - paragraph: 当前显示 1 个检索依据片段"
+  ]
+}

@@ -1,0 +1,35 @@
+[
+  {
+    "width": 375,
+    "passed": false,
+    "actual": {
+      "bodyWidth": 1265,
+      "documentWidth": 1265,
+      "viewport": 1280
+    },
+    "classification": "blocked-viewport-override-not-effective",
+    "reason": "Requested viewport did not match actual innerWidth=1280; no responsive pass claimed."
+  },
+  {
+    "width": 768,
+    "passed": false,
+    "actual": {
+      "bodyWidth": 1265,
+      "documentWidth": 1265,
+      "viewport": 1280
+    },
+    "classification": "blocked-viewport-override-not-effective",
+    "reason": "Requested viewport did not match actual innerWidth=1280; no responsive pass claimed."
+  },
+  {
+    "width": 1440,
+    "passed": false,
+    "actual": {
+      "bodyWidth": 1265,
+      "documentWidth": 1265,
+      "viewport": 1280
+    },
+    "classification": "blocked-viewport-override-not-effective",
+    "reason": "Requested viewport did not match actual innerWidth=1280; no responsive pass claimed."
+  }
+]

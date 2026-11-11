@@ -1,0 +1,249 @@
+{
+  "source": "Manually consolidated from this chat's executed CUA Playwright actions and returned DOM/assertion evidence; not a separately replayed automated suite",
+  "target": "http://127.0.0.1:8911",
+  "checks": [
+    {
+      "id": "fixed-create-market",
+      "status": "passed",
+      "actual": "固定文字市场部，无部门下拉框"
+    },
+    {
+      "id": "fixed-create-project",
+      "status": "passed",
+      "actual": "等待部门切换和弹窗稳定后：固定文字项目部，无部门下拉框"
+    },
+    {
+      "id": "fixed-create-policy",
+      "status": "passed",
+      "actual": "等待稳定后：固定文字制度文件，无部门下拉框"
+    },
+    {
+      "id": "fixed-create-expert",
+      "status": "passed",
+      "actual": "等待稳定后：固定文字专家资料，无部门下拉框"
+    },
+    {
+      "id": "global-create-selectable",
+      "status": "passed",
+      "actual": "总库创建部门可选；空项目名禁用提交"
+    },
+    {
+      "id": "nested-filter-context",
+      "status": "passed",
+      "actual": "项目根目录与叶目录不显示全局搜索与筛选区域"
+    },
+    {
+      "id": "folder-only-feedback",
+      "status": "passed",
+      "actual": "研究资料显示访谈记录子目录，没有错误空目录提示"
+    },
+    {
+      "id": "sibling-search-boundary",
+      "status": "passed",
+      "actual": "叶目录搜索同级分支文件22无结果，显示更换关键词或清空搜索提示"
+    },
+    {
+      "id": "search-clear-recovery",
+      "status": "passed",
+      "actual": "清空搜索后文件01仍在原叶目录"
+    },
+    {
+      "id": "cross-page-selection",
+      "status": "passed",
+      "actual": "第1页文件01及第2页文件11合计2份"
+    },
+    {
+      "id": "cross-page-chat-scope",
+      "status": "passed",
+      "actual": "问答资料面板显示文件01、文件11及选中2份"
+    },
+    {
+      "id": "return-location-and-checks",
+      "status": "passed",
+      "actual": "返回访谈记录，第2页文件11、第1页文件01的原生checkbox.checked均为true"
+    },
+    {
+      "id": "menu-trigger-escape",
+      "status": "passed",
+      "actual": "焦点在文件01更多按钮时按Escape，管理菜单变为hidden"
+    },
+    {
+      "id": "empty-project-management",
+      "status": "passed",
+      "actual": "空项目的新建目录和上传按钮可用"
+    },
+    {
+      "id": "real-project-creation",
+      "status": "passed",
+      "actual": "通过界面创建独立合成项目TS-BIZ-UI-独立流程"
+    },
+    {
+      "id": "folder-validation",
+      "status": "passed",
+      "actual": "空目录名禁用创建按钮"
+    },
+    {
+      "id": "real-nested-directory-creation",
+      "status": "passed",
+      "actual": "连续创建TS-一级、TS-二级并进入"
+    },
+    {
+      "id": "upload-target-confirmation",
+      "status": "passed",
+      "actual": "上传保存位置明确为独立合成项目/TS-一级/TS-二级"
+    },
+    {
+      "id": "real-ui-file-upload",
+      "status": "passed",
+      "actual": "文件选择器选择本机合成TXT；提交后显示1份可检索及正确完整路径"
+    },
+    {
+      "id": "move-permission-confirmation",
+      "status": "passed",
+      "actual": "移动前显示目标项目根目录及前后权限"
+    },
+    {
+      "id": "move-arrival",
+      "status": "passed",
+      "actual": "合成文件移动后出现在项目根目录"
+    },
+    {
+      "id": "file-inherited-metadata",
+      "status": "passed",
+      "actual": "文件设置解释部门、行业、标签、分类和权限跟随项目"
+    },
+    {
+      "id": "delete-recovery-prompt",
+      "status": "passed",
+      "actual": "删除确认明确10天内可恢复"
+    },
+    {
+      "id": "delete-cancel",
+      "status": "passed",
+      "actual": "取消删除后文件仍存在"
+    },
+    {
+      "id": "soft-delete-restore",
+      "status": "passed",
+      "actual": "合成文件移入回收站，确认恢复后回到原项目根目录"
+    },
+    {
+      "id": "member-readonly-reason",
+      "status": "passed",
+      "actual": "Bob阅读Alice项目时新建/上传禁用，明确仅创建者或管理员可操作"
+    },
+    {
+      "id": "member-management-hidden",
+      "status": "passed",
+      "actual": "Bob无编辑Alice项目入口和收入表文件管理菜单"
+    },
+    {
+      "id": "admin-management",
+      "status": "passed",
+      "actual": "管理员在Alice项目新建/上传和文件管理菜单可用"
+    },
+    {
+      "id": "experience-collection-boundary",
+      "status": "passed",
+      "actual": "经验页显示共享经验，不混入验收项目甲"
+    },
+    {
+      "id": "experience-create-fields",
+      "status": "passed",
+      "actual": "经验创建弹窗无资料库部门选择和单独授权控件"
+    },
+    {
+      "id": "experience-shared-readonly",
+      "status": "passed",
+      "actual": "Alice可见Bob共享经验文件27，无管理菜单"
+    },
+    {
+      "id": "processing-not-ready",
+      "status": "passed",
+      "actual": "修正冻结样本后显示建立索引中，选择复选框禁用"
+    },
+    {
+      "id": "persistent-error-visible",
+      "status": "passed",
+      "actual": "持续503时显示明确错误和重试按钮"
+    },
+    {
+      "id": "fault-recovery",
+      "status": "passed",
+      "actual": "解除模拟故障后自动刷新先于人工点击重试恢复；随后手动刷新可用，不声称人工重试按钮已被点击"
+    },
+    {
+      "id": "multi-project-bounded-scope",
+      "status": "passed",
+      "actual": "两个项目解析为选中27份，与接口并集和就绪状态一致；总资料库是集合名称"
+    },
+    {
+      "id": "multi-parent-folder-bounded-scope",
+      "status": "passed",
+      "actual": "两个父目录解析为选中22份（21+1），截图parent-scope.jpg"
+    },
+    {
+      "id": "upload-fixed-field-before",
+      "status": "confirmed_issue",
+      "actual": "项目内继承部门为disabled combobox；重新上传的原位置和子目录也为disabled combobox"
+    },
+    {
+      "id": "fixed-project-upload-department",
+      "status": "passed_after_fix",
+      "actual": "继承部门改为output文字市场部，无部门combobox"
+    },
+    {
+      "id": "fixed-reupload-position",
+      "status": "passed_after_fix",
+      "actual": "重新上传到原位置无位置/子目录下拉框，上方路径和原文件名清楚，截图fixed-reupload.jpg"
+    },
+    {
+      "id": "root-independent-upload-choice",
+      "status": "passed_after_fix",
+      "actual": "普通上传选择根目录后部门选择器仍可用"
+    },
+    {
+      "id": "theme-preserves-context",
+      "status": "passed",
+      "actual": "切换主题再切回，验收项目甲和两个父目录勾选保持，另见theme-evidence.json"
+    },
+    {
+      "id": "reader-citation-count-before",
+      "status": "confirmed_issue",
+      "actual": "引用补入1条片段而接口返回0条时，实际显示已加载1/0，已保存截图及DOM"
+    },
+    {
+      "id": "reader-citation-count-after",
+      "status": "passed_after_fix",
+      "actual": "改为当前显示1个检索依据片段，已保存修复后DOM和截图"
+    },
+    {
+      "id": "final-answer-table-render",
+      "status": "passed",
+      "actual": "合成回答渲染为真实表格，含甲项目120、乙项目80及行内引用按钮"
+    },
+    {
+      "id": "final-inline-citation-source",
+      "status": "passed",
+      "actual": "点击行内引用打开TS-收入表.txt，核对其来源片段"
+    }
+  ],
+  "discarded_or_inconclusive": [
+    {
+      "id": "initial-rapid-department-loop",
+      "reason": "首次循环未等待弹窗关闭/部门渲染，后三个观测读到旧市场部；加入稳定等待后全部通过，不认定产品bug"
+    },
+    {
+      "id": "one-shot-failure-observation",
+      "reason": "瞬时503已被自动刷新恢复，随后寻找重试按钮无匹配；改为持续故障后核验错误提示"
+    },
+    {
+      "id": "production-browser",
+      "reason": "正式站完整页面读取45秒超时，未将线上完整外壳操作记为通过"
+    },
+    {
+      "id": "responsive-overrides",
+      "reason": "请求375/768/1440，实测innerWidth仍为1280；标记受阻，不将截图当作响应式通过证据"
+    }
+  ]
+}

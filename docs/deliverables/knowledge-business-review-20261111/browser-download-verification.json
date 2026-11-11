@@ -1,0 +1,20 @@
+[
+  {
+    "format": "docx",
+    "status": "passed",
+    "bytes": 38020,
+    "sha256": "b4d63e9b469aabb56aacf9400681bd4c5979577feb2444faafcf8a2a72ee8a0a"
+  },
+  {
+    "format": "xlsx",
+    "status": "passed",
+    "bytes": 6950,
+    "sha256": "2ee59ef918ab858686a20f34195a339797c6ce8540248b19edc31d5eae158db0"
+  },
+  {
+    "format": "png",
+    "status": "passed",
+    "bytes": 37862,
+    "sha256": "12a3d0c579c6908059f3cd0fd71b6416f2778b0cb164b3f76c1ef74aeddeb97c"
+  }
+]

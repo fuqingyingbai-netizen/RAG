@@ -1,0 +1,4 @@
+[
+  {"id":"UX-01","status":"fixed_locally_not_deployed","severity":"medium","area":"普通项目上传与重新上传弹窗","actual_before":"所选项目的部门已继承且锁定，但仍显示禁用的部门下拉框和箭头；重新上传固定的项目位置、子目录也显示禁用下拉框","expected":"固定部门采用只读文字；重新上传以现有完整路径说明固定位置；可变字段才显示选择控件","fix":"项目继承部门使用output，重新上传隐藏重复的位置/子目录选择器，保留完整路径与原文件名；独立根目录上传仍可选择部门","evidence":"独立CUA页面操作、可重复UI检查、TestSprite BIZ2-UPLOAD均通过；截图fixed-reupload.jpg","scope":"同一类交互问题涉及三个锁定字段、两种上传流程；未改变归档位置、权限或上传接口"},
+  {"id":"READER-COUNT-01","status":"fixed_locally_not_deployed","severity":"medium","area":"问答引用打开后的片段阅读器","actual_before":"片段接口返回0条，引用额外提供1条依据时显示已加载1/0个解析片段","expected":"已知总数可信时展示加载进度；引用回退或总数小于当前显示数时只说明当前显示的依据数","fix":"增加readerExcerptCountLabel，引用回退改为当前显示1个检索依据片段，不伪造解析片段总数，也不把片段称为完整原文","evidence":"reader-count-before.json/jpg、修复前失败回归、reader-count-after.json/jpg以及117项前端回归","scope":"仅修正提示，不修改引用内容、片段分页、来源文件和阅读权限"}
+]
