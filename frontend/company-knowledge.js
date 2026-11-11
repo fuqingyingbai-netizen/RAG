@@ -5,6 +5,7 @@ const KnowledgeFileArtwork = {
 };
 const KnowledgeFolderArtwork = { template: `<div class="ckb-folder-object" aria-hidden="true"><span class="ckb-folder-back"></span><span class="ckb-folder-sheet one"></span><span class="ckb-folder-sheet two"></span><span class="ckb-folder-lid"><i class="fa-solid fa-layer-group"></i></span><span class="ckb-folder-tab"></span></div>` };
 const knowledgePreviewLanes = [Promise.resolve(), Promise.resolve()]; let knowledgePreviewLane = 0;
+const knowledgeAnswerMarkup = new WeakMap();
 const KnowledgeThumbnail = {
   props: { doc: Object, fetchImage: Function },
   data() { return { url: '', failed: false }; },
@@ -1028,7 +1029,50 @@ const CompanyKnowledge = {
       return [...groups.values()];
     },
     async openCitation(group) { const doc = this.documents.find(doc => doc.cloud_id === group.document_id); if (doc) { await this.openDocument(doc); if(this.readerOpen&&this.selectedDoc?.id===doc.id)this.showReference(group.references[0]||{},this.searchMode==='content'?this.query.trim():''); } else { this.releaseReader(); this.selectedDoc = { title: group.title, references: group.references }; this.readerOpen = true; } },
-    referenceIds(group) { return group.references.map(reference => 'id_' + reference.id).join('、'); },
+    referenceIds(group) { return group.references.map(reference => reference.id).join('、'); },
+    renderAnswer(message) {
+      const text = message.text || '', references = message.references || [];
+      const signature = JSON.stringify(references.map(ref => [ref.id, ref.document_id, ref.title]));
+      const cached = knowledgeAnswerMarkup.get(message);
+      if (cached?.text === text && cached.signature === signature) return cached.html;
+      let html = typeof window !== 'undefined' && window.SafeMarkdown
+        ? window.SafeMarkdown.render(text)
+        : text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+      if (typeof document !== 'undefined') {
+        const template = document.createElement('template'); template.innerHTML = html;
+        // The answer is text and citations; document-supplied images must not make network requests.
+        template.content.querySelectorAll('img').forEach(img => img.replaceWith(document.createTextNode(img.alt || '')));
+        const known = new Map(references.map(ref => [String(ref.id), ref]));
+        const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT), nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        for (const node of nodes) {
+          if (node.parentElement?.closest('a, pre, code')) continue;
+          const matches = [...node.textContent.matchAll(/\[id_([^\]\s]+)\]/g)];
+          if (!matches.length) continue;
+          const fragment = document.createDocumentFragment(); let offset = 0;
+          for (const match of matches) {
+            fragment.append(document.createTextNode(node.textContent.slice(offset, match.index)));
+            const ref = known.get(match[1]);
+            if (ref) {
+              const button = document.createElement('button'); button.type = 'button';
+              button.className = 'ckb-inline-citation'; button.dataset.citationId = match[1];
+              button.textContent = match[1]; button.title = '查看来源 ' + match[1] + '：' + (ref.title || '资料片段');
+              button.setAttribute('aria-label', button.title); fragment.append(button);
+            } else fragment.append(document.createTextNode('[未核验引用 ' + match[1] + ']'));
+            offset = match.index + match[0].length;
+          }
+          fragment.append(document.createTextNode(node.textContent.slice(offset))); node.replaceWith(fragment);
+        }
+        html = template.innerHTML;
+      }
+      knowledgeAnswerMarkup.set(message, { text, signature, html }); return html;
+    },
+    openAnswerCitation(event, message) {
+      const button = event.target.closest('button[data-citation-id]');
+      if (!button || !event.currentTarget.contains(button)) return;
+      const reference = message.references.find(ref => String(ref.id) === button.dataset.citationId);
+      if (reference) this.openCitation({ document_id: reference.document_id, title: reference.title, references: [reference] });
+    },
     answerBlocks(text) {
       const lines = (text || '').split('\n'); const blocks = []; let prose = [];
       const clean = value => value.replace(/<br\s*\/?\s*>/gi, '\n').replace(/\*\*(.+?)\*\*/g, '$1');
@@ -1307,7 +1351,7 @@ const CompanyKnowledge = {
                   <ol class="ckb-progress-steps"><li v-for="(step, n) in message.progress" :key="n" :class="step.state"><span class="ckb-step-mark"><i aria-hidden="true" :class="step.state === 'done' ? 'fa-solid fa-check' : step.state === 'error' ? 'fa-solid fa-exclamation' : 'fa-solid fa-circle'"></i></span><div><strong>{{ step.label }}</strong><p>{{ step.detail }}</p></div></li></ol>
                   <p v-if="!message.complete && !message.error" class="ckb-wait-note">{{ message.text ? '回答正在实时更新。' : '等待云端下一步进度，回答生成后会逐步显示。' }}</p>
                 </details>
-                <div v-if="!message.text &amp;&amp; !message.complete &amp;&amp; !message.error &amp;&amp; busy" class="ckb-thinking-ribbon" role="status"><span aria-hidden="true"><b></b><b></b><b></b><b></b><b></b></span>正在连接资料与问题…</div><div class="ckb-live-answer"><template v-for="(block, blockIndex) in answerBlocks(message.text)" :key="blockIndex"><div v-if="block.type === 'table'" class="ckb-answer-table"><table><thead><tr><th v-for="(header, n) in block.headers" :key="n">{{ header }}</th></tr></thead><tbody><tr v-for="(row, n) in block.rows" :key="n"><td v-for="(cell, m) in row" :key="m">{{ cell }}</td></tr></tbody></table></div><span v-else>{{ block.text }}</span></template></div><p v-if="message.error" class="ckb-service-error" role="alert">{{ message.error }}</p>
+                <div v-if="!message.text &amp;&amp; !message.complete &amp;&amp; !message.error &amp;&amp; busy" class="ckb-thinking-ribbon" role="status"><span aria-hidden="true"><b></b><b></b><b></b><b></b><b></b></span>正在连接资料与问题…</div><div class="ckb-live-answer ckb-answer-markdown" v-html="renderAnswer(message)" @click="openAnswerCitation($event,message)"></div><p v-if="message.error" class="ckb-service-error" role="alert">{{ message.error }}</p>
                 <div v-if="message.references.length" class="ckb-citation-heading">参考文件 <span>{{ referenceGroups(message.references).length }} 份文件 · {{ message.references.length }} 个片段</span></div>
                 <button v-for="(group, n) in referenceGroups(message.references)" :key="group.key" :class="['ckb-citation', 'kind-' + fileAppearance(citationDocument(group))]" @click="openCitation(group)"><span>{{ n + 1 }}</span><span class="ckb-citation-file" aria-hidden="true"><knowledge-file-artwork :format="citationDocument(group).format" :kind="fileAppearance(citationDocument(group))" :media-kind="citationDocument(group).media_kind"/></span><div><strong>{{ group.title }}</strong><small>{{ group.references.length }} 个片段 · 引用 {{ referenceIds(group) }} · 点击展开</small></div><i aria-hidden="true" class="fa-solid fa-angle-right"></i></button>
                 <p v-if="message.complete &amp;&amp; message.references.length" class="ckb-evidence-scope">{{ message.evidenceScope || '回答依据本轮检索片段，未逐份通读全部资料。' }}</p>

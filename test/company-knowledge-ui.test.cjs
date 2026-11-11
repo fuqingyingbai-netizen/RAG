@@ -10,7 +10,7 @@ test('multiple chunks from one file become one card without losing citation IDs'
   const groups = component.methods.referenceGroups(references);
   assert.equal(groups.length, 1);
   assert.equal(groups[0].references.length, 5);
-  assert.equal(component.methods.referenceIds(groups[0]), 'id_1、id_2、id_3、id_4、id_5');
+  assert.equal(component.methods.referenceIds(groups[0]), '1、2、3、4、5');
 });
 
 test('different files with identical names are not merged', () => {
@@ -187,6 +187,34 @@ test('answer tables preserve text safely without interpreting document HTML', ()
  const blocks=component.methods.answerBlocks('Summary\n\n| Project | Count |\n| --- | --- |\n| <script>alert(1)</script> | 2 |\nAfter');
  assert.equal(blocks[1].type,'table');assert.equal(blocks[1].rows[0][0],'<script>alert(1)</script>');
  assert.equal(blocks[2].text,'After');
+});
+
+test('answer rendering escapes source when the safe Markdown renderer is unavailable', () => {
+ const message={text:'## 标题\n<img src=x onerror=attack()>',references:[]};
+ const html=component.methods.renderAnswer(message);
+ assert.ok(!html.includes('<img') && html.includes('&lt;img') && html.includes('<br>'));
+});
+
+test('answer rendering reuses sanitized Markdown until the text or references change', () => {
+ let calls=0;
+ const local=vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../frontend/company-knowledge.js'),'utf8')+'\nCompanyKnowledge;',{
+  window:{SafeMarkdown:{render(){calls++;return '<h2>已净化标题</h2>';}}},AbortController,File,clearTimeout,setTimeout,
+ });
+ const message={text:'## 标题',references:[]};
+ assert.equal(local.methods.renderAnswer(message),'<h2>已净化标题</h2>');
+ local.methods.renderAnswer(message); assert.equal(calls,1);
+ message.text+='\n正文';local.methods.renderAnswer(message);assert.equal(calls,2);
+ message.references=[{id:'1',document_id:'file-a',title:'资料'}];local.methods.renderAnswer(message);assert.equal(calls,3);
+});
+
+test('inline citations open the exact referenced fragment and ignore unknown IDs', () => {
+ const references=[{id:'1',document_id:'file-a',title:'同名文件'}, {id:'11',document_id:'file-b',title:'同名文件'}];
+ const opened=[],button={dataset:{citationId:'11'}};
+ const event={target:{closest:()=>button},currentTarget:{contains:()=>true}};
+ component.methods.openAnswerCitation.call({openCitation:group=>opened.push(group)},event,{references});
+ assert.equal(opened[0].document_id,'file-b'); assert.equal(opened[0].references[0],references[1]);
+ button.dataset.citationId='99';component.methods.openAnswerCitation.call({openCitation:group=>opened.push(group)},event,{references});
+ assert.equal(opened.length,1);
 });
 test('pagination has disjoint pages, a partial last page and an empty range',()=>{
  const context = paginationContext(23,2);
