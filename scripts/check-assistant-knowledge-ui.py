@@ -27,7 +27,7 @@ def main():
         patch = pytest.MonkeyPatch(); fixture = setup.__wrapped__(patch, Path(temp)); state = next(fixture)
         import company_memory
         patch.setattr(company_memory, 'factory', lambda: state.db)
-        for model in (company_memory.KnowledgeChatState, company_memory.KnowledgeChatThread, company_memory.KnowledgeChatMessage):
+        for model in (company_memory.KnowledgeChatState, company_memory.KnowledgeChatThread, company_memory.KnowledgeChatMessage, company_memory.KnowledgeChatTask):
             model.__table__.create(state.db.kw['bind'])
         state.client.app.include_router(research_api.router)
         def db_session():

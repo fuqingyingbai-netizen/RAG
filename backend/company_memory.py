@@ -15,6 +15,7 @@ import company_knowledge as kb
 from company_collections import in_scope, is_personal, collection_of_scope
 from company_catalog import CompanyDocument, can_read, is_owner
 from database import Base
+import company_chat_task as task_memory
 
 CONTEXT_CHARS = 12000
 SUMMARY_CHARS = 3000
@@ -61,6 +62,13 @@ class KnowledgeChatMessage(Base):
     dependencies: Mapped[dict] = mapped_column(JSON, default=dict)
     status: Mapped[str] = mapped_column(String(20), default='completed')
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class KnowledgeChatTask(Base):
+    __tablename__ = 'company_chat_tasks'
+    thread_id: Mapped[str] = mapped_column(ForeignKey('company_chat_threads.id', ondelete='CASCADE'), primary_key=True)
+    state: Mapped[dict] = mapped_column(JSON, default=dict)
+    dependencies: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
 def factory():
@@ -205,6 +213,7 @@ def delete_conversation(session_id: str, user=Depends(kb.require_knowledge_user)
     with factory()() as db:
         thread = owned(db, user, index_id, session_id)
         collection = collection_of_scope(thread.scope)
+        db.query(KnowledgeChatTask).filter(KnowledgeChatTask.thread_id == thread.id).delete(synchronize_session=False)
         db.query(KnowledgeChatMessage).filter(KnowledgeChatMessage.thread_id == thread.id).delete(synchronize_session=False)
         db.delete(thread)
         state = state_for(db, user, index_id)
@@ -236,10 +245,14 @@ def begin_turn(user, cfg, session_id, request_id, question):
         safe = [{'id': row.id, 'role': row.role, 'content': row.content, 'dependencies': row.dependencies}
                 for row in rows if valid(row.dependencies, available)]
         summary_ok = valid(thread.summary_dependencies, available)
+        task = db.get(KnowledgeChatTask, session_id)
+        task_ok = task is not None and valid(task.dependencies, available)
         plan = {'summary': thread.summary if summary_ok else '',
+                'task': task.state if task_ok else {},
+                'task_dependencies': task.dependencies if task_ok else {},
                 'through': thread.summary_through if summary_ok else 0,
                 'summary_dependencies': thread.summary_dependencies if summary_ok else {},
-                'rows': safe, 'invalidated': len(safe) != len(rows) or not summary_ok}
+                'rows': safe, 'invalidated': len(safe) != len(rows) or not summary_ok or (task is not None and not task_ok)}
         db.add(KnowledgeChatMessage(thread_id=session_id, request_id=request_id, role='user', content=question,
                            dependencies=deps, status='pending'))
         if thread.title == '新研究对话':
@@ -321,11 +334,11 @@ async def prepare_context(cfg, plan):
     recent = window(rows, budget=CONTEXT_CHARS-len(summary), count=20)
     if len(recent) < len(rows):
         status = 'deferred' if status != 'compressed' else 'compressed_partial'
-    deps = dict(summary_deps)
+    deps = {**summary_deps, **plan.get('task_dependencies', {})}
     for row in recent:
         deps.update(row['dependencies'])
     return {'summary': summary, 'through': through, 'summary_dependencies': summary_deps,
-            'recent': recent, 'dependencies': deps, 'status': status}
+            'recent': recent, 'dependencies': deps, 'status': status, 'task': plan.get('task', {})}
 
 
 def safe_history(context):
@@ -334,16 +347,27 @@ def safe_history(context):
 
 
 async def retrieval_question(cfg, question, context):
-    if not FOLLOWUP.search(question):
+    cfg.pop('_task_update', None)
+    task = context.get('task', {})
+    handled, query, updated = task_memory.local_followup(question, task)
+    if handled:
+        cfg['_task_update'] = updated
+        return query
+    if not FOLLOWUP.search(question) and not (task.get('needs_clarification') and task_memory.CORRECTION.search(question)):
+        cfg['_task_update'] = task_memory.fresh(question)
         return question
     # Selected documents already resolve this task's source. Other formatting
     # requests may still refer to a previous answer and must retain rewriting.
     if (cfg.get('explicit_document_scope') and not CONTEXT_REFERENCE.search(question)
             and re.search(r'所选(?:资料|文件|文档)|选中的?(?:资料|文件|文档)', question)):
+        cfg['_task_update'] = task_memory.fresh(question)
         return question
-    if not context['recent'] and not context['summary']:
+    if not context['recent'] and not context['summary'] and not task:
         unresolved = re.search(r'它|他们|她们|该公司|上述|刚才|上面|第[一二三四五六七八九十\d]+[点条项]|那[么它这]|其中|这些|这个|^(?:请)?(?:继续|整理成|改成|再比较|再详细|展开说)', question)
-        return question if cfg.get('explicit_document_scope') or not unresolved else None
+        if cfg.get('explicit_document_scope') or not unresolved:
+            cfg['_task_update'] = task_memory.fresh(question)
+            return question
+        return None
     try:
         history = safe_history(context)
         last_user = next((row['content'] for row in reversed(history) if row['role'] == 'user'), '')
@@ -352,18 +376,24 @@ async def retrieval_question(cfg, question, context):
             '本轮省略对象时，沿用最近用户问题已明确的单一对象，更早出现过其他对象不构成歧义。'
             '仅当存在多个并列对象、当前也没指明哪一个时，输出 {"query":null}。不知道公司或指标值、没有原文，不等于检索对象不明确。'
             '只补充省略的对象、任务、比较维度及输出要求；完整新问题保持原意，保留否定、更正和限制，不扩展资料范围。'
-            '仅输出 JSON {"query":"补全的问题"}，问题不超过1500字。',
+            '当前任务是服务端保存的最近用户意图；与更早对话冲突时以当前任务为准。只有格式变化时保留原对象和维度。'
+            '仅输出 JSON {"query":"补全的问题或null","subjects":["当前对象的原文名称"],"topic":"本轮维度",'
+            '"format":"auto或表格或列表或清单或段落","constraints":["仍适用的用户限制原文"]}。'
+            'query歧义时用JSON null，不是字符串；对象与限制只摘取用户原文或当前任务原文，不从助手答案提取，不添加推测。问题不超过1500字。',
             # Reasoning models share their output budget with reasoning tokens.
-            {'最近用户问题': last_user, '任务摘要': context['summary'], '近期对话': history, '本轮追问': question}, max_tokens=8192, json_output=True)
+            {'最近用户问题': last_user, '当前任务': task, '任务摘要': context['summary'], '近期对话': history, '本轮追问': question}, max_tokens=8192, json_output=True)
         result = re.sub(r'^```(?:json)?\s*|\s*```$', '', result).strip()
         payload = json.loads(result)
         if not isinstance(payload, dict) or 'query' not in payload:
             raise ValueError('missing query')
         query = payload['query']
         if query is None:
+            cfg['_task_update'] = task_memory.from_rewrite(payload, question, task, '')
             return None
         if not isinstance(query, str) or not 0 < len(query.strip()) <= 1500:
             raise ValueError('invalid query')
+        cfg['_task_update'] = task_memory.from_rewrite(payload, question, task,
+            '\n'.join(row['content'] for row in history if row['role'] == 'user'))
         return query.strip()
     except kb.KnowledgeError:
         raise
@@ -398,6 +428,14 @@ def finish_turn(user, cfg, session_id, token, request_id, answer, references, co
         db.add(saved_message)
         thread = db.get(KnowledgeChatThread, session_id)
         thread.dependencies = {**deps, **(thread.dependencies or {})}
+        # Save resolved user intent even if generation failed; never save partial answer facts.
+        if readable and context.get('task_update'):
+            checkpoint = db.get(KnowledgeChatTask, session_id)
+            if checkpoint is None:
+                checkpoint = KnowledgeChatTask(thread_id=session_id)
+                db.add(checkpoint)
+            checkpoint.state = context['task_update']
+            checkpoint.dependencies = dict(deps)
         if readable and completed:
             thread.summary = context['summary']
             thread.summary_through = context['through']
@@ -419,6 +457,9 @@ async def conversation_stream(user, cfg, question, token, plan, dependencies):
             'deferred': '记忆整理暂未完成，当前仅参考部分历史；原始消息仍保留。'}
         yield {'type': 'memory', 'status': context['status'], 'message': descriptions[context['status']]}
         query = await retrieval_question(cfg, question.message, context)
+        if cfg.get('_task_update'):
+            context['task_update'] = cfg['_task_update']
+            context['task'] = cfg['_task_update']
         if not still_allowed(user, cfg, deps):
             raise kb.KnowledgeError('资料或权限已变化，请刷新并重新选择资料。', 409)
         if query is None:
