@@ -108,8 +108,8 @@ def model_request_options(config):
         return {'reasoning_effort': 'low'}
     if model.startswith('glm-5.3'):
         return {}
-    # GLM-5.2 uses the thinking object; enable_thinking is a Qwen extension.
-    return ({'thinking': {'type': 'disabled'}} if str(config['model']).lower() == 'glm-5.2'
+    # These GLM models use thinking.type; enable_thinking is a Qwen extension.
+    return ({'thinking': {'type': 'disabled'}} if model in ('glm-5.2', 'glm-4.7-flash')
             or official_deepseek(config['model'], config['base_url'])
             else {'enable_thinking': False})
 

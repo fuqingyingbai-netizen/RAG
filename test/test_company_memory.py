@@ -402,3 +402,8 @@ def test_partial_knowledge_provider_does_not_fall_back_to_report_provider(env,mo
 def test_forced_thinking_models_do_not_receive_disable_thinking_options(model):
     expected={'reasoning_effort':'low'} if model=='glm-5.3-flash' else {}
     assert kb.model_request_options({'model':model,'base_url':'https://relay.example/v1'})==expected
+
+
+@pytest.mark.parametrize('model',['glm-4.7-flash','ZHIPU/GLM-4.7-FLASH','glm-5.2'])
+def test_glm_optional_thinking_uses_vendor_thinking_object(model):
+    assert kb.model_request_options({'model':model,'base_url':'https://open.bigmodel.cn/api/paas/v4'})=={'thinking':{'type':'disabled'}}
