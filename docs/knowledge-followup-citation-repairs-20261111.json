@@ -1,0 +1,417 @@
+{
+  "date": "2026-11-11 Asia/Shanghai",
+  "this_change_deployed": false,
+  "production_model_configuration_modified": false,
+  "changes": [
+    "At most one repair for rewrite schema/intent validation failures; provider errors are never retried as schema repairs.",
+    "Conservative line-buffered citation formatting for known trailing numeric source IDs; literal code/links/math/arrays/values are preserved.",
+    "Eligible unknown source IDs cannot finish successfully; displayed and stored text use the same canonical source markers."
+  ],
+  "tests": {
+    "final_regressions_passed": 177,
+    "unknown_canonical_citation_check": "recorded separately in repair-unknown-citation-final.xml",
+    "unknown_canonical_citation_passed": 1,
+    "combined_passed": 178,
+    "evidence_sha256": {
+      "repair-tests-final.xml": "d9fef9ca5834c441be593307b1bcf904376cb29244f9d7d1ba87863f12185bba",
+      "repair-unknown-citation-final.xml": "1d51625680351df8b4a84e80b688b987951fecdaa6073ea55e8e844ba040bec2"
+    }
+  },
+  "injection": [
+    {
+      "turn": "客户数呢？",
+      "kind": "deliberately invalid output enum",
+      "payload": {
+        "query": "甲公司2025年的客户数量是多少？",
+        "subjects": [
+          "甲公司"
+        ],
+        "topic": "客户数量",
+        "format": "text",
+        "constraints": []
+      }
+    }
+  ],
+  "observed_citation_replay": {
+    "before": "根据资料，丙公司未披露净利润[3]，且资料中未找到其净利润数据，不进行推算。（结论为待复核）",
+    "after": "根据资料，丙公司未披露净利润[id_3]，且资料中未找到其净利润数据，不进行推算。（结论为待复核）",
+    "passed": true
+  },
+  "runs": [
+    {
+      "phase": "ordinary diagnostic run before final literal guard tightening",
+      "model": "glm-5.3-flash",
+      "cases_passed": 12,
+      "cases_total": 12,
+      "api_calls": 14,
+      "http_statuses": {
+        "200": 14
+      },
+      "request_interval_seconds": 2,
+      "suite_retries": 0,
+      "source_sha256": {
+        "backend/company_chat_task.py": "4658bd84218a4d52020f3ab232a5f1ad5938ce4a931867019d0ea45ef10d8e52",
+        "backend/company_memory.py": "38f71cd012c0dc08b1523ae0abea60cffd38c3a56961a5766e39f535f7ba6c5c",
+        "backend/company_workspace.py": "4df5bb2160d6691369436f3564874ba4903df8b167540600c9d7d58c4e73efd4",
+        "backend/company_knowledge.py": "12439fabf262155f53f7e6e6778b7b0435a88d3de8d417fefa28d753dd9ad5f9",
+        "backend/company_citations.py": "3e3508e2517901787987cbf7f33f8d433c46f240b617ddc41bb34bda7b2fd357",
+        "scripts/manual/check_company_conversation.py": "2f69fb131e55c20a43e446c8b8ad7d4caf3488e05ed06fdad315cfe88e1a2080"
+      },
+      "raw_file": "E:\\projects\\RAG\\work\\knowledge-conversation-state-run-20261111\\glm53-repaired.json",
+      "raw_sha256": "d07136968a709e5e5f4da57aaef50c006c126a6c77044caa57a4beab9aaf5312",
+      "cases": [
+        {
+          "turn": 1,
+          "question": "请列出甲公司2025年的营业收入与客户数量，每项注明来源。",
+          "retrieval_query": "请列出甲公司2025年的营业收入与客户数量，每项注明来源。",
+          "answer": "甲公司2025年营业收入为1200万元[id_1]，客户数量为87家[id_1]。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 2,
+          "question": "客户数呢？",
+          "retrieval_query": "请列出甲公司2025年的客户数量，并注明来源。",
+          "answer": "甲公司2025年客户数量为87家[id_1]。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 3,
+          "question": "整理成表格",
+          "retrieval_query": "请列出甲公司2025年的客户数量，并注明来源。",
+          "answer": "甲公司2025年客户数量如下：\n\n| 指标 | 数值 | 来源 |\n| --- | --- | --- |\n| 客户数量 | 87家 | [id_1] |\n\n以上数据来自待复核资料。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 4,
+          "question": "那乙公司呢？",
+          "retrieval_query": "请列出乙公司2025年的客户数量，并注明来源，整理成表格。",
+          "answer": "乙公司2025年客户数量如下：\n\n| 指标 | 数值 | 来源 |\n| --- | --- | --- |\n| 客户数量 | 143家 | [id_2] |\n\n以上数据来自待复核资料。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 5,
+          "question": "它怎么收费？",
+          "retrieval_query": "乙公司怎么收费？；每项注明来源",
+          "answer": "乙公司收费情况如下：\n\n| 项目 | 数值 | 来源 |\n| --- | --- | --- |\n| 标准版价格 | 69元/月 | [id_2] |\n\n以上来自待复核资料，且仅依据本轮召回片段，未查阅完整文件。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 6,
+          "question": "请比较甲公司和乙公司的收费方式。",
+          "retrieval_query": "请比较甲公司和乙公司的收费方式。",
+          "answer": "| 公司 | 标准版价格 | 来源 |\n| --- | --- | --- |\n| 甲公司 | 39元/月 | [id_1] |\n| 乙公司 | 69元/月 | [id_2] |\n\n两公司均为按月的标准版定价，甲公司（39元/月）低于乙公司（69元/月）[id_1][id_2]。以上来自待复核资料，且仅依据本轮召回片段，未查阅完整文件；其他收费方式当前资料中未找到依据。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 7,
+          "question": "它的客户数量是多少？",
+          "retrieval_query": null,
+          "answer": "未能确认这次追问的具体对象，请补充公司、项目或文件名称后再试。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 8,
+          "question": "我指的是乙公司",
+          "retrieval_query": "乙公司的客户数量是多少？",
+          "answer": "| 指标 | 数值 | 来源 |\n| --- | --- | --- |\n| 客户数量 | 143家 | [id_2] |\n\n乙公司2025年客户数量为143家[id_2]。数据来自待复核资料，仅依据本轮召回片段。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 9,
+          "question": "客户数呢？",
+          "retrieval_query": "乙公司的客户数？",
+          "answer": "乙公司2025年客户数量为143家[id_2]。\n\n| 指标 | 数值 | 来源 |\n| --- | --- | --- |\n| 客户数量 | 143家 | [id_2] |\n\n数据来自待复核资料，仅依据本轮召回片段。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 10,
+          "question": "请介绍丙公司2025年的营业收入。",
+          "retrieval_query": "请介绍丙公司2025年的营业收入。",
+          "answer": "| 指标 | 数值 | 来源 |\n| --- | --- | --- |\n| 营业收入 | 5100万元 | [id_3] |\n\n丙公司2025年营业收入为5100万元[id_3]。数据来自待复核资料，仅依据本轮召回片段。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 11,
+          "question": "它怎么收费？",
+          "retrieval_query": "丙公司怎么收费？；2025年",
+          "answer": "丙公司2025年收费情况如下：\n\n| 项目 | 数值 | 来源 |\n| --- | --- | --- |\n| 标准版价格 | 99元/月 | [id_3] |\n\n以上来自待复核资料，且仅依据本轮召回片段，未查阅完整文件；其他收费方式当前资料中未找到依据。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 12,
+          "question": "丙公司2025年的净利润是多少？不要推算。",
+          "retrieval_query": "丙公司2025年的净利润是多少？不要推算。",
+          "answer": "丙公司2025年净利润：当前资料中未找到依据（资料明确写“未披露净利润”）[id_3]。按要求不作推算。",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "phase": "injected recovery before final literal guard tightening",
+      "model": "glm-5.3-flash",
+      "cases_passed": 12,
+      "cases_total": 12,
+      "api_calls": 14,
+      "http_statuses": {
+        "200": 14
+      },
+      "request_interval_seconds": 2,
+      "suite_retries": 0,
+      "source_sha256": {
+        "backend/company_chat_task.py": "4658bd84218a4d52020f3ab232a5f1ad5938ce4a931867019d0ea45ef10d8e52",
+        "backend/company_memory.py": "38f71cd012c0dc08b1523ae0abea60cffd38c3a56961a5766e39f535f7ba6c5c",
+        "backend/company_workspace.py": "4df5bb2160d6691369436f3564874ba4903df8b167540600c9d7d58c4e73efd4",
+        "backend/company_knowledge.py": "12439fabf262155f53f7e6e6778b7b0435a88d3de8d417fefa28d753dd9ad5f9",
+        "backend/company_citations.py": "3e3508e2517901787987cbf7f33f8d433c46f240b617ddc41bb34bda7b2fd357",
+        "scripts/manual/check_company_conversation.py": "2f69fb131e55c20a43e446c8b8ad7d4caf3488e05ed06fdad315cfe88e1a2080"
+      },
+      "raw_file": "E:\\projects\\RAG\\work\\knowledge-conversation-state-run-20261111\\glm53-recovery-injected.json",
+      "raw_sha256": "5d9e4ee6289eb9310e09743445e68a1b3b9ffdf5f84707ec0aa8c54fc25671d4",
+      "cases": [
+        {
+          "turn": 1,
+          "question": "请列出甲公司2025年的营业收入与客户数量，每项注明来源。",
+          "retrieval_query": "请列出甲公司2025年的营业收入与客户数量，每项注明来源。",
+          "answer": "甲公司2025年营业收入为1200万元[id_1]，客户数量为87家[id_1]。净利润未披露[id_1]。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 2,
+          "question": "客户数呢？",
+          "retrieval_query": "请列出甲公司2025年的客户数量，并注明来源。",
+          "answer": "- 甲公司2025年客户数量为87家 [id_1]",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 3,
+          "question": "整理成表格",
+          "retrieval_query": "请列出甲公司2025年的客户数量，并注明来源。",
+          "answer": "| 对象 | 2025年客户数量 | 来源 |\n|---|---|---|\n| 甲公司 | 87家 | [id_1] |\n\n该资料为待复核稿，仅依据本轮检索片段回答。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 4,
+          "question": "那乙公司呢？",
+          "retrieval_query": "请列出乙公司2025年的客户数量，并注明来源。",
+          "answer": "| 对象 | 2025年客户数量 | 来源 |\n|---|---|---|\n| 乙公司 | 143家 | [id_2] |\n\n该资料为待复核稿，仅依据本轮检索片段回答。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 5,
+          "question": "它怎么收费？",
+          "retrieval_query": "乙公司怎么收费？；每项注明来源",
+          "answer": "| 对象 | 收费信息 | 来源 |\n|---|---|---|\n| 乙公司 | 标准版价格为69元/月 | [id_2] |\n\n其余收费方式（如是否有其他套餐或收费项目）当前资料中未找到依据。该资料为待复核稿，仅依据本轮检索片段回答。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 6,
+          "question": "请比较甲公司和乙公司的收费方式。",
+          "retrieval_query": "请比较甲公司和乙公司的收费方式。",
+          "answer": "| 对象 | 标准版价格 | 来源 |\n|---|---|---|\n| 甲公司 | 39元/月 | [id_1] |\n| 乙公司 | 69元/月 | [id_2] |\n\n两家公司均仅披露标准版价格，乙公司标准版价格比甲公司高30元/月。其余收费方式（如是否有其他套餐或收费项目）当前资料中未找到依据。该资料为待复核稿，仅依据本轮检索片段回答。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 7,
+          "question": "它的客户数量是多少？",
+          "retrieval_query": null,
+          "answer": "未能确认这次追问的具体对象，请补充公司、项目或文件名称后再试。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 8,
+          "question": "我指的是乙公司",
+          "retrieval_query": "乙公司的客户数量是多少？",
+          "answer": "| 对象 | 2025年客户数量 | 来源 |\n|---|---|---|\n| 乙公司 | 143家 | [id_2] |\n\n该资料为待复核稿，仅依据本轮检索片段回答。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 9,
+          "question": "客户数呢？",
+          "retrieval_query": "乙公司的客户数？",
+          "answer": "| 对象 | 2025年客户数量 | 来源 |\n|---|---|---|\n| 乙公司 | 143家 | [id_2] |\n\n该资料为待复核稿，仅依据本轮检索片段回答。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 10,
+          "question": "请介绍丙公司2025年的营业收入。",
+          "retrieval_query": "请介绍丙公司2025年的营业收入。",
+          "answer": "丙公司2025年营业收入为5100万元[id_3]。该资料为待复核稿，仅依据本轮检索片段回答。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 11,
+          "question": "它怎么收费？",
+          "retrieval_query": "丙公司怎么收费？；2025年",
+          "answer": "| 对象 | 收费信息 | 来源 |\n|---|---|---|\n| 丙公司 | 标准版价格为99元/月 | [id_3] |\n\n其余收费方式（如是否有其他套餐或收费项目）当前资料中未找到依据。该资料为待复核稿，仅依据本轮检索片段回答。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 12,
+          "question": "丙公司2025年的净利润是多少？不要推算。",
+          "retrieval_query": "丙公司2025年的净利润是多少？不要推算。",
+          "answer": "丙公司2025年净利润当前资料中未找到依据（资料明确写“未披露净利润”）[id_3]。资料为待复核稿，仅依据本轮检索片段回答，不作推算。",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "phase": "injected recovery on final source",
+      "model": "glm-5.3-flash",
+      "cases_passed": 12,
+      "cases_total": 12,
+      "api_calls": 14,
+      "http_statuses": {
+        "200": 14
+      },
+      "request_interval_seconds": 2,
+      "suite_retries": 0,
+      "source_sha256": {
+        "backend/company_chat_task.py": "4658bd84218a4d52020f3ab232a5f1ad5938ce4a931867019d0ea45ef10d8e52",
+        "backend/company_memory.py": "38f71cd012c0dc08b1523ae0abea60cffd38c3a56961a5766e39f535f7ba6c5c",
+        "backend/company_workspace.py": "4df5bb2160d6691369436f3564874ba4903df8b167540600c9d7d58c4e73efd4",
+        "backend/company_knowledge.py": "12439fabf262155f53f7e6e6778b7b0435a88d3de8d417fefa28d753dd9ad5f9",
+        "backend/company_citations.py": "d74ef2d41f7725eaaf6b1824305b5a77d8b898d1c60e80fe7b59866addb07c4d",
+        "scripts/manual/check_company_conversation.py": "2f69fb131e55c20a43e446c8b8ad7d4caf3488e05ed06fdad315cfe88e1a2080"
+      },
+      "raw_file": "E:\\projects\\RAG\\work\\knowledge-conversation-state-run-20261111\\glm53-recovery-injected-final.json",
+      "raw_sha256": "061ab379813749f3dbd1e1fb0cf5d91d5ff51b6220c3e004c75dd37f4e5c6ccc",
+      "cases": [
+        {
+          "turn": 1,
+          "question": "请列出甲公司2025年的营业收入与客户数量，每项注明来源。",
+          "retrieval_query": "请列出甲公司2025年的营业收入与客户数量，每项注明来源。",
+          "answer": "甲公司2025年营业收入为1200万元[id_1]，客户数量为87家[id_1]。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 2,
+          "question": "客户数呢？",
+          "retrieval_query": "甲公司2025年的客户数量是多少？",
+          "answer": "甲公司2025年客户数量为87家[id_1]。（该资料为待复核稿）",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 3,
+          "question": "整理成表格",
+          "retrieval_query": "甲公司2025年的客户数量是多少？",
+          "answer": "| 对象 | 指标 | 数值 | 来源 | 备注 |\n|---|---|---|---|---|\n| 甲公司 | 2025年客户数量 | 87家 | [id_1] | 待复核稿 |\n\n（该资料为待复核稿）",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 4,
+          "question": "那乙公司呢？",
+          "retrieval_query": "乙公司2025年的客户数量是多少？整理成表格，每项注明来源",
+          "answer": "| 对象 | 指标 | 数值 | 来源 | 备注 |\n|---|---|---|---|---|\n| 乙公司 | 2025年客户数量 | 143家 | [id_2] | 待复核稿 |",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 5,
+          "question": "它怎么收费？",
+          "retrieval_query": "乙公司怎么收费？；每项注明来源",
+          "answer": "| 对象 | 指标 | 数值 | 来源 | 备注 |\n|---|---|---|---|---|\n| 乙公司 | 标准版价格 | 69元/月 | [id_2] | 待复核稿 |\n\n当前资料中仅找到乙公司标准版价格的收费信息，其他收费项目未找到依据。（该资料为待复核稿）",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 6,
+          "question": "请比较甲公司和乙公司的收费方式。",
+          "retrieval_query": "请比较甲公司和乙公司的收费方式。",
+          "answer": "| 对象 | 标准版价格 | 来源 | 备注 |\n|---|---|---|---|\n| 甲公司 | 39元/月 | [id_1] | 待复核稿 |\n| 乙公司 | 69元/月 | [id_2] | 待复核稿 |\n\n两份资料中均仅披露标准版价格这一项收费信息，其他收费项目未找到依据。（两份资料均为待复核稿）",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 7,
+          "question": "它的客户数量是多少？",
+          "retrieval_query": null,
+          "answer": "未能确认这次追问的具体对象，请补充公司、项目或文件名称后再试。",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 8,
+          "question": "我指的是乙公司",
+          "retrieval_query": "乙公司2025年的客户数量是多少？请列出并注明来源。",
+          "answer": "| 对象 | 指标 | 数值 | 来源 | 备注 |\n|---|---|---|---|---|\n| 乙公司 | 2025年客户数量 | 143家 | [id_2] | 待复核稿 |\n\n（该资料为待复核稿）",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 9,
+          "question": "客户数呢？",
+          "retrieval_query": "乙公司的客户数？",
+          "answer": "| 对象 | 指标 | 数值 | 来源 | 备注 |\n|---|---|---|---|---|\n| 乙公司 | 2025年客户数量 | 143家 | [id_2] | 待复核稿 |\n\n（该资料为待复核稿）",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 10,
+          "question": "请介绍丙公司2025年的营业收入。",
+          "retrieval_query": "请介绍丙公司2025年的营业收入。",
+          "answer": "丙公司2025年营业收入为5100万元[id_3]。（该资料为待复核稿）",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 11,
+          "question": "它怎么收费？",
+          "retrieval_query": "丙公司怎么收费？；2025年",
+          "answer": "| 对象 | 指标 | 数值 | 来源 | 备注 |\n|---|---|---|---|---|\n| 丙公司 | 标准版价格 | 99元/月 | [id_3] | 待复核稿 |\n\n本轮资料中仅找到丙公司标准版价格这一项收费信息，其他收费项目未找到依据。（该资料为待复核稿）",
+          "passed": true,
+          "errors": []
+        },
+        {
+          "turn": 12,
+          "question": "丙公司2025年的净利润是多少？不要推算。",
+          "retrieval_query": "丙公司2025年的净利润是多少？不要推算。",
+          "answer": "丙公司资料中未披露净利润，未找到依据。（该资料为待复核稿[id_3]）",
+          "passed": true,
+          "errors": []
+        }
+      ]
+    }
+  ],
+  "final_source_sha256": {
+    "backend/company_chat_task.py": "4658bd84218a4d52020f3ab232a5f1ad5938ce4a931867019d0ea45ef10d8e52",
+    "backend/company_memory.py": "38f71cd012c0dc08b1523ae0abea60cffd38c3a56961a5766e39f535f7ba6c5c",
+    "backend/company_workspace.py": "4df5bb2160d6691369436f3564874ba4903df8b167540600c9d7d58c4e73efd4",
+    "backend/company_knowledge.py": "12439fabf262155f53f7e6e6778b7b0435a88d3de8d417fefa28d753dd9ad5f9",
+    "backend/company_citations.py": "d74ef2d41f7725eaaf6b1824305b5a77d8b898d1c60e80fe7b59866addb07c4d",
+    "scripts/manual/check_company_conversation.py": "2f69fb131e55c20a43e446c8b8ad7d4caf3488e05ed06fdad315cfe88e1a2080"
+  },
+  "limitations": [
+    "First original rejected rewrite payload was not captured; the injected enum error is a representative failure, not a claim about its original root cause.",
+    "Conservative citation formatting does not prove semantic source attribution; not all ambiguous bracket styles are transformed.",
+    "Line buffering may delay display of a single long line until its newline or completion.",
+    "Synthetic serial evaluation is not production retrieval recall, Ragas, or high concurrency acceptance."
+  ],
+  "private_evidence_directory": "E:\\projects\\RAG\\work\\knowledge-conversation-state-run-20261111"
+}
