@@ -333,6 +333,9 @@ def test_knowledge_provider_covers_summary_rewrite_and_answer_without_changing_r
     assert '已补全追问' in response.text and '"status": "compressed' in response.text
     model_calls=[body for host,path,body in requests if path.endswith('/chat/completions')]
     assert len(model_calls)==3 and sum(bool(b['stream']) for b in model_calls)==1
+    structured=[b for b in model_calls if 'response_format' in b]
+    assert len(structured)==1 and structured[0]['response_format']=={'type':'json_object'}
+    assert '独立检索' in structured[0]['messages'][0]['content'] and structured[0]['max_tokens']==8192
     import os
     assert {key:os.environ[key] for key in shared}==shared
 
@@ -351,6 +354,36 @@ def test_rewrite_service_failures_are_not_reported_as_ambiguous_questions(env,mo
     assert '"type": "error"' in response.text
     assert {'permission':'知识库模型访问权限不足','timeout':'追问补全服务响应超时',
         'invalid-json':'追问补全服务返回格式异常','non-object':'追问补全服务返回格式异常'}[failure] in response.text
+
+
+def test_complete_table_question_after_first_answer_does_not_need_rewrite(env,monkeypatch):
+    requests=upstream(monkeypatch);sid=create(env);call(env,sid)
+    async def unavailable(*args,**kwargs):
+        raise AssertionError('Complete question must not call the rewrite provider')
+    monkeypatch.setattr(memory,'complete',unavailable)
+    question='请把所选资料中明确披露的数据整理成表格，列出：指标名称、数值、单位、对应时间、来源引用。不要推算或补充缺失数据，每行都要注明来源。'
+    response=call(env,sid,question,'table-followup')
+    assert '"type": "done"' in response.text and '"type": "error"' not in response.text
+    retrievals=[body for path,body in requests if path.endswith('/retrieve')]
+    assert len(retrievals)==2 and retrievals[-1]['query']==question
+    assert retrievals[-1]['search_filters']==[{'doc_id':['cloud-a']}]
+
+
+@pytest.mark.parametrize('question',['那么它的商业化呢？','整理成表格','请继续','请把回答整理成表格',
+    '请把所选资料中上一个问题的指标整理成表格'])
+def test_context_dependent_followup_keeps_rewrite_and_reasoning_budget(monkeypatch,question):
+    async def rewrite(cfg,instruction,data,*,max_tokens,json_output):
+        assert max_tokens==8192 and json_output and data['本轮追问']==question
+        assert '[历史引用，不作为本轮证据]' in data['近期对话'][0]['content']
+        return '```json\n{"query":"豆包商业化数据表格"}\n```'
+    monkeypatch.setattr(memory,'complete',rewrite)
+    context={'recent':[{'role':'assistant','content':'研究豆包 [id_1]'}],'summary':''}
+    assert asyncio.run(memory.retrieval_question({'explicit_document_scope':True},question,context))=='豆包商业化数据表格'
+
+
+def test_complete_first_question_containing_continue_does_not_require_history():
+    question='甲公司如何继续拓展客户？'
+    assert asyncio.run(memory.retrieval_question({},question,{'recent':[],'summary':''}))==question
 
 
 def test_partial_knowledge_provider_does_not_fall_back_to_report_provider(env,monkeypatch):
