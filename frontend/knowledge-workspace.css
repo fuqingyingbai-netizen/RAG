@@ -174,6 +174,7 @@
   .ckb-return-location small { max-width:100%; }
 }
 @media(max-width:600px) {
+  :root[data-knowledge-theme] .ckb-workbench .ckb-simple-search-row input { flex:none; width:100%; min-width:0; box-sizing:border-box; }
   :root[data-knowledge-theme] .ckb-workbench .ckb-tabs { display:flex; flex-wrap:nowrap; gap:4px; overflow-x:auto; width:100%; max-width:100%; scrollbar-width:thin; }
   :root[data-knowledge-theme] .ckb-workbench .ckb-tabs > button { flex:0 0 auto; min-width:max-content; padding:9px 10px; white-space:nowrap; }
   :root[data-knowledge-theme] .ckb-workbench .ckb-tab-copy strong { white-space:nowrap; }

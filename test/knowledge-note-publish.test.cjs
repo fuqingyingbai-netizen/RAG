@@ -52,3 +52,13 @@ test('a save error never submits publication and says the draft must be saved fi
   const value=state();value.words=5;let requests=0;value.save=async()=>{throw Error('格式有误');};value.request=async()=>requests++;
   await value.publish();assert.equal(requests,0);assert.match(value.error,/草稿尚未保存，未提交发布/);
 });
+
+test('publication feedback follows current state even if the ready note was already assigned before polling',async()=>{
+ const value=state();value.publishMessage='发布提交成功，正在建立索引；完成后即可检索。';value.publishExpectedRevision=4;
+ value.note={revision:4,indexed_revision:4,index_state:'ready',has_unpublished_changes:false};
+ assert.match(value.indexLabel,/已发布.*可检索/);assert.doesNotMatch(value.publishStatusMessage,/正在/);assert.match(value.publishStatusMessage,/已发布/);
+ value.note={...value.note,index_state:'indexing',indexed_revision:3};assert.match(value.publishStatusMessage,/正在建立索引/);
+ value.note={...value.note,index_state:'failed'};assert.match(value.publishStatusMessage,/索引失败/);assert.doesNotMatch(value.publishStatusMessage,/正在/);
+ value.note={...value.note,index_state:'ready',has_unpublished_changes:true};assert.match(value.publishStatusMessage,/当前修改仍是草稿/);
+ value.publishUncertain=true;assert.match(value.publishStatusMessage,/尚未确认/);
+});

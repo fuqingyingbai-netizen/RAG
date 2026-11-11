@@ -269,7 +269,8 @@ def resolve_selection(body: KnowledgeSelection, user: User = Depends(kb.require_
     with SessionLocal() as db:
         projects = {p.id: p for p in db.scalars(select(CompanyProject).where(CompanyProject.index_id == index_id))
                     if can_read(p, user) and in_scope(p, body.scope)}
-        folders = {f.id: f for f in db.scalars(select(CompanyFolder).join(CompanyProject).where(CompanyProject.index_id == index_id))
+        folders = {f.id: f for f in db.scalars(select(CompanyFolder).join(CompanyProject).where(CompanyProject.index_id == index_id,
+                    CompanyFolder.deleted_at.is_(None)))
                    if f.project_id in projects}
         if any(key not in projects for key in body.project_ids) or any(key not in folders for key in body.folder_ids):
             raise HTTPException(403, '所选项目或目录已失效或没有访问权限，请刷新列表。')

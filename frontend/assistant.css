@@ -3,6 +3,9 @@
    and https://github.com/shuding/liquid-glass. Independent CSS implementation;
    no third-party runtime, copied shaders or filters on text. */
 .system-assistant-layer{position:fixed;inset:0;z-index:2147483000;pointer-events:none}
+/* v-show retains closed overlays; also cover handoffs between two dialogs. */
+body:is(.el-popup-parent--hidden,:has(.el-overlay:not([style*="display: none"]):not([style*="display:none"]))) .system-assistant-layer{visibility:hidden}
+body:is(.el-popup-parent--hidden,:has(.el-overlay:not([style*="display: none"]):not([style*="display:none"]))) .system-assistant-layer>*{pointer-events:none!important}
 .system-assistant-layer>.assistant-fab,.system-assistant-layer>.assistant-panel{position:fixed;pointer-events:auto}
 .system-assistant-layer .assistant-fab{width:68px;height:68px;padding:3px;border:1px solid #d7e2ed;border-radius:50%;background:#fff;box-shadow:0 8px 26px #15305029}
 .assistant-fab img{width:100%;height:100%;object-fit:contain}

@@ -59,18 +59,20 @@ class RecycleItem(Base):
 
 
 def models():
-    from company_catalog import CompanyDocument, CompanyProject
+    from company_catalog import CompanyDocument, CompanyProject, CompanyFolder
     from company_notes import CompanyNote
-    return {'document': CompanyDocument, 'project': CompanyProject, 'note': CompanyNote}
+    return {'document': CompanyDocument, 'project': CompanyProject, 'note': CompanyNote, 'folder': CompanyFolder}
 
 
 def capture(db, action, target, before=None, *, group=True):
     """Called by the audit writer, in exactly the deletion transaction."""
     kind = action.split('.')[0]
-    if action not in ('document.delete', 'project.delete', 'note.delete'):
+    if action not in ('document.delete', 'project.delete', 'note.delete', 'folder.delete'):
         return
+    from company_catalog import CompanyProject, CompanyFolder
+    index_id = db.get(CompanyProject, target.project_id).index_id if kind == 'folder' else target.index_id
     now = datetime.utcnow()
-    item = RecycleItem(id=uuid.uuid4().hex, index_id=target.index_id, kind=kind,
+    item = RecycleItem(id=uuid.uuid4().hex, index_id=index_id, kind=kind,
         target_id=target.id, title=(before or {}).get('name') or getattr(target, 'title', '') or target.name,
         parent_id='', deleted_at=now, purge_after=now + timedelta(days=RETENTION_DAYS),
         status='deleted', details={'state': (before or {}).get('state', 'ready')})
@@ -81,34 +83,52 @@ def capture(db, action, target, before=None, *, group=True):
         captured.clear()
         captured.update(transaction=transaction, ids=set())
     captured['ids'].add(item.id)
-    if group and kind in ('note', 'project'):
+    if group and kind in ('note', 'project', 'folder'):
         from company_catalog import CompanyDocument
+        folder_ids = set()
+        if kind == 'folder':
+            all_folders = list(db.scalars(select(CompanyFolder).where(CompanyFolder.project_id == target.project_id)))
+            folder_ids.add(target.id)
+            queue = [target.id]
+            for parent_id in queue:
+                for child in all_folders:
+                    if child.parent_id == parent_id and child.id not in folder_ids:
+                        folder_ids.add(child.id)
+                        queue.append(child.id)
         docs = list(db.scalars(select(CompanyDocument).where(
             (CompanyDocument.note_id == target.id) if kind == 'note' else
+            (CompanyDocument.knowledge_project_id == target.project_id) & CompanyDocument.folder_id.in_(folder_ids) if kind == 'folder' else
             (CompanyDocument.knowledge_project_id == target.id))))
         ids = {doc.id for doc in docs}
         # Flush first so the records created earlier in this transaction are visible.
         db.flush()
         children = list(db.scalars(select(RecycleItem).where(RecycleItem.status == 'deleted',
-            RecycleItem.index_id == target.index_id, RecycleItem.parent_id == '')))
+            RecycleItem.index_id == index_id, RecycleItem.parent_id == '')))
         from company_notes import CompanyNote
-        note_ids = set(db.scalars(select(CompanyNote.id).where(CompanyNote.project_id == target.id))) if kind == 'project' else set()
+        note_ids = set(db.scalars(select(CompanyNote.id).where(CompanyNote.project_id == target.id))) if kind == 'project' else set(db.scalars(
+            select(CompanyNote.id).where(CompanyNote.project_id == target.project_id, CompanyNote.folder_id.in_(folder_ids)))) if kind == 'folder' else set()
         for child in children:
             if child.id != item.id and ((child.kind == 'document' and child.target_id in ids) or
-                    (child.kind == 'note' and child.target_id in note_ids)):
+                    (child.kind == 'note' and child.target_id in note_ids) or
+                    (child.kind == 'folder' and child.target_id in folder_ids)):
                 # An older separately deleted file must not be resurrected with its parent.
                 if child.id in captured['ids']:
                     child.parent_id = item.id
-                    child.purge_after = item.purge_after
+                    for member in descendants(db, child):
+                        member.purge_after = item.purge_after
     return item
 
 
 def authorized(db, item, user):
     from company_catalog import classification_allowed, is_owner
     target = db.get(models()[item.kind], item.target_id)
-    allowed = target and (user.role == 'admin' or is_owner(target, user))
-    if target and hasattr(target, 'confidentiality'):
-        allowed = allowed and classification_allowed(target, user)
+    principal = target
+    if target and item.kind == 'folder':
+        from company_catalog import CompanyProject
+        principal = db.get(CompanyProject, target.project_id)
+    allowed = principal and (user.role == 'admin' or is_owner(principal, user))
+    if principal and hasattr(principal, 'confidentiality'):
+        allowed = allowed and classification_allowed(principal, user)
     if target and item.kind == 'note':
         from company_catalog import CompanyProject
         project = db.get(CompanyProject, target.project_id)
@@ -149,7 +169,7 @@ async def restore(item_id: str, user=Depends(kb.require_knowledge_user)):
     import company_workspace as ws
     from company_catalog import CompanyDocument, CompanyProject, CompanyFolder, document_store
     from company_audit import record, snapshot, mark_modified
-    queued = []
+    queued, notices = [], []
     with ws.SessionLocal() as db:
         # Same parent-before-document lock order as normal document mutations.
         original = db.get(RecycleItem, item_id)
@@ -164,16 +184,36 @@ async def restore(item_id: str, user=Depends(kb.require_knowledge_user)):
         if project and project.deleted_at and item.kind != 'project':
             raise HTTPException(409, '请先恢复所属项目。')
         group = descendants(db, item)
+        # Parents are restored before their children, and all folders before notes/files.
+        group.sort(key=lambda row: {'project': 0, 'folder': 1, 'note': 2, 'document': 3}[row.kind])
         for row in group:
             obj = authorized(db, row, user)
             if row.purge_after <= datetime.utcnow():
                 raise HTTPException(409, '关联资料已超过恢复期限。')
             before = snapshot(obj)
-            if hasattr(obj, 'folder_id') and obj.folder_id and not db.get(CompanyFolder, obj.folder_id):
-                obj.folder_id = ''
+            if hasattr(obj, 'folder_id') and obj.folder_id:
+                parent_folder = db.get(CompanyFolder, obj.folder_id)
+                if parent_folder and parent_folder.deleted_at:
+                    raise HTTPException(409, '请先恢复所属目录，再恢复这份资料。')
+                if not parent_folder:
+                    obj.folder_id = ''
             if row.kind == 'project':
                 conflict = db.scalar(select(CompanyProject.id).where(CompanyProject.index_id == obj.index_id,
                     CompanyProject.owner == obj.owner, CompanyProject.name == row.title, CompanyProject.id != obj.id))
+                obj.name = row.title if not conflict else row.title[:170] + '（恢复 '+obj.id[:8]+'）'
+                obj.deleted_at = None
+            elif row.kind == 'folder':
+                if obj.deleted_at is None:
+                    raise HTTPException(409, '目录状态已变化。')
+                parent = db.get(CompanyFolder, obj.parent_id) if obj.parent_id else None
+                if parent and parent.deleted_at:
+                    raise HTTPException(409, '请先恢复上级目录。')
+                if obj.parent_id and not parent:
+                    obj.parent_id = ''
+                    notices.append('原上级目录已永久删除，目录已恢复到项目根目录。')
+                conflict = db.scalar(select(CompanyFolder.id).where(CompanyFolder.project_id == obj.project_id,
+                    CompanyFolder.parent_id == obj.parent_id, CompanyFolder.name == row.title,
+                    CompanyFolder.id != obj.id, CompanyFolder.deleted_at.is_(None)))
                 obj.name = row.title if not conflict else row.title[:170] + '（恢复 '+obj.id[:8]+'）'
                 obj.deleted_at = None
             elif row.kind == 'note':
@@ -221,7 +261,7 @@ async def restore(item_id: str, user=Depends(kb.require_knowledge_user)):
             raise HTTPException(409, '资料发生并发修改，请刷新后重试。') from None
     for doc_id in queued:
         ws.schedule_document(doc_id)
-    return {'restored': True, 'queued': len(queued)}
+    return {'restored': True, 'queued': len(queued), 'notices': list(dict.fromkeys(notices))}
 
 
 async def purge_due(limit=25):

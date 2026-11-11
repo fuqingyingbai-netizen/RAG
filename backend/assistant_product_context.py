@@ -52,7 +52,7 @@ def resolve_location(db, user, request):
             return result | {'unavailable': True}
         seen.add(folder_id)
         folder = db.get(CompanyFolder, folder_id)
-        if not folder or folder.project_id != project.id:
+        if not folder or folder.project_id != project.id or folder.deleted_at:
             return result | {'unavailable': True}
         names.insert(0, folder.name)
         folder_id = folder.parent_id

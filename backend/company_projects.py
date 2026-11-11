@@ -43,7 +43,7 @@ def find_folder(db, project_id, folder_id):
     if not folder_id:
         return None
     folder = db.get(CompanyFolder, folder_id)
-    if not folder or folder.project_id != project_id:
+    if not folder or folder.project_id != project_id or folder.deleted_at:
         raise HTTPException(404, '目录不存在或不属于当前项目。')
     return folder
 
@@ -134,7 +134,7 @@ def list_projects(user: User = Depends(kb.require_knowledge_user)):
             CompanyDocument.state != 'deleted',
             (CompanyDocument.note_id == '') | (CompanyDocument.is_current == 1))))
         folders = list(db.scalars(select(CompanyFolder).join(CompanyProject).where(
-            CompanyProject.index_id == kb.settings()['index_id'])))
+            CompanyProject.index_id == kb.settings()['index_id'], CompanyFolder.deleted_at.is_(None))))
         allowed = {p.id for p in projects if can_read(p, user)}
         docs = [doc for doc in docs if classification_allowed(doc, user)]
         docs_by_project, folders_by_project = {}, {}
@@ -208,7 +208,7 @@ async def edit_project(project_id: str, data: ProjectValues, user: User = Depend
         record(db, user, 'project.update', project, before=before)
         commit(db)
         result = serialize_project(project, user, [d for d in docs if d.state != 'deleted'],
-            list(db.scalars(select(CompanyFolder).where(CompanyFolder.project_id == project.id))))
+            list(db.scalars(select(CompanyFolder).where(CompanyFolder.project_id == project.id, CompanyFolder.deleted_at.is_(None)))))
     for doc_id in queued:
         import company_workspace as workspace
         workspace.schedule_document(doc_id)
@@ -221,7 +221,7 @@ def deletion_scope(db, project, user):
         CompanyDocument.knowledge_project_id == project.id).order_by(CompanyDocument.id).with_for_update()))
     notes = list(db.scalars(select(CompanyNote).where(CompanyNote.project_id == project.id, CompanyNote.deleted_at.is_(None))
         .order_by(CompanyNote.id).with_for_update()))
-    folders = list(db.scalars(select(CompanyFolder).where(CompanyFolder.project_id == project.id)
+    folders = list(db.scalars(select(CompanyFolder).where(CompanyFolder.project_id == project.id, CompanyFolder.deleted_at.is_(None))
         .order_by(CompanyFolder.id).with_for_update()))
     live = [d for d in docs if d.state != 'deleted']
     if any(not can_manage(d, user) for d in live) or any(not can_manage(n, user) for n in notes):
@@ -319,23 +319,81 @@ def edit_folder(project_id: str, folder_id: str, data: FolderValues, user: User 
         return {'id': folder.id, 'project_id': folder.project_id, 'parent_id': folder.parent_id, 'name': folder.name}
 
 
-@projects_router.delete('/projects/{project_id}/folders/{folder_id}')
-def delete_empty_folder(project_id: str, folder_id: str, user: User = Depends(kb.require_knowledge_user)):
+def folder_deletion_scope(db, project, folder, user):
+    """Lock the same project as uploads/notes, then resolve the entire live subtree."""
+    from company_notes import CompanyNote
+    all_folders = list(db.scalars(select(CompanyFolder).where(CompanyFolder.project_id == project.id,
+        CompanyFolder.deleted_at.is_(None)).order_by(CompanyFolder.id).with_for_update()))
+    folders, seen = [folder], {folder.id}
+    for parent in folders:
+        for child in all_folders:
+            if child.parent_id == parent.id and child.id not in seen:
+                seen.add(child.id)
+                folders.append(child)
+    docs = list(db.scalars(select(CompanyDocument).where(CompanyDocument.knowledge_project_id == project.id,
+        CompanyDocument.folder_id.in_(seen)).order_by(CompanyDocument.id).with_for_update()))
+    notes = list(db.scalars(select(CompanyNote).where(CompanyNote.project_id == project.id,
+        CompanyNote.folder_id.in_(seen), CompanyNote.deleted_at.is_(None)).order_by(CompanyNote.id).with_for_update()))
+    live = [doc for doc in docs if doc.state != 'deleted']
+    if any(not can_manage(obj, user) for obj in [*live, *notes]):
+        raise HTTPException(403, '目录内含有你不能管理的资料或笔记，请联系管理员删除整个目录。')
+    if any(doc.state in ('queued', 'uploading', 'parsing', 'indexing', 'deleting') or
+            (doc.lease_until and doc.lease_until > datetime.utcnow()) for doc in live):
+        raise HTTPException(409, '目录内仍有资料正在处理，请等待完成后再删除。')
+    fingerprint = [snapshot(project), [(f.id, f.name, f.parent_id, str(f.updated_at)) for f in folders],
+        [(d.id, snapshot(d), str(d.updated_at)) for d in docs],
+        [(n.id, snapshot(n), str(n.updated_at)) for n in notes]]
+    token = hashlib.sha256(json.dumps(fingerprint, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+    return {'folder_id': folder.id, 'name': folder.name, 'folder_count': len(folders)-1,
+        'document_count': len(live), 'note_count': len(notes), 'confirmation': token,
+        'recyclable': bool(len(folders)>1 or live or notes)}, folders, live, notes
+
+
+@projects_router.get('/projects/{project_id}/folders/{folder_id}/deletion-preview')
+def folder_deletion_preview(project_id: str, folder_id: str, user: User = Depends(kb.require_knowledge_user)):
     with SessionLocal() as db:
         project = find_project(db, project_id, user, manage=True)
         folder = find_folder(db, project.id, folder_id)
         if not folder:
             raise HTTPException(404, '目录不存在。')
-        if db.scalar(select(CompanyFolder.id).where(CompanyFolder.project_id == project.id,
-                CompanyFolder.parent_id == folder.id).limit(1)) or db.scalar(select(CompanyDocument.id).where(
-                CompanyDocument.knowledge_project_id == project.id, CompanyDocument.folder_id == folder.id,
-                CompanyDocument.state != 'deleted').limit(1)):
-            raise HTTPException(409, '目录不为空，请先处理其中的文件和子目录。')
-        from company_notes import CompanyNote
-        if db.scalar(select(CompanyNote.id).where(CompanyNote.project_id == project.id, CompanyNote.folder_id == folder.id, CompanyNote.deleted_at.is_(None)).limit(1)):
-            raise HTTPException(409, '目录中仍有图文笔记或草稿，请保留目录。')
-        record(db, user, 'folder.delete', folder, before=snapshot(folder), details={'deleted': True})
-        db.delete(folder)
+        return folder_deletion_scope(db, project, folder, user)[0]
+
+
+@projects_router.delete('/projects/{project_id}/folders/{folder_id}')
+def delete_folder(project_id: str, folder_id: str, body: ProjectDeletion | None = None,
+                  user: User = Depends(kb.require_knowledge_user)):
+    with SessionLocal() as db:
+        project = find_project(db, project_id, user, manage=True)
+        folder = find_folder(db, project.id, folder_id)
+        if not folder:
+            raise HTTPException(404, '目录不存在。')
+        preview, folders, docs, notes = folder_deletion_scope(db, project, folder, user)
+        # Old clients may still delete genuinely empty folders; never cascade without a preview token.
+        if (body and body.confirmation != preview['confirmation']) or (preview['recyclable'] and not body):
+            raise HTTPException(409, '目录内容已变化，请重新查看删除范围并确认。')
+        if preview['recyclable']:
+            for doc in docs:
+                before = snapshot(doc)
+                doc.state, doc.status_message = 'deleted', '所属目录已删除'
+                mark_modified(doc, user)
+                record(db, user, 'document.delete', doc, before=before, details={'source': 'folder.delete'})
+            for note in notes:
+                before = snapshot(note)
+                note.deleted_at = datetime.utcnow()
+                mark_modified(note, user)
+                record(db, user, 'note.delete', note, before=before, details={'source': 'folder.delete'})
+            # Capture children before parents so the recycle records form one recoverable group.
+            for child in reversed(folders):
+                before = snapshot(child)
+                child.deleted_at = datetime.utcnow()
+                child.name = '已删除目录 · ' + child.id
+                child.updated_at = datetime.utcnow()
+                event = record(db, user, 'folder.delete', child, before=before,
+                    details={'source': 'folder.delete', 'recyclable': True})
+                event.target_name = before['name']
+        else:
+            record(db, user, 'folder.delete', folder, before=snapshot(folder), details={'deleted': True})
+            db.delete(folder)
         mark_modified(project, user)
         commit(db)
-        return {'deleted': True}
+        return {'deleted': True, **preview}

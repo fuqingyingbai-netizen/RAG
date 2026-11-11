@@ -19,6 +19,15 @@
       uploads:[],helpOpen:false,historyOpen:false,events:[],historyError:'',recoverable:null,format:'paragraph',tick:0,
       assets:0,words:0,publishing:false,exporting:false,lastSaved:'',conflict:false,indexPoll:0,publishMessage:'',publishUncertain:false,publishExpectedRevision:0}),
     computed:{
+      publishStatusMessage(){
+        if(!this.publishMessage)return '';
+        if(this.publishUncertain)return '发布结果尚未确认，请查询发布状态，避免重复提交。';
+        const n=this.note;if(!n)return '';
+        if(n.index_state==='failed')return '这版笔记索引失败，请重试索引；已有可检索版本继续可用。';
+        if(['queued','uploading','parsing','indexing'].includes(n.index_state))return '发布提交成功，正在建立索引；完成后即可检索。';
+        if(n.indexed_revision)return n.has_unpublished_changes?'已发布版本 R'+n.indexed_revision+' 可检索；当前修改仍是草稿。':'笔记已发布，可在经验沉淀中检索。';
+        return '';
+      },
       dirty(){return this.saveState!=='saved';},
       saveLabel(){return this.saveState==='saving'?'正在保存…':this.saveState==='error'?'保存失败，内容仍在本窗口':this.saveState==='conflict'?'其他窗口已有更新':this.saveState==='pending'?'有修改，等待保存':'草稿已保存';},
       indexLabel(){const n=this.note;if(!n)return '';if(n.index_state==='failed')return '索引失败 · 可重试';if(['queued','uploading','parsing','indexing'].includes(n.index_state))return '已提交发布 · 正在建立索引';if(n.indexed_revision)return n.has_unpublished_changes?'有未发布修改 · 已发布版本仍可检索':'已发布 · 可检索';return '未发布 · 仅项目创建者和管理员可见';},
@@ -201,7 +210,7 @@
           <div v-if="uploads.some(item=>item.state!=='done')" class="kn-upload-queue" aria-live="polite"><div v-for="item in uploads.filter(item=>item.state!=='done')" :key="item.id"><strong>{{item.file.name}}</strong><span>{{item.state==='uploading'?'正在保存图片…':item.error}}</span><button v-if="item.state==='error'" @click="uploadImage(item)">重新上传</button><button v-if="item.state==='error'" @click="removeUpload(item)">移除失败项</button></div></div>
           <footer class="kn-writing-footer"><span>{{words.toLocaleString()}} 字 · {{assets}} 张图片</span><span>支持粘贴截图 / 拖入图片 · Ctrl+Z 撤销</span></footer>
         </div><aside class="kn-inspector"><div class="kn-inspector-title"><i class="fa-solid fa-feather-pointed" aria-hidden="true"></i><span>写作与发布<small>FROM EXPERIENCE TO KNOWLEDGE</small></span></div>
-          <section class="kn-publication"><span class="kn-section-label">发布状态</span><strong :class="{'kn-failed':note?.index_state==='failed'}">{{indexLabel}}</strong><p v-if="publishMessage" role="status">{{publishMessage}}</p><p v-if="note?.index_state==='failed'">{{note.index_message}}。点击“重试索引”可重试；已有可检索版本继续可用。</p><p v-else>编辑时自动保存草稿，点击发布后才更新检索。资料库与经验沉淀保持独立。</p><small>草稿 R{{note?.revision}}<template v-if="note?.indexed_revision"> · 可检索 R{{note.indexed_revision}}</template></small></section>
+          <section class="kn-publication"><span class="kn-section-label">发布状态</span><strong :class="{'kn-failed':note?.index_state==='failed'}">{{indexLabel}}</strong><p v-if="publishStatusMessage" role="status">{{publishStatusMessage}}</p><p v-if="note?.index_state==='failed'">{{note.index_message}}。点击“重试索引”可重试；已有可检索版本继续可用。</p><p v-else>编辑时自动保存草稿，点击发布后才更新检索。资料库与经验沉淀保持独立。</p><small>草稿 R{{note?.revision}}<template v-if="note?.indexed_revision"> · 可检索 R{{note.indexed_revision}}</template></small></section>
           <section><span class="kn-section-label">随笔记一起保存</span><p>标题、正文、表格、图片说明与校正后的识别文字会进入检索；图片本身作为附件保留。</p><p class="kn-privacy"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>继承所在项目的保密等级与访问权限。</p><small>创建人：{{note?.created_by}}<br>最近修改：{{note?.modified_by}}</small></section>
           <section><span class="kn-section-label">导出当前草稿</span><button class="kn-export" :disabled="blocked||exporting" @click="exportFile('docx')"><span>W</span><strong>Word 文档<small>可编辑 · 内嵌图片 · 下载水印</small></strong><b>↗</b></button><button class="kn-export" :disabled="blocked||exporting" @click="exportFile('markdown')"><span>M↓</span><strong>MD ＋ 图片<small>完整 ZIP 包 · 保留图片相对路径</small></strong><b>↗</b></button><p v-if="exporting" role="status">正在准备带水印的文件，请稍候…</p></section>
           <section><button class="ckb-button ckb-delete-button" :disabled="blocked" @click="$emit('delete',noteId)">删除笔记</button><p>删除前会确认草稿、发布版本和配图范围。</p></section><section class="kn-help"><button :aria-expanded="helpOpen" @click="helpOpen=!helpOpen">操作提示 <span>{{helpOpen?'−':'＋'}}</span></button><div v-if="helpOpen"><p>插图后光标会进入下方正文，可以直接打字。填写图片说明后，点击“在图片下继续写正文”返回正文；说明框只填写这张图的说明。</p><p>拖动图片右下角或选择百分比调整大小。点击“识别图片文字”，核对后保存；识别不出时可手动补充。</p><p>表格中按 Tab 移动单元格，选中单元格后可加行、加列和合并。</p><p>关闭时会先保存。保存失败会明确提示，请重试或下载本机恢复副本。</p><p>标题、正文和发布操作都会记录操作人、时间与前后内容。草稿仅项目创建者和管理员可编辑查看。</p></div></section>

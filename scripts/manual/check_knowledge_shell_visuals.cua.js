@@ -16,6 +16,10 @@ export async function runKnowledgeShellVisualChecks(tab, viewport, fs, outputPat
     }
     if (await role('展开导航').isVisible()) await role('展开导航').click();
     await role('打开公司知识库').click();
+    // Restore a deterministic start even when the shell remembers a department entry.
+    if (await role('返回公司知识库').isVisible()) await role('返回公司知识库').click();
+    const homeTab=tab.playwright.getByRole('tab',{name:'知识库首页',exact:true});
+    if(await homeTab.isVisible())await homeTab.click();
     await tab.playwright.getByRole('searchbox', {name: '搜索资料', exact: true}).waitFor({state: 'visible'});
   }
   async function check(id, run) {
@@ -64,7 +68,8 @@ export async function runKnowledgeShellVisualChecks(tab, viewport, fs, outputPat
       if (stable < 3) { const error = Error('Modal geometry did not settle'); error.blocked = true; throw error; }
       await dialog.getByRole('button', {name: '取消', exact: true}).click();
       await dialog.waitFor({state: 'hidden'});
-      return {...actual, passed: actual.points.every(point => point.hitsPrimary)};
+      await role('打开小助手').waitFor({state:'visible'});
+      return {...actual, assistantRestored:true, passed: actual.points.every(point => point.hitsPrimary)};
     });
     await check('tablet-home-search-readable-width', async () => {
       await home(768, 1024);
