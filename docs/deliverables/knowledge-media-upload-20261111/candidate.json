@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-11",
+  "deployment": "not_deployed",
+  "source_sha256": {
+    "backend/company_media.py": "534535d697d692d3ed511fea50cc883d651e31919e83b5de574ded08b09971cd",
+    "backend/company_workspace.py": "95fb46fe0b5b61d1f95c5d1f25f996fdcb76dca1c26bc4a163dc3f6333db6ac1",
+    "backend/company_discovery.py": "d0dfd7f08e2aa31caa6603daef446be9740ec26f99d799459ecd4c7493acdce6",
+    "frontend/company-knowledge.js": "5231e44bbc5adcd5a50318a49ea202ed9e823b286ccff3c168ab7713fa1f5a30",
+    "frontend/knowledge-workspace.css": "420694f89dc0bbb400bf1ac74d0bd80117f945385d6d2300c9475da6dd625d06",
+    "frontend/index.html": "0d0ba2d00fdc240abc310c8035dc7b963b7388c591ebca98161ece2c7d3a43e8"
+  },
+  "backend_checks": {
+    "backend.xml": {
+      "tests": "100",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    "merged-backend.xml": {
+      "tests": "34",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    "integrated-final.xml": {
+      "tests": "40",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    "media-final.xml": {
+      "tests": "18",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  },
+  "frontend_passed": 64,
+  "browser_checks": 12,
+  "browser_errors": 0,
+  "test_counts_overlap": true,
+  "large_mp4_bytes": 101082726,
+  "large_fixture": "4 second MP4 padded with a legal free atom; size handling only, not production performance",
+  "source_hash_policy": "UTF-8 text with LF newlines"
+}

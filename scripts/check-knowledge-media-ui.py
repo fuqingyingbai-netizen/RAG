@@ -3,6 +3,7 @@ import argparse
 import io
 import json
 import os
+import re
 import struct
 from pathlib import Path
 import sys
@@ -86,6 +87,11 @@ def main():
 <style>body{margin:0;background:#eef3fa;font-family:system-ui,sans-serif}</style></head><body><div id="app"><company-knowledge ref="knowledge"/></div>
 <script src="/vendor/vue-3.5.44/vue.global.prod.js"></script><script src="/vendor/element-plus-2.14.7/index.full.min.js"></script><script src="/knowledge-glass-optics.js"></script><script src="/knowledge-document-viewer.js"></script><script src="/company-knowledge.js"></script>
 <script>localStorage.setItem('accessToken','acceptance-user');const a=Vue.createApp({components:{CompanyKnowledge}});a.use(ElementPlus);window.app=a.mount('#app');</script></body></html>'''
+        index=(ROOT/'frontend/index.html').read_text(encoding='utf-8')
+        for name in ['company-knowledge.js','knowledge-glass-optics.js','knowledge-document-viewer.js','company-knowledge-glass.css','knowledge-workspace.css']:
+            asset=Path(name);match=re.search(r'(?:src|href)="('+re.escape(asset.stem)+r'\.[a-f0-9]{12}'+re.escape(asset.suffix)+r')"',index)
+            assert match,name
+            html=html.replace('/'+name,'/'+match[1])
         server=ThreadingHTTPServer(('127.0.0.1',0),partial(Handler,directory=str(ROOT/'frontend')))
         thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
         errors=[]
@@ -100,6 +106,7 @@ def main():
             with page.expect_download() as image_download:page.get_by_role('button',name='下载',exact=True).click()
             image_download.value.save_as(str(args.output_dir/'downloaded-original.png'))
             assert (args.output_dir/'downloaded-original.png').read_bytes()==output.getvalue()
+            page.wait_for_timeout(3100)
             page.get_by_role('button',name='放大图片').click();expect(page.locator('.ckb-image-controls')).to_contain_text('125%')
             page.screenshot(path=str(args.output_dir/'image-desktop.png'),full_page=True)
             page.evaluate('app.$refs.knowledge.readerOpen=false');page.wait_for_timeout(350)
@@ -121,6 +128,7 @@ def main():
             with page.expect_download() as video_download:page.get_by_role('button',name='下载',exact=True).click()
             video_download.value.save_as(str(args.output_dir/'downloaded-original.mp4'))
             assert (args.output_dir/'downloaded-original.mp4').read_bytes()==video_file.read_bytes()
+            page.wait_for_timeout(3100)
             page.screenshot(path=str(args.output_dir/'video-desktop.png'),full_page=True)
             page.set_viewport_size({'width':390,'height':844});page.screenshot(path=str(args.output_dir/'video-mobile.png'),full_page=True)
             page.set_viewport_size({'width':1440,'height':1000});page.evaluate('app.$refs.knowledge.readerOpen=false');page.wait_for_timeout(350)

@@ -1,0 +1,220 @@
+{
+  "browser_errors": [],
+  "requests": [
+    {
+      "path": "/company-knowledge/access-requests/mine",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/documents?page_number=1&page_size=100&local_only=true&refresh=false",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/my-projects",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/documents/81510e7c88a0498695b8f79f308bc224/preview",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/projects",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/notes",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/documents/81510e7c88a0498695b8f79f308bc224/original",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/conversations?collection=library",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/documents/81510e7c88a0498695b8f79f308bc224/download?request_id=fa1d39a1-f88e-40e3-a799-7866a2170baf",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/access-requests/mine",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/documents?page_number=1&page_size=100&local_only=true&refresh=false",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/my-projects",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/projects",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/notes",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/documents/af3bd66950ec495abcee842d4d3fbe03/playback",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/documents/af3bd66950ec495abcee842d4d3fbe03/stream",
+      "method": "GET",
+      "status": 206,
+      "range": "bytes=0-"
+    },
+    {
+      "path": "/company-knowledge/documents/af3bd66950ec495abcee842d4d3fbe03/download?request_id=a1845802-ff61-44dd-86b8-bfc69869f46a",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/access-requests/mine",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/documents?page_number=1&page_size=100&local_only=true&refresh=false",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/my-projects",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/projects",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/notes",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/documents/3120354e589f4301998867c2c8d88b08/playback",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/documents/3120354e589f4301998867c2c8d88b08/stream",
+      "method": "GET",
+      "status": 206,
+      "range": "bytes=0-"
+    },
+    {
+      "path": "/company-knowledge/access-requests/mine",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/documents?page_number=1&page_size=100&local_only=true&refresh=false",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/projects",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/my-projects",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/notes",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/uploads",
+      "method": "POST",
+      "status": 202,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/documents?page_number=1&page_size=100&local_only=true&refresh=false",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/my-projects",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    },
+    {
+      "path": "/company-knowledge/projects",
+      "method": "GET",
+      "status": 200,
+      "range": null
+    }
+  ],
+  "large_media_fixture": true,
+  "original_video_bytes": 101082726,
+  "large_fixture_note": "Four-second video with a valid MP4 free atom; checks file size handling, not long-video encoding performance.",
+  "checks": [
+    "original image decoded",
+    "image zoom",
+    "image download matches original bytes",
+    "video download matches original bytes",
+    "video metadata and playback",
+    "video seek",
+    "audio playback",
+    "media-specific controls",
+    "compact sidebar",
+    "throttled real multipart upload minimize/reopen",
+    "transport 100 percent still waits for server receipt",
+    "no browser exceptions"
+  ]
+}
