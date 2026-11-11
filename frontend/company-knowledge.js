@@ -401,7 +401,7 @@ const CompanyKnowledge = {
       if(reference.text && !(this.selectedDoc.references || []).some(ref=>ref.text===reference.text))this.selectedDoc.references=[reference,...(this.selectedDoc.references || [])];
       if(!this.selectedDoc.has_original){this.locating=false;this.readerMode='excerpts';this.readerLocation={message:'历史资料未归档原件，请核对引用片段。'};return;}
       if(this.selectedDoc.media_kind){this.locating=false;this.readerLocation={message:'这条引用来自人工文字说明，音视频未自动转写。'};return;}
-      if(this.readerSheet){this.locating=false;this.readerMode='excerpts';this.readerLocation={message:'大型表格按工作表和行号阅读，来源页码不能直接换算成行号，请核对解析片段。'};return;}
+      if(this.readerSheet){this.locating=false;this.readerMode='excerpts';this.readerLocation={message:'表格按工作表和行号阅读，来源页码不能直接换算成行号，请核对解析片段。'};return;}
       if(['TXT','MD','CSV'].includes(this.selectedDoc.format)){this.locating=false;this.readerLocation={message:'正在原文中匹配引用文字…'};this.$nextTick(()=>this.$refs.nativeReader?.findSource());return;}
       try { const response=await this.apiFetch('/company-knowledge/documents/'+encodeURIComponent(id)+'/locate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:(reference.text || '').slice(0,10000),pages:(reference.pages || []).map(Number).filter(n=>Number.isInteger(n)&&n>0)})}); const result=await response.json(); if(!response.ok)throw Error(result.detail || '来源定位失败'); if(this.readerOpen&&this.selectedDoc?.id===id&&this.readerSequence===sequence) this.readerLocation=result; }
       catch(error) { if(this.readerOpen&&this.selectedDoc?.id===id&&this.readerSequence===sequence)this.readerLocation={message:error.message}; }
@@ -795,7 +795,7 @@ const CompanyKnowledge = {
         if (!doc.media_kind && !['DOCX','DOC','XLS','XLSX','PPT','PPTX','TXT','MD','CSV','PDF','PNG','JPG','JPEG','WEBP','GIF','BMP'].includes(doc.format)) return;
         this.readerOriginalLoading = true;
         try {
-          if(doc.format==='XLSX') { const probe=await this.apiFetch('/company-knowledge/documents/'+encodeURIComponent(id)+'/sheet');const table=await probe.json();if(!probe.ok){if(current())this.readerOriginalCode=probe.headers?.get('X-Preview-Error')||'';throw Error(table.detail||'表格无法读取');}if(table.mode==='table'){if(current()){this.readerSheet=table;this.readerTrace=probe.headers?.get('X-Watermark-Trace')||'';}return;} }
+          if(doc.format==='XLSX') { const probe=await this.apiFetch('/company-knowledge/documents/'+encodeURIComponent(id)+'/sheet');const table=await probe.json();if(!probe.ok){if(current())this.readerOriginalCode=probe.headers?.get('X-Preview-Error')||'';throw Error(table.detail||'表格无法读取');}if(['table','workbook'].includes(table.mode)){if(current()){this.readerSheet=table;this.readerTrace=probe.headers?.get('X-Watermark-Trace')||'';}return;} }
           const response = await this.apiFetch('/company-knowledge/documents/' + encodeURIComponent(id) + (['PDF','DOC','DOCX','XLS','XLSX','PPT','PPTX'].includes(doc.format) ? '/page?page=1' : '/original'));
           if (!response.ok) { const data = await response.json().catch(() => ({})); if(current())this.readerOriginalCode=response.headers?.get('X-Preview-Error')||'';throw new Error(data.detail || '原件预览暂不可用，请重试或下载水印副本。'); }
           const blob = await response.blob();

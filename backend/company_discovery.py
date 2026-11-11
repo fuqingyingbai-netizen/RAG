@@ -132,7 +132,7 @@ async def spreadsheet(doc_id: str, sheet: int = 0, page: int = 1, column: int = 
         if source != (doc.object_key, doc.sha256, doc.format):
             raise HTTPException(409, '资料已更新，请重新打开。')
         identity = ExportIdentity(user.username, getattr(user, 'id', None), datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'), uuid.uuid4().hex)
-        if result['mode'] == 'table':
+        if result['mode'] in ('table', 'workbook'):
             ws.record(db, user, 'document.preview', doc, before=ws.snapshot(doc), event_id=identity.trace_id,
                       details={'trace_id': identity.trace_id, 'sheet': sheet, 'row_page': page, 'column': column})
             db.commit()

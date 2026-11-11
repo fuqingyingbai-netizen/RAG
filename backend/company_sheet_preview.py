@@ -26,18 +26,25 @@ def workbook(data):
 
 @lru_cache(maxsize=4)
 def sheet_info(key, digest):
-    book = workbook(document_store().get_bytes(key))
+    data = document_store().get_bytes(key)
+    book = workbook(data)
     try:
         sheets = [{'name': s.title, 'rows': s.max_row or 0, 'columns': s.max_column or 0,
                    'hidden': s.sheet_state != 'visible'} for s in book.worksheets]
         large = any(s['rows'] > 10000 or s['columns'] > 256 or s['rows'] * s['columns'] > 200000 for s in sheets)
-        return {'mode': 'table' if large else 'pdf', 'sheets': sheets}
+        with ZipFile(io.BytesIO(data)) as package:
+            native = (sum(part.file_size for part in package.infolist()) <= 64*1024*1024 and
+                      not any(name.startswith(('xl/media/', 'xl/charts/', 'xl/drawings/')) for name in package.namelist()))
+        return {'mode': 'table' if large else 'workbook' if native else 'pdf', 'sheets': sheets}
     finally:
         book.close()
 
 
 def sheet_page(key, digest, sheet, page, column):
     info = sheet_info(key, digest)
+    if info['mode'] == 'workbook':
+        from company_sheet_layout import worksheet_page
+        return worksheet_page(document_store().get_bytes(key), info, sheet, page, column, ROWS, COLUMNS)
     if info['mode'] == 'pdf':
         return info
     if not 0 <= sheet < len(info['sheets']):

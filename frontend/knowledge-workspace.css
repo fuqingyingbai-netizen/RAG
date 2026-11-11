@@ -1,5 +1,18 @@
 /* Knowledge workspace design authority. Refine the existing semantic tokens here;
    source documents keep their own formatting and other workspaces are unaffected. */
+.ckb-formatted-workbook .ckb-sheet-scroll{min-height:0;overflow:auto;background:#f3f4f6}
+.ckb-formatted-workbook .ckb-sheet-canvas{position:relative;background:#fff;color:#000}
+.ckb-formatted-workbook table.ckb-sheet-layout{table-layout:fixed;border-collapse:collapse;min-width:0;margin:0;background:#fff;color:#000}
+.ckb-formatted-workbook .ckb-sheet-layout tr{background:transparent}
+.ckb-formatted-workbook .ckb-sheet-layout th{padding:0;height:23px;min-width:0;max-width:none;text-align:center;background:#f3f4f6;color:#475569;border:1px solid #d1d5db;font:12px/20px Arial,sans-serif;position:static}
+.ckb-formatted-workbook .ckb-sheet-layout tbody th{position:relative;height:0;font-size:0;line-height:0}
+.ckb-formatted-workbook .ckb-sheet-layout tbody th>span{position:absolute;inset:0;font:11px/16px Arial,sans-serif;overflow:hidden}
+.ckb-formatted-workbook .ckb-sheet-layout td{position:relative;padding:0;min-width:0;max-width:none;border:0;line-height:1.2;overflow:hidden;box-sizing:border-box}
+.ckb-formatted-workbook .ckb-sheet-layout.has-grid-lines td:not([style*="background-color"]){border:1px solid #d9d9d9}
+.ckb-formatted-workbook .ckb-sheet-cell-content{position:absolute;inset:0;display:flex;flex-direction:column;padding:1px 2px;box-sizing:border-box;overflow:hidden}
+.ckb-formatted-workbook .ckb-sheet-cell-content p{padding:0;margin:0;white-space:inherit;overflow-wrap:anywhere;line-height:1.2;color:inherit;font:inherit}
+.ckb-formatted-workbook .ckb-sheet-watermark-overlay{position:absolute;inset:24px 0 0;pointer-events:none;background-repeat:repeat;z-index:2}
+.ckb-formatted-workbook .ckb-sheet-controls{flex-wrap:wrap}
 :root[data-knowledge-theme="light"] {
   --ku-day-canvas:#fff; --ku-day-surface:#fff; --ku-day-surface-soft:#f7f9fc; --ku-day-surface-tint:#edf2f8;
   --ku-day-ink-strong:#243247; --ku-day-ink:#435269; --ku-day-muted:#526175;

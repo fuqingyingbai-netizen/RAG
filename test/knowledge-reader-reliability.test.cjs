@@ -23,6 +23,11 @@ test('small XLSX preserves the existing PDF layout preview',async()=>{
  const s=state(),calls=[];s.apiFetch=async url=>{calls.push(url);return url.endsWith('/sheet')?new Response(JSON.stringify({mode:'pdf'})):url.endsWith('/preview')?response({references:[],total:0}):new Response('image',{headers:{'X-Document-Pages':'2'}});};
  await s.openDocument({id:'small',format:'XLSX',has_original:true,can_read:true});assert.equal(s.readerSheet,null);assert.equal(s.readerPDFPages,2);assert.ok(calls.some(url=>url.includes('/page?page=1')));
 });
+test('formatted XLSX opens its worksheet geometry without requesting print pages',async()=>{
+ const s=state(),calls=[],layout={mode:'workbook',page:1,column_layout:[{number:1,width:19.06}],row_layout:[]};
+ s.apiFetch=async url=>{calls.push(url);return url.endsWith('/sheet')?new Response(JSON.stringify(layout)):response({references:[],total:0});};
+ await s.openDocument({id:'styled',format:'XLSX',has_original:true,can_read:true});assert.equal(s.readerSheet.mode,'workbook');assert.ok(!calls.some(url=>url.includes('/page?')));assert.equal(s.readerOriginalLoading,false);
+});
 
 test('encrypted PDF preserves the specific password error separately from excerpts',async()=>{
  const s=state();s.apiFetch=async url=>url.endsWith('/preview')?response({references:[],total:0}):new Response(JSON.stringify({detail:'该 PDF 已加密，需要打开密码'}),{status:422,headers:{'X-Preview-Error':'pdf_encrypted'}});
