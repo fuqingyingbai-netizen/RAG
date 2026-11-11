@@ -341,6 +341,8 @@ def test_retrieval_filters_and_postfilter_before_generation(setup, monkeypatch, 
             assert body['model'] == 'test-model'
         assert 'SECRET' not in request.content.decode() and 'stale assistant' not in request.content.decode()
         assert '待复核' in body['messages'][0]['content']
+        evidence=json.loads(body['messages'][0]['content'].split('本轮资料：\n',1)[1])
+        assert len(evidence)==1 and evidence[0]['citation']=='[id_1]' and evidence[0]['text']=='Authorized evidence'
         frames = [{'choices': [{'delta': {'content': 'Answer [id_1]'}, 'finish_reason': None}]},
                   {'choices': [{'delta': {}, 'finish_reason': 'stop'}]}]
         return httpx.Response(200, text=''.join('data: ' + json.dumps(f) + '\n\n' for f in frames), headers={'Content-Type': 'text/event-stream'})
