@@ -10,7 +10,7 @@ import runpy
 import re
 
 METRICS={'context_recall':'证据召回','faithfulness':'证据忠实度',
-    'factual_correctness':'事实 F1','factual_recall':'答案要点召回'}
+    'factual_correctness':'事实 F1','factual_recall':'原生事实 recall'}
 
 
 def read(path):
@@ -106,8 +106,8 @@ def build(root, output):
     page+='<p>仅更新 main，不部署。4 份资料、100 题；90 题运行原生 Ragas 指标，10 道无答案题单独核对拒答与引用。70/30 开发与保留题均为回归题，不能作为未见数据的泛化估计。</p>'
     page+='<p>基线使用已保存的真实回答；已核对当前生成逻辑及原模型配置与记录相符。修复回答使用相同题目、参考答案和逐片段相同的证据重新生成。Ragas 0.4.3 使用既有模型服务评分，关闭外部追踪，原始请求及失败重试保留在私有目录。</p>'
     page+='<table><tr><th>原生指标（0–1）</th><th>固定基线</th><th>修复后</th><th>变化</th><th>题数</th></tr>'+table+'</table>'
-    page+='<p>证据召回衡量参考事实是否在召回片段中；忠实度衡量回答事实能否被片段支持；事实 F1 对照参考答案，既惩罚遗漏也惩罚参考之外的事实；答案要点召回只看必要事实覆盖。它们不是题目通过率，F1 也不等同于人工准确率，参考答案以外但有来源的扩展仍可能拉低 F1。</p>'
-    page+='<p>4 个已知问题另做引用片段探针及逐句复核。探针只把回答实际引用的片段交给原生 Faithfulness，仍不能证明每句话的引用编号正确；专项复核记录才用于判断已知错引。正确拒答且没有引用时探针记为不适用，不计为满分。</p>'
+    page+='<p>证据召回衡量参考事实是否在召回片段中；忠实度衡量回答事实能否被片段支持；事实 F1 对照参考答案，既惩罚遗漏也惩罚参考之外的事实。原生事实 recall 同样基于声明推断，受拆分粒度影响，不替代必要要点逐项验收。它们不是题目通过率，F1 也不等同于人工准确率，参考答案以外但有来源的扩展仍可能拉低 F1。</p>'
+    page+='<p>4 个已知问题另做引用片段探针及逐句复核。探针只把回答实际引用的片段交给原生 Faithfulness，仍不能证明每句话的引用编号正确；专项复核记录才用于判断已知错引。复核由 Codex 对照原文完成，不替代独立业务抽检。正确拒答且没有引用时探针记为不适用，不计为满分。</p>'
     page+='<h2>专项复核与运行记录</h2><pre>'+escape(json.dumps({k:report[k] for k in ('checks','business_review','retries','citation_probes')},ensure_ascii=False,indent=2))+'</pre><h2>逐题对照</h2>'+details+'</html>'
     (output/'report.html').write_text(page,encoding='utf-8')
     return report
