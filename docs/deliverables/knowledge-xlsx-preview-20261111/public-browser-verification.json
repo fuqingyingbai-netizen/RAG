@@ -1,0 +1,35 @@
+{
+  "status": "passed",
+  "release": "/opt/supermew/releases/191482f6fd72be8a2c1b49ce9f9f34e568cc245a",
+  "public_assets": {
+    "company-knowledge": "company-knowledge.265986bccc74.js",
+    "knowledge-document-viewer": "knowledge-document-viewer.17e50ff140df.js",
+    "knowledge-workspace": "knowledge-workspace.8f76faf220dc.css"
+  },
+  "unrelated_homepage_preserved": true,
+  "sheets": [
+    {
+      "sheet": "创始人桌面研究",
+      "visible_rows": 36,
+      "source_layout_matches": true
+    },
+    {
+      "sheet": "目标公司桌面研究",
+      "visible_rows": 25,
+      "source_layout_matches": true
+    },
+    {
+      "sheet": "行业研究",
+      "visible_rows": 32,
+      "source_layout_matches": true
+    },
+    {
+      "sheet": "建议书",
+      "visible_rows": 18,
+      "source_layout_matches": true
+    }
+  ],
+  "real_reader_four_sheets": true,
+  "pdf_page_requests": 0,
+  "page_errors": []
+}

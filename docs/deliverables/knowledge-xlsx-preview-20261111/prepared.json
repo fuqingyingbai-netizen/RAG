@@ -1,0 +1,41 @@
+{
+  "status": "prepared",
+  "candidate": "/opt/supermew/releases/191482f6fd72be8a2c1b49ce9f9f34e568cc245a",
+  "base_release": "/opt/supermew/releases/48043e466e51d4e33517c0a40f8a34e0ebb74b22",
+  "unrelated_files_preserved": 450,
+  "preflight": {
+    "status": "passed",
+    "production_writes": false,
+    "actual_source_archive_unchanged": true,
+    "sheets": [
+      {
+        "sheet": "\u521b\u59cb\u4eba\u684c\u9762\u7814\u7a76",
+        "visible_rows": 36,
+        "merges": 16,
+        "seconds": 0.388
+      },
+      {
+        "sheet": "\u76ee\u6807\u516c\u53f8\u684c\u9762\u7814\u7a76",
+        "visible_rows": 25,
+        "merges": 15,
+        "seconds": 0.202
+      },
+      {
+        "sheet": "\u884c\u4e1a\u7814\u7a76",
+        "visible_rows": 32,
+        "merges": 12,
+        "seconds": 0.183
+      },
+      {
+        "sheet": "\u5efa\u8bae\u4e66",
+        "visible_rows": 18,
+        "merges": 8,
+        "seconds": 0.186
+      }
+    ],
+    "acl_denial": true,
+    "large_sheet_first_last_pages": true
+  },
+  "format_artifacts": "/opt/supermew/verification/knowledge-reader-191482f6fd72",
+  "stage": "/opt/supermew/staging/xlsx-layout-191482f6fd72"
+}

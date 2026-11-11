@@ -1,0 +1,34 @@
+{
+  "status": "passed",
+  "sheets": [
+    {
+      "sheet": "创始人桌面研究",
+      "visible_rows": 36,
+      "merged_ranges": 16,
+      "geometry": "passed",
+      "all_cell_text": "passed"
+    },
+    {
+      "sheet": "目标公司桌面研究",
+      "visible_rows": 25,
+      "merged_ranges": 15,
+      "geometry": "passed",
+      "all_cell_text": "passed"
+    },
+    {
+      "sheet": "行业研究",
+      "visible_rows": 32,
+      "merged_ranges": 12,
+      "geometry": "passed",
+      "all_cell_text": "passed"
+    },
+    {
+      "sheet": "建议书",
+      "visible_rows": 18,
+      "merged_ranges": 8,
+      "geometry": "passed",
+      "all_cell_text": "passed"
+    }
+  ],
+  "page_errors": []
+}
