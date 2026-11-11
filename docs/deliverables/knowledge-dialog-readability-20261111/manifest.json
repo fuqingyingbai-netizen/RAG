@@ -1,0 +1,18 @@
+{
+  "base_commit": "1a331ab42b0eec076bf54cdce8a9efed34f87587",
+  "final_memory_source_sha256": "85c82fddfb8ad0a9bc60b29066cfa424b3b5043ab1be886e63dd9d9bc254040c",
+  "note": "Sequential candidate stages, not repeated tests of one frozen final version. Provider failures and semantic nulls are retained; no universal accuracy claim.",
+  "checks": {
+    "memory_regressions": 57,
+    "memory_focused_after_last_user_hint": 37,
+    "frontend_and_lifecycle": 63,
+    "routing_cases_after_compact_prompt": 27
+  },
+  "real_probe_source_sha256": {
+    "probe-real-dialogues.py": "05e36f7d12c37bb6747870cf3081d3d465d9db94e0e9c040b1416018a7f44ec3",
+    "probe-real-dialogues-audited.py": "6fca31c301a38653557daba056e2b2011f678a64dee311434d4a68589a542f03",
+    "check-latest-real.py": "a3f0fbe904c545af009b4f8895c81f1e10bc310587855bc831c066c35768f842",
+    "check-final-real.py": "ad6ba61bb62dea76150775b508345025af070b81e536c1305947ad7b97915d76"
+  },
+  "source_hash_encoding": "UTF-8 with LF newlines"
+}
