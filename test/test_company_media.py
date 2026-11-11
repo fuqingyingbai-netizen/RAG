@@ -131,3 +131,44 @@ def test_each_seek_rechecks_viewer_permission_and_expired_tickets_fail(setup,mon
     claims=jwt.decode(ticket,media.signing_key(),algorithms=['HS256']);claims['exp']=1
     setup.client.cookies.clear();setup.client.cookies.set('ckb_playback',jwt.encode(claims,media.signing_key(),algorithm='HS256'))
     assert setup.client.get(url).status_code==401
+
+
+def test_evicted_cache_during_open_is_prepared_again_instead_of_returning_500(tmp_path,monkeypatch):
+    import company_catalog
+    monkeypatch.setenv('COMPANY_KNOWLEDGE_MEDIA_CACHE',str(tmp_path))
+    monkeypatch.setattr(company_catalog,'document_store',lambda:SimpleNamespace(get_bytes=lambda key:b'ID3replacement'))
+    doc=SimpleNamespace(object_key='test/source.mp3',sha256='test-digest',format='MP3')
+    path=media.cache_path(doc);path.write_bytes(b'old')
+    real_utime=media.os.utime
+    def evicted(target,*args):
+        if path.exists() and path.read_bytes()==b'old':
+            path.unlink();raise FileNotFoundError()
+        return real_utime(target,*args)
+    monkeypatch.setattr(media.os,'utime',evicted)
+    ready,job=media.playback_job(doc)
+    if job:ready=job.result(timeout=5)
+    assert ready.read_bytes()==b'ID3replacement'
+
+
+@pytest.mark.parametrize('kind',['WAV','WEBM'])
+def test_real_compatibility_conversion_and_cache_reuse(tmp_path,monkeypatch,kind):
+    import wave
+    from company_watermark import ffmpeg_binary,run,WatermarkError
+    try:binary=ffmpeg_binary()
+    except WatermarkError:pytest.skip('FFmpeg unavailable')
+    source=tmp_path/('source.'+kind.lower())
+    if kind=='WAV':
+        with wave.open(str(source),'wb') as output:
+            output.setnchannels(1);output.setsampwidth(2);output.setframerate(8000);output.writeframes(b'\0\0'*8000)
+    else:
+        run([binary,'-nostdin','-v','error','-y','-f','lavfi','-i','testsrc=size=321x181:rate=5',
+             '-t','1','-c:v','libvpx-vp9','-pix_fmt','yuv444p','-cpu-used','8',str(source)],timeout=30)
+    monkeypatch.setenv('COMPANY_KNOWLEDGE_MEDIA_CACHE',str(tmp_path/'cache'))
+    doc=SimpleNamespace(object_key='source.'+kind.lower(),sha256='valid-source',format=kind)
+    target=media.cache_path(doc)
+    assert media.prepare(doc,target,SimpleNamespace(get_bytes=lambda key:source.read_bytes()))==target
+    assert target.stat().st_size>100
+    run([binary,'-nostdin','-v','error','-i',str(target),'-f','null','-'],timeout=30)
+    def forbidden(*args):raise AssertionError('A ready playback must not be converted again')
+    monkeypatch.setattr(media,'prepare',forbidden)
+    ready,job=media.playback_job(doc);assert ready==target and job is None

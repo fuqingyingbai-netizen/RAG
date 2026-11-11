@@ -32,11 +32,11 @@ def cache_path(doc):
 def prepare(doc, target, store):
     # Only immutable derivatives live here; originals are never rewritten.
     for old in target.parent.iterdir():
-        if old.is_file() and old.suffix in {'.mp4', '.mp3'} and time.time() - old.stat().st_mtime > 86400:
-            try:
+        try:
+            if old.is_file() and old.suffix in {'.mp4', '.mp3'} and time.time() - old.stat().st_mtime > 86400:
                 old.unlink()
-            except OSError:
-                pass
+        except OSError:
+            pass
     with tempfile.TemporaryDirectory(prefix='prepare-', dir=target.parent) as directory:
         source = Path(directory) / ('source.' + doc.format.lower())
         source.write_bytes(store.get_bytes(doc.object_key))
@@ -48,7 +48,7 @@ def prepare(doc, target, store):
             if doc.format in {'MP4', 'WEBM'}:
                 probe = subprocess.run([binary, '-hide_banner', '-i', str(source)], capture_output=True, timeout=30)
                 native = re.search(r'Video: h264\b[^\r\n]*\byuv420p\b', probe.stderr.decode(errors='replace'))
-                video = ['-c:v', 'copy'] if native else ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p']
+                video = ['-c:v', 'copy'] if native else ['-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p']
                 args = ['-map', '0:v:0', '-map', '0:a:0?', *video, '-c:a', 'aac', '-movflags', '+faststart']
             else:
                 args = ['-vn', '-c:a', 'libmp3lame', '-b:a', '192k']
@@ -62,9 +62,12 @@ def prepare(doc, target, store):
 
 def playback_job(doc, retry=False):
     target = cache_path(doc)
-    if target.is_file():
-        os.utime(target, None)
-        return target, None
+    try:
+        if target.is_file():
+            os.utime(target, None)
+            return target, None
+    except FileNotFoundError:
+        pass
     key = str(target)
     with _lock:
         for old, job in list(_jobs.items()):

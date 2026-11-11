@@ -84,4 +84,5 @@ test('media render branch excludes the image fallback and stale image errors can
   const c=fixture().context;c.selectedDoc={media_kind:'video'};c.readerUrl='/protected-stream';
   c.imagePreviewError({target:{src:'blob:old-image'}});assert.equal(c.readerUrl,'/protected-stream');
   c.selectedDoc={format:'PNG'};c.imagePreviewError({target:{src:'blob:old-image'}});assert.equal(c.readerUrl,'/protected-stream');
+  c.mediaPlaybackError({target:{getAttribute:()=>'/old-video',error:{code:4}}});assert.equal(c.readerOriginalError,'');
 });

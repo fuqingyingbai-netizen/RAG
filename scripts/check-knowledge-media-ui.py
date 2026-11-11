@@ -3,6 +3,7 @@ import argparse
 import io
 import json
 import os
+import struct
 from pathlib import Path
 import sys
 import threading
@@ -26,7 +27,7 @@ from models import User
 
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--output-dir',required=True,type=Path);args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--output-dir',required=True,type=Path);parser.add_argument('--large-media',action='store_true');args=parser.parse_args()
     args.output_dir.mkdir(parents=True,exist_ok=True)
     with TemporaryDirectory(prefix='media-acceptance-',ignore_cleanup_errors=True) as temporary:
         temp=Path(temporary);patch=pytest.MonkeyPatch();patch.setenv('COMPANY_KNOWLEDGE_MEDIA_CACHE',str(temp/'cache'))
@@ -44,6 +45,9 @@ def main():
         video_file=temp/'video.mp4'
         run([ffmpeg_binary(),'-nostdin','-v','error','-y','-f','lavfi','-i','color=c=steelblue:s=320x180:r=24',
              '-f','lavfi','-i','anullsrc=r=44100:cl=stereo','-t','4','-c:v','libx264','-pix_fmt','yuv420p','-c:a','aac',str(video_file)],timeout=40)
+        if args.large_media:
+            padding=int(96.4*1024*1024)-video_file.stat().st_size
+            with video_file.open('ab') as stream:stream.write(struct.pack('>I4s',padding,b'free')+b'\0'*(padding-8))
         video=upload(state,name='playback.mp4',payload=video_file.read_bytes(),project_id=p['id']).json()
         audio_file=temp/'audio.mp3'
         run([ffmpeg_binary(),'-nostdin','-v','error','-y','-f','lavfi','-i','sine=frequency=440:duration=3','-c:a','libmp3lame',str(audio_file)],timeout=30)
@@ -93,6 +97,9 @@ def main():
             open_doc(picture);expect(page.locator('.ckb-image-canvas img')).to_be_visible()
             assert page.locator('.ckb-image-canvas img').evaluate('(e)=>e.naturalWidth')==1200
             expect(page.get_by_role('button',name='下载',exact=True)).to_be_visible()
+            with page.expect_download() as image_download:page.get_by_role('button',name='下载',exact=True).click()
+            image_download.value.save_as(str(args.output_dir/'downloaded-original.png'))
+            assert (args.output_dir/'downloaded-original.png').read_bytes()==output.getvalue()
             page.get_by_role('button',name='放大图片').click();expect(page.locator('.ckb-image-controls')).to_contain_text('125%')
             page.screenshot(path=str(args.output_dir/'image-desktop.png'),full_page=True)
             page.evaluate('app.$refs.knowledge.readerOpen=false');page.wait_for_timeout(350)
@@ -110,6 +117,10 @@ def main():
             page.locator('video').evaluate('(e)=>{e.currentTime=2;e.play()}')
             page.wait_for_function('document.querySelector("video").currentTime>2.1')
             page.locator('video').evaluate('(e)=>e.pause()')
+            assert page.locator('.ckb-image-canvas').count()==0
+            with page.expect_download() as video_download:page.get_by_role('button',name='下载',exact=True).click()
+            video_download.value.save_as(str(args.output_dir/'downloaded-original.mp4'))
+            assert (args.output_dir/'downloaded-original.mp4').read_bytes()==video_file.read_bytes()
             page.screenshot(path=str(args.output_dir/'video-desktop.png'),full_page=True)
             page.set_viewport_size({'width':390,'height':844});page.screenshot(path=str(args.output_dir/'video-mobile.png'),full_page=True)
             page.set_viewport_size({'width':1440,'height':1000});page.evaluate('app.$refs.knowledge.readerOpen=false');page.wait_for_timeout(350)
@@ -133,7 +144,9 @@ def main():
             assert not errors,errors
             browser.close()
         server.shutdown();state.client.close();generator.close();patch.undo()
-        result={'browser_errors':errors,'requests':requests,'checks':['original image decoded','image zoom','video metadata and playback','video seek','audio playback','media-specific controls','compact sidebar','upload minimize/reopen','no browser exceptions']}
+        result={'browser_errors':errors,'requests':requests,'large_media_fixture':bool(args.large_media),'original_video_bytes':video['size'],
+                'large_fixture_note':'Four-second video with a valid MP4 free atom; checks file size handling, not long-video encoding performance.' if args.large_media else '',
+                'checks':['original image decoded','image zoom','image download matches original bytes','video download matches original bytes','video metadata and playback','video seek','audio playback','media-specific controls','compact sidebar','throttled real multipart upload minimize/reopen','transport 100 percent still waits for server receipt','no browser exceptions']}
         (args.output_dir/'browser.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
         print(json.dumps({'checks':len(result['checks']),'browser_errors':errors,'output':str(args.output_dir)},ensure_ascii=False))
 

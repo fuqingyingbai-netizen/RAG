@@ -874,6 +874,7 @@ const CompanyKnowledge = {
       finally{if(current())this.readerOriginalLoading=false;}
     },
     mediaPlaybackError(event) {
+      if(event.target?.getAttribute && event.target.getAttribute('src')!==this.readerUrl)return;
       const code=event.target?.error?.code;
       this.readerMediaMessage='';this.readerOriginalError=code===3||code===4?'浏览器无法解码播放版本，请重试或下载原文件。':'播放加载失败，可能是网络中断或播放授权过期，请重试。';
     },
@@ -974,8 +975,9 @@ const CompanyKnowledge = {
     plainOriginal(doc) { return !!doc?.media_kind || ['PNG','JPG','JPEG','WEBP','GIF','BMP'].includes(doc?.format); },
     uploadSize(bytes) { return ((Number(bytes)||0)/1024/1024).toFixed(1)+' MB'; },
     uploadProgressText(row) {
-      if(row.saving)return '文件已传输，服务器正在保存，请勿重复上传。';
-      if(row.phase==='transferring')return this.uploadSize(row.sent)+' / '+this.uploadSize(row.total)+(row.speed>0?' · '+this.uploadSize(row.speed)+'/s':' · 等待网络传输')+' · '+row.elapsed+' 秒';
+      if(row.saving)return '文件已传输，服务器正在保存，请勿重复上传。本次已用时 '+row.elapsed+' 秒。';
+      const speed=row.speed>=1024*1024?this.uploadSize(row.speed)+'/s':Math.max(1,Math.round(row.speed/1024))+' KB/s';
+      if(row.phase==='transferring')return this.uploadSize(row.sent)+' / '+this.uploadSize(row.total)+(row.speed>0?' · '+speed:' · 等待网络传输')+' · '+row.elapsed+' 秒';
       return row.detail||'';
     },
     cancelUpload() {
