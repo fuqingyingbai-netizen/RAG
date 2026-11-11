@@ -55,7 +55,8 @@ test('queue cancellation stops the next file and keeps failures available for re
   Object.assign(c,{uploadForm:{project:'',industry:'',category:'项目原件',review:'待复核',confidentiality:'internal',visibility:'members',readersText:'',tagsText:'',description:'',department:'market'},
     stagedFiles:[new File(['first'],'first.txt'),new File(['second'],'second.txt')],loadDocuments:async()=>{},loadMyProjects:async()=>{}});
   const pending=c.uploadFiles();c.cancelUpload();await pending;
-  assert.equal(c.uploadBusy,false);assert.equal(c.stagedFiles.length,2);assert.equal(c.uploadResults.length,1);
+  assert.equal(c.uploadBusy,false);assert.equal(c.stagedFiles.length,2);assert.equal(c.uploadResults.length,2);
+  assert.equal(c.uploadResults[0].phase,'upload_failed');assert.equal(c.uploadResults[1].phase,'stopped');
 });
 test('metadata edits while uploading cannot change the next file destination',async()=>{
   const f=fixture(),c=f.context;
@@ -85,4 +86,43 @@ test('media render branch excludes the image fallback and stale image errors can
   c.imagePreviewError({target:{src:'blob:old-image'}});assert.equal(c.readerUrl,'/protected-stream');
   c.selectedDoc={format:'PNG'};c.imagePreviewError({target:{src:'blob:old-image'}});assert.equal(c.readerUrl,'/protected-stream');
   c.mediaPlaybackError({target:{getAttribute:()=>'/old-video',error:{code:4}}});assert.equal(c.readerOriginalError,'');
+});
+
+test('upload rows follow their snapshotted directory and disappear on server acknowledgement',async()=>{
+  const f=fixture(),c=f.context;
+  Object.assign(c,{uploadForm:{project:'',industry:'',category:'项目原件',review:'待复核',confidentiality:'internal',visibility:'members',readersText:'',tagsText:'',description:'',department:'market'},
+    uploadTargetProjectId:'p',uploadTargetFolderId:'f',activeProjectId:'p',activeFolderId:'f',departmentActive:false,showingProjects:false,
+    stagedFiles:[new File(['a'],'a.txt'),new File(['b'],'b.txt')],loadDocuments:async()=>{},loadMyProjects:async()=>{}});
+  const visible=()=>f.component.computed.visibleUploadTasks.call(c);
+  const pending=c.uploadFiles();assert.equal(visible().length,2);assert.equal(visible()[1].phase,'waiting');
+  c.uploadTargetFolderId='edited-form';c.activeFolderId='other-folder';assert.equal(visible().length,0);
+  c.activeFolderId='f';f.xhr().upload.onprogress({loaded:1,total:10,lengthComputable:true});assert.equal(visible()[0].percent,10);
+  f.xhr().complete(202,{id:'saved-a',state:'queued'});await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(visible().length,1);assert.equal(c.cloudDocuments.length,1);
+  f.xhr().complete(202,{id:'saved-b',state:'queued'});await pending;assert.equal(visible().length,0);
+  c.uploadResults=[{name:'root.txt',destination:{project_id:'',folder_id:'',category:'项目原件',department:'market'}}];
+  c.activeProjectId='';c.showingProjects=true;c.departmentActive=true;c.departmentFilter='project';assert.equal(visible().length,0);
+  c.departmentFilter='market';assert.equal(visible().length,1);c.currentCollection='experience';assert.equal(visible().length,0);
+});
+
+test('minimizing closes the upload dialog and opens the frozen upload destination',()=>{
+  const c=fixture().context;let opened;
+  Object.assign(c,{uploadOpen:true,uploadBatchDestination:{project_id:'p',folder_id:'f',category:'项目原件',department:'market'},
+    uploadTargetProjectId:'edited-form',projectDirectories:[{id:'p'}],showProjectRoot(){this.activeProjectId='';},openDirectory(p,f){opened=[p.id,f];}});
+  c.minimizeUpload();assert.equal(c.uploadOpen,false);assert.deepEqual(opened,['p','f']);assert.equal(c.mode,'library');
+  assert.equal(c.departmentFilter,'market');assert.match(source,/@click="minimizeUpload">收起，继续操作/);
+});
+
+test('media loading lasts until playable data arrives and ignores an old player',()=>{
+  const c=fixture().context;c.selectedDoc={media_kind:'audio'};c.readerUrl='/current-stream';
+  const event=(type,readyState=0,url=c.readerUrl)=>({type,target:{readyState,getAttribute:()=>url}});
+  c.mediaPlaybackStatus(event('loadstart'));assert.match(c.readerMediaMessage,/加载/);
+  c.mediaPlaybackStatus(event('loadeddata',2));assert.match(c.readerMediaMessage,/加载/);
+  c.mediaPlaybackStatus(event('canplay',3));assert.equal(c.readerMediaMessage,'');
+  c.mediaPlaybackStatus(event('waiting',2));assert.match(c.readerMediaMessage,/缓冲/);
+  c.mediaPlaybackStatus(event('playing',4,'/stale'));assert.match(c.readerMediaMessage,/缓冲/);
+  c.mediaPlaybackStatus(event('playing',4));assert.equal(c.readerMediaMessage,'');
+  c.mediaPlaybackStatus(event('stalled',4));assert.equal(c.readerMediaMessage,'');
+  c.mediaPlaybackError({target:{getAttribute:()=>c.readerUrl,error:{code:4}}});assert.equal(c.readerMediaMessage,'');assert.ok(c.readerOriginalError);
+  assert.match(source,/class="ckb-media-loading" role="status"/);
 });
