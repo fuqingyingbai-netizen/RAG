@@ -1,0 +1,32 @@
+✖ citation-only fallback never claims more parsed chunks loaded than the known total (2.4457ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 134.6822
+
+✖ failing tests:
+
+test at test\knowledge-reader-reliability.test.cjs:8:1
+✖ citation-only fallback never claims more parsed chunks loaded than the known total (2.4457ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - '当前显示 1 个检索依据片段'
+
+      at TestContext.<anonymous> (E:\projects\RAG\work\knowledge-business-review-code-20261111\test\knowledge-reader-reliability.test.cjs:10:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: '当前显示 1 个检索依据片段',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

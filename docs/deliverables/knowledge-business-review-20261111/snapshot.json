@@ -1,0 +1,50 @@
+{
+  "source_commit": "50fc945215243186d04110bb96ac197b8ad85b60",
+  "live_release": "/opt/supermew/releases/191482f6fd72be8a2c1b49ce9f9f34e568cc245a",
+  "backend_differences": [
+    "backend/industry_briefing.py",
+    "backend/industry_passages.py",
+    "backend/company_platform.py",
+    "backend/industry_question_generation.py",
+    "backend/web_search.py",
+    "backend/industry_grounding.py",
+    "backend/industry_conclusion_recovery.py",
+    "backend/research_api.py",
+    "backend/industry_research_stages.py",
+    "backend/company_requirements.py",
+    "backend/industry_chapter_research.py",
+    "backend/industry_fact_contracts.py",
+    "backend/proposal_branch.py",
+    "backend/industry_claims.py",
+    "backend/industry_checkpoint.py",
+    "backend/system_guide.py",
+    "backend/source_retention.py",
+    "backend/industry_answer_quality.py",
+    "backend/app.py",
+    "backend/industry_reader.py",
+    "backend/industry_draft_policy.py",
+    "backend/industry_editorial.py",
+    "backend/docx_exporter.py",
+    "backend/industry_assertions.py",
+    "backend/industry_research.py",
+    "backend/research_store.py",
+    "backend/industry_delivery.py",
+    "backend/research_workflow.py",
+    "backend/industry_reasoning.py",
+    "backend/research_schemas.py"
+  ],
+  "frontend": {
+    "frontend/company-knowledge.js": {
+      "source_sha256": "0a4e9b107ab2008740939ac07a80d7cb54789eaafb7cb8e0cae165ebf6190aea",
+      "live_sha256": "eac093c751f9e0ba286d6061adf9a04e8b119d41de39c41eba33e397f04e50a3"
+    },
+    "frontend/knowledge-workspace.css": {
+      "source_sha256": "5c3307a16ca6a03a7ec911a40922b48f06a03671e25974b77c074a74d3caeffe",
+      "live_sha256": "5c3307a16ca6a03a7ec911a40922b48f06a03671e25974b77c074a74d3caeffe"
+    },
+    "frontend/index.html": {
+      "source_sha256": "37dfd4fb0140d6fcd51781f5ca691161bfc7caf80438e8f01a9dbbb5f55670f4",
+      "live_sha256": "f52674259a2e2cd4350f70a1166b6b0bcf2904bad5c8e0c046dc09df563565bb"
+    }
+  }
+}

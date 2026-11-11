@@ -1,0 +1,400 @@
+{
+  "baseline_source_commit": "50fc945215243186d04110bb96ac197b8ad85b60",
+  "candidate_commit": "022cedc60a3c1ecc117793efb7774199e105719a",
+  "candidate_ui_sha256": "4e61d5171d4d8eaad72d96a06c4988f07e42ef9312d34b783b7b5959a43fd013",
+  "findings": [
+    {
+      "id": "UX-01",
+      "status": "fixed_locally_not_deployed",
+      "severity": "medium",
+      "area": "普通项目上传与重新上传弹窗",
+      "actual_before": "所选项目的部门已继承且锁定，但仍显示禁用的部门下拉框和箭头；重新上传固定的项目位置、子目录也显示禁用下拉框",
+      "expected": "固定部门采用只读文字；重新上传以现有完整路径说明固定位置；可变字段才显示选择控件",
+      "fix": "项目继承部门使用output，重新上传隐藏重复的位置/子目录选择器，保留完整路径与原文件名；独立根目录上传仍可选择部门",
+      "evidence": "独立CUA页面操作、可重复UI检查、TestSprite BIZ2-UPLOAD均通过；截图fixed-reupload.jpg",
+      "scope": "同一类交互问题涉及三个锁定字段、两种上传流程；未改变归档位置、权限或上传接口"
+    },
+    {
+      "id": "READER-COUNT-01",
+      "status": "fixed_locally_not_deployed",
+      "severity": "medium",
+      "area": "问答引用打开后的片段阅读器",
+      "actual_before": "片段接口返回0条，引用额外提供1条依据时显示已加载1/0个解析片段",
+      "expected": "已知总数可信时展示加载进度；引用回退或总数小于当前显示数时只说明当前显示的依据数",
+      "fix": "增加readerExcerptCountLabel，引用回退改为当前显示1个检索依据片段，不伪造解析片段总数，也不把片段称为完整原文",
+      "evidence": "reader-count-before.json/jpg、修复前失败回归、reader-count-after.json/jpg以及117项前端回归",
+      "scope": "仅修正提示，不修改引用内容、片段分页、来源文件和阅读权限"
+    }
+  ],
+  "backend_suites": {
+    "backend-junit.xml": {
+      "status": "complete",
+      "tests": 174,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "backend-boundary-junit.xml": {
+      "status": "complete",
+      "tests": 24,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "latest-memory-junit.xml": {
+      "status": "complete",
+      "tests": 57,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "backend_distinct_case_ids": 232,
+  "schemathesis": {
+    "generated_requests": 505,
+    "stateful_requests": 218,
+    "export_requests": 32,
+    "failures": [],
+    "schema_operations": 54,
+    "tested_operation_count": 23
+  },
+  "api_business": {
+    "checks": 39,
+    "passed": 38,
+    "not_passed": [
+      {
+        "id": "docx-page-environment",
+        "passed": false,
+        "actual": {
+          "status": 503,
+          "seconds": 0.02,
+          "classification": "blocked",
+          "error": "Office 转换服务未配置，请联系管理员；不会提供无水印原件。"
+        }
+      }
+    ]
+  },
+  "playwright_observations": {
+    "total": 45,
+    "statuses": {
+      "passed": 39,
+      "confirmed_issue": 2,
+      "passed_after_fix": 4
+    },
+    "discarded_or_inconclusive": [
+      {
+        "id": "initial-rapid-department-loop",
+        "reason": "首次循环未等待弹窗关闭/部门渲染，后三个观测读到旧市场部；加入稳定等待后全部通过，不认定产品bug"
+      },
+      {
+        "id": "one-shot-failure-observation",
+        "reason": "瞬时503已被自动刷新恢复，随后寻找重试按钮无匹配；改为持续故障后核验错误提示"
+      },
+      {
+        "id": "production-browser",
+        "reason": "正式站完整页面读取45秒超时，未将线上完整外壳操作记为通过"
+      },
+      {
+        "id": "responsive-overrides",
+        "reason": "请求375/768/1440，实测innerWidth仍为1280；标记受阻，不将截图当作响应式通过证据"
+      }
+    ]
+  },
+  "reusable_ui_checks": [
+    {
+      "id": "fixed-department-creation-four-entries",
+      "status": "passed",
+      "actual": [
+        "市场部",
+        "项目部",
+        "制度文件",
+        "专家资料"
+      ]
+    },
+    {
+      "id": "global-project-department-is-editable",
+      "status": "passed",
+      "actual": "Choice enabled; empty name cannot submit"
+    },
+    {
+      "id": "upload-inheritance-and-global-choice",
+      "status": "passed",
+      "actual": "Inherited department is text; independent upload retains choice"
+    },
+    {
+      "id": "reupload-path-is-explicit-and-fixed",
+      "status": "passed",
+      "actual": "Original path and file name are explicit; no fixed-value dropdowns"
+    },
+    {
+      "id": "member-readonly-ui-with-reason",
+      "status": "passed",
+      "actual": "Read allowed; create/upload disabled with reason; owner menu absent"
+    },
+    {
+      "id": "parent-directory-bounded-scope",
+      "status": "passed",
+      "actual": "检索范围\n总资料库 · 市场部 · 选中 22 份资料\n\n回答仅依据选中文件的检索片段。\n\n选择资料改为全部资料\nTXT\n访谈材料01.txt\nTXT\n访谈材料02.txt\nTXT\n访谈材料03.tx"
+    },
+    {
+      "id": "processing-and-failure-not-ready-evidence",
+      "status": "passed",
+      "actual": "Both pending and failed documents are unavailable for selection"
+    },
+    {
+      "id": "existing-project-settings-editable-and-cancel-safe",
+      "status": "passed",
+      "actual": "Owner setting is genuinely editable; cancel leaves original department unchanged"
+    }
+  ],
+  "testsprite": {
+    "executions": 19,
+    "statuses": {
+      "passed": 14,
+      "failed": 5
+    },
+    "runs": [
+      {
+        "name": "BIZ2-PARENT Validate selected counts instead of misreading the collection prefix",
+        "status": "passed",
+        "run_id": "90afd6f9-512a-4bc9-854f-96928cd4fec3",
+        "exported_assertions": 1
+      },
+      {
+        "name": "BIZ2-EXPERIENCE Inspect the actual creation form before judging experience fields",
+        "status": "passed",
+        "run_id": "99489538-2352-467d-8368-dace3394b4cb",
+        "exported_assertions": 1
+      },
+      {
+        "name": "BIZ2-RECOVERY Persistent synthetic fault clears through the actual retry button",
+        "status": "passed",
+        "run_id": "e5edc8b1-2999-484a-84b9-7e5413cdc486",
+        "exported_assertions": 1
+      },
+      {
+        "name": "BIZ2-FAILURE Freeze the synthetic processing sample before checking its UI state",
+        "status": "passed",
+        "run_id": "9431ba1e-bca2-4aa8-993e-d1ac52f74c57",
+        "exported_assertions": 2
+      },
+      {
+        "name": "BIZ2-UPLOAD Locked inherited metadata is text; genuine upload choices stay editable",
+        "status": "passed",
+        "run_id": "cabde917-1ba9-4b69-b693-02893a9921e8",
+        "exported_assertions": 1
+      },
+      {
+        "name": "BIZ-EXPLORE Explore semantic UI contradictions rather than only click success",
+        "status": "failed",
+        "run_id": "d1cf73eb-e401-40c2-a4e2-c789eb91789e",
+        "exported_assertions": 1
+      },
+      {
+        "name": "BIZ-RECOVERY Document request failure has retry and remains navigable",
+        "status": "failed",
+        "run_id": "058dde3d-731b-404f-8f00-57ce1cc8e0a3",
+        "exported_assertions": 1
+      },
+      {
+        "name": "BIZ-EXPERIENCE Shared experience and private drafts keep distinct permissions",
+        "status": "failed",
+        "run_id": "a049a203-df82-4f71-88ff-e2344424b01d",
+        "exported_assertions": 1
+      },
+      {
+        "name": "BIZ-MENU Owner menu focus escape closes without mutation",
+        "status": "passed",
+        "run_id": "c5ca283d-0f70-47d1-9500-efa0135f327e",
+        "exported_assertions": 1
+      },
+      {
+        "name": "BIZ-FAILURE Failed and processing rows do not pretend to be ready",
+        "status": "failed",
+        "run_id": "af49ac0c-25cb-4b8e-ba45-f037eaaccabc",
+        "exported_assertions": 1
+      },
+      {
+        "name": "BIZ-PARENT-SCOPE Parent folders and root projects can define multi-selection",
+        "status": "failed",
+        "run_id": "9cbb453b-bc1d-485a-af86-faa1ba71cd62",
+        "exported_assertions": 1
+      },
+      {
+        "name": "BIZ-SCOPE-RETURN Explicit two-file question preserves exact return location",
+        "status": "passed",
+        "run_id": "96585d0c-98ed-46c1-b2dd-ed3ee288623b",
+        "exported_assertions": 0
+      },
+      {
+        "name": "BIZ-ADMIN Administrator retains management throughout hierarchy",
+        "status": "passed",
+        "run_id": "bef9aabe-b692-4e32-a9d0-6f41fd15aa24",
+        "exported_assertions": 2
+      },
+      {
+        "name": "BIZ-READONLY Ordinary shared member sees reason and cannot manage",
+        "status": "passed",
+        "run_id": "80b974ff-1692-4d3f-a473-82983f79046e",
+        "exported_assertions": 1
+      },
+      {
+        "name": "BIZ-SEARCH No-match search explains recovery and excludes siblings",
+        "status": "passed",
+        "run_id": "91068da0-e530-4b3a-9b97-5499d85b418e",
+        "exported_assertions": 1
+      },
+      {
+        "name": "BIZ-EMPTY Empty and folder-only projects are distinguishable",
+        "status": "passed",
+        "run_id": "3ecec9e7-8b19-4200-a209-a717445e39c8",
+        "exported_assertions": 1
+      },
+      {
+        "name": "BIZ-NESTED Directory controls have context and breadcrumbs work",
+        "status": "passed",
+        "run_id": "6cd5655e-979c-4bd0-8395-705960d65da9",
+        "exported_assertions": 1
+      },
+      {
+        "name": "BIZ-GLOBAL-CREATE Global project creation retains a real choice",
+        "status": "passed",
+        "run_id": "2b8b233d-7e36-423c-a245-e5b359348360",
+        "exported_assertions": 0
+      },
+      {
+        "name": "BIZ-FIXED-DEPT Fixed department must look fixed in all four creation dialogs",
+        "status": "passed",
+        "run_id": "a3f1fcea-b14c-402d-af43-3e4cb3a47da3",
+        "exported_assertions": 0
+      }
+    ]
+  },
+  "responsive": [
+    {
+      "width": 375,
+      "passed": false,
+      "actual": {
+        "bodyWidth": 1265,
+        "documentWidth": 1265,
+        "viewport": 1280
+      },
+      "classification": "blocked-viewport-override-not-effective",
+      "reason": "Requested viewport did not match actual innerWidth=1280; no responsive pass claimed."
+    },
+    {
+      "width": 768,
+      "passed": false,
+      "actual": {
+        "bodyWidth": 1265,
+        "documentWidth": 1265,
+        "viewport": 1280
+      },
+      "classification": "blocked-viewport-override-not-effective",
+      "reason": "Requested viewport did not match actual innerWidth=1280; no responsive pass claimed."
+    },
+    {
+      "width": 1440,
+      "passed": false,
+      "actual": {
+        "bodyWidth": 1265,
+        "documentWidth": 1265,
+        "viewport": 1280
+      },
+      "classification": "blocked-viewport-override-not-effective",
+      "reason": "Requested viewport did not match actual innerWidth=1280; no responsive pass claimed."
+    }
+  ],
+  "theme": {
+    "id": "theme-preserves-location-and-directory-selections",
+    "passed": true
+  },
+  "credits": {
+    "before": {
+      "credits": 109,
+      "plan": "Free"
+    },
+    "after": {
+      "credits": 99.5,
+      "plan": "Free"
+    }
+  },
+  "reusable_ui_final_checks": [
+    {
+      "id": "upload-inheritance-and-global-choice",
+      "status": "passed",
+      "actual": "Inherited department is text; independent upload retains choice"
+    },
+    {
+      "id": "reupload-path-is-explicit-and-fixed",
+      "status": "passed",
+      "actual": "Original path and file name are explicit; no fixed-value dropdowns"
+    },
+    {
+      "id": "parent-directory-bounded-scope",
+      "status": "passed",
+      "actual": "检索范围\n总资料库 · 市场部 · 选中 22 份资料\n\n回答仅依据选中文件的检索片段。\n\n选择资料改为全部资料\nTXT\n访谈材料01.txt\nTXT\n访谈材料02.txt\nTXT\n访谈材料03.tx"
+    },
+    {
+      "id": "fixed-department-creation-four-entries",
+      "status": "passed",
+      "actual": [
+        "市场部",
+        "项目部",
+        "制度文件",
+        "专家资料"
+      ]
+    },
+    {
+      "id": "global-project-department-is-editable",
+      "status": "passed",
+      "actual": "Choice enabled; empty name cannot submit"
+    },
+    {
+      "id": "member-readonly-ui-with-reason",
+      "status": "passed",
+      "actual": "Read allowed; create/upload disabled with reason; owner menu absent"
+    },
+    {
+      "id": "processing-and-failure-not-ready-evidence",
+      "status": "passed",
+      "actual": "Both pending and failed documents are unavailable for selection"
+    },
+    {
+      "id": "existing-project-settings-editable-and-cancel-safe",
+      "status": "passed",
+      "actual": "Owner setting is genuinely editable; cancel leaves original department unchanged"
+    }
+  ],
+  "reader_final_check": {
+    "id": "reader-citation-count-fallback",
+    "passed": true,
+    "actual": [
+      "  - generic: 1 / 1 个命中片段",
+      "  - paragraph: 当前显示 1 个检索依据片段"
+    ]
+  },
+  "browser_downloads": [
+    {
+      "format": "docx",
+      "status": "passed",
+      "bytes": 38020,
+      "sha256": "b4d63e9b469aabb56aacf9400681bd4c5979577feb2444faafcf8a2a72ee8a0a"
+    },
+    {
+      "format": "xlsx",
+      "status": "passed",
+      "bytes": 6950,
+      "sha256": "2ee59ef918ab858686a20f34195a339797c6ce8540248b19edc31d5eae158db0"
+    },
+    {
+      "format": "png",
+      "status": "passed",
+      "bytes": 37862,
+      "sha256": "12a3d0c579c6908059f3cd0fd71b6416f2778b0cb164b3f76c1ef74aeddeb97c"
+    }
+  ],
+  "frontend_final_count": 117,
+  "deployment_performed": false,
+  "production_selected_resources_unchanged": true
+}

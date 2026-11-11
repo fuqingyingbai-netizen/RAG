@@ -1,5 +1,27 @@
 /* Knowledge workspace design authority. Refine the existing semantic tokens here;
    source documents keep their own formatting and other workspaces are unaffected. */
+:root[data-knowledge-theme] .ckb-workbench .ckb-answer-markdown { white-space:normal; color:var(--ku-day-ink-strong); font-size:14px; line-height:1.85; }
+.ckb-answer-markdown :is(p,ul,ol,blockquote,pre,table) { margin:0 0 14px; }
+.ckb-answer-markdown :is(h1,h2,h3,h4,h5,h6) { margin:24px 0 10px; color:inherit; font-family:inherit; font-size:16px; line-height:1.55; font-weight:650; }
+.ckb-answer-markdown h1 { font-size:19px; }
+.ckb-answer-markdown h2 { font-size:17px; }
+.ckb-answer-markdown > :first-child { margin-top:0; }
+.ckb-answer-markdown > :last-child { margin-bottom:0; }
+.ckb-answer-markdown :is(ul,ol) { padding-left:24px; }
+.ckb-answer-markdown li { margin:6px 0; }
+.ckb-answer-markdown li > p { margin-bottom:6px; }
+.ckb-answer-markdown blockquote { padding:8px 14px; border-left:3px solid var(--ku-day-line); color:var(--ku-day-muted); }
+.ckb-answer-markdown :is(pre,code) { font-size:.9em; background:var(--ku-day-surface-soft); border-radius:4px; }
+.ckb-answer-markdown code { padding:2px 4px; }
+.ckb-answer-markdown pre { overflow:auto; padding:12px 14px; white-space:pre-wrap; }
+.ckb-answer-markdown pre code { padding:0; }
+.ckb-answer-markdown table { display:block; max-width:100%; overflow-x:auto; border-collapse:collapse; font-size:13px; }
+.ckb-answer-markdown :is(th,td) { border:1px solid var(--ku-day-line); padding:9px 12px; text-align:left; min-width:80px; }
+.ckb-answer-markdown th { background:var(--ku-day-surface-soft); font-weight:600; }
+.ckb-answer-markdown .ckb-inline-citation { display:inline-flex; align-items:center; justify-content:center; min-width:24px; min-height:24px; padding:0 5px; margin:0 2px; vertical-align:baseline; border:1px solid var(--ku-day-line); border-radius:5px; background:var(--ku-day-surface-soft); color:var(--ku-day-link); font-family:inherit; font-size:11px; font-weight:600; line-height:1.4; cursor:pointer; }
+.ckb-answer-markdown .ckb-inline-citation:hover { background:var(--ku-day-surface-tint); }
+.ckb-answer-markdown .ckb-inline-citation:focus-visible { outline:2px solid var(--ku-day-accent); outline-offset:2px; }
+@media (pointer:coarse) { .ckb-answer-markdown .ckb-inline-citation { min-width:44px; min-height:44px; } }
 .ckb-formatted-workbook .ckb-sheet-scroll{min-height:0;overflow:auto;background:#f3f4f6}
 .ckb-formatted-workbook .ckb-sheet-canvas{position:relative;background:#fff;color:#000}
 .ckb-formatted-workbook table.ckb-sheet-layout{table-layout:fixed;border-collapse:collapse;min-width:0;margin:0;background:#fff;color:#000}
