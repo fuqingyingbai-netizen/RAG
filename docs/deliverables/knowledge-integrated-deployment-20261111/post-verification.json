@@ -1,0 +1,31 @@
+{
+  "status": "passed",
+  "commit": "4304e9e7d1f1278d3d7117f5c0eb42c6309ecb74",
+  "server": {
+    "status": "passed",
+    "release": "/opt/supermew/releases/4304e9e7d1f1278d3d7117f5c0eb42c6309ecb74",
+    "manifest_files_verified": 471,
+    "backup_files_verified": 3,
+    "database_dump_readable": true,
+    "service": "active",
+    "process_release_verified": true,
+    "drain_gate_removed": true,
+    "instance_id": "d9eeefe6-cd9c-4e11-94a3-7d83a5f85f3e",
+    "folder_soft_delete_column": "company_folders",
+    "startup_error_entries": 0
+  },
+  "public": {
+    "homepage": 200,
+    "fingerprinted_assets_verified": [
+      "company-knowledge.5231e44bbc5a.js",
+      "knowledge-workspace.9c09eedfa787.css",
+      "knowledge-note-editor.97e3f47133aa.js",
+      "assistant.94a69af9244b.css"
+    ],
+    "version_instance_matches": true,
+    "unauthenticated_endpoints": {
+      "/company-knowledge/documents/release-verification-missing/stream": 401,
+      "/company-knowledge/projects": 401
+    }
+  }
+}

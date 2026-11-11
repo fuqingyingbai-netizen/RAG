@@ -1,0 +1,32 @@
+{
+  "commit": "4304e9e7d1f1278d3d7117f5c0eb42c6309ecb74",
+  "base_release": "/opt/supermew/releases/191482f6fd72be8a2c1b49ce9f9f34e568cc245a",
+  "paths": [
+    "backend/assistant_product_context.py",
+    "backend/company_audit.py",
+    "backend/company_catalog.py",
+    "backend/company_chat_task.py",
+    "backend/company_citations.py",
+    "backend/company_discovery.py",
+    "backend/company_knowledge.py",
+    "backend/company_media.py",
+    "backend/company_memory.py",
+    "backend/company_projects.py",
+    "backend/company_recycle.py",
+    "backend/company_workspace.py",
+    "frontend/company-knowledge.js",
+    "frontend/knowledge-workspace.css",
+    "frontend/knowledge-note-editor.js",
+    "frontend/assistant.css",
+    "frontend/company-knowledge.5231e44bbc5a.js",
+    "frontend/knowledge-workspace.9c09eedfa787.css",
+    "frontend/knowledge-note-editor.97e3f47133aa.js",
+    "frontend/assistant.94a69af9244b.css"
+  ],
+  "entries": {
+    "company-knowledge": "company-knowledge.5231e44bbc5a.js",
+    "knowledge-workspace": "knowledge-workspace.9c09eedfa787.css",
+    "knowledge-note-editor": "knowledge-note-editor.97e3f47133aa.js",
+    "assistant": "assistant.94a69af9244b.css"
+  }
+}

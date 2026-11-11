@@ -1,0 +1,73 @@
+[
+  {
+    "id": "mobile-home-search-readable-width",
+    "status": "passed",
+    "actual": {
+      "parentWidth": 310,
+      "viewport": 375,
+      "width": 310,
+      "passed": true
+    }
+  },
+  {
+    "id": "mobile-upload-primary-not-covered",
+    "status": "passed",
+    "actual": {
+      "centerHitsPrimary": true,
+      "hitLabel": null,
+      "hitTag": "BUTTON",
+      "points": [
+        {
+          "hitLabel": null,
+          "hitsPrimary": true,
+          "x": 0.5,
+          "y": 0.5
+        },
+        {
+          "hitLabel": null,
+          "hitsPrimary": true,
+          "x": 0.5,
+          "y": 0.85
+        },
+        {
+          "hitLabel": null,
+          "hitsPrimary": true,
+          "x": 0.85,
+          "y": 0.5
+        },
+        {
+          "hitLabel": null,
+          "hitsPrimary": true,
+          "x": 0.85,
+          "y": 0.85
+        }
+      ],
+      "primary": {
+        "height": 41.1875,
+        "width": 90,
+        "x": 249,
+        "y": 720.3125
+      },
+      "viewport": 375,
+      "assistantRestored": true,
+      "passed": true
+    }
+  },
+  {
+    "id": "tablet-home-search-readable-width",
+    "status": "passed",
+    "actual": {
+      "width": 599,
+      "passed": true
+    }
+  },
+  {
+    "id": "keyboard-tabs-arrow-key-switches-focus-and-view",
+    "status": "passed",
+    "actual": {
+      "focusedId": "ckb-library-tab",
+      "selectedId": "ckb-library-tab",
+      "passed": true
+    }
+  }
+]

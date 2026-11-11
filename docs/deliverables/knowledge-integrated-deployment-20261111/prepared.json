@@ -1,0 +1,22 @@
+{
+  "status": "prepared",
+  "candidate": "/opt/supermew/releases/4304e9e7d1f1278d3d7117f5c0eb42c6309ecb74",
+  "base_release": "/opt/supermew/releases/191482f6fd72be8a2c1b49ce9f9f34e568cc245a",
+  "unrelated_files_preserved": 450,
+  "preflight": {
+    "status": "passed",
+    "database": "disposable PostgreSQL restore",
+    "production_writes": false,
+    "checks": [
+      "additive folder migration and repeat startup on restored PostgreSQL",
+      "confirmed subtree deletion, stale preview, read-only denial, hidden directory and whole-tree restore",
+      "empty folders remain permanent after confirmation",
+      "explicit document scope and stored conversation account isolation",
+      "image preview and download preserve original bytes without watermark",
+      "server FFmpeg preparation, unmarked video original, Range/HEAD and access revocation",
+      "Office download retains identity watermark"
+    ]
+  },
+  "format_artifacts": "/opt/supermew/verification/knowledge-integrated-4304e9e7d1f1",
+  "stage": "/opt/supermew/staging/knowledge-integrated-4304e9e7d1f1"
+}
