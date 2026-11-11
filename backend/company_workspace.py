@@ -1077,7 +1077,13 @@ async def grounded_answer(cfg, question):
                   + ('\n本轮为我的项目范围，可用下列目录数据统计项目和文件数，来源标注为“项目目录”。'
                      '项目内容和成果仍需片段依据，不要凭上传记录推断个人职责。\n' + portfolio_text if portfolio_text else '')
                   + '\n\n本轮资料：\n' + evidence)
-        messages = [{'role': 'system', 'content': system}]
+        messages = [{'role': 'system', 'content': system}, {'role': 'system', 'content':
+            '请在读完上述资料后再次核对本轮问题。若询问产品定位或商业模式，回答须分别覆盖定位、收费或服务方式、'
+            '目标用户及经验条件、使用门槛；同时询问目标用户不等于仅问客群。原文存在订阅、API、定制等具体方式时，'
+            '不能只用C端/B端或功能全面等概括替代；每项给出对应片段引用。用户明确限定其他维度时遵守其范围。'
+            '先定位直接定义或定位的原句，再结合其他片段核对；没有依据的项明确未找到。'
+            '信息不重复，回答完所问维度后结束，不追加未问的经营数据、其他公司的旁注或背景。'
+            '引用严格使用半角方括号，例如[id_1]，不要使用全角方括号或书名号样式。'}]
         # Prior assistant text may refer to a now-revoked document. Never carry it
         # into the new evidence context; retain only the last user questions.
         context = cfg.get('conversation_context')
@@ -1110,9 +1116,10 @@ async def grounded_answer(cfg, question):
                     ended = ended or choice.get('finish_reason') == 'stop'
         if not received or not ended:
             raise kb.KnowledgeError('云端回答未完整返回，请重试。')
-        cited = set(re.findall(r'\[id_([^\]]+)\]', ''.join(answer_parts)))
-        if cited - {str(ref['id']) for ref in refs}:
-            raise kb.KnowledgeError('回答中出现没有对应原文的引用，本轮未通过引用检查，请重新提问。')
+        answer = ''.join(answer_parts)
+        cited = set(re.findall(r'\[id_([^\]]+)\]', answer))
+        if cited - {str(ref['id']) for ref in refs} or re.search(r'[［【]id_', answer):
+            raise kb.KnowledgeError('回答的引用编号或格式有误，本轮未通过引用检查，请重新提问。')
         yield {'type': 'done', 'usage': usage, 'model': model}
 
 

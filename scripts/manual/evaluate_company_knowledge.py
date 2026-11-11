@@ -49,6 +49,8 @@ async def evaluate(args):
                 replay_chunks[evidence_id(doc['cloud_id'],text)]=(doc['cloud_id'],meta,text)
     async with kb.httpx.AsyncClient(timeout=120,trust_env=False) as client:
         model=await kb.model_settings(client,config)
+    generation_config={'model':model['model'],'endpoint_sha256':hashlib.sha256(model['base_url'].encode()).hexdigest(),
+                       'options':kb.model_request_options(model)}
     # Same provider results for both evidence policies: isolate assembly improvements.
     stored_nodes=ContextVar('stored_nodes',default=None)
     replay_nodes=ContextVar('replay_nodes',default=None)
@@ -149,7 +151,7 @@ async def evaluate(args):
                         'metrics':metrics,'baseline_evidence_metrics':baseline_metrics,'judgment':judgment,'trace':evaluation.get('trace'), 'usage':usage,'seconds':time.monotonic()-started,
                         'answer_seconds':answer_seconds,'fingerprint':fingerprint,
                         'retrieval_mode':'verified_candidate_replay' if args.replay_from else 'live',
-                        'generation_source_sha256':generation_hash,'selection_source_sha256':selection_hash,
+                        'generation_source_sha256':generation_hash,'selection_source_sha256':selection_hash,'generation_config':generation_config,
                         'annotation_revision':case.get('annotation_revision'),
                         'judge_model':None if args.answers_only else model['model'],'judge_kind':'not_run_answers_only' if args.answers_only else 'automated_independent_call_not_human','error':None}
                 except Exception as exc:
@@ -157,7 +159,7 @@ async def evaluate(args):
                         'answer':answer,'references':refs,'metrics':metrics,'trace':evaluation.get('trace'),'stage':stage,
                         'judge_raw':raw,'provider_status':provider_status.get(),'error_message':str(exc) if isinstance(exc,kb.KnowledgeError) else '',
                         'http_status':getattr(getattr(exc,'response',None),'status_code',None),'seconds':time.monotonic()-started,'fingerprint':fingerprint,'answer_seconds':answer_seconds,
-                        'generation_source_sha256':generation_hash,'selection_source_sha256':selection_hash}
+                        'generation_source_sha256':generation_hash,'selection_source_sha256':selection_hash,'generation_config':generation_config}
                 if previous and previous.get('error'):
                     history=deepcopy(previous.get('prior_attempts',[]))
                     history.append({k:v for k,v in previous.items() if k!='prior_attempts'})

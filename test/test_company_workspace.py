@@ -640,14 +640,15 @@ def test_many_table_rows_cannot_crowd_another_document_out_of_evidence():
     assert not ws.reference_candidates(nodes, {}, 'test-index')
 
 
-def test_generated_unknown_citation_cannot_be_marked_complete(setup, monkeypatch):
+@pytest.mark.parametrize('citation',['[id_999]','［id_1]','【id_1】'])
+def test_generated_unknown_citation_cannot_be_marked_complete(setup, monkeypatch,citation):
     doc_id=upload(setup).json()['id'];ready(setup,doc_id)
     def handler(request):
         if request.url.path.endswith('/retrieve'):
             return httpx.Response(200,json={'data':{'nodes':[{'metadata':{'doc_id':'cloud-a','content':'真实依据'}}]}})
         if request.url.path.endswith('/app/get'):
             return httpx.Response(200,json={'data':{'agent_details':[{'agent_version':'1','agent_config':{'agent_model':'test'}}]}})
-        frames=[{'choices':[{'delta':{'content':'错误引用[id_999]'},'finish_reason':None}]},
+        frames=[{'choices':[{'delta':{'content':'错误引用'+citation},'finish_reason':None}]},
                 {'choices':[{'delta':{},'finish_reason':'stop'}]}]
         return httpx.Response(200,text=''.join('data: '+json.dumps(f)+'\n\n' for f in frames),headers={'Content-Type':'text/event-stream'})
     transport(monkeypatch,handler)

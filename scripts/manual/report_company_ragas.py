@@ -25,9 +25,21 @@ def aggregate(rows, split=None):
     return result
 
 
+def validate_generation_provenance(inputs, lock, provenance):
+    if provenance.get('kind')!='controlled_same_provider':return
+    assert provenance['baseline_commit']==lock['commit'],'Baseline commit changed'
+    for answers in inputs.values():
+        assert all(r.get('generation_config')==provenance['config'] for r in answers),'Generation provider/options changed'
+        assert all(r['selection_source_sha256']==lock['selection_source_sha256'] for r in answers),'Selection code changed'
+    assert {r['generation_source_sha256'] for r in inputs['baseline']}=={lock['generation_source_sha256']},'Baseline generation code changed'
+
+
 def build(root, output):
     gold=read(root/'gold.json');ids=[r['id'] for r in gold]
     inputs={phase:read(root/(phase+'-answers.json')) for phase in ('baseline','improved')}
+    lock=read(root/'baseline-lock.json')
+    provenance=read(root/'generation-provenance.json') if (root/'generation-provenance.json').exists() else {'kind':'recorded_answers'}
+    validate_generation_provenance(inputs,lock,provenance)
     manifests={p:read(root/(p+'-ragas/manifest.json')) for p in inputs}
     configs={p:{k:v for k,v in m['config'].items() if k!='runner_sha256'} for p,m in manifests.items()}
     assert configs['baseline']==configs['improved'],'Judge configuration changed'
@@ -81,7 +93,7 @@ def build(root, output):
         for r in inputs['improved']),'Invalid citation ID'
     candidate_source=Path(__file__).resolve().parents[2]/'backend/company_workspace.py'
     assert {r['generation_source_sha256'] for r in inputs['improved']}=={hashlib.sha256(candidate_source.read_bytes()).hexdigest()},'Current candidate differs from measured generation'
-    report={'baseline_lock':read(root/'baseline-lock.json'),'judge':configs['baseline'],
+    report={'baseline_lock':lock,'generation_provenance':provenance,'judge':configs['baseline'],
         'runner_sha256':{p:m['config']['runner_sha256'] for p,m in manifests.items()},
         'runner_compatibility':'Native metric constructors/ascore calls and all core metric inputs are identical; improved wrapper marks uncited refusals N/A',
         'case_count':len(ids),'answerable':sum(not r.get('unanswerable') for r in gold),
@@ -104,7 +116,10 @@ def build(root, output):
         details+=f'<details><summary>{a["id"]} · {escape(a["question"])}</summary><h3>参考要点</h3><pre>{escape(a["expected_answer"])}</pre><h3>基线回答</h3><pre>{escape(a["answer"])}</pre><h3>修复回答</h3><pre>{escape(b["answer"])}</pre><pre>{escape(json.dumps(detail,ensure_ascii=False,indent=2))}</pre><h3>固定证据</h3><pre>{escape(json.dumps(b["references"],ensure_ascii=False,indent=2))}</pre></details>'
     page='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ragas 基线与修复评测</title><style>body{font:16px/1.7 system-ui,"Microsoft YaHei",sans-serif;max-width:1100px;margin:32px auto;padding:0 20px;color:#182534;background:#f6f8fa}table{border-collapse:collapse;width:100%;background:white}td,th{padding:12px;text-align:left;border-bottom:1px solid #dde3e9}details{background:white;border:1px solid #dde3e9;margin:12px 0;padding:16px}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.7 system-ui}small{color:#526172}</style><h1>Ragas 基线与修复评测</h1>'''
     page+='<p>仅更新 main，不部署。4 份资料、100 题；90 题运行原生 Ragas 指标，10 道无答案题单独核对拒答与引用。70/30 开发与保留题均为回归题，不能作为未见数据的泛化估计。</p>'
-    page+='<p>基线使用已保存的真实回答；已核对当前生成逻辑及原模型配置与记录相符。修复回答使用相同题目、参考答案和逐片段相同的证据重新生成。Ragas 0.4.3 使用既有模型服务评分，关闭外部追踪，原始请求及失败重试保留在私有目录。</p>'
+    if provenance.get('kind')=='controlled_same_provider':
+        page+='<p>冻结基线代码与修复代码均通过同一个官方模型接口、相同模型与选项重新生成回答，固定题目、参考答案和逐片段相同的证据。原中转服务的历史回答与未完成评分另行存档，不混入本次对照。Ragas 0.4.3 前后使用相同评分配置；追踪关闭，原始请求及失败重试保留在私有目录。</p>'
+    else:
+        page+='<p>基线使用已保存的真实回答；已核对当前生成逻辑及原模型配置与记录相符。修复回答使用相同题目、参考答案和逐片段相同的证据重新生成。Ragas 0.4.3 使用既有模型服务评分，关闭外部追踪，原始请求及失败重试保留在私有目录。</p>'
     page+='<table><tr><th>原生指标（0–1）</th><th>固定基线</th><th>修复后</th><th>变化</th><th>题数</th></tr>'+table+'</table>'
     page+='<p>证据召回衡量参考事实是否在召回片段中；忠实度衡量回答事实能否被片段支持；事实 F1 对照参考答案，既惩罚遗漏也惩罚参考之外的事实。原生事实 recall 同样基于声明推断，受拆分粒度影响，不替代必要要点逐项验收。它们不是题目通过率，F1 也不等同于人工准确率，参考答案以外但有来源的扩展仍可能拉低 F1。</p>'
     page+='<p>4 个已知问题另做引用片段探针及逐句复核。探针只把回答实际引用的片段交给原生 Faithfulness，仍不能证明每句话的引用编号正确；专项复核记录才用于判断已知错引。复核由 Codex 对照原文完成，不替代独立业务抽检。正确拒答且没有引用时探针记为不适用，不计为满分。</p>'
