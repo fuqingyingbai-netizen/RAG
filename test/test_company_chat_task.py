@@ -2,6 +2,7 @@ import asyncio
 import json
 
 import pytest
+import httpx
 
 import company_knowledge as kb
 import company_memory as memory
@@ -134,6 +135,47 @@ def test_rich_rewrite_cannot_replace_new_pricing_field_with_old_revenue(monkeypa
     assert failure.value.status_code == 502
 
 
+def test_invalid_rewrite_repairs_once_without_relaxing_intent_validation(monkeypatch):
+    calls = []
+    async def complete(cfg, instruction, data, **kwargs):
+        calls.append(data)
+        if len(calls) == 1:
+            return json.dumps({'query': '乙公司的收入是多少？', 'subjects': ['乙公司'], 'topic': '收入'})
+        assert data['校验错误'] == 'query lost explicit field'
+        return json.dumps({'query': '乙公司怎么收费？', 'subjects': ['乙公司'], 'topic': '收费'})
+    monkeypatch.setattr(memory, 'complete', complete)
+    cfg = {}
+    result = asyncio.run(memory.retrieval_question(cfg, '它怎么收费？',
+        {'summary': '', 'recent': [], 'task': {**task(), 'structured': False}}))
+    assert result == '乙公司怎么收费？' and len(calls) == 2
+    assert cfg['_rewrite_recovered'] and cfg['_task_update']['subjects'] == ['乙公司']
+
+
+@pytest.mark.parametrize('response', ['not json', '{"query":123}', '{"query":"乙公司的收入","subjects":["虚构公司"]}'])
+def test_rewrite_repair_stops_after_two_invalid_results(monkeypatch, response):
+    calls = []
+    async def complete(*args, **kwargs):
+        calls.append(1)
+        return response
+    monkeypatch.setattr(memory, 'complete', complete)
+    cfg = {}
+    with pytest.raises(kb.KnowledgeError) as failure:
+        asyncio.run(memory.retrieval_question(cfg, '那乙公司呢？', {'summary': '', 'recent': [], 'task': task()}))
+    assert failure.value.status_code == 502 and len(calls) == 2 and '_task_update' not in cfg
+
+
+@pytest.mark.parametrize('status', [403, 429, 503])
+def test_provider_errors_are_never_retried_as_json_repairs(monkeypatch, status):
+    calls = []
+    async def complete(*args, **kwargs):
+        calls.append(1)
+        raise kb.KnowledgeError('provider unavailable', status)
+    monkeypatch.setattr(memory, 'complete', complete)
+    with pytest.raises(kb.KnowledgeError) as failure:
+        asyncio.run(memory.retrieval_question({}, '那乙公司呢？', {'summary': '', 'recent': [], 'task': task()}))
+    assert failure.value.status_code == status and len(calls) == 1
+
+
 def test_checkpoint_is_restored_invalidated_and_deleted_with_owning_thread(env, monkeypatch):
     upstream(monkeypatch)
     sid = create(env)
@@ -191,3 +233,29 @@ def test_failed_rewrite_blocks_stale_subject_followup_until_explicit_reset(env, 
     assert '"type": "saved"' in call(env, sid, '乙公司的收入是多少？', 'four').text
     with env.db() as db:
         assert 'rewrite_failed' not in db.get(memory.KnowledgeChatTask, sid).state
+
+
+@pytest.mark.parametrize('marker,complete', [('1', True), ('999', False)])
+def test_streamed_numeric_citation_is_saved_canonically_or_rejected(env, monkeypatch, marker, complete):
+    def handler(request):
+        if request.url.path.endswith('/app/get'):
+            return httpx.Response(200, json={'data': {'agent_details': [{'agent_version': '1', 'agent_config': {'agent_model': 'test'}}]}})
+        if request.url.path.endswith('/retrieve'):
+            return httpx.Response(200, json={'data': {'nodes': [{'metadata': {'doc_id': 'cloud-a', 'content': '未披露净利润。'}}]}})
+        frames = [{'choices': [{'delta': {'content': value}, 'finish_reason': None}]} for value in ('资料未披露净利润[', marker, ']，不推算。')]
+        frames.append({'choices': [{'delta': {}, 'finish_reason': 'stop'}]})
+        return httpx.Response(200, text=''.join('data: '+json.dumps(frame, ensure_ascii=False)+'\n\n' for frame in frames))
+    original = httpx.AsyncClient
+    monkeypatch.setattr(kb.httpx, 'AsyncClient', lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs))
+    sid = create(env)
+    result = call(env, sid, '净利润是多少？')
+    events = [json.loads(line[6:]) for line in result.text.splitlines() if line.startswith('data: ')]
+    restored = env.client.get('/company-knowledge/conversations/'+sid).json()['messages'][-1]
+    assert any(event['type'] == 'saved' for event in events) == complete
+    assert restored['complete'] == complete
+    if complete:
+        text = ''.join(event.get('text', '') for event in events if event['type'] == 'answer_delta')
+        assert text == restored['text'] == '资料未披露净利润[id_1]，不推算。'
+        assert restored['references'][0]['local_id'] == 'doc-a'
+    else:
+        assert events[-1]['type'] == 'error' and '引用检查' in events[-1]['message']
