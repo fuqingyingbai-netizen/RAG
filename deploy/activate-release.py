@@ -109,7 +109,7 @@ def activate(candidate,expected,wait,public_host,metadata_backup=False):
             lock=stack.enter_context((ROOT/name).open('a'))
             fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         manifest=verify(candidate)
-        if metadata_backup and manifest.get('kind') not in ('knowledge-two-levels-overlay','knowledge-reliability-overlay'):
+        if metadata_backup and manifest.get('kind') not in ('knowledge-two-levels-overlay','knowledge-reliability-overlay','account-audit-retention-overlay'):
             raise RuntimeError('Metadata-only backup is limited to a validated knowledge overlay')
         model_update=manifest.get('knowledge_model_update')
         if model_update and manifest.get('kind')!='knowledge-reliability-overlay':
@@ -150,7 +150,7 @@ def activate(candidate,expected,wait,public_host,metadata_backup=False):
                 result=subprocess.run(['runuser','-u','postgres','--','pg_dump','-d','supermew','-Fc'],stdout=out,stderr=subprocess.PIPE,timeout=300)
                 if result.returncode:raise RuntimeError('Database backup failed')
             run(['pg_restore','--list',str(backup/'database.dump')])
-            # This bounded overlay changes only database classification metadata;
+            # These bounded overlays change only database metadata;
             # original files and vector data are not migration targets.
             for name in (() if metadata_backup else ('data','milvus')):
                 with tarfile.open(backup/(name+'.tar.gz'),'w:gz',compresslevel=1) as archive:
@@ -193,7 +193,7 @@ if __name__=='__main__':
     parser.add_argument('--wait-seconds',type=int,default=1800)
     parser.add_argument('--public-host',required=True)
     parser.add_argument('--run',action='store_true',required=True)
-    parser.add_argument('--metadata-only-backup',action='store_true',help='Only for the validated two-level classification overlay; originals and vectors are unchanged.')
+    parser.add_argument('--metadata-only-backup',action='store_true',help='Only for validated database metadata overlays; originals and vectors are unchanged.')
     args=parser.parse_args()
     def interrupted(signum,frame):raise InterruptedError('Deployment interrupted; restoring the previous service')
     signal.signal(signal.SIGTERM,interrupted)

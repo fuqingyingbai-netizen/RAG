@@ -1,4 +1,12 @@
 """Readable account audit summaries; never expose arbitrary stored details."""
+from datetime import datetime, timedelta, timezone
+
+AUDIT_RETENTION_DAYS = 10
+
+
+def audit_cutoff():
+    return datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=AUDIT_RETENTION_DAYS)
+
 
 ACTION_LABELS = {
     "invitation_created": "创建邀请",

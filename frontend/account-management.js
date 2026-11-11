@@ -297,7 +297,7 @@ const AccountManagement = {
             <el-date-picker v-model="auditRange" type="daterange" format="YYYY-MM-DD" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" aria-label="日志日期范围" @change="loadAudits(true)"></el-date-picker>
             <el-button native-type="submit" type="primary" :loading="auditLoading">查询</el-button><el-button @click="resetAuditFilters">重置筛选</el-button><el-button @click="loadAudits()">刷新</el-button>
           </form>
-          <p class="account-help">按最新时间排列，展示账号资料、权限、密码和邀请操作的历史记录。“系统清理”的操作人显示对应邀请的创建人。</p>
+          <p class="account-help">仅展示最近 10 天的操作日志，超期日志由后台每分钟自动清理；账号邀请来源信息继续保留。“系统清理”的操作人显示对应邀请的创建人。</p>
           <el-table :data="audits" v-loading="auditLoading" empty-text="暂无匹配的操作日志" style="width:100%">
             <el-table-column prop="id" label="编号" width="80"></el-table-column>
             <el-table-column label="操作时间" min-width="170"><template #default="{row}">{{formatDate(row.created_at)}}</template></el-table-column>

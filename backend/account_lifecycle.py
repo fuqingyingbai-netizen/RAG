@@ -3,11 +3,12 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, or_, select, update
 
 from database import SessionLocal
 from models import AccountAudit, AccountInvitation, User
 from account_security import cleanup_security_records
+from account_audit import audit_cutoff
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +60,22 @@ def archive_expired_invitations(db, batch_size=200):
     return count
 
 
+def cleanup_expired_audits(db, batch_size=2000):
+    # Used invitation snapshots are the account list's durable registration source.
+    expired = select(AccountAudit.id).where(
+        AccountAudit.created_at < audit_cutoff(),
+        or_(AccountAudit.action.notin_(["invitation_expired", "invitation_deleted"]),
+            AccountAudit.target_user_id.is_(None)),
+    ).order_by(AccountAudit.created_at, AccountAudit.id).limit(batch_size)
+    return db.execute(delete(AccountAudit).where(AccountAudit.id.in_(expired))
+                      .execution_options(synchronize_session=False)).rowcount
+
+
 def cleanup_once():
     with SessionLocal() as db:
         count = archive_expired_invitations(db)
         cleanup_security_records(db)
+        cleanup_expired_audits(db)
         db.commit()
         return count
 

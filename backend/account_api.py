@@ -16,7 +16,7 @@ from auth import (authenticate_user, create_access_token, get_current_user, get_
                   get_password_hash, require_admin, validate_new_password, verify_password)
 from models import AccountAudit, AccountInvitation, AdminActionConfirmation, User
 from account_lifecycle import archive_expired_invitations, remove_invitation
-from account_audit import ACTION_LABELS, audit_summary, invitation_number
+from account_audit import ACTION_LABELS, audit_summary, invitation_number, audit_cutoff
 from account_security import (check_limit, consume_confirmation, consume_ip_attempt, managed_account,
                               management_lock, protect_last_admin, throttle_row)
 from schemas import AuthResponse, CurrentUserResponse, LoginRequest, RegisterRequest
@@ -392,7 +392,7 @@ def list_audits(actor: str = Query("", max_length=100), target: str = Query("", 
     if start and end and start >= end:
         raise HTTPException(400, "结束时间须晚于开始时间")
     operator, recipient = aliased(User), aliased(User)
-    filters = []
+    filters = [AccountAudit.created_at >= audit_cutoff()]
     if action != "all":
         filters.append(AccountAudit.action == action)
     if actor.strip() == "系统":

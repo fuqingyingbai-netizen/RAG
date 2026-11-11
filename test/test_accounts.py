@@ -616,7 +616,8 @@ def test_profile_search_treats_wildcards_literally_and_disabled_users_are_editab
     assert client.patch('/admin/users/999/profile', headers=admin, json={'notes': '未知'}).status_code == 404
 
 
-def test_audit_filters_pagination_timezone_and_secret_redaction(setup):
+def test_audit_filters_pagination_timezone_and_secret_redaction(setup, monkeypatch):
+    monkeypatch.setattr(accounts, "audit_cutoff", lambda: datetime(2026, 10, 15))
     client, factory = setup
     admin = login(client)
     with factory() as db:
@@ -648,6 +649,40 @@ def test_audit_filters_pagination_timezone_and_secret_redaction(setup):
     assert client.get('/admin/audits?action=unsupported', headers=admin).status_code == 400
     assert client.get('/admin/audits?start=bad', headers=admin).status_code == 422
     assert client.get('/admin/audits?start=2026-10-21T00:00:00Z&end=2026-10-20T00:00:00Z', headers=admin).status_code == 400
+
+
+def test_audit_retention_preserves_boundary_and_invitation_source(setup, monkeypatch):
+    import account_lifecycle as lifecycle
+    client, factory = setup
+    admin = login(client)
+    cutoff = datetime(2026, 10, 20, 12)
+    monkeypatch.setattr(accounts, 'audit_cutoff', lambda: cutoff)
+    monkeypatch.setattr(lifecycle, 'audit_cutoff', lambda: cutoff)
+    monkeypatch.setattr(lifecycle, 'SessionLocal', factory)
+    with factory() as db:
+        old = cutoff - timedelta(microseconds=1)
+        db.add_all([
+            AccountAudit(actor_id=1, action='password_changed', created_at=old),
+            AccountAudit(actor_id=1, action='password_reset', created_at=cutoff),
+            AccountAudit(actor_id=1, action='invitation_deleted', created_at=old),
+            AccountAudit(actor_id=1, target_user_id=2, action='invitation_expired', created_at=old,
+                         details={'invitation_id': 77, 'created_by': 'admin'}),
+        ])
+        db.commit()
+    # The API hides expired entries even before the background worker runs.
+    result = client.get('/admin/audits', headers=admin).json()
+    assert result['total'] == 1 and result['items'][0]['action'] == 'password_reset'
+    assert client.get('/admin/audits?end=2026-10-20T12:00:00Z', headers=admin).json()['total'] == 0
+    with factory() as db:
+        assert lifecycle.cleanup_expired_audits(db, batch_size=1) == 1
+        db.commit()
+    lifecycle.cleanup_once()
+    with factory() as db:
+        assert db.scalar(select(func.count()).select_from(AccountAudit)) == 2
+        assert lifecycle.cleanup_expired_audits(db) == 0
+    employee = client.get('/admin/users?q=existing', headers=admin).json()['items'][0]
+    assert employee['invitation_id'] == 77 and employee['invited_by'] == 'admin'
+    assert client.get('/business', headers=login(client, 'existing')).status_code == 200
 
 
 def test_audit_system_cleanup_archived_invitation_and_malformed_legacy_details(setup):
