@@ -25,6 +25,11 @@ def aggregate(rows, split=None):
     return result
 
 
+def aggregate_probes(items):
+    values=[r['value'] for r in items if r['status']=='completed']
+    return {'count':len(values),'mean':sum(values)/len(values) if values else None}
+
+
 def validate_generation_provenance(inputs, lock, provenance):
     if provenance.get('kind')!='controlled_same_provider':return
     assert provenance['baseline_commit']==lock['commit'],'Baseline commit changed'
@@ -98,7 +103,8 @@ def build(root, output):
         'runner_compatibility':'Native metric constructors/ascore calls and all core metric inputs are identical; improved wrapper marks uncited refusals N/A',
         'case_count':len(ids),'answerable':sum(not r.get('unanswerable') for r in gold),
         'metrics':{p:{s:aggregate(rows[p],None if s=='all' else s) for s in ('all','development','holdout')} for p in inputs},
-        'same_evidence':True,'retries':retries,'citation_probes':citations,'business_review':review,
+        'same_evidence':True,'retries':retries,'citation_probes':citations,
+        'citation_probe_summary':{p:aggregate_probes(v) for p,v in citations.items()},'business_review':review,
         'candidate_generation_sha256':sorted({r['generation_source_sha256'] for r in inputs['improved']}),
         'checks':{'one_candidate_version':len({r['generation_source_sha256'] for r in inputs['improved']})==1,
             'reviewed_cases_pass':all(reviewed[k]['passed'] for k in required)},
@@ -109,6 +115,8 @@ def build(root, output):
     for metric,label in METRICS.items():
         before=report['metrics']['baseline']['all'][metric];after=report['metrics']['improved']['all'][metric]
         table+=f'<tr><td>{label}</td><td>{before["mean"]:.4f}</td><td>{after["mean"]:.4f}</td><td>{after["mean"]-before["mean"]:+.4f}</td><td>{after["count"]}</td></tr>'
+    before=report['citation_probe_summary']['baseline'];after=report['citation_probe_summary']['improved']
+    table+=f'<tr><td>引用片段探针（仅4题）</td><td>{before["mean"]:.4f}</td><td>{after["mean"]:.4f}</td><td>{after["mean"]-before["mean"]:+.4f}</td><td>{after["count"]}</td></tr>'
     details=''
     for a,b in zip(inputs['baseline'],inputs['improved']):
         detail={'基线评分':next(r for r in rows['baseline'] if r['id']==a['id']),
@@ -122,8 +130,12 @@ def build(root, output):
         page+='<p>基线使用已保存的真实回答；已核对当前生成逻辑及原模型配置与记录相符。修复回答使用相同题目、参考答案和逐片段相同的证据重新生成。Ragas 0.4.3 使用既有模型服务评分，关闭外部追踪，原始请求及失败重试保留在私有目录。</p>'
     page+='<table><tr><th>原生指标（0–1）</th><th>固定基线</th><th>修复后</th><th>变化</th><th>题数</th></tr>'+table+'</table>'
     page+='<p>证据召回衡量参考事实是否在召回片段中；忠实度衡量回答事实能否被片段支持；事实 F1 对照参考答案，既惩罚遗漏也惩罚参考之外的事实。原生事实 recall 同样基于声明推断，受拆分粒度影响，不替代必要要点逐项验收。它们不是题目通过率，F1 也不等同于人工准确率，参考答案以外但有来源的扩展仍可能拉低 F1。</p>'
+    page+='<p>本次生成和评分使用同一型号的 GLM，独立调用不等于独立裁判，可能有同源偏差。Faithfulness 的证据输入仅为片段正文，不含标题、版本或复核状态等元数据，涉及这些信息的来源说明需另行核对。两组证据逐片段固定，因此证据召回分数用于确认这些片段是否包含参考事实，不能代表全库实时检索召回率，也不能用来宣称本轮提高了检索召回。</p>'
     page+='<p>本题集部分参考答案仅列必要要点，省略了问题中的具体对象名称。原生声明拆分与推断可能把回答中有来源的对象名称判为参考之外的事实；拆分粒度不同也会影响同义回答的 F1。此类分数保持原样，不手动改分，需结合原文复核与忠实度、事实 recall 阅读。</p>'
+    page+='<p>Ragas 0.4.3 的原生事实 recall 仍以“回答声明能否被参考支持”的数量作为 TP；因此即使参考要点能从回答中找到，也可能因参考省略对象名而给出低值。此辅助指标照录原生结果，不作为必要要点覆盖率或检索召回率使用。</p>'
     page+='<p>4 个已知问题另做引用片段探针及逐句复核。探针只把回答实际引用的片段交给原生 Faithfulness，仍不能证明每句话的引用编号正确；专项复核记录才用于判断已知错引。复核由 Codex 对照原文完成，不替代独立业务抽检。正确拒答且没有引用时探针记为不适用，不计为满分。</p>'
+    if after['mean']<before['mean']:
+        page+='<p>引用片段探针均分低于基线，保留该回退，不宣称引用质量全面提升。专项复核只确认所列核心事实及其对应来源。原始审计显示，引用编号被当作待验证事实、仅在标题中的对象/时间，以及“直接摘录”等不严谨说明均会影响探针；具体原因与剩余问题见下列记录。</p>'
     page+='<h2>专项复核与运行记录</h2><pre>'+escape(json.dumps({k:report[k] for k in ('checks','business_review','retries','citation_probes')},ensure_ascii=False,indent=2))+'</pre><h2>逐题对照</h2>'+details+'</html>'
     (output/'report.html').write_text(page,encoding='utf-8')
     return report

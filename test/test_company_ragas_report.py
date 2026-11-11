@@ -37,3 +37,9 @@ def test_controlled_report_rejects_model_endpoint_or_options_changes(field,value
 def test_controlled_report_rejects_changed_baseline_source():
     inputs,lock,provenance=controlled_inputs();inputs['baseline'][0]['generation_source_sha256']='other-code'
     with pytest.raises(AssertionError,match='Baseline generation'):report.validate_generation_provenance(inputs,lock,provenance)
+
+
+def test_citation_probe_summary_preserves_low_scores_and_excludes_not_applicable():
+    assert report.aggregate_probes([{'status':'completed','value':0.25},
+        {'status':'completed','value':0.75},{'status':'not_applicable','value':None}])=={'count':2,'mean':0.5}
+    assert report.aggregate_probes([{'status':'not_applicable','value':None}])=={'count':0,'mean':None}
