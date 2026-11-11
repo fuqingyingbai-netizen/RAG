@@ -1,5 +1,18 @@
 /* Knowledge workspace design authority. Refine the existing semantic tokens here;
    source documents keep their own formatting and other workspaces are unaffected. */
+.ckb-formatted-workbook .ckb-sheet-scroll{min-height:0;overflow:auto;background:#f3f4f6}
+.ckb-formatted-workbook .ckb-sheet-canvas{position:relative;background:#fff;color:#000}
+.ckb-formatted-workbook table.ckb-sheet-layout{table-layout:fixed;border-collapse:collapse;min-width:0;margin:0;background:#fff;color:#000}
+.ckb-formatted-workbook .ckb-sheet-layout tr{background:transparent}
+.ckb-formatted-workbook .ckb-sheet-layout th{padding:0;height:23px;min-width:0;max-width:none;text-align:center;background:#f3f4f6;color:#475569;border:1px solid #d1d5db;font:12px/20px Arial,sans-serif;position:static}
+.ckb-formatted-workbook .ckb-sheet-layout tbody th{position:relative;height:0;font-size:0;line-height:0}
+.ckb-formatted-workbook .ckb-sheet-layout tbody th>span{position:absolute;inset:0;font:11px/16px Arial,sans-serif;overflow:hidden}
+.ckb-formatted-workbook .ckb-sheet-layout td{position:relative;padding:0;min-width:0;max-width:none;border:0;line-height:1.2;overflow:hidden;box-sizing:border-box}
+.ckb-formatted-workbook .ckb-sheet-layout.has-grid-lines td:not([style*="background-color"]){border:1px solid #d9d9d9}
+.ckb-formatted-workbook .ckb-sheet-cell-content{position:absolute;inset:0;display:flex;flex-direction:column;padding:1px 2px;box-sizing:border-box;overflow:hidden}
+.ckb-formatted-workbook .ckb-sheet-cell-content p{padding:0;margin:0;white-space:inherit;overflow-wrap:anywhere;line-height:1.2;color:inherit;font:inherit}
+.ckb-formatted-workbook .ckb-sheet-watermark-overlay{position:absolute;inset:24px 0 0;pointer-events:none;background-repeat:repeat;z-index:2}
+.ckb-formatted-workbook .ckb-sheet-controls{flex-wrap:wrap}
 :root[data-knowledge-theme="light"] {
   --ku-day-canvas:#fff; --ku-day-surface:#fff; --ku-day-surface-soft:#f7f9fc; --ku-day-surface-tint:#edf2f8;
   --ku-day-ink-strong:#243247; --ku-day-ink:#435269; --ku-day-muted:#526175;
@@ -16,7 +29,7 @@
   --kb-control-border:#718096; --kb-control-error:#ff9ba1;
 }
 :root[data-knowledge-theme] .company-knowledge-shell > .el-main { background:var(--ku-day-canvas)!important; }
-:root[data-knowledge-theme] .ckb-workbench { color:var(--ku-day-ink-strong); font-size:14px; line-height:1.6; --kt-action-width:118px; --kt-column-gap:16px; }
+:root[data-knowledge-theme] .ckb-workbench { max-width:none; width:100%; min-width:0; margin-inline:0; color:var(--ku-day-ink-strong); font-size:14px; line-height:1.6; --kt-action-width:118px; --kt-column-gap:16px; }
 :root[data-knowledge-theme] .ckb-workbench :is(button,input,select,textarea) { font-family:inherit; }
 :root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog,.ckb-input-prompt) :is(button,a,input,select,textarea,[contenteditable=true],[tabindex]):focus-visible { outline:2px solid var(--ku-day-accent)!important; outline-offset:-2px!important; }
 :root[data-knowledge-theme] .ckb-workbench :is(button,input,select,textarea):disabled { cursor:not-allowed; }
@@ -173,8 +186,8 @@
   border-color:var(--kb-control-border); color:var(--ku-day-muted); background:var(--ku-day-surface-soft); opacity:1;
 }
 :root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) :is(input,textarea,select)[aria-invalid=true] { border-color:var(--kb-control-error); outline-color:var(--kb-control-error)!important; }
-:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) :is(.ckb-search,.ckb-composer,.ckb-reader-locate-tools,.ckb-file-drop,.ckb-restore-original) { border-color:var(--kb-control-border); }
-:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) :is(.ckb-search,.ckb-composer,.ckb-reader-locate-tools,.ckb-file-drop,.ckb-restore-original):focus-within {
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) :is(.ckb-search,.ckb-composer,.ckb-reader-locate-tools > label,.ckb-file-drop,.ckb-restore-original) { border-color:var(--kb-control-border); }
+:root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) :is(.ckb-search,.ckb-composer,.ckb-reader-locate-tools > label,.ckb-file-drop,.ckb-restore-original):focus-within {
   border-color:var(--ku-day-accent); box-shadow:inset 0 0 0 1px var(--ku-day-accent)!important; translate:none;
 }
 :root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog) :is(.ckb-search,.ckb-composer,.ckb-reader-locate-tools) :is(input,textarea):focus-visible { outline:none!important; box-shadow:none!important; }
@@ -269,51 +282,10 @@
 :root[data-knowledge-theme] .ckb-workbench .ckb-project-row .ckb-project-door { min-height:62px; }
 :root[data-knowledge-theme] .ckb-workbench .ckb-project-row h3 { font-size:14px; line-height:24px; }
 
-/* Reading chrome: identity, operations, reading tools, then source and evidence. */
-:root[data-knowledge-theme] .el-dialog.ckb-workbench-reader { max-width:1440px; }
-:root[data-knowledge-theme] .ckb-workbench-reader .el-dialog__header { padding:2px 36px 16px 0; border-bottom:1px solid var(--ku-day-line); }
-:root[data-knowledge-theme] .ckb-reader-heading { display:flex; gap:14px; align-items:center; min-width:0; }
-:root[data-knowledge-theme] .ckb-reader-heading > div { min-width:0; }
-:root[data-knowledge-theme] .ckb-reader-heading h2 { margin:0; font-size:18px; font-weight:600; line-height:28px; color:var(--ku-day-ink-strong); overflow-wrap:anywhere; }
-:root[data-knowledge-theme] .ckb-reader-heading p { margin:3px 0 0; color:var(--ku-day-muted); font-size:12px; line-height:19px; overflow-wrap:anywhere; }
-:root[data-knowledge-theme] .ckb-reader-file-badge { display:flex; align-items:center; justify-content:center; flex:0 0 42px; height:46px; font-size:11px; font-weight:700; color:var(--ku-day-accent); background:var(--kb-selected); border:1px solid var(--ku-day-line); border-radius:5px; }
-:root[data-knowledge-theme] .ckb-workbench-reader .ckb-reader-toolbar { padding:12px 0; gap:10px; align-items:center; }
-:root[data-knowledge-theme] .ckb-reader-metadata { display:flex; align-items:center; flex-wrap:wrap; gap:12px; color:var(--ku-day-muted); font-size:12px; }
-:root[data-knowledge-theme] .ckb-workbench-reader .ckb-reader-toolbar > div:last-child { display:flex; flex-wrap:wrap; gap:8px; }
-:root[data-knowledge-theme] .ckb-workbench-reader .ckb-reader-toolbar .ckb-button { font-size:13px; line-height:20px; min-height:36px; padding:7px 12px; border-radius:5px; }
-:root[data-knowledge-theme] .ckb-workbench-reader .ckb-reader-view-tabs { display:flex; flex-wrap:wrap; gap:8px; padding:10px 0 14px; border-top:1px solid var(--ku-day-line-soft); }
-:root[data-knowledge-theme] .ckb-reader-view-tabs > button { font-size:13px; min-height:36px; border:1px solid transparent; padding:7px 12px; border-radius:5px; }
-:root[data-knowledge-theme] .ckb-reader-view-tabs > button[aria-pressed=true] { color:var(--ku-day-accent); background:var(--kb-selected); border-color:var(--ku-day-line); box-shadow:none; font-weight:600; }
-:root[data-knowledge-theme] .ckb-reader-view-tabs > .ckb-reader-locate-tools { min-width:260px; margin-left:12px; min-height:36px; }
-:root[data-knowledge-theme] .ckb-reader-locate-tools > label { max-width:390px; min-height:36px; border:1px solid var(--kb-control-border); border-radius:5px; background:var(--kb-field); }
-:root[data-knowledge-theme] .ckb-reader-locate-tools input { font-size:13px; line-height:20px; padding:7px 0; }
-:root[data-knowledge-theme] .ckb-reader-locate-tools input::placeholder { color:var(--ku-day-muted); }
-:root[data-knowledge-theme] .ckb-reader-locate-tools button { font-size:12px; min-height:32px; border-radius:4px; }
-:root[data-knowledge-theme] .ckb-reader-view-tabs > .ckb-reader-locate-tools > button { font-size:12px; min-height:36px; padding:7px 10px; }
-:root[data-knowledge-theme] .ckb-reader-policy { flex:0 1 auto; font-size:12px; color:var(--ku-day-muted); }
-:root[data-knowledge-theme] .ckb-reader-policy > summary { min-height:32px; }
-:root[data-knowledge-theme] .ckb-workbench-reader .ckb-reader-columns { grid-template-columns:minmax(0,1fr) 272px; gap:16px; }
-:root[data-knowledge-theme] .ckb-workbench-reader .ckb-original-pane { border:1px solid var(--ku-day-line); border-radius:6px; background:var(--ku-day-surface-soft); }
-:root[data-knowledge-theme] .ckb-workbench-reader .ckb-reader-question { padding:18px; border:1px solid var(--ku-day-line); border-radius:6px; background:var(--ku-day-surface-soft); }
-:root[data-knowledge-theme] .ckb-reader-question h3 { display:flex; align-items:center; gap:9px; margin:0 0 12px; font-size:15px; color:var(--ku-day-ink-strong); }
-:root[data-knowledge-theme] .ckb-reader-question h3 i { color:var(--ku-day-accent); font-size:14px; }
-:root[data-knowledge-theme] .ckb-reader-question > p { color:var(--ku-day-muted); font-size:13px; line-height:1.8; }
-:root[data-knowledge-theme] .ckb-reader-question .ckb-reader-source-status { margin:0 0 10px; font-size:12px; }
-:root[data-knowledge-theme] .ckb-reader-ask { padding-top:16px; }
-:root[data-knowledge-theme] .ckb-reader-ask > label { display:block; color:var(--ku-day-ink-strong); font-size:13px; font-weight:500; margin-bottom:8px; }
-:root[data-knowledge-theme] .ckb-reader-ask textarea { border-radius:5px; font-size:13px; line-height:1.8; padding:10px; }
-:root[data-knowledge-theme] .ckb-workbench-reader .ckb-source-reader { padding:24px; }
-:root[data-knowledge-theme] .ckb-workbench-reader .ckb-source-reader pre { font-size:15px; line-height:1.9; }
-:root[data-knowledge-theme] .ckb-workbench-reader .ckb-fulltext-document { padding:28px 32px; }
-:root[data-knowledge-theme] .ckb-workbench-reader .ckb-fulltext-document pre { max-width:78ch; margin:0 auto; font-size:15px; line-height:1.9; }
-:root[data-knowledge-theme] .ckb-reader-focused .ckb-reader-toolbar { display:none; }
-
 @media(max-width:1100px) {
   :root[data-knowledge-theme] .ckb-workbench .ckb-library-layout { grid-template-columns:150px minmax(0,1fr); gap:20px; }
   :root[data-knowledge-theme] .ckb-workbench .ckb-library-tools { flex-basis:100%; }
   :root[data-knowledge-theme] .ckb-workbench .ckb-library-heading { gap:12px; }
-  :root[data-knowledge-theme] .ckb-workbench-reader .ckb-reader-columns { grid-template-columns:minmax(0,1fr) 236px; gap:12px; }
-  :root[data-knowledge-theme] .ckb-reader-policy { flex-basis:100%; }
 }
 @media(max-width:760px) {
   :root[data-knowledge-theme] .ckb-workbench .ckb-library-layout { display:block; }
@@ -328,14 +300,6 @@
   :root[data-knowledge-theme] .ckb-workbench .ckb-root-file-row { grid-template-columns:20px minmax(0,1fr) auto; }
   :root[data-knowledge-theme] .ckb-workbench .ckb-root-file-actions { flex-wrap:wrap; justify-content:flex-end; max-width:112px; }
   :root[data-knowledge-theme] .ckb-file-action-menu .el-dropdown-menu__item { min-height:44px; }
-  :root[data-knowledge-theme] .ckb-workbench-reader .ckb-reader-toolbar { flex-direction:row; align-items:center; }
-  :root[data-knowledge-theme] .ckb-reader-heading h2 { font-size:16px; line-height:24px; }
-  :root[data-knowledge-theme] .ckb-reader-view-tabs > .ckb-reader-locate-tools { flex-basis:100%; min-width:0; margin-left:0; }
-  :root[data-knowledge-theme] .ckb-reader-locate-tools > label { max-width:none; }
-  :root[data-knowledge-theme] .ckb-workbench-reader .ckb-reader-columns { display:flex; flex-direction:column; overflow:auto; }
-  :root[data-knowledge-theme] .ckb-workbench-reader .ckb-original-pane { flex:none; height:52vh; min-height:280px; }
-  :root[data-knowledge-theme] .ckb-workbench-reader .ckb-reader-question { flex:none; max-height:none; }
-  :root[data-knowledge-theme] .ckb-reader-focused .ckb-original-pane { height:65vh; }
 }
 @media(max-width:600px) {
   :root[data-knowledge-theme] .ckb-workbench .ckb-tabs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); overflow:visible; gap:4px; }
@@ -362,11 +326,6 @@
   :root[data-knowledge-theme] .ckb-workbench .ckb-table-actions > button,
   :root[data-knowledge-theme] .ckb-workbench .ckb-root-file-actions > button,
   :root[data-knowledge-theme] .ckb-file-more { min-height:44px; min-width:44px; }
-  :root[data-knowledge-theme] .ckb-reader-file-badge { display:none; }
-  :root[data-knowledge-theme] .ckb-reader-heading h2 { font-size:16px; }
-  :root[data-knowledge-theme] .ckb-workbench-reader .ckb-reader-toolbar .ckb-button { min-height:40px; }
-  :root[data-knowledge-theme] .ckb-workbench-reader .ckb-fulltext-document { padding:20px 16px; }
-  :root[data-knowledge-theme] .ckb-workbench-reader .ckb-fulltext-document pre { font-size:16px; }
 }
 @media(prefers-reduced-motion:reduce) {
   :root[data-knowledge-theme] :is(.ckb-workbench,.ckb-dialog,.ckb-file-action-menu) *,

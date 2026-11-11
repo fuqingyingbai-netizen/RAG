@@ -16,6 +16,21 @@ test('department and existing category filters combine while total library remai
  s.selectCategory('研究成果');assert.equal(s.visibleProjectDirectories.length,0);assert.equal(s.collectionDocuments.length,1);s.browseLibrary();assert.equal(s.departmentFilter,'');assert.equal(s.collectionDocuments.length,3);
  s.setDepartmentFilter('unassigned');assert.deepEqual(Array.from(s.filteredDocuments,d=>d.id),['legacy']);
 });
+test('department creation is pinned to its entry while global creation and existing settings stay selectable',async()=>{
+ const{s}=fixture();s.loadDocuments=async()=>{};let submitted;
+ s.apiFetch=async(_url,options)=>{submitted=JSON.parse(options.body);return {ok:true,json:async()=>({id:'created',department:submitted.department})};};
+ for(const department of ['market','project','policy','expert']){
+  s.openDepartment(department);s.startProjectEditor();assert.equal(s.projectCreationDepartment,department);
+  s.projectForm.name='部门项目';s.projectForm.department='expert';await s.saveProjectDirectory();assert.equal(submitted.department,department);
+ }
+ s.browseLibrary();s.startProjectEditor();assert.equal(s.projectCreationDepartment,'');s.projectForm.department='policy';s.projectForm.name='全库项目';await s.saveProjectDirectory();assert.equal(submitted.department,'policy');
+ s.openDepartment('market');s.startProjectEditor(s.projectDirectories[0]);assert.equal(s.projectCreationDepartment,'');
+});
+test('returning home cancels stale department history and survives late initialization',async()=>{
+ const{s}=fixture();let finish;const history=new Promise(resolve=>finish=resolve);s.scrollChat=()=>{};s.departmentFilter='market';s.mode='library';
+ s.apiFetch=async()=>({ok:true,json:()=>history});const reading=s.loadChatHistory();s.refreshChatSessions=async()=>{};s.openHome();finish({session_id:'old',document_ids:['a'],scope:'accessible',messages:[]});await reading;
+ assert.equal(s.mode,'home');assert.equal(s.departmentFilter,'');assert.equal(s.departmentEntryApplied,true);assert.equal(s.selectionCount,0);
+});
 test('department creation and nested upload inherit attribution without replacing original form fields',()=>{
  const{s}=fixture();s.openDepartment('market');s.startProjectEditor();assert.equal(s.projectForm.department,'market');assert.equal(s.projectForm.confidentiality,'internal');
  s.openDirectory(s.projectDirectories[0]);s.startUpload();assert.equal(s.uploadForm.department,'market');assert.equal(s.uploadTargetProjectId,'m');
