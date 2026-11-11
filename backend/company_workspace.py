@@ -32,6 +32,7 @@ from company_audit import record, snapshot, mark_modified, history
 from company_collections import EXPERIENCE_CATEGORIES, KNOWLEDGE_SCOPES, in_scope, is_personal
 from company_watermark import ExportIdentity, WatermarkError, export_copy
 import company_export_progress as export_progress
+import company_media
 
 workspace_router = APIRouter()
 
@@ -451,6 +452,10 @@ async def upload(request: Request, file: UploadFile = File(...), project: str = 
         result = serialize(doc, user)
     if doc.state == 'queued':
         schedule_document(doc.id)
+    if extension in MEDIA_FORMATS:
+        from types import SimpleNamespace
+        with suppress(Exception):
+            company_media.playback_job(SimpleNamespace(object_key=doc.object_key, sha256=doc.sha256, format=doc.format))
     return result
 
 
@@ -813,7 +818,9 @@ async def original(doc_id: str, request: Request, download: bool = False,
     update = export_progress.begin(user, doc_id, request_id) if request_id else None
     try:
         data = await asyncio.to_thread(document_store().get_bytes, object_key)
-        if update:
+        if fmt in company_media.RAW_FORMATS:
+            result, mime, filename = data, mimetypes.guess_type('file.' + fmt.lower())[0] or 'application/octet-stream', title
+        elif update:
             result, mime, filename = await asyncio.to_thread(export_copy, data, fmt, title, identity, update)
         else:
             result, mime, filename = await asyncio.to_thread(export_copy, data, fmt, title, identity)
@@ -837,13 +844,37 @@ async def original(doc_id: str, request: Request, download: bool = False,
             raise
         record(db, user, 'document.download' if download else 'document.preview', doc, before=snapshot(doc),
             event_id=trace_id, details={'trace_id': trace_id, 'filename': filename, 'mime': mime,
-                'sha256': hashlib.sha256(result).hexdigest(), 'watermarked': True})
+                'sha256': hashlib.sha256(result).hexdigest(), 'watermarked': fmt not in company_media.RAW_FORMATS})
         db.commit()
     if update: update('ready')
     return Response(result, media_type=mime, headers={
         'Content-Disposition': ('attachment' if download else 'inline') + "; filename*=UTF-8''" + quote(filename),
         'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff',
         'X-Watermark-Trace': trace_id, 'X-Download-Filename': quote(filename)})
+
+
+@workspace_router.get('/documents/{doc_id}/playback')
+async def playback(doc_id: str, request: Request, retry: bool = False, user: User = Depends(kb.require_knowledge_user)):
+    from types import SimpleNamespace
+    with SessionLocal() as db:
+        doc = find_doc(db, doc_id, user)
+        if not media_kind(doc) or not doc.object_key:
+            raise HTTPException(422, '这份资料没有可播放的音视频原件。')
+        values = SimpleNamespace(id=doc.id, object_key=doc.object_key, sha256=doc.sha256, format=doc.format)
+    response = company_media.playback_response(values, user, request, retry)
+    if response.status_code == 200:
+        with SessionLocal() as db:
+            doc = find_doc(db, doc_id, user)
+            if doc.sha256 != values.sha256:
+                raise HTTPException(409, '资料版本已变化，请重新打开。')
+            record(db, user, 'document.preview', doc, before=snapshot(doc), details={'media': True, 'watermarked': False})
+            db.commit()
+    return response
+
+
+@workspace_router.api_route('/documents/{doc_id}/stream', methods=['GET', 'HEAD'])
+async def stream_media(doc_id: str, request: Request):
+    return company_media.stream_response(doc_id, request)
 
 
 @workspace_router.get('/documents/{doc_id}/preview')

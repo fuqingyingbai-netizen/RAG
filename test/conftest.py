@@ -41,6 +41,7 @@ def pytest_configure(config):
         guard.setenv('DATABASE_URL', 'sqlite://')
     guard.setenv('BM25_STATE_PATH', str(root / 'bm25.json'))
     guard.setenv('RESEARCH_OBJECT_STORE', 'local')
+    guard.setenv('COMPANY_KNOWLEDGE_MEDIA_CACHE', str(root / 'media-cache'))
     guard.setenv('RESEARCH_LOCAL_STORE', str(root / 'research'))
     guard.setenv('COMPANY_KNOWLEDGE_OBJECT_STORE', 'local')
     guard.setenv('COMPANY_KNOWLEDGE_LOCAL_STORE', str(root / 'knowledge'))

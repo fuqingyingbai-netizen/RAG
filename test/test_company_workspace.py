@@ -708,7 +708,7 @@ def test_media_indexes_only_description_and_reindexes_edits_without_changing_ori
     asyncio.run(ingestion.process_document(row['id']))
     assert '访谈复盘经验' in puts[0] and '访谈方法' in puts[0] and '未自动转写' in puts[0]
     response = setup.client.get('/company-knowledge/documents/' + row['id'] + '/original')
-    assert response.status_code == 503  # The invalid WAV fixture cannot produce a marked export.
+    assert response.status_code == 200 and response.content == audio  # Media originals no longer require a marked export.
     assert stored_original(setup, row['id']) == audio
     response = setup.client.patch('/company-knowledge/documents/' + row['id'], json={'description': '已修正的访谈经验'})
     assert response.status_code == 200 and response.json()['state'] == 'queued'

@@ -185,7 +185,8 @@ async def thumbnail(doc_id: str, user=Depends(kb.require_knowledge_user)):
         try:
             data = await asyncio.to_thread(thumbnail_bytes, doc)
             identity = ExportIdentity(user.username, getattr(user, 'id', None), datetime.utcnow().isoformat(), uuid.uuid4().hex)
-            data, _, _ = await asyncio.to_thread(export_copy, data, 'PNG', 'cover.png', identity)
+            if doc.format not in ws.company_media.RAW_FORMATS:
+                data, _, _ = await asyncio.to_thread(export_copy, data, 'PNG', 'cover.png', identity)
         except WatermarkError as exc:
             raise HTTPException(exc.status, str(exc)) from None
         except HTTPException:
@@ -195,7 +196,8 @@ async def thumbnail(doc_id: str, user=Depends(kb.require_knowledge_user)):
         db.expire_all()
         doc = ws.find_doc(db, doc_id, user)  # Check again after conversion.
         ws.record(db, user, 'document.preview', doc, before=ws.snapshot(doc), event_id=identity.trace_id,
-                  details={'trace_id': identity.trace_id, 'thumbnail': True, 'watermarked': True})
+                  details={'trace_id': identity.trace_id, 'thumbnail': True,
+                           'watermarked': doc.format not in ws.company_media.RAW_FORMATS})
         db.commit()
     return Response(data, media_type='image/png', headers={'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff'})
 

@@ -74,16 +74,19 @@ def test_search_paginates_deduplicated_body_snippets(setup, monkeypatch):
     assert response['matches'][0]['reference']['text'] == 'paragraph 10'
 
 
-def test_thumbnail_is_personalized_and_preserves_original(setup):
+def test_thumbnail_is_unmarked_preserves_original_and_checks_private_document_acl(setup, monkeypatch):
     output = io.BytesIO()
     Image.new('RGB', (1000, 800), '#b8d6de').save(output, 'PNG')
     original = output.getvalue()
-    row = upload(setup, original, 'photo.png', category='现场照片').json()
+    row = upload(setup, original, 'photo.png', category='项目原件').json()
+    def no_watermark(*args):raise AssertionError('Image thumbnails bypass watermark processing')
+    monkeypatch.setattr(discovery, 'export_copy', no_watermark)
     response = setup.client.get('/company-knowledge/documents/'+row['id']+'/thumbnail')
     assert response.status_code == 200
     assert response.headers['cache-control'] == 'private, no-store'
     image = Image.open(io.BytesIO(response.content))
     assert image.width <= 720 and image.height <= 480
+    assert image.getpixel((20, 20)) == (184, 214, 222)
     assert response.content != original and stored_original(setup, row['id']) == original
     setup.user.username, setup.user.id = 'bob', 2
     with setup.db() as db:

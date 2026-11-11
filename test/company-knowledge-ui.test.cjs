@@ -302,15 +302,15 @@ test('management restores editable tags and description without broadening inter
  context.syncConfidentiality();assert.equal(context.uploadForm.visibility,'restricted');
 });
 
-test('media can play from the authenticated original without waiting for description indexing',async()=>{
+test('media uses protected range playback without downloading the full original or waiting for indexing',async()=>{
  const component=vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../frontend/company-knowledge.js'),'utf8')+'\nCompanyKnowledge;',{
-  localStorage:{getItem:()=>null,setItem(){}},URL:{createObjectURL:()=> 'blob:media',revokeObjectURL(){}},
+  localStorage:{getItem:()=>null,setItem(){}},clearTimeout,setTimeout,URL:{createObjectURL(){throw Error('must not buffer media');},revokeObjectURL(){}},
  });
  const context=component.data();for(const [name,method] of Object.entries(component.methods))context[name]=method.bind(context);
  context.allReferences=[];context.service={username:'alice'};const urls=[];
- context.apiFetch=async url=>{urls.push(url);return {ok:true,blob:async()=>({})};};
+ context.apiFetch=async url=>{urls.push(url);return {ok:true,status:200,json:async()=>({state:'ready',url:'/company-knowledge/documents/audio/stream'})};};
  await context.openDocument({id:'audio',can_read:true,media_kind:'audio',state:'queued',description:'说明'});
- assert.deepEqual(urls,['/company-knowledge/documents/audio/original']);assert.equal(context.readerUrl,'blob:media');
+ assert.deepEqual(urls,['/company-knowledge/documents/audio/playback']);assert.equal(context.readerUrl,'/company-knowledge/documents/audio/stream');
  assert.equal(context.readerLoading,false);
 });
 
