@@ -21,6 +21,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--interval', type=float, default=15)
+    parser.add_argument('--attempts', type=int, choices=(1, 2, 3), default=1)
     args = parser.parse_args()
     provider = {key: os.environ['COMPANY_KNOWLEDGE_' + key] for key in ('MODEL', 'BASE_URL', 'API_KEY')}
     if provider['BASE_URL'].rstrip('/') != 'https://open.bigmodel.cn/api/paas/v4':
@@ -83,11 +84,14 @@ def main():
         ('它怎么收费？', '丙公司', ['99'], ['39', '69']),
         ('丙公司2025年的净利润是多少？不要推算。', 'refuse', [], []),
     ]
+    query_terms = ['收入', '客户', '客户', '客户', '收费|价格|定价|费用|计费', '收费|价格|定价|费用|计费',
+                   '', '客户', '客户', '收入', '收费|价格|定价|费用|计费', '净利润']
     args.output.parent.mkdir(parents=True, exist_ok=True)
     def save():
         args.output.write_text(json.dumps({'model': provider['MODEL'], 'endpoint': provider['BASE_URL'],
             'retrieval': 'controlled synthetic; all three documents returned on every retrieval',
-            'interval_seconds': args.interval, 'retries': 0, 'cases': rows, 'requests': requests,
+            'interval_seconds': args.interval, 'maximum_attempts': args.attempts,
+            'retries': sum(len(row['attempts']) - 1 for row in rows), 'cases': rows, 'requests': requests,
             'passed': sum(row['passed'] for row in rows), 'total': len(rows), 'planned': len(cases)}, ensure_ascii=False, indent=2), encoding='utf-8')
     with TemporaryDirectory(prefix='conversation-official-') as temp:
         patch = pytest.MonkeyPatch()
@@ -118,8 +122,14 @@ def main():
             consecutive_errors = 0
             for number, (question, subject, required, forbidden) in enumerate(cases, 1):
                 start, before, previous_retrieval = time.monotonic(), len(requests), len(retrievals)
-                response = call(state, sid, question, 'official-' + str(number), document_ids=[doc[0] for doc in facts])
-                events = [json.loads(line[6:]) for line in response.text.splitlines() if line.startswith('data: ')]
+                attempts = []
+                for attempt in range(1, args.attempts + 1):
+                    response = call(state, sid, question, f'official-{number}-{attempt}', document_ids=[doc[0] for doc in facts])
+                    events = [json.loads(line[6:]) for line in response.text.splitlines() if line.startswith('data: ')]
+                    errors = [event for event in events if event['type'] == 'error']
+                    attempts.append({'number': attempt, 'errors': errors, 'events': events})
+                    if not errors:
+                        break
                 answer = ''.join(event.get('text', '') for event in events if event['type'] == 'answer_delta')
                 errors = [event for event in events if event['type'] == 'error']
                 refs = next((event['citations'] for event in events if event['type'] == 'citations'), [])
@@ -132,7 +142,10 @@ def main():
                 else:
                     correct = (all(value in answer for value in required) and not any(value in answer for value in forbidden)
                         and all(any(name in title for title in cited_names) for name in subject.split('、')))
+                    query = retrievals[-1] if len(retrievals) > previous_retrieval else ''
+                    correct = correct and bool(re.search(query_terms[number - 1], query)) and all(name in query for name in subject.split('、'))
                 row = {'turn': number, 'question': question, 'expected_subject': subject, 'answer': answer,
+                    'attempts': attempts,
                     'errors': errors, 'passed': bool(correct and not errors and any(event['type'] == 'saved' for event in events)),
                     'retrieval_query': retrievals[-1] if len(retrievals) > previous_retrieval else None,
                     'cited_documents': cited_names, 'requests': requests[before:], 'seconds': round(time.monotonic() - start, 3)}
@@ -144,6 +157,7 @@ def main():
                     break
         finally:
             fixture.close()
+            state.db.kw['bind'].dispose()
             patch.undo()
     save()
 

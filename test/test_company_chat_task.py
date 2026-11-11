@@ -32,7 +32,8 @@ def test_single_subject_and_user_constraints_survive_short_followups(question):
     assert state['request'] == query
 
 
-@pytest.mark.parametrize('question', ['那甲公司呢？', '同样比较Tripo', '它和甲公司有什么差异？', '它的第二个产品呢？'])
+@pytest.mark.parametrize('question', ['那甲公司呢？', '同样比较Tripo', '它和甲公司有什么差异？', '它的第二个产品呢？',
+    '它比甲公司贵多少？', '它的收入是多少？仅限2026年，不要推算'])
 def test_complex_switches_and_ordinals_still_use_rewriter(question):
     assert not local_followup(question, task())[0]
 
@@ -42,6 +43,23 @@ def test_parallel_subjects_require_clarification_and_format_does_not_clear_it():
     assert handled and query is None and state['needs_clarification']
     assert not local_followup('整理成表格', state)[0]
     assert not local_followup('它们分别怎么收费？', task(('甲公司', '乙公司')))[0]
+
+
+@pytest.mark.parametrize('question', ['请比较甲公司和乙公司的收费方式。', '比较Meshy与Tripo的目标用户。'])
+def test_explicit_comparison_does_not_depend_on_model_to_detect_plural_subjects(question):
+    state = fresh(question)
+    assert len(state['subjects']) == 2
+    assert local_followup('它的客户数量是多少？', state)[:2] == (True, None)
+    assert fresh('比较甲公司的收入和客户数量')['subjects'] == []
+
+
+def test_complete_literal_company_question_resolves_next_field_even_after_failed_generation():
+    state = fresh('请介绍丙公司2025年的营业收入。')
+    handled, query, state = local_followup('它怎么收费？', state)
+    assert handled and '丙公司' in query and '收费' in query and '2025年' in query
+    assert '收入' not in query
+    assert not fresh('该公司的收入是多少？')['structured']
+    assert not fresh('乙公司的收入是多少？仅限2026年，不要推算')['structured']
 
 
 def test_full_new_question_clears_previous_task_and_does_not_mutate_context(monkeypatch):
@@ -71,6 +89,26 @@ def test_state_survives_history_trimming_and_ambiguous_correction(monkeypatch):
     assert len(calls) == 1
 
 
+def test_120_rapid_mixed_turns_never_keep_the_previous_company(monkeypatch):
+    calls = []
+    async def complete(cfg, instruction, data, **kwargs):
+        calls.append(data)
+        name = next(name for name in ('甲公司', '乙公司', '丙公司') if name in data['当前任务']['request'])
+        return json.dumps({'query': name + '的客户数量', 'subjects': [name], 'topic': '客户数量'})
+    monkeypatch.setattr(memory, 'complete', complete)
+    async def run():
+        context = {'summary': '', 'recent': [], 'task': {}}
+        for number in range(30):
+            name = ('甲公司', '乙公司', '丙公司')[number % 3]
+            for question in (name + '的产品定位是什么？', '客户数呢？', '整理成表格', '它怎么收费？'):
+                cfg = {}
+                query = await memory.retrieval_question(cfg, question, context)
+                assert name in query
+                context['task'] = cfg['_task_update']
+        assert len(calls) == 30
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize('metadata', [
     {'subjects': ['助手虚构的公司']}, {'subjects': '乙公司'},
     {'subjects': ['乙公司'], 'constraints': ['虚构限制']},
@@ -84,6 +122,16 @@ def test_untrusted_metadata_cannot_poison_checkpoint(monkeypatch, metadata):
     with pytest.raises(kb.KnowledgeError) as failure:
         asyncio.run(memory.retrieval_question(cfg, '那乙公司呢？', {'summary': '', 'recent': [], 'task': task()}))
     assert failure.value.status_code == 502 and '_task_update' not in cfg
+
+
+def test_rich_rewrite_cannot_replace_new_pricing_field_with_old_revenue(monkeypatch):
+    async def complete(*a, **kw):
+        return json.dumps({'query': '乙公司的收入是多少？', 'subjects': ['乙公司'], 'topic': '收入'})
+    monkeypatch.setattr(memory, 'complete', complete)
+    with pytest.raises(kb.KnowledgeError) as failure:
+        asyncio.run(memory.retrieval_question({}, '它怎么收费？',
+            {'summary': '', 'recent': [], 'task': {**task(), 'structured': False}}))
+    assert failure.value.status_code == 502
 
 
 def test_checkpoint_is_restored_invalidated_and_deleted_with_owning_thread(env, monkeypatch):
@@ -125,3 +173,21 @@ def test_failed_answer_checkpoints_new_intent_instead_of_old_subject(env, monkey
     context = asyncio.run(memory.prepare_context(cfg, plan))
     assert asyncio.run(memory.retrieval_question(cfg, '整理成表格', context)) == '乙公司的客户数量是多少？'
     memory.finish_turn(env.user, cfg, sid, token, 'three', '', [], context, deps, False)
+
+
+def test_failed_rewrite_blocks_stale_subject_followup_until_explicit_reset(env, monkeypatch):
+    requests = upstream(monkeypatch)
+    sid = create(env)
+    call(env, sid, '甲公司的收入是多少？')
+    async def fail(*args, **kwargs):
+        raise kb.KnowledgeError('模拟切换时限流', 429)
+    monkeypatch.setattr(memory, 'complete', fail)
+    assert '模拟切换时限流' in call(env, sid, '那乙公司呢？', 'two').text
+    with env.db() as db:
+        checkpoint = db.get(memory.KnowledgeChatTask, sid).state
+        assert checkpoint['rewrite_failed'] and checkpoint['unresolved_question'] == '那乙公司呢？'
+    assert '请补充公司' in call(env, sid, '它怎么收费？', 'three').text
+    assert len([path for path, _ in requests if path.endswith('/retrieve')]) == 1
+    assert '"type": "saved"' in call(env, sid, '乙公司的收入是多少？', 'four').text
+    with env.db() as db:
+        assert 'rewrite_failed' not in db.get(memory.KnowledgeChatTask, sid).state

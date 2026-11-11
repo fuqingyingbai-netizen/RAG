@@ -377,6 +377,7 @@ async def retrieval_question(cfg, question, context):
             '仅当存在多个并列对象、当前也没指明哪一个时，输出 {"query":null}。不知道公司或指标值、没有原文，不等于检索对象不明确。'
             '只补充省略的对象、任务、比较维度及输出要求；完整新问题保持原意，保留否定、更正和限制，不扩展资料范围。'
             '当前任务是服务端保存的最近用户意图；与更早对话冲突时以当前任务为准。只有格式变化时保留原对象和维度。'
+            '当前任务有unresolved_question时，这是待确认的最近问题；用户只确认对象时补全该问题，不回到更早的维度。'
             '仅输出 JSON {"query":"补全的问题或null","subjects":["当前对象的原文名称"],"topic":"本轮维度",'
             '"format":"auto或表格或列表或清单或段落","constraints":["仍适用的用户限制原文"]}。'
             'query歧义时用JSON null，不是字符串；对象与限制只摘取用户原文或当前任务原文，不从助手答案提取，不添加推测。问题不超过1500字。',
@@ -456,7 +457,15 @@ async def conversation_stream(user, cfg, question, token, plan, dependencies):
             'compressed': '较早对话已压缩为任务摘要，原始消息仍保留。', 'compressed_partial': '已整理任务摘要，当前仅参考部分历史。',
             'deferred': '记忆整理暂未完成，当前仅参考部分历史；原始消息仍保留。'}
         yield {'type': 'memory', 'status': context['status'], 'message': descriptions[context['status']]}
-        query = await retrieval_question(cfg, question.message, context)
+        try:
+            query = await retrieval_question(cfg, question.message, context)
+        except kb.KnowledgeError:
+            # An unresolved switch must not silently revive the previous subject.
+            context['task_update'] = {**context.get('task', task_memory.fresh(question.message)),
+                'unresolved_question': question.message, 'needs_clarification': True, 'rewrite_failed': True}
+            if not context['task_update'].get('request'):
+                context['task_update']['request'] = question.message
+            raise
         if cfg.get('_task_update'):
             context['task_update'] = cfg['_task_update']
             context['task'] = cfg['_task_update']
