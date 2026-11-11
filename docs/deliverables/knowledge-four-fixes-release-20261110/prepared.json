@@ -1,0 +1,15 @@
+{
+  "status": "prepared",
+  "candidate": "/opt/supermew/releases/48043e466e51d4e33517c0a40f8a34e0ebb74b22",
+  "base_release": "/opt/supermew/releases/2c56479a0fe62300a927a291d363e8d6d8e88505",
+  "unrelated_files_preserved": 452,
+  "preflight": {
+    "status": "passed",
+    "schema_binary_types": 3,
+    "invalid_index_cases": 12,
+    "valid_null": true,
+    "synthetic_export_formats": 3,
+    "production_data_accessed": false
+  },
+  "stage": "/opt/supermew/staging/knowledge-four-fixes-48043e466e51"
+}

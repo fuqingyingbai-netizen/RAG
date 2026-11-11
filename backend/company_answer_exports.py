@@ -26,8 +26,8 @@ NOTE = '根据本轮回答整理，未经逐份全文核对；缺失项不补猜
 
 class ExportRequest(BaseModel):
     format: Literal['docx', 'xlsx', 'png']
-    table_index: int = Field(default=0, ge=0, le=30)
-    value_column: int | None = Field(default=None, ge=0, le=30)
+    table_index: int = Field(default=0, ge=0, le=30, strict=True)
+    value_column: int | None = Field(default=None, ge=0, le=30, strict=True)
 
 
 def clean(value):
@@ -279,7 +279,13 @@ def saved_answer(user, index_id, session_id, message_id):
         return message.content,deepcopy(message.references),thread.title
 
 
-@router.post('/conversations/{session_id}/messages/{message_id}/export')
+@router.post('/conversations/{session_id}/messages/{message_id}/export', response_class=Response, responses={
+    200: {'description': '带账号、时间和追踪标记的回答文件', 'content': {
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': {'schema': {'type': 'string', 'format': 'binary'}},
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {'schema': {'type': 'string', 'format': 'binary'}},
+        'image/png': {'schema': {'type': 'string', 'format': 'binary'}},
+    }},
+})
 async def export_answer(session_id: str, message_id: int, request: ExportRequest, user=Depends(kb.require_knowledge_user)):
     index_id=kb.settings()['index_id']; answer,refs,title=saved_answer(user,index_id,session_id,message_id)
     identity={'user':user.username,'time':datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M UTC+08:00'),'trace':uuid4().hex}

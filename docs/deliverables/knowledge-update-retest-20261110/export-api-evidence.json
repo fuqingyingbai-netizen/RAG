@@ -1,0 +1,27 @@
+[
+  {
+    "format": "docx",
+    "status": 200,
+    "seconds": 0.16,
+    "bytes": 38020,
+    "validated": true
+  },
+  {
+    "format": "xlsx",
+    "status": 200,
+    "seconds": 0.16,
+    "bytes": 6950,
+    "validated": true
+  },
+  {
+    "format": "png",
+    "status": 200,
+    "seconds": 0.14,
+    "bytes": 37614,
+    "image_size": [
+      1400,
+      360
+    ],
+    "validated": true
+  }
+]

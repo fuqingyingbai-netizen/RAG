@@ -17,13 +17,14 @@ const KnowledgeFailureActions = {
   props: {doc:Object,retryBusy:Boolean}, emits:['retry','reupload','remove','edit-note','details'],
   template:`<div v-if="doc?.state === 'failed'" class="ckb-failed-actions" :data-failure-id="doc.id"><button v-if="doc.can_read" class="ckb-failure-details" @click.stop="$emit('details',doc)">失败详情</button><template v-if="doc.can_manage && doc.can_read"><button v-if="doc.has_original" :disabled="retryBusy" @click.stop="$emit('retry',doc)">{{retryBusy?'提交中…':'重试处理'}}</button><button v-if="!doc.note_id" @click.stop="$emit('reupload',doc)">{{doc.has_original?'重新上传':'补传原件'}}</button><button v-else @click.stop="$emit('edit-note',doc.note_id)">编辑并重试发布</button><button class="ckb-delete-button" :aria-label="'删除失败资料：'+doc.title" @click.stop="$emit('remove',doc)">删除</button></template><small v-else>需{{doc.owner ? '归属人 '+doc.owner+' 或' : ''}}管理员处理</small></div>`,
 };
-// Element Plus owns menu focus, arrow-key navigation, Escape and click-outside.
+// Element Plus owns menu focus, arrow-key navigation and click-outside.
+// Also close on Escape while focus remains on the native trigger button.
 // Keep document permissions and mutations in the existing parent methods.
 const KnowledgeFileMenu = {
   props: { doc: Object, canMove: Boolean },
   emits: ['move', 'manage', 'remove'],
-  template: `<el-dropdown v-if="doc?.can_manage && doc.state !== 'failed'" trigger="click" placement="bottom-end" popper-class="ckb-file-action-menu">
-    <button type="button" class="ckb-file-more" :aria-label="'更多操作：' + doc.title" @click.stop @dblclick.stop>更多<i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
+  template: `<el-dropdown ref="actions" v-if="doc?.can_manage && doc.state !== 'failed'" trigger="click" placement="bottom-end" popper-class="ckb-file-action-menu">
+    <button type="button" class="ckb-file-more" :aria-label="'更多操作：' + doc.title" @keydown.esc.stop.prevent="$refs.actions.handleClose()" @click.stop @dblclick.stop>更多<i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
     <template #dropdown><el-dropdown-menu>
       <el-dropdown-item v-if="canMove" :aria-label="'移动资料：' + doc.title" @click="$emit('move', doc)"><i class="fa-solid fa-folder-open" aria-hidden="true"></i>移动到…</el-dropdown-item>
       <el-dropdown-item :aria-label="'管理资料：' + doc.title" @click="$emit('manage', doc)"><i class="fa-solid fa-sliders" aria-hidden="true"></i>文件设置</el-dropdown-item>
@@ -66,6 +67,11 @@ const CompanyKnowledge = {
     };
   },
   computed: {
+    libraryEmptyMessage() {
+      if (this.loading) return '正在加载资料…';
+      if (this.query.trim()) return '未找到匹配的资料，请更换关键词或清空搜索。';
+      return this.activeProject ? '当前目录暂无资料。' : '暂无符合条件的资料，可以尝试清空筛选。';
+    },
     readerContextHint() {
       if (this.readerMode === 'excerpts') return this.selectedDoc?.has_original
         ? '当前是检索依据片段，可切回完整原件阅读上下文。'
@@ -1263,7 +1269,7 @@ const CompanyKnowledge = {
               <td class="ckb-table-actions"><template v-if="doc.can_read"><button class="ckb-favorite-action" :class="{'is-saved':favorites.includes(doc.id)}" :aria-label="favorites.includes(doc.id) ? '取消收藏' : '收藏资料'" :aria-pressed="favorites.includes(doc.id)" :title="favorites.includes(doc.id) ? '取消收藏' : '收藏资料'" @click="toggleFavorite(doc.id)"><i aria-hidden="true" :class="favorites.includes(doc.id) ? 'fa-solid fa-bookmark' : 'fa-regular fa-bookmark'"></i></button><button class="ckb-read-action" @click="openDocument(doc)">{{ doc.media_kind ? '播放' : '阅读' }}</button></template><button v-else-if="doc.request_status === 'pending'" disabled>审批中</button><button v-else class="ckb-access-request" :disabled="operationPending('access:' + doc.id)" @click="requestAccess(doc)">{{ doc.request_status === 'rejected' ? '重新申请' : '申请权限' }}</button><knowledge-failure-actions :doc="doc" :retry-busy="operationPending('retry:'+doc.id)" @retry="retryDocument" @reupload="startReupload" @remove="deleteDocument" @edit-note="editRichNote" @details="showFailureDetails"/><knowledge-file-menu :doc="doc" :can-move="canMoveDocument(doc)" @move="startMove" @manage="editDocument" @remove="deleteDocument"/></td>
             </tr>
             </template></template>
-            <tr v-if="!libraryRows.length"><td colspan="6" class="ckb-table-empty">{{ loading ? '正在加载资料…' : activeProject ? '当前目录暂无资料。' : '暂无符合条件的资料，请调整搜索或筛选。' }}</td></tr>
+            <tr v-if="!libraryRows.length"><td colspan="6" class="ckb-table-empty">{{ libraryEmptyMessage }}</td></tr>
           </tbody></table></div>
           <nav v-if="libraryRows.length &amp;&amp; searchMode !== 'content'" class="ckb-pagination" aria-label="资料分页"><span class="ckb-page-range">共 {{ libraryPageRange.total }} 条 · 第 {{ libraryPageRange.start }}–{{ libraryPageRange.end }} 条</span><div><select v-model.number="libraryPageSize" aria-label="每页资料数量"><option :value="10">10 条 / 页</option><option :value="20">20 条 / 页</option><option :value="50">50 条 / 页</option></select><button aria-label="上一页资料" :disabled="currentLibraryPage <= 1" @click="changeLibraryPage(currentLibraryPage - 1)"><i aria-hidden="true" class="fa-solid fa-angle-left"></i></button><button v-for="page in libraryPageNumbers" :key="page" :aria-label="'第 ' + page + ' 页资料'" :aria-current="page === currentLibraryPage ? 'page' : undefined" :class="{ active: page === currentLibraryPage }" @click="changeLibraryPage(page)">{{ page }}</button><button aria-label="下一页资料" :disabled="currentLibraryPage >= libraryPageCount" @click="changeLibraryPage(currentLibraryPage + 1)"><i aria-hidden="true" class="fa-solid fa-angle-right"></i></button><span class="ckb-page-total">{{ currentLibraryPage }} / {{ libraryPageCount }} 页</span></div></nav>
 

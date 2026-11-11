@@ -1,0 +1,18 @@
+{
+  "endpoint": "/company-knowledge/conversations/{session_id}/messages/{message_id}/export",
+  "requests": 32,
+  "modes": [
+    {
+      "mode": "positive",
+      "requests": 16,
+      "status": "passed"
+    },
+    {
+      "mode": "negative",
+      "requests": 16,
+      "status": "passed"
+    }
+  ],
+  "failures": [],
+  "status": "passed"
+}

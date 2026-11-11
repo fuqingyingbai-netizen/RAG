@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "public_html_new_asset": "company-knowledge.78decc230e4c.js",
+  "public_javascript_matches_tested_candidate": true,
+  "public_css_preserved": "knowledge-workspace.da04ae7fa4c2.css",
+  "version": {
+    "service": "rag-backend",
+    "instance_id": "a2582bc3-7233-40d4-9ea6-32bb5890cb9d",
+    "loaded_at_utc": "2026-11-10T15:08:13.734290+00:00",
+    "industry": {
+      "cleaning": "industry-evidence-v30-source-context",
+      "risk": "industry-risk-v25-reason-review-repair",
+      "report": "industry-report-evidence-v70-bound-citations-risk-review",
+      "proposal": "industry-proposal-content-v4-research-responsibility",
+      "sources": "industry-source-review-v2-text-integrity"
+    },
+    "workflow": {
+      "version": "due-diligence-three-step-v1",
+      "proposal": "proposal-client-requirements-v1"
+    }
+  }
+}

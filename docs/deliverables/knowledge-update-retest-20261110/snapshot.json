@@ -1,0 +1,57 @@
+{
+  "source_commit": "7dfc59b60eb3678305581419038ed53680b5a9dc",
+  "live_baseline": {
+    "release": "/opt/supermew/releases/2c56479a0fe62300a927a291d363e8d6d8e88505",
+    "files": {
+      "backend/company_knowledge.py": {
+        "sha256": "329d77363b41188f7eaac02471a2d53211853cb8834ae64f92c90704db2b5806"
+      },
+      "frontend/company-knowledge.js": {
+        "sha256": "91207d95f2ddb0669b3ec7c09d4da1e117b725e5d15712abf400751748211b64"
+      },
+      "frontend/knowledge-workspace.css": {
+        "sha256": "da04ae7fa4c28388171c805d357339ebb427e9e068919f5e88b938e98632e116"
+      },
+      "frontend/index.html": {
+        "sha256": "da5953b4a2d69fb491ed9d8ccb429ae80d04e9db6a38a9c278f728bb7a448f14"
+      }
+    },
+    "version": {
+      "service": "rag-backend",
+      "instance_id": "a0f0e460-6ae8-4dbc-b1eb-5e21a60aacf1",
+      "loaded_at_utc": "2026-11-10T09:31:06.285793+00:00",
+      "industry": {
+        "cleaning": "industry-evidence-v30-source-context",
+        "risk": "industry-risk-v25-reason-review-repair",
+        "report": "industry-report-evidence-v70-bound-citations-risk-review",
+        "proposal": "industry-proposal-content-v4-research-responsibility",
+        "sources": "industry-source-review-v2-text-integrity"
+      },
+      "workflow": {
+        "version": "due-diligence-three-step-v1",
+        "proposal": "proposal-client-requirements-v1"
+      }
+    },
+    "workloads": {
+      "research": 0,
+      "ingestion": 0,
+      "assistant_threads": 0,
+      "company_chat_threads": 0
+    }
+  },
+  "files": {
+    "frontend/company-knowledge.js": {
+      "source_sha256": "ff3d7bc657984f41dec9deea1aba36a2be922bc96cba203b0ac3c39c450d64b4",
+      "tested_live_sha256": "91207d95f2ddb0669b3ec7c09d4da1e117b725e5d15712abf400751748211b64"
+    },
+    "frontend/knowledge-workspace.css": {
+      "source_sha256": "ca5bfb738ccad3cbc24e0990d1363baf99fe2335be2abc90a37e4fd8e3aa616e",
+      "tested_live_sha256": "da04ae7fa4c28388171c805d357339ebb427e9e068919f5e88b938e98632e116"
+    },
+    "frontend/index.html": {
+      "source_sha256": "f011cbabe0683ecef651e486aaa5d63760c42875e49fc1765ca35abc85ec55ea",
+      "tested_live_sha256": "da5953b4a2d69fb491ed9d8ccb429ae80d04e9db6a38a9c278f728bb7a448f14"
+    }
+  },
+  "scope": "actual live frontend snapshot over pinned local backend; differences explicit, no production writes"
+}
