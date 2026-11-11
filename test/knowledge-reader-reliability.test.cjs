@@ -5,6 +5,14 @@ function state(){const s=component.data();for(const [k,v] of Object.entries(comp
 const response=data=>({ok:true,status:200,json:async()=>data});
 const tick=()=>new Promise(setImmediate);
 
+test('citation-only fallback never claims more parsed chunks loaded than the known total',()=>{
+ const s=state();s.selectedDoc={references:[]};s.readerTotal=0;s.showReference({id:'1',text:'来自引用的依据'});
+ assert.equal(s.readerExcerptCountLabel,'当前显示 1 个检索依据片段');
+ s.readerTotal=10;assert.equal(s.readerExcerptCountLabel,'已加载 1 / 10 个解析片段');
+ s.selectedDoc.references.push({id:'2',text:'另一处引用'});s.readerTotal=1;
+ assert.equal(s.readerExcerptCountLabel,'当前显示 2 个检索依据片段');
+});
+
 test('reader context never claims the original is visible while encrypted or still loading',()=>{
  const s=state();s.selectedDoc={has_original:true};s.readerMode='original';s.readerOriginalLoading=true;
  assert.match(s.readerContextHint,/正在准备/);assert.doesNotMatch(s.readerContextHint,/正在查看/);
