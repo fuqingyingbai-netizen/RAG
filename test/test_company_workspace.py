@@ -341,6 +341,10 @@ def test_retrieval_filters_and_postfilter_before_generation(setup, monkeypatch, 
             assert body['model'] == 'test-model'
         assert 'SECRET' not in request.content.decode() and 'stale assistant' not in request.content.decode()
         assert '待复核' in body['messages'][0]['content']
+        evidence=json.loads(body['messages'][0]['content'].split('本轮资料：\n',1)[1])
+        focus=evidence[0]['focus']
+        assert evidence[0]['text'][focus['start']:focus['end']]==focus['text']
+        assert len(evidence)==1 and evidence[0]['citation']=='[id_1]' and evidence[0]['text']=='Authorized evidence'
         frames = [{'choices': [{'delta': {'content': 'Answer [id_1]'}, 'finish_reason': None}]},
                   {'choices': [{'delta': {}, 'finish_reason': 'stop'}]}]
         return httpx.Response(200, text=''.join('data: ' + json.dumps(f) + '\n\n' for f in frames), headers={'Content-Type': 'text/event-stream'})
@@ -636,14 +640,15 @@ def test_many_table_rows_cannot_crowd_another_document_out_of_evidence():
     assert not ws.reference_candidates(nodes, {}, 'test-index')
 
 
-def test_generated_unknown_citation_cannot_be_marked_complete(setup, monkeypatch):
+@pytest.mark.parametrize('citation',['[id_999]','［id_1]','【id_1】'])
+def test_generated_unknown_citation_cannot_be_marked_complete(setup, monkeypatch,citation):
     doc_id=upload(setup).json()['id'];ready(setup,doc_id)
     def handler(request):
         if request.url.path.endswith('/retrieve'):
             return httpx.Response(200,json={'data':{'nodes':[{'metadata':{'doc_id':'cloud-a','content':'真实依据'}}]}})
         if request.url.path.endswith('/app/get'):
             return httpx.Response(200,json={'data':{'agent_details':[{'agent_version':'1','agent_config':{'agent_model':'test'}}]}})
-        frames=[{'choices':[{'delta':{'content':'错误引用[id_999]'},'finish_reason':None}]},
+        frames=[{'choices':[{'delta':{'content':'错误引用'+citation},'finish_reason':None}]},
                 {'choices':[{'delta':{},'finish_reason':'stop'}]}]
         return httpx.Response(200,text=''.join('data: '+json.dumps(f)+'\n\n' for f in frames),headers={'Content-Type':'text/event-stream'})
     transport(monkeypatch,handler)

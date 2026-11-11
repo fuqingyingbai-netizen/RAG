@@ -10,6 +10,10 @@
 
 简单事实问题要求直接回答所问，避免把相邻主题、人物或期间合并归因。文件名日期不能当作访谈、事件或指标日期；仅保留原文明确与当前事实绑定的时间。生成内容出现不存在的引用编号时，该轮不会标为完成或开放文件导出。
 
+完整性优先于默认三句限制。定位、模式和客群问题保留原文明确的收费方式、服务方式、用户特征与使用门槛；比较表格逐对象核对，避免用宽泛的 B/C 端标签替代具体事实。模型上下文使用 JSON 数组，一个 `citation` 只绑定同对象的 `text`。提示要求直接引语和关键结论逐句核对所标片段，不能用同文件其他片段代替来源。这仍是生成约束，不保证模型始终标对引用。
+
+每个证据对象还提供至多600字符的 `focus` 连续窗口及其在 `text` 中的起止位置，沿用问题匹配定位逻辑，优先呈现更相关的原句。窗口不拼接、不生成摘要，完整 `text` 和对外引用保持不变；模型仍需结合完整片段核对条件与否定。这用于缓解长片段中具体限定被前部概括遮盖的问题，不作为删除其他证据的过滤器。
+
 `evidence_scope` 流事件向使用者说明回答只依据本轮召回内容。任何路径均不声称已经通读全文或完成全量统计。已有的目录项目统计仍使用服务端目录数据；文档内容的穷尽性分析需另行完整遍历。
 
 ## 可复跑的真实评测
@@ -43,6 +47,31 @@ python scripts/manual/evaluate_company_knowledge.py --corpus private-corpus.json
 `rescore_company_knowledge.py`可在不重新调用模型的情况下，重算原文证据指标；会保留旧指标，并校验每个已记录候选ID。云端表格里的HTML换行标记不应被误判为原文遗漏。`report_company_knowledge_quality.py`生成私有HTML/JSON报告，分别展示最终得分、生成重试、评分重试和参考条目修订。经过验收反馈后再次运行的保留题属于回归，不能冒称未见问题的泛化测试。
 
 验收需同时满足：软件回归通过、导出实际可用、引用编号无越界、无答案和范围限制题不编造，以及保留题的事实/依据表现不退化。所有调用失败单独保留，不能删掉失败样本后宣称全通过。评测分数只代表所测资料与题目，不能外推全部知识库。
+
+## 原生 Ragas 基线与回答修复
+
+Ragas 在独立评测虚拟环境安装，不加入生产依赖。`requirements-ragas.txt` 固定 Ragas 0.4.3 和已验证兼容的 LangChain 版本。
+
+```powershell
+python -m pip install -r scripts/manual/requirements-ragas.txt
+python scripts/manual/evaluate_company_knowledge.py --corpus private-corpus.json --dataset private-gold.json --output-dir private-answers --policies optimized --answers-only --replay-from first-run-results --concurrency 1
+python scripts/manual/evaluate_company_ragas.py --answers private-answers.json --output private-ragas --cache private-ragas-cache --concurrency 3
+python scripts/manual/report_company_ragas.py --root private-paired-run --output private-acceptance
+```
+
+`private-answers.json` 是按固定金标准顺序排列的逐题记录数组，包含 `id, split, question, expected_answer, answer, references, unanswerable`。引用保留原始 `id` 与 `text`；无答案标记从冻结题集获取，不能靠回答是否拒答推定。调用模型通过 `RAG_EVAL_MODEL / RAG_EVAL_BASE_URL / RAG_EVAL_API_KEY / RAG_EVAL_MODEL_OPTIONS` 环境变量注入，仅沿用已批准的服务。评测禁用外部追踪。逐次请求、响应及原始资料只保留在受限私有目录，不打印密钥、不提交 Git。
+
+生成记录同时保存 `generation_config`（模型、接口地址哈希、请求选项）。更换模型服务时，冻结旧代码与修复代码都通过同一接口、模型和选项重新生成，使用逐片段相同的证据；原服务的历史回答和未完成评分另外存档。配对报告读取 `generation-provenance.json`，当 `kind=controlled_same_provider` 时，校验两组生成配置、旧代码哈希及检索代码哈希，避免把换模型或换服务的影响算作代码优化。
+
+本轮修复将片段封装为带引用编号的 JSON，保留全文，并用原文连续窗口提示相关位置；读完长资料后再次核对用户所问维度，避免产品定位遗漏收费方式或客群经验条件。引用要求逐片段支持，越界编号及全角引用格式均拒绝标记为完整回答。GLM-4.7-Flash 使用原生 `thinking.type` 参数，不能把千问的 `enable_thinking` 参数套到它上面。
+
+原生指标为 ContextRecall（参考事实是否已召回）、Faithfulness（回答事实是否有片段支持）、FactualCorrectness 的 F1 和 recall 模式（与参考必要事实核对）。均为 0–1 分，不等于题目通过率或人工准确率。参考之外但有原文支持的补充，也可能降低事实 F1。90 道有答案题计算这些指标，10 道无答案题单独复核拒答和边界，不能把它们强行记成满分召回。
+
+引用专项探针使用原生 Faithfulness，但只输入回答实际标注的片段；同文件未引用片段不能补证。它仍不是逐句引用准确率，已知问题需结合原文逐句复核。正确拒答且未引用的题记为不适用，不能记成满分。
+
+每次运行锁定完整输入、模型选项、库版本与脚本哈希，逐指标保存检查点。`--retry-errors` 只重试调用/格式错误，保留历史；不得因为事实分数低而反复生成再挑高分。前后对照必须固定题目、参考和全部证据。基线可使用已保存的真实回答，但须证明当前生成逻辑、原模型配置与记录一致，并在报告明确标注其来源。保留题一旦用于定位修复，后续结果属于回归评测。
+
+本轮只更新 main。评测脚本在独立进程调用模型，不重启服务、不切换线上版本。
 
 ## 文件导出
 
