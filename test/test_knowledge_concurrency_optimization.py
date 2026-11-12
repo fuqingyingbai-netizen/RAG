@@ -208,7 +208,12 @@ def test_literal_project_followup_skips_model_without_losing_year(monkeypatch):
     query = asyncio.run(memory.retrieval_question({}, '它的负责人是谁？仅回答姓名并引用。',
                                                  {'task': state, 'recent': [], 'summary': ''}))
     assert '海岚合成项目' in query and '负责人是谁' in query and '2025年度' in query
-    assert '仅回答姓名并引用' in query and '800字以内' in query
+    assert '仅回答姓名并引用' in query and '预算' not in query
+    state['constraints'].append('保留预算口径并引用，仅用两句话回答，800字以内。')
+    state['format'] = '表格'
+    handled, query, updated = task.local_followup('它的负责人是谁？仅回答姓名并引用。', state)
+    assert handled and '预算' not in query and '2025年度' in query
+    assert updated['constraints'] == ['2025年度'] and updated['format'] == 'auto'
 
 
 def test_first_answer_and_connection_hold_are_logged_without_content(tmp_path):
