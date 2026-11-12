@@ -123,6 +123,57 @@ def test_ten_model_requests_are_limited_and_waiting_is_visible(monkeypatch):
     asyncio.run(run())
 
 
+def test_fifo_waiters_keep_order_after_head_is_cancelled():
+    async def run():
+        gate = capacity.Capacity(1, queue=3)
+        admitted = []
+        async def call(index):
+            async with gate.slot('model', wait=.5):
+                admitted.append(index)
+                await asyncio.sleep(.01)
+        async with gate.slot('model'):
+            tasks = []
+            for index in range(3):
+                tasks.append(asyncio.create_task(call(index)))
+                await asyncio.sleep(.01)
+            tasks[0].cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await tasks[0]
+            assert gate.waiting == 2 and len(gate._waiters) == 2
+        newcomer = asyncio.create_task(call(3))
+        await asyncio.gather(*tasks[1:], newcomer)
+        assert admitted == [1, 2, 3]
+        assert gate.active == gate.waiting == len(gate._waiters) == 0
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('status', [502, 503, 504])
+@pytest.mark.parametrize('headers_seconds,expected_attempts', [(4, 2), (6, 1)])
+def test_slow_gateway_failure_is_not_repeated(monkeypatch, status, headers_seconds, expected_attempts):
+    async def run():
+        clock, attempts = [0.0], []
+        gate = capacity.Capacity(1)
+        monkeypatch.setattr(kb, 'time', SimpleNamespace(perf_counter=lambda: clock[0]))
+        monkeypatch.setattr(kb, 'model_slots', gate)
+        async def transport(request):
+            attempts.append(request)
+            clock[0] += headers_seconds
+            return httpx.Response(status if len(attempts) == 1 else 200, json={'ok': True})
+        async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
+            async def call():
+                async with kb.model_response(client, {'base_url': 'https://model.invalid',
+                        'api_key': 'synthetic', 'provider': 'mock'}, {'stream': True}) as response:
+                    assert response.status_code == 200
+            if expected_attempts == 1:
+                with pytest.raises(kb.KnowledgeError):
+                    await call()
+            else:
+                await call()
+        assert len(attempts) == expected_attempts
+        assert gate.active == gate.waiting == 0
+    asyncio.run(run())
+
+
 def test_busy_upload_is_rejected_before_reading_body_and_browse_still_works(monkeypatch):
     async def run():
         gate = capacity.Capacity(1)

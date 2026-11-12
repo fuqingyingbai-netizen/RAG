@@ -142,7 +142,7 @@ def model_request_options(config):
 
 @asynccontextmanager
 async def model_response(client, config, payload):
-    """Retry a rejected transient request once, before exposing any answer bytes."""
+    """Retry a quickly rejected transient request once, before any answer bytes."""
     async with asyncio.timeout(180), model_slots.slot('model', wait=MODEL_WAIT_SECONDS):
         for attempt in range(2):
             with phase('model_stream' if payload.get('stream') else 'model_complete', attempt=attempt+1) as observation:
@@ -152,7 +152,10 @@ async def model_response(client, config, payload):
                         timeout=httpx.Timeout(120 if payload.get('stream') else 85, connect=20)) as response:
                     observation['http_status'] = response.status_code
                     observation['response_headers_ms'] = round((time.perf_counter()-started)*1000, 3)
-                    if response.status_code not in {502, 503, 504} or attempt:
+                    # The gateway can fail only after 40+ seconds; repeating that
+                    # request doubles occupied capacity during an upstream outage.
+                    if (response.status_code not in {502, 503, 504} or attempt
+                            or observation['response_headers_ms'] >= 5000):
                         if response.status_code != 200:
                             raise provider_error(response.status_code, provider=config['provider'])
                         response.extensions['knowledge_observation'] = observation
@@ -186,6 +189,13 @@ def provider_error(status: int, *, provider: str = '百炼') -> KnowledgeError:
                404: f'{provider}服务未找到，请核对接口地址和服务或模型 ID。',
                429: '知识库请求较多，请稍后重试。'}.get(status, f'{provider}服务暂时不可用，请稍后重试。')
     return KnowledgeError(message, 429 if status == 429 else 502)
+
+
+def model_body_error(error):
+    # Some gateways report account limits inside an HTTP200 JSON/SSE body.
+    if isinstance(error, dict) and (error.get('type') == 'rate_limit_error' or str(error.get('code')) == '429'):
+        return provider_error(429, provider='知识库模型')
+    return KnowledgeError('云端模型调用失败，请稍后重试。')
 
 
 async def list_cloud_documents(cfg, page_number=1, page_size=100):

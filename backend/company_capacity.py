@@ -2,6 +2,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
+from collections import deque
 import os
 import threading
 import time
@@ -23,19 +24,22 @@ class Capacity:
     def __init__(self, limit, queue=0):
         self.limit, self.queue = limit, queue
         self.active = self.waiting = 0
+        self._waiters = deque()
         self.lock = threading.Lock()
 
     @asynccontextmanager
     async def slot(self, kind, wait=0):
         started = time.monotonic()
         acquired = queued = False
+        ticket = object()
         try:
             with self.lock:
-                if self.active < self.limit:
+                if self.active < self.limit and not self._waiters:
                     self.active += 1
                     acquired = True
                 elif wait > 0 and self.waiting < self.queue:
                     self.waiting += 1
+                    self._waiters.append(ticket)
                     queued = True
                 else:
                     raise CapacityBusy('当前任务较多，请稍后重试。')
@@ -49,9 +53,10 @@ class Capacity:
                     if time.monotonic() - started >= wait:
                         raise CapacityBusy('等待模型处理超时，请稍后重试。')
                     with self.lock:
-                        if self.active < self.limit:
+                        if self.active < self.limit and self._waiters[0] is ticket:
                             self.active += 1
                             self.waiting -= 1
+                            self._waiters.popleft()
                             queued, acquired = False, True
                 if reporter:
                     await reporter({'type': 'progress', 'stage': 'queued', 'label': '已开始处理',
@@ -67,13 +72,14 @@ class Capacity:
                     self.active -= 1
                 if queued:
                     self.waiting -= 1
+                    self._waiters.remove(ticket)
 
 
 # shortcut: limits are per process; sum them across workers before increasing --workers.
 model_slots = Capacity(int(os.getenv('COMPANY_KNOWLEDGE_MODEL_CONCURRENCY', '3')), queue=7)
 chat_slots = Capacity(10)
 upload_slots = Capacity(3, queue=7)
-MODEL_WAIT_SECONDS = float(os.getenv('COMPANY_KNOWLEDGE_MODEL_WAIT_SECONDS', '10'))
+MODEL_WAIT_SECONDS = float(os.getenv('COMPANY_KNOWLEDGE_MODEL_WAIT_SECONDS', '60'))
 if model_slots.limit < 1 or not 0 < MODEL_WAIT_SECONDS <= 60:
     raise ValueError('Invalid knowledge model admission configuration')
 

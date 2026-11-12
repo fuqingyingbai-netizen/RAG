@@ -302,7 +302,10 @@ async def complete(cfg, instruction, data, max_tokens=1800, *, json_output=False
                     {'role': 'user', 'content': json.dumps(data, ensure_ascii=False)}]}) as response:
                 await response.aread()
                 model_content(response)
-                return str(response.json()['choices'][0]['message']['content']).strip()
+                result = response.json()
+                if result.get('error'):
+                    raise kb.model_body_error(result['error'])
+                return str(result['choices'][0]['message']['content']).strip()
 
 
 async def prepare_context(cfg, plan):

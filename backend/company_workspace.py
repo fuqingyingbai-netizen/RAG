@@ -1178,7 +1178,7 @@ async def grounded_answer(cfg, question):
             usage = {}
             async for frame in kb.sse_frames(response.aiter_lines()):
                 if frame.get('error'):
-                    raise kb.KnowledgeError('云端模型调用失败，请稍后重试。')
+                    raise kb.model_body_error(frame['error'])
                 usage = frame.get('usage') or usage
                 for choice in frame.get('choices', []):
                     text = (choice.get('delta') or {}).get('content')
