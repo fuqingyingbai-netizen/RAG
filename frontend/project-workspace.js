@@ -40,12 +40,6 @@ const ProjectWorkspace = (() => {
       capabilityNotice(){return this.form.ddType==='AI应用建设'?'AI 应用建设尚未接入执行接口，目前仅可保存本机草稿，不会启动报告或应用建设。':`${this.form.ddType}专用报告尚未接入，目前仅可保存本机草稿，不会调用其他报告流程代替。`;},
       formFocusOptions(){return !this.executionAvailable||this.form.workspaceFamily!=='background'?[]:this.form.targetType==='company'?['高管背景','创始人背景','标的公司背景']:this.form.targetType==='person'?['高管背景','创始人背景']:[];},
       workspaceDrafts(){return this.localProjectDrafts.filter(d=>(this.workspaceFamily==='all'||d.form.workspaceFamily===this.workspaceFamily)&&(!this.workspaceTypeFilter||d.form.ddType===this.workspaceTypeFilter));},
-      workspaceReportOptions(){
-        const types=this.workspaceTypeFilter?[this.workspaceTypeFilter]:this.workspaceTypes;
-        const values=new Set(types.flatMap(type=>(reports[type]||[]).map(r=>r.value)));
-        for(const project of this.stageProjects){if(!this.workspaceTypeFilter||this.projectBusinessType(project)===this.workspaceTypeFilter)values.add(project.target_type);}
-        return [...values].filter(value=>['company','person','industry'].includes(value)).map(value=>({value,label:this.reportTypeLabel(value,this.workspaceTypeFilter)}));
-      },
       pageTitle(){return this.isTaskWorkspace ? this.activeView==='review'?'项目复核':this.activeView==='sources'?'溯源库':this.workspaceTitle : computed.pageTitle.call(this);},
       taskSectionTitle(){return this.workspaceTitle;},
       taskSectionHint(){return this.workspaceDescription;},
@@ -59,7 +53,7 @@ const ProjectWorkspace = (() => {
       activeTaskFilterCount(){return computed.activeTaskFilterCount.call(this)+Number(!!this.workspaceTypeFilter);}
     });
     Object.assign(options.watch, {
-      workspaceTypeFilter(){this.taskPage=1;if(!this.workspaceReportOptions.some(r=>r.value===this.taskTargetFilter))this.taskTargetFilter='';},
+      workspaceTypeFilter(){this.taskPage=1;},
       'form.ddType'(){this.syncFormReport();},
       'form.targetType'(value){
         const defaults={company:this.companyChapterVersion?this.modulesByTarget.company.filter(x=>x.selectable!==false).map(x=>x.value):newResearchForm().modules,person:this.modulesByTarget.person.map(x=>x.value),industry:this.modulesByTarget.industry.map(x=>x.value)};
@@ -164,7 +158,7 @@ const ProjectWorkspace = (() => {
         const key=this.localDraftKey();if(!key)return ElementPlus.ElMessage.error('请重新登录后保存草稿');
         const draft={id:this.localDraftId||crypto.randomUUID(),updated_at:new Date().toISOString(),form:JSON.parse(JSON.stringify(this.form))};
         const records=[draft,...this.localProjectDrafts.filter(d=>d.id!==draft.id)];
-        try{localStorage.setItem(key,JSON.stringify(records));this.localProjectDrafts=records;this.localDraftId=null;this.taskCreateOpen=false;this.workspaceFamily=draft.form.workspaceFamily;this.workspaceTypeFilter='';this.taskTargetFilter='';this.switchView('tasks');ElementPlus.ElMessage.success('已保存到当前账号的本机草稿，尚未提交服务器');}
+        try{localStorage.setItem(key,JSON.stringify(records));this.localProjectDrafts=records;this.localDraftId=null;this.taskCreateOpen=false;this.workspaceFamily=draft.form.workspaceFamily;this.workspaceTypeFilter='';this.switchView('tasks');ElementPlus.ElMessage.success('已保存到当前账号的本机草稿，尚未提交服务器');}
         catch(_){ElementPlus.ElMessage.error('本机存储不可用，草稿尚未保存，请保留当前内容');}
       },
       editLocalProjectDraft(draft){this.form={...newResearchForm(),...JSON.parse(JSON.stringify(draft.form))};this.localDraftId=draft.id;this.selectedFiles=[];this.clientRequirementFiles=[];this.taskCreateOpen=true;},

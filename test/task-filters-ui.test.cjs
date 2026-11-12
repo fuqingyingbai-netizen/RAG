@@ -27,10 +27,10 @@ function context() {
   return {state, watch: definition.watch};
 }
 
-test('status, research type and keyword filters combine, including Chinese states', () => {
+test('status and keyword filters combine, including Chinese states and object names', () => {
   const {state} = context();
   assert.equal(state.filteredProjects.length, 7);
-  state.taskTargetFilter = 'person';
+  state.taskSearch = '目标人';
   assert.deepEqual(Array.from(state.filteredProjects, p => p.id), [2, 4]);
   state.taskStatusFilter = 'paused'; state.taskSearch = '北方';
   assert.deepEqual(Array.from(state.filteredProjects, p => p.id), [4]);
@@ -63,14 +63,14 @@ test('every known workflow stage is searchable as active and has a Chinese label
 
 test('filter changes reset pagination and shrinking results clamp the current page', () => {
   const {state, watch} = context();
-  for (const field of ['taskSearch', 'taskStatusFilter', 'taskTargetFilter', 'taskPageSize']) {
+  for (const field of ['taskSearch', 'taskStatusFilter', 'taskPageSize']) {
     state.taskPage = 6; watch[field].call(state); assert.equal(state.taskPage, 1);
   }
   state.taskPageSize = 2; state.taskPage = 4;
   watch.filteredProjects.call(state, state.projects.slice(0, 3)); assert.equal(state.taskPage, 2);
   watch.filteredProjects.call(state, []); assert.equal(state.taskPage, 1);
   state.taskPage = 2; assert.deepEqual(Array.from(state.pagedProjects, p => p.id), [3, 4]);
-  state.taskSearch = '有内容'; state.taskStatusFilter = 'failed'; state.taskTargetFilter = 'person';
+  state.taskSearch = '有内容'; state.taskStatusFilter = 'failed';
   assert.equal(state.hasTaskFilters, true); state.resetTaskFilters();
   assert.equal(state.hasTaskFilters, false); assert.equal(state.taskPage, 1);
 });

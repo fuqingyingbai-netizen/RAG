@@ -91,12 +91,10 @@ test('CA, VC and post-investment save only browser drafts and stay in their own 
   state.workspaceTypeFilter='VC项目';assert.equal(state.workspaceDrafts.length,1);
 });
 
-test('business filters link report choices, clear incompatible selections and retain previously saved combinations',()=>{
+test('business filters retain all associated reports and previously saved combinations',()=>{
   const {state,watch}=context();state.activeView='tasks';state.workspaceFamily='background';state.projects=[{id:1,target_type:'industry'},{id:2,target_type:'company'}];
   state.workspaceIntakes[1]={research_type:'BDD项目'};state.workspaceIntakes[2]={research_type:'BDD项目'};
-  state.workspaceTypeFilter='BDD项目';assert.ok(state.workspaceReportOptions.some(r=>r.value==='industry'));assert.match(state.projectReportLabel(state.projects[0]),/历史组合/);
-  state.taskTargetFilter='person';state.workspaceTypeFilter='CDD项目';watch.workspaceTypeFilter.call(state);assert.equal(state.taskTargetFilter,'');
-  assert.deepEqual(Array.from(state.workspaceReportOptions,r=>r.value),['industry']);
-  state.workspaceTypeFilter='BDD项目';state.taskTargetFilter='industry';assert.equal(state.filteredProjects[0].id,1);
+  state.workspaceTypeFilter='BDD项目';assert.equal(state.filteredProjects.length,2);assert.match(state.projectReportLabel(state.projects[0]),/历史组合/);
+  state.workspaceTypeFilter='CDD项目';state.taskPage=3;watch.workspaceTypeFilter.call(state);assert.equal(state.taskPage,1);assert.equal(state.filteredProjects.length,0);
   state.workspaceIntakes[1]={research_type:'行业研究'};assert.equal(state.projectFamily(state.projects[0]),'research');
 });

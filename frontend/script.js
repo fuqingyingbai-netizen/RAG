@@ -58,7 +58,7 @@ const researchAppOptions = {
       collectedSourceTextPage: 1, collectedSourceFindDraft: '', collectedSourceFind: '', collectedSourceFindIndex: 0,
       artifactHistory: {}, artifactHistoryRequests: {},
       traceActivityByProject: {},
-      taskFilterPanelOpen: false, taskSearch: '', taskStatusFilter: '', taskTargetFilter: '', selectedFiles: [], clientRequirementFiles: [], submitting: false, reindexing: false,
+      taskFilterPanelOpen: false, taskSearch: '', taskStatusFilter: '', selectedFiles: [], clientRequirementFiles: [], submitting: false, reindexing: false,
       requirementsOpen: false, requirementsProjectId: null, requirementsText: '', requirementsFiles: [], requirementsSources: [], requirementsDocuments: [], requirementsLoading: false, requirementsLoaded: false, requirementsError: '', requirementsSaving: false, requirementsRequestSeq: 0,
       reviewedReports: {},
       startingProjects: {}, recoveryBusy: {}, taskUploadIssues: {},
@@ -190,13 +190,12 @@ const researchAppOptions = {
     filteredProjects() {
       const keyword = this.taskSearch.trim().toLowerCase();
       return this.stageProjects.filter(p => (!this.taskStatusFilter || (this.taskStatusFilter === 'attention' ? !this.projectIsRunning(p) && p.status !== 'completed' : this.projectStatusGroup(p) === this.taskStatusFilter))
-        && (!this.taskTargetFilter || p.target_type === this.taskTargetFilter)
         && (!keyword || [p.title, p.target_name, p.industry, p.status, this.projectStateLabel(p),
           this.projectStatusGroup(p) === 'active' ? '进行中' : '',
           this.targetTypeLabel(p.target_type)].join(' ').toLowerCase().includes(keyword)));
     },
-    activeTaskFilterCount() { return Number(!!this.taskStatusFilter) + Number(!!this.taskTargetFilter); },
-    hasTaskFilters() { return !!(this.taskSearch.trim() || this.taskStatusFilter || this.taskTargetFilter); },
+    activeTaskFilterCount() { return Number(!!this.taskStatusFilter); },
+    hasTaskFilters() { return !!(this.taskSearch.trim() || this.taskStatusFilter); },
     pagedProjects() { const start = (this.taskPage - 1) * this.taskPageSize; return this.filteredProjects.slice(start, start + this.taskPageSize); },
     pagedKnowledgeResults() { const start = (this.sourcePage - 1) * this.sourcePageSize; return this.knowledgeResults.slice(start, start + this.sourcePageSize); }
   },
@@ -204,7 +203,6 @@ const researchAppOptions = {
     isAuthenticated(value) { if (!value) { this.sidebarAccountOpen = false; this.mobileNavOpen = false; } },
     taskSearch() { this.taskPage = 1; },
     taskStatusFilter() { this.taskPage = 1; },
-    taskTargetFilter() { this.taskPage = 1; },
     taskPageSize() { this.taskPage = 1; },
     filteredProjects(projects) {
       this.taskPage = Math.min(this.taskPage, Math.max(1, Math.ceil(projects.length / this.taskPageSize)));
@@ -1982,7 +1980,7 @@ const researchAppOptions = {
       if (Object.hasOwn(TASK_STATE_LABELS, status)) return status;
       return Object.hasOwn(TASK_STAGE_LABELS, status) ? 'active' : 'other';
     },
-    resetTaskFilters() { this.taskSearch = ''; this.taskStatusFilter = ''; this.taskTargetFilter = ''; this.taskPage = 1; },
+    resetTaskFilters() { this.taskSearch = ''; this.taskStatusFilter = ''; this.taskPage = 1; },
     statusType(status) { if (status === 'completed') return 'success'; if (status === 'failed') return 'danger'; return this.taskStatusGroup(status) === 'active' ? 'warning' : 'info'; },
     timelineType(status) { if (status === 'done') return 'success'; if (status === 'error') return 'danger'; if (status === 'fallback' || status === 'warning') return 'warning'; return 'primary'; },
     artifactTypeLabel(type) { return ({ project_intake: '项目参数', research_plan: '研究计划', source_quality: '来源质量', cleaned_facts: '清洗事实库', risk_assessment: '风险研判', desktop_report: '桌面研究报告', report_quality_diagnostic: '报告质量诊断', person_claim_ledger: '人物证据与验收台账', person_evidence_appendix: '完整证据附录与采用去向', industry_claim_ledger: '结论证据台账', industry_run: '运行记录', proposal: '项目建议书' })[type] || type; },
