@@ -19,7 +19,13 @@ import research_workflow as research_workflow_module
 import industry_research as industry_research_module
 from database import init_db
 from runtime_version import create_version_router
-from source_catalog import VERSION as SOURCE_REVIEW_VERSION
+try:
+    # Preserve the deployed optional source-review component's version marker.
+    from source_catalog import VERSION as SOURCE_REVIEW_VERSION
+except ModuleNotFoundError as exc:
+    if exc.name != 'source_catalog':
+        raise
+    SOURCE_REVIEW_VERSION = None
 from account_lifecycle import invitation_cleanup_loop
 from personal_home import create_home_router
 from http_delivery import ResearchReadCompression, RequestBodyLimit
@@ -97,7 +103,7 @@ def create_app() -> FastAPI:
         'risk': industry_research_module.INDUSTRY_RISK_VERSION,
         'report': research_workflow_module.INDUSTRY_REPORT_VERSION,
         'proposal': research_workflow_module.INDUSTRY_PROPOSAL_VERSION,
-        'sources': SOURCE_REVIEW_VERSION,
+        **({'sources': SOURCE_REVIEW_VERSION} if SOURCE_REVIEW_VERSION else {}),
     }))
 
     # serve frontend static files at root
