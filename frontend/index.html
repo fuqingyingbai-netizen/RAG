@@ -12,20 +12,23 @@
   <link rel="stylesheet" href="vendor/element-plus-2.14.7/index.css" />
   <link rel="stylesheet" href="vendor/fontawesome-free-6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="company-chapters.68634208c5fc.css" />
   <link rel="stylesheet" href="company-knowledge.css" />
   <link rel="stylesheet" href="navigation.7e3a97139c28.css" />
   <link rel="stylesheet" href="accounts.css" />
   <link rel="stylesheet" href="personal-home.css" />
   <link rel="stylesheet" href="report-versions.css" />
   <link rel="stylesheet" href="assistant.94a69af9244b.css" />
-  <link rel="stylesheet" href="workbench-theme.f50728f0293b.css" />
+  <link rel="stylesheet" href="workbench-theme.8ecce8fe6b2b.css" />
   <link rel="stylesheet" href="company-knowledge-universe.css" />
   <link rel="stylesheet" href="company-knowledge-glass.aeea9959486d.css" />
+  <link rel="stylesheet" href="collected-sources.f49f35a420e6.css">
   <link rel="stylesheet" href="knowledge-home-simple.9a74b8500377.css" />
   <link rel="stylesheet" href="knowledge-palette.b7864dd77a98.css" />
   <link rel="stylesheet" href="knowledge-typography.cfec97d3ca93.css" />
-  <link rel="stylesheet" href="knowledge-workspace.0526d2956385.css" />
+  <link rel="stylesheet" href="workflow-ux.1e3199a055e3.css" />
+  <link rel="stylesheet" href="knowledge-usability.1d9a8b1ee4ed.css" />
+<link rel="stylesheet" href="knowledge-workspace.0526d2956385.css" />
+  <link rel="stylesheet" href="project-workspace.16120c1257e7.css" />
 </head>
 <body>
 <section id="app-startup" class="app-startup" role="status" aria-live="polite">
@@ -84,105 +87,99 @@
       </el-form>
     </el-card>
   </section>
-  <el-container class="app-frame" v-else>
-    <el-aside width="248px" class="sidebar" :class="{ 'mobile-nav-open': mobileNavOpen }" @keydown.esc="mobileNavOpen = false">
-      <div class="sidebar-brand"><div class="sidebar-wordmark"><img src="logo.png" alt="观复咨询" class="sidebar-logo" /><span>AI 研究工作台</span></div><button type="button" class="mobile-nav-toggle" :aria-expanded="mobileNavOpen" aria-controls="primary-navigation" @click="mobileNavOpen = !mobileNavOpen"><i :class="mobileNavOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars'" aria-hidden="true"></i>{{ mobileNavOpen ? '收起导航' : '展开导航' }}</button></div>
-      <el-menu id="primary-navigation" :default-active="isTaskWorkspace ? 'due-diligence' : activeView==='company-knowledge' &amp;&amp; knowledgeDepartment ? 'knowledge-department-'+knowledgeDepartment : activeView" :default-openeds="['workbench','company-knowledge-group']" class="side-menu" @select="switchView">
+  <el-container class="app-frame" :class="{'navigation-is-collapsed': navigationCollapsed}" v-else>
+    <button v-if="navigationIsMobile && mobileNavOpen" class="sidebar-backdrop" tabindex="-1" type="button" aria-label="关闭导航遮罩" @click="closeMobileNavigation" @wheel.prevent></button>
+    <el-aside ref="sidebarElement" :width="navigationCollapsed ? '72px' : '248px'" class="sidebar" :class="{ 'mobile-nav-open': mobileNavOpen }" @keydown.esc="closeMobileNavigation" @keydown.tab="trapNavigationFocus">
+      <div class="sidebar-brand"><div v-show="!navigationCollapsed" class="sidebar-wordmark"><img src="logo.png" alt="观复咨询" class="sidebar-logo" /></div><span v-show="navigationCollapsed" class="sidebar-compact-brand" aria-label="观复咨询">观</span><button ref="sidebarMobileClose" type="button" class="sidebar-mobile-close" aria-label="关闭导航" @click="closeMobileNavigation"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+      <div id="sidebar-navigation" class="sidebar-navigation">
+      <nav v-if="navigationCollapsed" class="sidebar-compact-links" aria-label="主导航"><button v-for="item in sidebarQuickLinks" :key="item.view" type="button" :aria-label="item.label" :title="item.label" :class="{'is-active':item.view === (isTaskWorkspace ? sidebarProjectView : activeView)}" :aria-current="item.view === (isTaskWorkspace ? sidebarProjectView : activeView) ? 'page' : undefined" @click="navigateFromSidebar(item.view)"><i :class="'fa-solid ' + item.icon" aria-hidden="true"></i></button></nav>
+      <el-menu v-if="!navigationCollapsed" id="primary-navigation" :default-active="isTaskWorkspace ? sidebarProjectView : activeView==='company-knowledge' &amp;&amp; knowledgeDepartment ? ({market:'knowledge-marketing',project:'knowledge-projects',policy:'knowledge-policies',expert:'knowledge-experts'})[knowledgeDepartment] || activeView : activeView" :default-openeds="['workbench','company-knowledge']" class="side-menu" @select="navigateFromSidebar">
         <el-menu-item index="home"><i class="fa-solid fa-house" aria-hidden="true"></i><span>个人首页</span></el-menu-item>
         <el-sub-menu index="workbench" class="research-nav-group" :class="{ 'section-is-current': activeView === 'workbench' }">
-          <template #title><button type="button" class="menu-section-link" aria-label="打开工作台概览" :aria-current="activeView === 'workbench' ? 'page' : undefined" @click.stop="switchView('workbench')"><i class="fa-solid fa-folder-tree" aria-hidden="true"></i><span>工作台</span></button></template>
-          <el-menu-item index="due-diligence" class="due-diligence-nav" @keydown.enter.prevent.stop="switchView('due-diligence')" @keydown.space.prevent.stop="switchView('due-diligence')"><i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>尽调任务</span></el-menu-item>
-          <el-menu-item index="research" class="research-task-nav" @keydown.enter.prevent.stop="switchView('research')" @keydown.space.prevent.stop="switchView('research')"><i class="fa-solid fa-magnifying-glass-chart" aria-hidden="true"></i><span>研究任务</span></el-menu-item>
+          <template #title><button type="button" class="menu-section-link" aria-label="打开工作台概览" :aria-current="activeView === 'workbench' ? 'page' : undefined" @click.stop="navigateFromSidebar('workbench')"><i class="fa-solid fa-folder-tree" aria-hidden="true"></i><span>工作台</span></button></template>
+          <el-menu-item index="due-diligence" class="due-diligence-nav" @keydown.enter.prevent.stop="navigateFromSidebar('due-diligence')" @keydown.space.prevent.stop="navigateFromSidebar('due-diligence')"><i class="fa-solid fa-folder-open" aria-hidden="true"></i><span>背调项目</span></el-menu-item>
+          <el-menu-item index="research" class="research-task-nav" @keydown.enter.prevent.stop="navigateFromSidebar('research')" @keydown.space.prevent.stop="navigateFromSidebar('research')"><i class="fa-solid fa-magnifying-glass-chart" aria-hidden="true"></i><span>研究项目</span></el-menu-item>
+          <el-menu-item index="ai-services" class="ai-services-nav" @keydown.enter.prevent.stop="navigateFromSidebar('ai-services')" @keydown.space.prevent.stop="navigateFromSidebar('ai-services')"><i class="fa-solid fa-microchip" aria-hidden="true"></i><span>AI 项目</span></el-menu-item>
         </el-sub-menu>
-        <el-sub-menu index="company-knowledge-group" class="research-nav-group" :class="{'section-is-current':activeView==='company-knowledge'}">
-          <template #title><button type="button" class="menu-section-link" aria-label="打开公司知识库" @click.stop="knowledgeDepartmentEntry=null; switchView('company-knowledge'); $nextTick(() => $refs.knowledgeWorkspace?.openHome())"><i class="fa-solid fa-book-open" aria-hidden="true"></i><span>公司知识库</span></button></template>
-          <el-menu-item index="knowledge-department-market" :disabled="!!$refs.knowledgeWorkspace?.busy"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i><span>市场部</span></el-menu-item>
-          <el-menu-item index="knowledge-department-project" :disabled="!!$refs.knowledgeWorkspace?.busy"><i class="fa-solid fa-briefcase" aria-hidden="true"></i><span>项目部</span></el-menu-item>
-          <el-menu-item index="knowledge-department-policy" :disabled="!!$refs.knowledgeWorkspace?.busy"><i class="fa-solid fa-file-lines" aria-hidden="true"></i><span>制度文件</span></el-menu-item>
-          <el-menu-item index="knowledge-department-expert" :disabled="!!$refs.knowledgeWorkspace?.busy"><i class="fa-solid fa-user-tie" aria-hidden="true"></i><span>专家资料</span></el-menu-item>
+        <el-sub-menu index="company-knowledge" class="research-nav-group knowledge-nav-group" :class="{ 'section-is-current': activeView === 'company-knowledge' }">
+          <template #title><button type="button" class="menu-section-link" aria-label="打开公司知识库" :aria-current="activeView === 'company-knowledge' ? 'page' : undefined" @click.stop="knowledgeDepartmentEntry=null; switchView('company-knowledge'); $nextTick(() => $refs.knowledgeWorkspace?.openHome())"><i class="fa-solid fa-book-open" aria-hidden="true"></i><span>公司知识库</span></button></template>
+          <el-menu-item index="knowledge-marketing" :disabled="!!$refs.knowledgeWorkspace?.busy" @keydown.enter.prevent.stop="navigateFromSidebar('knowledge-marketing')" @keydown.space.prevent.stop="navigateFromSidebar('knowledge-marketing')"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i><span>市场部</span></el-menu-item>
+          <el-menu-item index="knowledge-projects" :disabled="!!$refs.knowledgeWorkspace?.busy" @keydown.enter.prevent.stop="navigateFromSidebar('knowledge-projects')" @keydown.space.prevent.stop="navigateFromSidebar('knowledge-projects')"><i class="fa-solid fa-briefcase" aria-hidden="true"></i><span>项目部</span></el-menu-item>
+          <el-menu-item index="knowledge-policies" :disabled="!!$refs.knowledgeWorkspace?.busy" @keydown.enter.prevent.stop="navigateFromSidebar('knowledge-policies')" @keydown.space.prevent.stop="navigateFromSidebar('knowledge-policies')"><i class="fa-solid fa-file-lines" aria-hidden="true"></i><span>制度文件</span></el-menu-item>
+          <el-menu-item index="knowledge-experts" :disabled="!!$refs.knowledgeWorkspace?.busy" @keydown.enter.prevent.stop="navigateFromSidebar('knowledge-experts')" @keydown.space.prevent.stop="navigateFromSidebar('knowledge-experts')"><i class="fa-solid fa-user-tie" aria-hidden="true"></i><span>专家部资料</span></el-menu-item>
         </el-sub-menu>
-        <el-menu-item v-if="currentUser?.role === 'admin'" index="accounts"><i class="fa-solid fa-users-gear"></i><span>账号管理</span></el-menu-item>
+        <el-menu-item v-if="currentUser?.role === 'admin'" index="accounts"><i class="fa-solid fa-users-gear" aria-hidden="true"></i><span>账号管理</span></el-menu-item>
       </el-menu>
-      <div class="sidebar-signature"><span class="sidebar-signature-icon" aria-hidden="true"><i class="fa-solid fa-layer-group"></i></span><div><strong>每一份洞察，都有依据</strong><span>观复咨询 · 尽调与研究</span></div></div>
+      </div>
+      <section class="sidebar-account" aria-label="当前登录账号" @keydown.esc.stop="if (sidebarAccountOpen) { sidebarAccountOpen = false; $refs.sidebarAccountTrigger?.focus(); } else closeMobileNavigation()">
+        <button ref="sidebarAccountTrigger" type="button" class="sidebar-account-trigger" :aria-label="'账号菜单：' + currentUser?.username" :aria-expanded="sidebarAccountOpen" aria-controls="sidebar-account-options" @click="sidebarAccountOpen = !sidebarAccountOpen">
+          <span class="account-avatar" aria-hidden="true">{{ (currentUser?.username || 'G').slice(0, 1).toUpperCase() }}</span><span class="sidebar-identity"><strong :title="currentUser?.username">{{ currentUser?.username }}</strong><small>{{ currentUser?.role === 'admin' ? '管理员' : '普通用户' }}</small></span><i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+        </button>
+        <div v-if="sidebarAccountOpen" id="sidebar-account-options" class="sidebar-account-options" role="group" aria-label="账号操作">
+          <div class="sidebar-account-summary"><strong>{{ currentUser?.username }}</strong><small>{{ currentUser?.role === 'admin' ? '管理员' : '普通用户' }}</small></div>
+          <button type="button" @click="sidebarAccountOpen = false; mobileNavOpen = false; openPasswordChange()"><i class="fa-solid fa-key" aria-hidden="true"></i>修改密码</button>
+          <button type="button" class="sidebar-logout" @click="sidebarAccountOpen = false; handleLogout()"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>退出登录</button>
+        </div>
+      </section>
     </el-aside>
 
-    <el-container class="app-shell" :class="{ 'company-knowledge-shell': activeView === 'company-knowledge' }">
-      <el-header height="auto" class="topbar">
-        <div class="topbar-title"><div v-if="isTaskWorkspace" class="workspace-breadcrumb"><button type="button" @click="switchView('workbench')">工作台</button><span>/</span><span class="breadcrumb-label">尽调任务</span></div><div v-else-if="['workbench','research'].includes(activeView)" class="workspace-breadcrumb"><button v-if="activeView !== 'workbench'" type="button" @click="switchView('workbench')">工作台</button><span v-else class="breadcrumb-label">工作台</span><template v-if="activeView !== 'workbench'"><span>/</span><span class="breadcrumb-label">{{ pageTitle }}</span></template></div><div v-else class="workspace-breadcrumb">观复智研<span>/</span>研究工作台</div><h1>{{ pageTitle }}</h1><p>{{ pageSubtitle }}</p></div>
-        <section class="topbar-account" aria-label="当前登录账号">
-          <span class="account-avatar" aria-hidden="true">{{ (currentUser?.username || 'G').slice(0, 1).toUpperCase() }}</span><div class="topbar-identity"><strong :title="currentUser?.username">{{ currentUser?.username }}</strong><el-tag size="small" type="success" effect="light">{{ currentUser?.role === 'admin' ? '管理员' : '普通用户' }}</el-tag></div>
-          <div class="topbar-account-actions"><el-button size="small" plain @click="openPasswordChange">修改密码</el-button><el-button size="small" plain type="danger" @click="handleLogout">退出登录</el-button></div>
-        </section>
+    <el-container class="app-shell" :inert="navigationIsMobile && mobileNavOpen ? true : undefined" :class="{ 'company-knowledge-shell': activeView === 'company-knowledge', 'task-workspace-shell': isTaskWorkspace }">
+      <el-header height="auto" class="topbar compact-topbar">
+        <button ref="navigationToggle" type="button" class="navigation-toggle" :aria-label="navigationIsMobile ? (mobileNavOpen ? '关闭导航' : '展开导航') : (sidebarCollapsed ? '展开侧边栏' : '收起侧边栏')" :title="navigationIsMobile ? '导航菜单' : (sidebarCollapsed ? '展开侧边栏' : '收起侧边栏')" :aria-expanded="navigationIsMobile ? mobileNavOpen : !sidebarCollapsed" aria-controls="sidebar-navigation" @click="toggleSidebar"><i :class="navigationIsMobile ? 'fa-solid fa-bars' : sidebarCollapsed ? 'fa-solid fa-angles-right' : 'fa-solid fa-angles-left'" aria-hidden="true"></i></button>
+        <div class="compact-page-heading"><button v-if="knowledgeSection" type="button" @click="switchView('company-knowledge')">公司知识库</button><button v-else-if="isTaskWorkspace || ['research','ai-services'].includes(activeView)" type="button" @click="switchView('workbench')">工作台</button><span v-if="knowledgeSection || isTaskWorkspace || ['research','ai-services'].includes(activeView)" class="compact-page-separator" aria-hidden="true">/</span><h1>{{ pageTitle }}</h1></div>
       </el-header>
       <el-main>
         <section v-if="visibleActions.length || visibleActionErrors.length" class="operation-feedback" aria-label="操作进度">
           <div v-for="action in visibleActions" :key="action.id" class="operation-pending" role="status" aria-live="polite"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i><span>{{actionWaitText(action)}}</span></div>
           <div v-for="[key, error] in visibleActionErrors" :key="key" class="operation-error" role="alert"><div><strong>{{error.label.replace('正在', '')}}未完成</strong><p>{{error.message}}</p><small>{{error.advice}}</small></div><el-button text size="small" @click="delete actionErrors[key]" aria-label="关闭操作提示">关闭</el-button></div>
         </section>
-        <section v-if="isTaskWorkspace" class="summary-band"><div><span>任务总数</span><strong>{{ projects.length }}</strong></div><div><span>生成中</span><strong>{{ generatingCount }}</strong></div><div><span>可下载</span><strong>{{ readyCount }}</strong></div><div><el-tooltip content="当前账号可见项目中保存的来源记录总数；同一网址的多次记录分别计数。"><span>来源记录总数</span></el-tooltip><strong>{{ sourceCount }}</strong></div></section>
-        <section v-if="activeView === 'workbench'" class="workspace-overview" aria-label="工作台概览">
-          <header class="overview-intro"><p class="eyebrow">Workspace</p><h2>从这里，开始你的工作</h2><p>选择任务类型，进入相应的工作空间。</p></header>
-          <div class="overview-entry-grid">
-            <article class="overview-entry" aria-label="尽调任务入口"><span class="overview-entry-icon" aria-hidden="true"><i class="fa-solid fa-folder-open"></i></span><h2>尽调任务</h2><p>集中管理公司、人物和行业尽调，整理资料、复核成果并核查来源。</p><span class="overview-entry-meta">{{ actionPending('projects') ? '正在读取任务概况…' : '当前可见 ' + projects.length + ' 个任务' }}</span><el-button type="primary" @click="switchView('due-diligence')">进入尽调任务<i class="fa-solid fa-arrow-right" aria-hidden="true"></i></el-button></article>
-            <article class="overview-entry" aria-label="研究任务入口"><span class="overview-entry-icon overview-research-icon" aria-hidden="true"><i class="fa-solid fa-magnifying-glass-chart"></i></span><h2>研究任务</h2><p>独立的研究工作空间，后续可在这里配置研究任务与工作流程。</p><span class="overview-entry-meta">研究流程待配置</span><el-button plain @click="switchView('research')">进入研究任务<i class="fa-solid fa-arrow-right" aria-hidden="true"></i></el-button></article>
-          </div>
+        <section v-if="isTaskWorkspace" class="project-workspace-heading">
+          <div><h2>{{workspaceTitle}}</h2><p>{{workspaceDescription}}</p></div>
+          <el-button type="primary" :disabled="submitting" @click="openProjectCreate()"><i class="fa-solid fa-plus" aria-hidden="true"></i>新建项目</el-button>
         </section>
-        <section v-if="activeView === 'research'" class="workspace-overview" aria-label="研究任务空间">
-          <article class="research-placeholder"><span class="overview-entry-icon overview-research-icon" aria-hidden="true"><i class="fa-solid fa-magnifying-glass-chart"></i></span><p class="eyebrow">Research Workspace</p><h2>研究任务空间</h2><p>研究任务的独立入口已就绪。<br />具体研究流程和任务内容待配置。</p><el-tag type="info" effect="plain">待配置</el-tag><el-button plain @click="switchView('workbench')">返回工作台</el-button></article>
+        <nav v-if="isTaskWorkspace" class="project-family-tabs" aria-label="项目分类">
+          <button v-for="family in workspaceFamilies" :key="family.value" type="button" :class="{'is-active':workspaceFamily===family.value}" :aria-pressed="workspaceFamily===family.value" @click="switchView(({all:'workbench',background:'due-diligence',research:'research',ai:'ai-services'})[family.value])"><span>{{family.label}}</span><small>{{workspaceCount(family.value)}}</small></button>
+        </nav>
+        <el-alert v-if="isTaskWorkspace && Object.keys(workspaceMetaErrors).length" title="部分项目分类尚未读取，请在全部项目中核对或重新加载。" type="warning" :closable="false"><el-button link @click="loadProjects().catch(() => null)">重新加载</el-button></el-alert>
+        <section v-if="knowledgeSection" class="workspace-overview knowledge-section" :aria-label="knowledgeSection.label + '分类页面'">
+          <article class="research-placeholder"><span class="overview-entry-icon" aria-hidden="true"><i :class="'fa-solid ' + knowledgeSection.icon"></i></span><h2>{{ knowledgeSection.label }}</h2><p>此分类的资料空间待配置。</p><el-tag type="info" effect="plain">待配置</el-tag><el-button plain @click="switchView('company-knowledge')">返回公司知识库</el-button></article>
         </section>
-        <div v-if="isTaskWorkspace" class="task-workspace-toolbar">
-          <nav class="task-workspace-nav" aria-label="尽调任务功能">
-            <button type="button" :class="{ 'is-active': activeView === 'tasks' }" :aria-current="activeView === 'tasks' ? 'page' : undefined" @click="switchView('tasks')"><i class="fa-solid fa-list-check" aria-hidden="true"></i>任务总览</button>
-            <button type="button" :class="{ 'is-active': activeView === 'intake' }" :aria-current="activeView === 'intake' ? 'page' : undefined" @click="switchView('intake')"><span class="workspace-stage-number" aria-hidden="true">1</span>需求与资料</button>
-            <button type="button" :class="{ 'is-active': activeView === 'deliverables' }" :aria-current="activeView === 'deliverables' ? 'page' : undefined" @click="switchView('deliverables')"><span class="workspace-stage-number" aria-hidden="true">2</span>报告与建议书</button>
-            <button type="button" :class="{ 'is-active': activeView === 'review' }" :aria-current="activeView === 'review' ? 'page' : undefined" @click="switchView('review')"><span class="workspace-stage-number" aria-hidden="true">3</span>复核与正式方案</button>
-          </nav>
-          <div class="task-workspace-actions"><el-button plain :class="{ 'is-active': activeView === 'sources' }" :aria-current="activeView === 'sources' ? 'page' : undefined" @click="switchView('sources')"><i class="fa-solid fa-database" aria-hidden="true"></i><span>溯源库</span></el-button><el-button type="primary" :disabled="submitting" @click="switchView('submit')"><i class="fa-solid fa-plus" aria-hidden="true"></i><span>新建任务</span></el-button></div>
+        <div v-if="isTaskWorkspace" class="project-resource-toolbar">
+          <span v-if="workspaceMetaLoading" role="status">正在核对项目分类…</span><span v-else>{{stageProjects.length}} 个项目 · 已生成的报告仍需人工复核</span>
+          <div><el-button v-if="activeView !== 'tasks'" plain @click="switchView('tasks')">返回项目列表</el-button><el-button plain @click="switchView('sources')">溯源库</el-button></div>
         </div>
         <personal-home v-if="activeView === 'home'" :request="authFetch" :read="readJSON" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @filter-tasks="openHomeTaskFilter" @open-project="openHomeProject" @view-versions="report => openReportVersions({id:report.project_id, title:report.project_title}, report.artifact_type)"></personal-home>
         <company-knowledge :department-entry="knowledgeDepartmentEntry" @department-change="knowledgeDepartment=$event" ref="knowledgeWorkspace" v-if="activeView === 'company-knowledge'" :projects="projects" :feedback="runAction" :operation-state="pendingActions"></company-knowledge>
 
         <account-management v-if="activeView === 'accounts' && currentUser?.role === 'admin'" :request="authFetch" @session-invalidated="handleLogout"></account-management>
-        <el-dialog v-model="taskCreateOpen" title="新建尽调任务" width="min(860px, 94vw)" :close-on-click-modal="false" class="task-create-dialog">
-            <p class="detail-note">第一步：保存任务、客户需求和资料。保存后点击任务的“开始生成”，进入第二步。</p>
-            <el-form :model="form" label-position="top">
-              <el-row :gutter="14"><el-col :xs="24" :sm="8"><el-form-item label="项目名称"><el-input v-model="form.projectName" ></el-input></el-form-item></el-col><el-col :xs="24" :sm="8"><el-form-item label="开始时间"><el-date-picker v-model="form.startDate" type="date" value-format="YYYY-MM-DD" class="full" ></el-date-picker></el-form-item></el-col><el-col :xs="24" :sm="8"><el-form-item label="结束时间"><el-date-picker v-model="form.endDate" type="date" value-format="YYYY-MM-DD" class="full" ></el-date-picker></el-form-item></el-col></el-row>
-              <el-divider ></el-divider>
-              <el-form-item label="报告类型"><el-select v-model="form.targetType" class="full"><el-option label="BDD目标人报告" value="person" ></el-option><el-option label="BDD目标公司报告" value="company" ></el-option><el-option label="CDD目标行业报告" value="industry" ></el-option></el-select></el-form-item>
-              <el-form-item :label="targetPrimaryLabel"><el-input v-model="form.companyName" ></el-input></el-form-item>
-              <el-form-item :label="targetSecondaryLabel"><el-input v-if="form.targetType === 'company'" v-model="form.identifier" ></el-input><el-input v-else v-model="form.targetContext" :placeholder="targetSecondaryPlaceholder" clearable></el-input></el-form-item>
-              <template v-if="form.targetType === 'person'">
-                <el-form-item label="人物补充线索（选填）"><el-input v-model="form.personContext" type="textarea" :rows="3" placeholder="可写任职起止时间、学校、地区、职责或用于排除同名者的信息；也可上传简历等材料"></el-input><small>这些信息用于定位研究对象，报告中的事实仍需来源核实。</small></el-form-item>
-                <el-form-item label="曾用名或中英文姓名（选填，每行一个）"><el-input v-model="form.personAliases" type="textarea" :rows="2"></el-input></el-form-item>
-              </template>
-              <el-row v-if="form.targetType === 'company'" :gutter="14"><el-col :xs="24" :sm="12"><el-form-item label="行业"><el-input v-model="form.industry" ></el-input></el-form-item></el-col><el-col :xs="24" :sm="12"><el-form-item label="地区"><el-input v-model="form.region" ></el-input></el-form-item></el-col></el-row>
-              <template v-if="form.targetType === 'industry'">
-                <el-form-item label="重点赛道（选填，多个用顿号分隔）"><el-input v-model="form.industryFocus" placeholder="例如：协作机器人、焊接机器人；留空研究主行业"></el-input></el-form-item>
-                <el-form-item label="不纳入的赛道（选填）"><el-input v-model="form.excludedSegments" placeholder="填写本次不研究的范围"></el-input></el-form-item>
-                <el-row :gutter="14">
-                  <el-col :xs="24" :sm="12"><el-form-item label="研究地域"><el-input v-model="form.region" placeholder="留空默认中国大陆"></el-input></el-form-item></el-col>
-                  <el-col :xs="24" :sm="12"><el-form-item label="数据截止日"><el-date-picker v-model="form.asOfDate" type="date" value-format="YYYY-MM-DD" placeholder="留空采用本次提交日期" class="full"></el-date-picker></el-form-item></el-col>
-                </el-row>
-                <el-form-item label="研究用途"><el-select v-model="form.researchPurpose" class="full"><el-option v-for="purpose in ['日常了解', '战略研究', '投资判断', '尽调支持']" :key="purpose" :label="purpose" :value="purpose"></el-option></el-select></el-form-item>
-                <div class="search-setting"><div><strong>纳入资本市场研究</strong><span>一级融资、IPO、估值和二级市场概览；关闭后这些章节仅说明研究范围。</span></div><el-switch v-model="form.includeCapitalMarkets"></el-switch></div>
-                <p class="detail-note">报告采用 16 章目录。填写核心企业后，启用核心企业公开资料尽调；关注产品可写在重点问题中。不同企业与行业整体结论分别呈现。</p>
-              </template>
-              <el-form-item label="查什么"><el-select v-model="form.ddType" class="full"><el-option v-for="type in ddTypes" :key="type" :label="type" :value="type" ></el-option></el-select></el-form-item>
-              <el-form-item :label="form.targetType === 'company' ? '重点研究章节' : '重点模块'">
-                <el-checkbox-group v-model="form.modules" class="checkbox-grid" :class="{'company-chapter-grid': form.targetType === 'company'}"><el-checkbox v-for="module in modules" :key="module.value" :label="module.value" :title="module.title || module.label" :disabled="module.selectable === false">{{ module.label }}</el-checkbox></el-checkbox-group>
-                <p v-if="form.targetType === 'company'" class="detail-note">按章优先复用已有资料，再按缺口检索和写作。勾选章节重点深查；摘要与综合评估自动汇总，另附信息来源和后续研究点。报告成功生成并通过核验后清理临时资料。</p>
-                <p v-if="form.targetType === 'company' && companyChaptersLoading" class="detail-note" role="status">正在加载章节目录…</p>
-                <p v-if="form.targetType === 'company' && companyChapterError" class="detail-note" role="alert">{{ companyChapterError }} <el-button link type="primary" @click="loadCompanyChapters">重新加载章节</el-button></p>
-              </el-form-item>
-              <div class="search-setting"><div><strong>开启 AI 搜索</strong><span>公开网络、新闻、官方来源和制裁名单检索</span></div><el-switch v-model="form.aiSearchEnabled" ></el-switch></div>
-              <el-row :gutter="14"><el-col :xs="24" :sm="12"><el-form-item label="检索关键词（每行一个）"><el-input v-model="form.searchQueries" type="textarea" :rows="3" ></el-input></el-form-item></el-col><el-col :xs="24" :sm="12"><el-form-item label="重点问题（每行一个）"><el-input v-model="form.focusQuestions" type="textarea" :rows="3" ></el-input></el-form-item></el-col></el-row>
-              <el-form-item label="报告研究重点 / 特殊要求"><el-input v-model="form.keyQuestions" type="textarea" :rows="4" resize="vertical" ></el-input></el-form-item>
-              <el-divider content-position="left">客户需求</el-divider>
-              <el-form-item label="客户需求（选填）"><el-input v-model="form.clientRequirements" aria-label="客户需求" type="textarea" :rows="4" maxlength="12000" show-word-limit placeholder="例如：客户的决策目标、关注问题、期望交付物、时间及沟通要求"></el-input><small>建议书和正式方案会参考这些需求；桌面报告按上方研究设置生成。</small></el-form-item>
-              <el-form-item label="上传客户需求文件（选填）"><el-upload drag multiple :auto-upload="false" accept=".pdf,.docx,.txt,.md" :limit="5" :file-list="uploadDisplayFiles(clientRequirementFiles)" :on-change="handleClientRequirementFiles" :on-remove="handleClientRequirementFiles"><div class="upload-title">上传客户需求</div><div class="upload-text">PDF、DOCX、TXT、Markdown，每个文件不超过 10 MB</div><div class="upload-hint">请使用可提取文字的文件，最多 5 个，提取文字合计不超过 24000 字。</div></el-upload></el-form-item>
-              <el-form-item label="上传资料"><el-upload drag multiple :auto-upload="false" :file-list="uploadDisplayFiles(selectedFiles)" :on-change="handleFileChange" :on-remove="handleFileRemove"><div class="upload-title">拖拽或点击上传</div><div class="upload-text">{{ fileLabel }}</div><div class="upload-hint">上传后先轻量提取身份骨架（人物、公司、职位、行业）并自动补充任务信息；全文留到后续清洗阶段。</div></el-upload></el-form-item>
-              <el-button type="primary" size="large" class="full" :loading="submitting" @click="submitTask">保存任务与资料</el-button>
+        <el-dialog v-model="taskCreateOpen" title="新建项目" width="min(860px, 94vw)" :close-on-click-modal="false" class="task-create-dialog">
+            <p class="detail-note">每个项目对应一个主要对象；保存资料后，可按需生成和复核。</p>
+            <el-form :model="form" label-position="top" class="project-create-form">
+              <el-row :gutter="16"><el-col :xs="24" :sm="12"><el-form-item label="项目分类"><el-select v-model="form.workspaceFamily" @change="changeFormFamily" class="full"><el-option v-for="family in workspaceFamilies.filter(f=>f.value!=='all')" :key="family.value" :label="family.label" :value="family.value"></el-option></el-select></el-form-item></el-col><el-col :xs="24" :sm="12"><el-form-item label="主业务类型"><el-select v-model="form.ddType" class="full"><el-option v-for="type in ddTypes" :key="type" :label="type" :value="type"></el-option></el-select></el-form-item></el-col></el-row>
+              <el-form-item label="项目名称"><el-input v-model="form.projectName" maxlength="120" placeholder="填写本次调查或研究项目名称"></el-input></el-form-item>
+              <el-alert v-if="!executionAvailable" title="AI 应用建设尚未接入执行接口，目前仅可保存本机草稿，不会启动报告或应用建设。" type="info" :closable="false" class="project-capability-notice"></el-alert>
+              <el-form-item v-if="executionAvailable" label="主要对象类型"><el-radio-group v-model="form.targetType"><el-radio-button label="company">公司</el-radio-button><el-radio-button label="person">人物</el-radio-button><el-radio-button label="industry">行业 / 赛道</el-radio-button></el-radio-group></el-form-item>
+              <el-form-item :label="executionAvailable ? targetPrimaryLabel : '应用场景 / 服务对象'"><el-input v-model="form.companyName" maxlength="200" :placeholder="executionAvailable ? '填写一个主要调查或研究对象' : '例如：公司内部资料检索'"></el-input></el-form-item>
+              <el-form-item v-if="form.workspaceFamily === 'background'" label="重点模块"><el-checkbox-group v-model="form.focusAreas" class="project-focus-areas"><el-checkbox label="高管背景">高管背景</el-checkbox><el-checkbox label="创始人背景">创始人背景</el-checkbox><el-checkbox label="标的公司背景">标的公司背景</el-checkbox></el-checkbox-group><small>围绕本项目的主要对象开展核查，不创建其他人物或公司的任务。</small></el-form-item>
+              <el-form-item label="项目目标与重点问题"><el-input v-model="form.keyQuestions" type="textarea" :rows="3" maxlength="12000" show-word-limit placeholder="希望核实什么？用于什么决策？"></el-input></el-form-item>
+              <details v-if="executionAvailable" class="project-advanced"><summary>客户需求与资料（选填）</summary>
+                <el-form-item label="客户需求"><el-input v-model="form.clientRequirements" aria-label="客户需求" type="textarea" :rows="3" maxlength="12000" show-word-limit></el-input></el-form-item>
+                <el-form-item label="上传客户需求文件"><el-upload drag multiple :auto-upload="false" accept=".pdf,.docx,.txt,.md" :limit="5" :file-list="uploadDisplayFiles(clientRequirementFiles)" :on-change="handleClientRequirementFiles" :on-remove="handleClientRequirementFiles"><div class="upload-title">上传客户需求</div><div class="upload-text">PDF、DOCX、TXT、Markdown；最多 5 个，每个不超过 10 MB。</div></el-upload></el-form-item>
+                <el-form-item label="上传研究资料"><el-upload drag multiple :auto-upload="false" :file-list="uploadDisplayFiles(selectedFiles)" :on-change="handleFileChange" :on-remove="handleFileRemove"><div class="upload-title">拖拽或点击上传</div><div class="upload-text">{{fileLabel}}</div></el-upload></el-form-item>
+              </details>
+              <details v-if="executionAvailable" class="project-advanced"><summary>详细研究设置（选填）</summary>
+                <el-row :gutter="16"><el-col :xs="24" :sm="12"><el-form-item label="开始日期"><el-input v-model="form.startDate" type="date"></el-input></el-form-item></el-col><el-col :xs="24" :sm="12"><el-form-item label="交付日期"><el-input v-model="form.endDate" type="date"></el-input></el-form-item></el-col></el-row>
+                <el-form-item :label="targetSecondaryLabel"><el-input v-if="form.targetType === 'company'" v-model="form.identifier"></el-input><el-input v-else v-model="form.targetContext" :placeholder="targetSecondaryPlaceholder"></el-input></el-form-item>
+                <template v-if="form.targetType === 'person'"><el-form-item label="人物补充线索"><el-input v-model="form.personContext" type="textarea" :rows="3" maxlength="12000" placeholder="任职时间、学校、地区、职责或同名排除线索"></el-input></el-form-item><el-form-item label="曾用名或中英文姓名（每行一个）"><el-input v-model="form.personAliases" type="textarea" :rows="2"></el-input></el-form-item></template>
+                <el-row :gutter="16"><el-col :xs="24" :sm="12"><el-form-item label="行业"><el-input v-model="form.industry"></el-input></el-form-item></el-col><el-col :xs="24" :sm="12"><el-form-item label="研究地域"><el-input v-model="form.region" placeholder="例如：中国大陆"></el-input></el-form-item></el-col></el-row>
+                <template v-if="form.targetType === 'industry'"><el-form-item label="重点赛道"><el-input v-model="form.industryFocus" type="textarea" :rows="2"></el-input></el-form-item><el-form-item label="不纳入的赛道"><el-input v-model="form.excludedSegments" type="textarea" :rows="2"></el-input></el-form-item><el-form-item label="数据截止日"><el-input v-model="form.asOfDate" type="date"></el-input></el-form-item><el-form-item label="研究用途"><el-select v-model="form.researchPurpose"><el-option v-for="purpose in ['日常了解','战略研究','投资判断','尽调支持']" :key="purpose" :label="purpose" :value="purpose"></el-option></el-select></el-form-item><div class="search-setting"><div><strong>纳入资本市场研究</strong><span>一级融资、IPO、估值及二级市场概览</span></div><el-switch v-model="form.includeCapitalMarkets"></el-switch></div></template>
+                <el-form-item label="详细研究范围"><el-checkbox-group v-model="form.modules" class="checkbox-grid"><el-checkbox v-for="module in modules" :key="module.value" :label="module.value" :disabled="module.selectable === false">{{module.label}}</el-checkbox></el-checkbox-group></el-form-item>
+                <div class="search-setting"><div><strong>开启 AI 搜索</strong><span>沿用现有对象研究流程的公开资料检索策略</span></div><el-switch v-model="form.aiSearchEnabled"></el-switch></div>
+                <el-form-item label="检索关键词（每行一个）"><el-input v-model="form.searchQueries" type="textarea" :rows="2"></el-input></el-form-item><el-form-item label="补充重点问题（每行一个）"><el-input v-model="form.focusQuestions" type="textarea" :rows="2"></el-input></el-form-item>
+              </details>
+              <p v-if="!executionAvailable" class="detail-note">本机草稿仅保存在当前账号的浏览器中，清除网站数据或更换设备后不会同步。</p>
             </el-form>
+          <template #footer><el-button type="primary" size="large" class="full" :loading="submitting" @click="submitTask">{{executionAvailable?'创建项目并保存资料':'保存本机草稿'}}</el-button></template>
         </el-dialog>
         <el-dialog v-model="requirementsOpen" title="客户需求与任务资料" width="min(760px, 94vw)" :close-on-click-modal="false" :close-on-press-escape="!requirementsSaving" :show-close="!requirementsSaving">
           <el-skeleton v-if="requirementsLoading" :rows="4" animated></el-skeleton>
@@ -196,24 +193,70 @@
           </el-form>
           <template #footer><el-button type="primary" :loading="requirementsSaving" :disabled="requirementsLoading || !requirementsLoaded" @click="saveClientRequirements">保存需求与资料</el-button></template>
         </el-dialog>
-        <section v-if="isTaskListView" :aria-label="taskSectionTitle">
-          <el-card shadow="never" class="panel-card">
-            <template #header><div class="card-header"><div><h2>{{ taskSectionTitle }}</h2><p class="workspace-section-hint">{{ taskSectionHint }}</p></div></div></template>
-            <div class="table-toolbar task-filter-toolbar" role="search" aria-label="任务筛选">
-              <div class="table-meta">显示 {{ filteredProjects.length }} / {{ stageProjects.length }} 个任务</div>
-              <div class="task-filter-controls">
-                <el-input v-model="taskSearch" clearable placeholder="搜索项目、研究对象、行业或状态" aria-label="搜索任务" class="task-filter-keyword"></el-input>
-                <el-select v-model="taskStatusFilter" clearable placeholder="全部状态" aria-label="任务状态" class="task-filter-select"><el-option v-for="option in taskStatusOptions" :key="option.value" :label="option.label" :value="option.value"></el-option></el-select>
-                <el-select v-model="taskTargetFilter" clearable placeholder="全部研究类型" aria-label="研究类型" class="task-filter-select"><el-option label="全部研究类型" value=""></el-option><el-option label="公司研究" value="company"></el-option><el-option label="人物研究" value="person"></el-option><el-option label="行业研究" value="industry"></el-option></el-select>
-                <el-button :disabled="!hasTaskFilters" @click="resetTaskFilters">清空筛选</el-button>
+
+        <el-dialog v-model="collectedSourcesOpen" :title="'已收集资料 · ' + (collectedSourcesProject?.title || '')" width="min(1240px, 96vw)" top="4vh" class="collected-source-dialog" :close-on-click-modal="false" @closed="closeCollectedSources">
+          <p class="collected-source-hint">查看本项目累计归档的资料。资料仍在收集时，可刷新列表查看新增记录；打开后再核对文本，不以摘要代替正文。</p>
+          <div class="collected-source-toolbar">
+            <el-input v-model="collectedSourceQuery" maxlength="200" clearable placeholder="搜索标题、网址或摘要" aria-label="搜索已收集资料" @input="searchCollectedSources"></el-input>
+            <el-select v-model="collectedSourceType" clearable placeholder="全部来源类型" aria-label="资料来源类型" @change="resetCollectedSourcePage"><el-option v-for="type in collectedSourceTypes" :key="type" :label="collectedSourceTypeLabel(type)" :value="type"></el-option></el-select>
+            <el-select v-model="collectedSourceFilter" clearable placeholder="全部归档状态" aria-label="资料归档状态" @change="resetCollectedSourcePage"><el-option label="已有归档" value="archived"></el-option><el-option label="正文已清理" value="cleared"></el-option><el-option label="仅来源记录" value="not_archived"></el-option></el-select>
+            <el-button :loading="collectedSourcesLoading" @click="refreshCollectedSources">刷新资料列表</el-button>
+          </div>
+          <div class="collected-source-meta"><span>项目累计 {{ collectedSourcesMeta.project_total || 0 }} 条 · 筛选后 {{ collectedSourcesTotal }} 条 · 本页 {{ collectedSourcesRows.length }} 条</span><span v-if="collectedSourcesLoadedAt">列表读取于 {{ formatTime(collectedSourcesLoadedAt) }}</span></div>
+          <el-alert v-if="collectedSourcesMeta.archive_counts?.cleared" :title="`${collectedSourcesMeta.archive_counts.cleared} 条旧来源正文已清理，目前仅可核对摘要和原始链接。后续行业任务新采集的正文会保留供复核。`" type="info" :closable="false" show-icon></el-alert>
+          <el-alert v-if="collectedSourcesError" :title="collectedSourcesError" type="error" :closable="false" show-icon></el-alert>
+          <div class="collected-source-grid">
+            <section class="collected-source-list" aria-label="已收集资料列表" v-loading="collectedSourcesLoading">
+              <div v-for="source in pagedCollectedSources" :key="source.id" :class="['collected-source-row', {'is-selected':collectedSourceSelected?.id === source.id}]">
+                <div class="collected-source-row-head"><el-tag size="small" effect="plain">{{collectedSourceTypeLabel(source.source_type)}}</el-tag><el-tag size="small" :type="collectedSourceStatus(source).type">{{collectedSourceStatus(source).label}}</el-tag></div>
+                <button class="collected-source-title" type="button" @click="openCollectedSourceText(source)">{{source.title || '未命名资料'}}</button>
+                <p class="collected-source-date">归档时间：{{formatTime(source.created_at)}} · 来源 #{{source.id}}</p>
+                <p class="collected-source-url">{{source.url || '未登记外部网址'}}</p>
+                <p v-if="source.summary" class="collected-source-summary"><strong>来源摘要：</strong>{{source.summary}}</p>
+                <el-button size="small" plain type="primary" @click="openCollectedSourceText(source)">{{source.archive_state === 'archived' ? '查看归档文本' : '查看来源记录'}}</el-button>
               </div>
+              <el-empty v-if="!collectedSourcesLoading && !pagedCollectedSources.length" :description="collectedSourcesMeta.project_total ? '没有符合筛选条件的资料' : '尚无来源记录；采集期间可稍后刷新'" :image-size="64"></el-empty>
+              <el-pagination v-if="collectedSourcesTotal" small layout="prev, pager, next, total" :total="collectedSourcesTotal" :page-size="collectedSourcePageSize" v-model:current-page="collectedSourcePage" @current-change="changeCollectedSourcePage"></el-pagination>
+            </section>
+            <section class="collected-source-preview" aria-label="归档文本核对" v-loading="collectedSourceLoading">
+              <template v-if="collectedSourceSelected">
+                <h3>{{collectedSourceSelected.title || '归档文本'}}</h3>
+                <div class="collected-source-preview-actions"><el-link v-if="isExternalUrl(collectedSourceSelected.url)" :href="collectedSourceSelected.url" target="_blank" rel="noopener noreferrer" type="primary">打开原始来源</el-link><el-button size="small" plain :loading="actionPending('download-source:' + collectedSourceSelected.id)"  :disabled="collectedSourceSelected.archive_state !== 'archived'" @click="downloadSource(collectedSourceSelected)">下载归档文件</el-button><el-button size="small" plain :disabled="collectedSourceLoading" @click="openCollectedSourceText(collectedSourceSelected)">重新读取文本</el-button></div>
+                <p v-if="collectedSourceSelected.archive_state !== 'archived'" class="collected-source-notice"><strong>来源摘要（非完整正文）</strong></p>
+                <p v-if="collectedSourceSelected.body_removed_at" class="collected-source-date">正文清理时间：{{formatTime(collectedSourceSelected.body_removed_at)}}</p>
+                <p class="collected-source-notice" v-if="collectedSourceNotice">{{collectedSourceNotice}}</p>
+                <el-alert v-if="collectedSourceTextError" :title="collectedSourceTextError" type="error" :closable="false" show-icon></el-alert>
+                <template v-if="collectedSourceText">
+                  <div class="collected-source-find"><el-input v-model="collectedSourceFindDraft" clearable placeholder="在这篇归档文本中查找" aria-label="查找归档文本" @keyup.enter="findCollectedSourceText"></el-input><el-button @click="findCollectedSourceText">查找</el-button><el-button :disabled="!collectedSourceMatches.length" @click="moveCollectedSourceMatch(-1)" aria-label="上一个文本匹配">上一处</el-button><el-button :disabled="!collectedSourceMatches.length" @click="moveCollectedSourceMatch(1)" aria-label="下一个文本匹配">下一处</el-button></div>
+                  <p class="collected-source-meta">{{collectedSourceText.length}} 字符 · 第 {{collectedSourceTextPage}} / {{collectedSourceTextPages}} 段<span v-if="collectedSourceFind"> · {{collectedSourceMatches.length === 2000 ? '至少 ' : ''}}{{collectedSourceMatches.length}} 处匹配<span v-if="collectedSourceMatches.length">，当前第 {{collectedSourceFindIndex + 1}} 处</span></span></p>
+                  <pre class="collected-source-text" tabindex="0"><template v-for="(part,index) in collectedSourceTextParts" :key="index"><mark v-if="part.hit" :class="{'is-current':part.active}">{{part.text}}</mark><span v-else>{{part.text}}</span></template></pre>
+                  <el-pagination v-if="collectedSourceTextPages > 1" small layout="prev, pager, next" :total="collectedSourceTextPages" :page-size="1" v-model:current-page="collectedSourceTextPage"></el-pagination>
+                </template>
+              </template>
+              <el-empty v-else description="选择左侧资料，查看已保存的文本并对照原始来源" :image-size="80"></el-empty>
+            </section>
+          </div>
+        </el-dialog>
+
+        <section v-if="isTaskListView && ['all','ai'].includes(workspaceFamily) && localProjectDrafts.length" class="project-local-drafts"><header><h3>AI 应用建设 · 本机草稿</h3><p>尚未接入执行接口；仅保存在当前账号的浏览器中，不计入服务器项目。</p></header><article v-for="draft in localProjectDrafts" :key="draft.id"><div><strong>{{draft.form.projectName}}</strong><small>{{draft.form.companyName}} · {{formatTime(draft.updated_at)}}</small></div><el-button plain size="small" @click="editLocalProjectDraft(draft)">继续编辑</el-button><el-button text type="danger" @click="deleteLocalProjectDraft(draft)">删除草稿</el-button></article></section>
+        <section v-if="isTaskListView" class="task-list-section" :aria-label="taskSectionTitle">
+          <el-card shadow="never" class="panel-card task-list-panel">
+            <h2 class="task-sr-only">{{ taskSectionTitle }}</h2>
+            <div class="table-toolbar task-filter-toolbar" role="search" aria-label="任务筛选">
+              <div class="table-meta">{{ hasTaskFilters ? filteredProjects.length + ' / ' + stageProjects.length : stageProjects.length }} 个任务</div>
+              <div class="task-filter-controls"><div class="task-filter-searchline"><el-input v-model="taskSearch" clearable placeholder="搜索项目、研究对象、行业或状态" aria-label="搜索任务" class="task-filter-keyword"></el-input><el-button class="task-filter-toggle task-mobile-only" :class="{'is-active':activeTaskFilterCount}" :aria-expanded="taskFilterPanelOpen" aria-controls="task-filters" @click="taskFilterPanelOpen = !taskFilterPanelOpen"><i class="fa-solid fa-filter" aria-hidden="true"></i>筛选<span v-if="activeTaskFilterCount" class="task-filter-count">{{activeTaskFilterCount}}</span></el-button></div>
+                <div id="task-filters" class="task-filter-options" :class="{'is-open':taskFilterPanelOpen}"><el-select v-model="workspaceTypeFilter" clearable placeholder="全部业务类型" aria-label="项目业务类型" class="task-filter-select"><el-option v-for="type in workspaceTypes" :key="type" :label="type" :value="type"></el-option></el-select><el-select v-model="taskStatusFilter" clearable placeholder="全部状态" aria-label="任务状态" class="task-filter-select"><el-option v-for="option in taskStatusOptions" :key="option.value" :label="option.label" :value="option.value"></el-option></el-select><el-select v-model="taskTargetFilter" clearable placeholder="全部研究类型" aria-label="研究类型" class="task-filter-select"><el-option label="全部研究类型" value=""></el-option><el-option label="公司研究" value="company"></el-option><el-option label="人物研究" value="person"></el-option><el-option label="行业研究" value="industry"></el-option></el-select><el-button :disabled="!hasTaskFilters" @click="resetTaskFilters">清空筛选</el-button></div>
+              </div>
+              <div v-if="activeTaskFilterCount" class="task-active-filters" aria-label="当前筛选条件"><el-tag v-if="taskStatusFilter" closable @close="taskStatusFilter = ''">{{ taskStatusOptions.find(option => option.value === taskStatusFilter)?.label || (taskStatusFilter === 'attention' ? '待处理' : '其他状态') }}</el-tag><el-tag v-if="taskTargetFilter" closable @close="taskTargetFilter = ''">{{ ({company:'公司研究',person:'人物研究',industry:'行业研究'})[taskTargetFilter] || '其他研究类型' }}</el-tag></div>
             </div>
             <p class="table-scroll-hint">表格可左右滑动，查看全部信息和操作。</p>
-            <el-table :key="activeView" ref="taskTable" :data="pagedProjects" row-key="id" class="task-table" :empty-text="taskEmptyText" @expand-change="onTaskExpand">
-              <el-table-column v-if="activeView !== 'intake'" type="expand"><template #default="{ row }"><div class="task-expand">
+            <el-table :key="activeView" ref="taskTable" :data="pagedProjects" row-key="id" class="task-table task-responsive-table" aria-label="尽调任务列表" :class="{'task-table--overview': activeView === 'tasks'}" :empty-text="taskEmptyText" @expand-change="onTaskExpand">
+              <template #empty><div class="task-empty-state" role="status" aria-live="polite"><span class="task-empty-symbol" aria-hidden="true"><i :class="actionPending('projects') ? 'fa-solid fa-circle-notch fa-spin' : actionErrors.projects ? 'fa-solid fa-triangle-exclamation' : hasTaskFilters ? 'fa-solid fa-filter' : 'fa-regular fa-folder-open'"></i></span><div class="task-empty-copy"><strong>{{ actionPending('projects') ? '正在读取任务' : actionErrors.projects ? '任务列表暂时未能读取' : hasTaskFilters ? '未找到匹配任务' : !projects.length ? '还没有尽调任务' : taskEmptyText }}</strong><p>{{ taskEmptyHint }}</p></div><div v-if="!actionPending('projects')" class="task-empty-actions"><el-button v-if="actionErrors.projects" type="primary" plain @click="loadProjects().catch(() => null)">重新加载</el-button><template v-else><el-button v-if="hasTaskFilters" type="primary" plain @click="resetTaskFilters">清空筛选</el-button><el-button v-else-if="projects.length" type="primary" plain @click="resetTaskFilters(); switchView('tasks')">查看全部任务</el-button><el-button v-else type="primary" @click="switchView('submit')">新建任务</el-button><el-button v-if="projects.length" plain @click="switchView('submit')">新建任务</el-button></template></div></div></template>
+
+              <el-table-column type="expand" class-name="task-column-expand"><template #default="{ row }"><div class="task-expand"><header class="project-detail-heading"><div><strong>{{row.title}}</strong><small>{{projectBusinessType(row)}} · {{targetTypeLabel(row.target_type)}}：{{row.target_name || '待补充对象'}}</small></div><div class="project-detail-actions"><el-button plain size="small" @click="openClientRequirements(row)">需求与资料</el-button><el-button v-if="!projectIsRunning(row)" type="primary" plain size="small" :loading="!!startingProjects[row.id]" @click="rerunProject(row)">{{row.status==='draft'?'开始生成':'重新生成'}}</el-button><el-button v-else plain size="small" @click="pauseProject(row)">暂停</el-button></div></header><nav class="project-detail-tabs" aria-label="项目详情内容"><button v-for="item in [{value:'overview',label:'项目概览'},{value:'materials',label:'资料与来源'},{value:'results',label:'成果与复核'}]" :key="item.value" type="button" :class="{'is-active':projectTab(row)===item.value}" :aria-pressed="projectTab(row)===item.value" @click="setProjectTab(row,item.value)">{{item.label}}</button></nav><section v-if="projectTab(row)==='materials'" class="project-materials-panel"><h3>项目资料与来源</h3><p>原始材料、客户需求与已收集资料继续按现有权限保存。</p><el-space wrap><el-button plain @click="openClientRequirements(row)">上传或补充资料</el-button><el-button type="primary" plain @click="openCollectedSources(row)">阅读已收集资料</el-button><el-button plain @click="switchView('sources')">查看溯源库</el-button></el-space></section>
                 <el-alert v-if="actionPending('detail:' + row.id)" title="正在读取任务详情，请稍候…" type="info" :closable="false" show-icon></el-alert>
                 <el-alert v-if="actionErrors['detail:' + row.id]" :title="actionErrors['detail:' + row.id].message" type="error" :closable="false" show-icon><el-button plain size="small" @click="loadProjectDetail(row, {force:true}).catch(() => null)">重新读取详情</el-button></el-alert>
-                <section v-if="recoveryFor(row)?.issues?.length" class="task-recovery" aria-label="任务处理指引">
+                <section v-if="projectTab(row)==='overview' && recoveryFor(row)?.issues?.length" class="task-recovery" aria-label="任务处理指引">
                   <header><div><h3>处理指引</h3><p>区分研究执行、文件解析、Word 导出和知识库入库的问题。</p></div><el-button size="small" plain @click="loadProjectDetail(row)">刷新指引</el-button></header>
                   <p class="recovery-saved">系统已保存：{{recoveryFor(row).saved.source_records}} 条来源记录、{{recoveryFor(row).saved.report_text_records}} 条研究报告正文记录、{{recoveryFor(row).saved.proposal_text_records}} 条建议书正文记录。</p>
                   <p class="recovery-note">{{recoveryFor(row).retention_notice}}</p>
@@ -225,7 +268,7 @@
                   <details class="recovery-run-notice"><summary>继续、重新生成与重试入库的区别</summary><p>{{recoveryFor(row).run_notice}}</p><p>重试入库只提交已有报告进入知识库处理，不重新生成研究；Word 导出失败不等于报告正文丢失。只有已保存的正文才提供指引中的下载入口。</p></details>
                 </section>
                 <div class="detail-grid primary-result-grid">
-                  <section class="detail-panel result-panel">
+                  <section v-show="projectTab(row)==='results'" class="detail-panel result-panel">
                     <div class="workflow-head"><strong>最新成果</strong><el-space wrap><el-button plain size="small" @click="openReportVersions(row)">报告历史版本</el-button><el-button plain size="small" :loading="actionPending('artifact-history:' + row.id)" @click="loadArtifactHistory(row)">全部产物（{{ projectDetails[row.id]?.downloadable_artifact_count ?? artifactsFor(row).length }}）</el-button><el-tag size="small" type="success">最新 {{ downloadableArtifacts(row).length }} 项</el-tag></el-space></div>
                     <div v-if="downloadableArtifacts(row).length" class="artifact-list primary-artifacts">
                       <div v-for="artifact in downloadableArtifacts(row)" :key="artifact.id" class="artifact-item">
@@ -308,13 +351,40 @@
                       <el-pagination small layout="prev, pager, next, total" :total="artifactHistory[row.id].total" :page-size="20" :current-page="artifactHistory[row.id].page" :disabled="actionPending('artifact-history:' + row.id)" @current-change="page => loadArtifactHistory(row, page)"></el-pagination>
                     </section>
                   </section>
-                  <section class="detail-panel workflow-panel">
+                  <section v-show="projectTab(row)==='overview'" class="detail-panel workflow-panel">
                     <div class="workflow-head"><strong>工作流进度</strong><el-tag size="small" :type="projectStateType(row)">{{ projectStateLabel(row) }}</el-tag></div>
-                    <div v-if="traceFor(row).length" class="trace-scroll"><el-timeline><el-timeline-item v-for="(event, index) in traceFor(row)" :key="index" :type="timelineType(event.status)" :timestamp="event.stage"><div :class="['trace-item', event.heartbeat ? (heartbeatState(event, row) === 'history' ? 'trace-heartbeat trace-history' : 'trace-heartbeat') : '', heartbeatStale(event, row) ? 'trace-stale' : '']"><strong><span v-if="event.heartbeat" class="live-dot"></span>{{ event.label }}</strong><p>{{ traceDetail(event) }}</p><div v-if="event.heartbeat" class="trace-meta"><el-tag size="small" :type="heartbeatType(event, row)" effect="plain">{{ heartbeatLabel(event, row) }}</el-tag><span>{{ heartbeatState(event, row) === 'history' ? '记录时间 ' + formatTime(event.timestamp) : '最后心跳 ' + eventAge(event) }}</span><span v-if="event.elapsed_seconds">总耗时 {{ formatDuration(event.elapsed_seconds) }}</span><span v-if="event.current_elapsed_seconds">当前步骤 {{ formatDuration(event.current_elapsed_seconds) }}</span></div><div v-if="event.platform || event.url" class="trace-meta"><el-tag v-if="event.platform" size="small" effect="plain">{{ event.platform }}</el-tag><el-link v-if="event.url && isExternalUrl(event.url)" :href="event.url" target="_blank" type="primary">{{ event.url }}</el-link></div></div></el-timeline-item></el-timeline></div>
+                    <p v-if="row.target_type === 'industry' && traceFor(row).length" class="table-subtext">仅显示最近120条进度摘要，完整运行记录仍保留在后台。</p><div v-if="traceFor(row).length" class="trace-scroll"><el-timeline><el-timeline-item v-for="(event, index) in traceFor(row)" :key="index" :type="timelineType(event.status)" :timestamp="event.stage"><div :class="['trace-item', event.heartbeat ? (heartbeatState(event, row) === 'history' ? 'trace-heartbeat trace-history' : 'trace-heartbeat') : '', heartbeatStale(event, row) ? 'trace-stale' : '']"><strong><span v-if="event.heartbeat" class="live-dot"></span>{{ event.label }}</strong><p>{{ traceDetail(event) }}</p><div v-if="event.heartbeat" class="trace-meta"><el-tag size="small" :type="heartbeatType(event, row)" effect="plain">{{ heartbeatLabel(event, row) }}</el-tag><span>{{ heartbeatState(event, row) === 'history' ? '记录时间 ' + formatTime(event.timestamp) : '最后心跳 ' + eventAge(event) }}</span><span v-if="event.elapsed_seconds">总耗时 {{ formatDuration(event.elapsed_seconds) }}</span><span v-if="event.current_elapsed_seconds">当前步骤 {{ formatDuration(event.current_elapsed_seconds) }}</span></div><div v-if="event.platform || event.url" class="trace-meta"><el-tag v-if="event.platform" size="small" effect="plain">{{ event.platform }}</el-tag><el-link v-if="event.url && isExternalUrl(event.url)" :href="event.url" target="_blank" type="primary">{{ event.url }}</el-link></div></div></el-timeline-item></el-timeline></div>
                     <el-empty v-else description="暂无工作流记录" :image-size="60" ></el-empty>
                   </section>
                 </div>
-                <div class="detail-grid secondary-detail-grid">
+                <section v-if="projectTab(row)==='results'" class="project-review-inline"><div class="workflow-head"><strong>人工复核与后续方案</strong><el-button plain size="small" :disabled="reviewWriteBusy" @click="selectReviewProject(row)">{{reviewProjectId===row.id?'重新读取复核资料':'打开复核'}}</el-button></div><p class="detail-note">生成完成不代表复核通过。建议书和正式方案按客户需要使用。</p>                  <div v-if="reviewProjectId === row.id" class="review-inline">
+                    <el-alert v-if="actionPending('review:' + row.id)" title="正在准备复核资料，已选中此项目" :description="actionWaitText(pendingActions['review:' + row.id])" type="info" show-icon :closable="false" class="review-current"></el-alert>
+                    <el-alert v-else-if="actionErrors['review:' + row.id]" :title="actionErrors['review:' + row.id].message" type="error" show-icon :closable="false" class="review-current"><el-button plain size="small" @click="selectReviewProject(row)">重新读取复核资料</el-button></el-alert>
+                    <el-alert v-else-if="reviewIntakes[row.id]" :title="'当前复核项目：' + (row.title || row.id)" description="复核资料已就绪，可以上传修订稿或一手资料。" type="success" show-icon :closable="false" class="review-current" ></el-alert>
+                    <el-alert v-if="taskUploadIssues[row.id]" :title="taskUploadIssues[row.id].title" :description="taskUploadIssues[row.id].advice" type="error" show-icon :closable="false" class="review-current"></el-alert>
+                    <el-skeleton v-if="actionPending('review:' + row.id)" :rows="3" animated></el-skeleton>
+                    <div v-if="reviewIntakes[row.id] && !actionPending('review:' + row.id)" class="review-grid" :aria-busy="reviewWriteBusy">
+                      <section class="review-panel">
+                        <h3>复核报告与意见</h3>
+                        <el-form-item label="人工修订后的桌面研究报告"><el-upload drag :auto-upload="false" :limit="1" :disabled="reviewInputsLocked" :file-list="uploadDisplayFiles(reviewReportFiles)" :on-change="handleReviewReportChange" :on-remove="handleReviewReportChange"><div class="upload-title">上传 Word / PDF / Markdown</div><div class="upload-text">保存为人工复核版本，后续可据此生成正式方案</div></el-upload></el-form-item>
+                        <el-button type="primary" plain :loading="actionPending('review-upload:desktop_report:' + row.id)" :disabled="reviewInputsLocked" @click="uploadReviewArtifact('desktop_report')">保存人工复核报告</el-button>
+                        <el-form-item label="人工复核意见与方案调整要求"><el-input v-model="reviewIntakes[row.id].proposal_review_notes" aria-label="人工复核意见" type="textarea" :rows="4" maxlength="12000" show-word-limit :disabled="reviewInputsLocked" placeholder="填写报告修订结论、需要补证的问题，以及正式方案的范围和交付要求"></el-input></el-form-item>
+                        <el-button plain :loading="actionPending('review-notes:' + row.id)" :disabled="reviewInputsLocked" @click="saveReviewNotes">保存复核意见</el-button>
+                        <p class="detail-note">{{ reviewedReports[row.id] ? '人工复核报告已保存，可以生成正式方案。' : '请先上传并保存人工复核后的桌面报告。' }}</p>
+                        <el-button link type="primary" :disabled="reviewInputsLocked || requirementsSaving" @click="openClientRequirements(row)">查看或补充客户需求</el-button>
+                        <el-divider ></el-divider>
+                        <el-form-item label="人工修订后的项目建议书"><el-upload drag :auto-upload="false" :limit="1" :disabled="reviewInputsLocked" :file-list="uploadDisplayFiles(reviewProposalFiles)" :on-change="handleReviewProposalChange" :on-remove="handleReviewProposalChange"><div class="upload-title">上传 Word / PDF / Markdown</div><div class="upload-text">保留人工修订的建议书版本</div></el-upload></el-form-item>
+                        <el-button type="primary" plain :loading="actionPending('review-upload:proposal:' + row.id)" :disabled="reviewInputsLocked" @click="uploadReviewArtifact('proposal')">覆盖项目建议书</el-button>
+                      </section>
+                      <section class="review-panel">
+                        <h3>专家访谈 / 走访一手资料</h3>
+                        <el-form-item label="资料类型"><el-select v-model="fieldSourceModule" class="full"><el-option label="专家访谈" value="专家访谈" ></el-option><el-option label="实地走访" value="实地走访" ></el-option><el-option label="客户访谈" value="客户访谈" ></el-option><el-option label="供应商访谈" value="供应商访谈" ></el-option><el-option label="渠道访谈" value="渠道访谈" ></el-option><el-option label="管理层访谈" value="管理层访谈" ></el-option></el-select></el-form-item>
+                        <el-form-item label="上传笔录、录音转写、照片或书面材料"><el-upload drag multiple :auto-upload="false" :disabled="reviewInputsLocked" :file-list="uploadDisplayFiles(fieldSourceFiles)" :on-change="handleFieldSourceChange" :on-remove="handleFieldSourceChange"><div class="upload-title">上传一手资料</div><div class="upload-text">文件会进入对象存储，图片会标记 OCR/视觉处理，文本会尝试写入向量库</div></el-upload></el-form-item>
+                        <el-button type="primary" :loading="actionPending('field-upload:' + row.id)" :disabled="reviewInputsLocked" @click="uploadFieldSources">上传并入库</el-button>
+                      </section>
+                    </div>
+                  </div><el-button v-if="reviewProjectId===row.id" type="primary" :loading="secondStageRunning" :disabled="!reviewIntakes[row.id] || reviewWriteBusy || !reviewedReports[row.id] || projectIsRunning(row)" @click="runSecondStage">生成正式方案</el-button></section>
+                <div v-show="projectTab(row)==='overview'" class="detail-grid secondary-detail-grid">
                   <section class="detail-panel">
                     <div class="workflow-head"><strong>项目参数</strong><el-tag size="small" type="info">{{ targetTypeLabel(row.target_type) }}</el-tag></div>
                     <div class="detail-fields">
@@ -336,37 +406,46 @@
                   </section>
                 </div>
               </div></template></el-table-column>
-              <el-table-column prop="title" label="项目" min-width="220" ></el-table-column>
-              <el-table-column label="研究对象" min-width="220"><template #default="{ row }"><div>{{ row.target_name }}</div><div class="table-subtext">{{ targetTypeLabel(row.target_type) }}</div></template></el-table-column>
-              <el-table-column label="项目周期" width="210"><template #default="{ row }">{{ projectPeriod(row) }}</template></el-table-column>
-              <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="projectStateType(row)" effect="light">{{ projectStateLabel(row) }}</el-tag></template></el-table-column>
-              <el-table-column v-if="activeView !== 'intake'" label="进度" min-width="180"><template #default="{ row }"><el-progress :percentage="progressFor(row)" ></el-progress></template></el-table-column>
-              <el-table-column label="更新" width="190"><template #default="{ row }"><div>{{ formatTime(row.updated_at) }}</div><div class="table-subtext">创建 {{ formatTime(row.created_at) }}</div></template></el-table-column>
-              <el-table-column label="操作" :width="activeView === 'intake' ? 246 : 280" :fixed="assistantViewportWidth > 960 ? 'right' : false" align="center"><template #default="{ row }"><div class="task-row-actions">
-                <template v-if="activeView === 'intake'"><el-button link type="primary" :disabled="projectIsRunning(row) || requirementsSaving || submitting" @click="openClientRequirements(row)">编辑需求与资料</el-button><el-button link type="primary" :loading="!!startingProjects[row.id]" :disabled="!!startingProjects[row.id] || submitting || requirementsSaving" @click="rerunProject(row)">开始生成</el-button></template>
-                <template v-else-if="activeView === 'deliverables'"><el-button link type="primary" :loading="actionPending('detail:' + row.id)" @click="viewProject(row)">查看成果</el-button><el-button v-if="canPauseProject(row)" link type="warning" :loading="actionPending('pause:' + row.id)" @click="pauseProject(row)">暂停</el-button><el-button v-else link type="primary" :loading="!!startingProjects[row.id]" :disabled="!!startingProjects[row.id] || submitting" @click="rerunProject(row)">{{ startingProjects[row.id] ? '处理中' : row.status === 'draft' ? '开始生成' : '重新生成' }}</el-button></template>
-                <template v-else><el-button link type="primary" :loading="actionPending('detail:' + row.id)" @click="viewProject(row)">查看任务</el-button><el-button link type="primary" @click="openTaskStage(row, projectWorkflowStage(row))">{{ projectWorkflowStage(row) === 'intake' ? '完善需求' : projectWorkflowStage(row) === 'review' ? '前往复核' : '查看进度' }}</el-button><el-button v-if="canPauseProject(row)" link type="warning" :loading="actionPending('pause:' + row.id)" @click="pauseProject(row)">暂停</el-button><el-button v-else-if="row.status !== 'draft'" link type="primary" :loading="!!startingProjects[row.id]" :disabled="!!startingProjects[row.id] || submitting" @click="rerunProject(row)">{{ startingProjects[row.id] ? '处理中' : '重新生成' }}</el-button><el-button link type="danger" :loading="actionPending('delete-project:' + row.id)" @click="deleteProject(row)">删除</el-button></template>
+              <el-table-column prop="title" label="项目" class-name="task-column-project" :min-width="activeView === 'tasks' ? 180 : 180"><template #default="{ row }"><div class="task-cell-primary" :class="{'task-overview-title':activeView === 'tasks'}" :title="row.title"><button type="button" class="project-title-link" @click="viewProject(row)">{{ row.title || '未命名项目' }}</button><small class="project-business-label">{{projectBusinessType(row)}}</small></div></template></el-table-column>
+              <el-table-column label="研究对象" class-name="task-column-target" :min-width="activeView === 'tasks' ? 148 : 160"><template #default="{ row }"><div class="task-target-identity"><span class="task-target-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" focusable="false"><g v-if="row.target_type === 'company'" data-target-icon="company"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 7h1m4 0h1M9 11h1m4 0h1M9 15h1m4 0h1M10 21v-3h4v3"></path></g><g v-else-if="row.target_type === 'industry'" data-target-icon="industry"><path d="M3 21V11l6-4v4l6-4V3h4v18H3ZM7 16h1m4 0h1m4 0h1"></path></g><g v-else-if="row.target_type === 'person'" data-target-icon="person"><circle cx="12" cy="7" r="3.5"></circle><path d="M5 21v-2a7 7 0 0 1 14 0v2"></path></g><g v-else data-target-icon="other"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 8h6M9 12h6M9 16h3"></path></g></svg></span><div class="task-target-copy"><div class="task-cell-primary" :class="{'task-target-missing':!String(row.target_name || '').trim()}">{{ String(row.target_name || '').trim() || '待补充对象' }}</div><div class="table-subtext">{{ ({company:'公司研究',industry:'行业研究',person:'人物研究'})[row.target_type] || '研究任务' }}</div></div></div></template></el-table-column>
+              <el-table-column v-if="activeView !== 'tasks'" label="项目周期" class-name="task-column-period" width="140"><template #default="{ row }"><div class="task-cell-primary">{{ projectPeriod(row) }}</div></template></el-table-column>
+              <el-table-column label="当前工作" class-name="task-column-state" min-width="180"><template #default="{row}"><el-tag :type="projectStateType(row)" effect="light">{{projectStateLabel(row)}}</el-tag><p class="table-subtext">{{taskNextHint(row) || (row.status==='draft'?'完善需求后开始生成':row.status==='completed'?'查看成果并进行人工复核':taskStatusLabel(row.status))}}</p></template></el-table-column>
+
+              <el-table-column :label="activeView === 'tasks' ? '最近更新' : '更新'" class-name="task-column-updated" :width="activeView === 'tasks' ? undefined : 192" :min-width="activeView === 'tasks' ? 150 : undefined"><template #default="{ row }"><div class="task-cell-primary"><time v-if="activeView === 'tasks'" :datetime="row.updated_at || undefined" :title="'更新：' + formatTime(row.updated_at) + '\n创建：' + formatTime(row.created_at)">{{ taskOverviewTime(row.updated_at) }}</time><template v-else>{{ formatTime(row.updated_at) }}</template></div><div v-if="activeView !== 'tasks'" class="table-subtext">创建 {{ formatTime(row.created_at) }}</div></template></el-table-column>
+              <el-table-column label="操作" class-name="task-column-actions" :width="activeView === 'tasks' ? 184 : activeView === 'intake' ? 252 : 248" align="left"><template #default="{ row }"><div class="task-row-actions" :class="{'task-row-actions--overview': activeView === 'tasks'}">
+                <el-button type="primary" plain class="task-primary-action" :class="{'task-mobile-only':activeView !== 'tasks'}" :disabled="requirementsSaving || reviewWriteBusy || !!startingProjects[row.id]" :aria-label="'进入项目：' + row.title" @click="viewProject(row)">进入项目</el-button>
+                <el-button v-if="activeView !== 'tasks'" link type="primary" class="task-desktop-stage-actions" @click="openCollectedSources(row)">已收集资料</el-button>
+                <div class="task-desktop-stage-actions" v-if="activeView === 'intake'"><el-button link type="primary" :disabled="projectIsRunning(row) || requirementsSaving || submitting" @click="openClientRequirements(row)">编辑需求与资料</el-button><el-button link type="primary" :loading="!!startingProjects[row.id]" :disabled="!!startingProjects[row.id] || submitting || requirementsSaving" @click="rerunProject(row)">开始生成</el-button></div>
+                <div class="task-desktop-stage-actions" v-else-if="activeView === 'deliverables'"><el-button link type="primary" :loading="actionPending('detail:' + row.id)" @click="viewProject(row)">查看成果</el-button><el-button v-if="canPauseProject(row)" link type="warning" :loading="actionPending('pause:' + row.id)" @click="pauseProject(row)">暂停</el-button><el-button v-else link type="primary" :loading="!!startingProjects[row.id]" :disabled="!!startingProjects[row.id] || submitting" @click="rerunProject(row)">{{ startingProjects[row.id] ? '处理中' : row.status === 'draft' ? '开始生成' : '重新生成' }}</el-button></div>
+                <el-dropdown trigger="click" :class="{'task-mobile-only':activeView !== 'tasks'}"><el-button class="task-more-action" :aria-label="'更多操作：' + row.title">更多<i class="fa-solid fa-angle-down" aria-hidden="true"></i></el-button><template #dropdown><el-dropdown-menu>
+                  <el-dropdown-item v-if="activeView !== 'tasks'" @click="openCollectedSources(row)">已收集资料</el-dropdown-item>
+                  <el-dropdown-item v-if="activeView === 'deliverables' && canPauseProject(row)" :disabled="actionPending('pause:' + row.id)" @click="pauseProject(row)">暂停</el-dropdown-item>
+                  <el-dropdown-item v-if="activeView === 'tasks' || !canPauseProject(row)" :disabled="(activeView === 'tasks' && row.status === 'draft') || projectIsRunning(row) || !!startingProjects[row.id] || submitting || requirementsSaving" @click="rerunProject(row)">{{activeView === 'intake' && row.status === 'draft' ? '开始生成' : '重新生成'}}</el-dropdown-item>
+                  <el-dropdown-item v-if="activeView === 'deliverables'" @click="openReportVersions(row)">历史成果</el-dropdown-item>
+                  <el-dropdown-item v-if="activeView === 'tasks'" :disabled="actionPending('delete-project:' + row.id)" class="task-menu-danger" @click="deleteProject(row)">删除</el-dropdown-item>
+                </el-dropdown-menu></template></el-dropdown>
+                <details class="task-card-details task-mobile-only"><summary>更多信息<i class="fa-solid fa-angle-down" aria-hidden="true"></i></summary><dl><div><dt>项目周期</dt><dd>{{ projectPeriod(row) }}</dd></div><div><dt>生成进度</dt><dd>{{ taskProgressText(row) || progressFor(row) + '%' }}</dd></div><div><dt>最近更新</dt><dd>{{ taskOverviewTime(row.updated_at) }}</dd></div></dl></details>
               </div></template></el-table-column>
             </el-table>
-            <div class="pagination-bar"><el-pagination background layout="prev, pager, next, sizes, total" :total="filteredProjects.length" v-model:current-page="taskPage" v-model:page-size="taskPageSize" :page-sizes="[10,12,20,50]" ></el-pagination></div>
+            <div v-if="filteredProjects.length" class="pagination-bar"><el-pagination background :layout="navigationIsMobile ? 'prev, pager, next' : 'prev, pager, next, sizes, total'" :pager-count="5" :total="filteredProjects.length" v-model:current-page="taskPage" v-model:page-size="taskPageSize" :page-sizes="[10,12,20,50]" ></el-pagination></div>
           </el-card>
         </section>
 
-        <section v-if="activeView === 'review'">
-          <el-card shadow="never" class="panel-card">
-            <template #header><div class="card-header"><div><h2>复核与正式方案</h2><p class="workspace-section-hint">仅显示已进入复核的任务，保存人工复核报告和意见后生成正式方案。</p></div><el-button type="primary" :loading="secondStageRunning" :disabled="!reviewProjectId || !reviewIntakes[reviewProjectId] || actionPending('review:' + reviewProjectId) || reviewWriteBusy || !reviewedReports[reviewProjectId] || projectIsRunning(projects.find(p => p.id === reviewProjectId))" @click="runSecondStage">{{secondStageRunning ? (secondStageProjectId === reviewProjectId ? '正式方案生成中' : '其他项目生成中') : '生成正式方案'}}</el-button></div></template>
+        <section v-if="activeView === 'review'" class="task-review-section">
+          <el-card shadow="never" class="panel-card task-review-panel">
+            <template #header><div class="card-header"><div><h2>复核与正式方案</h2></div><el-button type="primary" :loading="secondStageRunning" :disabled="!reviewProjectId || !reviewIntakes[reviewProjectId] || actionPending('review:' + reviewProjectId) || reviewWriteBusy || !reviewedReports[reviewProjectId] || projectIsRunning(projects.find(p => p.id === reviewProjectId))" @click="runSecondStage">{{secondStageRunning ? (secondStageProjectId === reviewProjectId ? '正式方案生成中' : '其他项目生成中') : '生成正式方案'}}</el-button></div></template>
             <el-form label-position="top">
               <div class="table-toolbar task-filter-toolbar" role="search" aria-label="复核任务筛选">
-                <div class="table-meta">先选择要复核的项目 · {{ filteredProjects.length }} / {{ stageProjects.length }} 个任务</div>
-                <div class="task-filter-controls">
-                  <el-input v-model="taskSearch" clearable placeholder="搜索项目、研究对象、行业或状态" aria-label="搜索任务" class="task-filter-keyword"></el-input>
-                  <el-select v-model="taskStatusFilter" clearable placeholder="全部状态" aria-label="任务状态" class="task-filter-select"><el-option v-for="option in taskStatusOptions" :key="option.value" :label="option.label" :value="option.value"></el-option></el-select>
-                  <el-select v-model="taskTargetFilter" clearable placeholder="全部研究类型" aria-label="研究类型" class="task-filter-select"><el-option label="全部研究类型" value=""></el-option><el-option label="公司研究" value="company"></el-option><el-option label="人物研究" value="person"></el-option><el-option label="行业研究" value="industry"></el-option></el-select>
-                  <el-button :disabled="!hasTaskFilters" @click="resetTaskFilters">清空筛选</el-button>
-                </div>
+              <div class="table-meta">先选择要复核的项目 · {{ filteredProjects.length }} / {{ stageProjects.length }} 个任务</div>
+              <div class="task-filter-controls"><div class="task-filter-searchline"><el-input v-model="taskSearch" clearable placeholder="搜索项目、研究对象、行业或状态" aria-label="搜索任务" class="task-filter-keyword"></el-input><el-button class="task-filter-toggle task-mobile-only" :class="{'is-active':activeTaskFilterCount}" :aria-expanded="taskFilterPanelOpen" aria-controls="review-task-filters" @click="taskFilterPanelOpen = !taskFilterPanelOpen"><i class="fa-solid fa-filter" aria-hidden="true"></i>筛选<span v-if="activeTaskFilterCount" class="task-filter-count">{{activeTaskFilterCount}}</span></el-button></div>
+                <div id="review-task-filters" class="task-filter-options" :class="{'is-open':taskFilterPanelOpen}"><el-select v-model="taskStatusFilter" clearable placeholder="全部状态" aria-label="任务状态" class="task-filter-select"><el-option v-for="option in taskStatusOptions" :key="option.value" :label="option.label" :value="option.value"></el-option></el-select><el-select v-model="taskTargetFilter" clearable placeholder="全部研究类型" aria-label="研究类型" class="task-filter-select"><el-option label="全部研究类型" value=""></el-option><el-option label="公司研究" value="company"></el-option><el-option label="人物研究" value="person"></el-option><el-option label="行业研究" value="industry"></el-option></el-select><el-button :disabled="!hasTaskFilters" @click="resetTaskFilters">清空筛选</el-button></div>
               </div>
-              <el-table ref="reviewTable" :data="pagedProjects" row-key="id" class="review-project-table" :empty-text="taskEmptyText" highlight-current-row>
-                <el-table-column type="expand"><template #default="{ row }">
+              <div v-if="activeTaskFilterCount" class="task-active-filters" aria-label="当前筛选条件"><el-tag v-if="taskStatusFilter" closable @close="taskStatusFilter = ''">{{ taskStatusOptions.find(option => option.value === taskStatusFilter)?.label || (taskStatusFilter === 'attention' ? '待处理' : '其他状态') }}</el-tag><el-tag v-if="taskTargetFilter" closable @close="taskTargetFilter = ''">{{ ({company:'公司研究',person:'人物研究',industry:'行业研究'})[taskTargetFilter] || '其他研究类型' }}</el-tag></div>
+            </div>
+              <el-table ref="reviewTable" :data="pagedProjects" row-key="id" class="review-project-table task-responsive-table" aria-label="复核任务列表" :empty-text="taskEmptyText" highlight-current-row>
+              <template #empty><div class="task-empty-state" role="status" aria-live="polite"><span class="task-empty-symbol" aria-hidden="true"><i :class="actionPending('projects') ? 'fa-solid fa-circle-notch fa-spin' : actionErrors.projects ? 'fa-solid fa-triangle-exclamation' : hasTaskFilters ? 'fa-solid fa-filter' : 'fa-regular fa-folder-open'"></i></span><div class="task-empty-copy"><strong>{{ actionPending('projects') ? '正在读取任务' : actionErrors.projects ? '任务列表暂时未能读取' : hasTaskFilters ? '未找到匹配任务' : !projects.length ? '还没有尽调任务' : taskEmptyText }}</strong><p>{{ taskEmptyHint }}</p></div><div v-if="!actionPending('projects')" class="task-empty-actions"><el-button v-if="actionErrors.projects" type="primary" plain @click="loadProjects().catch(() => null)">重新加载</el-button><template v-else><el-button v-if="hasTaskFilters" type="primary" plain @click="resetTaskFilters">清空筛选</el-button><el-button v-else-if="projects.length" type="primary" plain @click="resetTaskFilters(); switchView('tasks')">查看全部任务</el-button><el-button v-else type="primary" @click="switchView('submit')">新建任务</el-button><el-button v-if="projects.length" plain @click="switchView('submit')">新建任务</el-button></template></div></div></template>
+
+                <el-table-column type="expand" class-name="task-column-expand"><template #default="{ row }">
                   <div v-if="reviewProjectId === row.id" class="review-inline">
                     <el-alert v-if="actionPending('review:' + row.id)" title="正在准备复核资料，已选中此项目" :description="actionWaitText(pendingActions['review:' + row.id])" type="info" show-icon :closable="false" class="review-current"></el-alert>
                     <el-alert v-else-if="actionErrors['review:' + row.id]" :title="actionErrors['review:' + row.id].message" type="error" show-icon :closable="false" class="review-current"><el-button plain size="small" @click="selectReviewProject(row)">重新读取复核资料</el-button></el-alert>
@@ -376,7 +455,7 @@
                     <div v-if="reviewIntakes[row.id] && !actionPending('review:' + row.id)" class="review-grid" :aria-busy="reviewWriteBusy">
                       <section class="review-panel">
                         <h3>复核报告与意见</h3>
-                        <el-form-item label="人工修订后的桌面研究报告"><el-upload drag :auto-upload="false" :limit="1" :disabled="reviewInputsLocked" :file-list="uploadDisplayFiles(reviewReportFiles)" :on-change="handleReviewReportChange" :on-remove="handleReviewReportChange"><div class="upload-title">上传 Word / PDF / Markdown</div><div class="upload-text">保存为人工复核版本，第三步以此生成正式方案</div></el-upload></el-form-item>
+                        <el-form-item label="人工修订后的桌面研究报告"><el-upload drag :auto-upload="false" :limit="1" :disabled="reviewInputsLocked" :file-list="uploadDisplayFiles(reviewReportFiles)" :on-change="handleReviewReportChange" :on-remove="handleReviewReportChange"><div class="upload-title">上传 Word / PDF / Markdown</div><div class="upload-text">保存为人工复核版本，后续可据此生成正式方案</div></el-upload></el-form-item>
                         <el-button type="primary" plain :loading="actionPending('review-upload:desktop_report:' + row.id)" :disabled="reviewInputsLocked" @click="uploadReviewArtifact('desktop_report')">保存人工复核报告</el-button>
                         <el-form-item label="人工复核意见与方案调整要求"><el-input v-model="reviewIntakes[row.id].proposal_review_notes" aria-label="人工复核意见" type="textarea" :rows="4" maxlength="12000" show-word-limit :disabled="reviewInputsLocked" placeholder="填写报告修订结论、需要补证的问题，以及正式方案的范围和交付要求"></el-input></el-form-item>
                         <el-button plain :loading="actionPending('review-notes:' + row.id)" :disabled="reviewInputsLocked" @click="saveReviewNotes">保存复核意见</el-button>
@@ -395,13 +474,13 @@
                     </div>
                   </div>
                 </template></el-table-column>
-                <el-table-column prop="title" label="项目" min-width="220" ></el-table-column>
-                <el-table-column label="研究对象" min-width="200"><template #default="{ row }">{{ row.target_name || '-' }}</template></el-table-column>
-                <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="projectStateType(row)" effect="light">{{ projectStateLabel(row) }}</el-tag></template></el-table-column>
-                <el-table-column label="更新" width="190"><template #default="{ row }">{{ formatTime(row.updated_at) }}</template></el-table-column>
-                <el-table-column label="操作" width="220" align="right"><template #default="{ row }"><el-button link type="primary" @click="openHomeProject(row)">查看成果</el-button><el-button link type="primary" :loading="actionPending('review:' + row.id)" :disabled="reviewWriteBusy" @click="selectReviewProject(row)">{{actionPending('review:' + row.id) ? '准备中' : '复核'}}</el-button></template></el-table-column>
+                <el-table-column prop="title" label="项目" class-name="task-column-project" min-width="220" ></el-table-column>
+                <el-table-column label="研究对象" class-name="task-column-target" min-width="200"><template #default="{ row }"><div class="task-target-identity"><span class="task-target-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" focusable="false"><g v-if="row.target_type === 'company'" data-target-icon="company"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 7h1m4 0h1M9 11h1m4 0h1M9 15h1m4 0h1M10 21v-3h4v3"></path></g><g v-else-if="row.target_type === 'industry'" data-target-icon="industry"><path d="M3 21V11l6-4v4l6-4V3h4v18H3ZM7 16h1m4 0h1m4 0h1"></path></g><g v-else-if="row.target_type === 'person'" data-target-icon="person"><circle cx="12" cy="7" r="3.5"></circle><path d="M5 21v-2a7 7 0 0 1 14 0v2"></path></g><g v-else data-target-icon="other"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 8h6M9 12h6M9 16h3"></path></g></svg></span><div class="task-target-copy"><div class="task-cell-primary" :class="{'task-target-missing':!String(row.target_name || '').trim()}">{{ String(row.target_name || '').trim() || '待补充对象' }}</div><div class="table-subtext">{{ ({company:'公司研究',industry:'行业研究',person:'人物研究'})[row.target_type] || '研究任务' }}</div></div></div></template></el-table-column>
+                <el-table-column label="状态" class-name="task-column-state" width="120"><template #default="{ row }"><span class="task-mobile-stage task-mobile-only">{{taskWorkflowLabel(row)}}</span><el-tag :type="projectStateType(row)" effect="light">{{ projectStateLabel(row) }}</el-tag><p v-if="taskNextHint(row)" class="task-next-hint">{{taskNextHint(row)}}</p></template></el-table-column>
+                <el-table-column label="更新" class-name="task-column-updated" width="190"><template #default="{ row }">{{ formatTime(row.updated_at) }}</template></el-table-column>
+                <el-table-column label="操作" class-name="task-column-actions" width="220" align="right"><template #default="{ row }"><el-button link type="primary" class="task-desktop-stage-actions" @click="openCollectedSources(row)">已收集资料</el-button><el-button link type="primary" class="task-desktop-stage-actions" @click="openReportVersions(row)">查看成果</el-button><el-button link type="primary" class="task-primary-action" :loading="actionPending('review:' + row.id)" :disabled="reviewWriteBusy" @click="selectReviewProject(row)">{{actionPending('review:' + row.id) ? '准备中' : '开始复核'}}</el-button><el-dropdown trigger="click" class="task-mobile-only"><el-button class="task-more-action" :aria-label="'更多操作：' + row.title">更多<i class="fa-solid fa-angle-down" aria-hidden="true"></i></el-button><template #dropdown><el-dropdown-menu><el-dropdown-item @click="openCollectedSources(row)">已收集资料</el-dropdown-item><el-dropdown-item @click="openReportVersions(row)">查看成果</el-dropdown-item></el-dropdown-menu></template></el-dropdown><details class="task-card-details task-mobile-only"><summary>更多信息<i class="fa-solid fa-angle-down" aria-hidden="true"></i></summary><dl><div><dt>项目周期</dt><dd>{{ projectPeriod(row) }}</dd></div><div><dt>生成进度</dt><dd>{{ taskProgressText(row) || progressFor(row) + '%' }}</dd></div><div><dt>最近更新</dt><dd>{{ taskOverviewTime(row.updated_at) }}</dd></div></dl></details></template></el-table-column>
               </el-table>
-              <div class="pagination-bar"><el-pagination background layout="prev, pager, next, sizes, total" :total="filteredProjects.length" v-model:current-page="taskPage" v-model:page-size="taskPageSize" :page-sizes="[10,12,20,50]" ></el-pagination></div>
+              <div v-if="filteredProjects.length" class="pagination-bar"><el-pagination background :layout="navigationIsMobile ? 'prev, pager, next' : 'prev, pager, next, sizes, total'" :pager-count="5" :total="filteredProjects.length" v-model:current-page="taskPage" v-model:page-size="taskPageSize" :page-sizes="[10,12,20,50]" ></el-pagination></div>
               <el-empty v-if="!reviewProjectId" description="请选择项目后上传复核资料" :image-size="80" ></el-empty>
             </el-form>
           </el-card>
@@ -488,9 +567,10 @@
 <script defer src="knowledge-note-editor.97e3f47133aa.js"></script>
 <script defer src="company-knowledge.032ec025acea.js"></script>
 <script defer src="account-management.42b1dd6628ec.js"></script>
-<script defer src="personal-home.b7312d97a31e.js"></script>
+<script defer src="personal-home.1977e79323c9.js"></script>
 <script defer src="report-versions.js"></script>
-<script defer src="script.904624c4a6cb.js"></script>
+<script defer src="project-workspace.0a7260dadedd.js"></script>
+<script defer src="script.7028b6d0b624.js"></script>
 </body>
 </html>
 

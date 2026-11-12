@@ -13,7 +13,7 @@ function context() {
     ElementPlus: {ElMessage: {success(text) {notices.push(['success', text]);}, error(text) {notices.push(['error', text]);}}},
     AccountManagement: {}, PersonalHome: {}, CompanyKnowledge: {}, ReportVersions: {},
     localStorage: {getItem() {return null;}}, TextDecoder,
-    setInterval() {return 1;}, clearInterval() {},
+    setInterval() {return 1;}, clearInterval() {}, AbortController, setTimeout, clearTimeout,
   });
   const state = definition.data();
   for (const [name, method] of Object.entries(definition.methods)) state[name] = method.bind(state);
@@ -32,7 +32,7 @@ test('rerun immediately becomes busy and repeated clicks cannot submit a second 
   const intake = deferred(), stream = deferred();
   const project = {id: 68, status: 'completed', target_type: 'industry'};
   let gets = 0, runs = 0, refreshes = 0;
-  state.authFetch = async () => {gets++; return intake.promise;};
+  state.authFetch = async url => {gets++; if(url.includes('/progress')) return {ok:true,json:async()=>({project:{...project,is_running:false}})}; return intake.promise;};
   state.refreshProjectProgress = async () => {refreshes++;};
   state.runExistingWorkflow = async (p, saved, connected) => {
     runs++; assert.equal(saved.marker, 'saved-input'); connected(); await stream.promise;
@@ -41,7 +41,7 @@ test('rerun immediately becomes busy and repeated clicks cannot submit a second 
   assert.equal(state.startingProjects[68], true);
   await state.rerunProject(project);
   await new Promise(setImmediate);
-  assert.equal(gets, 1); assert.equal(runs, 0);
+  assert.equal(gets, 2); assert.equal(runs, 0);
   intake.resolve({ok: true, json: async () => ({intake: {marker: 'saved-input'}})});
   await new Promise(setImmediate);
   assert.equal(runs, 1); assert.equal(refreshes, 1);

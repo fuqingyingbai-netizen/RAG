@@ -9,7 +9,7 @@ const context = {
   PersonalHome: {}, AccountManagement: {}, ReportVersions: {}, CompanyKnowledge: {}, Date, JSON, URL, URLSearchParams,
   ElementPlus: {ElMessage: {error(value) {messages.push(value);}}},
   localStorage: {getItem(key) {return storage.get(key) || null;}, setItem(key, value) {storage.set(key, value);}, removeItem(key) {storage.delete(key);}},
-  document: {visibilityState: 'visible'}, setInterval() {return 1;}, clearInterval() {},
+  document: {visibilityState: 'visible'}, setInterval() {return 1;}, clearInterval() {},clearTimeout(){},
 };
 vm.runInNewContext(fs.readFileSync('frontend/script.js', 'utf8'), context);
 const homeAsset = fs.readFileSync('frontend/index.html', 'utf8').match(/<script(?: defer)? src="(personal-home(?:\.[a-f0-9]+)?\.js)"><\/script>/)?.[1];

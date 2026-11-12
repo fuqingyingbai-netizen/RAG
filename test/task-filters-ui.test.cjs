@@ -35,7 +35,7 @@ test('status, research type and keyword filters combine, including Chinese state
   state.taskStatusFilter = 'paused'; state.taskSearch = '北方';
   assert.deepEqual(Array.from(state.filteredProjects, p => p.id), [4]);
   state.taskSearch = '不存在'; assert.equal(state.filteredProjects.length, 0);
-  state.resetTaskFilters(); state.taskSearch = ' 已完成 ';
+  state.resetTaskFilters(); state.taskSearch = ' 生成完成 ';
   assert.deepEqual(Array.from(state.filteredProjects, p => p.id), [1]);
   state.taskSearch = '进行中'; assert.deepEqual(Array.from(state.filteredProjects, p => p.id), [3]);
   state.taskSearch = 'FAILED'; assert.deepEqual(Array.from(state.filteredProjects, p => p.id), [2]);
@@ -51,7 +51,7 @@ test('every known workflow stage is searchable as active and has a Chinese label
     assert.match(state.taskStatusLabel(status), /[\u4e00-\u9fff]/);
     assert.equal(state.statusType(status), 'warning');
   }
-  for (const [status, label] of Object.entries({completed: '已完成', failed: '执行失败', paused: '已暂停', draft: '未开始', diagnostic: '待检查'})) {
+  for (const [status, label] of Object.entries({completed: '生成完成', failed: '执行失败', paused: '已暂停', draft: '未开始', diagnostic: '待检查'})) {
     assert.equal(state.taskStatusLabel(status), label);
     assert.equal(state.taskStatusGroup(status), status);
   }

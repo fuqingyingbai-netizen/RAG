@@ -36,8 +36,8 @@ state.form.projectName=project.title;
 state.form.companyName=project.target_name;
 (async()=>{
   available=false;
-  await state.submitTask();
-  assert.equal(calls.length,0);assert.ok(warnings.length);
+  assert.equal(await state.loadCompanyChapters(),false);
+  assert.equal(calls.length,0);assert.equal(state.companyChapterVersion,'');
   available=true;
   assert.equal(await state.loadCompanyChapters(),true);
   assert.equal(state.modulesByTarget.company.length,12);

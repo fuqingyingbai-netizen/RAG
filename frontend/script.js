@@ -5,7 +5,7 @@ const TASK_STAGE_LABELS = Object.freeze({
   cleaning: '资料清洗', risk_scoring: '风险研判', risk_assessing: '风险研判',
   report_generating: '报告生成', proposal_generating: '建议书生成', pausing: '正在暂停',
 });
-const TASK_STATE_LABELS = Object.freeze({draft: '未开始', paused: '已暂停', completed: '已完成', failed: '执行失败', diagnostic: '待检查'});
+const TASK_STATE_LABELS = Object.freeze({draft: '未开始', paused: '已暂停', completed: '生成完成', failed: '执行失败', diagnostic: '待检查'});
 
 function readAssistantPosition() {
   try {
@@ -25,14 +25,19 @@ function newResearchForm() {
   return {
     projectName: '', startDate: '', endDate: '', companyName: '', identifier: '',
     industry: '', region: '', targetType: 'company', ddType: '商业尽调', targetContext: '', personContext: '', personAliases: '',
-    modules: [], aiSearchEnabled: true,
+    workspaceFamily: 'background', focusAreas: ['标的公司背景'],
+    modules: ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], aiSearchEnabled: true,
     searchQueries: '', focusQuestions: '', keyQuestions: '', clientRequirements: '',
     industryFocus: '', excludedSegments: '', researchPurpose: '日常了解',
     includeCapitalMarkets: false, asOfDate: ''
   };
 }
 
-createApp({
+function readSidebarPreference() {
+  try { return localStorage.getItem('navigation:collapsed:v1') === '1'; } catch (_) { return false; }
+}
+
+const researchAppOptions = {
   components: { 'account-management': AccountManagement, 'personal-home': PersonalHome, 'report-versions': ReportVersions },
   data() {
     const viewport = readAssistantViewport();
@@ -43,17 +48,24 @@ createApp({
       inviteStatus: '', inviteValid: false, inviteChecking: false, inviteRequestId: 0,
       passwordOpen: false, passwordLoading: false, passwordForm: { current_password: '', new_password: '', confirm_password: '' },
       knowledgeDepartment:'', knowledgeDepartmentEntry:null,
-      activeView: 'home', mobileNavOpen: false, taskCreateOpen: false, projects: [], projectSummary: {}, projectMeta: {}, projectDetails: {}, artifactsByProject: {}, sourcesByProject: {}, traceByProject: {},
+      activeView: 'home', sidebarCollapsed: readSidebarPreference(), navigationIsMobile: typeof window !== 'undefined' && window.innerWidth <= 960, sidebarAccountOpen: false, mobileNavOpen: false, taskCreateOpen: false, projects: [], projectSummary: {}, projectMeta: {}, projectDetails: {}, artifactsByProject: {}, sourcesByProject: {}, traceByProject: {},
+      collectedSourcesOpen: false, collectedSourcesProject: null, collectedSourcesRows: [], collectedSourcesLoading: false,
+      collectedSourcesError: '', collectedSourcesLoadedAt: '', collectedSourceQuery: '', collectedSourceType: '', collectedSourceFilter: '',
+      collectedSourcePage: 1, collectedSourcePageSize: 15, collectedSourcesSeq: 0, collectedSourceListController: null,
+      collectedSourcesTotal: 0, collectedSourcesMeta: {}, collectedSourcesLoadedPage: 0, collectedSourceSearchTimer: null,
+      collectedSourceSelected: null, collectedSourceText: '', collectedSourceNotice: '', collectedSourceLoading: false,
+      collectedSourceTextError: '', collectedSourceStates: {}, collectedSourceTextSeq: 0, collectedSourceTextController: null,
+      collectedSourceTextPage: 1, collectedSourceFindDraft: '', collectedSourceFind: '', collectedSourceFindIndex: 0,
       artifactHistory: {}, artifactHistoryRequests: {},
       traceActivityByProject: {},
-      taskSearch: '', taskStatusFilter: '', taskTargetFilter: '', selectedFiles: [], clientRequirementFiles: [], submitting: false, reindexing: false,
+      taskFilterPanelOpen: false, taskSearch: '', taskStatusFilter: '', taskTargetFilter: '', selectedFiles: [], clientRequirementFiles: [], submitting: false, reindexing: false,
       requirementsOpen: false, requirementsProjectId: null, requirementsText: '', requirementsFiles: [], requirementsSources: [], requirementsDocuments: [], requirementsLoading: false, requirementsLoaded: false, requirementsError: '', requirementsSaving: false, requirementsRequestSeq: 0,
       reviewedReports: {},
       startingProjects: {}, recoveryBusy: {}, taskUploadIssues: {},
       pendingActions: {}, actionPromises: {}, actionErrors: {}, actionSequence: 0,
       reviewIntakes: {}, reviewSelectionSeq: 0, detailLoadedAt: {}, repositoryRequestId: 0,
       taskStatusOptions: [{value: '', label: '全部状态'}, {value: 'draft', label: '未开始'},
-        {value: 'active', label: '进行中'}, {value: 'paused', label: '已暂停'}, {value: 'completed', label: '已完成'},
+        {value: 'active', label: '进行中'}, {value: 'paused', label: '已暂停'}, {value: 'completed', label: '生成完成'},
         {value: 'failed', label: '执行失败'}, {value: 'diagnostic', label: '待检查'}, {value: 'attention', label: '待处理'}, {value: 'waiting', label: '待继续'}, {value: 'other', label: '其他状态'}],
       reportVersionsOpen: false, reportVersionsProject: null, reportVersionsType: 'desktop_report',
       taskPage: 1, taskPageSize: 12, sourcePage: 1, sourcePageSize: 50,
@@ -68,12 +80,56 @@ createApp({
       assistantNavigation: [],
       assistantSessionId: '', assistantSessions: [], assistantHasMore: false, assistantReady: false,
       assistantSyncing: false, assistantMemoryStatus: '', assistantController: null, assistantEpoch: 0,
-      companyChapterVersion: '', companyChapterError: '', companyChaptersLoading: false,
-      modulesByTarget: { company: [], person: ['创始人底色画像（家庭/教育/履历）', '人格特质与诚信评估', '商业操守与行业口碑', '经营胜任力（战略/执行/创新）', '识人用人与团队管控', '关联利益冲突（体外公司/代持/关联交易）', '司法负面与诉讼核查', '个人信用与财务风险', '投后治理与退出风险', '同业对标评估', '核心管理团队背景'].map(x => ({ label: x, value: x })), industry: ['行业定义与边界', '细分赛道与产业链', '政策与监管', '市场规模与增长', '竞争格局与代表企业', '商业模式与盈利逻辑', '技术演进与平台生态', '技术路线对比', '投融资与资本市场', '行业风险与不确定性'].map(x => ({ label: x, value: x })) },
+      companyChapterVersion:'', companyChapterError:'', companyChaptersLoading:false,
+      modulesByTarget: { company: [
+        { label: '公司背景', value: '公司背景' }, { label: '负面新闻', value: '负面新闻' },
+        { label: '诉讼 / 制裁', value: '诉讼/制裁' }, { label: '股东高管', value: '股东高管' },
+        { label: '融资情报', value: '融资情报' }, { label: '管理团队', value: '管理团队' },
+        { label: '创始人背景', value: '创始人背景' }, { label: '竞品公司', value: '竞品公司' },
+        { label: '上下游业务', value: '上下游业务' }, { label: '竞品情况', value: '竞品情况' },
+        { label: '收入情况', value: '收入情况' }, { label: '行业政策', value: '行业政策' },
+        { label: '舆情', value: '舆情' }
+      ], person: ['创始人底色画像（家庭/教育/履历）', '人格特质与诚信评估', '商业操守与行业口碑', '经营胜任力（战略/执行/创新）', '识人用人与团队管控', '关联利益冲突（体外公司/代持/关联交易）', '司法负面与诉讼核查', '个人信用与财务风险', '投后治理与退出风险', '同业对标评估', '核心管理团队背景'].map(x => ({ label: x, value: x })), industry: ['行业定义与边界', '细分赛道与产业链', '政策与监管', '市场规模与增长', '竞争格局与代表企业', '商业模式与盈利逻辑', '技术演进与平台生态', '技术路线对比', '投融资与资本市场', '行业风险与不确定性'].map(x => ({ label: x, value: x })) },
       form: newResearchForm()
     };
   },
   computed: {
+    navigationCollapsed() { return this.sidebarCollapsed && !this.navigationIsMobile; },
+    sidebarQuickLinks() {
+      const links = [
+        {view:'home',label:'个人首页',icon:'fa-house'}, {view:'workbench',label:'工作台',icon:'fa-folder-tree'},
+        {view:'due-diligence',label:'背调项目',icon:'fa-folder-open'}, {view:'research',label:'研究项目',icon:'fa-magnifying-glass-chart'},
+        {view:'ai-services',label:'AI 项目',icon:'fa-microchip'}, {view:'company-knowledge',label:'公司知识库',icon:'fa-book-open'},
+        {view:'knowledge-marketing',label:'市场部',icon:'fa-bullhorn'}, {view:'knowledge-projects',label:'项目部',icon:'fa-briefcase'},
+        {view:'knowledge-policies',label:'制度文件',icon:'fa-file-lines'},
+        {view:'knowledge-experts',label:'专家部资料',icon:'fa-user-tie'}
+      ];
+      if (this.currentUser?.role === 'admin') links.push({view:'accounts',label:'账号管理',icon:'fa-users-gear'});
+      return links;
+    },
+    collectedSourceTypes() { return Object.keys(this.collectedSourcesMeta.source_types || {}).sort(); },
+    pagedCollectedSources() { return this.collectedSourcesRows; },
+    collectedSourceTextPages() { return Math.max(1,Math.ceil(this.collectedSourceText.length/12000)); },
+    collectedSourceMatches() {
+      const query=this.collectedSourceFind; if (!query) return [];
+      const escaped=query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), pattern=new RegExp(escaped,'giu'),positions=[];
+      let match;while(positions.length<2000 && (match=pattern.exec(this.collectedSourceText)))positions.push(match.index);
+      return positions;
+    },
+    collectedSourceTextParts() {
+      const start=(this.collectedSourceTextPage-1)*12000,end=Math.min(this.collectedSourceText.length,start+12000);
+      const text=this.collectedSourceText.slice(start,end),query=this.collectedSourceFind;
+      if (!query) return [{text,hit:false}];
+      const parts=[];let cursor=start;
+      for (const position of this.collectedSourceMatches) {
+        if (position>=end) break;if (position+query.length<=start) continue;
+        const left=Math.max(start,position),right=Math.min(end,position+query.length);
+        if(left>cursor)parts.push({text:this.collectedSourceText.slice(cursor,left),hit:false});
+        parts.push({text:this.collectedSourceText.slice(left,right),hit:true,active:position===this.collectedSourceMatches[this.collectedSourceFindIndex]});cursor=right;
+      }
+      if(cursor<end)parts.push({text:this.collectedSourceText.slice(cursor,end),hit:false});return parts;
+    },
+
     visibleActions() { return Object.values(this.pendingActions).slice(0, 4); },
     visibleActionErrors() { return Object.entries(this.actionErrors).slice(-3); },
     reviewWriteBusy() { return Object.keys(this.pendingActions).some(key => key.startsWith('review-upload:') || key.startsWith('field-upload:') || key.startsWith('review-notes:')); },
@@ -83,19 +139,24 @@ createApp({
     authRoleLabel() { return this.authRole === 'admin' ? '管理员' : '普通用户'; },
     isTaskWorkspace() { return ['tasks', 'intake', 'deliverables', 'review', 'sources', 'submit'].includes(this.activeView); },
     isTaskListView() { return ['tasks', 'intake', 'deliverables'].includes(this.activeView); },
+    taskStageCounts() { const counts = {tasks:this.projects.length, intake:0, deliverables:0, review:0}; for (const project of this.projects) { const stage = this.projectWorkflowStage(project); if (['intake','deliverables','review'].includes(stage)) counts[stage]++; } return counts; },
+    taskEmptyHint() { if (this.actionPending('projects')) return '请稍候，正在读取当前账号的任务。'; if (this.actionErrors.projects) return '请重新加载任务列表。'; if (this.hasTaskFilters) return '试试调整关键词或清空筛选条件。'; if (!this.projects.length) return '先创建任务，填写客户需求并上传研究资料。'; return ({intake:'其他任务可在任务总览中查看和继续处理。', deliverables:'可先查看任务总览；准备好的任务从需求与资料阶段开始生成。', review:'可在任务总览查看报告与建议书的生成进度。'})[this.activeView] || '可创建一个新的尽调任务。'; },
     taskSectionTitle() { return ({tasks:'任务总览', intake:'需求与资料', deliverables:'报告与建议书'})[this.activeView] || '任务总览'; },
     taskSectionHint() { return ({tasks:'查看全部尽调任务的状态与进度，选择任务进入对应工作环节。', intake:'仅显示尚未开始生成的任务，核对需求与资料后点击开始生成。', deliverables:'仅显示报告与建议书生成阶段的任务；生成完成后进入复核与正式方案。'})[this.activeView] || ''; },
-    pageTitle() { if (this.isTaskWorkspace) return '尽调任务'; return ({home: '个人首页', workbench: '工作台', 'due-diligence': '尽调任务', research: '研究任务', accounts: '账号管理', 'company-knowledge': '公司知识库'})[this.activeView] || '工作台'; },
+    knowledgeSection() { return ({'knowledge-marketing': {label:'市场部', icon:'fa-bullhorn'}, 'knowledge-projects': {label:'项目部', icon:'fa-briefcase'}, 'knowledge-policies': {label:'制度文件', icon:'fa-file-lines'}, 'knowledge-experts': {label:'专家部资料', icon:'fa-user-tie'}})[this.activeView] || null; },
+    pageTitle() { if (this.knowledgeSection) return this.knowledgeSection.label; if (this.isTaskWorkspace) return '尽调任务'; return ({home: '个人首页', workbench: '工作台', 'due-diligence': '尽调任务', research: '研究任务', 'ai-services': 'AI服务', accounts: '账号管理', 'company-knowledge': '公司知识库'})[this.activeView] || '工作台'; },
     pageSubtitle() {
+      if (this.knowledgeSection) return '公司知识库 · ' + this.knowledgeSection.label;
       if (this.activeView === 'home') return '查看自己的任务、研究成果与常用入口。';
       if (this.activeView === 'accounts') return '管理公司账号、管理员角色、知识库授权与注册邀请。';
       if (this.activeView === 'company-knowledge') return '让每一份资料，成为下一次决策的起点。';
-      if (this.activeView === 'workbench') return '选择任务类型，进入你的工作空间。';
+      if (this.activeView === 'workbench') return '选择工作分类，进入你的工作空间。';
       if (this.activeView === 'research') return '研究任务的独立工作空间。';
+      if (this.activeView === 'ai-services') return '集中访问你的 AI 服务。';
       return '统一创建与管理尽调任务，整理资料、复核成果并查看来源。';
     },
     generatingCount() { return this.projects.filter(p => this.projectIsRunning(p)).length; },
-    readyCount() { return this.projects.filter(p => p.status === 'completed').length; },
+    readyCount() { return this.projects.filter(p => p.status === 'completed' && !this.projectIsRunning(p)).length; },
     sourceCount() { return Number.isInteger(this.projectSummary.source_count) ? this.projectSummary.source_count : '—'; },
     assistantFabStyle() {
       const clamp = (value, maximum) => Math.min(Math.max(16, maximum), Math.max(16, value));
@@ -134,11 +195,13 @@ createApp({
           this.projectStatusGroup(p) === 'active' ? '进行中' : '',
           this.targetTypeLabel(p.target_type)].join(' ').toLowerCase().includes(keyword)));
     },
+    activeTaskFilterCount() { return Number(!!this.taskStatusFilter) + Number(!!this.taskTargetFilter); },
     hasTaskFilters() { return !!(this.taskSearch.trim() || this.taskStatusFilter || this.taskTargetFilter); },
     pagedProjects() { const start = (this.taskPage - 1) * this.taskPageSize; return this.filteredProjects.slice(start, start + this.taskPageSize); },
     pagedKnowledgeResults() { const start = (this.sourcePage - 1) * this.sourcePageSize; return this.knowledgeResults.slice(start, start + this.sourcePageSize); }
   },
   watch: {
+    isAuthenticated(value) { if (!value) { this.sidebarAccountOpen = false; this.mobileNavOpen = false; } },
     taskSearch() { this.taskPage = 1; },
     taskStatusFilter() { this.taskPage = 1; },
     taskTargetFilter() { this.taskPage = 1; },
@@ -150,9 +213,12 @@ createApp({
       if (this.reviewProjectId && !projects.some(project => project.id === this.reviewProjectId)) this.clearReviewSelection();
     },
     knowledgeQuery() { this.sourcePage = 1; },
-    'form.targetType'(value) { const defaults = { company: this.modulesByTarget.company.filter(x => x.selectable).map(x => x.value), person: this.modulesByTarget.person.map(x => x.value), industry: this.modulesByTarget.industry.map(x => x.value) }; this.form.modules = defaults[value] || defaults.company; this.form.ddType = this.ddTypes[0]; this.form.targetContext = ''; this.form.personContext = ''; this.form.personAliases = ''; if (value === 'person' || value === 'industry') { this.form.industry = ''; this.form.region = ''; } }
+    'form.targetType'(value) { const defaults = { company: this.companyChapterVersion ? this.modulesByTarget.company.filter(x=>x.selectable).map(x=>x.value) : ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], person: this.modulesByTarget.person.map(x => x.value), industry: this.modulesByTarget.industry.map(x => x.value) }; this.form.modules = defaults[value] || defaults.company; this.form.ddType = this.ddTypes[0]; this.form.targetContext = ''; this.form.personContext = ''; this.form.personAliases = ''; if (value === 'person' || value === 'industry') { this.form.industry = ''; this.form.region = ''; } }
   },
     async mounted() {
+      this.updateNavigationViewport();
+      window.addEventListener('resize', this.updateNavigationViewport);
+      document.addEventListener('pointerdown', this.onSidebarPointerDown);
       this.updateAssistantViewport();
       window.addEventListener('resize', this.updateAssistantViewport);
       document.addEventListener('focusout', this.allowAssistantFocus, true);
@@ -161,7 +227,6 @@ createApp({
       this.nowTimer = setInterval(() => { this.nowTick = Date.now(); }, 1000);
       this.taskRefreshTimer = setInterval(() => this.refreshVisibleTaskProgress(), 5000);
       this.readInvitationFromUrl();
-      this.loadCompanyChapters();
       if (this.token) {
         try { await this.fetchMe(); } catch (_) { this.handleLogout(); return; }
         if (!this.currentUser.must_change_password) {
@@ -170,6 +235,8 @@ createApp({
       }
     },
   beforeUnmount() {
+    window.removeEventListener('resize', this.updateNavigationViewport);
+    document.removeEventListener('pointerdown', this.onSidebarPointerDown);
     if (this.nowTimer) clearInterval(this.nowTimer);
     if (this.taskRefreshTimer) clearInterval(this.taskRefreshTimer);
     window.removeEventListener('resize', this.updateAssistantViewport);
@@ -201,6 +268,146 @@ createApp({
       const version = intake ? intake.company_template_version : this.companyChapterVersion;
       return targetType === 'company' && version ? {company_template_version: version} : {};
     },
+
+    updateNavigationViewport() {
+      const mobile = window.innerWidth <= 960;
+      if (mobile !== this.navigationIsMobile) { this.mobileNavOpen = false; this.sidebarAccountOpen = false; }
+      this.navigationIsMobile = mobile;
+    },
+    toggleSidebar() {
+      this.sidebarAccountOpen = false;
+      if (this.navigationIsMobile) {
+        this.mobileNavOpen = !this.mobileNavOpen;
+        this.$nextTick(() => (this.mobileNavOpen ? this.$refs.sidebarMobileClose : this.$refs.navigationToggle)?.focus());
+      } else {
+        this.sidebarCollapsed = !this.sidebarCollapsed;
+        try { localStorage.setItem('navigation:collapsed:v1', this.sidebarCollapsed ? '1' : '0'); } catch (_) {}
+      }
+    },
+    closeMobileNavigation() {
+      this.mobileNavOpen = false; this.sidebarAccountOpen = false;
+      if (this.navigationIsMobile) this.$nextTick(() => this.$refs.navigationToggle?.focus());
+    },
+    navigateFromSidebar(view) {
+      this.switchView(view);
+      if (this.navigationIsMobile) this.$nextTick(() => this.$refs.navigationToggle?.focus());
+    },
+    onSidebarPointerDown(event) { if (!event.target?.closest?.('.sidebar-account')) this.sidebarAccountOpen = false; },
+    trapNavigationFocus(event) {
+      if (!this.navigationIsMobile || !this.mobileNavOpen) return;
+      const sidebar = this.$refs.sidebarElement?.$el || this.$refs.sidebarElement;
+      const items = [...sidebar.querySelectorAll('button,a[href],[tabindex]:not([tabindex="-1"])')].filter(e => !e.disabled && e.offsetParent !== null);
+      if (!items.length) return;
+      if (event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items.at(-1).focus(); }
+      else if (!event.shiftKey && document.activeElement === items.at(-1)) { event.preventDefault(); items[0].focus(); }
+    },
+
+    collectedSourceTypeLabel(value) { return ({web_search:'网页检索',government:'政府来源',regulatory:'监管来源',filing:'公告/文件',news:'新闻',upload:'上传文件',manual:'手工资料',business_database:'专业平台',first_hand:'一手资料',reference_case:'参考资料'})[value] || value || '未分类'; },
+    collectedSourceStatus(source) {
+      if(source.archive_state==='cleared')return {state:'cleared',label:'正文已清理',type:'warning'};
+      if(source.archive_state==='not_archived')return {state:'not_archived',label:'仅来源记录',type:'info'};
+      if(source.text_review_required)return {state:'text_review',label:'字符已修复，待核对',type:'warning'};
+      const state=this.collectedSourceStates[source.id]?.state || 'unread';
+      return {state,label:({unread:'待打开核对',text:'已读取文本',summary:'仅摘要/来源信息',empty:'空文本',failed:'抓取/解析提示',file:'原文件核对',error:'读取未完成'})[state] || '待核对',type:({text:'success',summary:'warning',empty:'warning',failed:'danger',error:'danger',file:'info',unread:'info'})[state] || 'info'};
+    },
+    async openCollectedSources(project) {
+      this.closeCollectedSources();this.collectedSourcesProject={id:project.id,title:project.title || project.target_name || '研究任务'};
+      this.collectedSourcesOpen=true;await this.refreshCollectedSources();
+    },
+    closeCollectedSources() {
+      clearTimeout(this.collectedSourceSearchTimer);this.collectedSourceSearchTimer=null;
+      this.collectedSourcesTotal=0;this.collectedSourcesMeta={};this.collectedSourcesLoadedPage=0;
+      ++this.collectedSourcesSeq;this.collectedSourceListController?.abort();this.collectedSourceListController=null;
+      this.collectedSourcesOpen=false;this.collectedSourcesProject=null;this.collectedSourcesRows=[];
+      this.collectedSourcesLoading=false;this.collectedSourcesError='';this.collectedSourcesLoadedAt='';
+      this.collectedSourceQuery='';this.collectedSourceType='';this.collectedSourceFilter='';this.collectedSourcePage=1;
+      this.collectedSourceStates={};this.resetCollectedSourceText();
+    },
+    resetCollectedSourceText() {
+      ++this.collectedSourceTextSeq;this.collectedSourceTextController?.abort();this.collectedSourceTextController=null;
+      this.collectedSourceSelected=null;this.collectedSourceText='';this.collectedSourceNotice='';
+      this.collectedSourceLoading=false;this.collectedSourceTextError='';this.collectedSourceTextPage=1;
+      this.collectedSourceFindDraft='';this.collectedSourceFind='';this.collectedSourceFindIndex=0;
+    },
+    async refreshCollectedSources() {
+      if (!this.collectedSourcesOpen || !this.collectedSourcesProject) return;
+      this.collectedSourceListController?.abort();const controller=new AbortController();this.collectedSourceListController=controller;
+      const token=this.token,sequence=++this.collectedSourcesSeq,id=this.collectedSourcesProject.id;
+      this.collectedSourcesLoading=true;this.collectedSourcesError='';
+      try {
+        const params=new URLSearchParams({page:String(this.collectedSourcePage),page_size:String(this.collectedSourcePageSize),search:this.collectedSourceQuery.trim(),source_type:this.collectedSourceType || '',archive_state:this.collectedSourceFilter || ''});
+        const data=await this.readJSON(`/research/projects/${id}/source-records?${params}`,'读取已收集资料失败',30000,{signal:controller.signal});
+        const rows=data.records;
+        if(token!==this.token || sequence!==this.collectedSourcesSeq || !this.collectedSourcesOpen) return;
+        if(!Array.isArray(rows) || rows.some(source=>Number(source.project_id)!==Number(id)))throw new Error('资料列表与当前项目不一致，请重新读取。');
+        if(Number(data.project_id)!==Number(id))throw new Error('资料列表与当前项目不一致，请重新读取。');
+        this.collectedSourcesRows=rows;this.collectedSourcesTotal=Number(data.total)||0;
+        this.collectedSourcesMeta={project_total:Number(data.project_total)||0,source_types:data.source_types || {},archive_counts:data.archive_counts || {}};
+        this.collectedSourcesLoadedPage=Number(data.page)||1;this.collectedSourcePage=this.collectedSourcesLoadedPage;
+        this.collectedSourcesLoadedAt=new Date().toISOString();this.resetCollectedSourceText();
+      } catch(error) {
+        if(token===this.token && sequence===this.collectedSourcesSeq && this.collectedSourcesOpen && !controller.signal.aborted)this.collectedSourcesError=error.message || '资料列表读取失败，请稍后刷新。';
+      } finally {
+        if(token===this.token && sequence===this.collectedSourcesSeq){this.collectedSourcesLoading=false;this.collectedSourceListController=null;}
+      }
+    },
+    resetCollectedSourcePage() { clearTimeout(this.collectedSourceSearchTimer);this.collectedSourcePage=1;return this.refreshCollectedSources(); },
+    searchCollectedSources() {clearTimeout(this.collectedSourceSearchTimer);this.collectedSourceListController?.abort();++this.collectedSourcesSeq;this.collectedSourcesLoading=true;this.collectedSourceSearchTimer=setTimeout(()=>this.resetCollectedSourcePage(),300);},
+    changeCollectedSourcePage(page) {if(page===this.collectedSourcesLoadedPage && !this.collectedSourcesLoading)return;this.collectedSourcePage=page;return this.refreshCollectedSources();},
+    classifyCollectedSourceText(text,source) {
+      const compact=value=>String(value||'').replace(/\s+/g,'').trim();const clean=text.trim();
+      if(!clean)return {state:'empty',notice:'这份归档文件没有可显示的文本，请回到原始来源核对。'};
+      if(/^\s*(?:\[(?:解析失败|待解析|正文抓取失败|抓取失败|待提取)|Access\s*Denied\b|Forbidden\b|404\s+Not\s+Found\b)/i.test(clean.slice(0,240)))return {state:'failed',notice:'归档内容包含抓取或解析提示；这里不将该提示当作正文。'};
+      const summary=compact(source.summary);
+      const header=clean.match(/^标题[:：][^\n]*\nURL[:：][^\n]*\n摘要[:：]([\s\S]*)$/);
+      if((summary && compact(clean)===summary) || (header && summary && compact(header[1])===summary) || /^标题[:：][^\n]*\nURL[:：][^\n]*$/.test(clean))return {state:'summary',notice:'这份归档与摘要相同，或只保存了标题、网址和摘要；尚不能确认取得独立正文，请查看原始来源。'};
+      const replacements=(text.match(/\uFFFD/g)||[]).length;
+      return {state:'text',notice:replacements>2?'归档文本可能存在编码或缺字问题，请对照原始来源核验。':'以下为已保存的归档文本；已读取不代表内容或结论已经核实。'};
+    },
+    async readCollectedArchive(response) {
+      if(!response.ok)return response.json().catch(()=>({}));
+      const limit=2*1024*1024,type=(response.headers.get('Content-Type')||'').toLowerCase();
+      const length=Number(response.headers.get('Content-Length')||0);
+      const textType=!type || type.startsWith('text/') || /(?:json|xml|javascript)/.test(type);
+      if(!textType){await response.body?.cancel?.().catch(()=>{});return {kind:'file',notice:'此项为原始附件，可下载原文件核对；不会将二进制文件显示为正文。'};}
+      if(length>limit){await response.body?.cancel?.().catch(()=>{});return {kind:'file',notice:'这份文本较大，请下载原文件核对全文。'};}
+      if(!response.body?.getReader)return {kind:'file',notice:'当前浏览器不支持分段读取，请下载原文件核对。'};
+      const reader=response.body.getReader();let total=0;const chunks=[];
+      try {
+        while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;
+          if(total>limit)return {kind:'file',notice:'这份文本较大，请下载原文件核对全文。'};chunks.push(value);}
+      } finally {try{await reader.cancel();}catch(_){}reader.releaseLock?.();}
+      const bytes=new Uint8Array(total);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+      const declared=type.match(/charset\s*=\s*["']?([\w-]+)/)?.[1] || 'utf-8';
+      let text;try{text=new TextDecoder(declared).decode(bytes);}catch(_){text=new TextDecoder('utf-8').decode(bytes);}
+      return {kind:'text',text};
+    },
+    async openCollectedSourceText(source) {
+      if(!this.collectedSourcesOpen || Number(source.project_id)!==Number(this.collectedSourcesProject?.id))return;
+      this.resetCollectedSourceText();this.collectedSourceSelected=source;
+      if(source.archive_state==='cleared' || source.archive_state==='not_archived'){
+        this.collectedSourceText=source.summary || '';
+        this.collectedSourceNotice=source.archive_state==='cleared'
+          ? '这条来源的正文已按原保留策略清理，以下仅为来源摘要，不是完整正文。可打开原始来源核对；旧正文不能由摘要自动恢复。'
+          : '这条资料尚无可读取的归档文件，以下仅为已保存的摘要；请打开原始来源核对。';
+        return;
+      }
+      this.collectedSourceLoading=true;
+      const controller=new AbortController();this.collectedSourceTextController=controller;
+      const token=this.token,sequence=++this.collectedSourceTextSeq;
+      try {
+        const result=await this.readWithTimeout(`/research/sources/${source.id}/download`,r=>this.readCollectedArchive(r),'读取归档文本失败',25000,{signal:controller.signal});
+        if(token!==this.token || sequence!==this.collectedSourceTextSeq || !this.collectedSourcesOpen)return;
+        if(result.kind==='file'){this.collectedSourceStates[source.id]={state:'file'};this.collectedSourceNotice=result.notice;return;}
+        const state=this.classifyCollectedSourceText(result.text,source);this.collectedSourceText=result.text;
+        this.collectedSourceStates[source.id]={state:state.state};this.collectedSourceNotice=(source.text_review_required?'本条归档做过字符编码修复，请对照原始来源核对；修复标记不代表内容已经核实。':'')+state.notice;
+      } catch(error) {
+        if(token===this.token && sequence===this.collectedSourceTextSeq && this.collectedSourcesOpen && !controller.signal.aborted){
+          this.collectedSourceStates[source.id]={state:'error'};this.collectedSourceTextError=error.message || '归档文本读取失败，请重新读取。';}
+      } finally {if(token===this.token && sequence===this.collectedSourceTextSeq){this.collectedSourceLoading=false;this.collectedSourceTextController=null;}}
+    },
+    findCollectedSourceText() {this.collectedSourceFind=this.collectedSourceFindDraft.trim();this.collectedSourceFindIndex=0;if(this.collectedSourceMatches.length)this.collectedSourceTextPage=Math.floor(this.collectedSourceMatches[0]/12000)+1;},
+    moveCollectedSourceMatch(delta) {const count=this.collectedSourceMatches.length;if(!count)return;this.collectedSourceFindIndex=(this.collectedSourceFindIndex+delta+count)%count;this.collectedSourceTextPage=Math.floor(this.collectedSourceMatches[this.collectedSourceFindIndex]/12000)+1;},
     actionPending(key) { return !!this.pendingActions[key]; },
     actionWaitText(action) {
       const seconds = Math.max(0, Math.floor((this.nowTick - action.startedAt) / 1000));
@@ -210,9 +417,13 @@ createApp({
     runAction(key, label, work, {readOnly = false, silent = false, retryAdvice = ''} = {}) {
       if (this.actionPromises[key]) return this.actionPromises[key];
       const sentToken = this.token, id = ++this.actionSequence;
+      const operation = {phase: label, readOnly, retryAdvice};
       delete this.actionErrors[key];
       if (!silent) this.pendingActions[key] = {id, label, phase: label, startedAt: Date.now(), readOnly, retryAdvice};
       const phase = (text, options = {}) => {
+        operation.phase = text;
+        if (typeof options.readOnly === 'boolean') operation.readOnly = options.readOnly;
+        if (typeof options.retryAdvice === 'string') operation.retryAdvice = options.retryAdvice;
         if (sentToken === this.token && this.pendingActions[key]?.id === id) {
           this.pendingActions[key].phase = text;
           if (typeof options?.readOnly === 'boolean') this.pendingActions[key].readOnly = options.readOnly;
@@ -224,10 +435,10 @@ createApp({
         try { return await work(phase); }
         catch (error) {
           const uploadIssue = /^(?:review-upload|field-upload):/.test(key) ? this.taskUploadIssues[key.split(':').at(-1)] : null;
-          const failedReadOnly = this.pendingActions[key]?.readOnly ?? readOnly;
-          if (!silent && sentToken === this.token) this.actionErrors[key] = {label,
+          const failedReadOnly = operation.readOnly;
+          if (!silent && sentToken === this.token) this.actionErrors[key] = {label: operation.phase,
             message: uploadIssue ? uploadIssue.title + '。' + uploadIssue.advice : error.message || '操作未完成，请检查网络后重试',
-            advice: this.pendingActions[key]?.retryAdvice || (failedReadOnly ? '可重新点击按钮读取；不会启动研究。' : '请先核对任务或资料的保存状态，再决定是否重试，避免重复提交。')};
+            advice: error.retryAdvice || operation.retryAdvice || (failedReadOnly ? '可重新点击按钮读取；不会启动研究。' : '请先核对任务或资料的保存状态，再决定是否重试，避免重复提交。')};
           throw error;
         } finally {
           if (sentToken === this.token) {
@@ -240,14 +451,14 @@ createApp({
       return promise;
     },
     readJSON(url, failureMessage, timeoutMs = 30000, options = {}) {
-      return this.readWithTimeout(url, response => response.json(), failureMessage, timeoutMs, options);
+      return this.readWithTimeout(url, response => response.json(), failureMessage, timeoutMs, {retryNetwork: true, ...options});
     },
     readDownload(url, failureMessage) {
       return this.readWithTimeout(url, async response => response.ok
         ? {blob:await response.blob(), disposition:response.headers.get('Content-Disposition') || ''}
         : response.json().catch(() => ({})), failureMessage, 120000);
     },
-    async readWithTimeout(url, parse, failureMessage, timeoutMs, {signal} = {}) {
+    async readWithTimeout(url, parse, failureMessage, timeoutMs, {signal, retryNetwork = false} = {}) {
       const sentToken = this.token;
       const controller = typeof AbortController === 'function' ? new AbortController() : null;
       const stopped = () => { const error = new Error('已停止读取'); error.name = 'AbortError'; return error; };
@@ -259,11 +470,20 @@ createApp({
       }) : null;
       const request = (async () => {
         let response, data;
-        try { response = await this.authFetch(url, controller ? {signal: controller.signal} : {}); }
-        catch (error) {
-          if (error.name === 'TypeError' && sentToken === this.token && !controller?.signal.aborted)
-            throw new Error(`${failureMessage}：网络连接失败，请检查服务后重试。`);
-          throw error;
+        for (let attempt = 0; ; attempt += 1) {
+          if (signal?.aborted || controller?.signal.aborted) throw stopped();
+          if (sentToken !== this.token) throw new Error('登录账号已变更，请重试');
+          try { response = await this.authFetch(url, controller ? {signal: controller.signal} : {}); break; }
+          catch (error) {
+            const connectionLost = this.isResearchConnectionError(error);
+            if (retryNetwork && attempt === 0 && connectionLost && sentToken === this.token && !controller?.signal.aborted) {
+              await new Promise(resolve => setTimeout(resolve, 400));
+              continue; // Read-only GET only; the original overall deadline still applies.
+            }
+            if (connectionLost && sentToken === this.token && !controller?.signal.aborted)
+              throw new Error(`${failureMessage}：网络连接失败，请稍后重新读取。`);
+            throw error;
+          }
         }
         try { data = await parse(response); }
         catch (error) {
@@ -279,7 +499,7 @@ createApp({
         const waiting = [request];
         if (cancelled) waiting.push(cancelled);
         if (typeof setTimeout === 'function') waiting.push(new Promise((_, reject) => {
-          timer = setTimeout(() => { controller?.abort(); reject(new Error(`${failureMessage}：读取超时，请重试；未启动任何研究任务。`)); }, timeoutMs);
+          timer = setTimeout(() => { controller?.abort(); reject(new Error(`${failureMessage}：读取超时，请稍后重新读取；不会自动重试研究提交。`)); }, timeoutMs);
         }));
         return await Promise.race(waiting);
       } finally { if (timer) clearTimeout(timer); if (onAbort) signal.removeEventListener('abort', onAbort); }
@@ -303,7 +523,7 @@ createApp({
       }});
     },
     async fetchMe() { const r = await this.authFetch('/auth/me'); if (!r.ok) throw new Error('认证失败'); this.currentUser = await r.json(); },
-    ensureAllowedView() { if (this.activeView === 'due-diligence') { this.activeView = 'tasks'; localStorage.setItem('activeView', 'tasks'); } if (!['home', 'workbench', 'research', 'submit', 'tasks', 'intake', 'deliverables', 'review', 'sources', 'company-knowledge', 'accounts'].includes(this.activeView) || (this.activeView === 'accounts' && this.currentUser?.role !== 'admin')) { this.activeView = 'home'; localStorage.setItem('activeView', 'home'); } },
+    ensureAllowedView() { if (this.activeView === 'due-diligence') { this.activeView = 'tasks'; localStorage.setItem('activeView', 'tasks'); } if (!['home', 'workbench', 'research', 'ai-services', 'submit', 'tasks', 'intake', 'deliverables', 'review', 'sources', 'company-knowledge', 'knowledge-marketing', 'knowledge-projects', 'knowledge-public', 'knowledge-policies', 'knowledge-experts', 'accounts'].includes(this.activeView) || (this.activeView === 'accounts' && this.currentUser?.role !== 'admin')) { this.activeView = 'home'; localStorage.setItem('activeView', 'home'); } },
     readInvitationFromUrl() {
       const url = new URL(window.location.href);
       const invitation = new URLSearchParams(url.hash.slice(1)).get('invite') || url.searchParams.get('invite');
@@ -375,12 +595,12 @@ createApp({
       this.authForm = {username:'',password:'',confirm_password:'',invitation:''}; this.inviteStatus = ''; this.inviteValid = false; this.inviteRequestId++;
       this.passwordOpen = false; this.passwordForm = {current_password:'',new_password:'',confirm_password:''};
       this.projects = []; this.projectSummary = {}; this.artifactHistory = {}; this.artifactHistoryRequests = {}; this.traceActivityByProject = {}; this.knowledgeResults = []; this.assistantOpen = false; localStorage.removeItem('accessToken');
+      this.closeCollectedSources();
       this.projectMeta = {}; this.projectDetails = {}; this.artifactsByProject = {}; this.sourcesByProject = {}; this.traceByProject = {}; this.recoveryBusy = {}; this.taskUploadIssues = {};
       this.pendingActions = {}; this.actionPromises = {}; this.actionErrors = {}; this.reviewIntakes = {}; this.detailLoadedAt = {};
       this.startingProjects = {}; this.secondStageRunning = false; this.secondStageProjectId = '';
       this.assistantMessages = []; this.assistantContextSummary = ''; this.assistantInput = ''; this.assistantLoading = false; this.assistantNavigation = []; this.selectedFiles = [];
-      this.form = newResearchForm();
-      this.form.modules = this.modulesByTarget.company.filter(x => x.selectable).map(x => x.value); this.resetTaskFilters();
+      this.form = newResearchForm(); this.resetTaskFilters();
       ++this.requirementsRequestSeq;
       this.clientRequirementFiles = []; this.requirementsFiles = []; this.requirementsSources = []; this.requirementsDocuments = [];
       this.requirementsOpen = false; this.requirementsProjectId = null; this.requirementsText = ''; this.requirementsLoading = false; this.requirementsSaving = false; this.reviewedReports = {};
@@ -414,8 +634,11 @@ createApp({
     },
     switchView(view) {
       if(view.startsWith('knowledge-department-')){this.openKnowledgeDepartment(view.slice('knowledge-department-'.length));return;}
+      const department=({'knowledge-marketing':'market','knowledge-projects':'project','knowledge-policies':'policy','knowledge-experts':'expert'})[view];
+      if(department){this.openKnowledgeDepartment(department);return;}
+      if(view==='knowledge-public')view='company-knowledge';
 
-      if (!['home', 'workbench', 'due-diligence', 'research', 'submit', 'tasks', 'intake', 'deliverables', 'review', 'sources', 'company-knowledge', 'accounts'].includes(view)) return;
+      if (!['home', 'workbench', 'due-diligence', 'research', 'ai-services', 'submit', 'tasks', 'intake', 'deliverables', 'review', 'sources', 'company-knowledge', 'knowledge-marketing', 'knowledge-projects', 'knowledge-public', 'knowledge-policies', 'knowledge-experts', 'accounts'].includes(view)) return;
       if (view === 'accounts' && this.currentUser?.role !== 'admin') return;
       if (view === 'submit') { this.taskCreateOpen = true; this.mobileNavOpen = false; return; }
       this.taskCreateOpen = false;
@@ -545,7 +768,7 @@ createApp({
         if (token !== this.token || seq !== this.requirementsRequestSeq) return;
         this.requirementsDocuments = data.client_requirement_files || [];
         delete this.detailLoadedAt[id]; delete this.reviewIntakes[id];
-        ElementPlus.ElMessage.success('需求和资料已保存，可开始第二步生成');
+        ElementPlus.ElMessage.success('需求和资料已保存，可开始生成');
       } catch (e) { if (token === this.token) ElementPlus.ElMessage.error(e.message); }
       finally { if (token === this.token && seq === this.requirementsRequestSeq) this.requirementsSaving = false; }
     },
@@ -571,8 +794,6 @@ createApp({
     async submitTask() {
       if (this.submitting) return;
       if (!this.form.projectName.trim()) return ElementPlus.ElMessage.warning('请填写项目名称');
-      if (this.form.targetType === 'company' && !this.companyChapterVersion && !(await this.loadCompanyChapters()))
-        return ElementPlus.ElMessage.warning('请先重新加载公司章节目录');
       const sentToken = this.token;
       let created = null;
       const requirements = [...this.clientRequirementFiles], sources = [...this.selectedFiles];
@@ -612,9 +833,7 @@ createApp({
         created = project;
         this.projectMeta[project.id] = { startDate: this.form.startDate, endDate: this.form.endDate };
         this.resetTaskFilters(); this.projects.unshift(project); this.switchView('intake');
-        this.form = newResearchForm();
-        this.form.modules = this.modulesByTarget.company.filter(x=>x.selectable).map(x=>x.value);
-        this.selectedFiles = []; this.clientRequirementFiles = [];
+        this.form = newResearchForm(); this.selectedFiles = []; this.clientRequirementFiles = [];
         for (const file of [...requirements]) {
           const data = new FormData(); data.append('file', file);
           await this.postTaskUpload(project.id, `/research/projects/${project.id}/client-requirements`, data);
@@ -626,7 +845,7 @@ createApp({
           if (sentToken !== this.token) return;
           sources.splice(sources.indexOf(file), 1);
         }
-        ElementPlus.ElMessage.success('第一步已完成：任务和资料已保存，点击“开始生成”进入第二步');
+        ElementPlus.ElMessage.success('项目和资料已保存，可在项目中开始生成');
       } catch (e) {
         if (sentToken !== this.token) return;
         if (created) {
@@ -713,29 +932,30 @@ createApp({
         research_type: this.form.ddType || '商业尽调', focus_modules: this.form.modules, ai_search_enabled: this.form.aiSearchEnabled,
         special_requirements: this.form.keyQuestions || '', client_requirements: this.form.clientRequirements || '', generate_proposal: true
       };
-      const r = await this.authFetch(`/research/projects/${project.id}/run/stream`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || '工作流启动失败'); }
-      const pollInterval = setInterval(() => { if (sentToken === this.token) this.refreshProjectProgress(project).catch(() => null); }, 5000);
-      try {
-        const outcome = await this.readWorkflowEvents(r, sentToken, event => {
-            if (event.type === 'trace_step') this.mergeTraceEvent(project.id, event);
-            if (event.type === 'result') { this.replaceProject(event.project); this.artifactsByProject[project.id] = event.artifacts || []; }
-            if (event.type === 'paused') { project.status = 'paused'; ElementPlus.ElMessage.info(event.content || '任务已暂停'); }
-            if (event.type === 'error') throw new Error(event.content || '工作流失败');
-        });
-        if (outcome === 'closed') throw new Error('进度连接已结束，尚未确认任务完成。请在尽调任务核对状态，不要重复启动。');
-      } finally { clearInterval(pollInterval); await this.refreshAfterWorkflow(project, sentToken); }
+      return this.openResearchStream(project, `/research/projects/${project.id}/run/stream`, payload, sentToken);
     },
     async rerunProject(project) {
       if (this.startingProjects[project.id]) return;
       const sentToken = this.token;
       this.startingProjects[project.id] = true;
       try {
-        await this.runAction(`rerun:${project.id}`, '正在读取重新生成参数', async phase => {
+        await this.runAction(`rerun:${project.id}`, '正在核对后台任务状态', async phase => {
+          phase('正在核对后台任务状态', {readOnly:true, retryAdvice:'状态尚未确认，本次未提交新的研究请求；请稍后刷新任务列表。'});
+          const current = await this.readJSON(`/research/projects/${project.id}/progress${project.target_type === 'industry' ? '?compact=true' : ''}`, '核对后台任务状态失败');
+          if (sentToken !== this.token) throw new Error('登录账号已变更，请重试');
+          if (current.project?.id !== project.id || typeof current.project.is_running !== 'boolean')
+            throw new Error('未能确认后台任务状态，暂未提交新的研究请求。');
+          this.replaceProject(current.project);
+          if (current.trace?.length || current.activity) this.mergeTraceList(project.id, current.trace || [], current.activity);
+          if (current.project.is_running) {
+            ElementPlus.ElMessage.info('任务已在后台运行，请查看现有进度，无需重复生成。');
+            return;
+          }
+          phase('正在读取重新生成参数', {readOnly:true, retryAdvice:'参数未读成功，本次未提交新的研究请求；可稍后重新读取。'});
           const data = await this.readJSON(`/research/projects/${project.id}/run-intake`, '加载重新生成参数失败');
           phase('正在提交重新生成请求，请勿重复点击', {readOnly:false, retryAdvice:''});
           await this.runExistingWorkflow(project, data.intake || {}, () => {
-            phase(project.status === 'draft' ? '生成已在后台执行，可在尽调任务查看进度' : '重新生成已在后台执行，可在尽调任务查看进度');
+            phase('正在跟踪后台任务进度', {readOnly:false, retryAdvice:'请求已接收，请核对现有任务进度，勿重复提交。'});
             ElementPlus.ElMessage.success(project.status === 'draft' ? '生成请求已接收，正在更新任务进度' : '重新生成请求已接收，正在更新任务进度');
             this.refreshProjectProgress(project).then(() => {
               if (sentToken !== this.token || !['intake', 'review'].includes(this.activeView)) return;
@@ -755,12 +975,35 @@ createApp({
       if (project?.status === 'draft' && !this.projectIsRunning(project)) return 'intake';
       return project?.status === 'completed' && !this.projectIsRunning(project) ? 'review' : 'deliverables';
     },
+    taskWorkflowLabel(project) { return ({intake:'需求与资料',deliverables:'报告与建议书',review:'复核与正式方案'})[this.projectWorkflowStage(project)] || '尽调任务'; },
+    taskPrimaryActionLabel(project) {
+      if (this.projectIsRunning(project)) return '查看进度';
+      if (project.status === 'draft') return '继续填写';
+      if (this.projectWorkflowStage(project) === 'review') return '开始复核';
+      if (['failed','paused','diagnostic'].includes(project.status)) return '查看原因';
+      return '继续处理';
+    },
+    taskNextHint(project) {
+      if (this.projectIsRunning(project)) return '';
+      if (this.taskUploadIssues[project.id]) return '有资料未保存，请先核对并补传。';
+      if (project.status === 'failed') return this.projectWorkflowStage(project) === 'review'
+        ? '正式方案未完成，请核对复核资料与执行记录。' : '生成已中断，先查看原因与处理指引。';
+      if (project.status === 'paused') return '任务已暂停，可查看当前进度与已有成果。';
+      if (project.status === 'diagnostic') return '需要核对资料或执行记录。';
+      return this.projectStatusGroup(project) === 'waiting' ? '任务未在执行，请先核对记录。' : '';
+    },
+    taskProgressText(project) {
+      if (this.projectIsRunning(project)) return '';
+      return ({draft:'待开始',failed:'已中断',paused:'已暂停',diagnostic:'待检查'})[project.status]
+        || (this.projectStatusGroup(project) === 'waiting' ? '待继续' : '');
+    },
     projectIsRunning(project) {
       if (!project) return false;
       if (typeof project?.is_running === 'boolean') return project.is_running;
       return this.taskStatusGroup(project.status) === 'active';
     },
     projectStateLabel(project) {
+      if (project?.status === 'completed' && !this.projectIsRunning(project)) return '生成完成';
       if (project?.state_label) return project.state_label;
       if (project?.is_running === false && this.taskStatusGroup(project.status) === 'active') return '待继续';
       return this.taskStatusLabel(project?.status);
@@ -819,18 +1062,78 @@ createApp({
         client_requirements: intake.client_requirements || '',
         generate_proposal: true
       };
-      const r = await this.authFetch(`/research/projects/${project.id}/${proposalOnly ? 'proposal/run/stream' : 'run/stream'}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!r.ok) { const data = await r.json().catch(() => ({})); throw new Error(data.detail || '工作流启动失败'); }
-      if (onConnected) onConnected();
-      const pollInterval = setInterval(() => { if (sentToken === this.token) this.refreshProjectProgress(project).catch(() => null); }, 5000);
+      return this.openResearchStream(project, `/research/projects/${project.id}/${proposalOnly ? 'proposal/run/stream' : 'run/stream'}`, payload, sentToken, onConnected);
+    },
+
+    isResearchConnectionError(error) {
+      if (error?.workflowFailure) return false;
+      if (error?.httpStatus) return [502, 503, 504].includes(error.httpStatus);
+      return ['NetworkError', 'AbortError'].includes(error?.name) ||
+        /network(?:\s*error)?|failed to fetch|fetch failed|load failed|terminated|body stream|网络连接失败|进度连接已结束|浏览器未收到进度连接|进度消息不完整/i.test(error?.message || '');
+    },
+    async reconcileResearchConnection(project, sentToken) {
+      if (sentToken !== this.token) throw new Error('登录账号已变更，请重试');
+      let data;
       try {
-        const outcome = await this.readWorkflowEvents(r, sentToken, event => {
-            if (event.type === 'trace_step') this.mergeTraceEvent(project.id, event);
-            if (event.type === 'result') { this.replaceProject(event.project); this.artifactsByProject[project.id] = event.artifacts || []; }
-            if (event.type === 'paused') { project.status = 'paused'; ElementPlus.ElMessage.info(event.content || '任务已暂停'); }
-            if (event.type === 'error') throw new Error(event.content || '工作流失败');
+        data = await this.readJSON(`/research/projects/${project.id}/progress${project.target_type === 'industry' ? '?compact=true' : ''}`, '核对后台任务状态失败', 12000);
+        if (sentToken !== this.token) throw new Error('登录账号已变更，请重试');
+        if (data.project?.id !== project.id || typeof data.project.is_running !== 'boolean')
+          throw new Error('任务状态响应不完整');
+      } catch (error) {
+        if (sentToken !== this.token || /登录已过期|账号已变更/.test(error.message)) throw error;
+        const uncertain = new Error('进度连接已中断，暂时无法确认后台任务状态。请稍后刷新任务列表，勿重复提交。');
+        uncertain.retryAdvice = '本次不会自动再次提交；先核对运行记录与现有成果，再决定后续操作。';
+        throw uncertain;
+      }
+      this.replaceProject(data.project);
+      if (data.trace?.length || data.activity) this.mergeTraceList(project.id, data.trace || [], data.activity);
+      const running = data.project.is_running;
+      const message = running
+        ? '进度连接已中断，已核对任务仍在后台运行，请查看现有进度，勿重复提交。'
+        : `进度连接已中断；后台当前状态为“${this.projectStateLabel(data.project)}”，请核对运行记录及现有成果，尚不能仅凭该状态确认本次请求的结果。`;
+      this.actionErrors[`stream:${project.id}`] = {label:'实时进度连接中断', message,
+        advice:running ? '后台任务继续执行；可以刷新任务列表查看进度，无需重新生成。' : '本次不会自动再次提交，请核对任务详情后再决定后续操作。'};
+      ElementPlus.ElMessage.warning(message);
+      return {connection_lost:true, backend_running:running, observed_status:data.project.status};
+    },
+    async openResearchStream(project, url, payload, sentToken, onConnected = null) {
+      let response;
+      try {
+        // A write is submitted once. Losing its response never retries this POST.
+        response = await this.authFetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+      } catch (error) {
+        if (sentToken === this.token && this.isResearchConnectionError(error))
+          return this.reconcileResearchConnection(project, sentToken);
+        throw error;
+      }
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        const error = new Error(typeof body.detail === 'string' ? body.detail : '工作流启动未获成功确认');
+        error.httpStatus = response.status;
+        if (this.isResearchConnectionError(error)) return this.reconcileResearchConnection(project, sentToken);
+        throw error;
+      }
+      if (onConnected) onConnected();
+      const pollInterval = setInterval(() => {
+        if (sentToken === this.token) this.refreshProjectProgress(project).catch(() => null);
+      }, 5000);
+      try {
+        const outcome = await this.readWorkflowEvents(response, sentToken, event => {
+          if (event.type === 'trace_step') this.mergeTraceEvent(project.id, event);
+          if (event.type === 'result') { this.replaceProject(event.project); this.artifactsByProject[project.id] = event.artifacts || []; }
+          if (event.type === 'paused') { project.status = 'paused'; ElementPlus.ElMessage.info(event.content || '任务已暂停'); }
+          if (event.type === 'error') {
+            const failure = new Error(event.content || '工作流失败');
+            failure.workflowFailure = true;
+            throw failure;
+          }
         });
-        if (outcome === 'closed') throw new Error('进度连接已结束，尚未确认任务完成。请在尽调任务核对状态，不要重复启动。');
+        if (outcome === 'closed') throw new Error('进度连接已结束，尚未确认任务完成。');
+        return outcome;
+      } catch (error) {
+        if (sentToken === this.token && this.isResearchConnectionError(error))
+          return await this.reconcileResearchConnection(project, sentToken);
+        throw error;
       } finally { clearInterval(pollInterval); await this.refreshAfterWorkflow(project, sentToken); }
     },
     async refreshAfterWorkflow(project, sentToken) {
@@ -896,6 +1199,7 @@ createApp({
       try { await this.loadProjectDetail(row); } catch (_) { /* The inline error keeps the retry action available. */ }
     },
     async viewProject(project) {
+      if (this.activeView === 'tasks') return this.openTaskStage(project, this.projectWorkflowStage(project));
       this.$nextTick(() => this.$refs.taskTable?.toggleRowExpansion(this.projects.find(item => item.id === project.id) || project, true));
       try { await this.loadProjectDetail(project); } catch (_) { /* Loading/error feedback is visible in the expanded row. */ }
     },
@@ -923,9 +1227,10 @@ createApp({
     refreshProjectProgress(project) {
       return this.runAction(`progress:${project.id}`, '正在更新任务进度', async () => {
         const previousStatus = project.status;
-        const data = await this.readJSON(`/research/projects/${project.id}/progress`, '加载任务进度失败');
+        const data = await this.readJSON(`/research/projects/${project.id}/progress${project.target_type === 'industry' ? '?compact=true' : ''}`, '加载任务进度失败');
         if (data.project) this.replaceProject(data.project);
         if (data.trace?.length || data.activity) this.mergeTraceList(project.id, data.trace || [], data.activity);
+        if (data.project?.id === project.id && typeof data.project.is_running === 'boolean') delete this.actionErrors[`stream:${project.id}`];
         if (data.project && previousStatus !== data.project.status && ['failed', 'paused', 'completed'].includes(data.project.status)
             && this.projectDetails[project.id]) await this.loadProjectDetail(data.project, {force: true});
       }, {readOnly:true, silent:true});
@@ -1682,6 +1987,10 @@ createApp({
     timelineType(status) { if (status === 'done') return 'success'; if (status === 'error') return 'danger'; if (status === 'fallback' || status === 'warning') return 'warning'; return 'primary'; },
     artifactTypeLabel(type) { return ({ project_intake: '项目参数', research_plan: '研究计划', source_quality: '来源质量', cleaned_facts: '清洗事实库', risk_assessment: '风险研判', desktop_report: '桌面研究报告', report_quality_diagnostic: '报告质量诊断', person_claim_ledger: '人物证据与验收台账', person_evidence_appendix: '完整证据附录与采用去向', industry_claim_ledger: '结论证据台账', industry_run: '运行记录', proposal: '项目建议书' })[type] || type; },
     targetTypeLabel(type) { return ({ person: '目标人', company: '目标公司', industry: '目标行业' })[type] || type || '-'; },
+    taskOverviewTime(value) {
+      const timestamp = this.eventTimestampMs({ timestamp: value });
+      return timestamp ? new Intl.DateTimeFormat('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false }).format(new Date(timestamp)) : '暂无更新';
+    },
     formatTime(value) {
       const timestamp = this.eventTimestampMs({ timestamp: value });
       return timestamp ? new Date(timestamp).toLocaleString() : '-';
@@ -1689,4 +1998,6 @@ createApp({
     escapeHtml(text) { const div = document.createElement('div'); div.textContent = text || ''; return div.innerHTML; },
     parseMarkdown(text) { return window.SafeMarkdown ? window.SafeMarkdown.render(text) : this.escapeHtml(text); }
   }
-}).component('company-knowledge', CompanyKnowledge).use(ElementPlus).mount('#app');
+};
+if (typeof ProjectWorkspace !== 'undefined') ProjectWorkspace.install(researchAppOptions);
+createApp(researchAppOptions).component('company-knowledge', CompanyKnowledge).use(ElementPlus).mount('#app');
