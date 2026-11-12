@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from uuid import UUID
 import runpy
 import sys
+import pytest
 
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
@@ -56,7 +57,8 @@ def test_new_application_has_a_new_instance_identity():
     assert instance() != instance()
 
 
-def test_real_app_registers_version_before_static_without_business_calls(monkeypatch):
+@pytest.mark.parametrize('source_version', [None, 'source-review-loaded-v1'])
+def test_real_app_registers_version_before_static_without_business_calls(monkeypatch, source_version):
     calls = []
     def no_business(*args, **kwargs):
         calls.append('unexpected business operation')
@@ -75,7 +77,10 @@ def test_real_app_registers_version_before_static_without_business_calls(monkeyp
     knowledge_router.add_api_route('/company-knowledge-test', lambda: {'available': True})
     monkeypatch.setitem(sys.modules, 'company_knowledge', SimpleNamespace(
         router=knowledge_router, KnowledgeError=type('KnowledgeError', (Exception,), {})))
-    monkeypatch.setitem(sys.modules, 'database', SimpleNamespace(init_db=no_business))
+    from sqlalchemy import create_engine
+    monkeypatch.setitem(sys.modules, 'database', SimpleNamespace(init_db=no_business, engine=create_engine('sqlite://')))
+    if source_version:
+        monkeypatch.setitem(sys.modules, 'source_catalog', SimpleNamespace(VERSION=source_version))
     monkeypatch.setitem(sys.modules, 'research_workflow', SimpleNamespace(
         INDUSTRY_CLEANING_VERSION=VERSIONS['cleaning'], INDUSTRY_REPORT_VERSION=VERSIONS['report'],
         INDUSTRY_PROPOSAL_VERSION=VERSIONS['proposal']))
@@ -83,7 +88,8 @@ def test_real_app_registers_version_before_static_without_business_calls(monkeyp
     namespace = runpy.run_path(str(Path(__file__).resolve().parents[1]/'backend/app.py'), run_name='version_endpoint_test')
     app = namespace['app']
     response = TestClient(app).get('/version')
-    assert response.status_code == 200 and response.json()['industry'] == VERSIONS
+    expected_versions = {**VERSIONS, **({'sources': source_version} if source_version else {})}
+    assert response.status_code == 200 and response.json()['industry'] == expected_versions
     assert response.headers['x-frame-options']=='DENY'
     assert response.headers['x-content-type-options']=='nosniff'
     untrusted=TestClient(app).options('/version',headers={'Origin':'https://untrusted.invalid',

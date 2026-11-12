@@ -263,10 +263,10 @@ const CompanyKnowledge = {
     mode(value) { this.emitDepartment(); this.dismissProjectPreview?.(); this.$nextTick(() => this.syncTabIndicator()); if (value === 'chat') this.scrollChat(); },
     libraryView: { deep: true, handler() { this.saveLibraryView(); } },
     libraryFilterKey() { this.dismissProjectPreview?.(); this.invalidateContentSearch(); if (!this.restoringView) { this.libraryPage = 1; this.scrollLibraryTop(); } },
-    libraryPageCount(count) { if (!this.loading && this.libraryPage > count) this.libraryPage = count; },
+    libraryPageCount(count) { if (!this.loading && !this.restoringView && this.libraryPage > count) this.libraryPage = count; },
     readerOpen(open) { if (open) this.dismissProjectPreview?.(); if (!open) { this.readerSequence++; this.readerLoading = false; this.readerOriginalLoading = false; this.releaseReader(); } },
   },
-  mounted() { this.installProjectPreviewListeners(); this.restoreTheme(); this.loadService(); this.$nextTick(() => { this.syncTabIndicator(); if (typeof ResizeObserver !== 'undefined') { this.tabObserver = new ResizeObserver(() => this.syncTabIndicator()); this.tabObserver.observe(this.$el.querySelector('.ckb-tabs')); } }); this.pollClock = setInterval(() => { if (this.canAsk && !document.hidden && (this.pendingCount || !this.lastCataloguePoll || Date.now() - this.lastCataloguePoll > 29000)) { this.lastCataloguePoll = Date.now(); this.loadDocuments(false, false); this.loadAccessRequests(); this.loadMyProjects(); } }, 6000); },
+  mounted() { this.installProjectPreviewListeners(); this.restoreTheme(); this.initialWorkspaceLoad=this.loadService(); this.$nextTick(() => { this.syncTabIndicator(); if (typeof ResizeObserver !== 'undefined') { this.tabObserver = new ResizeObserver(() => this.syncTabIndicator()); this.tabObserver.observe(this.$el.querySelector('.ckb-tabs')); } }); this.pollClock = setInterval(() => { if (this.canAsk && !document.hidden && (this.pendingCount || !this.lastCataloguePoll || Date.now() - this.lastCataloguePoll > 29000)) { this.lastCataloguePoll = Date.now(); this.loadDocuments(false, false); this.loadAccessRequests(); this.loadMyProjects(); } }, 6000); },
   beforeUnmount() { this.uploadStopped=true;if(this.uploadCurrent&&!this.uploadCurrent.saving)this.uploadXHR?.abort();if(typeof window!=='undefined')window.removeEventListener('beforeunload',this.uploadLeaveGuard);this.uninstallProjectPreviewListeners(); this.contentController?.abort(); this.searchSequence++; this.tabObserver?.disconnect(); clearTimeout(this.directoryTimer); if (typeof document !== 'undefined' && document.documentElement) delete document.documentElement.dataset.knowledgeTheme; this.chatDisposed = true; this.chatGeneration++; this.requestsActive = false; this.cancelPendingReads(); this.controller?.abort(); clearInterval(this.activityClock); clearInterval(this.pollClock); this.releaseReader(); },
   methods: {
     departmentLabel(value) { return this.departmentOptions.find(item=>item.id===value)?.label || '待归类'; },
@@ -692,7 +692,8 @@ const CompanyKnowledge = {
           sessionStorage.removeItem('companyKnowledgeOpenMyProjects');
           this.browseLibrary(); this.mineOnly = true;
         }
-        await Promise.all([this.loadDocuments(), this.loadMyProjects(), this.loadAccessRequests()]);
+        this.initialCatalogueLoad = this.loadDocuments();
+        await Promise.all([this.initialCatalogueLoad, this.loadMyProjects(), this.loadAccessRequests()]);
         await this.loadRecentRetryTracking();
         if (this.mode === 'cases') this.chatScope = 'experience';
         if(this.departmentEntryApplied)await this.refreshChatSessions();else await this.loadChatHistory();
@@ -733,7 +734,7 @@ const CompanyKnowledge = {
         if (previousAccess !== currentAccess) this.invalidateContentSearch?.();
         if (previousAccess !== currentAccess && this.chatSessionId && !this.busy && !this.chatHistoryBusy) await this.loadChatHistory(this.chatSessionId);
       } catch (error) { this.serviceError = error.message; }
-      finally { await directories; this.loading = false; if (this.libraryPageCount) this.libraryPage = Math.min(this.libraryPage, this.libraryPageCount);if(this.catalogueRefreshQueued&&this.requestsActive!==false){this.catalogueRefreshQueued=false;await this.loadDocuments();} }
+      finally { await directories; this.loading = false; if (!this.restoringView && this.libraryPageCount) this.libraryPage = Math.min(this.libraryPage, this.libraryPageCount);if(this.catalogueRefreshQueued&&this.requestsActive!==false){this.catalogueRefreshQueued=false;await this.loadDocuments();} }
     },
     async loadMyProjects() {
       try {
@@ -849,7 +850,7 @@ const CompanyKnowledge = {
           this.readerTrace = response.headers?.get('X-Watermark-Trace') || '';
           if (['TXT','MD','CSV'].includes(doc.format)) this.readerBlob = typeof Vue !== 'undefined' ? Vue.markRaw(blob) : blob;
           else { this.readerUrl = URL.createObjectURL(blob); if (['PDF','DOC','DOCX','XLS','XLSX','PPT','PPTX'].includes(doc.format)) this.readerPDFPages = Number(response.headers.get('X-Document-Pages') || 1); }
-        } catch (error) { if (current()) this.readerOriginalError = error.message; }
+        } catch (error) { if (current()) { this.readerOriginalError = error.message;if(this.readerOriginalCode==='original_missing')this.selectedDoc.has_original=false; } }
         finally { if (current()) this.readerOriginalLoading = false; }
       };
       const excerpts = async () => {
@@ -944,7 +945,7 @@ const CompanyKnowledge = {
         try {
           report();
           const response = await this.apiFetch(path + '/download?request_id=' + requestId);
-          if (!response.ok) { const result = await response.json(); throw new Error(result.detail || '下载失败。'); }
+          if (!response.ok) { const result = await response.json();if(response.headers?.get('X-Preview-Error')==='original_missing'&&this.selectedDoc?.id===doc.id){this.readerOriginalCode='original_missing';this.selectedDoc.has_original=false;}throw new Error(result.detail || '下载失败。'); }
           this.downloadProgress[doc.id].stage = 'receiving'; report();
           const blob = await response.blob();
           this.downloadProgress[doc.id].stage = 'handoff'; report();
@@ -965,8 +966,13 @@ const CompanyKnowledge = {
     },
     saveReturnLocation() { try { if(this.service.username)sessionStorage.setItem('companyKnowledgeReturn:'+this.service.username,JSON.stringify(this.returnLocation)); } catch {} },
     async returnToBrowse() {
-      const origin=this.returnLocation;if(!origin)return;
+      const origin=this.returnLocation;if(!origin||this.restoringView)return;
       this.restoringView=true;this.readerOpen=false;this.dismissProjectPreview?.();
+      try {
+      // Initial lists may still be empty after a refresh; they do not prove deletion.
+      await (this.initialWorkspaceLoad || this.initialCatalogueLoad);
+      if(this.requestsActive===false||this.returnLocation!==origin)return;
+      if(this.projectError || this.serviceError && !this.cloudDocuments.length){ElementPlus.ElMessage.warning('资料位置尚未加载完成，请刷新资料后重试。');return;}
       const keys=['departmentFilter','mode','projectDisplay','activeProjectId','activeFolderId','libraryLayout','tagFilter','dateFrom','dateTo','dateField','libraryPage','libraryPageSize','sortOrder','category','query','projectFilter','industryFilter','statusFilter','reviewFilter','favoritesOnly','mineOnly'];
       for(const key of keys)if(Object.prototype.hasOwnProperty.call(origin.view,key))this[key]=origin.view[key];
       this.searchMode='metadata';this.libraryIntent='';this.libraryLayout='list';
@@ -978,8 +984,8 @@ const CompanyKnowledge = {
       if(!this.busy)this.selectedIds=origin.selectedIds.filter(id=>this.documents.some(d=>d.id===id&&d.can_read));
       await this.$nextTick();this.libraryPage=Math.min(this.libraryPage,this.libraryPageCount);await this.$nextTick();
       if(this.$refs?.documentTable)this.$refs.documentTable.scrollTop=origin.scrollTop;
-      this.restoringView=false;
       const doc=origin.readerId&&this.documents.find(d=>d.id===origin.readerId&&d.can_read);if(doc)await this.openDocument(doc);
+      } finally { this.restoringView=false; }
     },
     toggleSelection(doc) { if (this.selectionBusy || !doc.can_read || doc.state !== 'ready') return; const ids = this.selectedDocuments.filter(row => this.caseCategories.includes(row.category) === this.caseCategories.includes(doc.category)).map(row => row.id); this.changeScope(ids.includes(doc.id) ? ids.filter(id => id !== doc.id) : [...ids, doc.id]); },
     askWhileReading() { if (!this.selectedDoc?.id || this.busy) return; const question = this.draft; if (this.selectedIds.length !== 1 || this.selectedIds[0] !== this.selectedDoc.id) this.changeScope([this.selectedDoc.id]); this.sendQuestion(question); },
@@ -1463,7 +1469,7 @@ const CompanyKnowledge = {
         </div>
       </section>
       <section v-if="mode === 'chat'" id="ckb-chat-panel" class="ckb-chat-layout ckb-view-panel" :class="{'is-generating': busy}" :role="departmentPage ? 'region' : 'tabpanel'" :aria-label="departmentPage ? departmentName + '智能问答' : undefined" :aria-labelledby="departmentPage ? undefined : 'ckb-chat-tab'">
-        <aside class="ckb-chat-aside"><button v-if="returnLocation" class="ckb-return-location" :title="returnLocationLabel" @click="returnToBrowse"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i><span>返回资料位置<small>{{ returnLocationLabel }}</small></span></button><div class="ckb-chat-space"><span><i class="fa-solid fa-fingerprint" aria-hidden="true"></i></span><div>你的研究空间<small>PRIVATE RESEARCH SPACE</small></div></div>
+        <aside class="ckb-chat-aside"><button v-if="returnLocation" class="ckb-return-location" :title="returnLocationLabel" :disabled="restoringView" :aria-busy="restoringView" @click="returnToBrowse"><i class="fa-solid" :class="restoringView?'fa-circle-notch fa-spin':'fa-arrow-left'" aria-hidden="true"></i><span>{{restoringView?'正在返回资料位置…':'返回资料位置'}}<small>{{ returnLocationLabel }}</small></span></button><div class="ckb-chat-space"><span><i class="fa-solid fa-fingerprint" aria-hidden="true"></i></span><div>你的研究空间<small>PRIVATE RESEARCH SPACE</small></div></div>
           <button class="ckb-button ckb-button-outline ckb-new-conversation" :disabled="busy || chatHistoryBusy" @click="startConversation"><i class="fa-solid fa-plus" aria-hidden="true"></i><span>开始新对话</span><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></button>
           <section class="ckb-session-panel" aria-label="研究历史面板"><label class="ckb-aside-label" for="ckb-chat-history">研究历史</label>
           <select id="ckb-chat-history" aria-label="研究历史" v-model="chatSessionId" :disabled="busy || chatHistoryBusy" @change="loadChatHistory(chatSessionId)"><option value="">新研究对话</option><option v-for="session in chatSessions" :key="session.id" :value="session.id">{{ session.title }}</option></select>

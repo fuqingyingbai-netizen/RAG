@@ -14,6 +14,7 @@ class CitationFormatter:
         self.math_end = ''
         self.unknown = set()
         self.changed = False
+        self.emitted = 0
 
     def feed(self, text, *, final=False):
         self.pending += text
@@ -22,7 +23,19 @@ class CitationFormatter:
             self.pending = lines.pop()
         else:
             self.pending = ''
-        return ''.join(self.line(line) for line in lines)
+        output = []
+        for line in lines:
+            rendered = self.line(line)
+            output.append(rendered[self.emitted:])
+            self.emitted = 0
+        if self.pending:
+            # shortcut: stream plain prefixes now; keep Markdown/citation tails
+            # until newline/final so chunking cannot change literal interpretation.
+            special = re.search(r'[\[\x60$\\]', self.pending)
+            cut = special.start() if special else len(self.pending)
+            output.append(self.pending[self.emitted:cut])
+            self.emitted = cut
+        return ''.join(output)
 
     def line(self, line):
         fence = re.match(r'^ {0,3}(`{3,}|~{3,})', line)

@@ -19,9 +19,18 @@ import research_workflow as research_workflow_module
 import industry_research as industry_research_module
 from database import init_db
 from runtime_version import create_version_router
+try:
+    # Preserve the deployed optional source-review component's version marker.
+    from source_catalog import VERSION as SOURCE_REVIEW_VERSION
+except ModuleNotFoundError as exc:
+    if exc.name != 'source_catalog':
+        raise
+    SOURCE_REVIEW_VERSION = None
 from account_lifecycle import invitation_cleanup_loop
 from personal_home import create_home_router
 from http_delivery import ResearchReadCompression, RequestBodyLimit
+from company_observability import KnowledgeHTTPMiddleware, instrument_engine
+from company_capacity import KnowledgeCapacityMiddleware
 
 BASE_DIR = BACKEND_DIR.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -80,6 +89,11 @@ def create_app() -> FastAPI:
             response.headers["Expires"] = "0"
         return response
 
+    app.add_middleware(KnowledgeCapacityMiddleware)
+    app.add_middleware(KnowledgeHTTPMiddleware)
+    from database import engine
+    instrument_engine(engine)
+
     app.include_router(api_module.router)
     app.include_router(research_api_module.router)
     app.include_router(create_home_router(research_api_module._is_project_running))
@@ -89,6 +103,7 @@ def create_app() -> FastAPI:
         'risk': industry_research_module.INDUSTRY_RISK_VERSION,
         'report': research_workflow_module.INDUSTRY_REPORT_VERSION,
         'proposal': research_workflow_module.INDUSTRY_PROPOSAL_VERSION,
+        **({'sources': SOURCE_REVIEW_VERSION} if SOURCE_REVIEW_VERSION else {}),
     }))
 
     # serve frontend static files at root

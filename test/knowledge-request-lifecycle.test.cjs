@@ -207,3 +207,13 @@ test('caller cancellation remains effective for read requests and rejects even i
   const pending=response.json();controller.abort();await assert.rejects(pending,/读取已停止/);
   body.resolve({});assert.equal(f.state.pendingReads.size,0);
 });
+
+for(const active of [true,false]) test(`missing original download offers restore only for its active reader (${active})`,async()=>{
+  const f=fixture(async()=>new Response('{"detail":"原件已缺失"}',{status:404,headers:{'Content-Type':'application/json','X-Preview-Error':'original_missing'}}));
+  const doc={id:'media',format:'MP4',media_kind:'video',has_original:true};
+  f.state.selectedDoc={...doc,id:active?'media':'other'};
+  f.state.withFeedback=async(key,label,action)=>action(()=>{});
+  await f.state.downloadOriginal(doc);
+  assert.equal(f.state.selectedDoc.has_original,!active);assert.equal(f.downloads(),0);
+  if(active)assert.equal(f.state.readerOriginalCode,'original_missing');
+});

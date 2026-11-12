@@ -351,7 +351,9 @@ def test_retrieval_filters_and_postfilter_before_generation(setup, monkeypatch, 
     transport(monkeypatch, handler)
     result = setup.client.post('/company-knowledge/chat/stream', json={'message': 'Summarize',
         'document_ids': [doc_id], 'history': [{'role': 'assistant', 'content': 'stale assistant SECRET'}]})
-    assert result.status_code == 200 and 'Answer [id_1]' in result.text and '"type": "done"' in result.text
+    events = [json.loads(line[6:]) for line in result.text.splitlines() if line.startswith('data: ')]
+    answer = ''.join(event.get('text', '') for event in events if event['type'] == 'answer_delta')
+    assert result.status_code == 200 and answer == 'Answer [id_1]' and events[-1]['type'] == 'done'
     assert 'SECRET' not in result.text
 
 

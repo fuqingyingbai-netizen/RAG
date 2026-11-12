@@ -99,13 +99,32 @@ class ResearchObjectStore:
     def get_bytes(self, key: str) -> bytes:
         safe_key = self.validate_key(key)
         if self.mode == "minio":
-            response = self._client().get_object(self.bucket, safe_key)
+            from minio.error import S3Error
+            try:
+                response = self._client().get_object(self.bucket, safe_key)
+            except S3Error as exc:
+                if exc.code in {'NoSuchKey', 'NoSuchObject'}:
+                    raise FileNotFoundError('Stored object is missing') from None
+                raise
             try:
                 return response.read()
             finally:
                 response.close()
                 response.release_conn()
         return self._local_path(safe_key).read_bytes()
+
+    def exists(self, key: str) -> bool:
+        safe_key = self.validate_key(key)
+        if self.mode != 'minio':
+            return self._local_path(safe_key).is_file()
+        from minio.error import S3Error
+        try:
+            self._client().stat_object(self.bucket, safe_key)
+            return True
+        except S3Error as exc:
+            if exc.code in {'NoSuchKey', 'NoSuchObject'}:
+                return False
+            raise
 
     def get_text(self, key: str) -> str:
         return self.get_bytes(key).decode("utf-8")
@@ -132,7 +151,7 @@ class ResearchObjectStore:
             return
         path = self._local_path(safe_prefix)
         if path.is_dir():
-            shutil.rmtree(path)
+            shutil.rmtree(path, ignore_errors=True)
 
 
 research_store = ResearchObjectStore()

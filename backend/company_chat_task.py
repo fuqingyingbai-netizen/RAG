@@ -2,8 +2,9 @@
 import re
 
 FORMAT = re.compile(r'^(?:请)?(?:把(?:上面|刚才|之前)?(?:的)?(?:回答|答案|内容|结果)?|将(?:回答|答案|内容|结果))?(?:整理|改|转换|转)?成(?:一个)?(表格|列表|清单|段落)[。！!？?\s]*$')
-SINGULAR = re.compile(r'它(?!们)|该公司|这家公司|这个项目')
+SINGULAR = re.compile(r'它(?!们)|该公司|这家公司|这个项目|该项目')
 CORRECTION = re.compile(r'^(?:我指的是|我说的是|指的是)')
+BUDGET_PRESENTATION = r'保留预算口径并引用[，,](?:仅用两句话回答[，,])?(?:800字以内[。]?)?'
 
 
 def fresh(question):
@@ -12,12 +13,18 @@ def fresh(question):
     # shortcut: recognize only a complete, literal company/field template; other wording uses the model.
     single = re.fullmatch(r'(?:请)?(?:介绍|查询|列出|分析|告诉我)?([^，。？?的与和\s]{1,60}?公司)'
         r'(20\d{2}年)?的(营业收入|收入|客户数量|客户数|目标用户|收费方式|价格)(?:是(?:多少|什么|谁)|有多少)?[？?。\s]*', question)
-    if single and single[1] not in ('该公司', '这家公司', '那个公司', '这个公司', '我们公司'):
+    project = re.fullmatch(r'(?:请)?(?:查询|列出|介绍)?([^，。？?的与和、\s]{1,60}项目)'
+        r'(20\d{2}(?:年度|年))?的?(批准预算|预算额度|预算|试验预算|负责人|客户数量|客户数)'
+        r'(?:是(?:多少(?:万元)?|什么|谁)|有多少)?[？?。\s]*'
+        r'(' + BUDGET_PRESENTATION + r')?', question)
+    single = single or project
+    if single and single[1] not in ('该公司', '这家公司', '那个公司', '这个公司', '我们公司', '这个项目', '该项目', '那个项目', '本项目'):
         subjects = [single[1]]
     else:
         single = None
+    constraints = [single[2]] if single and single[2] else []
     return {'request': question, 'subjects': subjects, 'topic': single[3] if single else '', 'format': 'auto',
-            'constraints': [single[2]] if single and single[2] else [],
+            'constraints': constraints,
             'structured': bool(subjects), 'needs_clarification': False}
 
 
@@ -39,23 +46,32 @@ def local_followup(question, task):
     if len(subjects) != 1 or task.get('needs_clarification'):
         return False, None, None
     # shortcut: only short, explicit field requests; new objects and ordinals use rewriting.
-    field = re.fullmatch(r'(?:那)?(客户数|客户数量|收入|营业收入|收费方式|价格|目标用户|商业模式|有哪些风险|怎么收费)[呢？?。\s]*', question)
+    field = re.fullmatch(r'(?:那)?(客户数|客户数量|负责人|收入|营业收入|收费方式|价格|目标用户|商业模式|有哪些风险|怎么收费)[呢？?。\s]*', question)
     if field:
         topic = field[1]
         query = subjects[0] + ('' if topic in ('有哪些风险', '怎么收费') else '的') + topic + '？'
+        output_format = task.get('format', 'auto')
     else:
-        match = re.fullmatch(r'(?:那)?(?:它|该公司|这家公司|这个项目)(?:的)?'
-            r'((?:客户数(?:量)?|营业收入|收入|目标用户|商业模式|收费方式|价格)(?:是(?:多少|什么|谁)|有多少)?|怎么收费|有哪些风险)[呢？?。\s]*', question)
+        match = re.fullmatch(r'(?:那)?(?:它|该公司|这家公司|这个项目|该项目)(?:的)?'
+            r'((?:客户数(?:量)?|负责人|营业收入|收入|目标用户|商业模式|收费方式|价格)(?:是(?:多少|什么|谁)|有多少)?|怎么收费|有哪些风险)'
+            r'[呢？?。\s]*(仅回答姓名并引用[。]?)?', question)
         if not match:
             return False, None, None
         topic = match[1]
         query = subjects[0] + ('' if topic in ('有哪些风险', '怎么收费') else '的') + topic + '？'
-    constraints = task.get('constraints', [])
+        output_format = task.get('format', 'auto')
+        if match[2]:
+            query += match[2]
+            output_format = 'auto'
+    # Presentation rules for the old budget question do not constrain a new field.
+    # Also handle tasks saved by the initial optimization without rewriting history.
+    constraints = [value for value in task.get('constraints', []) if not re.fullmatch(BUDGET_PRESENTATION, value)]
     if constraints:
         query += '；' + '；'.join(constraints)
     if len(query) > 1500:
         return False, None, None
-    return True, query, {**task, 'request': query, 'topic': topic, 'needs_clarification': False}
+    return True, query, {**task, 'request': query, 'topic': topic, 'format': output_format,
+                         'constraints': constraints, 'needs_clarification': False}
 
 
 def from_rewrite(payload, question, previous, user_text):
