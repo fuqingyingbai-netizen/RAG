@@ -110,9 +110,22 @@ def test_local_export_attributes_cannot_change_committed_files(source_repo, tmp_
     assert members(package)['backend/app.py'] == b'print("committed application")\n'
 
 
+def test_editor_vendor_attribution_is_retained(source_repo, tmp_path):
+    names = ['README.md', 'THIRD_PARTY_NOTICES.md', 'licenses/package-LICENSE', 'licenses/package-LICENSE.md']
+    for name in names:
+        path = source_repo/'frontend/vendor/knowledge-editor'/name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('Synthetic third party attribution', encoding='utf-8')
+    git(source_repo, 'add', '.')
+    git(source_repo, 'commit', '-m', 'Retain editor attribution')
+    package, _ = release.build_release(source_repo, 'HEAD', tmp_path/'out')
+    assert all('frontend/vendor/knowledge-editor/'+name in members(package) for name in names)
+
+
 @pytest.mark.parametrize('name,content', [
     ('backend/key.pem', 'synthetic private data'),
     ('deploy/unreviewed.zip', 'synthetic unreviewed runtime archive'),
+    ('frontend/vendor/knowledge-editor/licenses/unreviewed.zip', 'synthetic unreviewed archive'),
     ('backend/credential.py', 'API_KEY = "unit-test-hardcoded-token-value"\n'),
     ('frontend/key.txt', '-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n'),
     ('backend/connection.py', 'DATABASE_URL = "postgresql://user:unit-test-private-pass-123@localhost/test"\n'),
