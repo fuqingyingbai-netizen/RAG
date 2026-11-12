@@ -28,7 +28,7 @@
   <link rel="stylesheet" href="workflow-ux.1e3199a055e3.css" />
   <link rel="stylesheet" href="knowledge-usability.1d9a8b1ee4ed.css" />
 <link rel="stylesheet" href="knowledge-workspace.0526d2956385.css" />
-  <link rel="stylesheet" href="project-workspace.16120c1257e7.css" />
+  <link rel="stylesheet" href="project-workspace.89451c56195d.css" />
 </head>
 <body>
 <section id="app-startup" class="app-startup" role="status" aria-live="polite">
@@ -134,19 +134,18 @@
           <div v-for="[key, error] in visibleActionErrors" :key="key" class="operation-error" role="alert"><div><strong>{{error.label.replace('正在', '')}}未完成</strong><p>{{error.message}}</p><small>{{error.advice}}</small></div><el-button text size="small" @click="delete actionErrors[key]" aria-label="关闭操作提示">关闭</el-button></div>
         </section>
         <section v-if="isTaskWorkspace" class="project-workspace-heading">
-          <div><h2>{{workspaceTitle}}</h2><p>{{workspaceDescription}}</p></div>
-          <el-button type="primary" :disabled="submitting" @click="openProjectCreate()"><i class="fa-solid fa-plus" aria-hidden="true"></i>新建项目</el-button>
-        </section>
-        <nav v-if="isTaskWorkspace" class="project-family-tabs" aria-label="项目分类">
+          <h2>{{workspaceTitle}}</h2>
+          <nav class="project-family-tabs" aria-label="项目分类">
           <button v-for="family in workspaceFamilies" :key="family.value" type="button" :class="{'is-active':workspaceFamily===family.value}" :aria-pressed="workspaceFamily===family.value" @click="switchView(({all:'workbench',background:'due-diligence',research:'research',ai:'ai-services'})[family.value])"><span>{{family.label}}</span><small>{{workspaceCount(family.value)}}</small></button>
-        </nav>
+          </nav>
+          <div class="project-heading-actions"><el-button v-if="activeView !== 'tasks'" plain @click="switchView('tasks')">返回项目列表</el-button><el-button plain @click="switchView('sources')">溯源库</el-button><el-button type="primary" :disabled="submitting" @click="openProjectCreate()"><i class="fa-solid fa-plus" aria-hidden="true"></i>新建项目</el-button></div>
+        </section>
         <el-alert v-if="isTaskWorkspace && Object.keys(workspaceMetaErrors).length" title="部分项目分类尚未读取，请在全部项目中核对或重新加载。" type="warning" :closable="false"><el-button link @click="loadProjects().catch(() => null)">重新加载</el-button></el-alert>
         <section v-if="knowledgeSection" class="workspace-overview knowledge-section" :aria-label="knowledgeSection.label + '分类页面'">
           <article class="research-placeholder"><span class="overview-entry-icon" aria-hidden="true"><i :class="'fa-solid ' + knowledgeSection.icon"></i></span><h2>{{ knowledgeSection.label }}</h2><p>此分类的资料空间待配置。</p><el-tag type="info" effect="plain">待配置</el-tag><el-button plain @click="switchView('company-knowledge')">返回公司知识库</el-button></article>
         </section>
         <div v-if="isTaskWorkspace" class="project-resource-toolbar">
           <span v-if="workspaceMetaLoading" role="status">正在核对项目分类…</span><span v-else>{{stageProjects.length}} 个项目 · 已生成的报告仍需人工复核</span>
-          <div><el-button v-if="activeView !== 'tasks'" plain @click="switchView('tasks')">返回项目列表</el-button><el-button plain @click="switchView('sources')">溯源库</el-button></div>
         </div>
         <personal-home v-if="activeView === 'home'" :request="authFetch" :read="readJSON" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @filter-tasks="openHomeTaskFilter" @open-project="openHomeProject" @view-versions="report => openReportVersions({id:report.project_id, title:report.project_title}, report.artifact_type)"></personal-home>
         <company-knowledge :department-entry="knowledgeDepartmentEntry" @department-change="knowledgeDepartment=$event" ref="knowledgeWorkspace" v-if="activeView === 'company-knowledge'" :projects="projects" :feedback="runAction" :operation-state="pendingActions"></company-knowledge>
