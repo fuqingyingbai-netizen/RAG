@@ -68,6 +68,37 @@ test('project details expand on the unified list and category navigation does no
   state.loadProjects=async()=>{};state.refreshVisibleTaskProgress=()=>{};state.switchView('research');assert.equal(state.activeView,'tasks');assert.equal(state.workspaceFamily,'research');
 });
 
+test('category switches filter the loaded list without list or progress requests, while returning from another page refreshes',()=>{
+  const {state}=context();let loads=0,progress=0;
+  state.loadProjects=async()=>{loads++;};state.refreshVisibleTaskProgress=()=>{progress++;};state.activeView='tasks';
+  for(const view of ['research','ai-services','workbench','due-diligence']){
+    state.taskSearch='old';state.taskPage=3;state.mobileNavOpen=true;state.taskCreateOpen=true;state.switchView(view);
+    assert.equal(state.taskPage,1);assert.equal(state.taskSearch,'');assert.equal(state.mobileNavOpen,false);assert.equal(state.taskCreateOpen,false);
+  }
+  assert.equal(loads,0);assert.equal(progress,0);
+  state.activeView='home';state.switchView('due-diligence');assert.equal(loads,1);assert.equal(progress,1);
+  state.activeView='sources';state.switchView('research');assert.equal(loads,2);assert.equal(progress,2);
+});
+
+test('project refresh retains rows and accessible pending state without a top banner; errors and write feedback remain visible',async()=>{
+  const {state}=context();state.activeView='tasks';const row={id:1,target_type:'company'};state.projects=[row];state.workspaceIntakes[1]={research_type:'BDD项目'};
+  let resolve;state.readJSON=()=>new Promise(done=>resolve=done);
+  const loading=state.loadProjects();await new Promise(setImmediate);
+  assert.equal(state.actionPending('projects'),true);assert.equal(state.visibleActions.length,0);assert.equal(state.projects[0],row);
+  state.pendingActions['review-upload:1']={id:99,label:'正在保存复核报告'};assert.equal(state.visibleActions.length,1);
+  state.activeView='home';assert.equal(state.visibleActions.length,2);state.activeView='tasks';
+  resolve({projects:[row]});await loading;assert.equal(state.actionPending('projects'),false);
+  state.readJSON=async()=>{throw Error('读取失败');};await assert.rejects(state.loadProjects(),/读取失败/);
+  assert.equal(state.projects[0],row);assert.equal(state.visibleActionErrors.length,1);assert.match(state.actionErrors.projects.message,/读取失败/);
+});
+
+test('periodic refresh still discovers new projects and reads their category without navigating',async()=>{
+  const {state}=context();state.activeView='tasks';state.taskRefreshTicks=3;
+  state.readJSON=async url=>url==='/research/projects'?{projects:[{id:5,target_type:'industry',status:'draft'}]}:{intake:{research_type:'行业研究'}};
+  await state.refreshVisibleTaskProgress();assert.equal(state.projects[0].id,5);assert.equal(state.projectFamily(state.projects[0]),'research');
+  assert.equal(state.taskRefreshBusy,false);assert.equal(state.visibleActions.length,0);
+});
+
 test('business type constrains new reports and unsupported or forged combinations cannot submit a server project',async()=>{
   const {state,notices}=context();state.openProjectCreate('background');
   assert.deepEqual(Array.from(state.formReportOptions,r=>r.value),['company','person']);

@@ -1,0 +1,49 @@
+.project-workspace-heading{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px;margin:0 0 8px;padding-bottom:8px;border-bottom:1px solid #dbe3ed}
+html:has(.task-workspace-shell){scrollbar-gutter:stable}
+.project-workspace-heading h2{margin:0;min-width:4em;color:#19344f;font-size:22px;line-height:1.4;font-weight:650;white-space:nowrap}
+.project-heading-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.project-workspace-heading .el-button{min-height:40px;margin-left:0;padding:8px 14px;gap:6px}
+.project-family-tabs{display:flex;gap:4px;min-width:0;flex-wrap:wrap}
+.project-family-tabs button{display:flex;align-items:center;gap:8px;min-height:40px;padding:8px 12px;border:1px solid transparent;background:transparent;border-radius:6px;color:#52657c;font:inherit;font-size:14px;white-space:nowrap;cursor:pointer}
+.project-family-tabs button.is-active{background:#e8eff7;border-color:#ccd9e8;color:#244f7e;font-weight:600}
+.project-family-tabs small{display:inline-block;min-width:20px;border-radius:4px;background:#fff;padding:0 5px;color:#52657c;font-size:12px;font-weight:400;text-align:center}
+.project-resource-toolbar{color:#52657c;font-size:12px;line-height:1.5;min-height:18px;margin-bottom:8px}
+.task-workspace-shell .panel-card.task-list-panel{border-radius:8px;border:1px solid #dce4ee}
+.task-workspace-shell .project-title-link{border:0;background:transparent;padding:0;color:#234f7e;font:inherit;font-weight:600;text-align:left;white-space:normal;overflow-wrap:anywhere;cursor:pointer;line-height:1.6}
+.task-workspace-shell .project-business-label{display:block;font-size:12px;color:#5c6e84;margin-top:5px;font-weight:400}
+.task-workspace-shell .task-overview-title{white-space:normal;overflow:visible}
+.task-workspace-shell .project-detail-heading{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;padding-bottom:16px}
+.project-detail-heading strong{font-size:17px;color:#19344f;overflow-wrap:anywhere}
+.project-detail-heading small{display:block;color:#52657c;font-size:12px;margin-top:5px}
+.project-detail-actions{display:flex;gap:8px;flex-wrap:wrap}
+.task-workspace-shell .project-detail-actions .el-button+.el-button{margin-left:0}
+.project-detail-tabs{display:flex;gap:24px;border-bottom:1px solid #dce4ee;margin-bottom:18px;flex-wrap:wrap}
+.project-detail-tabs button{font:inherit;font-size:14px;padding:10px 0;background:transparent;border:0;border-bottom:2px solid transparent;color:#52657c;cursor:pointer}
+.project-detail-tabs button.is-active{color:#244f7e;border-bottom-color:#244f7e}
+.task-workspace-shell .primary-result-grid,.task-workspace-shell .secondary-detail-grid{display:block}
+.task-workspace-shell .primary-result-grid>.detail-panel,.task-workspace-shell .secondary-detail-grid>.detail-panel{width:100%;max-width:none}
+.task-workspace-shell .task-expand{background:#f8fafc;padding:22px!important}
+.project-materials-panel,.project-review-inline{padding:20px;background:#fff;border:1px solid #dce4ee;border-radius:6px;margin:16px 0}
+.project-materials-panel h3{margin:0 0 10px;font-size:16px;color:#19344f}
+.project-materials-panel p{color:#52657c;margin:0 0 18px}
+.project-review-inline .review-inline{margin-top:16px}
+.project-review-inline .review-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.project-focus-areas{display:flex;flex-wrap:wrap;gap:8px 18px}
+.project-focus-areas .el-checkbox{margin-right:0}
+.project-advanced{border-top:1px solid #dce4ee;padding-top:12px;margin:8px 0 20px}
+.project-advanced>summary{font-size:14px;color:#2a5687;cursor:pointer;margin-bottom:16px;padding:6px 0}
+.project-capability-notice{margin-bottom:18px}
+.project-local-drafts{padding:18px 20px;background:#fff;border:1px solid #dce4ee;border-radius:8px;margin-bottom:18px}
+.project-local-drafts h3{margin:0 0 6px;font-size:15px;color:#19344f}
+.project-local-drafts p{margin:0;color:#52657c;font-size:12px}
+.project-local-drafts article{display:flex;gap:12px;align-items:center;padding-top:14px;margin-top:14px;border-top:1px solid #e5eaf1}
+.project-local-drafts article>div{flex:1;min-width:0;overflow-wrap:anywhere}
+.project-local-drafts small{display:block;color:#52657c;font-size:12px;margin-top:4px}
+.project-family-tabs button:focus-visible,.project-title-link:focus-visible,.project-detail-tabs button:focus-visible,.project-advanced summary:focus-visible{outline:2px solid #315f93;outline-offset:3px}
+@media(max-width:1180px){.project-workspace-heading{grid-template-columns:minmax(0,1fr) auto;gap:8px 12px}.project-family-tabs{grid-column:1/-1;grid-row:2}.project-heading-actions{grid-column:2;grid-row:1}}
+@media(max-width:960px){.project-review-inline .review-grid{grid-template-columns:1fr}.task-workspace-shell .task-filter-options{flex-wrap:wrap}.project-detail-heading>div:first-child{width:100%}}
+@media(max-width:640px){.project-workspace-heading h2{font-size:20px}.project-workspace-heading{gap:6px 8px}.project-workspace-heading .el-button{min-height:44px;padding:8px 10px;font-size:12px}.project-heading-actions{gap:6px;max-width:calc(100vw - 132px)}.project-family-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}.project-family-tabs button{flex-direction:column;justify-content:center;min-height:48px;gap:2px;padding:4px;font-size:12px}.project-family-tabs small{font-size:11px;line-height:16px}.project-detail-tabs{gap:20px}.project-detail-tabs button{min-height:44px;font-size:13px}.task-workspace-shell .task-expand{padding:14px 10px!important}.project-materials-panel,.project-review-inline{padding:14px 10px}.project-local-drafts{padding:15px 12px}.project-local-drafts article{flex-wrap:wrap}.project-local-drafts article>div{flex-basis:100%}.task-workspace-shell .task-column-expand{display:none}.task-workspace-shell .project-title-link{font-size:15px}.project-review-inline .el-form-item{min-width:0}}
+@media(pointer:coarse){.project-family-tabs button{min-height:44px}}
+
+.task-create-dialog>.el-dialog__footer{flex-shrink:0;border-top:1px solid #dce4ee;padding-top:14px}
+.project-create-form .el-form-item__content>small{display:block;flex-basis:100%;margin-top:8px;color:#52657c;font-size:12px;line-height:1.6}

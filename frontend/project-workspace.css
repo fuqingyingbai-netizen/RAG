@@ -1,12 +1,13 @@
 .project-workspace-heading{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px;margin:0 0 8px;padding-bottom:8px;border-bottom:1px solid #dbe3ed}
-.project-workspace-heading h2{margin:0;color:#19344f;font-size:22px;line-height:1.4;font-weight:650;white-space:nowrap}
+html:has(.task-workspace-shell){scrollbar-gutter:stable}
+.project-workspace-heading h2{margin:0;min-width:4em;color:#19344f;font-size:22px;line-height:1.4;font-weight:650;white-space:nowrap}
 .project-heading-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .project-workspace-heading .el-button{min-height:40px;margin-left:0;padding:8px 14px;gap:6px}
 .project-family-tabs{display:flex;gap:4px;min-width:0;flex-wrap:wrap}
 .project-family-tabs button{display:flex;align-items:center;gap:8px;min-height:40px;padding:8px 12px;border:1px solid transparent;background:transparent;border-radius:6px;color:#52657c;font:inherit;font-size:14px;white-space:nowrap;cursor:pointer}
 .project-family-tabs button.is-active{background:#e8eff7;border-color:#ccd9e8;color:#244f7e;font-weight:600}
 .project-family-tabs small{display:inline-block;min-width:20px;border-radius:4px;background:#fff;padding:0 5px;color:#52657c;font-size:12px;font-weight:400;text-align:center}
-.project-resource-toolbar{color:#52657c;font-size:12px;line-height:1.5;margin-bottom:8px}
+.project-resource-toolbar{color:#52657c;font-size:12px;line-height:1.5;min-height:18px;margin-bottom:8px}
 .task-workspace-shell .panel-card.task-list-panel{border-radius:8px;border:1px solid #dce4ee}
 .task-workspace-shell .project-title-link{border:0;background:transparent;padding:0;color:#234f7e;font:inherit;font-weight:600;text-align:left;white-space:normal;overflow-wrap:anywhere;cursor:pointer;line-height:1.6}
 .task-workspace-shell .project-business-label{display:block;font-size:12px;color:#5c6e84;margin-top:5px;font-weight:400}

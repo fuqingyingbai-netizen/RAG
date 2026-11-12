@@ -28,7 +28,7 @@
   <link rel="stylesheet" href="workflow-ux.1e3199a055e3.css" />
   <link rel="stylesheet" href="knowledge-usability.1d9a8b1ee4ed.css" />
 <link rel="stylesheet" href="knowledge-workspace.0526d2956385.css" />
-  <link rel="stylesheet" href="project-workspace.89451c56195d.css" />
+  <link rel="stylesheet" href="project-workspace.f45947814ebe.css" />
 </head>
 <body>
 <section id="app-startup" class="app-startup" role="status" aria-live="polite">
@@ -145,7 +145,7 @@
           <article class="research-placeholder"><span class="overview-entry-icon" aria-hidden="true"><i :class="'fa-solid ' + knowledgeSection.icon"></i></span><h2>{{ knowledgeSection.label }}</h2><p>此分类的资料空间待配置。</p><el-tag type="info" effect="plain">待配置</el-tag><el-button plain @click="switchView('company-knowledge')">返回公司知识库</el-button></article>
         </section>
         <div v-if="isTaskWorkspace" class="project-resource-toolbar">
-          <span v-if="workspaceMetaLoading" role="status">正在核对项目分类…</span><span v-else>{{stageProjects.length}} 个项目 · 已生成的报告仍需人工复核</span>
+          <span v-if="actionPending('projects')" role="status">正在更新项目列表…</span><span v-else-if="workspaceMetaLoading" role="status">正在核对项目分类…</span><span v-else>{{stageProjects.length}} 个项目 · 已生成的报告仍需人工复核</span>
         </div>
         <personal-home v-if="activeView === 'home'" :request="authFetch" :read="readJSON" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @filter-tasks="openHomeTaskFilter" @open-project="openHomeProject" @view-versions="report => openReportVersions({id:report.project_id, title:report.project_title}, report.artifact_type)"></personal-home>
         <company-knowledge :department-entry="knowledgeDepartmentEntry" @department-change="knowledgeDepartment=$event" ref="knowledgeWorkspace" v-if="activeView === 'company-knowledge'" :projects="projects" :feedback="runAction" :operation-state="pendingActions"></company-knowledge>
@@ -239,7 +239,7 @@
 
         <section v-if="isTaskListView && workspaceDrafts.length" class="project-local-drafts"><header><h3>待接入项目 · 本机草稿</h3><p>尚未接入执行接口；仅保存在当前账号的浏览器中，不计入服务器项目。</p></header><article v-for="draft in workspaceDrafts" :key="draft.id"><div><strong>{{draft.form.projectName}}</strong><small>{{draft.form.ddType}} · {{draft.form.companyName}} · {{formatTime(draft.updated_at)}}</small></div><el-button plain size="small" @click="editLocalProjectDraft(draft)">继续编辑</el-button><el-button text type="danger" @click="deleteLocalProjectDraft(draft)">删除草稿</el-button></article></section>
         <section v-if="isTaskListView" class="task-list-section" :aria-label="taskSectionTitle">
-          <el-card shadow="never" class="panel-card task-list-panel">
+          <el-card shadow="never" class="panel-card task-list-panel" :aria-busy="actionPending('projects') || workspaceMetaLoading">
             <h2 class="task-sr-only">{{ taskSectionTitle }}</h2>
             <div class="table-toolbar task-filter-toolbar" role="search" aria-label="任务筛选">
               <div class="table-meta">{{ hasTaskFilters ? filteredProjects.length + ' / ' + stageProjects.length : stageProjects.length }} 个任务</div>
@@ -568,8 +568,8 @@
 <script defer src="account-management.42b1dd6628ec.js"></script>
 <script defer src="personal-home.1977e79323c9.js"></script>
 <script defer src="report-versions.js"></script>
-<script defer src="project-workspace.95912628c721.js"></script>
-<script defer src="script.7a719ba57b32.js"></script>
+<script defer src="project-workspace.5862f06db460.js"></script>
+<script defer src="script.cc29ff3a8aab.js"></script>
 </body>
 </html>
 

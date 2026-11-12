@@ -130,7 +130,7 @@ const researchAppOptions = {
       if(cursor<end)parts.push({text:this.collectedSourceText.slice(cursor,end),hit:false});return parts;
     },
 
-    visibleActions() { return Object.values(this.pendingActions).slice(0, 4); },
+    visibleActions() { return Object.entries(this.pendingActions).filter(([key]) => key !== 'projects' || !this.isTaskWorkspace).map(([, action]) => action).slice(0, 4); },
     visibleActionErrors() { return Object.entries(this.actionErrors).slice(-3); },
     reviewWriteBusy() { return Object.keys(this.pendingActions).some(key => key.startsWith('review-upload:') || key.startsWith('field-upload:') || key.startsWith('review-notes:')); },
     reviewInputsLocked() { return this.reviewWriteBusy || this.projectIsRunning(this.projects.find(p => p.id === this.reviewProjectId)) || (this.secondStageRunning && this.secondStageProjectId === this.reviewProjectId); },
@@ -630,7 +630,7 @@ const researchAppOptions = {
       if(this.$refs?.knowledgeWorkspace?.busy){ElementPlus.ElMessage.info('请先停止当前回答，再切换部门资料。');return;}
       this.knowledgeDepartmentEntry={department,request:Date.now()};this.switchView('company-knowledge');
     },
-    switchView(view) {
+    switchView(view, {reloadProjects = true} = {}) {
       if(view.startsWith('knowledge-department-')){this.openKnowledgeDepartment(view.slice('knowledge-department-'.length));return;}
       const department=({'knowledge-marketing':'market','knowledge-projects':'project','knowledge-policies':'policy','knowledge-experts':'expert'})[view];
       if(department){this.openKnowledgeDepartment(department);return;}
@@ -647,8 +647,8 @@ const researchAppOptions = {
       this.$nextTick?.(() => {
         if (this.activeView === view && this.isTaskListView) this.$refs?.taskTable?.setScrollLeft?.(0);
       });
-      if (['workbench', 'tasks', 'intake', 'deliverables', 'review'].includes(view)) this.loadProjects().catch(() => null);
-      if (['tasks', 'deliverables', 'review'].includes(view)) this.refreshVisibleTaskProgress();
+      if (reloadProjects && ['workbench', 'tasks', 'intake', 'deliverables', 'review'].includes(view)) this.loadProjects().catch(() => null);
+      if (reloadProjects && ['tasks', 'deliverables', 'review'].includes(view)) this.refreshVisibleTaskProgress();
       if (view === 'sources') this.loadRepository().catch(() => null);
     },
     workspaceLinkLabel(item) {
@@ -1242,12 +1242,7 @@ const researchAppOptions = {
       try {
         await Promise.all(activeProjects.slice(0, 8).map(project => this.refreshProjectProgress(project).catch(() => null)));
         if (this.taskRefreshTicks % 4 === 0) {
-          const r = await this.authFetch('/research/projects');
-          const data = await r.json().catch(() => ({}));
-          if (r.ok && sentToken === this.token) {
-            this.projects = data.projects || this.projects;
-            this.projectSummary = data.summary || {};
-          }
+          if (sentToken === this.token) await this.loadProjects().catch(() => null);
         }
       } finally {
         this.taskRefreshBusy = false;

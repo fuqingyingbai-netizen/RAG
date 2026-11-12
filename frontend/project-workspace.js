@@ -91,10 +91,11 @@ const ProjectWorkspace = (() => {
       resetTaskFilters(){previous.resetTaskFilters.call(this);this.workspaceTypeFilter='';},
       switchView(view){
         const category=({workbench:'all','due-diligence':'background',research:'research','ai-services':'ai'})[view];
+        const localCategorySwitch=!!category && this.activeView==='tasks';
         if(category){this.workspaceFamily=category;this.resetTaskFilters();view='tasks';}
         if(view==='submit'){this.openProjectCreate();return;}
         if(['intake','deliverables'].includes(view))view='tasks';
-        return previous.switchView.call(this,view);
+        return previous.switchView.call(this,view,{reloadProjects:!localCategorySwitch});
       },
       async loadProjects(){
         await previous.loadProjects.call(this);
