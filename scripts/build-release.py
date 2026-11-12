@@ -58,6 +58,11 @@ def allowed(name):
         return False
     if name in TOP_FILES | SCRIPT_FILES | DOC_FILES:
         return True
+    if path.parts[:3] == ('frontend', 'vendor', 'knowledge-editor'):
+        if (len(path.parts) == 4 and path.name in {'README.md', 'THIRD_PARTY_NOTICES.md'}
+                or len(path.parts) == 5 and path.parts[3] == 'licenses'
+                and (path.suffix == '.md' or path.name.endswith('-LICENSE'))):
+            return True
     if (len(path.parts) == 4 and path.parts[:2] == ('frontend', 'vendor')
             and path.parts[-1] == 'LICENSE'):
         return True
@@ -93,6 +98,9 @@ def build_release(repo, ref, output_dir):
             continue
         metadata, raw_name = record.split(b'\t', 1)
         name = raw_name.decode('utf-8')
+        # Historical recovery archives are retained in Git, never runtime payloads.
+        if PurePosixPath(name).parts[:2] == ('deploy', 'server-snapshots'):
+            continue
         mode, kind, object_id = metadata.decode().split()
         if allowed(name):
             if kind != 'blob' or mode not in {'100644', '100755'}:

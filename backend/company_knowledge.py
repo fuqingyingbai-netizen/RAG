@@ -1,7 +1,8 @@
 """Bailian managed RAG: authenticated document listing and answer streaming."""
 
 import asyncio
-from contextlib import suppress
+import anyio
+from contextlib import suppress, asynccontextmanager, aclosing
 import json
 import os
 import re
@@ -16,8 +17,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from auth import get_current_user
+from auth import get_knowledge_current_user as get_current_user
 from models import User
+from company_observability import phase, observe_sse
+from company_capacity import model_slots, MODEL_WAIT_SECONDS, CapacityBusy, waiting_reporter
+from sqlalchemy.exc import TimeoutError as PoolTimeout
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
 
@@ -28,13 +32,32 @@ class KnowledgeValidationError(BaseModel):
 
 
 router = APIRouter(prefix='/company-knowledge', tags=['Company knowledge'],
-                  responses={422: {'model': KnowledgeValidationError}})
+                  responses={status: {'model': KnowledgeValidationError, 'description': description}
+                      for status, description in {
+                          400: '请求格式无效', 401: '未登录或登录已失效', 403: '没有执行此操作的权限',
+                          404: '资源不存在或不可访问', 409: '资料状态冲突，请刷新或稍后重试',
+                          410: '播放缓存已过期，请重新打开资料',
+                          413: '上传文件或请求体超过限制', 416: '请求的播放范围无效',
+                          422: '请求参数或业务校验失败',
+                          429: '请求过于频繁，请稍后重试', 502: '上游服务响应异常',
+                          503: '服务暂时繁忙或配置不可用，请稍后重试',
+                      }.items()})
 
 
 class KnowledgeError(Exception):
     def __init__(self, message: str, status_code: int = 502):
         super().__init__(message)
         self.status_code = status_code
+
+
+class KnowledgeStreamingResponse(StreamingResponse):
+    async def __call__(self, scope, receive, send):
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            # A disconnect can interrupt ASGI send while the iterator is at yield.
+            with anyio.CancelScope(shield=True):
+                await self.body_iterator.aclose()
 
 
 def upload_category():
@@ -48,14 +71,16 @@ def oss_upload_url(value):
 
 
 async def cloud_rpc(client, cfg, path, payload=None, *, method='POST', params=None):
-    response = await client.request(method, cfg['base_url'] + path, headers=headers(cfg), json=payload, params=params)
-    if response.status_code != 200:
-        raise provider_error(response.status_code)
-    result = response.json()
-    if (result.get('success') is False or str(result.get('code', '')).lower() not in ('success', '200', '')
-            or str(result.get('status_code', result.get('status', '200'))).upper() not in ('200', 'SUCCESS')):
-        raise KnowledgeError('云端操作未成功，请检查服务权限或文件格式后重试。')
-    return result.get('data') or {}
+    with phase(path.rsplit('/', 1)[-1]) as observation:
+        response = await client.request(method, cfg['base_url'] + path, headers=headers(cfg), json=payload, params=params)
+        observation['http_status'] = response.status_code
+        if response.status_code != 200:
+            raise provider_error(response.status_code)
+        result = response.json()
+        if (result.get('success') is False or str(result.get('code', '')).lower() not in ('success', '200', '')
+                or str(result.get('status_code', result.get('status', '200'))).upper() not in ('200', 'SUCCESS')):
+            raise KnowledgeError('云端操作未成功，请检查服务权限或文件格式后重试。')
+        return result.get('data') or {}
 
 
 def settings():
@@ -101,17 +126,43 @@ async def model_settings(client, cfg):
 
 
 def model_request_options(config):
-    from model_provider_options import official_deepseek
     model = str(config['model']).lower().rsplit('/', 1)[-1]
     # GLM-5.3 models require thinking; Qwen's enable_thinking is not portable.
     if model.startswith('glm-5.3-flash'):
         return {'reasoning_effort': 'low'}
     if model.startswith('glm-5.3'):
         return {}
+    if model in ('glm-5.2', 'glm-4.7-flash'):
+        return {'thinking': {'type': 'disabled'}}
+    from model_provider_options import official_deepseek
     # These GLM models use thinking.type; enable_thinking is a Qwen extension.
-    return ({'thinking': {'type': 'disabled'}} if model in ('glm-5.2', 'glm-4.7-flash')
-            or official_deepseek(config['model'], config['base_url'])
+    return ({'thinking': {'type': 'disabled'}} if official_deepseek(config['model'], config['base_url'])
             else {'enable_thinking': False})
+
+
+@asynccontextmanager
+async def model_response(client, config, payload):
+    """Retry a quickly rejected transient request once, before any answer bytes."""
+    async with asyncio.timeout(180), model_slots.slot('model', wait=MODEL_WAIT_SECONDS):
+        for attempt in range(2):
+            with phase('model_stream' if payload.get('stream') else 'model_complete', attempt=attempt+1) as observation:
+                started = time.perf_counter()
+                async with client.stream('POST', config['base_url'] + '/chat/completions',
+                        headers=headers(config), json=payload,
+                        timeout=httpx.Timeout(120 if payload.get('stream') else 85, connect=20)) as response:
+                    observation['http_status'] = response.status_code
+                    observation['response_headers_ms'] = round((time.perf_counter()-started)*1000, 3)
+                    # The gateway can fail only after 40+ seconds; repeating that
+                    # request doubles occupied capacity during an upstream outage.
+                    if (response.status_code not in {502, 503, 504} or attempt
+                            or observation['response_headers_ms'] >= 5000):
+                        if response.status_code != 200:
+                            raise provider_error(response.status_code, provider=config['provider'])
+                        response.extensions['knowledge_observation'] = observation
+                        response.extensions['knowledge_started'] = started
+                        yield response
+                        return
+            await asyncio.sleep(0.5)
 
 
 def has_access(user: User) -> bool:
@@ -140,16 +191,25 @@ def provider_error(status: int, *, provider: str = '百炼') -> KnowledgeError:
     return KnowledgeError(message, 429 if status == 429 else 502)
 
 
+def model_body_error(error):
+    # Some gateways report account limits inside an HTTP200 JSON/SSE body.
+    if isinstance(error, dict) and (error.get('type') == 'rate_limit_error' or str(error.get('code')) == '429'):
+        return provider_error(429, provider='知识库模型')
+    return KnowledgeError('云端模型调用失败，请稍后重试。')
+
+
 async def list_cloud_documents(cfg, page_number=1, page_size=100):
     async with httpx.AsyncClient(timeout=30, trust_env=False) as client:
-        response = await client.get(cfg['base_url'] + '/api/v1/indices/rag/index/files',
-                                    headers=headers(cfg), params={'index_id': cfg['index_id'],
-                                    'page_number': page_number, 'page_size': page_size})
-        if response.status_code != 200:
-            raise provider_error(response.status_code)
-        data = response.json()
-        if data.get('success') is False or str(data.get('code', '')).lower() not in ('success', '200', ''):
-            raise KnowledgeError('云端文档列表查询失败，请核对知识库配置。')
+        with phase('list_documents') as observation:
+            response = await client.get(cfg['base_url'] + '/api/v1/indices/rag/index/files',
+                                        headers=headers(cfg), params={'index_id': cfg['index_id'],
+                                        'page_number': page_number, 'page_size': page_size})
+            observation['http_status'] = response.status_code
+            if response.status_code != 200:
+                raise provider_error(response.status_code)
+            data = response.json()
+            if data.get('success') is False or str(data.get('code', '')).lower() not in ('success', '200', ''):
+                raise KnowledgeError('云端文档列表查询失败，请核对知识库配置。')
         result = data.get('data', {})
         return {'documents': [{
             'id': row['doc_id'], 'title': row.get('doc_name', ''),
@@ -274,14 +334,14 @@ class KnowledgeQuestion(BaseModel):
 async def cloud_answer(cfg, question):
     if cfg.get('_conversation'):
         from company_memory import conversation_stream
-        async with asyncio.timeout(330):
-            async for event in conversation_stream(*cfg['_conversation']):
+        async with asyncio.timeout(330), aclosing(conversation_stream(*cfg['_conversation'])) as events:
+            async for event in events:
                 yield event
         return
     if 'allowed_documents' in cfg:
         from company_workspace import grounded_answer
-        async with asyncio.timeout(240):
-            async for event in grounded_answer(cfg, question):
+        async with asyncio.timeout(240), aclosing(grounded_answer(cfg, question)) as events:
+            async for event in events:
                 yield event
         return
     payload = {'input': {'messages': [m.model_dump() for m in question.history] +
@@ -290,22 +350,26 @@ async def cloud_answer(cfg, question):
     answer_received = False
     async with asyncio.timeout(240):
         async with httpx.AsyncClient(timeout=httpx.Timeout(120, connect=20), trust_env=False) as client:
-            async with client.stream('POST', cfg['base_url'] + '/api/v2/apps/knowledge/chat',
-                                     headers={**headers(cfg), 'Accept': 'text/event-stream'}, json=payload) as response:
-                if response.status_code != 200:
-                    raise provider_error(response.status_code)
-                if 'text/event-stream' not in response.headers.get('content-type', ''):
-                    raise KnowledgeError('百炼未返回有效的流式回答。')
-                async for frame in sse_frames(response.aiter_lines()):
-                    for event in frame_events(frame):
-                        if event['type'] == 'answer_delta':
-                            answer_received = True
-                        if event['type'] == 'done':
-                            if not answer_received:
-                                raise KnowledgeError('云端未生成回答，请稍后重试。')
+            with phase('cloud_chat') as observation:
+                started = time.perf_counter()
+                async with client.stream('POST', cfg['base_url'] + '/api/v2/apps/knowledge/chat',
+                                         headers={**headers(cfg), 'Accept': 'text/event-stream'}, json=payload) as response:
+                    observation['http_status'] = response.status_code
+                    observation['response_headers_ms'] = round((time.perf_counter()-started)*1000, 3)
+                    if response.status_code != 200:
+                        raise provider_error(response.status_code)
+                    if 'text/event-stream' not in response.headers.get('content-type', ''):
+                        raise KnowledgeError('百炼未返回有效的流式回答。')
+                    async for frame in sse_frames(response.aiter_lines()):
+                        for event in frame_events(frame):
+                            if event['type'] == 'answer_delta':
+                                answer_received = True
+                            if event['type'] == 'done':
+                                if not answer_received:
+                                    raise KnowledgeError('云端未生成回答，请稍后重试。')
+                                yield event
+                                return
                             yield event
-                            return
-                        yield event
     raise KnowledgeError('云端回答中断，请重新提问。')
 
 
@@ -315,16 +379,21 @@ async def stream_events(cfg, question, heartbeat_interval=3):
     queue = asyncio.Queue()
 
     async def produce():
+        reporter_token = waiting_reporter.set(queue.put)
         try:
-            async for event in cloud_answer(cfg, question):
-                await queue.put(event)
+            async with aclosing(cloud_answer(cfg, question)) as events:
+                async for event in events:
+                    await queue.put(event)
         except KnowledgeError as exc:
-            await queue.put({'type': 'error', 'message': str(exc)})
+            await queue.put({'type': 'error', 'message': str(exc), 'status_code': exc.status_code})
+        except (CapacityBusy, PoolTimeout):
+            await queue.put({'type': 'error', 'message': '服务当前繁忙，请稍后重试。', 'status_code': 503, 'retry_after': 2})
         except (httpx.HTTPError, TimeoutError):
             await queue.put({'type': 'error', 'message': '云端响应超时或连接中断，请稍后重试。'})
         except (ValueError, KeyError, TypeError):
             await queue.put({'type': 'error', 'message': '云端返回格式异常，请联系管理员。'})
         finally:
+            waiting_reporter.reset(reporter_token)
             queue.put_nowait(None)
 
     worker = asyncio.create_task(produce())
@@ -339,13 +408,15 @@ async def stream_events(cfg, question, heartbeat_interval=3):
                 continue
             if event is None:
                 return
+            observe_sse(event)
             yield {**event, 'elapsed_seconds': int(time.monotonic() - started)}
             if event['type'] in ('done', 'error'):
                 return
     finally:
         worker.cancel()
-        with suppress(asyncio.CancelledError):
-            await worker
+        with anyio.CancelScope(shield=True):
+            with suppress(asyncio.CancelledError):
+                await worker
 
 
 @router.get('/status')
@@ -385,7 +456,7 @@ async def chat(question: KnowledgeQuestion, user: User = Depends(require_knowled
         cfg = settings()
         if question.session_id:
             from company_memory import scope_of
-            saved_scope, saved_ids = scope_of(user, cfg['index_id'], question.session_id)
+            saved_scope, saved_ids = await asyncio.to_thread(scope_of, user, cfg['index_id'], question.session_id)
             if saved_scope != question.scope or set(saved_ids) != set(question.document_ids):
                 raise HTTPException(409, '资料范围已变化，请开始新的研究对话。')
             question = question.model_copy(update={'scope': saved_scope, 'document_ids': saved_ids, 'history': []})
@@ -393,21 +464,22 @@ async def chat(question: KnowledgeQuestion, user: User = Depends(require_knowled
         from company_workspace import prepare_scope, my_projects
         cfg['allowed_documents'] = await prepare_scope(cfg, user, question.document_ids, question.scope)
         if question.scope in ('my-projects', 'my-experience'):
-            cfg['project_portfolio'] = my_projects(user, question.scope)
+            cfg['project_portfolio'] = await asyncio.to_thread(my_projects, user, question.scope)
         if question.session_id:
             from company_memory import begin_turn
             from uuid import uuid4
             question = question.model_copy(update={'request_id': question.request_id or uuid4().hex})
-            token, plan, dependencies = begin_turn(user, cfg, question.session_id, question.request_id, question.message)
+            token, plan, dependencies = await asyncio.to_thread(begin_turn, user, cfg, question.session_id, question.request_id, question.message)
             cfg['_conversation'] = (user, cfg, question, token, plan, dependencies)
     except KnowledgeError as exc:
         raise HTTPException(exc.status_code, str(exc)) from None
 
     async def stream():
-        async for event in stream_events(cfg, question):
-            yield 'data: ' + json.dumps(event, ensure_ascii=False) + '\n\n'
+        async with aclosing(stream_events(cfg, question)) as events:
+            async for event in events:
+                yield 'data: ' + json.dumps(event, ensure_ascii=False) + '\n\n'
 
-    return StreamingResponse(stream(), media_type='text/event-stream',
+    return KnowledgeStreamingResponse(stream(), media_type='text/event-stream',
                              headers={'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no'})
 
 

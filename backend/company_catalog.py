@@ -10,6 +10,22 @@ from database import Base
 from research_store import ResearchObjectStore
 
 
+def locked_scalar(db, query):
+    """A competing edit must not block the HTTP event loop or exhaust its pool."""
+    from fastapi import HTTPException
+    from sqlalchemy.exc import DBAPIError, TimeoutError
+    try:
+        return db.scalar(query.with_for_update(nowait=True))
+    except DBAPIError as exc:
+        if getattr(exc.orig, 'pgcode', None) != '55P03':
+            raise
+        db.rollback()
+        raise HTTPException(409, '此项目或资料正在被其他操作更新，请稍后重试。') from None
+    except TimeoutError:
+        db.rollback()
+        raise HTTPException(503, '资料服务暂时繁忙，请稍后重试。', headers={'Retry-After': '2'}) from None
+
+
 class CompanyDocument(Base):
     __tablename__ = 'company_documents'
     __table_args__ = (

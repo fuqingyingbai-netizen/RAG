@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 
 import company_knowledge as kb
 from company_catalog import (CompanyDocument, CompanyProject, CompanyFolder, can_read, can_manage,
-                             backfill_company_projects, media_kind, classification_allowed)
+                             backfill_company_projects, media_kind, classification_allowed, locked_scalar)
 from company_workspace import CATEGORIES, validate_acl, validate_tags, validate_confidentiality, schedule_document
 from database import SessionLocal
 from models import User
@@ -31,7 +31,8 @@ def clean_name(value):
 
 
 def find_project(db, project_id, user, manage=False):
-    project = db.scalar(select(CompanyProject).where(CompanyProject.id == project_id).with_for_update())
+    query = select(CompanyProject).where(CompanyProject.id == project_id)
+    project = locked_scalar(db, query) if manage else db.scalar(query)
     if not project or project.index_id != kb.settings()['index_id'] or not can_read(project, user):
         raise HTTPException(404, '项目不存在或没有访问权限。')
     if manage and not can_manage(project, user):
@@ -127,7 +128,6 @@ def commit(db):
 @projects_router.get('/projects')
 def list_projects(user: User = Depends(kb.require_knowledge_user)):
     with SessionLocal() as db:
-        backfill_company_projects(db.get_bind())
         projects = list(db.scalars(select(CompanyProject).where(
             CompanyProject.index_id == kb.settings()['index_id']).order_by(CompanyProject.updated_at.desc())))
         docs = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == kb.settings()['index_id'],

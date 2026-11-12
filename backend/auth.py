@@ -128,6 +128,15 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
+def get_knowledge_current_user(request: Request, token: str = Depends(oauth2_scheme)) -> User:
+    # Knowledge routes open their own transactions; authentication must not pin
+    # a second connection for the lifetime of a model stream or file transfer.
+    with SessionLocal() as db:
+        user = get_current_user(request, token, db)
+        db.expunge(user)
+        return user
+
+
 def validate_new_password(password: str) -> None:
     if not 8 <= len(password) <= 128 or password != password.strip():
         raise HTTPException(400, "密码须为8至128位，且首尾不能有空白")
