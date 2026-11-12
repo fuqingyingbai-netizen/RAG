@@ -90,6 +90,19 @@ def test_identical_commit_produces_identical_package(source_repo, tmp_path):
         release.build_release(source_repo, 'HEAD', tmp_path / 'first')
 
 
+def test_historical_server_snapshots_stay_in_git_but_out_of_runtime(source_repo, tmp_path):
+    root = source_repo/'deploy/server-snapshots/20261106'
+    root.mkdir(parents=True)
+    for name in ('README.md', 'manifest.json', 'runtime-overlay.zip'):
+        (root/name).write_bytes(b'synthetic historical recovery archive')
+    git(source_repo, 'add', '.')
+    git(source_repo, 'commit', '-m', 'Retain historical recovery snapshot')
+    package, manifest = release.build_release(source_repo, 'HEAD', tmp_path/'out')
+    assert not any(name.startswith('deploy/server-snapshots/') for name in members(package))
+    assert not any(row['path'].startswith('deploy/server-snapshots/') for row in manifest['files'])
+    assert (root/'runtime-overlay.zip').is_file()
+
+
 def test_local_export_attributes_cannot_change_committed_files(source_repo, tmp_path):
     attributes = source_repo / '.git/info/attributes'
     attributes.write_text('backend/app.py export-ignore\n', encoding='utf-8')
@@ -99,6 +112,7 @@ def test_local_export_attributes_cannot_change_committed_files(source_repo, tmp_
 
 @pytest.mark.parametrize('name,content', [
     ('backend/key.pem', 'synthetic private data'),
+    ('deploy/unreviewed.zip', 'synthetic unreviewed runtime archive'),
     ('backend/credential.py', 'API_KEY = "unit-test-hardcoded-token-value"\n'),
     ('frontend/key.txt', '-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n'),
     ('backend/connection.py', 'DATABASE_URL = "postgresql://user:unit-test-private-pass-123@localhost/test"\n'),

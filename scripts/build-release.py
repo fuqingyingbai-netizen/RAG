@@ -93,6 +93,9 @@ def build_release(repo, ref, output_dir):
             continue
         metadata, raw_name = record.split(b'\t', 1)
         name = raw_name.decode('utf-8')
+        # Historical recovery archives are retained in Git, never runtime payloads.
+        if PurePosixPath(name).parts[:2] == ('deploy', 'server-snapshots'):
+            continue
         mode, kind, object_id = metadata.decode().split()
         if allowed(name):
             if kind != 'blob' or mode not in {'100644', '100755'}:
