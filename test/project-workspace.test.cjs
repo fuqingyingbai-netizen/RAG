@@ -9,19 +9,21 @@ function context(){
   const app={component(){return this;},use(){return this;},mount(){}};
   const sandbox={Vue:{createApp(value){definition=value;return app;}},ElementPlus:{ElMessage:Object.fromEntries(['error','success','warning','info'].map(k=>[k,text=>notices.push([k,text])])),ElMessageBox:{confirm:async()=>{}}},AccountManagement:{},PersonalHome:{},CompanyKnowledge:{},ReportVersions:{},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},Date,AbortController,setTimeout,clearTimeout,TextDecoder,setInterval(){return 1;},clearInterval(){}};
   vm.createContext(sandbox);
+  sandbox.crypto=require('node:crypto').webcrypto;
   for(const file of ['project-workspace.js','script.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../frontend',file),'utf8'),sandbox);
   const state=definition.data();for(const [k,f]of Object.entries(definition.methods))state[k]=f.bind(state);
   for(const [k,f]of Object.entries(definition.computed))Object.defineProperty(state,k,{get:()=>f.call(state)});
   state.currentUser={id:7,username:'analyst',role:'user'};state.token='account-7';state.$nextTick=async cb=>cb?.();state.$refs={};
-  return {state,storage,notices};
+  return {state,storage,notices,watch:definition.watch};
 }
 
 test('business categories use persisted research_type while legacy single-target projects remain available',()=>{
   const {state}=context();state.activeView='tasks';
   state.projects=[{id:1,target_type:'person',status:'draft'},{id:2,target_type:'industry',status:'draft'},{id:3,target_type:'company',status:'draft'}];
   state.workspaceIntakes[3]={research_type:'AI公司尽调'};
-  assert.deepEqual(state.projects.map(p=>state.projectFamily(p)),['background','research','ai']);
-  state.workspaceFamily='background';assert.equal(state.filteredProjects.length,1);
+  assert.deepEqual(state.projects.map(p=>state.projectFamily(p)),['background','background','ai']);
+  assert.equal(state.projectBusinessType(state.projects[0]),'BDD项目');assert.equal(state.projectBusinessType(state.projects[1]),'CDD项目');
+  state.workspaceFamily='background';assert.equal(state.filteredProjects.length,2);
   state.workspaceFamily='ai';assert.equal(state.filteredProjects[0].id,3);
   state.workspaceTypeFilter='VC项目';assert.equal(state.filteredProjects.length,0);
   state.resetTaskFilters();assert.equal(state.workspaceFamily,'ai');assert.equal(state.workspaceTypeFilter,'');
@@ -42,11 +44,11 @@ test('a late metadata response cannot populate the next account',async()=>{
 });
 
 test('one primary business type and multiple focus areas create exactly one server project through the existing endpoint',async()=>{
-  const {state}=context();state.openProjectCreate('background');Object.assign(state.form,{projectName:'背景调查',companyName:'目标公司',ddType:'VC项目',focusAreas:['创始人背景','高管背景'],keyQuestions:'核对公开任职经历'});
+  const {state}=context();state.openProjectCreate('background');Object.assign(state.form,{projectName:'背景调查',companyName:'目标公司',ddType:'BDD项目',focusAreas:['创始人背景','高管背景'],keyQuestions:'核对公开任职经历'});
   let payload,calls=0;const project={id:9,title:'背景调查',target_name:'目标公司',target_type:'company',status:'draft'};
   state.authFetch=async(url,options)=>{assert.equal(url,'/research/projects');assert.equal(options.method,'POST');payload=JSON.parse(options.body);calls++;return {ok:true,json:async()=>project};};
   state.switchView=()=>{state.taskCreateOpen=false;};state.loadProjects=async()=>{};
-  await state.submitTask();assert.equal(calls,1);assert.equal(payload.target_name,'目标公司');assert.equal(payload.target_type,'company');assert.equal(payload.metadata.research_type,'VC项目');
+  await state.submitTask();assert.equal(calls,1);assert.equal(payload.target_name,'目标公司');assert.equal(payload.target_type,'company');assert.equal(payload.metadata.research_type,'BDD项目');
   assert.deepEqual(payload.metadata.focus_questions,['核对公开任职经历','重点模块：创始人背景','重点模块：高管背景']);assert.ok(!('tasks' in payload));assert.ok(!('targets' in payload));
 });
 
@@ -64,4 +66,37 @@ test('project details expand on the unified list and category navigation does no
   state.$refs.taskTable={toggleRowExpansion(p,value){assert.equal(p.id,1);expanded=value;}};state.loadProjectDetail=async()=>({});
   await state.viewProject(state.projects[0]);assert.equal(expanded,true);
   state.loadProjects=async()=>{};state.refreshVisibleTaskProgress=()=>{};state.switchView('research');assert.equal(state.activeView,'tasks');assert.equal(state.workspaceFamily,'research');
+});
+
+test('business type constrains new reports and unsupported or forged combinations cannot submit a server project',async()=>{
+  const {state,notices}=context();state.openProjectCreate('background');
+  assert.deepEqual(Array.from(state.formReportOptions,r=>r.value),['company','person']);
+  state.form.ddType='CDD项目';state.syncFormReport();assert.equal(state.form.targetType,'industry');assert.equal(state.formReportOptions.length,1);assert.equal(state.formFocusOptions.length,0);
+  state.authFetch=()=>{throw Error('Unexpected write');};
+  Object.assign(state.form,{projectName:'错误组合',companyName:'行业',ddType:'BDD项目',targetType:'industry'});
+  await state.submitTask();assert.ok(notices.some(([,text])=>text.includes('适用的报告类型')));
+  state.changeFormFamily('research');state.form.workspaceFamily='research';assert.equal(state.form.targetType,'industry');
+  state.form.ddType='BDD项目';await state.submitTask();assert.ok(notices.some(([,text])=>text.includes('项目分类下的业务类型')));
+});
+
+test('CA, VC and post-investment save only browser drafts and stay in their own category after reload',async()=>{
+  const {state}=context();state.authFetch=()=>{throw Error('Unexpected server write');};state.switchView=()=>{};
+  for(const type of ['CA项目','VC项目','投后项目']){
+    state.openProjectCreate('background');Object.assign(state.form,{projectName:type,companyName:'某公司',ddType:type});
+    assert.equal(state.executionAvailable,false);await state.submitTask();assert.equal(state.workspaceFamily,'background');
+  }
+  state.loadLocalProjectDrafts();assert.equal(state.workspaceDrafts.length,3);
+  state.workspaceFamily='ai';assert.equal(state.workspaceDrafts.length,0);
+  state.workspaceFamily='all';assert.equal(state.workspaceDrafts.length,3);
+  state.workspaceTypeFilter='VC项目';assert.equal(state.workspaceDrafts.length,1);
+});
+
+test('business filters link report choices, clear incompatible selections and retain previously saved combinations',()=>{
+  const {state,watch}=context();state.activeView='tasks';state.workspaceFamily='background';state.projects=[{id:1,target_type:'industry'},{id:2,target_type:'company'}];
+  state.workspaceIntakes[1]={research_type:'BDD项目'};state.workspaceIntakes[2]={research_type:'BDD项目'};
+  state.workspaceTypeFilter='BDD项目';assert.ok(state.workspaceReportOptions.some(r=>r.value==='industry'));assert.match(state.projectReportLabel(state.projects[0]),/历史组合/);
+  state.taskTargetFilter='person';state.workspaceTypeFilter='CDD项目';watch.workspaceTypeFilter.call(state);assert.equal(state.taskTargetFilter,'');
+  assert.deepEqual(Array.from(state.workspaceReportOptions,r=>r.value),['industry']);
+  state.workspaceTypeFilter='BDD项目';state.taskTargetFilter='industry';assert.equal(state.filteredProjects[0].id,1);
+  state.workspaceIntakes[1]={research_type:'行业研究'};assert.equal(state.projectFamily(state.projects[0]),'research');
 });
