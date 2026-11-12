@@ -80,6 +80,8 @@ class Trace:
         self.active = True
         self.lock = threading.Lock()
         self.stats = {'sql_calls': 0, 'sql_errors': 0, 'sql_execution_ms': 0,
+                      'db_checkouts': 0, 'db_connection_hold_ms': 0, 'db_max_connection_hold_ms': 0,
+                      'admission_wait_ms': 0, 'admission_rejections': 0,
                       'commits_confirmed': 0, 'rollbacks_confirmed': 0,
                       'upstream_calls': 0, 'upstream_errors': 0, 'model_retry_attempts': 0,
                       'upstream_statuses': {}, 'upstream_error_types': {},
@@ -122,14 +124,47 @@ def observe_sse(event):
     if not trace or not trace.active:
         return
     kind = event.get('type')
+    if kind == 'answer_delta' and event.get('text'):
+        with trace.lock:
+            first = 'first_answer_delta_ms' not in trace.stats
+            if first:
+                trace.stats['first_answer_delta_ms'] = round((time.perf_counter()-trace.started)*1000, 3)
+        if first:
+            trace.event('first_answer_delta')
     if kind in ('done', 'error'):
         with trace.lock:
             trace.stats['sse_' + kind + '_generated'] = True
         trace.event('sse', kind=kind)
     elif kind == 'progress':
         stage = event.get('stage', '')
-        if stage in {'connecting', 'retrieving', 'organizing', 'answering', 'citations', 'memory', 'saving'}:
+        if stage in {'connecting', 'queued', 'context', 'retrieving', 'organizing', 'answering', 'citations', 'memory', 'saving'}:
             trace.event('stage', stage=stage)
+
+
+def observe_capacity(kind, outcome, wait_ms):
+    trace = _current.get()
+    if trace and trace.active:
+        with trace.lock:
+            trace.stats['admission_wait_ms'] += round(wait_ms, 3)
+            trace.stats['admission_rejections'] += int(outcome == 'rejected')
+        trace.event('admission', kind=kind, outcome=outcome, wait_ms=round(wait_ms, 3))
+
+
+@contextmanager
+def span(operation):
+    started = time.perf_counter()
+    try:
+        yield
+    finally:
+        trace = _current.get()
+        if trace and trace.active:
+            trace.event('application', operation=operation, scope_ms=round((time.perf_counter()-started)*1000, 3))
+
+
+def model_content(response):
+    observation = response.extensions.get('knowledge_observation')
+    if observation is not None and 'first_content_ms' not in observation:
+        observation['first_content_ms'] = round((time.perf_counter()-response.extensions['knowledge_started'])*1000, 3)
 
 
 def observe_checkpoint(state):
@@ -214,9 +249,28 @@ def instrument_engine(engine):
     event.listen(engine, 'before_cursor_execute', before_sql)
     event.listen(engine, 'after_cursor_execute', after_sql)
     event.listen(engine, 'handle_error', failed_sql)
+    event.listen(engine, 'checkout', checkout)
+    event.listen(engine, 'checkin', checkin)
     if not event.contains(Session, 'after_commit', committed):
         event.listen(Session, 'after_commit', committed)
         event.listen(Session, 'after_rollback', rolled_back)
+
+
+def checkout(connection, record, proxy):
+    trace = _current.get()
+    record.info['knowledge_hold'] = (trace, time.perf_counter())
+    if trace and trace.active:
+        with trace.lock:
+            trace.stats['db_checkouts'] += 1
+
+
+def checkin(connection, record):
+    trace, started = record.info.pop('knowledge_hold', (None, 0))
+    if trace and trace.active:
+        duration = round((time.perf_counter()-started)*1000, 3)
+        with trace.lock:
+            trace.stats['db_connection_hold_ms'] += duration
+            trace.stats['db_max_connection_hold_ms'] = max(trace.stats['db_max_connection_hold_ms'], duration)
 
 
 def before_sql(connection, cursor, statement, parameters, context, many):

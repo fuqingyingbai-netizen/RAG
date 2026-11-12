@@ -1,10 +1,13 @@
 """Account-isolated research conversations; historical answers are never evidence."""
 import asyncio
+import anyio
 import hashlib
 import json
 import re
 from datetime import datetime, timedelta
 from uuid import uuid4
+from functools import partial
+from contextlib import aclosing
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -16,6 +19,7 @@ from company_collections import in_scope, is_personal, collection_of_scope
 from company_catalog import CompanyDocument, can_read, is_owner
 from database import Base
 import company_chat_task as task_memory
+from company_observability import span, model_content
 
 CONTEXT_CHARS = 12000
 SUMMARY_CHARS = 3000
@@ -190,6 +194,10 @@ async def create_conversation(body: NewConversation, user=Depends(kb.require_kno
     from company_workspace import prepare_scope
     cfg = kb.settings()
     cfg['allowed_documents'] = await prepare_scope(cfg, user, body.document_ids, body.scope)
+    return await asyncio.to_thread(save_conversation, body, user, cfg)
+
+
+def save_conversation(body, user, cfg):
     with factory()() as db:
         state = state_for(db, user, cfg['index_id'])
         thread = KnowledgeChatThread(id=uuid4().hex, user_id=user.id, index_id=cfg['index_id'],
@@ -293,6 +301,7 @@ async def complete(cfg, instruction, data, max_tokens=1800, *, json_output=False
                     {'role': 'system', 'content': instruction},
                     {'role': 'user', 'content': json.dumps(data, ensure_ascii=False)}]}) as response:
                 await response.aread()
+                model_content(response)
                 return str(response.json()['choices'][0]['message']['content']).strip()
 
 
@@ -457,15 +466,17 @@ async def conversation_stream(user, cfg, question, token, plan, dependencies):
     deps = dict(dependencies)
     try:
         yield {'type': 'session', 'session_id': question.session_id}
-        context = await prepare_context(cfg, plan)
+        with span('prepare_context'):
+            context = await prepare_context(cfg, plan)
         deps.update(context['dependencies'])
         descriptions = {'recent': '已恢复当前研究上下文；回答仍需重新检索。', 'reset': '资料或权限发生变化，已排除失效历史。',
             'compressed': '较早对话已压缩为任务摘要，原始消息仍保留。', 'compressed_partial': '已整理任务摘要，当前仅参考部分历史。',
             'deferred': '记忆整理暂未完成，当前仅参考部分历史；原始消息仍保留。'}
         yield {'type': 'memory', 'status': context['status'], 'message': descriptions[context['status']]}
         try:
-            query = await retrieval_question(cfg, question.message, context)
-        except kb.KnowledgeError:
+            with span('followup_rewrite'):
+                query = await retrieval_question(cfg, question.message, context)
+        except (kb.KnowledgeError, kb.CapacityBusy):
             # An unresolved switch must not silently revive the previous subject.
             context['task_update'] = {**context.get('task', task_memory.fresh(question.message)),
                 'unresolved_question': question.message, 'needs_clarification': True, 'rewrite_failed': True}
@@ -475,7 +486,7 @@ async def conversation_stream(user, cfg, question, token, plan, dependencies):
         if cfg.get('_task_update'):
             context['task_update'] = cfg['_task_update']
             context['task'] = cfg['_task_update']
-        if not still_allowed(user, cfg, deps):
+        if not await asyncio.to_thread(still_allowed, user, cfg, deps):
             raise kb.KnowledgeError('资料或权限已变化，请刷新并重新选择资料。', 409)
         if query is None:
             answer = '未能确认这次追问的具体对象，请补充公司、项目或文件名称后再试。'
@@ -486,18 +497,19 @@ async def conversation_stream(user, cfg, question, token, plan, dependencies):
             if query != question.message:
                 yield {'type': 'progress', 'stage': 'context', 'label': '已补全追问', 'detail': '本轮检索问题：' + query, 'finished': True}
             from company_workspace import grounded_answer
-            async for event in grounded_answer(cfg, question):
-                if event['type'] in ('citations', 'answer_delta', 'done') and not still_allowed(user, cfg, deps):
-                    yield {'type': 'redacted', 'message': HIDDEN}
-                    raise kb.KnowledgeError('资料或权限已变化，本轮内容已隐藏，请重新选择资料。', 409)
-                if event['type'] == 'answer_delta':
-                    answer += event['text']
-                elif event['type'] == 'citations':
-                    refs = event['citations']
-                elif event['type'] == 'done':
-                    continue
-                yield event
-        message_id = finish_turn(user, cfg, question.session_id, token, question.request_id,
+            async with aclosing(grounded_answer(cfg, question)) as events:
+                async for event in events:
+                    if event['type'] in ('citations', 'answer_delta', 'done') and not await asyncio.to_thread(still_allowed, user, cfg, deps):
+                        yield {'type': 'redacted', 'message': HIDDEN}
+                        raise kb.KnowledgeError('资料或权限已变化，本轮内容已隐藏，请重新选择资料。', 409)
+                    if event['type'] == 'answer_delta':
+                        answer += event['text']
+                    elif event['type'] == 'citations':
+                        refs = event['citations']
+                    elif event['type'] == 'done':
+                        continue
+                    yield event
+        message_id = await asyncio.to_thread(finish_turn, user, cfg, question.session_id, token, question.request_id,
                            answer, refs, context, deps, True)
         if not message_id:
             raise kb.KnowledgeError('该研究对话已删除或本次回答已失效。', 409)
@@ -506,5 +518,8 @@ async def conversation_stream(user, cfg, question, token, plan, dependencies):
         yield {'type': 'done', 'usage': {}}
     finally:
         if not completed:
-            finish_turn(user, cfg, question.session_id, token, question.request_id,
-                        answer, refs, context, deps, False)
+            # Starlette cancels the entire stream scope on disconnect. Protect
+            # the short cleanup transaction so its lease cannot remain busy.
+            with anyio.CancelScope(shield=True):
+                await anyio.to_thread.run_sync(partial(finish_turn, user, cfg, question.session_id, token,
+                    question.request_id, answer, refs, context, deps, False))

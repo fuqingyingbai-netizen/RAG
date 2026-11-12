@@ -156,23 +156,27 @@ async def sync_catalog(cfg, force=False):
             page += 1
             if page > 100:
                 raise kb.KnowledgeError('资料数量过多，请管理员拆分知识库后重试。')
-        with SessionLocal() as db:
-            known = {doc.cloud_id: doc for doc in db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == cfg['index_id'])) if doc.cloud_id}
-            for item in cloud:
-                if item['id'] in known:
-                    continue
-                tags = item.get('tags') or []
-                if 'company-workspace' in tags or any(tag.startswith('ckdoc-') for tag in tags):
-                    # Never reclassify a managed restricted file as a public legacy
-                    # file when a concurrent registration/catalogue write races.
-                    continue
-                doc = CompanyDocument(id=uuid.uuid4().hex, index_id=cfg['index_id'], cloud_id=item['id'],
-                    title=item['title'], format=item['format'], size=item['size'] or 0, category='项目原件',
-                    project='历史资料', visibility='members',
-                    state='ready' if item['status'] == 'FINISH' else 'failed',
-                    status_message='历史云端资料' if item['status'] == 'FINISH' else '请在云端检查原始任务')
-                db.add(doc)
-            db.commit()
+        def import_catalogue():
+            with SessionLocal() as db:
+                known = {doc.cloud_id: doc for doc in db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == cfg['index_id'])) if doc.cloud_id}
+                for item in cloud:
+                    if item['id'] in known:
+                        continue
+                    tags = item.get('tags') or []
+                    if 'company-workspace' in tags or any(tag.startswith('ckdoc-') for tag in tags):
+                        # Never reclassify a managed restricted file as a public legacy
+                        # file when a concurrent registration/catalogue write races.
+                        continue
+                    doc = CompanyDocument(id=uuid.uuid4().hex, index_id=cfg['index_id'], cloud_id=item['id'],
+                        title=item['title'], format=item['format'], size=item['size'] or 0, category='项目原件',
+                        project='历史资料', visibility='members',
+                        state='ready' if item['status'] == 'FINISH' else 'failed',
+                        status_message='历史云端资料' if item['status'] == 'FINISH' else '请在云端检查原始任务')
+                    db.add(doc)
+                db.commit()
+                bind = db.get_bind()
+            backfill_company_projects(bind)
+        await asyncio.to_thread(import_catalogue)
         last_sync[cfg['index_id']] = time.monotonic()
 
 
@@ -198,11 +202,16 @@ async def prepare_scope(cfg, user, requested, scope='accessible'):
     cfg['knowledge_scope'] = scope
     if not requested:
         await sync_catalog(cfg)
-    with SessionLocal() as migration_db:
-        backfill_company_projects(migration_db.get_bind())
+    return await asyncio.to_thread(select_scope, cfg, user, requested, scope)
+
+
+def select_scope(cfg, user, requested, scope):
     with SessionLocal() as db:
-        docs = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == cfg['index_id'],
-                                                            CompanyDocument.state != 'deleted')))
+        statement = select(CompanyDocument).where(CompanyDocument.index_id == cfg['index_id'],
+                                                  CompanyDocument.state != 'deleted')
+        if requested:
+            statement = statement.where(CompanyDocument.id.in_(requested))
+        docs = list(db.scalars(statement))
         visible = {doc.id: doc for doc in docs if can_read(doc, user) and in_scope(doc, scope)
                    and (not is_personal(scope) or is_owner(doc, user))}
         if requested:
@@ -1174,6 +1183,8 @@ async def grounded_answer(cfg, question):
                 for choice in frame.get('choices', []):
                     text = (choice.get('delta') or {}).get('content')
                     if text:
+                        from company_observability import model_content
+                        model_content(response)
                         received = True
                         formatted = formatter.feed(text)
                         if formatted:

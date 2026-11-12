@@ -1,7 +1,8 @@
 """Bailian managed RAG: authenticated document listing and answer streaming."""
 
 import asyncio
-from contextlib import suppress, asynccontextmanager
+import anyio
+from contextlib import suppress, asynccontextmanager, aclosing
 import json
 import os
 import re
@@ -16,9 +17,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from auth import get_current_user
+from auth import get_knowledge_current_user as get_current_user
 from models import User
 from company_observability import phase, observe_sse
+from company_capacity import model_slots, MODEL_WAIT_SECONDS, CapacityBusy, waiting_reporter
+from sqlalchemy.exc import TimeoutError as PoolTimeout
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
 
@@ -45,6 +48,16 @@ class KnowledgeError(Exception):
     def __init__(self, message: str, status_code: int = 502):
         super().__init__(message)
         self.status_code = status_code
+
+
+class KnowledgeStreamingResponse(StreamingResponse):
+    async def __call__(self, scope, receive, send):
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            # A disconnect can interrupt ASGI send while the iterator is at yield.
+            with anyio.CancelScope(shield=True):
+                await self.body_iterator.aclose()
 
 
 def upload_category():
@@ -113,23 +126,24 @@ async def model_settings(client, cfg):
 
 
 def model_request_options(config):
-    from model_provider_options import official_deepseek
     model = str(config['model']).lower().rsplit('/', 1)[-1]
     # GLM-5.3 models require thinking; Qwen's enable_thinking is not portable.
     if model.startswith('glm-5.3-flash'):
         return {'reasoning_effort': 'low'}
     if model.startswith('glm-5.3'):
         return {}
+    if model in ('glm-5.2', 'glm-4.7-flash'):
+        return {'thinking': {'type': 'disabled'}}
+    from model_provider_options import official_deepseek
     # These GLM models use thinking.type; enable_thinking is a Qwen extension.
-    return ({'thinking': {'type': 'disabled'}} if model in ('glm-5.2', 'glm-4.7-flash')
-            or official_deepseek(config['model'], config['base_url'])
+    return ({'thinking': {'type': 'disabled'}} if official_deepseek(config['model'], config['base_url'])
             else {'enable_thinking': False})
 
 
 @asynccontextmanager
 async def model_response(client, config, payload):
     """Retry a rejected transient request once, before exposing any answer bytes."""
-    async with asyncio.timeout(180):
+    async with asyncio.timeout(180), model_slots.slot('model', wait=MODEL_WAIT_SECONDS):
         for attempt in range(2):
             with phase('model_stream' if payload.get('stream') else 'model_complete', attempt=attempt+1) as observation:
                 started = time.perf_counter()
@@ -141,6 +155,8 @@ async def model_response(client, config, payload):
                     if response.status_code not in {502, 503, 504} or attempt:
                         if response.status_code != 200:
                             raise provider_error(response.status_code, provider=config['provider'])
+                        response.extensions['knowledge_observation'] = observation
+                        response.extensions['knowledge_started'] = started
                         yield response
                         return
             await asyncio.sleep(0.5)
@@ -308,14 +324,14 @@ class KnowledgeQuestion(BaseModel):
 async def cloud_answer(cfg, question):
     if cfg.get('_conversation'):
         from company_memory import conversation_stream
-        async with asyncio.timeout(330):
-            async for event in conversation_stream(*cfg['_conversation']):
+        async with asyncio.timeout(330), aclosing(conversation_stream(*cfg['_conversation'])) as events:
+            async for event in events:
                 yield event
         return
     if 'allowed_documents' in cfg:
         from company_workspace import grounded_answer
-        async with asyncio.timeout(240):
-            async for event in grounded_answer(cfg, question):
+        async with asyncio.timeout(240), aclosing(grounded_answer(cfg, question)) as events:
+            async for event in events:
                 yield event
         return
     payload = {'input': {'messages': [m.model_dump() for m in question.history] +
@@ -353,16 +369,21 @@ async def stream_events(cfg, question, heartbeat_interval=3):
     queue = asyncio.Queue()
 
     async def produce():
+        reporter_token = waiting_reporter.set(queue.put)
         try:
-            async for event in cloud_answer(cfg, question):
-                await queue.put(event)
+            async with aclosing(cloud_answer(cfg, question)) as events:
+                async for event in events:
+                    await queue.put(event)
         except KnowledgeError as exc:
-            await queue.put({'type': 'error', 'message': str(exc)})
+            await queue.put({'type': 'error', 'message': str(exc), 'status_code': exc.status_code})
+        except (CapacityBusy, PoolTimeout):
+            await queue.put({'type': 'error', 'message': '服务当前繁忙，请稍后重试。', 'status_code': 503, 'retry_after': 2})
         except (httpx.HTTPError, TimeoutError):
             await queue.put({'type': 'error', 'message': '云端响应超时或连接中断，请稍后重试。'})
         except (ValueError, KeyError, TypeError):
             await queue.put({'type': 'error', 'message': '云端返回格式异常，请联系管理员。'})
         finally:
+            waiting_reporter.reset(reporter_token)
             queue.put_nowait(None)
 
     worker = asyncio.create_task(produce())
@@ -383,8 +404,9 @@ async def stream_events(cfg, question, heartbeat_interval=3):
                 return
     finally:
         worker.cancel()
-        with suppress(asyncio.CancelledError):
-            await worker
+        with anyio.CancelScope(shield=True):
+            with suppress(asyncio.CancelledError):
+                await worker
 
 
 @router.get('/status')
@@ -424,7 +446,7 @@ async def chat(question: KnowledgeQuestion, user: User = Depends(require_knowled
         cfg = settings()
         if question.session_id:
             from company_memory import scope_of
-            saved_scope, saved_ids = scope_of(user, cfg['index_id'], question.session_id)
+            saved_scope, saved_ids = await asyncio.to_thread(scope_of, user, cfg['index_id'], question.session_id)
             if saved_scope != question.scope or set(saved_ids) != set(question.document_ids):
                 raise HTTPException(409, '资料范围已变化，请开始新的研究对话。')
             question = question.model_copy(update={'scope': saved_scope, 'document_ids': saved_ids, 'history': []})
@@ -432,21 +454,22 @@ async def chat(question: KnowledgeQuestion, user: User = Depends(require_knowled
         from company_workspace import prepare_scope, my_projects
         cfg['allowed_documents'] = await prepare_scope(cfg, user, question.document_ids, question.scope)
         if question.scope in ('my-projects', 'my-experience'):
-            cfg['project_portfolio'] = my_projects(user, question.scope)
+            cfg['project_portfolio'] = await asyncio.to_thread(my_projects, user, question.scope)
         if question.session_id:
             from company_memory import begin_turn
             from uuid import uuid4
             question = question.model_copy(update={'request_id': question.request_id or uuid4().hex})
-            token, plan, dependencies = begin_turn(user, cfg, question.session_id, question.request_id, question.message)
+            token, plan, dependencies = await asyncio.to_thread(begin_turn, user, cfg, question.session_id, question.request_id, question.message)
             cfg['_conversation'] = (user, cfg, question, token, plan, dependencies)
     except KnowledgeError as exc:
         raise HTTPException(exc.status_code, str(exc)) from None
 
     async def stream():
-        async for event in stream_events(cfg, question):
-            yield 'data: ' + json.dumps(event, ensure_ascii=False) + '\n\n'
+        async with aclosing(stream_events(cfg, question)) as events:
+            async for event in events:
+                yield 'data: ' + json.dumps(event, ensure_ascii=False) + '\n\n'
 
-    return StreamingResponse(stream(), media_type='text/event-stream',
+    return KnowledgeStreamingResponse(stream(), media_type='text/event-stream',
                              headers={'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no'})
 
 

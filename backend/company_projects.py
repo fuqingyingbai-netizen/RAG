@@ -128,7 +128,6 @@ def commit(db):
 @projects_router.get('/projects')
 def list_projects(user: User = Depends(kb.require_knowledge_user)):
     with SessionLocal() as db:
-        backfill_company_projects(db.get_bind())
         projects = list(db.scalars(select(CompanyProject).where(
             CompanyProject.index_id == kb.settings()['index_id']).order_by(CompanyProject.updated_at.desc())))
         docs = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == kb.settings()['index_id'],

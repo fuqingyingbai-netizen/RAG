@@ -318,10 +318,11 @@ def test_upstream_retries_and_business_errors_are_recorded_without_secrets(logs)
             obs._current.reset(token)
     asyncio.run(run())
     events = records(logs, 'detail')
-    assert [r['http_status'] for r in events] == [503, 200, 200]
-    assert [r['attempt'] for r in events[:2]] == [1, 2]
-    assert all(r['response_headers_ms'] >= 0 for r in events[:2])
-    assert events[-1]['error_type'] == 'KnowledgeError'
+    upstream = [r for r in events if r['event'] == 'upstream']
+    assert [r['http_status'] for r in upstream] == [503, 200, 200]
+    assert [r['attempt'] for r in upstream[:2]] == [1, 2]
+    assert all(r['response_headers_ms'] >= 0 for r in upstream[:2])
+    assert upstream[-1]['error_type'] == 'KnowledgeError'
     assert 'SECRET' not in json.dumps(events)
 
 
