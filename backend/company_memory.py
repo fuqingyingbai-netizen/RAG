@@ -286,15 +286,14 @@ async def complete(cfg, instruction, data, max_tokens=1800, *, json_output=False
     async with asyncio.timeout(90):
         async with kb.httpx.AsyncClient(timeout=85, trust_env=False) as client:
             config = await kb.model_settings(client, cfg)
-            response = await client.post(config['base_url'] + '/chat/completions',
-                headers=kb.headers(config), json={'model': config['model'], 'stream': False, **kb.model_request_options(config),
+            async with kb.model_response(client, config,
+                {'model': config['model'], 'stream': False, **kb.model_request_options(config),
                 **({'response_format': {'type': 'json_object'}} if json_output else {}),
                 'temperature': 0, 'max_tokens': max_tokens, 'messages': [
                     {'role': 'system', 'content': instruction},
-                    {'role': 'user', 'content': json.dumps(data, ensure_ascii=False)}]})
-            if response.status_code != 200:
-                raise kb.provider_error(response.status_code, provider=config['provider'])
-            return str(response.json()['choices'][0]['message']['content']).strip()
+                    {'role': 'user', 'content': json.dumps(data, ensure_ascii=False)}]}) as response:
+                await response.aread()
+                return str(response.json()['choices'][0]['message']['content']).strip()
 
 
 async def prepare_context(cfg, plan):

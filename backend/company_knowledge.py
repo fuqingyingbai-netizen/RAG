@@ -1,7 +1,7 @@
 """Bailian managed RAG: authenticated document listing and answer streaming."""
 
 import asyncio
-from contextlib import suppress
+from contextlib import suppress, asynccontextmanager
 import json
 import os
 import re
@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from auth import get_current_user
 from models import User
+from company_observability import phase, observe_sse
 
 load_dotenv(Path(__file__).resolve().parents[1] / '.env')
 
@@ -28,7 +29,16 @@ class KnowledgeValidationError(BaseModel):
 
 
 router = APIRouter(prefix='/company-knowledge', tags=['Company knowledge'],
-                  responses={422: {'model': KnowledgeValidationError}})
+                  responses={status: {'model': KnowledgeValidationError, 'description': description}
+                      for status, description in {
+                          400: '请求格式无效', 401: '未登录或登录已失效', 403: '没有执行此操作的权限',
+                          404: '资源不存在或不可访问', 409: '资料状态冲突，请刷新或稍后重试',
+                          410: '播放缓存已过期，请重新打开资料',
+                          413: '上传文件或请求体超过限制', 416: '请求的播放范围无效',
+                          422: '请求参数或业务校验失败',
+                          429: '请求过于频繁，请稍后重试', 502: '上游服务响应异常',
+                          503: '服务暂时繁忙或配置不可用，请稍后重试',
+                      }.items()})
 
 
 class KnowledgeError(Exception):
@@ -48,14 +58,16 @@ def oss_upload_url(value):
 
 
 async def cloud_rpc(client, cfg, path, payload=None, *, method='POST', params=None):
-    response = await client.request(method, cfg['base_url'] + path, headers=headers(cfg), json=payload, params=params)
-    if response.status_code != 200:
-        raise provider_error(response.status_code)
-    result = response.json()
-    if (result.get('success') is False or str(result.get('code', '')).lower() not in ('success', '200', '')
-            or str(result.get('status_code', result.get('status', '200'))).upper() not in ('200', 'SUCCESS')):
-        raise KnowledgeError('云端操作未成功，请检查服务权限或文件格式后重试。')
-    return result.get('data') or {}
+    with phase(path.rsplit('/', 1)[-1]) as observation:
+        response = await client.request(method, cfg['base_url'] + path, headers=headers(cfg), json=payload, params=params)
+        observation['http_status'] = response.status_code
+        if response.status_code != 200:
+            raise provider_error(response.status_code)
+        result = response.json()
+        if (result.get('success') is False or str(result.get('code', '')).lower() not in ('success', '200', '')
+                or str(result.get('status_code', result.get('status', '200'))).upper() not in ('200', 'SUCCESS')):
+            raise KnowledgeError('云端操作未成功，请检查服务权限或文件格式后重试。')
+        return result.get('data') or {}
 
 
 def settings():
@@ -114,6 +126,26 @@ def model_request_options(config):
             else {'enable_thinking': False})
 
 
+@asynccontextmanager
+async def model_response(client, config, payload):
+    """Retry a rejected transient request once, before exposing any answer bytes."""
+    async with asyncio.timeout(180):
+        for attempt in range(2):
+            with phase('model_stream' if payload.get('stream') else 'model_complete', attempt=attempt+1) as observation:
+                started = time.perf_counter()
+                async with client.stream('POST', config['base_url'] + '/chat/completions',
+                        headers=headers(config), json=payload,
+                        timeout=httpx.Timeout(120 if payload.get('stream') else 85, connect=20)) as response:
+                    observation['http_status'] = response.status_code
+                    observation['response_headers_ms'] = round((time.perf_counter()-started)*1000, 3)
+                    if response.status_code not in {502, 503, 504} or attempt:
+                        if response.status_code != 200:
+                            raise provider_error(response.status_code, provider=config['provider'])
+                        yield response
+                        return
+            await asyncio.sleep(0.5)
+
+
 def has_access(user: User) -> bool:
     # Membership grants entry; document classification is checked separately.
     # Ignore legacy opt-in flags for both existing and newly registered accounts.
@@ -142,14 +174,16 @@ def provider_error(status: int, *, provider: str = '百炼') -> KnowledgeError:
 
 async def list_cloud_documents(cfg, page_number=1, page_size=100):
     async with httpx.AsyncClient(timeout=30, trust_env=False) as client:
-        response = await client.get(cfg['base_url'] + '/api/v1/indices/rag/index/files',
-                                    headers=headers(cfg), params={'index_id': cfg['index_id'],
-                                    'page_number': page_number, 'page_size': page_size})
-        if response.status_code != 200:
-            raise provider_error(response.status_code)
-        data = response.json()
-        if data.get('success') is False or str(data.get('code', '')).lower() not in ('success', '200', ''):
-            raise KnowledgeError('云端文档列表查询失败，请核对知识库配置。')
+        with phase('list_documents') as observation:
+            response = await client.get(cfg['base_url'] + '/api/v1/indices/rag/index/files',
+                                        headers=headers(cfg), params={'index_id': cfg['index_id'],
+                                        'page_number': page_number, 'page_size': page_size})
+            observation['http_status'] = response.status_code
+            if response.status_code != 200:
+                raise provider_error(response.status_code)
+            data = response.json()
+            if data.get('success') is False or str(data.get('code', '')).lower() not in ('success', '200', ''):
+                raise KnowledgeError('云端文档列表查询失败，请核对知识库配置。')
         result = data.get('data', {})
         return {'documents': [{
             'id': row['doc_id'], 'title': row.get('doc_name', ''),
@@ -290,22 +324,26 @@ async def cloud_answer(cfg, question):
     answer_received = False
     async with asyncio.timeout(240):
         async with httpx.AsyncClient(timeout=httpx.Timeout(120, connect=20), trust_env=False) as client:
-            async with client.stream('POST', cfg['base_url'] + '/api/v2/apps/knowledge/chat',
-                                     headers={**headers(cfg), 'Accept': 'text/event-stream'}, json=payload) as response:
-                if response.status_code != 200:
-                    raise provider_error(response.status_code)
-                if 'text/event-stream' not in response.headers.get('content-type', ''):
-                    raise KnowledgeError('百炼未返回有效的流式回答。')
-                async for frame in sse_frames(response.aiter_lines()):
-                    for event in frame_events(frame):
-                        if event['type'] == 'answer_delta':
-                            answer_received = True
-                        if event['type'] == 'done':
-                            if not answer_received:
-                                raise KnowledgeError('云端未生成回答，请稍后重试。')
+            with phase('cloud_chat') as observation:
+                started = time.perf_counter()
+                async with client.stream('POST', cfg['base_url'] + '/api/v2/apps/knowledge/chat',
+                                         headers={**headers(cfg), 'Accept': 'text/event-stream'}, json=payload) as response:
+                    observation['http_status'] = response.status_code
+                    observation['response_headers_ms'] = round((time.perf_counter()-started)*1000, 3)
+                    if response.status_code != 200:
+                        raise provider_error(response.status_code)
+                    if 'text/event-stream' not in response.headers.get('content-type', ''):
+                        raise KnowledgeError('百炼未返回有效的流式回答。')
+                    async for frame in sse_frames(response.aiter_lines()):
+                        for event in frame_events(frame):
+                            if event['type'] == 'answer_delta':
+                                answer_received = True
+                            if event['type'] == 'done':
+                                if not answer_received:
+                                    raise KnowledgeError('云端未生成回答，请稍后重试。')
+                                yield event
+                                return
                             yield event
-                            return
-                        yield event
     raise KnowledgeError('云端回答中断，请重新提问。')
 
 
@@ -339,6 +377,7 @@ async def stream_events(cfg, question, heartbeat_interval=3):
                 continue
             if event is None:
                 return
+            observe_sse(event)
             yield {**event, 'elapsed_seconds': int(time.monotonic() - started)}
             if event['type'] in ('done', 'error'):
                 return

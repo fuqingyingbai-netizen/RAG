@@ -25,7 +25,7 @@ import company_knowledge as kb
 from company_catalog import (AUDIO_FORMATS, VIDEO_FORMATS, CONFIDENTIALITY_LABELS, CompanyAccessRequest,
                              CompanyDocument, CompanyProject, can_manage, can_read, document_store, backfill_company_projects,
                              ensure_company_schema, is_owner, media_kind, serialize, classification_allowed,
-                             normalize_confidentiality, shared_experience, effective_acl)
+                             normalize_confidentiality, shared_experience, effective_acl, locked_scalar)
 from database import SessionLocal
 from models import User
 from company_audit import record, snapshot, mark_modified, history
@@ -60,8 +60,8 @@ pdf_render_lock = threading.Lock()
 def find_doc(db, doc_id, user, manage=False):
     existing = db.get(CompanyDocument, doc_id) if manage else None
     if existing and existing.knowledge_project_id:
-        db.scalar(select(CompanyProject).where(CompanyProject.id == existing.knowledge_project_id).with_for_update())
-    doc = (db.scalar(select(CompanyDocument).where(CompanyDocument.id == doc_id).with_for_update())
+        locked_scalar(db, select(CompanyProject).where(CompanyProject.id == existing.knowledge_project_id))
+    doc = (locked_scalar(db, select(CompanyDocument).where(CompanyDocument.id == doc_id))
            if manage else db.get(CompanyDocument, doc_id))
     if not doc or doc.index_id != kb.settings()['index_id'] or doc.state == 'deleted' or not can_read(doc, user):
         raise HTTPException(404, '资料不存在或没有访问权限。')
@@ -400,63 +400,89 @@ async def upload(request: Request, file: UploadFile = File(...), project: str = 
     digest = hashlib.sha256(payload).hexdigest()
     if folder_id and not project_id:
         raise HTTPException(422, '请先选择所属项目。')
-    with SessionLocal() as db:
-        owner, owner_id = user.username, getattr(user, 'id', None)
-        if project_id:
-            from company_projects import find_project, find_folder
-            directory = find_project(db, project_id, user, manage=True)
-            department = directory.department
-            find_folder(db, directory.id, folder_id)
-            owner, owner_id = directory.owner, directory.owner_user_id
-            project, industry, category, review = directory.name, directory.industry, directory.category, directory.review
-            confidentiality, visibility, acl = directory.confidentiality, directory.visibility, list(directory.readers or [])
-            if shared_experience(directory):
-                confidentiality, visibility, acl = 'internal', 'members', []
-            labels = list(directory.tags or [])
-            mark_modified(directory, user)
-        # PostgreSQL serializes uploads from one user so concurrent submissions
-        # cannot allocate the same version. Unique indexes are the second guard.
-        db.execute(select(User).where(User.username == user.username).with_for_update())
-        previous = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == cfg['index_id'],
-            CompanyDocument.owner == owner, CompanyDocument.title == title,
-            CompanyDocument.knowledge_project_id == project_id, CompanyDocument.folder_id == folder_id,
-            CompanyDocument.project == project.strip())))
-        if not project_id and category not in EXPERIENCE_CATEGORIES and department_supplied and not department and not previous:
-            raise HTTPException(422, '请选择所属部门／栏目。')
-        duplicate = next((doc for doc in previous if doc.sha256 == digest and doc.state != 'deleted'), None)
-        if duplicate:
-            raise HTTPException(409, '相同内容已上传，请在资料列表查看原任务；如处理失败可点击重试。')
-        doc = CompanyDocument(id=uuid.uuid4().hex, index_id=cfg['index_id'], title=title,
-            format=extension.upper(), size=len(payload), sha256=digest, owner=owner,
-            uploaded_by=user.username, uploaded_by_user_id=getattr(user, 'id', None), modified_by=user.username,
-            owner_user_id=owner_id, knowledge_project_id=project_id, folder_id=folder_id, inherits_project=int(bool(project_id)), is_root=int(root), confidentiality=confidentiality,
-            project=project.strip(), industry=industry.strip(), department=department, category=category, review=review,
-            tags=labels, description=description.strip(),
-            visibility=visibility, readers=acl, version=max((row.version for row in previous), default=0) + 1,
-            state='archived' if extension in MEDIA_FORMATS and not description.strip() else 'queued',
-            status_message='音视频已归档，可播放与下载；补充文字说明后可检索说明' if extension in MEDIA_FORMATS and not description.strip() else '原件已保存，等待上传与解析',
-            object_key='originals/' + uuid.uuid4().hex + '.' + extension,
-            parser='DOCMIND' if extension in ('pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png') else 'AUTO_SELECT')
-        await asyncio.to_thread(document_store().put_bytes, doc.object_key, payload,
-                                mimetypes.guess_type(title)[0] or 'application/octet-stream')
+    # Store the bytes before taking project/user locks; all DB work stays in one worker.
+    key = 'originals/' + uuid.uuid4().hex + '.' + extension
+
+    def persist():
+        nonlocal owner, owner_id, project, industry, category, review, department, confidentiality, visibility, acl, labels
+        document_store().put_bytes(key, payload, mimetypes.guess_type(title)[0] or 'application/octet-stream')
+        with SessionLocal() as db:
+            owner, owner_id = user.username, getattr(user, 'id', None)
+            if project_id:
+                from company_projects import find_project, find_folder
+                directory = find_project(db, project_id, user, manage=True)
+                department = directory.department
+                find_folder(db, directory.id, folder_id)
+                owner, owner_id = directory.owner, directory.owner_user_id
+                project, industry, category, review = directory.name, directory.industry, directory.category, directory.review
+                confidentiality, visibility, acl = directory.confidentiality, directory.visibility, list(directory.readers or [])
+                if shared_experience(directory):
+                    confidentiality, visibility, acl = 'internal', 'members', []
+                labels = list(directory.tags or [])
+                mark_modified(directory, user)
+            # PostgreSQL serializes uploads from one user so concurrent submissions
+            # cannot allocate the same version. Unique indexes are the second guard.
+            locked_scalar(db, select(User).where(User.username == user.username))
+            previous = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == cfg['index_id'],
+                CompanyDocument.owner == owner, CompanyDocument.title == title,
+                CompanyDocument.knowledge_project_id == project_id, CompanyDocument.folder_id == folder_id,
+                CompanyDocument.project == project.strip())))
+            if not project_id and category not in EXPERIENCE_CATEGORIES and department_supplied and not department and not previous:
+                raise HTTPException(422, '请选择所属部门／栏目。')
+            duplicate = next((doc for doc in previous if doc.sha256 == digest and doc.state != 'deleted'), None)
+            if duplicate:
+                raise HTTPException(409, '相同内容已上传，请在资料列表查看原任务；如处理失败可点击重试。')
+            doc = CompanyDocument(id=uuid.uuid4().hex, index_id=cfg['index_id'], title=title,
+                format=extension.upper(), size=len(payload), sha256=digest, owner=owner,
+                uploaded_by=user.username, uploaded_by_user_id=getattr(user, 'id', None), modified_by=user.username,
+                owner_user_id=owner_id, knowledge_project_id=project_id, folder_id=folder_id, inherits_project=int(bool(project_id)), is_root=int(root), confidentiality=confidentiality,
+                project=project.strip(), industry=industry.strip(), department=department, category=category, review=review,
+                tags=labels, description=description.strip(),
+                visibility=visibility, readers=acl, version=max((row.version for row in previous), default=0) + 1,
+                state='archived' if extension in MEDIA_FORMATS and not description.strip() else 'queued',
+                status_message='音视频已归档，可播放与下载；补充文字说明后可检索说明' if extension in MEDIA_FORMATS and not description.strip() else '原件已保存，等待上传与解析',
+                object_key=key,
+                parser='DOCMIND' if extension in ('pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png') else 'AUTO_SELECT')
+            try:
+                db.add(doc)
+                record(db, user, 'document.upload', doc)
+                db.commit()
+            except IntegrityError:
+                db.rollback()
+                raise HTTPException(409, '同名资料正在被其他请求更新，请刷新后重试。') from None
+            result = serialize(doc, user)
+            return result
+
+    # Cancellation cannot strand a worker that later commits a file we already deleted.
+    owner, owner_id = user.username, getattr(user, 'id', None)
+    pending = asyncio.create_task(asyncio.to_thread(persist))
+    def discard_uncommitted():
+        # A lost commit acknowledgement must never delete a referenced original.
+        with SessionLocal() as db:
+            if not db.scalar(select(CompanyDocument.id).where(CompanyDocument.object_key == key)):
+                document_store().delete_object(key)
+    try:
+        result = await asyncio.shield(pending)
+    except asyncio.CancelledError:
         try:
-            db.add(doc)
-            record(db, user, 'document.upload', doc)
-            db.commit()
-        except IntegrityError:
-            db.rollback()
-            await asyncio.to_thread(document_store().delete_object, doc.object_key)
-            raise HTTPException(409, '同名资料正在被其他请求更新，请刷新后重试。') from None
+            result = await pending
         except Exception:
-            await asyncio.to_thread(document_store().delete_object, doc.object_key)
-            raise
-        result = serialize(doc, user)
-    if doc.state == 'queued':
-        schedule_document(doc.id)
+            with suppress(Exception):
+                await asyncio.to_thread(discard_uncommitted)
+        else:
+            if result['state'] == 'queued':
+                schedule_document(result['id'])
+        raise
+    except Exception:
+        with suppress(Exception):
+            await asyncio.to_thread(discard_uncommitted)
+        raise
+    if result['state'] == 'queued':
+        schedule_document(result['id'])
     if extension in MEDIA_FORMATS:
         from types import SimpleNamespace
         with suppress(Exception):
-            company_media.playback_job(SimpleNamespace(object_key=doc.object_key, sha256=doc.sha256, format=doc.format))
+            company_media.playback_job(SimpleNamespace(object_key=key, sha256=digest, format=extension.upper()))
     return result
 
 
@@ -466,7 +492,7 @@ async def restore_original(doc_id: str, file: UploadFile = File(...), confirmati
     """Attach an explicitly selected source, then rebuild its index to avoid stale evidence."""
     with SessionLocal() as db:
         doc = find_doc(db, doc_id, user, manage=True)
-        if doc.object_key:
+        if doc.object_key and document_store().exists(doc.object_key):
             raise HTTPException(409, '原件已存在，请使用正常上传流程保留新版本。')
         if confirmation != doc.id:
             raise HTTPException(422, '补传确认与当前资料不匹配。')
@@ -487,7 +513,7 @@ async def restore_original(doc_id: str, file: UploadFile = File(...), confirmati
     try:
         with SessionLocal() as db:
             doc = find_doc(db, doc_id, user, manage=True)
-            if doc.object_key:
+            if doc.object_key and document_store().exists(doc.object_key):
                 raise HTTPException(409, '其他窗口已补齐原件，请刷新后查看。')
             if doc.state in ('queued', 'uploading', 'parsing', 'indexing', 'deleting'):
                 raise HTTPException(409, '资料仍在处理，请等待完成后补传。')
@@ -825,6 +851,10 @@ async def original(doc_id: str, request: Request, download: bool = False,
             result, mime, filename = await asyncio.to_thread(export_copy, data, fmt, title, identity, update)
         else:
             result, mime, filename = await asyncio.to_thread(export_copy, data, fmt, title, identity)
+    except FileNotFoundError:
+        if update: update('failed')
+        raise HTTPException(404, '归档原件已缺失，请联系资料管理者补传。',
+                            headers={'X-Preview-Error': 'original_missing'}) from None
     except WatermarkError as error:
         if update: update('failed')
         with SessionLocal() as db:
@@ -879,7 +909,9 @@ async def stream_media(doc_id: str, request: Request):
 
 
 @workspace_router.get('/documents/{doc_id}/preview')
-async def preview(doc_id: str, page: int = Query(1, ge=1), user: User = Depends(kb.require_knowledge_user)):
+async def preview(doc_id: str, response: Response, page: int = Query(1, ge=1), user: User = Depends(kb.require_knowledge_user)):
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['Vary'] = 'Authorization, Cookie'
     with SessionLocal() as db:
         doc = find_doc(db, doc_id, user)
         cloud_id, title = doc.cloud_id, doc.title
@@ -1069,8 +1101,6 @@ async def grounded_answer(cfg, question):
             return
         config = await kb.model_settings(client, cfg)
         model = config['model']
-        answer_url = config['base_url'] + '/chat/completions'
-        answer_headers = kb.headers(config)
         evidence_items = []
         for ref in refs:
             focus, offset = excerpt(ref['text'], retrieval_query, 600)
@@ -1133,12 +1163,9 @@ async def grounded_answer(cfg, question):
         received, ended, answer_parts = False, False, []
         from company_citations import CitationFormatter
         formatter = CitationFormatter(ref['id'] for ref in refs)
-        async with client.stream('POST', answer_url,
-            headers=answer_headers, json={'model': model, 'messages': messages, 'stream': True,
-                **kb.model_request_options(config), 'stream_options': {'include_usage': True}},
-            timeout=kb.httpx.Timeout(120, connect=20)) as response:
-            if response.status_code != 200:
-                raise kb.provider_error(response.status_code, provider=config['provider'])
+        async with kb.model_response(client, config,
+            {'model': model, 'messages': messages, 'stream': True,
+             **kb.model_request_options(config), 'stream_options': {'include_usage': True}}) as response:
             usage = {}
             async for frame in kb.sse_frames(response.aiter_lines()):
                 if frame.get('error'):

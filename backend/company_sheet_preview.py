@@ -29,6 +29,10 @@ def sheet_info(key, digest):
     data = document_store().get_bytes(key)
     book = workbook(data)
     try:
+        # Streaming writers may omit dimension; calculate it without loading all cells.
+        for sheet in book.worksheets:
+            if sheet.max_row is None or sheet.max_column is None:
+                sheet.calculate_dimension(force=True)
         sheets = [{'name': s.title, 'rows': s.max_row or 0, 'columns': s.max_column or 0,
                    'hidden': s.sheet_state != 'visible'} for s in book.worksheets]
         large = any(s['rows'] > 10000 or s['columns'] > 256 or s['rows'] * s['columns'] > 200000 for s in sheets)

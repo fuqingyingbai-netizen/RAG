@@ -150,6 +150,39 @@ test('a selection response arriving after category navigation cannot steal focus
 test('a removed source folder falls back to its project when returning',async()=>{
  const{state:s}=fixture();s.openDirectory(s.projectDirectories[0],'g');s.askSelection();s.projectFolders=[];await s.returnToBrowse();assert.equal(s.activeProjectId,'p');assert.equal(s.activeFolderId,'');
 });
+
+test('return after refresh waits for initial catalogue before restoring location and selection',async()=>{
+ const{state:s}=fixture();
+ s.openDirectory(s.projectDirectories[0],'g');s.selectedIds=['a'];s.askSelection();
+ s.returnLocation.view.libraryPage=2;
+ const projects=s.projectDirectories,folders=s.projectFolders,docs=s.cloudDocuments;
+ s.projectDirectories=[];s.projectFolders=[];s.cloudDocuments=[];s.mode='chat';s.libraryPage=1;
+ let release;s.initialCatalogueLoad=new Promise(resolve=>release=resolve);
+ const pending=s.returnToBrowse();await Promise.resolve();
+ assert.equal(s.restoringView,true);assert.equal(s.mode,'chat');
+ s.projectDirectories=projects;s.projectFolders=folders;
+ s.cloudDocuments=[...docs,...Array.from({length:11},(_,i)=>({...docs[0],id:'extra-'+i}))];
+ release();await pending;
+ assert.equal(s.activeProjectId,'p');assert.equal(s.activeFolderId,'g');assert.equal(s.libraryPage,2);
+ assert.deepEqual(Array.from(s.selectedIds),['a']);assert.equal(s.restoringView,false);
+});
+
+test('failed initial catalogue keeps the saved return context for retry',async()=>{
+ const{state:s,notices}=fixture();s.openDirectory(s.projectDirectories[0],'g');s.askSelection();
+ const origin=s.returnLocation;s.projectDirectories=[];s.cloudDocuments=[];s.projectError='network failure';
+ s.initialCatalogueLoad=Promise.resolve();await s.returnToBrowse();
+ assert.equal(s.mode,'chat');assert.equal(s.returnLocation,origin);assert.equal(s.restoringView,false);
+ assert.ok(notices.some(text=>text.includes('尚未加载完成')));
+});
+
+test('late initial conversation snapshot finishes before restoring checked files',async()=>{
+ const{state:s}=fixture();s.openDirectory(s.projectDirectories[0],'g');s.selectedIds=['a'];s.askSelection();
+ let release;s.initialCatalogueLoad=Promise.resolve();
+ s.initialWorkspaceLoad=new Promise(resolve=>release=()=>{s.applyChatSnapshot({document_ids:[],sessions:[],messages:[]});resolve();});
+ const pending=s.returnToBrowse();await Promise.resolve();
+ assert.equal(s.mode,'chat');release();await pending;
+ assert.equal(s.mode,'library');assert.deepEqual(Array.from(s.selectedIds),['a']);
+});
 test('revoked evidence is retained as an invalid explicit scope instead of becoming an all-library question',async()=>{
  const{state:s}=fixture();s.mode='chat';s.selectedIds=['a'];s.loadProjectDirectories=async()=>{};s.loadNotes=()=>{};
  s.apiFetch=async()=>({ok:true,json:async()=>({documents:[],total_count:0})});await s.loadDocuments();

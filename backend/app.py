@@ -22,6 +22,7 @@ from runtime_version import create_version_router
 from account_lifecycle import invitation_cleanup_loop
 from personal_home import create_home_router
 from http_delivery import ResearchReadCompression, RequestBodyLimit
+from company_observability import KnowledgeHTTPMiddleware, instrument_engine
 
 BASE_DIR = BACKEND_DIR.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -79,6 +80,10 @@ def create_app() -> FastAPI:
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
         return response
+
+    app.add_middleware(KnowledgeHTTPMiddleware)
+    from database import engine
+    instrument_engine(engine)
 
     app.include_router(api_module.router)
     app.include_router(research_api_module.router)
