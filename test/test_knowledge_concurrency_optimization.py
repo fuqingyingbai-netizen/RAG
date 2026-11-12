@@ -322,3 +322,38 @@ def test_failed_asgi_send_explicitly_closes_the_suspended_body_iterator():
             await response({'type': 'http', 'asgi': {'spec_version': '2.4'}}, receive, send)
         assert closed
     asyncio.run(run())
+
+
+def test_uploads_have_bounded_waiting_without_holding_up_browsing(monkeypatch):
+    async def run():
+        gate = capacity.Capacity(3, queue=7)
+        monkeypatch.setattr(capacity, 'upload_slots', gate)
+        app = FastAPI()
+        app.add_middleware(capacity.KnowledgeCapacityMiddleware)
+        active, maximum = 0, 0
+        release = asyncio.Event()
+        @app.post('/company-knowledge/uploads', status_code=202)
+        async def upload():
+            nonlocal active, maximum
+            active += 1
+            maximum = max(maximum, active)
+            try:
+                await release.wait()
+                await asyncio.sleep(.03)
+                return {'saved': True}
+            finally:
+                active -= 1
+        @app.get('/company-knowledge/projects')
+        def browse():
+            return {'projects': []}
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://test') as client:
+            calls = [asyncio.create_task(client.post('/company-knowledge/uploads')) for _ in range(10)]
+            await asyncio.sleep(.05)
+            assert gate.active == 3 and gate.waiting == 7
+            assert (await client.post('/company-knowledge/uploads')).status_code == 503
+            assert (await client.get('/company-knowledge/projects')).status_code == 200
+            release.set()
+            responses = await asyncio.gather(*calls)
+        assert all(response.status_code == 202 for response in responses)
+        assert maximum == 3 and gate.active == gate.waiting == 0
+    asyncio.run(run())

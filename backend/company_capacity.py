@@ -72,7 +72,7 @@ class Capacity:
 # shortcut: limits are per process; sum them across workers before increasing --workers.
 model_slots = Capacity(int(os.getenv('COMPANY_KNOWLEDGE_MODEL_CONCURRENCY', '3')), queue=7)
 chat_slots = Capacity(10)
-upload_slots = Capacity(3)
+upload_slots = Capacity(3, queue=7)
 MODEL_WAIT_SECONDS = float(os.getenv('COMPANY_KNOWLEDGE_MODEL_WAIT_SECONDS', '10'))
 if model_slots.limit < 1 or not 0 < MODEL_WAIT_SECONDS <= 60:
     raise ValueError('Invalid knowledge model admission configuration')
@@ -100,7 +100,7 @@ class KnowledgeCapacityMiddleware:
                 gate, kind = upload_slots, 'upload'
         try:
             if gate:
-                async with gate.slot(kind):
+                async with gate.slot(kind, wait=5 if kind == 'upload' else 0):
                     await self.app(scope, receive, delivered)
             else:
                 await self.app(scope, receive, delivered)
