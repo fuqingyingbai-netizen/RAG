@@ -151,7 +151,7 @@ class ResearchObjectStore:
             return
         path = self._local_path(safe_prefix)
         if path.is_dir():
-            shutil.rmtree(path)
+            shutil.rmtree(path, ignore_errors=True)
 
 
 research_store = ResearchObjectStore()
