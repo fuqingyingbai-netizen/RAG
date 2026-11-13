@@ -52,6 +52,10 @@ def test_new_version_latest_only_history_and_download_name_normalization(setup):
     assert first['display_title']=='evidence_V1.txt' and second['display_title']=='evidence_V2.txt'
     third=upload(setup,root='true',name='evidence_V2.txt',payload=b'third').json()
     assert third['title']=='evidence.txt' and third['version']==3
+    from company_file_operations import upload_family
+    with setup.db() as db:
+        canonical, versions = upload_family(db,'test-index','alice','','','','evidence_V2_水印副本.txt')
+        assert canonical=='evidence.txt' and len(versions)==3
     listing=setup.client.get('/company-knowledge/documents').json()['documents']
     assert [row['id'] for row in listing]==[third['id']]
     history=setup.client.get('/company-knowledge/documents/'+third['id']+'/versions').json()['versions']

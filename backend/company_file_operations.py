@@ -73,7 +73,7 @@ def upload_family(db, index_id, owner, project_id, folder_id, project, title):
         CompanyDocument.owner == owner, CompanyDocument.knowledge_project_id == project_id,
         CompanyDocument.folder_id == folder_id, CompanyDocument.project == project)
     rows = list(db.scalars(query.where(CompanyDocument.title == title)))
-    match = re.fullmatch(r'(.+)_V([1-9]\d*)(\.[^.]+)', title)
+    match = re.fullmatch(r'(.+)_V([1-9]\d*)(?:_水印副本)?(\.[^.]+)', title)
     if not rows and match:
         base = match[1] + match[3]
         candidates = list(db.scalars(query.where(CompanyDocument.title == base)))
