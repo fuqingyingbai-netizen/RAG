@@ -1,0 +1,8 @@
+{
+  "status": "passed",
+  "command": "python -m pytest test/test_company_file_delete.py test/test_company_recycle.py test/test_company_file_clipboard.py test/test_company_workspace.py::test_delete_removes_only_selected_cloud_index_and_hides_original -q --tb=short",
+  "passed": 36,
+  "warnings": 333,
+  "elapsed_seconds": 160.61,
+  "warnings_kind": "existing UTC datetime and FastAPI startup/shutdown deprecations"
+}

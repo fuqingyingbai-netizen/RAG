@@ -1,0 +1,37 @@
+{
+  "status": "passed",
+  "source_commit": "723e673b9c32685de41a001bb88e52191b7ac5ac",
+  "backend_acceptance_commit": "a52915e1d6093e8b79edaee8f29943502c571919",
+  "backend_unchanged_in_final_frontend_patch": true,
+  "backend_unique_tests": 45,
+  "frontend_tests": 109,
+  "backend_derived_count": "18 final deletion cases + 23 existing file/recycle/workspace cases + 4 project/folder cases",
+  "postgresql_checks": "prepared.json: 10 grouped checks on isolated restored production database; no upstream traffic",
+  "real_file_delete_restore_and_shared_original": "live-verification.json: passed",
+  "final_release_proof": "final-live-setup.json: public asset hashes, full release manifest, process cwd, configuration and backup checksums verified",
+  "poll_browser": {
+    "status": "passed",
+    "read_only": true,
+    "refresh_seconds": 12.08,
+    "total_documents": 864,
+    "requested_pages": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "one_refresh_batch_without_poll_requeue": true,
+    "page_errors": [],
+    "unexpected_writes": []
+  },
+  "external_observation": "One synthetic cloud job returned PARSE_FAILED; failed copy deletion passed. A different ready copy restored and reindexed successfully. Cloud parsing stability is not claimed fixed.",
+  "not_tested": [
+    "production high-concurrency load",
+    "Ragas/answer-model quality"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "source_commit": "723e673b9c32685de41a001bb88e52191b7ac5ac",
+  "release": "/opt/supermew/releases/723e673b9c32685de41a001bb88e52191b7ac5ac",
+  "backup": "/opt/supermew/backups/knowledge-release-20261113T140344Z",
+  "backup_checksums_verified": true,
+  "configuration_unchanged": true,
+  "model": "qwen3.7-plus",
+  "answer_model_called": false,
+  "checks": [
+    "public version, loaded process, full release manifest and served hashed JS/CSS match; anonymous denied"
+  ],
+  "public_instance": "9dada068-c15e-4034-989e-cf5444f49c83"
+}

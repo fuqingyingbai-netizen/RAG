@@ -1,0 +1,25 @@
+{
+  "synthetic_document_id": "4f4f3321e3c14b80bff284cd2d1747c3",
+  "status": "PARSE_FAILED",
+  "code": "PARSE_FAILED",
+  "returned_fields": [
+    "canDelete",
+    "categoryId",
+    "categoryName",
+    "code",
+    "connectorId",
+    "dataSync",
+    "doc_id",
+    "doc_name",
+    "doc_type",
+    "gmt_modified",
+    "ingestion_id",
+    "message",
+    "meta_extract_info",
+    "size",
+    "source_id",
+    "status",
+    "tags"
+  ],
+  "observation": "real provider parsing/index job failed; not a delete endpoint error"
+}

@@ -1,0 +1,26 @@
+{
+  "status": "passed",
+  "source_commit": "a52915e1d6093e8b79edaee8f29943502c571919",
+  "public_instance": "c852946a-2b54-445b-be39-af1dfbd66075",
+  "service": "active",
+  "release_manifest_and_public_assets_match": true,
+  "configuration_unchanged": true,
+  "retention_days": 10,
+  "duplicate_delete_one_active_recycle_record": true,
+  "shared_original_and_source_index_preserved": true,
+  "real_provider_indexes_distinct": true,
+  "restored_copy_reindexed_with_new_cloud_id": true,
+  "delete_restored_copy_and_retry": true,
+  "synthetic_project_recycled": true,
+  "browser_checks": [
+    "normal public UI: cancel sends no DELETE; confirm ready pasted file deletes successfully",
+    "confirmed file disappears with success notice",
+    "normal post-delete manual refresh completes and deleted row stays absent",
+    "repeated DELETE succeeds; deleted original denied; shared source original readable",
+    "390px directory rendering without page errors",
+    "earlier suspended-response run verified deleting busy state and disappearance before catalogue GET completed; failed-index copy also deleted"
+  ],
+  "backup": "/opt/supermew/backups/knowledge-release-20261113T134248Z",
+  "backup_scope": "database-and-config",
+  "answer_model_called": false
+}

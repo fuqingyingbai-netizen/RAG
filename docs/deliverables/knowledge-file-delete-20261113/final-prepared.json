@@ -1,0 +1,15 @@
+{
+  "status": "prepared",
+  "candidate": "/opt/supermew/releases/723e673b9c32685de41a001bb88e52191b7ac5ac",
+  "base_release": "/opt/supermew/releases/a52915e1d6093e8b79edaee8f29943502c571919",
+  "unrelated_files_preserved": 496,
+  "preflight": {
+    "status": "passed",
+    "kind": "frontend-only overlay",
+    "backend_byte_identical": true,
+    "backend_acceptance_commit": "a52915e1d6093e8b79edaee8f29943502c571919",
+    "frontend_tests": 109,
+    "backend_preflight_reused_from": "/opt/supermew/releases/a52915e1d6093e8b79edaee8f29943502c571919"
+  },
+  "format_artifacts": "/opt/supermew/verification/file-delete-723e673b9c32"
+}

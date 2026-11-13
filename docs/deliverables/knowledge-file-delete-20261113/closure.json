@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "source_commit": "723e673b9c32685de41a001bb88e52191b7ac5ac",
+  "service": "active",
+  "qa_project_recycled": true,
+  "all_synthetic_documents_deleted": 4,
+  "recovery_original_preserved": true,
+  "temporary_server_credential_file_removed": true,
+  "maintenance_gate_removed": true
+}

@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "read_only": true,
+  "refresh_seconds": 12.08,
+  "total_documents": 864,
+  "requested_pages": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "one_refresh_batch_without_poll_requeue": true,
+  "page_errors": [],
+  "unexpected_writes": []
+}

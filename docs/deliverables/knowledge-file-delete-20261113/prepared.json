@@ -1,0 +1,25 @@
+{
+  "status": "prepared",
+  "candidate": "/opt/supermew/releases/a52915e1d6093e8b79edaee8f29943502c571919",
+  "base_release": "/opt/supermew/releases/1c88c7a23bd4ad1be9c64035474b95f0825e5733",
+  "unrelated_files_preserved": 494,
+  "preflight": {
+    "status": "passed",
+    "database": "supermew_file_delete_verify_a52915e1d609",
+    "checks": [
+      "additive JSON migration twice; real PostgreSQL upload V1/V2/V3, shared duplicate and durable upload replay, newest-only list and complete history",
+      "independent queued index; concurrent same-request copy creates one record; repeat preview recovers lost response",
+      "knowledge audit admin-only deletion, rolling 10-day visibility and physical expiry; legacy receipts migrated atomically and copy replay survives both deletion paths",
+      "permissions, stale snapshot, processing exclusion and name collision; cut moves all 3 versions and replay survives changed location",
+      "explicit department-root paste changes archive while preserving restricted access",
+      "PostgreSQL transaction advisory lock rejects concurrent cleanup/reference changes; one expired copy cannot delete a shared original",
+      "queued delete cancels unclaimed ingestion; repeated DELETE is idempotent without extending retention; deleted original and foreign owner denied",
+      "cloud timeout rolls back local state; real PostgreSQL concurrent delete/edit returns retryable 409; one audit and recycle item after successful retry",
+      "six active-task boundaries preserve original; queued file can be deleted, restored and deleted again",
+      "manual local-only refresh returns cached PostgreSQL catalogue before cloud completes; repeated refresh coalesces into one background task"
+    ],
+    "upstream_calls": 0,
+    "original_store_isolated": true
+  },
+  "format_artifacts": "/opt/supermew/verification/file-delete-a52915e1d609"
+}

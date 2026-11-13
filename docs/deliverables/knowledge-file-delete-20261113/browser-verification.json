@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "checks": [
+    "normal public UI: cancel sends no DELETE; confirm ready pasted file deletes successfully",
+    "confirmed file disappears with success notice",
+    "normal post-delete manual refresh completes and deleted row stays absent",
+    "repeated DELETE succeeds; deleted original denied; shared source original readable",
+    "390px directory rendering without page errors",
+    "earlier suspended-response run verified deleting busy state and disappearance before catalogue GET completed; failed-index copy also deleted"
+  ],
+  "copy_id": "3926e323b1234fac87756de146f4076f",
+  "copy_state_at_delete": "ready",
+  "refresh_seconds": 25.91,
+  "page_errors": [],
+  "unexpected_writes": [],
+  "delete_requests": 1
+}
