@@ -53,3 +53,10 @@ test('malformed success response never removes an unconfirmed file',async()=>{
   const{state,doc,messages}=fixture();state.apiFetch=async()=>result;await state.deleteDocument(doc);assert.equal(state.cloudDocuments.length,2);assert.match(messages.at(-1),/尚未确认/);
  }
 });
+test('automatic polling skips active catalogue loading without queuing a second full refresh',()=>{
+ let poll,calls=0;
+ const component=vm.runInNewContext(fs.readFileSync('frontend/company-knowledge.js','utf8')+';CompanyKnowledge',{document:{hidden:false},setInterval:fn=>{poll=fn;return 1;}});
+ const state={canAsk:true,loading:true,pendingCount:1,installClipboardListeners(){},installProjectPreviewListeners(){},restoreTheme(){},loadService(){},$nextTick(){},loadDocuments(){calls++;},loadAccessRequests(){},loadMyProjects(){}};
+ component.mounted.call(state);poll();assert.equal(calls,0);assert.equal(state.lastCataloguePoll,undefined);
+ state.loading=false;poll();assert.equal(calls,1);assert.ok(state.lastCataloguePoll);
+});
