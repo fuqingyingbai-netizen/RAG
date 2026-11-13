@@ -106,6 +106,14 @@ def test_cut_moves_family_replay_after_lost_response_and_conflict_never_overwrit
     assert pre.status_code==409 and stored_original(setup,other['id'])==b'root file'
 
 
+def test_paste_into_department_root_changes_archive_without_granting_access(setup):
+    source=upload(setup,root='true',department='market',visibility='restricted').json();ready(setup,source)
+    response,_=transfer(setup,source,department='policy')
+    assert response.status_code==201,response.text
+    doc=response.json()['document']
+    assert doc['department']=='policy' and doc['visibility']=='restricted' and doc['is_root']
+
+
 @pytest.mark.parametrize('problem,status',[('busy',409),('note',422),('research',422),('permission',403),('library',422),('missing',409)])
 def test_copy_rejects_invalid_sources_and_destinations(setup,problem,status):
     row=upload(setup,root='true').json();ready(setup,row)

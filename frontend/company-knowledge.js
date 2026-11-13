@@ -78,7 +78,7 @@ const CompanyKnowledge = {
     };
   },
   computed: {
-    canPasteFiles() { return !!this.fileClipboard && !this.clipboardBusy && this.canAsk &&
+    canPasteFiles() { return !!this.fileClipboard && this.fileClipboard.collection===this.currentCollection && !this.clipboardBusy && this.canAsk &&
       (!this.activeProjectId || !!this.activeProject?.can_manage) && !this.directorySearchActive; },
     visibleUploadTasks() {
       return this.uploadResults.filter(item => {
@@ -284,7 +284,7 @@ const CompanyKnowledge = {
     fileRequestId() { return typeof crypto!=='undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+'-'+Math.random().toString(36).slice(2); },
     putFileClipboard(doc, action) {
       if(!this.canClipboardDocument(doc))return;
-      this.fileClipboard={id:doc.id,title:this.displayDocumentTitle(doc),action,modified_at:doc.modified_at,username:this.service.username};this.pasteRequest=null;
+      this.fileClipboard={id:doc.id,title:this.displayDocumentTitle(doc),action,modified_at:doc.modified_at,username:this.service.username,collection:this.caseCategories.includes(doc.category)?'experience':'library'};this.pasteRequest=null;
       this.closeFileContext();ElementPlus.ElMessage.info((action==='cut'?'已剪切标记':'已复制')+'，请进入目标目录后粘贴。');
     },
     clearFileClipboard() { this.fileClipboard=null;this.pasteRequest=null;this.closeFileContext(); },
@@ -325,6 +325,7 @@ const CompanyKnowledge = {
       const clipboard={...this.fileClipboard};
       if(clipboard.username!==this.service.username){this.clearFileClipboard();return;}
       const target={project_id:this.activeProjectId||'',folder_id:this.activeProjectId?(this.activeFolderId||''):''};
+      if(!this.activeProjectId && this.currentCollection==='library' && this.departmentFilter)target.department=this.departmentFilter==='unassigned'?'':this.departmentFilter;
       const destination=JSON.stringify([clipboard.id,clipboard.action,target]);
       if(this.pasteRequest?.destination!==destination)this.pasteRequest={destination,id:this.fileRequestId()};
       const action=clipboard.action==='cut'?'move':'copy',path='/company-knowledge/documents/'+encodeURIComponent(clipboard.id);

@@ -45,6 +45,7 @@ class MoveTarget(BaseModel):
     confirmation: str = Field(default='', max_length=64)
     request_id: str = Field(default='', max_length=64)
     expected_modified_at: str = Field(default='', max_length=64)
+    department: str | None = Field(default=None, max_length=30)
 
 
 def acl_label(values):
@@ -108,6 +109,9 @@ def prepare(db, doc_id, data, user, *, copying=False):
     values = (project_values(target) | dict(owner=target.owner, owner_user_id=target.owner_user_id,
                knowledge_project_id=target.id, folder_id=data.folder_id, inherits_project=1, is_root=0)
               if target else dict(project='', knowledge_project_id='', folder_id='', inherits_project=0, is_root=1))
+    if not target and data.department is not None:
+        from company_departments import validate_department
+        values['department'] = validate_department(data.department)
     if copying:
         values['title'] = copy_title(db, doc.title, doc.index_id, values.get('owner', doc.owner),
                                     data.project_id, data.folder_id, values['project'])
@@ -182,7 +186,7 @@ def transfer_receipt(doc_id, data, user, copying):
     action = 'document.copy' if copying else 'document.move'
     event_id = operation_id(user, kb.settings()['index_id'], action, data.request_id)
     fingerprint = operation_hash({'source': doc_id, 'project': data.project_id, 'folder': data.folder_id,
-                                  'snapshot': data.expected_modified_at, 'action': action})
+                                  'department': data.department, 'snapshot': data.expected_modified_at, 'action': action})
     return action, event_id, fingerprint
 
 

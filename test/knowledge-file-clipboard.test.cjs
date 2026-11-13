@@ -32,3 +32,8 @@ test('keyboard shortcuts leave text inputs and selected text untouched',()=>{
  state.fileRowKey(doc,{key:'x',ctrlKey:true,target:{closest:()=>null},preventDefault(){},stopPropagation(){}});assert.equal(count,1);
  state.pasteFile=()=>count++;state.directoryFileKey({key:'v',ctrlKey:true,target:{closest:()=>({})}});assert.equal(count,1);
 });
+test('paste cannot cross library/experience boundary or write a read-only project',()=>{
+ const{component,state}=fixture();Object.assign(state,{currentCollection:'experience',canAsk:true});
+ assert.equal(component.computed.canPasteFiles.call(state),false);
+ state.currentCollection='library';state.activeProject={can_manage:false};assert.equal(component.computed.canPasteFiles.call(state),false);
+});
