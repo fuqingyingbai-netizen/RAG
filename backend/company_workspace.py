@@ -466,7 +466,8 @@ async def upload(request: Request, file: UploadFile = File(...), project: str = 
                 if not project_id:
                     # An identical upload is a copy, not permission to publish a private original.
                     confidentiality, visibility, acl = duplicate.confidentiality, duplicate.visibility, list(duplicate.readers or [])
-                    department = duplicate.department
+                    if not department_supplied:
+                        department = duplicate.department
                 origin = dict(source_id=duplicate.id, source_version=duplicate.version, source_sha256=duplicate.sha256,
                     source_uploaded_by=duplicate.uploaded_by or duplicate.owner, source_created_at=duplicate.created_at.isoformat()+'Z',
                     copied_by=user.username, copied_at=datetime.utcnow().isoformat()+'Z')

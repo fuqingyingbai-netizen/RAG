@@ -41,6 +41,8 @@ def test_upload_duplicate_shares_bytes_private_acl_and_sequential_copy_names(set
             assert db.get(CompanyDocument,row['id']).object_key==db.get(CompanyDocument,source['id']).object_key
         replay=upload(setup,root='true',request_id='duplicate'+str(n)).json()
         assert replay['id']==row['id']
+    department_copy=upload(setup,root='true',department='policy',request_id='department-duplicate').json()
+    assert department_copy['department']=='policy' and department_copy['visibility']=='restricted'
     assert len(list(document_store().local_root.rglob('*.txt')))==1
     mismatch=upload(setup,payload=b'other',root='true',request_id='duplicate1')
     assert mismatch.status_code==409
