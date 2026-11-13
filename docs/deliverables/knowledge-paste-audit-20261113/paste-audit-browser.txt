@@ -1,0 +1,1 @@
+{"status": "passed", "checks": ["real Vue transient checking/saving row", "confirmed file visible while refresh remains pending", "indexing separate from paste success", "completed reusable clipboard", "audit 10-day notice", "cancel and confirm deletion", "mobile delete control visible"], "page_errors": [], "warnings": []}

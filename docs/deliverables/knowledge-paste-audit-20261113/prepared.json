@@ -1,0 +1,21 @@
+{
+  "status": "prepared",
+  "candidate": "/opt/supermew/releases/00e9b3cfd68a5725a02d5f27e93e45be46a1132c",
+  "base_release": "/opt/supermew/releases/bc8d59e7c2fc2ac668884aa71239518d34abd3a1",
+  "unrelated_files_preserved": 488,
+  "preflight": {
+    "status": "passed",
+    "database": "supermew_paste_audit_verify_00e9b3cfd68a",
+    "checks": [
+      "additive JSON migration twice; real PostgreSQL upload V1/V2/V3, shared duplicate and durable upload replay, newest-only list and complete history",
+      "independent queued index; concurrent same-request copy creates one record; repeat preview recovers lost response",
+      "knowledge audit admin-only deletion, rolling 10-day visibility and physical expiry; legacy receipts migrated atomically and copy replay survives both deletion paths",
+      "permissions, stale snapshot, processing exclusion and name collision; cut moves all 3 versions and replay survives changed location",
+      "explicit department-root paste changes archive while preserving restricted access",
+      "PostgreSQL transaction advisory lock rejects concurrent cleanup/reference changes; one expired copy cannot delete a shared original"
+    ],
+    "upstream_calls": 0,
+    "original_store_isolated": true
+  },
+  "format_artifacts": "/opt/supermew/verification/paste-audit-00e9b3cfd68a"
+}

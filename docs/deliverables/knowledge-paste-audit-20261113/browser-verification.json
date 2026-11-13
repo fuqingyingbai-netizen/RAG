@@ -1,0 +1,16 @@
+{
+  "status": "passed",
+  "checks": [
+    "public UI: pending checks before backend confirmation",
+    "public UI: saving stage before copy response",
+    "confirmed file and success before catalogue refresh",
+    "indexing status and reusable clipboard",
+    "10-day notice; cancel and confirm exactly one audit deletion",
+    "390px delete control visible",
+    "same request after log deletion returns same file"
+  ],
+  "copy_id": "82d9b76a787049aba93d0319554c6dd4",
+  "deleted_audit_id": "1476f48faaf41efb65c4c07a43edcd45d9c73c4f524bf0d97582ebd788d55535",
+  "page_errors": [],
+  "unexpected_writes": []
+}
