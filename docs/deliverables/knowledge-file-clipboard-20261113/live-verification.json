@@ -1,0 +1,35 @@
+{
+  "source_commit": "bc8d59e7c2fc2ac668884aa71239518d34abd3a1",
+  "release": "/opt/supermew/releases/bc8d59e7c2fc2ac668884aa71239518d34abd3a1",
+  "backup": "/opt/supermew/backups/knowledge-release-20261113T094933Z",
+  "backup_checksums_verified": true,
+  "configuration_unchanged": true,
+  "model": "qwen3.7-plus",
+  "answer_model_called": false,
+  "checks": [
+    "public version, loaded process, full release manifest and served hashed JS/CSS match; anonymous denied",
+    "duplicate root upload respects explicitly chosen department and preserves restricted access",
+    "public multipart duplicate upload, V1/V2 latest-only list, readable history, stable upload request replay; real cloud indexing ready",
+    "public copy uses independent cloud file IDs and shared original; cut moves both versions; both operations replay safely; deleting one copy preserves source preview"
+  ],
+  "public_instance": "fa947ee2-f1f7-4178-9842-6be5f2a8baec",
+  "real_cloud_indexes": 6,
+  "physical_originals": 3,
+  "synthetic_project_id": "b7372cc2d1864e20acd62092d1bbdbee",
+  "synthetic_cleanup": {
+    "project_id": "b7372cc2d1864e20acd62092d1bbdbee",
+    "status": 200,
+    "recycled": true
+  },
+  "synthetic_root_cleanup": [
+    {
+      "id": "ca77da6a2be449ab872cd9abd415bc5d",
+      "status": 200
+    },
+    {
+      "id": "2468f817034045898e8a60b159643d9a",
+      "status": 200
+    }
+  ],
+  "status": "passed"
+}

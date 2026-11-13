@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "checks": [
+    "desktop: real file context menu, copy marker, readable version history",
+    "390px: context menu remains inside viewport"
+  ],
+  "page_errors": [],
+  "write_requests": [],
+  "screenshots_private": true
+}

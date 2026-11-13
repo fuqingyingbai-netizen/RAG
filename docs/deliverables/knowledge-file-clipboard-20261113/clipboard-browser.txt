@@ -1,0 +1,1 @@
+{"status": "passed", "checks": ["actual Vue template rendering", "right-click menu", "copy without request", "paste confirmation and mutation", "Shift+F10 / Escape", "V2/V1 history", "390px context menu bounds"], "page_errors": [], "warnings": []}
