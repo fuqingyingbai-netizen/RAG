@@ -10,7 +10,7 @@ import weakref
 from fastapi import HTTPException
 from sqlalchemy import select, text
 
-from company_catalog import CompanyDocument, CompanyAuditEvent, can_manage, can_read
+from company_catalog import CompanyDocument, CompanyAuditEvent, CompanyFileReceipt, can_manage, can_read
 
 _locks = weakref.WeakValueDictionary()
 _guard = threading.Lock()
@@ -107,15 +107,20 @@ def operation_hash(payload):
 
 
 def replay(db, event_id, fingerprint, user):
-    event = db.get(CompanyAuditEvent, event_id) if event_id else None
-    if event is None:
+    if not event_id:
         return None
-    if event.actor_id != user.id or event.details.get('operation_fingerprint') != fingerprint:
+    receipt = db.get(CompanyFileReceipt, event_id)
+    event = None if receipt else db.get(CompanyAuditEvent, event_id)
+    if receipt is None and event is None:
+        return None
+    actor_id = receipt.actor_id if receipt else event.actor_id
+    expected = receipt.fingerprint if receipt else event.details.get('operation_fingerprint')
+    if actor_id != user.id or expected != fingerprint:
         raise HTTPException(409, '请求编号已用于其他操作，请重新选择文件后再试。')
-    doc = db.get(CompanyDocument, event.target_id)
+    doc = db.get(CompanyDocument, receipt.target_id if receipt else event.target_id)
     if not doc or doc.state == 'deleted' or not can_read(doc, user) or not can_manage(doc, user):
         raise HTTPException(409, '原操作已完成，但文件状态或权限已变化，请刷新目录。')
-    return doc, event.details.get('operation_result', {})
+    return doc, receipt.result if receipt else event.details.get('operation_result', {})
 
 
 def check_snapshot(doc, expected):

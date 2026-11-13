@@ -139,6 +139,17 @@ class CompanyAccessRequest(Base):
     decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
+class CompanyFileReceipt(Base):
+    """Protocol receipts survive deletion of user-visible operation history."""
+    __tablename__ = 'company_file_receipts'
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    actor_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    target_id: Mapped[str] = mapped_column(String(64))
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    result: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class CompanyAuditEvent(Base):
     __tablename__ = 'company_audit_events'
     id: Mapped[str] = mapped_column(String(64), primary_key=True)

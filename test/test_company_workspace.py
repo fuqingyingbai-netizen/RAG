@@ -38,6 +38,8 @@ def setup(monkeypatch, tmp_path):
     CompanyProject.__table__.create(engine)
     CompanyFolder.__table__.create(engine)
     CompanyAuditEvent.__table__.create(engine)
+    from company_catalog import CompanyFileReceipt
+    CompanyFileReceipt.__table__.create(engine)
     from company_recycle import RecycleItem
     RecycleItem.__table__.create(engine)
     from company_notes import CompanyNote, CompanyNoteAsset, CompanyNotePublication

@@ -30,7 +30,7 @@ from company_file_operations import (file_lock, operation_id, operation_hash, re
                                      upload_family, version_title, latest_document_ids)
 from database import SessionLocal
 from models import User
-from company_audit import record, snapshot, mark_modified, history
+from company_audit import record, snapshot, mark_modified, history, remove_event, purge_expired
 from company_collections import EXPERIENCE_CATEGORIES, KNOWLEDGE_SCOPES, in_scope, is_personal
 from company_watermark import ExportIdentity, WatermarkError, export_copy
 import company_export_progress as export_progress
@@ -45,6 +45,13 @@ def audit_events(project_id: str = '', document_id: str = '', page: int = Query(
     with SessionLocal() as db:
         return history(db, user, kb.settings()['index_id'], project_id=project_id, document_id=document_id,
                        page=page, page_size=page_size)
+
+
+@workspace_router.delete('/audit-events/{event_id}')
+def delete_audit_event(event_id: str, user: User = Depends(kb.require_knowledge_user)):
+    with SessionLocal() as db:
+        return remove_event(db, user, kb.settings()['index_id'], event_id)
+
 MAX_BYTES = 32 * 1024 * 1024
 MAX_MEDIA_BYTES = 128 * 1024 * 1024
 MEDIA_FORMATS = {ext.lower() for ext in AUDIO_FORMATS | VIDEO_FORMATS}
@@ -53,6 +60,7 @@ CATEGORIES = ('项目原件', '研究成果', '方法与模板', '访谈纪要',
 tasks = {}
 scanner = None
 recycle_scanner = None
+audit_scanner = None
 sync_lock = asyncio.Lock()
 last_sync = {}
 catalogue_sync_tasks = {}
@@ -89,7 +97,7 @@ def schedule_document(doc_id):
 
 @workspace_router.on_event('startup')
 async def resume_ingestion():
-    global scanner, recycle_scanner
+    global scanner, recycle_scanner, audit_scanner
     from database import engine
     ensure_company_schema(engine)
     from company_recycle import initialize, purge_due
@@ -104,6 +112,15 @@ async def resume_ingestion():
                 logging.getLogger(__name__).exception('Recycle maintenance failed')
             await asyncio.sleep(900)
     recycle_scanner = asyncio.create_task(recycle_scan())
+    async def audit_scan():
+        while True:
+            try:
+                await asyncio.to_thread(purge_expired, SessionLocal)
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception('Knowledge audit maintenance failed')
+            await asyncio.sleep(60)
+    audit_scanner = asyncio.create_task(audit_scan())
     # create_all does not add indexes to an already-existing table. This feature's
     # additive indexes also need to be installed when upgrading an initial preview.
     for index in CompanyDocument.__table__.indexes:
@@ -127,6 +144,10 @@ async def resume_ingestion():
 
 @workspace_router.on_event('shutdown')
 async def stop_ingestion():
+    if audit_scanner:
+        audit_scanner.cancel()
+        with suppress(asyncio.CancelledError):
+            await audit_scanner
     if recycle_scanner:
         recycle_scanner.cancel()
         with suppress(asyncio.CancelledError):
