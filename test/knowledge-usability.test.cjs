@@ -14,6 +14,30 @@ function fixture(){
  state.cloudDocuments=[{id:'a',title:'A',can_read:true,state:'ready',category:'项目原件',knowledge_project_id:'p',folder_id:'g'}];
  state.loadChatHistory=()=>{};return {state,notices,saved};
 }
+test('project roots paginate projects and standalone files together at 10, 20 and 50 rows without losing selection',()=>{
+ const{state:s}=fixture();s.projectDirectories=Array.from({length:73},(_,i)=>({id:'p'+i,name:'项目'+i,category:'项目原件',owner:'alice'}));
+ s.cloudDocuments=[{id:'root',title:'独立文件',is_root:true,category:'项目原件',state:'ready',can_read:true}];
+ assert.equal(s.libraryPageRange.total,74);
+ for(const size of [10,20,50]){
+  s.libraryPageSize=size;s.libraryPage=1;assert.equal(s.libraryPageCount,Math.ceil(74/size));assert.equal(s.pagedProjectDirectories.length,size);assert.equal(s.pagedDocuments.length,0);
+  const seen=[];
+  for(let page=1;page<=s.libraryPageCount;page++){s.libraryPage=page;seen.push(...s.pagedLibraryRows.map(row=>row.kind+':'+row.id));assert.ok(s.pagedProjectDirectories.length+s.pagedDocuments.length<=size);}
+  assert.equal(seen.length,74);assert.equal(new Set(seen).size,74);assert.equal(s.pagedDocuments[0].id,'root');assert.equal(s.libraryPageRange.end,74);
+ }
+ s.selectedProjectIds=['p0'];s.selectedIds=['root'];s.changeLibraryPage(1);s.libraryPageSize=20;
+ assert.deepEqual(Array.from(s.selectedProjectIds),['p0']);assert.deepEqual(Array.from(s.selectedIds),['root']);
+ s.query='不存在';assert.equal(s.libraryPageRange.total,0);assert.equal(s.currentLibraryPage,1);assert.equal(s.pagedProjectDirectories.length,0);assert.equal(s.pagedDocuments.length,0);
+});
+
+test('project-only roots keep pagination while files and nested folders retain their own list',()=>{
+ const{state:s}=fixture();s.projectDirectories=Array.from({length:23},(_,i)=>({id:'p'+i,name:'项目'+i,category:'项目原件',department:i<12?'market':'project'}));s.cloudDocuments=[];
+ assert.equal(s.libraryRows.length,23);assert.equal(s.libraryPageCount,3);s.libraryPage=3;assert.equal(s.pagedProjectDirectories.length,3);
+ s.departmentFilter='market';s.libraryPage=1;assert.equal(s.libraryPageRange.total,12);assert.equal(s.libraryPageCount,2);
+ s.showAllFiles();assert.equal(s.libraryRows.length,0);assert.equal(s.pagedProjectDirectories.length,0);
+ s.departmentFilter='';s.openDirectory(s.projectDirectories[0]);s.cloudDocuments=Array.from({length:23},(_,i)=>({id:'d'+i,title:'文件'+i,knowledge_project_id:'p0',folder_id:'',category:'项目原件',can_read:true,state:'ready'}));s.libraryPage=2;
+ assert.equal(s.libraryPageRange.total,23);assert.equal(s.pagedLibraryRows.length,10);assert.ok(s.pagedLibraryRows.every(row=>row.kind==='file'));
+});
+
 test('search misses have a recovery message rather than claiming the current directory has no files',()=>{
  const{state:s}=fixture();s.openDirectory(s.projectDirectories[0],'g');s.loading=false;
  assert.equal(s.libraryEmptyMessage,'当前目录暂无资料。');
