@@ -153,3 +153,28 @@ def test_retry_queue_with_registered_cloud_file_is_not_unclaimed_copy(setup, mon
         response = setup.client.delete('/company-knowledge/documents/'+row['id'])
         assert response.status_code == 409 and '本次未删除' in response.text
         with setup.db() as db: assert db.get(CompanyDocument, row['id']).state == 'queued'
+
+
+def test_manual_local_refresh_does_not_wait_for_cloud_or_duplicate_sync_jobs(setup, monkeypatch):
+    import company_workspace as ws
+    row = upload(setup).json()
+    monkeypatch.setattr(ws, 'catalogue_sync_tasks', {})
+    async def scenario():
+        release = asyncio.Event(); calls = []
+        async def slow_cloud(cfg, force=False):
+            calls.append(force); await release.wait()
+        monkeypatch.setattr(ws, 'sync_catalog', slow_cloud)
+        monkeypatch.setattr(ws, 'last_sync', {'test-index': float('inf')})
+        try:
+            result = await asyncio.wait_for(ws.documents(page_number=1, page_size=100,
+                refresh=True, local_only=True, user=setup.user), timeout=1)
+            assert [d['id'] for d in result['documents']] == [row['id']]
+            await asyncio.sleep(0)
+            assert calls == [True] and len(ws.catalogue_sync_tasks) == 1
+            await ws.documents(page_number=1, page_size=100, refresh=True, local_only=True, user=setup.user)
+            assert calls == [True] and len(ws.catalogue_sync_tasks) == 1
+        finally:
+            release.set()
+            await asyncio.gather(*list(ws.catalogue_sync_tasks.values()))
+        assert not ws.catalogue_sync_tasks
+    asyncio.run(scenario())

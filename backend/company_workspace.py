@@ -203,15 +203,15 @@ async def sync_catalog(cfg, force=False):
         last_sync[cfg['index_id']] = time.monotonic()
 
 
-def sync_catalog_in_background(cfg):
+def sync_catalog_in_background(cfg, force=False):
     """The local catalogue is authoritative for browsing; cloud discovery must not hold up navigation."""
     import time
     key = cfg['index_id']
-    if key in catalogue_sync_tasks or time.monotonic() - last_sync.get(key, 0) < 30:
+    if key in catalogue_sync_tasks or (not force and time.monotonic() - last_sync.get(key, 0) < 30):
         return
     async def discover():
         try:
-            await sync_catalog(cfg)
+            await sync_catalog(cfg, force=force)
         except (kb.KnowledgeError, kb.httpx.HTTPError, ValueError, KeyError):
             pass
         finally:
@@ -259,8 +259,8 @@ async def documents(page_number: int = Query(1, ge=1), page_size: int = Query(10
     warning = ''
     cfg = kb.settings()
     try:
-        if local_only and not refresh:
-            sync_catalog_in_background(cfg)
+        if local_only:
+            sync_catalog_in_background(cfg, force=refresh)
         else:
             await sync_catalog(cfg, force=refresh)
     except (kb.KnowledgeError, kb.httpx.HTTPError, ValueError, KeyError):
