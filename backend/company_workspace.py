@@ -838,8 +838,12 @@ def export_status(doc_id: str, request_id: str = Query(min_length=8, max_length=
     return JSONResponse(export_progress.status(user, doc_id, request_id), headers={'Cache-Control': 'private, no-store'})
 
 
-@workspace_router.get('/documents/{doc_id}/download')
-@workspace_router.get('/documents/{doc_id}/original')
+_FILE_RESPONSE = {200: {'description': 'Watermarked or original file bytes; content type depends on the file format.',
+                        'content': {'*/*': {'schema': {'type': 'string', 'format': 'binary'}}}}}
+
+
+@workspace_router.get('/documents/{doc_id}/download', response_class=Response, responses=_FILE_RESPONSE)
+@workspace_router.get('/documents/{doc_id}/original', response_class=Response, responses=_FILE_RESPONSE)
 async def original(doc_id: str, request: Request, download: bool = False,
                    request_id: str = Query('', max_length=64, pattern='^(?:[a-f0-9-]{8,64})?$'),
                    user: User = Depends(kb.require_knowledge_user)):

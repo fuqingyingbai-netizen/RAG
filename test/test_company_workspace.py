@@ -70,6 +70,14 @@ def stored_original(setup, doc_id):
         return document_store().get_bytes(db.get(CompanyDocument, doc_id).object_key)
 
 
+def test_original_and_download_openapi_describe_dynamic_file_responses(setup):
+    schema = setup.client.get('/openapi.json').json()
+    for suffix in ('original', 'download'):
+        response = schema['paths'][f'/company-knowledge/documents/{{doc_id}}/{suffix}']['get']['responses']['200']
+        assert response['content']['*/*']['schema'] == {'type': 'string', 'format': 'binary'}
+        assert 'application/json' not in response['content']
+
+
 def test_server_attribution_owned_edits_and_audit_permissions(setup):
     p = project(setup, '审计项目')
     assert p['created_by'] == p['modified_by'] == 'alice'

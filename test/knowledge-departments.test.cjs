@@ -16,6 +16,11 @@ test('department and existing category filters combine while total library remai
  s.selectCategory('研究成果');assert.equal(s.visibleProjectDirectories.length,0);assert.equal(s.collectionDocuments.length,1);s.browseLibrary();assert.equal(s.departmentFilter,'');assert.equal(s.collectionDocuments.length,3);
  s.setDepartmentFilter('unassigned');assert.deepEqual(Array.from(s.filteredDocuments,d=>d.id),['legacy']);
 });
+test('department entry stays fixed while a global department filter remains selectable',()=>{
+ const{s}=fixture();s.openDepartment('market');assert.equal(s.fixedDepartmentContext,true);assert.equal(s.libraryView.fixedDepartmentContext,true);
+ s.browseLibrary();assert.equal(s.fixedDepartmentContext,false);s.setDepartmentFilter('project');assert.equal(s.fixedDepartmentContext,false);assert.equal(s.departmentFilter,'project');
+ s.openDepartment('policy');assert.equal(s.fixedDepartmentContext,true);s.openHome();assert.equal(s.fixedDepartmentContext,false);
+});
 test('department creation is pinned to its entry while global creation and existing settings stay selectable',async()=>{
  const{s}=fixture();s.loadDocuments=async()=>{};let submitted;
  s.apiFetch=async(_url,options)=>{submitted=JSON.parse(options.body);return {ok:true,json:async()=>({id:'created',department:submitted.department})};};
