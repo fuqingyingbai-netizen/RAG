@@ -125,3 +125,31 @@ def test_concurrent_delete_returns_retryable_conflict_then_one_recycle_record(se
         assert pending.result().status_code == 200
     assert setup.client.delete(path).status_code == 200
     with setup.db() as db: assert count(db, RecycleItem, row['id']) == 1
+
+
+@pytest.mark.parametrize('status', [429, 500, 200])
+def test_provider_rate_limit_server_error_and_failed_body_preserve_file(setup, monkeypatch, status):
+    import httpx
+    from test_company_workspace import transport
+    row = upload(setup).json(); ready(setup, row)
+    transport(monkeypatch, lambda request: httpx.Response(status, json={
+        'success': False, 'code': 'Error', 'message': 'synthetic-provider-secret'}))
+    result = setup.client.delete('/company-knowledge/documents/'+row['id'])
+    assert result.status_code == 502 and 'synthetic-provider-secret' not in result.text
+    with setup.db() as db:
+        assert db.get(CompanyDocument, row['id']).state == 'ready'
+        assert count(db, RecycleItem, row['id']) == 0
+    assert stored_original(setup, row['id'])
+
+
+def test_retry_queue_with_registered_cloud_file_is_not_unclaimed_copy(setup, monkeypatch):
+    row = upload(setup).json()
+    async def forbidden(*args, **kwargs): raise AssertionError('Worker-owned registration must stay protected')
+    monkeypatch.setattr(kb, 'cloud_rpc', forbidden)
+    for field in ('cloud_id', 'stale_cloud_id'):
+        with setup.db() as db:
+            doc = db.get(CompanyDocument, row['id']); doc.cloud_id = None; doc.stale_cloud_id = ''
+            setattr(doc, field, 'registered-before-retry'); db.commit()
+        response = setup.client.delete('/company-knowledge/documents/'+row['id'])
+        assert response.status_code == 409 and '本次未删除' in response.text
+        with setup.db() as db: assert db.get(CompanyDocument, row['id']).state == 'queued'

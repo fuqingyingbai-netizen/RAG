@@ -895,7 +895,7 @@ async def delete_document(doc_id: str, user: User = Depends(kb.require_knowledge
             return {'deleted': True}
         before = snapshot(doc)
         if (doc.state in ('uploading', 'parsing', 'indexing') or
-                (doc.state == 'queued' and doc.job_id) or
+                (doc.state == 'queued' and (doc.job_id or doc.cloud_id or doc.stale_cloud_id)) or
                 (doc.lease_until and doc.lease_until > datetime.utcnow())):
             raise HTTPException(409, '文件正在建立检索索引或处理任务尚未退出，本次未删除；请等待处理完成后再删除。')
         # Keep the row lock until the cloud operation and recycle record commit together.
