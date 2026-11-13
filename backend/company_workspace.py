@@ -67,13 +67,13 @@ catalogue_sync_tasks = {}
 pdf_render_lock = threading.Lock()
 
 
-def find_doc(db, doc_id, user, manage=False):
+def find_doc(db, doc_id, user, manage=False, *, allow_deleted=False):
     existing = db.get(CompanyDocument, doc_id) if manage else None
     if existing and existing.knowledge_project_id:
         locked_scalar(db, select(CompanyProject).where(CompanyProject.id == existing.knowledge_project_id))
-    doc = (locked_scalar(db, select(CompanyDocument).where(CompanyDocument.id == doc_id))
+    doc = (locked_scalar(db, select(CompanyDocument).where(CompanyDocument.id == doc_id).execution_options(populate_existing=True))
            if manage else db.get(CompanyDocument, doc_id))
-    if not doc or doc.index_id != kb.settings()['index_id'] or doc.state == 'deleted' or not can_read(doc, user):
+    if not doc or doc.index_id != kb.settings()['index_id'] or (doc.state == 'deleted' and not allow_deleted) or not can_read(doc, user):
         raise HTTPException(404, '资料不存在或没有访问权限。')
     if manage and not can_manage(doc, user):
         raise HTTPException(403, '只有上传者或管理员可以管理这份资料。')
@@ -888,13 +888,17 @@ async def retry(doc_id: str, user: User = Depends(kb.require_knowledge_user)):
 
 @workspace_router.delete('/documents/{doc_id}')
 async def delete_document(doc_id: str, user: User = Depends(kb.require_knowledge_user)):
-    with SessionLocal() as db:
-        doc = find_doc(db, doc_id, user, manage=True)
+    from company_file_operations import file_lock
+    with SessionLocal() as db, file_lock(db, 'delete:' + doc_id):
+        doc = find_doc(db, doc_id, user, manage=True, allow_deleted=True)
+        if doc.state == 'deleted':
+            return {'deleted': True}
         before = snapshot(doc)
-        if doc.state in ('queued', 'uploading', 'parsing', 'indexing') or (doc.lease_until and doc.lease_until > datetime.utcnow()):
-            raise HTTPException(409, '资料仍在处理，请等待完成后删除。')
-        doc.state = 'deleting'
-        db.commit()
+        if (doc.state in ('uploading', 'parsing', 'indexing') or
+                (doc.state == 'queued' and doc.job_id) or
+                (doc.lease_until and doc.lease_until > datetime.utcnow())):
+            raise HTTPException(409, '文件正在建立检索索引或处理任务尚未退出，本次未删除；请等待处理完成后再删除。')
+        # Keep the row lock until the cloud operation and recycle record commit together.
         if doc.cloud_id or doc.stale_cloud_id:
             try:
                 async with kb.httpx.AsyncClient(timeout=30, trust_env=False) as client:
@@ -902,9 +906,7 @@ async def delete_document(doc_id: str, user: User = Depends(kb.require_knowledge
                         'index_id': doc.index_id, 'doc_ids': list(dict.fromkeys(
                             value for value in (doc.cloud_id, doc.stale_cloud_id) if value))})
             except Exception:
-                doc.status_message = '移除云端索引未完成，请再次点击删除重试。'
-                db.commit()
-                raise HTTPException(502, doc.status_message) from None
+                raise HTTPException(502, '云端索引移除结果尚未确认，资料和原件已保留；请再次点击删除重试。') from None
         doc.state = 'deleted'
         mark_modified(doc, user)
         record(db, user, 'document.delete', doc, before=before, details={'deleted': True})
