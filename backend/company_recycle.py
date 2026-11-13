@@ -1,5 +1,6 @@
 """Ten-day recovery records, scoped restoration and bounded original reclamation."""
 import uuid
+from contextlib import ExitStack
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -243,8 +244,10 @@ async def restore(item_id: str, user=Depends(kb.require_knowledge_user)):
                 if any(p.state != 'deleted' and p.sha256 == obj.sha256 and obj.sha256 for p in peers):
                     raise HTTPException(409, '资料库已有相同内容的文件，请保留现有文件。')
                 if any(p.is_current and p.state != 'deleted' for p in peers):
-                    obj.is_current = 0
+                    obj.is_current = 0 if obj.note_id or obj.research_project_id else 1
                     obj.version = max([obj.version, *[p.version for p in peers]]) + 1
+                    if obj.is_current:
+                        notices.append('同名文件已有其他版本，已作为下一版本恢复，原有版本保留。')
                 obj.stale_cloud_id = obj.cloud_id or obj.stale_cloud_id or ''
                 obj.cloud_id, obj.job_id, obj.lease_id = None, '', ''
                 obj.state = 'archived' if not obj.is_current else 'queued'
@@ -282,50 +285,55 @@ async def purge_due(limit=25):
             obj = db.get(models()[item.kind], item.target_id)
             if not obj:
                 continue
-            try:
-                if item.kind == 'document':
-                    obj = db.scalar(select(CompanyDocument).where(CompanyDocument.id == obj.id).with_for_update())
-                    if obj.state != 'deleted' or (obj.lease_until and obj.lease_until > datetime.utcnow()):
-                        continue
-                    if obj.cloud_id or obj.stale_cloud_id:
-                        async with kb.httpx.AsyncClient(timeout=15, trust_env=False) as client:
-                            await kb.cloud_rpc(client, kb.settings(), '/api/v1/indices/rag/index/delete_file',
-                                {'index_id': obj.index_id, 'doc_ids': list(dict.fromkeys(x for x in
-                                    (obj.cloud_id, obj.stale_cloud_id) if x))})
-                    if obj.object_key:
-                        shared = db.scalar(select(CompanyDocument.id).where(CompanyDocument.id != obj.id,
-                            CompanyDocument.object_key == obj.object_key).limit(1))
-                        asset = db.scalar(select(CompanyNoteAsset.id).where(CompanyNoteAsset.object_key == obj.object_key).limit(1))
-                        if not shared and not asset:
-                            document_store().delete_object(obj.object_key)
-                    obj.object_key, obj.cloud_id, obj.stale_cloud_id = '', None, ''
-                elif item.kind == 'note':
-                    if not obj.deleted_at:
-                        continue
-                    pending = db.scalar(select(RecycleItem.id).where(RecycleItem.parent_id == item.id,
-                        RecycleItem.status == 'deleted').limit(1))
-                    if pending:
-                        continue
-                    for asset in db.scalars(select(CompanyNoteAsset).where(CompanyNoteAsset.note_id == obj.id)):
-                        # Asset keys are normally unique; do not assume that when reclaiming.
-                        shared = db.scalar(select(CompanyNoteAsset.id).where(CompanyNoteAsset.id != asset.id,
-                            CompanyNoteAsset.object_key == asset.object_key).limit(1))
-                        doc = db.scalar(select(CompanyDocument.id).where(CompanyDocument.object_key == asset.object_key).limit(1))
-                        if asset.object_key and not shared and not doc:
-                            document_store().delete_object(asset.object_key)
-                        asset.object_key = ''
-                else:
-                    if not obj.deleted_at or db.scalar(select(RecycleItem.id).where(
-                            RecycleItem.parent_id == item.id, RecycleItem.status == 'deleted').limit(1)):
-                        continue
-                item.status, item.finished_at = 'purged', datetime.utcnow()
-                db.commit()
-                count += 1
-            except Exception:
-                # Keep recovery metadata and retry next run. Never log provider response/secrets.
-                db.rollback()
-                retry = db.get(RecycleItem, item_id)
-                if retry and retry.status == 'deleted':
-                    retry.finished_at = datetime.utcnow()
+            with ExitStack() as original_locks:
+                try:
+                    from company_file_operations import file_lock
+                    keys = [obj.object_key] if item.kind == 'document' else [a.object_key for a in db.scalars(select(CompanyNoteAsset).where(CompanyNoteAsset.note_id == obj.id))] if item.kind == 'note' else []
+                    for key in sorted(set(keys) - {''}):
+                        original_locks.enter_context(file_lock(db, key))
+                    if item.kind == 'document':
+                        obj = db.scalar(select(CompanyDocument).where(CompanyDocument.id == obj.id).with_for_update())
+                        if obj.state != 'deleted' or (obj.lease_until and obj.lease_until > datetime.utcnow()):
+                            continue
+                        if obj.cloud_id or obj.stale_cloud_id:
+                            async with kb.httpx.AsyncClient(timeout=15, trust_env=False) as client:
+                                await kb.cloud_rpc(client, kb.settings(), '/api/v1/indices/rag/index/delete_file',
+                                    {'index_id': obj.index_id, 'doc_ids': list(dict.fromkeys(x for x in
+                                        (obj.cloud_id, obj.stale_cloud_id) if x))})
+                        if obj.object_key:
+                            shared = db.scalar(select(CompanyDocument.id).where(CompanyDocument.id != obj.id,
+                                CompanyDocument.object_key == obj.object_key).limit(1))
+                            asset = db.scalar(select(CompanyNoteAsset.id).where(CompanyNoteAsset.object_key == obj.object_key).limit(1))
+                            if not shared and not asset:
+                                document_store().delete_object(obj.object_key)
+                        obj.object_key, obj.cloud_id, obj.stale_cloud_id = '', None, ''
+                    elif item.kind == 'note':
+                        if not obj.deleted_at:
+                            continue
+                        pending = db.scalar(select(RecycleItem.id).where(RecycleItem.parent_id == item.id,
+                            RecycleItem.status == 'deleted').limit(1))
+                        if pending:
+                            continue
+                        for asset in db.scalars(select(CompanyNoteAsset).where(CompanyNoteAsset.note_id == obj.id)):
+                            # Asset keys are normally unique; do not assume that when reclaiming.
+                            shared = db.scalar(select(CompanyNoteAsset.id).where(CompanyNoteAsset.id != asset.id,
+                                CompanyNoteAsset.object_key == asset.object_key).limit(1))
+                            doc = db.scalar(select(CompanyDocument.id).where(CompanyDocument.object_key == asset.object_key).limit(1))
+                            if asset.object_key and not shared and not doc:
+                                document_store().delete_object(asset.object_key)
+                            asset.object_key = ''
+                    else:
+                        if not obj.deleted_at or db.scalar(select(RecycleItem.id).where(
+                                RecycleItem.parent_id == item.id, RecycleItem.status == 'deleted').limit(1)):
+                            continue
+                    item.status, item.finished_at = 'purged', datetime.utcnow()
                     db.commit()
+                    count += 1
+                except Exception:
+                    # Keep recovery metadata and retry next run. Never log provider response/secrets.
+                    db.rollback()
+                    retry = db.get(RecycleItem, item_id)
+                    if retry and retry.status == 'deleted':
+                        retry.finished_at = datetime.utcnow()
+                        db.commit()
     return count

@@ -10,7 +10,7 @@ import threading
 import unicodedata
 import uuid
 import zipfile
-from contextlib import suppress
+from contextlib import suppress, ExitStack
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
@@ -26,6 +26,8 @@ from company_catalog import (AUDIO_FORMATS, VIDEO_FORMATS, CONFIDENTIALITY_LABEL
                              CompanyDocument, CompanyProject, can_manage, can_read, document_store, backfill_company_projects,
                              ensure_company_schema, is_owner, media_kind, serialize, classification_allowed,
                              normalize_confidentiality, shared_experience, effective_acl, locked_scalar)
+from company_file_operations import (file_lock, operation_id, operation_hash, replay, copy_title,
+                                     upload_family, version_title, latest_document_ids)
 from database import SessionLocal
 from models import User
 from company_audit import record, snapshot, mark_modified, history
@@ -207,12 +209,12 @@ async def prepare_scope(cfg, user, requested, scope='accessible'):
 
 def select_scope(cfg, user, requested, scope):
     with SessionLocal() as db:
-        statement = select(CompanyDocument).where(CompanyDocument.index_id == cfg['index_id'],
-                                                  CompanyDocument.state != 'deleted')
+        statement = select(CompanyDocument).where(CompanyDocument.index_id == cfg['index_id'])
         if requested:
             statement = statement.where(CompanyDocument.id.in_(requested))
         docs = list(db.scalars(statement))
-        visible = {doc.id: doc for doc in docs if can_read(doc, user) and in_scope(doc, scope)
+        latest = latest_document_ids(docs)
+        visible = {doc.id: doc for doc in docs if doc.state != 'deleted' and can_read(doc, user) and in_scope(doc, scope)
                    and (not is_personal(scope) or is_owner(doc, user))}
         if requested:
             if any(doc_id not in visible for doc_id in requested):
@@ -221,11 +223,12 @@ def select_scope(cfg, user, requested, scope):
             if any(doc.state != 'ready' for doc in selected):
                 raise HTTPException(409, '所选资料尚未完成索引，请等待处理完成。')
         else:
-            selected = [doc for doc in visible.values() if doc.state == 'ready' and doc.is_current]
+            selected = [doc for doc in visible.values() if doc.id in latest and doc.state == 'ready' and doc.is_current]
         # Empty never means an unfiltered search.
         return {doc.cloud_id: {'id': doc.id, 'title': doc.title, 'review': doc.review,
                  'version': doc.version, 'project': doc.project, 'industry': doc.industry,
                  'category': doc.category, 'tags': list(doc.tags or []),
+                 'content_key': (doc.sha256 + ':' + doc.format + (':' + hashlib.sha256(doc.description.encode()).hexdigest() if media_kind(doc) else '')) if doc.sha256 else '',
                  'media_kind': media_kind(doc)} for doc in selected if doc.cloud_id}
 
 
@@ -243,8 +246,8 @@ async def documents(page_number: int = Query(1, ge=1), page_size: int = Query(10
         warning = '云端目录同步暂不可用，正在显示本系统已保存的资料。'
     with SessionLocal() as db:
         docs = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == cfg['index_id'],
-            CompanyDocument.state != 'deleted',
             (CompanyDocument.note_id == '') | (CompanyDocument.is_current == 1)).order_by(CompanyDocument.updated_at.desc())))
+        latest = latest_document_ids(docs)
         request_states = {}
         user_id = getattr(user, 'id', None)
         if user_id is not None:
@@ -252,7 +255,7 @@ async def documents(page_number: int = Query(1, ge=1), page_size: int = Query(10
                 CompanyAccessRequest.requester_id == user_id).order_by(CompanyAccessRequest.created_at.desc()))
             for request in requests:
                 request_states.setdefault(request.document_id, request.status)
-        docs = [doc for doc in docs if classification_allowed(doc, user)]
+        docs = [doc for doc in docs if doc.id in latest and doc.state != 'deleted' and classification_allowed(doc, user)]
         start = (page_number - 1) * page_size
         return {'documents': [serialize(doc, user, request_states.get(doc.id, '')) for doc in docs[start:start + page_size]],
                 'total_count': len(docs), 'page_number': page_number, 'page_size': page_size, 'warning': warning}
@@ -372,6 +375,7 @@ async def upload(request: Request, file: UploadFile = File(...), project: str = 
                  description: str = Form('', max_length=10000),
                  project_id: str = Form('', max_length=64), folder_id: str = Form('', max_length=64),
                  root: bool = Form(False), department: str | None = Form(None, max_length=30),
+                 request_id: str = Form('', max_length=64),
                  user: User = Depends(kb.require_knowledge_user)):
     cfg = kb.settings()
     from company_departments import validate_department
@@ -411,11 +415,23 @@ async def upload(request: Request, file: UploadFile = File(...), project: str = 
         raise HTTPException(422, '请先选择所属项目。')
     # Store the bytes before taking project/user locks; all DB work stays in one worker.
     key = 'originals/' + uuid.uuid4().hex + '.' + extension
+    retained_key = key
+    receipt_id = operation_id(user, cfg['index_id'], 'document.upload', request_id)
+    fingerprint = operation_hash(dict(title=title, digest=digest, project_id=project_id, folder_id=folder_id,
+        project=project, root=root, department=department, industry=industry, category=category,
+        review=review, confidentiality=confidentiality, visibility=visibility, readers=acl, tags=labels, description=description))
 
     def persist():
-        nonlocal owner, owner_id, project, industry, category, review, department, confidentiality, visibility, acl, labels
+        nonlocal owner, owner_id, project, industry, category, review, department, confidentiality, visibility, acl, labels, title, retained_key
         document_store().put_bytes(key, payload, mimetypes.guess_type(title)[0] or 'application/octet-stream')
-        with SessionLocal() as db:
+        with SessionLocal() as db, ExitStack() as locks:
+            if receipt_id:
+                locks.enter_context(file_lock(db, 'operation:' + receipt_id))
+                previous_result = replay(db, receipt_id, fingerprint, user)
+                if previous_result:
+                    saved, receipt = previous_result
+                    retained_key = saved.object_key
+                    return serialize(saved, user) | receipt
             owner, owner_id = user.username, getattr(user, 'id', None)
             if project_id:
                 from company_projects import find_project, find_folder
@@ -432,15 +448,30 @@ async def upload(request: Request, file: UploadFile = File(...), project: str = 
             # PostgreSQL serializes uploads from one user so concurrent submissions
             # cannot allocate the same version. Unique indexes are the second guard.
             locked_scalar(db, select(User).where(User.username == user.username))
-            previous = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == cfg['index_id'],
-                CompanyDocument.owner == owner, CompanyDocument.title == title,
-                CompanyDocument.knowledge_project_id == project_id, CompanyDocument.folder_id == folder_id,
-                CompanyDocument.project == project.strip())))
+            title, previous = upload_family(db, cfg['index_id'], owner, project_id, folder_id, project.strip(), title)
             if not project_id and category not in EXPERIENCE_CATEGORIES and department_supplied and not department and not previous:
                 raise HTTPException(422, '请选择所属部门／栏目。')
             duplicate = next((doc for doc in previous if doc.sha256 == digest and doc.state != 'deleted'), None)
+            origin = {}
+            disposition = 'version' if previous else 'new'
             if duplicate:
-                raise HTTPException(409, '相同内容已上传，请在资料列表查看原任务；如处理失败可点击重试。')
+                disposition = 'copy'
+                locks.enter_context(file_lock(db, duplicate.object_key))
+                duplicate = db.scalar(select(CompanyDocument).where(CompanyDocument.id == duplicate.id)
+                    .execution_options(populate_existing=True).with_for_update())
+                if duplicate.state == 'deleted' or not can_manage(duplicate, user) or not can_read(duplicate, user):
+                    raise HTTPException(409, '原文件状态或权限已变化，请重新上传。')
+                if duplicate.object_key and document_store().exists(duplicate.object_key):
+                    retained_key = duplicate.object_key
+                if not project_id:
+                    # An identical upload is a copy, not permission to publish a private original.
+                    confidentiality, visibility, acl = duplicate.confidentiality, duplicate.visibility, list(duplicate.readers or [])
+                    department = duplicate.department
+                origin = dict(source_id=duplicate.id, source_version=duplicate.version, source_sha256=duplicate.sha256,
+                    source_uploaded_by=duplicate.uploaded_by or duplicate.owner, source_created_at=duplicate.created_at.isoformat()+'Z',
+                    copied_by=user.username, copied_at=datetime.utcnow().isoformat()+'Z')
+                title = copy_title(db, title, cfg['index_id'], owner, project_id, folder_id, project.strip())
+                previous = []
             doc = CompanyDocument(id=uuid.uuid4().hex, index_id=cfg['index_id'], title=title,
                 format=extension.upper(), size=len(payload), sha256=digest, owner=owner,
                 uploaded_by=user.username, uploaded_by_user_id=getattr(user, 'id', None), modified_by=user.username,
@@ -450,16 +481,20 @@ async def upload(request: Request, file: UploadFile = File(...), project: str = 
                 visibility=visibility, readers=acl, version=max((row.version for row in previous), default=0) + 1,
                 state='archived' if extension in MEDIA_FORMATS and not description.strip() else 'queued',
                 status_message='音视频已归档，可播放与下载；补充文字说明后可检索说明' if extension in MEDIA_FORMATS and not description.strip() else '原件已保存，等待上传与解析',
-                object_key=key,
+                object_key=retained_key, copy_origin=origin,
                 parser='DOCMIND' if extension in ('pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png') else 'AUTO_SELECT')
             try:
                 db.add(doc)
-                record(db, user, 'document.upload', doc)
+                notice = ('检测到重复文件，已另存为“' + title + '”，原文件未改变。' if disposition == 'copy' else
+                          '已保存为新版本，旧版本仍保留。' if disposition == 'version' else '')
+                receipt = dict(upload_disposition=disposition, upload_notice=notice)
+                record(db, user, 'document.upload', doc, event_id=receipt_id,
+                    details={'operation_fingerprint': fingerprint, 'operation_result': receipt, 'origin': origin})
                 db.commit()
             except IntegrityError:
                 db.rollback()
                 raise HTTPException(409, '同名资料正在被其他请求更新，请刷新后重试。') from None
-            result = serialize(doc, user)
+            result = serialize(doc, user) | receipt
             return result
 
     # Cancellation cannot strand a worker that later commits a file we already deleted.
@@ -488,10 +523,12 @@ async def upload(request: Request, file: UploadFile = File(...), project: str = 
         raise
     if result['state'] == 'queued':
         schedule_document(result['id'])
+    with suppress(Exception):
+        await asyncio.to_thread(discard_uncommitted)
     if extension in MEDIA_FORMATS:
         from types import SimpleNamespace
         with suppress(Exception):
-            company_media.playback_job(SimpleNamespace(object_key=key, sha256=digest, format=extension.upper()))
+            company_media.playback_job(SimpleNamespace(object_key=retained_key, sha256=digest, format=extension.upper()))
     return result
 
 
@@ -615,6 +652,27 @@ async def edit_document(doc_id: str, values: DocumentMetadata, user: User = Depe
         acl = validate_acl(changed.get('visibility', doc.visibility), changed.get('readers', doc.readers))
         if changed.get('category', doc.category) not in CATEGORIES or changed.get('review', doc.review) not in ('待复核', '已复核', '参考资料'):
             raise HTTPException(422, '分类或复核状态不正确。')
+        structural = {key: value for key, value in changed.items() if key in ('title', 'folder_id') and value != getattr(doc, key)}
+        related = []
+        if structural and doc.sha256 and not doc.research_project_id:
+            from company_file_operations import family
+            locked_scalar(db, select(User).where(User.username == doc.owner))
+            related = list(db.scalars(family(doc).order_by(CompanyDocument.id).with_for_update()))
+            if len(related) > 1 and any(not can_read(row, user) or not can_manage(row, user) or row.state in ('queued','uploading','parsing','indexing','deleting') or
+                   (row.lease_until and row.lease_until > datetime.utcnow()) for row in related):
+                raise HTTPException(409, '版本系列仍在处理或部分版本无管理权限，请处理完成后修改名称或目录。')
+            for row in related:
+                if row.id == doc.id:
+                    continue
+                previous = snapshot(row)
+                for key, value in structural.items():
+                    setattr(row, key, value)
+                mark_modified(row, user)
+                record(db, user, 'document.update', row, before=previous, details={'version_family': doc.id})
+                if media_kind(row) and row.description.strip() and 'title' in structural and row.state != 'deleted':
+                    row.stale_cloud_id = row.cloud_id or row.stale_cloud_id
+                    row.cloud_id, row.job_id, row.lease_id = None, '', ''
+                    row.state, row.status_message = 'queued', '版本系列名称已更新，正在重建说明索引'
         for key, value in changed.items():
             setattr(doc, key, value)
         doc.readers = acl
@@ -632,6 +690,9 @@ async def edit_document(doc_id: str, values: DocumentMetadata, user: User = Depe
         result = serialize(doc, user)
     if reindex:
         schedule_document(doc_id)
+    for row in related:
+        if row.id != doc_id and row.state == 'queued':
+            schedule_document(row.id)
     return result
 
 
@@ -743,9 +804,10 @@ def my_projects(user: User = Depends(kb.require_knowledge_user), scope: str = 'm
     if scope not in KNOWLEDGE_SCOPES:
         raise HTTPException(422, '无效的项目范围。')
     with SessionLocal() as db:
-        docs = [doc for doc in db.scalars(select(CompanyDocument).where(
-            CompanyDocument.index_id == kb.settings()['index_id'], CompanyDocument.state != 'deleted'))
-            if is_owner(doc, user) and can_read(doc, user) and in_scope(doc, scope)]
+        rows = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == kb.settings()['index_id'])))
+        latest = latest_document_ids(rows)
+        docs = [doc for doc in rows if doc.id in latest and doc.state != 'deleted' and
+                is_owner(doc, user) and can_read(doc, user) and in_scope(doc, scope)]
         groups = {}
         owned_directories = {}
         for project_row in db.scalars(select(CompanyProject).where(CompanyProject.index_id == kb.settings()['index_id'])):
@@ -854,7 +916,7 @@ async def original(doc_id: str, request: Request, download: bool = False,
         doc = find_doc(db, doc_id, user)
         if not doc.object_key:
             raise HTTPException(404, '这份历史资料尚无受控原件，请联系资料管理者补传后再预览或下载。', headers={'X-Preview-Error': 'original_missing'})
-        object_key, fmt, title = doc.object_key, doc.format, doc.title
+        object_key, fmt, title = doc.object_key, doc.format, version_title(doc)
     update = export_progress.begin(user, doc_id, request_id) if request_id else None
     try:
         data = await asyncio.to_thread(document_store().get_bytes, object_key)
@@ -1068,8 +1130,11 @@ async def grounded_answer(cfg, question):
         return
     retrieval_query = cfg.get('retrieval_query', question.message)
     allowed, matched_label = catalogue_scope(retrieval_query, allowed)
+    from company_retrieval import distinct_sources
+    allowed, duplicate_sources = distinct_sources(allowed)
     yield {'type': 'progress', 'stage': 'retrieving', 'label': '正在检索所选资料',
-           'detail': ('已匹配' + matched_label + '，在相关资料中检索。') if matched_label else '仅查询当前账号可访问且已完成索引的文件。'}
+           'detail': (('已匹配' + matched_label + '，在相关资料中检索。') if matched_label else '仅查询当前账号可访问且已完成索引的文件。')
+                     + (f' 已合并 {duplicate_sources} 份相同内容的副本。' if duplicate_sources else '')}
     async with kb.httpx.AsyncClient(timeout=90, trust_env=False) as client:
         nodes = []
         # Provider limits filter size; batching keeps an explicit filter on every call.

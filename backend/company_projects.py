@@ -131,12 +131,13 @@ def list_projects(user: User = Depends(kb.require_knowledge_user)):
         projects = list(db.scalars(select(CompanyProject).where(
             CompanyProject.index_id == kb.settings()['index_id']).order_by(CompanyProject.updated_at.desc())))
         docs = list(db.scalars(select(CompanyDocument).where(CompanyDocument.index_id == kb.settings()['index_id'],
-            CompanyDocument.state != 'deleted',
             (CompanyDocument.note_id == '') | (CompanyDocument.is_current == 1))))
         folders = list(db.scalars(select(CompanyFolder).join(CompanyProject).where(
             CompanyProject.index_id == kb.settings()['index_id'], CompanyFolder.deleted_at.is_(None))))
         allowed = {p.id for p in projects if can_read(p, user)}
-        docs = [doc for doc in docs if classification_allowed(doc, user)]
+        from company_file_operations import latest_document_ids
+        latest = latest_document_ids(docs)
+        docs = [doc for doc in docs if doc.id in latest and doc.state != 'deleted' and classification_allowed(doc, user)]
         docs_by_project, folders_by_project = {}, {}
         for doc in docs:
             docs_by_project.setdefault(doc.knowledge_project_id, []).append(doc)

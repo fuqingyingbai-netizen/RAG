@@ -63,6 +63,7 @@ class CompanyDocument(Base):
     department: Mapped[str] = mapped_column(String(30), default='', server_default='')
     tags: Mapped[list] = mapped_column(JSON, default=list)
     description: Mapped[str] = mapped_column(Text, default='')
+    copy_origin: Mapped[dict] = mapped_column(JSON, default=dict)
     stale_cloud_id: Mapped[str] = mapped_column(String(200), default='')
     category: Mapped[str] = mapped_column(String(50), default='项目原件')
     review: Mapped[str] = mapped_column(String(30), default='待复核')
@@ -198,6 +199,7 @@ def ensure_company_schema(engine):
     if 'confidentiality' not in columns:
         additions.append("ADD COLUMN confidentiality VARCHAR(20) DEFAULT 'internal' NOT NULL")
     for column, definition in (('tags', "JSON DEFAULT '[]' NOT NULL"),
+                               ('copy_origin', "JSON DEFAULT '{}' NOT NULL"),
                                ('description', "TEXT DEFAULT '' NOT NULL"),
                                ('stale_cloud_id', "VARCHAR(200) DEFAULT '' NOT NULL")):
         if column not in columns:
@@ -333,6 +335,7 @@ STATE_LABELS = {'queued': '等待处理', 'uploading': '上传到知识库', 'pa
 
 
 def serialize(doc, user, request_status=''):
+    from company_file_operations import version_title
     readable = can_read(doc, user)
     locked = not readable
     values = {key: getattr(doc, key) for key in ('id', 'title', 'format', 'size', 'owner', 'owner_user_id', 'uploaded_by', 'modified_by',
@@ -342,6 +345,9 @@ def serialize(doc, user, request_status=''):
     if shared_experience(doc):
         values.update(effective_acl(doc))
     return values | {
+        'display_title': version_title(doc),
+        'can_history': readable and bool(doc.sha256) and not doc.note_id and not doc.research_project_id,
+        'copy_origin': dict(doc.copy_origin or {}) if readable else {},
         'note_id': doc.note_id if readable else '',
         'confidentiality_label': CONFIDENTIALITY_LABELS.get(values['confidentiality'], values['confidentiality']),
         'readers': effective_acl(doc)['readers'] if can_manage(doc, user) else [],

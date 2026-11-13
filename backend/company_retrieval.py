@@ -7,6 +7,17 @@ VERSION = 'evidence-v3'
 BROAD = re.compile(r'比较|对比|汇总|各(?:个|项目|公司)|分别|共同|差异|所有|全部|清单|表格|哪些|compare|across|summari', re.I)
 
 
+def distinct_sources(allowed):
+    """After catalogue scope/ACLs, reserve retrieval slots for distinct contents."""
+    result, seen = {}, set()
+    for doc_id, meta in allowed.items():
+        key = meta.get('content_key') or doc_id
+        if key not in seen:
+            seen.add(key)
+            result[doc_id] = meta
+    return result, len(allowed)-len(result)
+
+
 def evidence_id(doc_id, text):
     return hashlib.sha256((str(doc_id) + '\0' + text).encode()).hexdigest()[:24]
 

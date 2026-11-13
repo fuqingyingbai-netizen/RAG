@@ -230,13 +230,15 @@ def test_upload_original_versions_duplicate_and_scope_acl(setup):
     response = setup.client.get(f'/company-knowledge/documents/{row["id"]}/original')
     assert response.status_code == 200 and b'Company knowledge evidence' in response.content and response.headers['x-watermark-trace']
     assert stored_original(setup, row['id']) == b'Company knowledge evidence'
-    assert upload(setup, project='P1').status_code == 409
-    second = upload(setup, payload=b'New version', project='P1').json()
+    duplicate = upload(setup, project='P1')
+    assert duplicate.status_code == 202 and duplicate.json()['upload_disposition'] == 'copy'
+    second = upload(setup, payload=b'New version', project='P1', visibility='restricted', readers='["bob"]').json()
     assert second['version'] == 2
     ready(setup, row['id'])
     setup.user.id, setup.user.username = 3, 'charlie'
     listing = setup.client.get('/company-knowledge/documents').json()
-    locked = next(doc for doc in listing['documents'] if doc['id'] == row['id'])
+    assert row['id'] not in {doc['id'] for doc in listing['documents']}
+    locked = next(doc for doc in listing['documents'] if doc['id'] == second['id'])
     assert not locked['can_read'] and locked['can_request'] and locked['cloud_id'] is None
     assert setup.client.get(f'/company-knowledge/documents/{row["id"]}/original').status_code == 404
     assert setup.client.get(f'/company-knowledge/documents/{row["id"]}/preview').status_code == 404
@@ -816,13 +818,15 @@ def test_project_upload_inherits_metadata_and_versions_are_local_to_folder(setup
     assert first['project']==p['name'] and first['industry']=='AI' and first['tags']==['项目标签']
     assert first['confidentiality']=='secret' and first['visibility']=='restricted'
     assert first['inherits_project']==1 and first['folder_id']==a['id'] and first['version']==1
-    assert upload(setup,project_id=p['id'],folder_id=a['id']).status_code==409
+    assert upload(setup,project_id=p['id'],folder_id=a['id']).status_code==202
     second=upload(setup,project_id=p['id'],folder_id=b['id']).json()
     assert second['version']==1 and second['id']!=first['id']
     newer=upload(setup,payload=b'new version',project_id=p['id'],folder_id=a['id']).json()
     assert newer['version']==2
     assert setup.client.patch('/company-knowledge/documents/'+first['id'],json={'tags':['changed']}).status_code==422
     assert setup.client.patch('/company-knowledge/documents/'+first['id'],json={'title':'改名.pdf'}).status_code==422
+    ready(setup, first['id'], 'first-cloud')
+    ready(setup, newer['id'], 'newer-cloud')
     moved=setup.client.patch('/company-knowledge/documents/'+first['id'],json={'title':'访谈.txt','folder_id':b['id']})
     assert moved.status_code==200 and moved.json()['folder_id']==b['id']
 
