@@ -85,6 +85,7 @@ class Trace:
                       'commits_confirmed': 0, 'rollbacks_confirmed': 0,
                       'upstream_calls': 0, 'upstream_errors': 0, 'model_retry_attempts': 0,
                       'upstream_statuses': {}, 'upstream_error_types': {},
+                      'retrieval_attempted': False,
                       'sse_done_generated': False, 'sse_error_generated': False, 'detail_records_dropped': 0}
 
     def event(self, event, **values):
@@ -117,6 +118,24 @@ def phase(operation, **values):
                     counts[error] = counts.get(error, 0) + 1
             trace.event('upstream', operation=operation, scope_ms=round((time.perf_counter()-started)*1000, 3),
                         error_type=error, **values)
+
+
+def observe_intent(intent, source, elapsed, failure=''):
+    trace = _current.get()
+    if trace and trace.active:
+        values = {'intent': intent, 'intent_source': source, 'intent_ms': round(elapsed * 1000, 3),
+                  'intent_error_type': failure}
+        with trace.lock:
+            trace.stats.update(values)
+        trace.event('intent', **values)
+
+
+def observe_retrieval():
+    trace = _current.get()
+    if trace and trace.active:
+        with trace.lock:
+            trace.stats['retrieval_attempted'] = True
+        trace.event('retrieval', attempted=True)
 
 
 def observe_sse(event):

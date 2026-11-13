@@ -426,11 +426,11 @@ def test_empty_scope_and_no_hits_never_fall_back_to_unfiltered_agent(setup, monk
         calls.append(request.url.path)
         return httpx.Response(200, json={'data': {'nodes': []}})
     transport(monkeypatch, handler)
-    response = setup.client.post('/company-knowledge/chat/stream', json={'message': 'test'})
+    response = setup.client.post('/company-knowledge/chat/stream', json={'message': '查询项目资料'})
     assert '当前资料中未找到依据' in response.text and calls == []
     doc_id = upload(setup).json()['id']
     ready(setup, doc_id)
-    response = setup.client.post('/company-knowledge/chat/stream', json={'message': 'test'})
+    response = setup.client.post('/company-knowledge/chat/stream', json={'message': '查询项目资料'})
     assert '当前资料中未找到依据' in response.text and len(calls) == 1
 
 
@@ -439,7 +439,7 @@ def test_revocation_changes_next_query_and_original_access(setup):
     ready(setup, doc_id)
     assert setup.client.patch(f'/company-knowledge/documents/{doc_id}', json={'visibility': 'restricted'}).status_code == 200
     setup.user.id, setup.user.username = 2, 'bob'
-    response = setup.client.post('/company-knowledge/chat/stream', json={'message': 'test'})
+    response = setup.client.post('/company-knowledge/chat/stream', json={'message': '查询项目资料'})
     assert '当前资料中未找到依据' in response.text
     assert setup.client.get(f'/company-knowledge/documents/{doc_id}/original').status_code == 404
 

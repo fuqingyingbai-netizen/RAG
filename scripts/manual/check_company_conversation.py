@@ -32,8 +32,8 @@ def main():
     parser.add_argument('--attempts', type=int, choices=(1, 2, 3), default=1)
     args = parser.parse_args()
     provider = {key: os.environ['COMPANY_KNOWLEDGE_' + key] for key in ('MODEL', 'BASE_URL', 'API_KEY')}
-    if provider['BASE_URL'].rstrip('/') != 'https://open.bigmodel.cn/api/paas/v4':
-        raise ValueError('This acceptance sends synthetic cases only to the official Zhipu endpoint.')
+    if provider['BASE_URL'].rstrip('/') not in {'https://open.bigmodel.cn/api/paas/v4', 'https://dashscope.aliyuncs.com/compatible-mode/v1'}:
+        raise ValueError('This acceptance sends synthetic cases only to official Zhipu or Alibaba endpoints.')
     os.environ.update(PYTHON_DOTENV_DISABLED='1', DATABASE_URL='sqlite://', JWT_SECRET_KEY='disposable-evaluation-only')
     import pytest
     import httpx
@@ -100,6 +100,11 @@ def main():
     ]
     query_terms = ['收入', '客户', '客户', '客户', '收费|价格|定价|费用|计费', '收费|价格|定价|费用|计费',
                    '', '客户', '客户', '收入', '收费|价格|定价|费用|计费', '净利润']
+    for after, question in [(cases[0][0], '谢谢你'), ('那乙公司呢？', '怎么上传文件？'),
+                            ('请比较甲公司和乙公司的收费方式。', '在吗')]:
+        index = next(i for i, item in enumerate(cases) if item[0] == after) + 1
+        cases.insert(index, (question, 'social', [], []))
+        query_terms.insert(index, '')
     args.output.parent.mkdir(parents=True, exist_ok=True)
     def save():
         args.output.write_text(json.dumps({'model': provider['MODEL'], 'endpoint': provider['BASE_URL'],
@@ -149,7 +154,9 @@ def main():
                 refs = next((event['citations'] for event in events if event['type'] == 'citations'), [])
                 cited = set(re.findall(r'\[id_(\d+)\]', answer))
                 cited_names = [ref['title'] for index, ref in enumerate(refs, 1) if str(index) in cited]
-                if subject == 'clarify':
+                if subject == 'social':
+                    correct = bool(answer) and not refs and len(retrievals) == previous_retrieval and len(requests) == before
+                elif subject == 'clarify':
                     correct = '请补充公司' in answer and len(retrievals) == previous_retrieval
                 elif subject == 'refuse':
                     correct = grounded_refusal(answer) and cited.issubset({str(index) for index in range(1, len(refs) + 1)})

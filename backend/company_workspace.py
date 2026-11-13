@@ -1062,10 +1062,6 @@ async def grounded_answer(cfg, question):
         portfolio_text = (f"当前账号上传的资料归集为 {portfolio['project_count']} 个项目，共 {portfolio['document_count']} 份资料。"
             '\n\n| 项目 | 行业 | 资料数量 | 已可检索 |\n| --- | --- | --- | --- |\n' + '\n'.join(rows)
             + '\n\n来源：当前账号的上传归属和项目目录；上传记录不能单独证明项目中的个人职责或成果。')
-    if re.fullmatch(r'(你好[呀啊]?|您好|嗨|hello|hi)[！!。,.，\s]*', question.message.strip(), re.I):
-        yield {'type': 'answer_delta', 'text': '你好！可以帮你查找项目资料、总结报告、比较不同资料的结论，并提供引用依据。'}
-        yield {'type': 'done', 'usage': {}}
-        return
     if not allowed:
         yield {'type': 'answer_delta', 'text': (portfolio_text + '\n\n' if portfolio_text else '') + '当前资料中未找到依据。当前范围内没有已完成索引且可访问的资料，请调整范围或等待处理完成。'}
         yield {'type': 'done', 'usage': {}}
@@ -1085,6 +1081,8 @@ async def grounded_answer(cfg, question):
                 'index_id': cfg['index_id'], 'query': retrieval_query,
                 'dense_similarity_top_k': 30, 'sparse_similarity_top_k': 30, 'rerank_top_n': 20,
                 'search_filters': [{'doc_id': batch}]})
+        from company_observability import observe_retrieval
+        observe_retrieval()
         for result in await asyncio.gather(*(retrieve_batch(ids[start:start+100]) for start in range(0, len(ids), 100))):
             nodes.extend(result.get('nodes', []))
         from company_retrieval import excerpt, select_evidence

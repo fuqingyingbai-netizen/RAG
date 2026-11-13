@@ -338,7 +338,7 @@ def test_knowledge_provider_covers_summary_rewrite_and_answer_without_changing_r
     assert len(model_calls)==3 and sum(bool(b['stream']) for b in model_calls)==1
     structured=[b for b in model_calls if 'response_format' in b]
     assert len(structured)==1 and structured[0]['response_format']=={'type':'json_object'}
-    assert '独立检索' in structured[0]['messages'][0]['content'] and structured[0]['max_tokens']==8192
+    assert '独立检索' in structured[0]['messages'][0]['content'] and structured[0]['max_tokens']==2048
     import os
     assert {key:os.environ[key] for key in shared}==shared
 

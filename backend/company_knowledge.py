@@ -339,6 +339,16 @@ async def cloud_answer(cfg, question):
                 yield event
         return
     if 'allowed_documents' in cfg:
+        from company_memory import route_question
+        from company_intent import reply
+        route = await route_question(cfg, question.message, {'summary': '', 'recent': [], 'task': {}})
+        if route['intent'] in {'smalltalk', 'assistant', 'clarify'}:
+            text = (reply(route, question.message) if route['intent'] != 'clarify' else
+                    '未能确认问题的具体对象，请补充公司、项目或文件名称后再试。')
+            yield {'type': 'answer_delta', 'text': text}
+            yield {'type': 'done', 'usage': {}}
+            return
+        cfg['retrieval_query'] = route['query']
         from company_workspace import grounded_answer
         async with asyncio.timeout(240), aclosing(grounded_answer(cfg, question)) as events:
             async for event in events:

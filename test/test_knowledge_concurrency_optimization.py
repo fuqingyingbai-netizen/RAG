@@ -296,7 +296,7 @@ def test_disconnect_releases_model_slot_and_marks_turn_interrupted(env, monkeypa
     session_id = create(env)
     cfg = kb.settings()
     cfg['allowed_documents'] = {'cloud-a': {'id': 'doc-a'}}
-    question = kb.KnowledgeQuestion(message='明确问题', document_ids=['doc-a'], session_id=session_id, request_id='cancelled')
+    question = kb.KnowledgeQuestion(message='查询项目资料', document_ids=['doc-a'], session_id=session_id, request_id='cancelled')
     token, plan, deps = memory.begin_turn(env.user, cfg, session_id, question.request_id, question.message)
     cfg['_conversation'] = (env.user, cfg, question, token, plan, deps)
     async def run():
@@ -344,7 +344,7 @@ def test_starlette_cancel_scope_cannot_skip_interrupted_turn_cleanup(env, monkey
     session_id = create(env)
     cfg = kb.settings()
     cfg['allowed_documents'] = {'cloud-a': {'id': 'doc-a'}}
-    question = kb.KnowledgeQuestion(message='明确问题', document_ids=['doc-a'], session_id=session_id, request_id='scope-cancelled')
+    question = kb.KnowledgeQuestion(message='查询项目资料', document_ids=['doc-a'], session_id=session_id, request_id='scope-cancelled')
     token, plan, deps = memory.begin_turn(env.user, cfg, session_id, question.request_id, question.message)
     async def run():
         with anyio.CancelScope() as scope:

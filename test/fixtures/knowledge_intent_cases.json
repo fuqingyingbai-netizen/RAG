@@ -1,0 +1,532 @@
+[
+  {
+    "id": 1,
+    "question": "A项目预算多少？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 2,
+    "question": "甲公司2025年的收入是多少？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 3,
+    "question": "乙公司的客户数是多少？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 4,
+    "question": "列出项目负责人。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 5,
+    "question": "根据所选资料总结业务模式。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 6,
+    "question": "请总结这份报告。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 7,
+    "question": "对比甲公司和乙公司的收费方式。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 8,
+    "question": "请解释文件中的技术方案。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 9,
+    "question": "原文有哪些风险？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 10,
+    "question": "请提取合同付款条件。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 11,
+    "question": "专利的核心创新是什么？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 12,
+    "question": "资料中的产品定位是什么？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 13,
+    "question": "文档里明确披露了哪些指标？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 14,
+    "question": "请列出数据来源。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 15,
+    "question": "Meshy的目标用户是什么？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 16,
+    "question": "Tripo的收费方式是什么？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 17,
+    "question": "你好，帮我查A项目预算。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 18,
+    "question": "谢谢，继续查询乙公司的收入。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 19,
+    "question": "在吗？请总结所选资料。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 20,
+    "question": "聊聊天之外，先帮我分析这份报告。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 21,
+    "question": "我想了解甲公司的收入构成。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 22,
+    "question": "所选文件有没有提到退款条件？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 23,
+    "question": "我上传的资料有多少个项目？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 24,
+    "question": "列出文件中的数值和单位，不要推算。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 25,
+    "question": "请根据报告解释客户增长原因。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 26,
+    "question": "根据资料回答：怎么上传文件？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 27,
+    "question": "资料里说的修改密码流程是什么？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 28,
+    "question": "A项目如何申请权限？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 29,
+    "question": "公司上传文件的收费是多少？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 30,
+    "question": "请查资料中的天气影响分析。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 31,
+    "question": "这份材料中“在吗”是什么意思？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 32,
+    "question": "查找项目相关证据。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 33,
+    "question": "乙公司2024年和2025年的预算变化是多少？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 34,
+    "question": "请分析甲公司的技术风险，不查乙公司。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 35,
+    "question": "把所选文件中披露的数据整理成表格。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 36,
+    "question": "你好，怎么查询甲公司的预算？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 37,
+    "question": "请根据原文解释什么是净利润。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 38,
+    "question": "不要闲聊，帮我检索公司的项目资料。",
+    "expected": "knowledge"
+  },
+  {
+    "id": 39,
+    "question": "谢谢你，甲公司的产品定位是什么？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 40,
+    "question": "嗨，文档中对价格有什么限制？",
+    "expected": "knowledge"
+  },
+  {
+    "id": 41,
+    "question": "你好",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 42,
+    "question": "您好！",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 43,
+    "question": "hi",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 44,
+    "question": "在吗？",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 45,
+    "question": "谢谢你",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 46,
+    "question": "多谢",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 47,
+    "question": "辛苦了",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 48,
+    "question": "再见",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 49,
+    "question": "好的",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 50,
+    "question": "收到",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 51,
+    "question": "聊聊天",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 52,
+    "question": "我们聊聊天吧",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 53,
+    "question": "今天有点累，想找人说说话。",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 54,
+    "question": "我心情不好，你能陪我聊一会儿吗？",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 55,
+    "question": "最近工作压力好大，想放松一下。",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 56,
+    "question": "你今天过得怎么样？",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 57,
+    "question": "哈哈，你说话挺有意思的。",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 58,
+    "question": "能陪我随便聊两句吗？",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 59,
+    "question": "早上好，谢谢你！",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 60,
+    "question": "Thank you!",
+    "expected": "smalltalk"
+  },
+  {
+    "id": 61,
+    "question": "怎么上传文件？",
+    "expected": "assistant"
+  },
+  {
+    "id": 62,
+    "question": "如何上传视频？",
+    "expected": "assistant"
+  },
+  {
+    "id": 63,
+    "question": "我该怎么修改密码？",
+    "expected": "assistant"
+  },
+  {
+    "id": 64,
+    "question": "在哪里申请权限？",
+    "expected": "assistant"
+  },
+  {
+    "id": 65,
+    "question": "请问怎么新建对话？",
+    "expected": "assistant"
+  },
+  {
+    "id": 66,
+    "question": "如何下载报告？",
+    "expected": "assistant"
+  },
+  {
+    "id": 67,
+    "question": "怎么使用AI助手？",
+    "expected": "assistant"
+  },
+  {
+    "id": 68,
+    "question": "我应该怎么重置密码？",
+    "expected": "assistant"
+  },
+  {
+    "id": 69,
+    "question": "这个页面上传按钮在哪里？",
+    "expected": "assistant"
+  },
+  {
+    "id": 70,
+    "question": "文件上传失败了，我该去哪里重试？",
+    "expected": "assistant"
+  },
+  {
+    "id": 71,
+    "question": "客户数呢？",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 72,
+    "question": "它的客户数量是多少？",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 73,
+    "question": "那负责人呢？",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 74,
+    "question": "怎么收费？",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 75,
+    "question": "它有哪些风险？",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 76,
+    "question": "那乙公司呢？",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 77,
+    "question": "再详细一点",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 78,
+    "question": "为什么？",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 79,
+    "question": "继续",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 80,
+    "question": "上一个问题的依据在哪？",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 81,
+    "question": "它的目标用户是谁？",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 82,
+    "question": "这个项目的负责人是谁？",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 83,
+    "question": "它的收入呢？",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 84,
+    "question": "可以展开吗？",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 85,
+    "question": "我说的是乙公司",
+    "expected": "knowledge",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 86,
+    "question": "整理成表格",
+    "expected": "transform",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 87,
+    "question": "请把回答整理成表格",
+    "expected": "transform",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 88,
+    "question": "改成列表",
+    "expected": "transform",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 89,
+    "question": "请将结果转成清单",
+    "expected": "transform",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 90,
+    "question": "整理成清单",
+    "expected": "transform",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 91,
+    "question": "改成段落",
+    "expected": "transform",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 92,
+    "question": "请把上面的回答整理成表格",
+    "expected": "transform",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 93,
+    "question": "转换成表格",
+    "expected": "transform",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 94,
+    "question": "转成列表",
+    "expected": "transform",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 95,
+    "question": "请整理成表格",
+    "expected": "transform",
+    "task": "甲公司2025年的收入是多少？"
+  },
+  {
+    "id": 96,
+    "question": "它的客户数量是多少？",
+    "expected": "clarify",
+    "task": "比较甲公司和乙公司的收费方式。"
+  },
+  {
+    "id": 97,
+    "question": "它怎么收费？",
+    "expected": "clarify",
+    "task": "比较甲公司和乙公司的收费方式。"
+  },
+  {
+    "id": 98,
+    "question": "它的收入是多少？",
+    "expected": "clarify",
+    "task": "比较甲公司和乙公司的收费方式。"
+  },
+  {
+    "id": 99,
+    "question": "该公司的客户数呢？",
+    "expected": "clarify",
+    "task": "比较甲公司和乙公司的收费方式。"
+  },
+  {
+    "id": 100,
+    "question": "那它的风险呢？",
+    "expected": "clarify",
+    "task": "比较甲公司和乙公司的收费方式。"
+  }
+]
