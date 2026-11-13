@@ -1,0 +1,10 @@
+{
+  "unique_tests": 267,
+  "passed": 267,
+  "failed": 0,
+  "evidence_order": [
+    "core-final.xml",
+    "repaired-workspace.xml"
+  ],
+  "note": "The latter run supersedes the old 8192-token assertion and reruns all workspace tests on the repaired source."
+}

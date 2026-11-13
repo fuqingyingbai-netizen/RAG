@@ -1,0 +1,16 @@
+{
+  "status": "prepared",
+  "candidate": "/opt/supermew/releases/bf2fda8aac3fd3c9d56bcf0ce00121c78214ccac",
+  "base_release": "/opt/supermew/releases/96612b640ff84e34ec61773a7f9ef0dba5af0e66",
+  "unrelated_files_preserved": 487,
+  "preflight": {
+    "status": "passed",
+    "checks": [
+      "8 mixed turns: social and redirect skip retrieval/model, retain task, topic switches and formatting stay scoped",
+      "authentication, conversation ownership and explicit document ACL remain enforced",
+      "completed turn releases conversation lease"
+    ],
+    "database": "supermew_intent_verify_bf2fda8aac3f"
+  },
+  "format_artifacts": "/opt/supermew/verification/knowledge-intent-bf2fda8aac3f"
+}

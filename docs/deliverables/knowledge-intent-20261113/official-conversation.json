@@ -1,0 +1,2476 @@
+{
+  "model": "qwen3.7-plus",
+  "endpoint": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "retrieval": "controlled synthetic; all three documents returned on every retrieval",
+  "interval_seconds": 1.0,
+  "maximum_attempts": 1,
+  "retries": 0,
+  "cases": [
+    {
+      "turn": 1,
+      "question": "请列出甲公司2025年的营业收入与客户数量，每项注明来源。",
+      "expected_subject": "甲公司",
+      "answer": "甲公司2025年营业收入为1200万元[id_1]。\n客户数量为87家[id_1]。",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "recent",
+              "message": "已恢复当前研究上下文；回答仍需重新检索。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "正在检索所选资料",
+              "detail": "仅查询当前账号可访问且已完成索引的文件。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "检索完成",
+              "finished": true,
+              "detail": "命中 3 份文件、3 个片段。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "citations",
+              "citations": [
+                {
+                  "id": "1",
+                  "document_id": "cloud-a",
+                  "title": "甲公司2025年测试资料",
+                  "text": "甲公司：2025年营业收入为1200万元，客户数量为87家；标准版价格为39元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-a",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "3b9cd088d7111fb6a54fd436",
+                  "excerpt_start": 0,
+                  "excerpt_end": 49,
+                  "excerpted": false
+                },
+                {
+                  "id": "2",
+                  "document_id": "cloud-b",
+                  "title": "乙公司2025年测试资料",
+                  "text": "乙公司：2025年营业收入为2600万元，客户数量为143家；标准版价格为69元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-b",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "283ef709c0c0966fd28f5d12",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                },
+                {
+                  "id": "3",
+                  "document_id": "cloud-c",
+                  "title": "丙公司2025年测试资料",
+                  "text": "丙公司：2025年营业收入为5100万元，客户数量为218家；标准版价格为99元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-c",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "266ddb6fbc69328520c8da2c",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                }
+              ],
+              "elapsed_seconds": 6
+            },
+            {
+              "type": "evidence_scope",
+              "file_count": 3,
+              "fragment_count": 3,
+              "limited": false,
+              "message": "回答依据本轮检索片段，未逐份通读全部资料；全量统计需要核对完整清单。",
+              "elapsed_seconds": 6
+            },
+            {
+              "type": "progress",
+              "stage": "answering",
+              "label": "正在生成回答",
+              "detail": "正在依据检索片段整理答案与引用。",
+              "elapsed_seconds": 6
+            },
+            {
+              "type": "answer_delta",
+              "text": "甲公司",
+              "elapsed_seconds": 7
+            },
+            {
+              "type": "answer_delta",
+              "text": "2025",
+              "elapsed_seconds": 8
+            },
+            {
+              "type": "answer_delta",
+              "text": "年营业收入为1",
+              "elapsed_seconds": 8
+            },
+            {
+              "type": "answer_delta",
+              "text": "200万元",
+              "elapsed_seconds": 8
+            },
+            {
+              "type": "answer_delta",
+              "text": "[id_1]。\n客户数量为",
+              "elapsed_seconds": 8
+            },
+            {
+              "type": "answer_delta",
+              "text": "87家",
+              "elapsed_seconds": 8
+            },
+            {
+              "type": "answer_delta",
+              "text": "[id_1]。",
+              "elapsed_seconds": 8
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 2,
+              "elapsed_seconds": 8
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 8
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": "请列出甲公司2025年的营业收入与客户数量，每项注明来源。",
+      "cited_documents": [
+        "甲公司2025年测试资料"
+      ],
+      "requests": [
+        {
+          "kind": "answer",
+          "status": 200,
+          "seconds": 1.739
+        }
+      ],
+      "seconds": 8.493
+    },
+    {
+      "turn": 2,
+      "question": "谢谢你",
+      "expected_subject": "social",
+      "answer": "不客气！需要查资料时，直接告诉我问题即可。",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "recent",
+              "message": "已恢复当前研究上下文；回答仍需重新检索。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "answer_delta",
+              "text": "不客气！需要查资料时，直接告诉我问题即可。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 4,
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 0
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": null,
+      "cited_documents": [],
+      "requests": [],
+      "seconds": 0.034
+    },
+    {
+      "turn": 3,
+      "question": "客户数呢？",
+      "expected_subject": "甲公司",
+      "answer": "甲公司2025年客户数量为87家[id_1]。",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "recent",
+              "message": "已恢复当前研究上下文；回答仍需重新检索。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "context",
+              "label": "已补全追问",
+              "detail": "本轮检索问题：请列出甲公司2025年的客户数量，注明来源。",
+              "finished": true,
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "正在检索所选资料",
+              "detail": "仅查询当前账号可访问且已完成索引的文件。",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "检索完成",
+              "finished": true,
+              "detail": "命中 3 份文件、3 个片段。",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "citations",
+              "citations": [
+                {
+                  "id": "1",
+                  "document_id": "cloud-a",
+                  "title": "甲公司2025年测试资料",
+                  "text": "甲公司：2025年营业收入为1200万元，客户数量为87家；标准版价格为39元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-a",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "3b9cd088d7111fb6a54fd436",
+                  "excerpt_start": 0,
+                  "excerpt_end": 49,
+                  "excerpted": false
+                },
+                {
+                  "id": "2",
+                  "document_id": "cloud-b",
+                  "title": "乙公司2025年测试资料",
+                  "text": "乙公司：2025年营业收入为2600万元，客户数量为143家；标准版价格为69元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-b",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "283ef709c0c0966fd28f5d12",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                },
+                {
+                  "id": "3",
+                  "document_id": "cloud-c",
+                  "title": "丙公司2025年测试资料",
+                  "text": "丙公司：2025年营业收入为5100万元，客户数量为218家；标准版价格为99元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-c",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "266ddb6fbc69328520c8da2c",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                }
+              ],
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "evidence_scope",
+              "file_count": 3,
+              "fragment_count": 3,
+              "limited": false,
+              "message": "回答依据本轮检索片段，未逐份通读全部资料；全量统计需要核对完整清单。",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "progress",
+              "stage": "answering",
+              "label": "正在生成回答",
+              "detail": "正在依据检索片段整理答案与引用。",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": "甲公司",
+              "elapsed_seconds": 3
+            },
+            {
+              "type": "answer_delta",
+              "text": "2025",
+              "elapsed_seconds": 3
+            },
+            {
+              "type": "answer_delta",
+              "text": "年客户数量为8",
+              "elapsed_seconds": 3
+            },
+            {
+              "type": "answer_delta",
+              "text": "7家",
+              "elapsed_seconds": 3
+            },
+            {
+              "type": "answer_delta",
+              "text": "[id_1]。",
+              "elapsed_seconds": 3
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 6,
+              "elapsed_seconds": 4
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 4
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": "请列出甲公司2025年的客户数量，注明来源。",
+      "cited_documents": [
+        "甲公司2025年测试资料"
+      ],
+      "requests": [
+        {
+          "kind": "answer",
+          "status": 200,
+          "seconds": 2.488
+        },
+        {
+          "kind": "answer",
+          "status": 200,
+          "seconds": 1.378
+        }
+      ],
+      "seconds": 4.033
+    },
+    {
+      "turn": 4,
+      "question": "整理成表格",
+      "expected_subject": "甲公司",
+      "answer": "| 对象 | 2025年客户数量 | 来源 |\n| :--- | :--- | :--- |\n| 甲公司 | 87家 | [id_1] |",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "recent",
+              "message": "已恢复当前研究上下文；回答仍需重新检索。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "context",
+              "label": "已补全追问",
+              "detail": "本轮检索问题：请列出甲公司2025年的客户数量，注明来源。",
+              "finished": true,
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "正在检索所选资料",
+              "detail": "仅查询当前账号可访问且已完成索引的文件。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "检索完成",
+              "finished": true,
+              "detail": "命中 3 份文件、3 个片段。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "citations",
+              "citations": [
+                {
+                  "id": "1",
+                  "document_id": "cloud-a",
+                  "title": "甲公司2025年测试资料",
+                  "text": "甲公司：2025年营业收入为1200万元，客户数量为87家；标准版价格为39元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-a",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "3b9cd088d7111fb6a54fd436",
+                  "excerpt_start": 0,
+                  "excerpt_end": 49,
+                  "excerpted": false
+                },
+                {
+                  "id": "2",
+                  "document_id": "cloud-b",
+                  "title": "乙公司2025年测试资料",
+                  "text": "乙公司：2025年营业收入为2600万元，客户数量为143家；标准版价格为69元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-b",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "283ef709c0c0966fd28f5d12",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                },
+                {
+                  "id": "3",
+                  "document_id": "cloud-c",
+                  "title": "丙公司2025年测试资料",
+                  "text": "丙公司：2025年营业收入为5100万元，客户数量为218家；标准版价格为99元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-c",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "266ddb6fbc69328520c8da2c",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                }
+              ],
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "evidence_scope",
+              "file_count": 3,
+              "fragment_count": 3,
+              "limited": false,
+              "message": "回答依据本轮检索片段，未逐份通读全部资料；全量统计需要核对完整清单。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "answering",
+              "label": "正在生成回答",
+              "detail": "正在依据检索片段整理答案与引用。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "answer_delta",
+              "text": "|",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": " 对象 | ",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "2025",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "年客户数量 |",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": " 来源 |\n",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "| :--- |",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": " :--- | :",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "--- |\n|",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": " 甲公司 | ",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "87家 |",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": " ",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "[id_1] |",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 8,
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 2
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": "请列出甲公司2025年的客户数量，注明来源。",
+      "cited_documents": [
+        "甲公司2025年测试资料"
+      ],
+      "requests": [
+        {
+          "kind": "answer",
+          "status": 200,
+          "seconds": 1.961
+        }
+      ],
+      "seconds": 2.062
+    },
+    {
+      "turn": 5,
+      "question": "那乙公司呢？",
+      "expected_subject": "乙公司",
+      "answer": "| 对象 | 2025年客户数量 | 来源 |\n| :--- | :--- | :--- |\n| 乙公司 | 143家 | [id_2] |",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "recent",
+              "message": "已恢复当前研究上下文；回答仍需重新检索。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "context",
+              "label": "已补全追问",
+              "detail": "本轮检索问题：请列出乙公司2025年的客户数量，注明来源。",
+              "finished": true,
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "正在检索所选资料",
+              "detail": "仅查询当前账号可访问且已完成索引的文件。",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "检索完成",
+              "finished": true,
+              "detail": "命中 3 份文件、3 个片段。",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "citations",
+              "citations": [
+                {
+                  "id": "1",
+                  "document_id": "cloud-a",
+                  "title": "甲公司2025年测试资料",
+                  "text": "甲公司：2025年营业收入为1200万元，客户数量为87家；标准版价格为39元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-a",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "3b9cd088d7111fb6a54fd436",
+                  "excerpt_start": 0,
+                  "excerpt_end": 49,
+                  "excerpted": false
+                },
+                {
+                  "id": "2",
+                  "document_id": "cloud-b",
+                  "title": "乙公司2025年测试资料",
+                  "text": "乙公司：2025年营业收入为2600万元，客户数量为143家；标准版价格为69元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-b",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "283ef709c0c0966fd28f5d12",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                },
+                {
+                  "id": "3",
+                  "document_id": "cloud-c",
+                  "title": "丙公司2025年测试资料",
+                  "text": "丙公司：2025年营业收入为5100万元，客户数量为218家；标准版价格为99元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-c",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "266ddb6fbc69328520c8da2c",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                }
+              ],
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "evidence_scope",
+              "file_count": 3,
+              "fragment_count": 3,
+              "limited": false,
+              "message": "回答依据本轮检索片段，未逐份通读全部资料；全量统计需要核对完整清单。",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "progress",
+              "stage": "answering",
+              "label": "正在生成回答",
+              "detail": "正在依据检索片段整理答案与引用。",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": "|",
+              "elapsed_seconds": 3
+            },
+            {
+              "type": "answer_delta",
+              "text": " 对象 | ",
+              "elapsed_seconds": 3
+            },
+            {
+              "type": "answer_delta",
+              "text": "2025",
+              "elapsed_seconds": 3
+            },
+            {
+              "type": "answer_delta",
+              "text": "年客户数量 |",
+              "elapsed_seconds": 3
+            },
+            {
+              "type": "answer_delta",
+              "text": " 来源 |\n",
+              "elapsed_seconds": 4
+            },
+            {
+              "type": "answer_delta",
+              "text": "| :--- |",
+              "elapsed_seconds": 4
+            },
+            {
+              "type": "answer_delta",
+              "text": " :--- | :",
+              "elapsed_seconds": 4
+            },
+            {
+              "type": "answer_delta",
+              "text": "--- |\n|",
+              "elapsed_seconds": 4
+            },
+            {
+              "type": "answer_delta",
+              "text": " 乙公司 |",
+              "elapsed_seconds": 4
+            },
+            {
+              "type": "answer_delta",
+              "text": " 143",
+              "elapsed_seconds": 4
+            },
+            {
+              "type": "answer_delta",
+              "text": "家 | ",
+              "elapsed_seconds": 4
+            },
+            {
+              "type": "answer_delta",
+              "text": "[id_2] |",
+              "elapsed_seconds": 4
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 10,
+              "elapsed_seconds": 4
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 4
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": "请列出乙公司2025年的客户数量，注明来源。",
+      "cited_documents": [
+        "乙公司2025年测试资料"
+      ],
+      "requests": [
+        {
+          "kind": "answer",
+          "status": 200,
+          "seconds": 2.255
+        },
+        {
+          "kind": "answer",
+          "status": 200,
+          "seconds": 2.151
+        }
+      ],
+      "seconds": 4.532
+    },
+    {
+      "turn": 6,
+      "question": "怎么上传文件？",
+      "expected_subject": "social",
+      "answer": "系统操作问题请到“AI 助手”咨询；这里可以帮你查找、总结和比较知识库资料。",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "recent",
+              "message": "已恢复当前研究上下文；回答仍需重新检索。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "answer_delta",
+              "text": "系统操作问题请到“AI 助手”咨询；这里可以帮你查找、总结和比较知识库资料。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 12,
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 0
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": null,
+      "cited_documents": [],
+      "requests": [],
+      "seconds": 0.045
+    },
+    {
+      "turn": 7,
+      "question": "它怎么收费？",
+      "expected_subject": "乙公司",
+      "answer": "| 对象 | 收费方式 | 来源 |\n| :--- | :--- | :--- |\n| 乙公司 | 标准版价格为69元/月 | [id_2] |",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "recent",
+              "message": "已恢复当前研究上下文；回答仍需重新检索。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "context",
+              "label": "已补全追问",
+              "detail": "本轮检索问题：乙公司怎么收费？；注明来源",
+              "finished": true,
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "正在检索所选资料",
+              "detail": "仅查询当前账号可访问且已完成索引的文件。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "检索完成",
+              "finished": true,
+              "detail": "命中 3 份文件、3 个片段。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "citations",
+              "citations": [
+                {
+                  "id": "1",
+                  "document_id": "cloud-a",
+                  "title": "甲公司2025年测试资料",
+                  "text": "甲公司：2025年营业收入为1200万元，客户数量为87家；标准版价格为39元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-a",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "3b9cd088d7111fb6a54fd436",
+                  "excerpt_start": 0,
+                  "excerpt_end": 49,
+                  "excerpted": false
+                },
+                {
+                  "id": "2",
+                  "document_id": "cloud-b",
+                  "title": "乙公司2025年测试资料",
+                  "text": "乙公司：2025年营业收入为2600万元，客户数量为143家；标准版价格为69元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-b",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "283ef709c0c0966fd28f5d12",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                },
+                {
+                  "id": "3",
+                  "document_id": "cloud-c",
+                  "title": "丙公司2025年测试资料",
+                  "text": "丙公司：2025年营业收入为5100万元，客户数量为218家；标准版价格为99元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-c",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "266ddb6fbc69328520c8da2c",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                }
+              ],
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "evidence_scope",
+              "file_count": 3,
+              "fragment_count": 3,
+              "limited": false,
+              "message": "回答依据本轮检索片段，未逐份通读全部资料；全量统计需要核对完整清单。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "answering",
+              "label": "正在生成回答",
+              "detail": "正在依据检索片段整理答案与引用。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "answer_delta",
+              "text": "|",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": " 对象 | ",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "收费方式 | ",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "来源 |\n|",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": " :--- | :",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "--- | :---",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": " |\n| ",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "乙公司 | ",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "标准版价格为6",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "9元/月",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": " | ",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": "[id_2] |",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 14,
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 2
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": "乙公司怎么收费？；注明来源",
+      "cited_documents": [
+        "乙公司2025年测试资料"
+      ],
+      "requests": [
+        {
+          "kind": "answer",
+          "status": 200,
+          "seconds": 2.018
+        }
+      ],
+      "seconds": 2.172
+    },
+    {
+      "turn": 8,
+      "question": "请比较甲公司和乙公司的收费方式。",
+      "expected_subject": "甲公司、乙公司",
+      "answer": "| 对象 | 收费方式 | 来源 |\n| :--- | :--- | :--- |\n| 甲公司 | 标准版价格为39元/月 | [id_1] |\n| 乙公司 | 标准版价格为69元/月 | [id_2] |",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "recent",
+              "message": "已恢复当前研究上下文；回答仍需重新检索。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "正在检索所选资料",
+              "detail": "仅查询当前账号可访问且已完成索引的文件。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "检索完成",
+              "finished": true,
+              "detail": "命中 3 份文件、3 个片段。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "citations",
+              "citations": [
+                {
+                  "id": "1",
+                  "document_id": "cloud-a",
+                  "title": "甲公司2025年测试资料",
+                  "text": "甲公司：2025年营业收入为1200万元，客户数量为87家；标准版价格为39元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-a",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "3b9cd088d7111fb6a54fd436",
+                  "excerpt_start": 0,
+                  "excerpt_end": 49,
+                  "excerpted": false
+                },
+                {
+                  "id": "2",
+                  "document_id": "cloud-b",
+                  "title": "乙公司2025年测试资料",
+                  "text": "乙公司：2025年营业收入为2600万元，客户数量为143家；标准版价格为69元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-b",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "283ef709c0c0966fd28f5d12",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                },
+                {
+                  "id": "3",
+                  "document_id": "cloud-c",
+                  "title": "丙公司2025年测试资料",
+                  "text": "丙公司：2025年营业收入为5100万元，客户数量为218家；标准版价格为99元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-c",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "266ddb6fbc69328520c8da2c",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                }
+              ],
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "evidence_scope",
+              "file_count": 3,
+              "fragment_count": 3,
+              "limited": false,
+              "message": "回答依据本轮检索片段，未逐份通读全部资料；全量统计需要核对完整清单。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "answering",
+              "label": "正在生成回答",
+              "detail": "正在依据检索片段整理答案与引用。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "answer_delta",
+              "text": "|",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": " 对象 | ",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "收费方式 | ",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "来源 |\n|",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": " :--- | :",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "--- | :---",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": " |\n| ",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "甲公司 | 标准",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "版价格为39",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": "元/月 |",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": " ",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": "[id_1] |\n|",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": " 乙公司 |",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": " 标准版价格为",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": "69元/",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": "月 | ",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": "[id_2] |",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 16,
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 2
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": "请比较甲公司和乙公司的收费方式。",
+      "cited_documents": [
+        "甲公司2025年测试资料",
+        "乙公司2025年测试资料"
+      ],
+      "requests": [
+        {
+          "kind": "answer",
+          "status": 200,
+          "seconds": 2.449
+        }
+      ],
+      "seconds": 2.572
+    },
+    {
+      "turn": 9,
+      "question": "在吗",
+      "expected_subject": "social",
+      "answer": "你好！可以帮你查找资料、总结报告、比较不同资料的结论，并提供引用依据。",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "recent",
+              "message": "已恢复当前研究上下文；回答仍需重新检索。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "answer_delta",
+              "text": "你好！可以帮你查找资料、总结报告、比较不同资料的结论，并提供引用依据。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 18,
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 0
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": null,
+      "cited_documents": [],
+      "requests": [],
+      "seconds": 0.036
+    },
+    {
+      "turn": 10,
+      "question": "它的客户数量是多少？",
+      "expected_subject": "clarify",
+      "answer": "未能确认这次追问的具体对象，请补充公司、项目或文件名称后再试。",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "recent",
+              "message": "已恢复当前研究上下文；回答仍需重新检索。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "answer_delta",
+              "text": "未能确认这次追问的具体对象，请补充公司、项目或文件名称后再试。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 20,
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 0
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": null,
+      "cited_documents": [],
+      "requests": [],
+      "seconds": 0.038
+    },
+    {
+      "turn": 11,
+      "question": "我指的是乙公司",
+      "expected_subject": "乙公司",
+      "answer": "乙公司2025年客户数量为143家[id_2]。",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "recent",
+              "message": "已恢复当前研究上下文；回答仍需重新检索。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "context",
+              "label": "已补全追问",
+              "detail": "本轮检索问题：乙公司的客户数量是多少？",
+              "finished": true,
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "正在检索所选资料",
+              "detail": "仅查询当前账号可访问且已完成索引的文件。",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "检索完成",
+              "finished": true,
+              "detail": "命中 3 份文件、3 个片段。",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "citations",
+              "citations": [
+                {
+                  "id": "1",
+                  "document_id": "cloud-a",
+                  "title": "甲公司2025年测试资料",
+                  "text": "甲公司：2025年营业收入为1200万元，客户数量为87家；标准版价格为39元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-a",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "3b9cd088d7111fb6a54fd436",
+                  "excerpt_start": 0,
+                  "excerpt_end": 49,
+                  "excerpted": false
+                },
+                {
+                  "id": "2",
+                  "document_id": "cloud-b",
+                  "title": "乙公司2025年测试资料",
+                  "text": "乙公司：2025年营业收入为2600万元，客户数量为143家；标准版价格为69元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-b",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "283ef709c0c0966fd28f5d12",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                },
+                {
+                  "id": "3",
+                  "document_id": "cloud-c",
+                  "title": "丙公司2025年测试资料",
+                  "text": "丙公司：2025年营业收入为5100万元，客户数量为218家；标准版价格为99元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-c",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "266ddb6fbc69328520c8da2c",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                }
+              ],
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "evidence_scope",
+              "file_count": 3,
+              "fragment_count": 3,
+              "limited": false,
+              "message": "回答依据本轮检索片段，未逐份通读全部资料；全量统计需要核对完整清单。",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "progress",
+              "stage": "answering",
+              "label": "正在生成回答",
+              "detail": "正在依据检索片段整理答案与引用。",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": "乙",
+              "elapsed_seconds": 4
+            },
+            {
+              "type": "answer_delta",
+              "text": "公司",
+              "elapsed_seconds": 5
+            },
+            {
+              "type": "answer_delta",
+              "text": "2025",
+              "elapsed_seconds": 5
+            },
+            {
+              "type": "answer_delta",
+              "text": "年客户数量为1",
+              "elapsed_seconds": 5
+            },
+            {
+              "type": "answer_delta",
+              "text": "43家",
+              "elapsed_seconds": 5
+            },
+            {
+              "type": "answer_delta",
+              "text": "[id_2]。",
+              "elapsed_seconds": 5
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 22,
+              "elapsed_seconds": 5
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 5
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": "乙公司的客户数量是多少？",
+      "cited_documents": [
+        "乙公司2025年测试资料"
+      ],
+      "requests": [
+        {
+          "kind": "answer",
+          "status": 200,
+          "seconds": 2.739
+        },
+        {
+          "kind": "answer",
+          "status": 200,
+          "seconds": 2.413
+        }
+      ],
+      "seconds": 5.295
+    },
+    {
+      "turn": 12,
+      "question": "客户数呢？",
+      "expected_subject": "乙公司",
+      "answer": "乙公司2025年客户数量为143家[id_2]。",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "deferred",
+              "message": "记忆整理暂未完成，当前仅参考部分历史；原始消息仍保留。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "context",
+              "label": "已补全追问",
+              "detail": "本轮检索问题：乙公司的客户数？",
+              "finished": true,
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "正在检索所选资料",
+              "detail": "仅查询当前账号可访问且已完成索引的文件。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "检索完成",
+              "finished": true,
+              "detail": "命中 3 份文件、3 个片段。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "citations",
+              "citations": [
+                {
+                  "id": "1",
+                  "document_id": "cloud-a",
+                  "title": "甲公司2025年测试资料",
+                  "text": "甲公司：2025年营业收入为1200万元，客户数量为87家；标准版价格为39元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-a",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "3b9cd088d7111fb6a54fd436",
+                  "excerpt_start": 0,
+                  "excerpt_end": 49,
+                  "excerpted": false
+                },
+                {
+                  "id": "2",
+                  "document_id": "cloud-b",
+                  "title": "乙公司2025年测试资料",
+                  "text": "乙公司：2025年营业收入为2600万元，客户数量为143家；标准版价格为69元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-b",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "283ef709c0c0966fd28f5d12",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                },
+                {
+                  "id": "3",
+                  "document_id": "cloud-c",
+                  "title": "丙公司2025年测试资料",
+                  "text": "丙公司：2025年营业收入为5100万元，客户数量为218家；标准版价格为99元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-c",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "266ddb6fbc69328520c8da2c",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                }
+              ],
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "evidence_scope",
+              "file_count": 3,
+              "fragment_count": 3,
+              "limited": false,
+              "message": "回答依据本轮检索片段，未逐份通读全部资料；全量统计需要核对完整清单。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "answering",
+              "label": "正在生成回答",
+              "detail": "正在依据检索片段整理答案与引用。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "answer_delta",
+              "text": "乙",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "公司202",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "5年客户数量为",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "143家",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "[id_2]。",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 24,
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 1
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": "乙公司的客户数？",
+      "cited_documents": [
+        "乙公司2025年测试资料"
+      ],
+      "requests": [
+        {
+          "kind": "answer",
+          "status": 200,
+          "seconds": 1.729
+        }
+      ],
+      "seconds": 1.835
+    },
+    {
+      "turn": 13,
+      "question": "请介绍丙公司2025年的营业收入。",
+      "expected_subject": "丙公司",
+      "answer": "丙公司2025年营业收入为5100万元[id_3]。",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "deferred",
+              "message": "记忆整理暂未完成，当前仅参考部分历史；原始消息仍保留。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "正在检索所选资料",
+              "detail": "仅查询当前账号可访问且已完成索引的文件。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "检索完成",
+              "finished": true,
+              "detail": "命中 3 份文件、3 个片段。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "citations",
+              "citations": [
+                {
+                  "id": "1",
+                  "document_id": "cloud-a",
+                  "title": "甲公司2025年测试资料",
+                  "text": "甲公司：2025年营业收入为1200万元，客户数量为87家；标准版价格为39元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-a",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "3b9cd088d7111fb6a54fd436",
+                  "excerpt_start": 0,
+                  "excerpt_end": 49,
+                  "excerpted": false
+                },
+                {
+                  "id": "2",
+                  "document_id": "cloud-b",
+                  "title": "乙公司2025年测试资料",
+                  "text": "乙公司：2025年营业收入为2600万元，客户数量为143家；标准版价格为69元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-b",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "283ef709c0c0966fd28f5d12",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                },
+                {
+                  "id": "3",
+                  "document_id": "cloud-c",
+                  "title": "丙公司2025年测试资料",
+                  "text": "丙公司：2025年营业收入为5100万元，客户数量为218家；标准版价格为99元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-c",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "266ddb6fbc69328520c8da2c",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                }
+              ],
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "evidence_scope",
+              "file_count": 3,
+              "fragment_count": 3,
+              "limited": false,
+              "message": "回答依据本轮检索片段，未逐份通读全部资料；全量统计需要核对完整清单。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "answering",
+              "label": "正在生成回答",
+              "detail": "正在依据检索片段整理答案与引用。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "answer_delta",
+              "text": "丙",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": "公司202",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": "5年营业收入为",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": "5100",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": "万元",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "answer_delta",
+              "text": "[id_3]。",
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 26,
+              "elapsed_seconds": 2
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 2
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": "请介绍丙公司2025年的营业收入。",
+      "cited_documents": [
+        "丙公司2025年测试资料"
+      ],
+      "requests": [
+        {
+          "kind": "answer",
+          "status": 200,
+          "seconds": 2.651
+        }
+      ],
+      "seconds": 2.772
+    },
+    {
+      "turn": 14,
+      "question": "它怎么收费？",
+      "expected_subject": "丙公司",
+      "answer": "丙公司标准版价格为99元/月[id_3]。",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "deferred",
+              "message": "记忆整理暂未完成，当前仅参考部分历史；原始消息仍保留。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "context",
+              "label": "已补全追问",
+              "detail": "本轮检索问题：丙公司怎么收费？；2025年",
+              "finished": true,
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "正在检索所选资料",
+              "detail": "仅查询当前账号可访问且已完成索引的文件。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "检索完成",
+              "finished": true,
+              "detail": "命中 3 份文件、3 个片段。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "citations",
+              "citations": [
+                {
+                  "id": "1",
+                  "document_id": "cloud-a",
+                  "title": "甲公司2025年测试资料",
+                  "text": "甲公司：2025年营业收入为1200万元，客户数量为87家；标准版价格为39元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-a",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "3b9cd088d7111fb6a54fd436",
+                  "excerpt_start": 0,
+                  "excerpt_end": 49,
+                  "excerpted": false
+                },
+                {
+                  "id": "2",
+                  "document_id": "cloud-b",
+                  "title": "乙公司2025年测试资料",
+                  "text": "乙公司：2025年营业收入为2600万元，客户数量为143家；标准版价格为69元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-b",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "283ef709c0c0966fd28f5d12",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                },
+                {
+                  "id": "3",
+                  "document_id": "cloud-c",
+                  "title": "丙公司2025年测试资料",
+                  "text": "丙公司：2025年营业收入为5100万元，客户数量为218家；标准版价格为99元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-c",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "266ddb6fbc69328520c8da2c",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                }
+              ],
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "evidence_scope",
+              "file_count": 3,
+              "fragment_count": 3,
+              "limited": false,
+              "message": "回答依据本轮检索片段，未逐份通读全部资料；全量统计需要核对完整清单。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "answering",
+              "label": "正在生成回答",
+              "detail": "正在依据检索片段整理答案与引用。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "answer_delta",
+              "text": "丙",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "公司标准",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "版价格为",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "99元/",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "月",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "[id_3]。",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 28,
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 1
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": "丙公司怎么收费？；2025年",
+      "cited_documents": [
+        "丙公司2025年测试资料"
+      ],
+      "requests": [
+        {
+          "kind": "answer",
+          "status": 200,
+          "seconds": 1.802
+        }
+      ],
+      "seconds": 1.923
+    },
+    {
+      "turn": 15,
+      "question": "丙公司2025年的净利润是多少？不要推算。",
+      "expected_subject": "refuse",
+      "answer": "当前资料中未找到依据。",
+      "attempts": [
+        {
+          "number": 1,
+          "errors": [],
+          "events": [
+            {
+              "type": "progress",
+              "stage": "connecting",
+              "label": "正在连接知识库",
+              "detail": "问题已提交，正在等待云端响应。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "session",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "memory",
+              "status": "deferred",
+              "message": "记忆整理暂未完成，当前仅参考部分历史；原始消息仍保留。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "正在检索所选资料",
+              "detail": "仅查询当前账号可访问且已完成索引的文件。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "retrieving",
+              "label": "检索完成",
+              "finished": true,
+              "detail": "命中 3 份文件、3 个片段。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "citations",
+              "citations": [
+                {
+                  "id": "1",
+                  "document_id": "cloud-a",
+                  "title": "甲公司2025年测试资料",
+                  "text": "甲公司：2025年营业收入为1200万元，客户数量为87家；标准版价格为39元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-a",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "3b9cd088d7111fb6a54fd436",
+                  "excerpt_start": 0,
+                  "excerpt_end": 49,
+                  "excerpted": false
+                },
+                {
+                  "id": "2",
+                  "document_id": "cloud-b",
+                  "title": "乙公司2025年测试资料",
+                  "text": "乙公司：2025年营业收入为2600万元，客户数量为143家；标准版价格为69元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-b",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "283ef709c0c0966fd28f5d12",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                },
+                {
+                  "id": "3",
+                  "document_id": "cloud-c",
+                  "title": "丙公司2025年测试资料",
+                  "text": "丙公司：2025年营业收入为5100万元，客户数量为218家；标准版价格为99元/月。未披露净利润。",
+                  "pages": [],
+                  "url": "",
+                  "location_url": "",
+                  "local_id": "doc-c",
+                  "review": "待复核",
+                  "version": 1,
+                  "project": "",
+                  "industry": "",
+                  "media_kind": "",
+                  "evidence_id": "266ddb6fbc69328520c8da2c",
+                  "excerpt_start": 0,
+                  "excerpt_end": 50,
+                  "excerpted": false
+                }
+              ],
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "evidence_scope",
+              "file_count": 3,
+              "fragment_count": 3,
+              "limited": false,
+              "message": "回答依据本轮检索片段，未逐份通读全部资料；全量统计需要核对完整清单。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "progress",
+              "stage": "answering",
+              "label": "正在生成回答",
+              "detail": "正在依据检索片段整理答案与引用。",
+              "elapsed_seconds": 0
+            },
+            {
+              "type": "answer_delta",
+              "text": "当前",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "资料中未找到",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "answer_delta",
+              "text": "依据。",
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "saved",
+              "session_id": "5c6641a3c4f34510bc39288ae42f7b88",
+              "message_id": 30,
+              "elapsed_seconds": 1
+            },
+            {
+              "type": "done",
+              "usage": {},
+              "elapsed_seconds": 1
+            }
+          ]
+        }
+      ],
+      "errors": [],
+      "passed": true,
+      "retrieval_query": "丙公司2025年的净利润是多少？不要推算。",
+      "cited_documents": [],
+      "requests": [
+        {
+          "kind": "answer",
+          "status": 200,
+          "seconds": 1.614
+        }
+      ],
+      "seconds": 1.721
+    }
+  ],
+  "requests": [
+    {
+      "kind": "answer",
+      "status": 200,
+      "seconds": 1.739
+    },
+    {
+      "kind": "answer",
+      "status": 200,
+      "seconds": 2.488
+    },
+    {
+      "kind": "answer",
+      "status": 200,
+      "seconds": 1.378
+    },
+    {
+      "kind": "answer",
+      "status": 200,
+      "seconds": 1.961
+    },
+    {
+      "kind": "answer",
+      "status": 200,
+      "seconds": 2.255
+    },
+    {
+      "kind": "answer",
+      "status": 200,
+      "seconds": 2.151
+    },
+    {
+      "kind": "answer",
+      "status": 200,
+      "seconds": 2.018
+    },
+    {
+      "kind": "answer",
+      "status": 200,
+      "seconds": 2.449
+    },
+    {
+      "kind": "answer",
+      "status": 200,
+      "seconds": 2.739
+    },
+    {
+      "kind": "answer",
+      "status": 200,
+      "seconds": 2.413
+    },
+    {
+      "kind": "answer",
+      "status": 200,
+      "seconds": 1.729
+    },
+    {
+      "kind": "answer",
+      "status": 200,
+      "seconds": 2.651
+    },
+    {
+      "kind": "answer",
+      "status": 200,
+      "seconds": 1.802
+    },
+    {
+      "kind": "answer",
+      "status": 200,
+      "seconds": 1.614
+    }
+  ],
+  "passed": 15,
+  "total": 15,
+  "planned": 15
+}

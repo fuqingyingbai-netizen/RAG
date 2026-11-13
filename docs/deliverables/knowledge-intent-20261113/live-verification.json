@@ -1,0 +1,68 @@
+{
+  "status": "passed",
+  "source_commit": "bf2fda8aac3fd3c9d56bcf0ce00121c78214ccac",
+  "release": "/opt/supermew/releases/bf2fda8aac3fd3c9d56bcf0ce00121c78214ccac",
+  "service": "active",
+  "public_instance_matches_loaded_release": true,
+  "public_instance": "dbddc46f-cb01-4afb-847f-452c2ff3b80d",
+  "manifest_files_verified": 492,
+  "frontend_unchanged": true,
+  "environment_unchanged": true,
+  "model": "qwen3.7-plus",
+  "backup_checksums_verified": true,
+  "backup_scope": "database-and-config",
+  "anonymous_denied": true,
+  "api_checks": [
+    {
+      "case": "greeting",
+      "status": 200,
+      "request_id": "32a7a26eb48547878a85414129ff79ae",
+      "intent": "smalltalk",
+      "retrieval_attempted": false,
+      "upstream_calls": 0,
+      "upstream_statuses": {},
+      "outcome": "success",
+      "reference_count": 0,
+      "answer_characters": 35
+    },
+    {
+      "case": "thanks",
+      "status": 200,
+      "request_id": "644421db139a496c8a1965a6647f8dd5",
+      "intent": "smalltalk",
+      "retrieval_attempted": false,
+      "upstream_calls": 0,
+      "upstream_statuses": {},
+      "outcome": "success",
+      "reference_count": 0,
+      "answer_characters": 21
+    },
+    {
+      "case": "system_redirect",
+      "status": 200,
+      "request_id": "2ebce4169076480f80c796f346c2a694",
+      "intent": "assistant",
+      "retrieval_attempted": false,
+      "upstream_calls": 0,
+      "upstream_statuses": {},
+      "outcome": "success",
+      "reference_count": 0,
+      "answer_characters": 38
+    },
+    {
+      "case": "business",
+      "status": 200,
+      "request_id": "70a70773ad0748d5bffe1de01d432512",
+      "intent": "knowledge",
+      "retrieval_attempted": true,
+      "upstream_calls": 2,
+      "upstream_statuses": {
+        "200": 2
+      },
+      "outcome": "success",
+      "reference_count": 1,
+      "answer_characters": 54
+    }
+  ],
+  "persistent_conversations_created": false
+}
