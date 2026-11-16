@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "previous_event_status": "awarded",
+  "previous_reason": "\u5df2\u5165\u8d26",
+  "event_status": "awarded",
+  "event_id": "34473464e8e540b4add20eae4ed8734c9fa0223f0e10830a2adb3a0bf5959217",
+  "document_id": "e2f3cf7be3e14dd586743362a1945e1c",
+  "document_title": "README.md",
+  "actual_uploader": "admin",
+  "project_owner": "wanglin",
+  "amount": 10,
+  "ledger_id": "da3498ce4a61416faef5bd10d902c3ac",
+  "single_ledger_entry": true,
+  "admin_total": 10,
+  "wanglin_total": 0,
+  "visibility_unchanged": "restricted",
+  "source_ownership_unchanged": true,
+  "used_real_background_worker": true
+}

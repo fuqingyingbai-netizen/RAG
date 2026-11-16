@@ -2,6 +2,8 @@
 
 经本轮明确上线授权，已于 **2026-11-16 14:08:09（北京时间）** 将积分前后端切换至生产环境。
 
+后续更新：同日14:51已按用户要求取消上传积分的资料权限限制，并验证真实README上传奖励到账。当前上传行为与版本见 [KNOWLEDGE_POINTS_UPLOAD_PERMISSIONS_20261116.md](KNOWLEDGE_POINTS_UPLOAD_PERMISSIONS_20261116.md)；下文保留首次上线记录。
+
 - 网站：https://gauanfuzhiyan.com/
 - 发布源码提交：`18d2e0c030804fe158e74f7bf69d854a4ac2b0ab`。
 - 前版本：`723e673b9c32685de41a001bb88e52191b7ac5ac`。

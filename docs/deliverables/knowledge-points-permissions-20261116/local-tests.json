@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "tests": "35",
+    "errors": "0",
+    "failures": "0",
+    "time": "41.527"
+  },
+  "postgres": {
+    "tests": "35",
+    "errors": "0",
+    "failures": "0",
+    "time": "25.560"
+  },
+  "permissions-browser": {
+    "tests": "4",
+    "errors": "0",
+    "failures": "0",
+    "time": "63.961"
+  },
+  "points_frontend_passed": 11,
+  "existing_home_checks": "passed"
+}

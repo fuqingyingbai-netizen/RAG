@@ -1,0 +1,255 @@
+{
+  "counts": {
+    "users": 5,
+    "company_documents": 896,
+    "research_projects": 2,
+    "research_sources": 324,
+    "research_artifacts": 92
+  },
+  "points_counts_at_verification": {
+    "knowledge_points_rules": 1,
+    "knowledge_points_ledger": 1,
+    "knowledge_points_events": 1,
+    "knowledge_points_read_sessions": 0
+  },
+  "manifest_files_verified": 511,
+  "unrelated_files_preserved": 504,
+  "knowledge_points_commit": "c9154e74b55f4f806aaaabc2db9de94dc5f64a05",
+  "prior_provenance_preserved": {
+    "source_fix_commit": "96612b640ff84e34ec61773a7f9ef0dba5af0e66",
+    "knowledge_intent_commit": "bf2fda8aac3fd3c9d56bcf0ce00121c78214ccac",
+    "knowledge_clipboard_commit": "bc8d59e7c2fc2ac668884aa71239518d34abd3a1",
+    "knowledge_paste_audit_commit": "00e9b3cfd68a5725a02d5f27e93e45be46a1132c",
+    "knowledge_file_delete_commit": "723e673b9c32685de41a001bb88e52191b7ac5ac",
+    "knowledge_points_commit": "c9154e74b55f4f806aaaabc2db9de94dc5f64a05",
+    "knowledge_points_source_commit": "c9154e74b55f4f806aaaabc2db9de94dc5f64a05"
+  },
+  "configuration_unchanged": true,
+  "backup_checksums_verified": true,
+  "backup_scope": "database-and-config",
+  "service": "active",
+  "pid": 2001652,
+  "index_sha256": "5b9a7fc38c07ec1b4e5cdeb7ff00ea43dad33231092cf5f2653c1191ff1a87ca",
+  "model_concurrency": 3,
+  "model_wait_seconds": 60.0,
+  "knowledge_model": "qwen3.7-plus",
+  "status": "passed",
+  "public_instance": "2c7a2555-0d14-4fa1-8aa0-de65c58288b0",
+  "public_assets_verified": [
+    "frontend/knowledge-points.b3b8c36d3329.js",
+    "frontend/knowledge-points.js",
+    "frontend/personal-home.5ed6b0fd64ff.js",
+    "frontend/personal-home.js"
+  ],
+  "api_checks": [
+    {
+      "role": "admin",
+      "path": "/auth/me",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/research/home",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/company-knowledge/status",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/company-knowledge/projects",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/company-knowledge/documents?local_only=true",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/points/me",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/points/rules",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/points/ledger",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/points/activity",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/points/leaderboard?period=week",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/points/leaderboard?period=month",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/points/leaderboard?period=all",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/admin/points/users",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/admin/points/ledger",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/admin/points/events",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/admin/points/rules",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/auth/me",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/research/home",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/company-knowledge/status",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/company-knowledge/projects",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/company-knowledge/documents?local_only=true",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/points/me",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/points/rules",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/points/ledger",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/points/activity",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/points/leaderboard?period=week",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/points/leaderboard?period=month",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/points/leaderboard?period=all",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/admin/points/users",
+      "status": 403
+    },
+    {
+      "role": "user",
+      "path": "/admin/points/ledger",
+      "status": 403
+    },
+    {
+      "role": "user",
+      "path": "/admin/points/events",
+      "status": 403
+    },
+    {
+      "role": "user",
+      "path": "/admin/points/rules",
+      "status": 403
+    },
+    {
+      "role": "anonymous",
+      "path": "/points/me",
+      "status": 401
+    },
+    {
+      "role": "anonymous",
+      "path": "/admin/points/users",
+      "status": 401
+    },
+    {
+      "role": "anonymous",
+      "path": "/company-knowledge/projects",
+      "status": 401
+    }
+  ],
+  "browser_checks": [
+    "user personal desktop/mobile, four tabs and account-menu entry",
+    "user existing knowledge page and project workspace preserved",
+    "admin personal desktop/mobile, four tabs and account-menu entry",
+    "actual account management points integration, four admin tabs, desktop/mobile rules",
+    "admin existing knowledge page and project workspace preserved"
+  ],
+  "browser_page_errors": [],
+  "browser_http_errors": [],
+  "browser_write_attempts": [],
+  "real_model_capacity_retested": false,
+  "production_points_mutations_performed": true,
+  "production_test_points_created": false,
+  "browser_points_mutations_performed": false,
+  "authorized_real_upload_correction": {
+    "status": "passed",
+    "previous_event_status": "ignored",
+    "previous_reason": "该资料不符合共享贡献奖励条件",
+    "event_status": "awarded",
+    "event_id": "34473464e8e540b4add20eae4ed8734c9fa0223f0e10830a2adb3a0bf5959217",
+    "document_id": "e2f3cf7be3e14dd586743362a1945e1c",
+    "document_title": "README.md",
+    "actual_uploader": "admin",
+    "project_owner": "wanglin",
+    "amount": 10,
+    "ledger_id": "da3498ce4a61416faef5bd10d902c3ac",
+    "single_ledger_entry": true,
+    "admin_total": 10,
+    "wanglin_total": 0,
+    "visibility_unchanged": "restricted",
+    "source_ownership_unchanged": true,
+    "used_real_background_worker": true
+  },
+  "browser_verified_admin_total": 10
+}
