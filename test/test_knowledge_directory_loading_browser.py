@@ -55,6 +55,21 @@ def test_directory_with_subfolders_explains_wait_and_resolves_loading(browser_sy
     page.set_viewport_size({'width':390,'height':844})
     expect(loading).to_be_visible()
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+    page.get_by_role('button', name='切换知识库主题', exact=True).click()
+    # The waiting message must remain readable on the actual dark directory surface.
+    assert page.locator('.ckb-catalogue-loading').evaluate('''element => {
+        const luminance = color => {
+            const rgb = color.match(/[\\d.]+/g).slice(0,3).map(Number).map(c => {
+                c /= 255; return c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4;
+            });
+            return rgb[0] * .2126 + rgb[1] * .7152 + rgb[2] * .0722;
+        };
+        let surface = element;
+        while (getComputedStyle(surface).backgroundColor === 'rgba(0, 0, 0, 0)') surface = surface.parentElement;
+        const a = luminance(getComputedStyle(element).color), b = luminance(getComputedStyle(surface).backgroundColor);
+        return (Math.max(a,b) + .05) / (Math.min(a,b) + .05) >= 4.5;
+    }''')
+    page.get_by_role('button', name='切换知识库主题', exact=True).click()
     assert len(pending) == 1
     document = {'id':'loaded-file','title':'合成资料.txt','format':'TXT','size':30,'state':'ready','can_read':True,'can_manage':True,'category':'项目原件','knowledge_project_id':'p','folder_id':'','owner':'bob','version':1,'is_current':True,'confidentiality':'internal','visibility':'members','tags':[],'date':'2026/11/16','modified_at':'2026-11-16T06:00:00Z'}
     if outcome == 'error':

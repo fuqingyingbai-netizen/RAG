@@ -393,10 +393,10 @@
 
 /* Keep directory loading visible even when subfolders arrive before file pages. */
 .ckb-workbench .ckb-catalogue-loading-row>td{padding:0}
-.ckb-catalogue-loading{display:flex;align-items:center;gap:10px;min-height:64px;padding:16px 24px;box-sizing:border-box;color:var(--kn-muted,#526681);font-size:14px;line-height:1.6}
+.ckb-catalogue-loading{display:flex;align-items:center;gap:10px;min-height:64px;padding:16px 24px;box-sizing:border-box;color:var(--ku-day-muted,#526175);font-size:14px;line-height:1.6}
 .ckb-catalogue-loading.is-refreshing{min-height:40px;padding-block:10px}
 .ckb-catalogue-skeleton{display:grid;gap:16px;padding:0 24px 24px}
-.ckb-catalogue-skeleton span{display:block;width:min(76%,640px);height:12px;border-radius:6px;background:currentColor;color:var(--kn-muted,#526681);opacity:.1;animation:ckb-catalogue-pulse 1.6s ease-in-out infinite}
+.ckb-catalogue-skeleton span{display:block;width:min(76%,640px);height:12px;border-radius:6px;background:currentColor;color:var(--ku-day-muted,#526175);opacity:.1;animation:ckb-catalogue-pulse 1.6s ease-in-out infinite}
 .ckb-catalogue-skeleton span:nth-child(2){width:min(58%,440px)}
 .ckb-catalogue-skeleton span:nth-child(3){width:min(68%,540px)}
 @keyframes ckb-catalogue-pulse{50%{opacity:.2}}
