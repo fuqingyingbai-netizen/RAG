@@ -215,8 +215,8 @@ window.KnowledgePdfViewer = {
     },
     drain() {
       if (this.disposed) return;
-      // At most two visible/nearby pages; never download the entire PDF eagerly.
-      while (this.queue.length && this.activePages.size < 2) {
+      // Leave the other server watermark slot available after a cancelled read.
+      while (this.queue.length && this.activePages.size < 1) {
           const number = this.queue.shift(), sheet = this.sheets[number - 1];
           if (!this.wanted.has(number)) { sheet.state = 'idle'; continue; }
           const controller = new AbortController(); this.controllers.add(controller); sheet.state = 'loading';
@@ -225,7 +225,15 @@ window.KnowledgePdfViewer = {
     },
     async loadPage(sheet,controller) {
           try {
-            const response = await this.fetchPage('/company-knowledge/documents/' + encodeURIComponent(this.documentId) + '/page?page=' + sheet.number, { signal: controller.signal, headers:{Accept:'image/webp'} });
+            let response;
+            for(let attempt=0;;attempt++){
+              if(controller.signal.aborted)throw Error('读取已停止');
+              response = await this.fetchPage('/company-knowledge/documents/' + encodeURIComponent(this.documentId) + '/page?page=' + sheet.number, { signal: controller.signal, headers:{Accept:'image/webp'} });
+              if(![429,503].includes(response.status)||attempt>=2)break;
+              await response.json().catch(()=>({}));sheet.waiting=true;
+              await this.pageRetry(controller.signal,400*(attempt+1));
+            }
+            sheet.waiting=false;
             if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.detail || '这一页暂未加载成功，请重试。'); }
             const blob = await response.blob();
             if (this.disposed || controller.signal.aborted) return;
@@ -233,9 +241,18 @@ window.KnowledgePdfViewer = {
           } catch (error) {
             if (!this.disposed && !controller.signal.aborted) { sheet.state = 'error'; sheet.error = error.message || '页面加载失败，请重试。'; }
           } finally {
+            sheet.waiting=false;
             if(controller.signal.aborted&&!sheet.url){sheet.state='idle';sheet.error='';}
             this.controllers.delete(controller);this.activePages.delete(sheet.number);this.drain();
           }
+    },
+    pageRetry(signal,milliseconds) {
+      return new Promise((resolve,reject)=>{
+        let timer;const cancel=()=>{clearTimeout(timer);signal.removeEventListener('abort',cancel);reject(Error('读取已停止'));};
+        if(signal.aborted){cancel();return;}
+        timer=setTimeout(()=>{signal.removeEventListener('abort',cancel);resolve();},milliseconds);
+        signal.addEventListener('abort',cancel,{once:true});
+      });
     },
     imageFailed(sheet) {
       if(this.owned.has(sheet.url)){URL.revokeObjectURL(sheet.url);this.owned.delete(sheet.url);}

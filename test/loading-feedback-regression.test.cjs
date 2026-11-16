@@ -33,7 +33,7 @@ test('a late failure from the previous account tab cannot replace current invita
  assert.equal(s.error,'');assert.equal(s.usersLoading,false);
 });
 function pdf(){
- const revoked=[];const context={window:{},Blob,document:{baseURI:'http://localhost/'},URL:class extends URL {static createObjectURL(){return 'blob:'+Math.random();}static revokeObjectURL(url){revoked.push(url);}},AbortController,requestAnimationFrame:fn=>{fn();return 1;},cancelAnimationFrame(){}};
+ const revoked=[];const context={window:{},Blob,setTimeout,clearTimeout,document:{baseURI:'http://localhost/'},URL:class extends URL {static createObjectURL(){return 'blob:'+Math.random();}static revokeObjectURL(url){revoked.push(url);}},AbortController,requestAnimationFrame:fn=>{fn();return 1;},cancelAnimationFrame(){}};
  vm.runInNewContext(fs.readFileSync('frontend/knowledge-document-viewer.js','utf8'),context);
  const s=bind(context.window.KnowledgePdfViewer);Object.assign(s,{documentId:'doc',wanted:new Set(),queue:[],owned:new Set(),controllers:new Set(),activePages:new Map(),sheets:Array.from({length:24},(_,i)=>({number:i+1,url:i?'':'blob:first',state:i?'idle':'ready',error:''})),$refs:{scroll:{querySelector:()=>({scrollIntoView(){}})}}});
  return {s,revoked};
@@ -42,11 +42,11 @@ test('PDF jumps cancel offscreen reads and prioritize the target with bounded co
  const {s}=pdf(),sent=[];let maximum=0;
  s.fetchPage=(url,options)=>{const wait=deferred();sent.push({url,options,wait});maximum=Math.max(maximum,s.activePages.size);options.signal.addEventListener('abort',()=>wait.reject(Error('cancelled')));return wait.promise;};
  for(const n of [2,3,4]){s.wanted.add(n);s.enqueue(n);}
- assert.equal(sent.length,2);s.jumpTo(24);await tick();
- assert.ok(sent[0].options.signal.aborted&&sent[1].options.signal.aborted);
- assert.equal(sent.length,3);assert.match(sent[2].url,/page=24$/);assert.equal(sent[2].options.headers.Accept,'image/webp');
- assert.equal(s.sheets[1].state,'idle');assert.equal(s.sheets[3].state,'idle');assert.ok(maximum<=2);
- sent[2].wait.resolve(new Response('page'));await tick();assert.equal(s.sheets[23].state,'ready');assert.equal(s.activePages.size,0);
+ assert.equal(sent.length,1);s.jumpTo(24);await tick();
+ assert.ok(sent[0].options.signal.aborted);
+ assert.equal(sent.length,2);assert.match(sent[1].url,/page=24$/);assert.equal(sent[1].options.headers.Accept,'image/webp');
+ assert.equal(s.sheets[1].state,'idle');assert.equal(s.sheets[3].state,'idle');assert.ok(maximum<=1);
+ sent[1].wait.resolve(new Response('page'));await tick();assert.equal(s.sheets[23].state,'ready');assert.equal(s.activePages.size,0);
 });
 test('closing a PDF prevents late response bodies from creating object URLs',async()=>{
  const {s}=pdf(),body=deferred();s.fetchPage=async()=>({ok:true,blob:()=>body.promise});s.wanted.add(2);s.enqueue(2);await tick();s.disposed=true;
@@ -55,4 +55,18 @@ test('closing a PDF prevents late response bodies from creating object URLs',asy
 test('a failed PDF image has a retryable error and releases its owned object URL',()=>{
  const {s,revoked}=pdf(),sheet=s.sheets[1];sheet.url='blob:bad';s.owned.add(sheet.url);s.imageFailed(sheet);
  assert.equal(sheet.state,'error');assert.match(sheet.error,/重试/);assert.deepEqual(revoked,['blob:bad']);assert.equal(s.owned.size,0);
+});
+test('busy preview reads drain each response and retry at most twice without another operation',async()=>{
+ const {s}=pdf(),delays=[];let calls=0,bodies=0;
+ s.pageRetry=async(signal,ms)=>delays.push(ms);
+ s.fetchPage=async()=>++calls<3?{ok:false,status:429,json:async()=>{bodies++;return {detail:'busy'};}}:new Response('image');
+ s.wanted.add(2);s.enqueue(2);await tick();assert.equal(calls,3);assert.equal(bodies,2);assert.deepEqual(delays,[400,800]);assert.equal(s.sheets[1].state,'ready');
+ const other=pdf().s;let failures=0;other.pageRetry=async()=>{};other.fetchPage=async()=>{failures++;return new Response('{"detail":"busy"}',{status:503});};
+ other.wanted.add(2);other.enqueue(2);await tick();assert.equal(failures,3);assert.equal(other.sheets[1].state,'error');assert.equal(other.activePages.size,0);
+});
+test('a page change interrupts retry backoff instead of restarting an abandoned preview',async()=>{
+ const {s}=pdf();let calls=0;
+ s.fetchPage=async()=>{calls++;return new Response('{"detail":"busy"}',{status:429});};s.wanted.add(2);s.enqueue(2);await tick();
+ assert.equal(s.sheets[1].waiting,true);s.activePages.get(2).abort();await tick();
+ assert.equal(calls,1);assert.equal(s.sheets[1].state,'idle');assert.equal(s.sheets[1].waiting,false);
 });
