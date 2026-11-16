@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="navigation.7e3a97139c28.css" />
   <link rel="stylesheet" href="accounts.css" />
   <link rel="stylesheet" href="personal-home.css" />
+  <link rel="stylesheet" href="knowledge-points.21c2ddfea99d.css" />
   <link rel="stylesheet" href="report-versions.css" />
   <link rel="stylesheet" href="assistant.94a69af9244b.css" />
   <link rel="stylesheet" href="workbench-theme.8ecce8fe6b2b.css" />
@@ -117,6 +118,7 @@
         </button>
         <div v-if="sidebarAccountOpen" id="sidebar-account-options" class="sidebar-account-options" role="group" aria-label="账号操作">
           <div class="sidebar-account-summary"><strong>{{ currentUser?.username }}</strong><small>{{ currentUser?.role === 'admin' ? '管理员' : '普通用户' }}</small></div>
+          <button type="button" @click="sidebarAccountOpen = false; switchView('points')"><i class="fa-solid fa-medal" aria-hidden="true"></i>我的积分</button>
           <button type="button" @click="sidebarAccountOpen = false; mobileNavOpen = false; openPasswordChange()"><i class="fa-solid fa-key" aria-hidden="true"></i>修改密码</button>
           <button type="button" class="sidebar-logout" @click="sidebarAccountOpen = false; handleLogout()"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>退出登录</button>
         </div>
@@ -148,6 +150,7 @@
           <span v-if="actionPending('projects')" role="status">正在更新项目列表…</span><span v-else-if="workspaceMetaLoading" role="status">正在核对项目分类…</span><span v-else>{{stageProjects.length}} 个项目 · 已生成的报告仍需人工复核</span>
         </div>
         <personal-home v-if="activeView === 'home'" :request="authFetch" :read="readJSON" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @filter-tasks="openHomeTaskFilter" @open-project="openHomeProject" @view-versions="report => openReportVersions({id:report.project_id, title:report.project_title}, report.artifact_type)"></personal-home>
+        <points-center v-if="activeView === 'points'" :key="currentUser?.username" :request="authFetch" :current-user="currentUser"></points-center>
         <company-knowledge :department-entry="knowledgeDepartmentEntry" @department-change="knowledgeDepartment=$event" ref="knowledgeWorkspace" v-if="activeView === 'company-knowledge'" :projects="projects" :feedback="runAction" :operation-state="pendingActions"></company-knowledge>
 
         <account-management v-if="activeView === 'accounts' && currentUser?.role === 'admin'" :request="authFetch" @session-invalidated="handleLogout"></account-management>
@@ -560,16 +563,17 @@
 <script defer src="vendor/marked-18.1.2/marked.umd.js"></script>
 <script defer src="vendor/purify-3.4.17.min.js"></script>
 <script defer src="safe-markdown.js"></script>
+<script defer src="knowledge-points.def11c351fcc.js"></script>
 <script defer src="knowledge-glass-optics.8cba1cf6e905.js"></script>
 <script defer src="knowledge-document-viewer.17e50ff140df.js"></script>
 <link rel="stylesheet" href="knowledge-note-editor.70b7481352b4.css">
 <script defer src="knowledge-note-editor.97e3f47133aa.js"></script>
-<script defer src="company-knowledge.088d14108651.js"></script>
-<script defer src="account-management.42b1dd6628ec.js"></script>
-<script defer src="personal-home.1977e79323c9.js"></script>
+<script defer src="company-knowledge.78c8e48d544f.js"></script>
+<script defer src="account-management.bce5433e7130.js"></script>
+<script defer src="personal-home.5d3964dcb441.js"></script>
 <script defer src="report-versions.js"></script>
 <script defer src="project-workspace.5862f06db460.js"></script>
-<script defer src="script.cc29ff3a8aab.js"></script>
+<script defer src="script.642fc82443c4.js"></script>
 </body>
 </html>
 

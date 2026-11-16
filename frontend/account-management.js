@@ -1,4 +1,5 @@
 const AccountManagement = {
+  components: typeof PointsAdmin !== 'undefined' ? {'points-admin':PointsAdmin} : {},
   props: { request: { type: Function, required: true } },
   emits: ['session-invalidated'],
   data() {
@@ -57,7 +58,7 @@ const AccountManagement = {
     onTabChange() {
       if (this.tab === 'users') this.loadUsers();
       else if (this.tab === 'invitations') this.loadInvitations();
-      else this.loadAudits();
+      else if (this.tab !== 'points') this.loadAudits();
     },
     editProfile(row) {
       if (this.busy) return;
@@ -308,6 +309,7 @@ const AccountManagement = {
           </el-table>
           <div class="pagination-bar"><el-pagination background layout="prev, pager, next, total" :total="auditTotal" v-model:current-page="auditPage" :page-size="20" @current-change="loadAudits()"></el-pagination></div>
         </el-tab-pane>
+        <el-tab-pane label="积分管理" name="points"><points-admin v-if="tab==='points'" :request="request"></points-admin></el-tab-pane>
       </el-tabs>
       <el-dialog v-model="profileOpen" title="编辑账号资料" width="min(520px, 94vw)" :close-on-click-modal="false" :close-on-press-escape="!profileSaving" :show-close="!profileSaving" @closed="clearProfile">
         <el-alert v-if="profileError" :title="profileError" type="error" :closable="false" show-icon class="account-alert"></el-alert>

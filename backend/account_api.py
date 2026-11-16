@@ -56,7 +56,7 @@ class PasswordChange(BaseModel):
 class AdminConfirmation(BaseModel):
     model_config = ConfigDict(extra="forbid")
     password: SecretStr = Field(min_length=1, max_length=128)
-    action: Literal["promote_user", "demote_user", "reset_password", "disable_admin", "enable_admin", "create_admin_invitation"]
+    action: Literal["promote_user", "demote_user", "reset_password", "disable_admin", "enable_admin", "create_admin_invitation", "points_adjust"]
     target_user_id: int | None = Field(default=None, gt=0)
 
 

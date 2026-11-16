@@ -38,7 +38,7 @@ function readSidebarPreference() {
 }
 
 const researchAppOptions = {
-  components: { 'account-management': AccountManagement, 'personal-home': PersonalHome, 'report-versions': ReportVersions },
+  components: { ...(typeof PointsCenter !== 'undefined' ? {'points-center':PointsCenter} : {}), 'account-management': AccountManagement, 'personal-home': PersonalHome, 'report-versions': ReportVersions },
   data() {
     const viewport = readAssistantViewport();
     return {
@@ -144,7 +144,7 @@ const researchAppOptions = {
     taskSectionTitle() { return ({tasks:'任务总览', intake:'需求与资料', deliverables:'报告与建议书'})[this.activeView] || '任务总览'; },
     taskSectionHint() { return ({tasks:'查看全部尽调任务的状态与进度，选择任务进入对应工作环节。', intake:'仅显示尚未开始生成的任务，核对需求与资料后点击开始生成。', deliverables:'仅显示报告与建议书生成阶段的任务；生成完成后进入复核与正式方案。'})[this.activeView] || ''; },
     knowledgeSection() { return ({'knowledge-marketing': {label:'市场部', icon:'fa-bullhorn'}, 'knowledge-projects': {label:'项目部', icon:'fa-briefcase'}, 'knowledge-policies': {label:'制度文件', icon:'fa-file-lines'}, 'knowledge-experts': {label:'专家部资料', icon:'fa-user-tie'}})[this.activeView] || null; },
-    pageTitle() { if (this.knowledgeSection) return this.knowledgeSection.label; if (this.isTaskWorkspace) return '尽调任务'; return ({home: '个人首页', workbench: '工作台', 'due-diligence': '尽调任务', research: '研究任务', 'ai-services': 'AI服务', accounts: '账号管理', 'company-knowledge': '公司知识库'})[this.activeView] || '工作台'; },
+    pageTitle() { if (this.knowledgeSection) return this.knowledgeSection.label; if (this.isTaskWorkspace) return '尽调任务'; return ({home: '个人首页', points: '我的知识积分', workbench: '工作台', 'due-diligence': '尽调任务', research: '研究任务', 'ai-services': 'AI服务', accounts: '账号管理', 'company-knowledge': '公司知识库'})[this.activeView] || '工作台'; },
     pageSubtitle() {
       if (this.knowledgeSection) return '公司知识库 · ' + this.knowledgeSection.label;
       if (this.activeView === 'home') return '查看自己的任务、研究成果与常用入口。';
@@ -521,7 +521,7 @@ const researchAppOptions = {
       }});
     },
     async fetchMe() { const r = await this.authFetch('/auth/me'); if (!r.ok) throw new Error('认证失败'); this.currentUser = await r.json(); },
-    ensureAllowedView() { if (this.activeView === 'due-diligence') { this.activeView = 'tasks'; localStorage.setItem('activeView', 'tasks'); } if (!['home', 'workbench', 'research', 'ai-services', 'submit', 'tasks', 'intake', 'deliverables', 'review', 'sources', 'company-knowledge', 'knowledge-marketing', 'knowledge-projects', 'knowledge-public', 'knowledge-policies', 'knowledge-experts', 'accounts'].includes(this.activeView) || (this.activeView === 'accounts' && this.currentUser?.role !== 'admin')) { this.activeView = 'home'; localStorage.setItem('activeView', 'home'); } },
+    ensureAllowedView() { if (this.activeView === 'due-diligence') { this.activeView = 'tasks'; localStorage.setItem('activeView', 'tasks'); } if (!['home', 'workbench', 'research', 'ai-services', 'submit', 'tasks', 'intake', 'deliverables', 'review', 'sources', 'company-knowledge', 'knowledge-marketing', 'knowledge-projects', 'knowledge-public', 'knowledge-policies', 'knowledge-experts', 'accounts', 'points'].includes(this.activeView) || (this.activeView === 'accounts' && this.currentUser?.role !== 'admin')) { this.activeView = 'home'; localStorage.setItem('activeView', 'home'); } },
     readInvitationFromUrl() {
       const url = new URL(window.location.href);
       const invitation = new URLSearchParams(url.hash.slice(1)).get('invite') || url.searchParams.get('invite');
@@ -636,7 +636,7 @@ const researchAppOptions = {
       if(department){this.openKnowledgeDepartment(department);return;}
       if(view==='knowledge-public')view='company-knowledge';
 
-      if (!['home', 'workbench', 'due-diligence', 'research', 'ai-services', 'submit', 'tasks', 'intake', 'deliverables', 'review', 'sources', 'company-knowledge', 'knowledge-marketing', 'knowledge-projects', 'knowledge-public', 'knowledge-policies', 'knowledge-experts', 'accounts'].includes(view)) return;
+      if (!['home', 'workbench', 'due-diligence', 'research', 'ai-services', 'submit', 'tasks', 'intake', 'deliverables', 'review', 'sources', 'company-knowledge', 'knowledge-marketing', 'knowledge-projects', 'knowledge-public', 'knowledge-policies', 'knowledge-experts', 'accounts', 'points'].includes(view)) return;
       if (view === 'accounts' && this.currentUser?.role !== 'admin') return;
       if (view === 'submit') { this.taskCreateOpen = true; this.mobileNavOpen = false; return; }
       this.taskCreateOpen = false;

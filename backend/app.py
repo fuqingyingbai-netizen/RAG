@@ -31,6 +31,8 @@ from personal_home import create_home_router
 from http_delivery import ResearchReadCompression, RequestBodyLimit
 from company_observability import KnowledgeHTTPMiddleware, instrument_engine
 from company_capacity import KnowledgeCapacityMiddleware
+import company_points
+from company_points_api import router as points_router
 
 BASE_DIR = BACKEND_DIR.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -51,9 +53,20 @@ def create_app() -> FastAPI:
         # forever even though no worker exists to finish them.
         research_api_module.recover_stale_research_projects()
         app.state.invitation_cleanup_task = asyncio.create_task(invitation_cleanup_loop())
+        try:
+            from database import engine
+            await asyncio.to_thread(company_points.initialize, engine)
+            app.state.points_task = asyncio.create_task(company_points.worker())
+        except Exception:
+            company_points.log.exception('knowledge_points_startup_failed')
 
     @app.on_event("shutdown")
     async def _stop_invitation_cleanup():
+        points_task = getattr(app.state, 'points_task', None)
+        if points_task:
+            points_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await points_task
         task = getattr(app.state, "invitation_cleanup_task", None)
         if task:
             task.cancel()
@@ -98,6 +111,7 @@ def create_app() -> FastAPI:
     app.include_router(research_api_module.router)
     app.include_router(create_home_router(research_api_module._is_project_running))
     app.include_router(company_knowledge_module.router)
+    app.include_router(points_router)
     app.include_router(create_version_router({
         'cleaning': research_workflow_module.INDUSTRY_CLEANING_VERSION,
         'risk': industry_research_module.INDUSTRY_RISK_VERSION,

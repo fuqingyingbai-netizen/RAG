@@ -1031,6 +1031,8 @@ async def preview(doc_id: str, response: Response, page: int = Query(1, ge=1), u
         current = find_doc(db, doc_id, user)
         if current.cloud_id != cloud_id or current.state != 'ready':
             raise HTTPException(409, '资料版本已变化，请重新打开后查看片段。')
+        from company_points import note_preview
+        note_preview(db, user, current, refs)
     total = max(int(result.get('total') or 0), (page - 1) * 20 + len(refs))
     return {'references': refs, 'total': total, 'page': page,
             'has_more': page * 20 < total or (not result.get('total') and len(result.get('nodes', [])) == 20),

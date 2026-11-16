@@ -72,6 +72,8 @@ def checkpoint(doc_id, token, **values):
         if values.get('state') == 'ready':
             from company_notes import publication_ready
             publication_ready(db, doc_id)
+            from company_points import capture_ready
+            capture_ready(db, doc_id)
         db.commit()
         observe_checkpoint(values.get('state'))
 
