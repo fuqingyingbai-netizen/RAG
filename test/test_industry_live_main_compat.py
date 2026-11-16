@@ -1,5 +1,6 @@
 """Shared boundaries when importing the live industry pipeline into main."""
 from contextvars import copy_context
+import asyncio
 from types import SimpleNamespace as NS
 
 import pytest
@@ -9,7 +10,7 @@ from sqlalchemy.orm import Session
 from database import Base
 from industry_collection import CollectionBudgetExhausted, IndustryCollection
 from industry_recovery_queue import RecoverySourceQueue
-from models import ResearchProject, ResearchSource, User
+from models import ResearchArtifact, ResearchProject, ResearchSource, User
 from source_catalog import source_records
 from source_retention import finalize_web_sources
 from web_search import budgeted_request, search_request_budget
@@ -110,3 +111,46 @@ def test_recovery_queue_keeps_uncommitted_sources_for_resume():
     assert state['pending_source_ids'] == []
     assert state['processed_source_ids'] == [7]
     assert state['processed_artifacts'] == {'7': 123}
+
+
+@pytest.mark.parametrize('route', ['industry', 'company', 'person'])
+def test_industry_bulk_delete_does_not_change_other_route_cleanup(route, tmp_path, monkeypatch):
+    import research_api as api
+
+    engine = create_engine(f'sqlite:///{tmp_path / "delete.sqlite"}',
+                           connect_args={'check_same_thread': False})
+    Base.metadata.create_all(engine)
+    prefixes, individual = [], []
+    monkeypatch.setattr(api, 'research_store', NS(delete_prefix=prefixes.append))
+    monkeypatch.setattr(api, '_delete_project_file', lambda key, project_id: individual.append(key) if key else None)
+    monkeypatch.setattr(api, 'UPLOAD_DIR', tmp_path / 'uploads')
+    monkeypatch.setattr(api, 'RUNNING_PROJECT_IDS', set())
+    with Session(engine) as db:
+        user = User(username='delete-fixture', password_hash='unused-test-hash')
+        db.add(user)
+        db.flush()
+        projects = [ResearchProject(title=kind, target_name=kind, target_type=kind,
+                                    created_by_id=user.id) for kind in (route, 'industry')]
+        db.add_all(projects)
+        db.flush()
+        ids = [project.id for project in projects]
+        for project_id in ids:
+            db.add(ResearchSource(project_id=project_id, source_type='web',
+                object_key=f'projects/{project_id}/raw_web/original.txt', content='Retained original.'))
+            db.add(ResearchArtifact(project_id=project_id, artifact_type='desktop_report',
+                title='Test report', content='Report body.'))
+        db.commit()
+        result = asyncio.run(api.delete_project(ids[0], db, user))
+        db.expire_all()
+        assert db.query(ResearchProject).filter_by(id=ids[0]).count() == 0
+        assert db.query(ResearchSource).filter_by(project_id=ids[0]).count() == 0
+        assert db.query(ResearchArtifact).filter_by(project_id=ids[0]).count() == 0
+        assert db.query(ResearchProject).filter_by(id=ids[1]).count() == 1
+        assert db.query(ResearchSource).filter_by(project_id=ids[1]).count() == 1
+        assert prefixes == [f'projects/{ids[0]}']
+        if route == 'industry':
+            assert result['cleanup_pending'] is False and not individual
+        else:
+            assert 'cleanup_pending' not in result
+            assert f'projects/{ids[0]}/raw_web/original.txt' in individual
+    engine.dispose()

@@ -1643,7 +1643,52 @@ def get_project_progress(
 
 
 @router.delete("/projects/{project_id}")
-def delete_project(
+async def delete_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    project = _get_project(db, project_id, current_user)
+    if project.target_type == 'industry':
+        return await run_in_threadpool(_delete_industry_project, project_id, db, current_user)
+    if _is_project_running(project_id):
+        raise HTTPException(status_code=409, detail="任务正在运行，请等待完成后再删除")
+    sources = db.query(ResearchSource).filter(ResearchSource.project_id == project.id).all()
+    artifacts = db.query(ResearchArtifact).filter(ResearchArtifact.project_id == project.id).all()
+    for source in sources:
+        metadata = source.source_metadata or {}
+        _delete_local_upload(metadata.get("local_path"), project.id)
+        for key in {source.object_key, metadata.get("original_object_key")}:
+            try:
+                _delete_project_file(key, project.id)
+            except Exception:
+                pass
+    for artifact in artifacts:
+        metadata = artifact.artifact_metadata or {}
+        for key in {
+            artifact.object_key,
+            metadata.get("docx_object_key"),
+            metadata.get("markdown_object_key"),
+            metadata.get("raw_markdown_object_key"),
+        }:
+            try:
+                _delete_project_file(key, project.id)
+            except Exception:
+                pass
+    try:
+        research_store.delete_prefix(f"projects/{project.id}")
+    except Exception:
+        pass
+    upload_dir = (UPLOAD_DIR / str(project.id)).resolve()
+    if UPLOAD_DIR.resolve() in upload_dir.parents and upload_dir.is_dir():
+        shutil.rmtree(upload_dir, ignore_errors=True)
+    db.delete(project)
+    db.commit()
+    return {"message": "research project deleted", "project_id": project_id}
+
+
+
+def _delete_industry_project(
     project_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
