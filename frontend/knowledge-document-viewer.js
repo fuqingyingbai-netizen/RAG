@@ -276,10 +276,11 @@ window.KnowledgePdfViewer = {
       cancelAnimationFrame(this.scrollFrame);
       this.scrollFrame = requestAnimationFrame(() => {
         const scroll = this.$refs.scroll; if (!scroll || this.disposed) return;
-        const top = scroll.getBoundingClientRect().top;
+        const top = scroll.getBoundingClientRect().top;let greatest=0;
         for (const page of scroll.querySelectorAll('[data-page]')) {
           const bounds = page.getBoundingClientRect();
-          if (bounds.bottom > top + 60) { this.visiblePage = Number(page.dataset.page); this.pageInput=this.visiblePage; break; }
+          const visible=Math.max(0,Math.min(bounds.bottom,top+scroll.clientHeight)-Math.max(bounds.top,top));
+          if (visible > greatest) { greatest=visible;this.visiblePage = Number(page.dataset.page); this.pageInput=this.visiblePage; }
         }
         if (!this.observer) for (const page of scroll.querySelectorAll('[data-page]')) {
           const number = Number(page.dataset.page), bounds = page.getBoundingClientRect();

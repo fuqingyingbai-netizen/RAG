@@ -70,3 +70,9 @@ test('a page change interrupts retry backoff instead of restarting an abandoned 
  assert.equal(s.sheets[1].waiting,true);s.activePages.get(2).abort();await tick();
  assert.equal(calls,1);assert.equal(s.sheets[1].state,'idle');assert.equal(s.sheets[1].waiting,false);
 });
+test('the final page indicator follows the largest visible page, not the previous page\'s trailing strip',()=>{
+ const {s}=pdf();s.observer={};s.$refs.scroll={clientHeight:829,getBoundingClientRect:()=>({top:0}),querySelectorAll:()=>[
+  {dataset:{page:'23'},getBoundingClientRect:()=>({top:-600,bottom:95})},
+  {dataset:{page:'24'},getBoundingClientRect:()=>({top:111,bottom:806})}
+ ]};s.trackPage();assert.equal(s.visiblePage,24);assert.equal(s.pageInput,24);
+});

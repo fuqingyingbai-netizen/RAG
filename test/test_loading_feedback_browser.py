@@ -151,5 +151,6 @@ def test_pdf_jump_displays_target_without_waiting_for_offscreen_body(browser_sys
     expect(page.get_by_text(re.compile('第 24 页 · 正在加载'))).to_be_visible(timeout=3000)
     assert pending['24'];pending['24'].pop().fulfill(body=image,headers={'Content-Type':'image/png'})
     expect(page.locator('.ckb-pdf-sheet[data-page="24"] img')).to_be_visible(timeout=3000)
+    expect(page.get_by_role('spinbutton',name='跳转到页码',exact=True)).to_have_value('24')
     assert cancelled,'Offscreen response must be cancelled before page 24 is read'
     close(page,pending,errors)
