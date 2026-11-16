@@ -173,7 +173,7 @@ window.KnowledgePdfViewer = {
   data() { return { sheets: [], visiblePage: 1, zoom: 100, pageInput: 1, outline: [] }; },
   watch: { location: {deep:true,handler(value) { if(value?.page)this.$nextTick(()=>this.jumpTo(value.page)); }} },
   mounted() {
-    this.wanted = new Set(); this.queue = []; this.owned = new Set(); this.controllers = new Set();
+    this.wanted = new Set(); this.queue = []; this.owned = new Set(); this.controllers = new Set(); this.activePages = new Map();
     this.sheets = Array.from({ length: Math.max(1, this.pages || 1) }, (_, i) => ({ number: i + 1, url: i ? '' : this.firstPage, ratio: 1 / Math.SQRT2, state: i ? 'idle' : 'ready', error: '' }));
     this.$nextTick(() => {
       if (this.disposed) return;
@@ -181,9 +181,10 @@ window.KnowledgePdfViewer = {
         this.observer = new IntersectionObserver(entries => {
           for (const entry of entries) {
             const number = Number(entry.target.dataset.page);
-            if (entry.isIntersecting) { this.wanted.add(number); this.enqueue(number); }
+            if (entry.isIntersecting) this.wanted.add(number);
             else this.wanted.delete(number);
           }
+          for (const entry of entries) if(entry.isIntersecting)this.enqueue(Number(entry.target.dataset.page));
           this.prune();
         }, { root: this.$refs.scroll, rootMargin: '600px 0px' });
         this.$refs.scroll.querySelectorAll('[data-page]').forEach(page => this.observer.observe(page));
@@ -198,32 +199,47 @@ window.KnowledgePdfViewer = {
   },
   methods: {
     async loadOutline() { const controller=new AbortController();this.controllers.add(controller);try{const response=await this.fetchPage('/company-knowledge/documents/'+encodeURIComponent(this.documentId)+'/outline',{signal:controller.signal});if(response.ok){const data=await response.json();if(!this.disposed)this.outline=data.entries||[];}}catch{}finally{this.controllers.delete(controller);} },
-    jumpTo(number) { const page=Math.min(this.sheets.length,Math.max(1,Number(number)||1));this.visiblePage=page;this.pageInput=page;this.wanted.add(page);this.enqueue(page);this.$refs.scroll?.querySelector('[data-page="'+page+'"]')?.scrollIntoView({block:'start'}); },
+    jumpTo(number) {
+      const page=Math.min(this.sheets.length,Math.max(1,Number(number)||1));this.visiblePage=page;this.pageInput=page;
+      this.wanted.clear();this.wanted.add(page);
+      for(const queued of this.queue)this.sheets[queued-1].state='idle';this.queue=[];
+      // A jump must not wait for an offscreen page's response body.
+      for(const [number,controller] of this.activePages)if(number!==page)controller.abort();
+      this.enqueue(page,true);this.$refs.scroll?.querySelector('[data-page="'+page+'"]')?.scrollIntoView({block:'start'});
+    },
     changeZoom(delta) { this.zoom=Math.min(200,Math.max(70,this.zoom+delta));this.$nextTick(()=>this.jumpTo(this.visiblePage)); },
     enqueue(number, retry = false) {
       const sheet = this.sheets[number - 1];
       if (!sheet || sheet.url || sheet.state === 'loading' || sheet.state === 'queued' || (sheet.state === 'error' && !retry)) return;
       sheet.state = 'queued'; sheet.error = ''; this.queue.push(number); this.drain();
     },
-    async drain() {
-      if (this.draining || this.disposed) return;
-      this.draining = true;
-      try {
-        while (this.queue.length && !this.disposed) {
+    drain() {
+      if (this.disposed) return;
+      // At most two visible/nearby pages; never download the entire PDF eagerly.
+      while (this.queue.length && this.activePages.size < 2) {
           const number = this.queue.shift(), sheet = this.sheets[number - 1];
           if (!this.wanted.has(number)) { sheet.state = 'idle'; continue; }
           const controller = new AbortController(); this.controllers.add(controller); sheet.state = 'loading';
+          this.activePages.set(number,controller);this.loadPage(sheet,controller);
+      }
+    },
+    async loadPage(sheet,controller) {
           try {
-            const response = await this.fetchPage('/company-knowledge/documents/' + encodeURIComponent(this.documentId) + '/page?page=' + number, { signal: controller.signal });
+            const response = await this.fetchPage('/company-knowledge/documents/' + encodeURIComponent(this.documentId) + '/page?page=' + sheet.number, { signal: controller.signal, headers:{Accept:'image/webp'} });
             if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.detail || '这一页暂未加载成功，请重试。'); }
             const blob = await response.blob();
-            if (this.disposed) return;
+            if (this.disposed || controller.signal.aborted) return;
             const url = URL.createObjectURL(blob); this.owned.add(url); sheet.url = url; sheet.state = 'ready'; this.prune();
           } catch (error) {
-            if (!this.disposed) { sheet.state = 'error'; sheet.error = error.message || '页面加载失败，请重试。'; }
-          } finally { this.controllers.delete(controller); }
-        }
-      } finally { this.draining = false; }
+            if (!this.disposed && !controller.signal.aborted) { sheet.state = 'error'; sheet.error = error.message || '页面加载失败，请重试。'; }
+          } finally {
+            if(controller.signal.aborted&&!sheet.url){sheet.state='idle';sheet.error='';}
+            this.controllers.delete(controller);this.activePages.delete(sheet.number);this.drain();
+          }
+    },
+    imageFailed(sheet) {
+      if(this.owned.has(sheet.url)){URL.revokeObjectURL(sheet.url);this.owned.delete(sheet.url);}
+      sheet.url='';sheet.state='error';sheet.error='页面图像未能显示，请重试加载这一页。';
     },
     prune() {
       const loaded = this.sheets.filter(sheet => sheet.url);
@@ -256,5 +272,5 @@ window.KnowledgePdfViewer = {
       });
     },
   },
-  template: `<div class="ckb-continuous-pdf"><div class="ckb-document-controls"><span><i class="fa-regular fa-file-pdf" aria-hidden="true"></i>{{ !format || format === 'PDF' ? 'PDF 原件' : format + ' 排版预览' }}<small>{{ format &amp;&amp; format !== 'PDF' ? '下载保留原格式' : '连续阅读' }}</small></span><div class="ckb-pdf-controls"><select v-if="outline.length" aria-label="PDF 章节目录" @change="jumpTo($event.target.value)"><option value="">章节目录</option><option v-for="(entry,index) in outline" :key="index" :value="entry.page">{{ entry.title }}</option></select><button aria-label="缩小 PDF" :disabled="zoom<=70" @click="changeZoom(-10)">−</button><span>{{ zoom }}%</span><button aria-label="放大 PDF" :disabled="zoom>=200" @click="changeZoom(10)">+</button><label>第 <input v-model.number="pageInput" type="number" min="1" :max="sheets.length" aria-label="跳转到页码" @keydown.enter="jumpTo(pageInput)" @change="jumpTo(pageInput)"> / {{ sheets.length }} 页</label></div></div><div ref="scroll" class="ckb-pdf-scroll" tabindex="0" role="region" aria-label="PDF 连续阅读区域" @scroll.passive="trackPage"><figure v-for="sheet in sheets" :key="sheet.number" :data-page="sheet.number" class="ckb-pdf-sheet" :style="{ aspectRatio: sheet.ratio, width: zoom + '%', maxWidth: 'none' }"><img v-if="sheet.url" :src="sheet.url" :alt="'PDF 原件第 ' + sheet.number + ' 页'" @load="measure(sheet, $event)"><div v-else class="ckb-pdf-placeholder" :aria-busy="sheet.state === 'loading'"><template v-if="sheet.error"><p role="alert">{{ sheet.error }}</p><button @click="enqueue(sheet.number, true)">重新加载这一页</button></template><span v-else><i v-if="sheet.state === 'loading'" class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i> 第 {{ sheet.number }} 页{{ sheet.state === 'loading' ? ' · 正在加载' : '' }}</span></div><span v-if="location?.matched &amp;&amp; location.page === sheet.number" class="ckb-page-highlights" aria-hidden="true"><mark v-for="(rect,index) in location.rectangles" :key="index" :style="{left:rect.left*100+'%',top:rect.top*100+'%',width:rect.width*100+'%',height:rect.height*100+'%'}"></mark></span><figcaption>{{ sheet.number }} / {{ sheets.length }}</figcaption></figure></div></div>`,
+  template: `<div class="ckb-continuous-pdf"><div class="ckb-document-controls"><span><i class="fa-regular fa-file-pdf" aria-hidden="true"></i>{{ !format || format === 'PDF' ? 'PDF 原件' : format + ' 排版预览' }}<small>{{ format &amp;&amp; format !== 'PDF' ? '下载保留原格式' : '连续阅读' }}</small></span><div class="ckb-pdf-controls"><select v-if="outline.length" aria-label="PDF 章节目录" @change="jumpTo($event.target.value)"><option value="">章节目录</option><option v-for="(entry,index) in outline" :key="index" :value="entry.page">{{ entry.title }}</option></select><button aria-label="缩小 PDF" :disabled="zoom<=70" @click="changeZoom(-10)">−</button><span>{{ zoom }}%</span><button aria-label="放大 PDF" :disabled="zoom>=200" @click="changeZoom(10)">+</button><label>第 <input v-model.number="pageInput" type="number" min="1" :max="sheets.length" aria-label="跳转到页码" @keydown.enter="jumpTo(pageInput)" @change="jumpTo(pageInput)"> / {{ sheets.length }} 页</label></div></div><div ref="scroll" class="ckb-pdf-scroll" tabindex="0" role="region" aria-label="PDF 连续阅读区域" @scroll.passive="trackPage"><figure v-for="sheet in sheets" :key="sheet.number" :data-page="sheet.number" class="ckb-pdf-sheet" :style="{ aspectRatio: sheet.ratio, width: zoom + '%', maxWidth: 'none' }"><img v-if="sheet.url" :src="sheet.url" :alt="'PDF 原件第 ' + sheet.number + ' 页'" @load="measure(sheet, $event)" @error="imageFailed(sheet)"><div v-else class="ckb-pdf-placeholder" :aria-busy="sheet.state === 'loading' || sheet.state === 'queued'"><template v-if="sheet.error"><p role="alert">{{ sheet.error }}</p><button @click="enqueue(sheet.number, true)">重新加载这一页</button></template><span v-else><i v-if="sheet.state === 'loading'" class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i> 第 {{ sheet.number }} 页{{ sheet.state === 'loading' ? ' · 正在加载…' : sheet.state === 'queued' ? ' · 等待加载…' : ' · 按需加载' }}</span></div><span v-if="location?.matched &amp;&amp; location.page === sheet.number" class="ckb-page-highlights" aria-hidden="true"><mark v-for="(rect,index) in location.rectangles" :key="index" :style="{left:rect.left*100+'%',top:rect.top*100+'%',width:rect.width*100+'%',height:rect.height*100+'%'}"></mark></span><figcaption>{{ sheet.number }} / {{ sheets.length }}</figcaption></figure></div></div>`,
 };

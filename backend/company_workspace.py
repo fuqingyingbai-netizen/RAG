@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response, JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -1072,7 +1072,7 @@ def render_pdf_page(data, page):
 
 
 @workspace_router.get('/documents/{doc_id}/page')
-async def pdf_page(doc_id: str, page: int = Query(1, ge=1), user: User = Depends(kb.require_knowledge_user)):
+async def pdf_page(doc_id: str, page: int = Query(1, ge=1), user: User = Depends(kb.require_knowledge_user), accept: str = Header(default='')):
     with SessionLocal() as db:
         doc = find_doc(db, doc_id, user)
         from company_discovery import OFFICE_PAGES, reading_page
@@ -1084,7 +1084,9 @@ async def pdf_page(doc_id: str, page: int = Query(1, ge=1), user: User = Depends
     try:
         image, count = await asyncio.to_thread(reading_page, key, digest, fmt, page)
         identity = ExportIdentity(user.username, getattr(user, 'id', None), datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'), uuid.uuid4().hex)
-        image, _, _ = await asyncio.to_thread(export_copy, image, 'PNG', 'preview.png', identity)
+        webp = any(part.split(';', 1)[0].strip() == 'image/webp' and not re.search(r';\s*q=0(?:\.0*)?\s*(?:;|$)', part)
+                   for part in accept.lower().split(','))
+        image, mime, _ = await asyncio.to_thread(export_copy, image, 'PNG', 'preview.png', identity, preview_image=webp)
     except HTTPException:
         raise
     except WatermarkError as error:
@@ -1100,7 +1102,7 @@ async def pdf_page(doc_id: str, page: int = Query(1, ge=1), user: User = Depends
         record(db, user, 'document.preview', doc, before=snapshot(doc), event_id=identity.trace_id,
             details={'trace_id': identity.trace_id, 'page': page, 'watermarked': True})
         db.commit()
-    return Response(image, media_type='image/png', headers={'Cache-Control': 'private, no-store',
+    return Response(image, media_type=mime, headers={'Cache-Control': 'private, no-store', 'Vary': 'Accept',
         'X-Document-Pages': str(count), 'X-Watermark-Trace': identity.trace_id, 'X-Content-Type-Options': 'nosniff'})
 
 

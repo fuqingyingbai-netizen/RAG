@@ -286,7 +286,7 @@ def marked_media(data, fmt, identity, directory):
     return output.read_bytes(), mime, extension
 
 
-def export_copy(data, fmt, title, identity, progress=None):
+def export_copy(data, fmt, title, identity, progress=None, *, preview_image=False):
     if not _slots.acquire(blocking=False):
         raise WatermarkError('水印导出正在处理中，请稍后重试。', 429)
     try:
@@ -298,8 +298,15 @@ def export_copy(data, fmt, title, identity, progress=None):
                     from PIL import ImageOps
                     image = ImageOps.exif_transpose(original).convert('RGBA')
                     image = Image.alpha_composite(image, watermark_layer(image.size, identity))
-                    output = io.BytesIO(); image.save(output, format='PNG')
-                result, mime, extension = output.getvalue(), 'image/png', 'png'
+                    from PIL import features
+                    webp = preview_image and features.check('webp')
+                    output = io.BytesIO()
+                    if webp:
+                        # Lossless preview transport preserves every stamped pixel.
+                        image.save(output, format='WEBP', lossless=True, method=1)
+                    else:
+                        image.save(output, format='PNG')
+                result, mime, extension = output.getvalue(), 'image/webp' if webp else 'image/png', 'webp' if webp else 'png'
             elif fmt in AUDIO_FORMATS or fmt in ('MP4', 'WEBM'):
                 if progress: progress('media', 0, 0)
                 result, mime, extension = marked_media(data, fmt, identity, directory)

@@ -401,3 +401,5 @@
 .ckb-catalogue-skeleton span:nth-child(3){width:min(68%,540px)}
 @keyframes ckb-catalogue-pulse{50%{opacity:.2}}
 @media(prefers-reduced-motion:reduce){.ckb-catalogue-skeleton span{animation:none}}
+
+.ckb-history-loading{display:flex;align-items:center;gap:8px;color:var(--ku-day-muted,#526175);font-size:13px;line-height:1.6;padding:10px 0}

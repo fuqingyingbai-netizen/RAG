@@ -5,7 +5,7 @@ const AccountManagement = {
   data() {
     return {
       tab: 'users', users: [], userTotal: 0, userPage: 1, query: '', state: 'all', userRole: 'user', activeAdminCount: 0,
-      invitations: [], inviteTotal: 0, invitePage: 1, loading: false, busy: false,
+      invitations: [], inviteTotal: 0, invitePage: 1, usersLoading: false, invitationsLoading: false, busy: false,
       error: '', expiresHours: 6, inviteRole: 'user', secretOpen: false, secretTitle: '', secretValue: '',
       secretDescription: '', userRequestId: 0, inviteRequestId: 0, refreshTimer: null,
       profileOpen: false, profileSaving: false, profileError: '',
@@ -17,7 +17,7 @@ const AccountManagement = {
   mounted() {
     this.loadUsers();
     this.refreshTimer = setInterval(() => {
-      if (this.tab === 'invitations' && !this.busy && !this.loading) this.loadInvitations();
+      if (this.tab === 'invitations' && !this.busy && !this.invitationsLoading) this.loadInvitations();
     }, 30000);
   },
   beforeUnmount() { if (this.refreshTimer) clearInterval(this.refreshTimer); },
@@ -31,7 +31,7 @@ const AccountManagement = {
     async loadUsers(reset = false) {
       if (reset) this.userPage = 1;
       const requestId = ++this.userRequestId;
-      this.loading = true; this.error = '';
+      this.usersLoading = true; this.error = '';
       try {
         const params = new URLSearchParams({ q: this.query, state: this.state, role: this.userRole, page: this.userPage, page_size: 20 });
         const data = await this.api('/admin/users?' + params);
@@ -40,20 +40,20 @@ const AccountManagement = {
           if (this.userPage > lastPage) { this.userPage = lastPage; await this.loadUsers(); return; }
           this.users = data.items; this.userTotal = data.total; this.activeAdminCount = data.active_admin_count;
         }
-      } catch (error) { this.error = error.message; }
-      finally { if (requestId === this.userRequestId) this.loading = false; }
+      } catch (error) { if(requestId === this.userRequestId && this.tab === 'users')this.error = error.message; }
+      finally { if (requestId === this.userRequestId) this.usersLoading = false; }
     },
     async loadInvitations() {
       const requestId = ++this.inviteRequestId;
-      this.loading = true; this.error = '';
+      this.invitationsLoading = true; this.error = '';
       try {
         const data = await this.api(`/admin/invitations?page=${this.invitePage}&page_size=20`);
         if (requestId !== this.inviteRequestId) return;
         const lastPage = Math.max(1, Math.ceil(data.total / 20));
         if (this.invitePage > lastPage) { this.invitePage = lastPage; await this.loadInvitations(); return; }
         if (requestId === this.inviteRequestId) { this.invitations = data.items; this.inviteTotal = data.total; }
-      } catch (error) { this.error = error.message; }
-      finally { if (requestId === this.inviteRequestId) this.loading = false; }
+      } catch (error) { if(requestId === this.inviteRequestId && this.tab === 'invitations')this.error = error.message; }
+      finally { if (requestId === this.inviteRequestId) this.invitationsLoading = false; }
     },
     onTabChange() {
       if (this.tab === 'users') this.loadUsers();
@@ -247,7 +247,7 @@ const AccountManagement = {
           </form>
           <p class="account-help">当前有 {{activeAdminCount}} 个启用的管理员，至少保留一个。角色变更或停用后，原登录凭证立即失效。</p>
           <p class="account-help">{{state === 'archived' ? '归档账号的历史资料保留；恢复后仍为停用状态，需单独启用。' : '不用的账号可先停用再归档，从默认列表隐藏；在“已归档”筛选中可恢复。'}}</p>
-          <el-table :data="users" v-loading="loading" empty-text="暂无匹配账号" style="width:100%">
+          <el-table :data="users" v-loading="usersLoading" :aria-busy="usersLoading" :empty-text="usersLoading?'正在读取账号…':error?'账号暂未读取，请重试':'暂无匹配账号'" style="width:100%">
             <el-table-column prop="username" label="账号资料" min-width="190"><template #default="{row}">{{row.username}}<div class="table-subtext">{{row.display_name ? row.display_name + ' · ' : ''}}{{row.role === 'admin' ? '管理员' : '普通账号'}}{{row.is_self ? ' · 当前账号' : ''}}</div><el-tooltip v-if="row.notes" :content="row.notes" placement="top" :show-after="300"><div class="account-note">{{row.notes}}</div></el-tooltip></template></el-table-column>
             <el-table-column label="状态" width="95"><template #default="{row}"><el-tag :type="row.is_active && !row.archived_at ? 'success' : 'info'">{{row.archived_at ? '已归档' : row.is_active ? '正常' : '已停用'}}</el-tag></template></el-table-column>
             <el-table-column label="注册时间" min-width="165"><template #default="{row}">{{formatDate(row.created_at)}}<div v-if="row.archived_at" class="table-subtext">归档 {{formatDate(row.archived_at)}}</div></template></el-table-column>
@@ -279,7 +279,7 @@ const AccountManagement = {
         <el-tab-pane label="邀请管理" name="invitations">
           <div class="account-toolbar"><el-select v-model="inviteRole" aria-label="邀请类型"><el-option label="普通账号" value="user"></el-option><el-option label="管理员" value="admin"></el-option></el-select><span>有效期（小时）</span><el-input-number v-model="expiresHours" :min="1" :max="168" :precision="0" aria-label="邀请有效期（小时）"></el-input-number><el-button type="primary" :loading="busy" @click="createInvitation">生成邀请码</el-button><el-button @click="loadInvitations">刷新</el-button></div>
           <p class="muted account-help">每个邀请码限注册一个对应类型的账号，仅在生成时展示。新用户进入网站注册页粘贴邀请码即可；可提前撤销。已撤销、已使用的邀请可删除，过期邀请自动清理，操作日志保留。</p>
-          <el-table :data="invitations" v-loading="loading" empty-text="暂无邀请，点击上方按钮生成" style="width:100%">
+          <el-table :data="invitations" v-loading="invitationsLoading" :aria-busy="invitationsLoading" :empty-text="invitationsLoading?'正在读取邀请…':error?'邀请暂未读取，请重试':'暂无邀请，点击上方按钮生成'" style="width:100%">
             <el-table-column prop="id" label="编号" width="85"></el-table-column><el-table-column prop="created_by" label="创建人" min-width="120"></el-table-column>
             <el-table-column label="邀请类型" width="110"><template #default="{row}"><el-tag :type="row.role === 'admin' ? 'warning' : 'info'">{{row.role === 'admin' ? '管理员' : '普通账号'}}</el-tag></template></el-table-column>
             <el-table-column label="创建时间" min-width="175"><template #default="{row}">{{formatDate(row.created_at)}}</template></el-table-column>
