@@ -1,0 +1,35 @@
+{
+  "focused_frontend": {
+    "tests": 79,
+    "passed": 79,
+    "failed": 0,
+    "command": "node --test test/knowledge-usability.test.cjs test/knowledge-request-lifecycle.test.cjs test/knowledge-file-delete.test.cjs test/knowledge-file-clipboard.test.cjs test/knowledge-reader-discovery.test.cjs test/knowledge-points.test.cjs"
+  },
+  "final_edge_browser": {
+    "tests": 3,
+    "passed": 3,
+    "failed": 0,
+    "seconds": 25.21,
+    "command": "python -m pytest test/test_knowledge_directory_loading_browser.py -q",
+    "cases": ["slow then file; refresh retains row", "slow then empty", "slow then error"],
+    "additional_checks": ["subfolders arrive first", "mobile overflow", "reduced motion", "dark mode text contrast at least 4.5 to 1"]
+  },
+  "broader_frontend": {
+    "tests": 270,
+    "passed": 263,
+    "failed": 6,
+    "cancelled": 1,
+    "status": "known baseline failures; not fully green",
+    "baseline_comparison": "same seven nonpassing test names reproduced in unchanged preexisting baseline",
+    "nonpassing_names": [
+      "filter changes reset page and list scroll without losing cross-page selection",
+      "read failures explain network or unreadable service responses without exposing raw HTML or parser internals",
+      "stream errors release the reader and EOF alone never claims a successful rerun",
+      "rerun parameter timeout clears waiting feedback without ever starting research",
+      "rerun feedback advances from parameters to submission and confirmed background processing",
+      "unconfirmed rerun submission advises checking persisted status instead of read-only retry",
+      "read timeout includes response-body time, aborts only the read, and does not retry or run research"
+    ]
+  },
+  "limitations": ["catalogue request strategy and latency unchanged", "no backend or model capacity tests for this frontend-only change"]
+}

@@ -1,0 +1,17 @@
+{
+  "manifest_files_verified": 514,
+  "status": "passed",
+  "public_hashes_verified": 5,
+  "backend_instance_unchanged": "2c7a2555-0d14-4fa1-8aa0-de65c58288b0",
+  "checks": [
+    "real project directory with subfolders, held first page shows loading",
+    "desktop and mobile dark layout",
+    "reduced motion respected",
+    "real pages released, README appears and busy clears",
+    "refresh keeps existing rows while status explains update"
+  ],
+  "controlled_network_delay_used": true,
+  "browser_page_errors": [],
+  "browser_http_errors": [],
+  "browser_write_attempts": []
+}

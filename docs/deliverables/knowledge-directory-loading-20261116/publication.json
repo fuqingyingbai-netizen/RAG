@@ -1,0 +1,36 @@
+{
+  "status": "published",
+  "frontend_commit": "5ebdfa3f1ea0837c393a748ac8bde6ef8d1d4878",
+  "backend_release": "/opt/supermew/releases/c9154e74b55f4f806aaaabc2db9de94dc5f64a05",
+  "backend_pid_unchanged": 2001652,
+  "backend_instance_unchanged": "2c7a2555-0d14-4fa1-8aa0-de65c58288b0",
+  "backend_source_unchanged": true,
+  "application_restart": false,
+  "database_modified": false,
+  "backup": "/opt/supermew/backups/directory-loading-20261116T075932Z-5ebdfa3f1ea0",
+  "time_utc": "2026-11-16T07:59:32.959997+00:00",
+  "manifest_files_verified": 514,
+  "unrelated_files_preserved": 509,
+  "files": [
+    {
+      "path": "frontend/company-knowledge.e346f1297b88.js",
+      "sha256": "e346f1297b88d7694d6eee3ab94376a80a46b9d722fd7d8e8ae0cecc840d830e"
+    },
+    {
+      "path": "frontend/company-knowledge.js",
+      "sha256": "e346f1297b88d7694d6eee3ab94376a80a46b9d722fd7d8e8ae0cecc840d830e"
+    },
+    {
+      "path": "frontend/index.html",
+      "sha256": "4f4cf9ae1e567d85fa9f31f849e91b5cd749fc22404d3571e2ff6ea53d957351"
+    },
+    {
+      "path": "frontend/knowledge-workspace.4826fcd452a6.css",
+      "sha256": "4826fcd452a6ccaab0c1f73838d14bfc80618d5ee26cb6da0a1696593f09543a"
+    },
+    {
+      "path": "frontend/knowledge-workspace.css",
+      "sha256": "4826fcd452a6ccaab0c1f73838d14bfc80618d5ee26cb6da0a1696593f09543a"
+    }
+  ]
+}

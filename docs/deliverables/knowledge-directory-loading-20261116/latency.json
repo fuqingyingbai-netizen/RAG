@@ -1,0 +1,55 @@
+{
+  "project_id": "21dd81c7091f4e5f830ccd7643530802",
+  "release": "c9154e74b55f4f806aaaabc2db9de94dc5f64a05",
+  "projects_milliseconds": 2979,
+  "total_documents": 866,
+  "pages": [
+    {
+      "page": 1,
+      "milliseconds": 880,
+      "documents": 100
+    },
+    {
+      "page": 2,
+      "milliseconds": 1619,
+      "documents": 100
+    },
+    {
+      "page": 3,
+      "milliseconds": 898,
+      "documents": 100
+    },
+    {
+      "page": 4,
+      "milliseconds": 1327,
+      "documents": 100
+    },
+    {
+      "page": 5,
+      "milliseconds": 1280,
+      "documents": 100
+    },
+    {
+      "page": 6,
+      "milliseconds": 811,
+      "documents": 100
+    },
+    {
+      "page": 7,
+      "milliseconds": 1420,
+      "documents": 100
+    },
+    {
+      "page": 8,
+      "milliseconds": 1119,
+      "documents": 100
+    },
+    {
+      "page": 9,
+      "milliseconds": 1390,
+      "documents": 66
+    }
+  ],
+  "all_pages_milliseconds": 5311,
+  "read_only": true
+}
