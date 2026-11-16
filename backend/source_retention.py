@@ -14,6 +14,21 @@ def external_url(value):
 
 
 def finalize_web_sources(db, project, store):
+    if getattr(project, 'target_type', None) == 'industry':
+        changed = 0
+        for source in project.sources or []:
+            meta = dict(source.source_metadata or {})
+            if meta.get('retention_policy') not in ('transient_web_body','transient_platform_body'):
+                continue
+            # Keep original bytes, text and provenance until normal task deletion.
+            # Never turn an already cleared record or summary into a full body.
+            if source.object_key or source.content:
+                meta.update(retention_policy='review_archive', archived_for_review_at=datetime.utcnow().isoformat()+'Z')
+                source.source_metadata = meta
+                changed += 1
+        if changed:
+            db.commit()
+        return changed
     changed = 0
     for source in project.sources or []:
         meta = dict(source.source_metadata or {})

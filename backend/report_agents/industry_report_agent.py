@@ -610,7 +610,9 @@ class IndustryReportAgent:
             if c.get('source_observation_only'):
                 preserved[c['claim_id']]={**_pending_review('source_observation_only'),
                     'method':'exact_source_observation','reason':'保留本轮准入原文观察；综合分析仍待修订。'}
-        review_claims = [c for c in claims if c['claim_id'] not in preserved]
+        from industry_quality import enrich_peer_context
+        enriched = enrich_peer_context(claims)
+        review_claims = [c for c in enriched if c['claim_id'] not in preserved]
         if os.getenv('INDUSTRY_CLAIM_REVIEW_ENABLED', 'true').lower() in {'0', 'false', 'no', 'off'}:
             review = {'attempts': 0, 'reviews': {}, 'status': 'disabled', 'human_review_required': True}
         elif getattr(project, 'industry_question_jobs_enabled', False):

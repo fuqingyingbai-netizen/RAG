@@ -11,6 +11,19 @@ from typing import Any
 from urllib.parse import urlparse
 
 import requests
+from contextvars import ContextVar, copy_context
+
+search_request_budget = ContextVar('industry_search_request_budget', default=None)
+
+
+def budgeted_request(provider, method, *args, **kwargs):
+    context = search_request_budget.get()
+    if context is not None:
+        budget, key, generation = context
+        kwargs['timeout'] = budget.reserve_request(provider, key, kwargs.get('timeout', 30),
+                                                  expected_generation=generation)
+    return method(*args, **kwargs)
+
 from pypdf import PdfReader
 
 try:
@@ -183,13 +196,13 @@ class WebSearchProvider:
                         continue
                 if self.is_configured(name):
                     if name == "tavily":
-                        future = executor.submit(engine_func, query, limit, include_domains, exclude_domains)
+                        future = executor.submit(copy_context().run, engine_func, query, limit, include_domains, exclude_domains)
                     elif name == "exa":
-                        future = executor.submit(engine_func, query, limit, include_domains, exclude_domains, category)
+                        future = executor.submit(copy_context().run, engine_func, query, limit, include_domains, exclude_domains, category)
                     elif name == "bocha":
-                        future = executor.submit(engine_func, query, limit, include_domains, exclude_domains)
+                        future = executor.submit(copy_context().run, engine_func, query, limit, include_domains, exclude_domains)
                     else:
-                        future = executor.submit(engine_func, self._query_with_sites(query, include_domains), limit)
+                        future = executor.submit(copy_context().run, engine_func, self._query_with_sites(query, include_domains), limit)
                     futures[future] = name
                 else:
                     engine_states[name] = {'status':'not_configured'}
@@ -273,7 +286,7 @@ class WebSearchProvider:
                 "exclude_domains": list(exclude_domains or [])[:150],
             },
             timeout=30,
-            post=requests.post,
+            post=lambda *a, **kw: budgeted_request('tavily', requests.post, *a, **kw),
         )
         rows = payload.get("results", [])
         images = payload.get("images", []) or []
@@ -305,7 +318,7 @@ class WebSearchProvider:
             return SearchResults([],audit={'requested_limit':0,'effective_limit':0})
         credential = hashlib.sha256(api_key.encode()).hexdigest()
         def send(count):
-            return requests.post("https://google.serper.dev/search",
+            return budgeted_request('serper', requests.post, "https://google.serper.dev/search",
                 headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
                 json={"q":query, "num":count}, timeout=30)
         resp = None
@@ -330,7 +343,7 @@ class WebSearchProvider:
             resp = send(effective)
         resp.raise_for_status()
         rows = resp.json().get("organic", [])[:limit]
-        fetch_enabled = os.getenv("SERPER_FETCH_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+        fetch_enabled = search_request_budget.get() is None and os.getenv("SERPER_FETCH_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
         max_fetch = self._env_int("SERPER_FETCH_LIMIT", min(limit, 5), 0, max(0, limit))
         results = []
         for index, item in enumerate(rows):
@@ -374,7 +387,7 @@ class WebSearchProvider:
         if not api_key:
             return []
         self._wait_for_exa_slot()
-        resp = requests.post(
+        resp = budgeted_request('exa', requests.post,
             "https://api.exa.ai/search",
             headers={"x-api-key": api_key, "Content-Type": "application/json"},
             json={
@@ -408,7 +421,7 @@ class WebSearchProvider:
         api_key = os.getenv("SERPAPI_API_KEY", "").strip()
         if not api_key:
             return []
-        response = requests.get(
+        response = budgeted_request('serpapi', requests.get,
             "https://serpapi.com/search.json",
             params={"engine": "google", "q": query, "api_key": api_key, "num": max(1, min(limit, 100))},
             timeout=30,
@@ -428,7 +441,7 @@ class WebSearchProvider:
         api_key = os.getenv("BRAVE_API_KEY", "").strip()
         if not api_key:
             return []
-        response = requests.get(
+        response = budgeted_request('brave', requests.get,
             "https://api.search.brave.com/res/v1/web/search",
             headers={"X-Subscription-Token": api_key, "Accept": "application/json"},
             params={"q": query, "count": max(1, min(limit, 20)), "search_lang": "zh-hans"},
@@ -468,7 +481,7 @@ class WebSearchProvider:
             clean = list(dict.fromkeys(str(domain).strip() for domain in (domains or []) if str(domain).strip()))
             if clean:
                 body[field] = ",".join(clean)
-        response = requests.post(
+        response = budgeted_request('bocha', requests.post,
             os.getenv("BOCHA_SEARCH_URL", "https://api.bocha.cn/v1/web-search"),
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json=body,
@@ -478,7 +491,7 @@ class WebSearchProvider:
         raw = response.json()
         payload = raw.get("data", raw)
         rows = (payload.get("webPages") or {}).get("value") or []
-        fetch_enabled = not lightweight and os.getenv("BOCHA_FETCH_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+        fetch_enabled = search_request_budget.get() is None and not lightweight and os.getenv("BOCHA_FETCH_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
         max_fetch = self._env_int("BOCHA_FETCH_LIMIT", min(limit, 5), 0, max(0, limit))
         results: list[dict[str, Any]] = []
         for index, item in enumerate(rows[:limit]):
@@ -529,6 +542,11 @@ class WebSearchProvider:
             ("desktop", self._desktop_user_agent),
             ("mobile", self._mobile_user_agent),
         ]
+        industry = search_request_budget.get() is not None
+        reader_enabled = os.getenv('WEB_READER_FALLBACK_ENABLED', 'false').strip().lower() in {'1','true','yes','on'} and bool(os.getenv('WEB_READER_FALLBACK_BASE', '').strip())
+        if industry and reader_enabled:
+            # Spend the second attempt on the reader rather than a third fetch.
+            attempts = attempts[:1]
         best: dict[str, Any] = {"status": "empty", "content": "", "error": ""}
         errors: list[str] = []
         for attempt_name, user_agent in attempts:
@@ -565,7 +583,7 @@ class WebSearchProvider:
 
     def _fetch_url_once(self, url: str, timeout: int, max_chars: int, user_agent: str, attempt_name: str, *, document_profile: str = '') -> dict[str, Any]:
         try:
-            resp = requests.get(
+            resp = budgeted_request('page_fetch', requests.get,
                 url,
                 headers={
                     "User-Agent": os.getenv("WEB_FETCH_USER_AGENT", user_agent),
@@ -715,7 +733,7 @@ class WebSearchProvider:
             return {"status": "reader_disabled", "content": "", "error": ""}
         reader_url = base + url
         try:
-            resp = requests.get(
+            resp = budgeted_request('page_fetch', requests.get,
                 reader_url,
                 headers={
                     "User-Agent": self._desktop_user_agent,

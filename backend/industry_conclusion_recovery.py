@@ -9,9 +9,9 @@ import json
 import os
 import re
 
-VERSION = 'industry-conclusion-recovery-v6-analysis-development'
+VERSION = 'industry-conclusion-recovery-v9-source-queue'
 MAX_QUERIES = 4
-MAX_NEW_SOURCES = 12
+MAX_NEW_SOURCES = 32
 
 
 def recovery_limits():
@@ -75,7 +75,7 @@ def finding_issue(claim):
 def recovery_plan(plans, packages, scope=None):
     from industry_question_generation import CHAPTERS, compile_jobs
     from industry_fact_contracts import CHAPTER_QUESTIONS
-    tasks = []
+    tasks = [];pending_material_reviews=[]
     for chapter in sorted(CHAPTERS):
         if chapter not in plans and str(chapter) not in plans and chapter not in packages and str(chapter) not in packages:
             continue
@@ -96,6 +96,11 @@ def recovery_plan(plans, packages, scope=None):
         for d in decisions:
             question, state = d.get('question'), d.get('status')
             if question not in canonical or question in answered:
+                continue
+            if state=='candidate_review_required':
+                pending_material_reviews.append({'chapter':chapter,'question':question,
+                    'candidate_count':d.get('review_candidate_count',0),'candidates':d.get('review_candidates',[]),
+                    'next_action':'review_existing_material','admitted_as_evidence':False})
                 continue
             # API/format/budget failures never masquerade as missing sources.
             collect = state in {'material_gap', 'model_abstained'}
@@ -152,6 +157,7 @@ def recovery_plan(plans, packages, scope=None):
                           'cause': nonanswers.get(question) or ('support_rejected' if support_rejected else
                                    'validation_rejected' if question in rejected else state or 'missing_analysis')})
     return {'version': VERSION, 'limits': recovery_limits(), 'tasks': tasks,
+            'pending_material_reviews':pending_material_reviews,
             'chapters': sorted({t['chapter'] for t in tasks}), 'max_queries': MAX_QUERIES,
             'max_new_sources': MAX_NEW_SOURCES, 'generation_deadline_seconds': None}
 
@@ -217,6 +223,12 @@ def merge_evidence(original, addition):
     for key, body in addition.get('source_body_snapshots', {}).items():
         merged.setdefault('source_body_snapshots', {}).setdefault(key, deepcopy(body))
     facts = merged.get('facts', [])
+    # Rebuild the index from the merged immutable snapshots; retaining the old
+    # workspace would hide newly admitted originals on the next research pass.
+    from industry_research_workspace import archive_inventory, evidence_record
+    merged['research_workspace'] = archive_inventory(merged)
+    merged['shared_evidence_records'] = {f['evidence_id']:evidence_record(f)
+                                        for f in facts if f.get('evidence_id')}
     merged['provenance_summary'] = {
         'total_fact_count': len(facts),
         'located_fact_count': sum(f.get('provenance', {}).get('locator', {}).get('status') == 'verified' for f in facts),
@@ -295,9 +307,9 @@ def question_progress(task, plans, packages):
         signatures.add(signature)
         by_id[eid]=signature
     plan = plans.get(chapter, plans.get(str(chapter), {}))
-    used={eid for c in plan.get('analysis_claims',[]) if c.get('question')==task['question']
-          for eid in c.get('evidence_ids',[])}
     claims = [c for c in plan.get('analysis_claims', []) if c.get('question') == task['question'] and not finding_issue(c)]
+    # A new citation in an unanswered/unsupported draft is not answer progress.
+    used={eid for c in claims for eid in c.get('evidence_ids',[])}
     return {'evidence_signatures': sorted(signatures),
             'used_evidence_signatures':sorted({by_id[eid] for eid in used if eid in by_id}), 'has_finding': bool(claims),
             'supported': any(c.get('support_review', {}).get('status') == 'supported' for c in claims)}
@@ -311,6 +323,9 @@ def schedule_tasks(plan, record):
     for task in sorted(plan['tasks'], key=lambda t: states.get(task_key(t), {}).get('attempts', 0)):
         state = states.setdefault(task_key(task), {'chapter': task['chapter'], 'question': task['question'],
             'attempts': 0, 'actions': {}, 'no_progress': 0, 'history': [], 'seen_evidence': []})
+        if task['action']=='collect_evidence' and record.get('collection_budget_exhausted'):
+            state.update(stop_reason='collection_budget_exhausted',status='unresolved')
+            continue
         if task['action']=='collect_evidence' and record.get('collection_unavailable'):
             state.update(stop_reason='collection_unavailable',status='execution_blocked')
             continue
@@ -385,7 +400,7 @@ def recovery_markdown(record):
         return re.sub(r'\s+', ' ', str(value)).replace('|', '/')
     rows = []
     labels = {'execution_failure_limit':'连续执行失败，需处理模型或服务问题','no_progress':'连续无内容进展', 'action_limit':'本类修复达到上限', 'total_limit':'问题总修复达到上限',
-              'execution_limit':'执行失败重试达到上限','collection_unavailable':'检索服务不可用，需处理配置或额度'}
+              'execution_limit':'执行失败重试达到上限','collection_budget_exhausted':'本轮采集额度已用完，保留已有资料和未解决问题','collection_unavailable':'检索服务不可用，需处理配置或额度'}
     for state in record.get('questions', {}).values():
         status = '已形成初步判断' if state.get('status') == 'resolved' else labels.get(state.get('stop_reason'), '待人工处理')
         rows.append(f'| {state["chapter"]} | {cell(state["question"])} | {state["attempts"]} | {status} |')

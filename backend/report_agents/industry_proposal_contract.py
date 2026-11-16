@@ -8,7 +8,7 @@ import hashlib
 import json
 import re
 
-VERSION = 'industry-proposal-content-v1-required-fields'
+VERSION = 'industry-proposal-content-v4-research-responsibility'
 
 
 def _cell(value):

@@ -9,15 +9,15 @@ import hashlib
 import json
 import re
 
-VERSION = 'industry-fact-contract-v11-analysis-boundaries'
-PLAN_VERSION = 'industry-statement-plan-v22-developed-findings'
+VERSION = 'industry-fact-contract-v17-source-context'
+PLAN_VERSION = 'industry-statement-plan-v26-question-completion'
 
 PLAYER_LAYER_PATTERN = r'竞争派系|(?:参与者|玩家|厂商).{0,18}(?:分为|分成|分层)|头部.{0,30}(?:腰部|初创|海外)'
 
 QUANTITY_TYPES = (
     ('growth', r'增速|增长速度|增长率|增幅|同比|环比|CAGR|复合.*增长'),
     ('ratio', r'占比|比例|份额|市占率|集中度|CR\d|毛利率|净利率|渗透率|成功率|准确率'),
-    ('count', r'数量|企业数|公司数|机构数|专利数|论文数'),
+    ('count', r'数量|智能体数|活跃智能体|企业数|公司数|机构数|专利数|论文数'),
     ('latency', r'延迟|时延|响应时间'),
     ('throughput', r'吞吐|token/s|每秒.*token'),
     ('amount', r'规模|收入|营收|金额|利润|估值|融资额|成本|单价|价格'),
@@ -25,12 +25,12 @@ QUANTITY_TYPES = (
 TASK_PATTERNS = {
     'chain': r'上游.{0,180}中游.{0,180}下游',
     'competition': r'市场份额|市占率|集中度|CR\d|HHI|竞争对手|竞争压力|进入壁垒|迁移成本|替代竞争|价格战|厂商排名|前[三四五十]厂商|市场第一阵营|市场前[三四五十]|' + PLAYER_LAYER_PATTERN,
-    'technology': r'测试条件|测试环境|统一硬件|量化精度|吞吐量|token/s|推理延迟|响应延迟|首\s*token|推理成本|单位推理成本|技术替代|技术路线',
+    'technology': r'工具调用|权限控制|任务成功率|智能体架构|单位任务成本|测试条件|测试环境|统一硬件|量化精度|吞吐量|token/s|推理延迟|响应延迟|首\s*token|推理成本|单位推理成本|技术替代|技术路线',
     'business': r'订阅|按量计费|付费客户|免费转(?:为)?付费|开始付费|续费|续约|回款|收费|收入结构|毛利率|净利率|盈利模式',
     'event': r'发布|推出|开源|签署|收购|施行|生效',
     'market': r'市场规模|产业规模|行业规模|需求|增长率|增速|增长速度|出货量',
     'capital': r'融资|估值|IPO|市盈率|市销率|成交额|换手率',
-    'policy': r'管理办法|《办法》|条例|监管义务|准入要求|监管要求|行政处罚|标识要求|应当|不得|必须|禁止',
+    'policy': r'实施意见|指导意见|管理办法|《办法》|条例|监管义务|准入要求|监管要求|行政处罚|标识要求|应当|不得|必须|禁止',
     'risk': r'风险|漏洞|攻击|欺诈|成本压力|价格战|技术替代|安全威胁',
 }
 CHAPTER_TASK = {2: 'chain', 3: 'policy', 4: 'market', 5: 'event', 6: 'competition',
@@ -74,6 +74,9 @@ def _role(fact, source_text):
     official = public_source_type(fact.get('source_url')) in {'government', 'regulatory'}
     if (official and re.search(r'办法|条例|规定|法案|Regulation|Act', title, re.I)
             and re.search(r'第[一二三四五六七八九十百\d]+条|Article\s+\d+', source_text or _quote(fact), re.I)):
+        return 'policy_primary'
+    from industry_review_fixes import directive_primary
+    if directive_primary(fact,source_text):
         return 'policy_primary'
     quote = re.sub(r'\s+', ' ', _quote(fact))
     from industry_passages import recommendation_context
@@ -192,12 +195,14 @@ def build_contract(fact, scope=None, source_text=''):
         if not has_predicate(quote):
             issues.append('topic_without_proposition')
     tasks = {task for task, pattern in TASK_PATTERNS.items() if re.search(pattern, quote, re.I)}
-    if context.get('is_forecast') is True: tasks.add('forecast')
+    if context.get('is_forecast') is True or re.search(r'未来.{0,16}(?:趋势|发展)|情景假设|基准情景|触发条件|前提条件',quote): tasks.add('forecast')
     if fact.get('module') == '政策与监管':
         subjects = [scope.get('industry_name'), *scope.get('segments', [])]
         # Document titles cannot make every paragraph in a filing applicable.
         local_subject = any(str(s).lower() in quote.lower() for s in subjects if s)
         local_subject |= bool(re.search(r'人工智能|\bAI\b', quote, re.I))
+        from industry_source_quality import focus_terms,mentions_focus
+        if focus_terms(scope): local_subject |= mentions_focus(quote,scope)
         if not local_subject and subjects and any(subjects): issues.append('local_subject_missing')
         if role != 'policy_primary' and re.search(r'罚款|处罚|营业额|第.{1,8}条|施行日期', quote):
             issues.append('legal_original_required')
@@ -215,6 +220,9 @@ def build_contract(fact, scope=None, source_text=''):
         tasks.discard('event')
     from industry_grounding import sample_boundary
     boundary = sample_boundary(fact, source_text)
+    from industry_source_document import context_view
+    structured_context = context_view(fact) or {}
+    boundary = boundary or structured_context.get('scenario_boundary', '')
     if not boundary and re.match(r'^(?:相关)?上市(?:公司|企业).{0,12}(?:回款|现金流|毛利|营收|净利)', quote):
         boundary = '上市企业经营样本，不能外推行业整体'
     # An anaphoric passage can refer to a named installation on the preceding
@@ -227,6 +235,9 @@ def build_contract(fact, scope=None, source_text=''):
     if (not boundary and subject and subject[1] not in {'中国','我国','全球','行业','市场','企业','该行业','消费者','供应商'}
             and not any(str(s) and str(s) in subject[1] for s in [scope.get('industry_name'),*scope.get('segments',[])])):
         boundary='单一主体观察，仅作为样本，不外推行业整体'
+    from industry_quality import evidence_quality
+    quality = evidence_quality({**fact,'numeric_context':{**context,'period':period}} if context else fact, scope)
+    issues.extend(quality['issues'])
     located = (fact.get('provenance') or {}).get('locator', {}).get('status') == 'verified'
     admitted = not issues and located and fact.get('scope_match') == 'in_scope' and fact.get('eligible_for_report') is not False
     statement = ''
@@ -258,6 +269,9 @@ def build_contract(fact, scope=None, source_text=''):
         if boundary:
             statement = statement.replace('行业平均', '代表企业样本平均')
             statement = '样本观察（不能外推行业整体）：' + statement
+        if quality['local_scope_only']:
+            extent = '；'.join(v for v in (quality['geography'], quality['segment']) if v)
+            statement = '局部范围（'+extent+'，不能外推行业整体）：'+statement
         # A source's own unsupported inference must not bypass the same narrow
         # claim checks used on written prose merely because the model selects IDs.
         from industry_research import claim_semantic_issues
@@ -267,6 +281,14 @@ def build_contract(fact, scope=None, source_text=''):
             issues.extend('claim_'+i['code'] for i in claim_issues)
             admitted=False
             statement=''
+    # A directly quoted obligation must carry the applicable public-service
+    # boundary too, not only rely on the model's subsequent analysis.
+    if admitted and role == 'policy_primary':
+        from industry_source_quality import bound_context
+        qualifications=[line for line in bound_context(fact).splitlines()
+            if re.search(r'适用本|不适用本',line) and '公众' in line]
+        if qualifications:
+            statement += ' 适用范围（同一原文）：'+' '.join(qualifications)
     subjects = [str(s).strip().lower() for s in [scope.get('industry_name'), *scope.get('segments', [])] if s]
     local_subject = not subjects or any(s in quote.lower() for s in subjects)
     if any('人工智能' in s for s in subjects):
@@ -285,18 +307,24 @@ def build_contract(fact, scope=None, source_text=''):
         else 'proposal' if role == 'recommendation' else 'opinion' if role in {'opinion','commentary','policy_commentary'}
         else 'proposal' if re.search(r'有望|可以按|将有|拟(?:采用|推出)|(?:在)?未来[，,：:]|未来.{0,35}(?:将|应当|应该|在于|能够)', quote) and not context
         else 'reported')
-    return {'version': VERSION, 'quantity_type': kind, 'source_role': role, 'comparator': comparator,
+    return {'version': VERSION, 'evidence_quality': quality, 'quantity_type': kind, 'source_role': role, 'comparator': comparator,
             'summary_subject_present': local_subject, 'summary_background_reason': summary_background,
             'period': period, 'tasks': sorted(tasks), 'issues': list(dict.fromkeys(issues)),
             'sample_boundary':boundary, 'value_nature': context.get('value_nature'),
             'material_kind': material_kind,
-            'report_admitted': admitted, 'risk_admitted': admitted and not boundary and material_kind not in {'proposal','opinion','conditional'} and summary_background not in {'institutional_review_procedure', 'policy_principle_or_purpose'} and role not in {'opinion', 'commentary', 'policy_commentary', 'performance_claim', 'conditional_statement', 'recommendation'},
+            'report_admitted': admitted, 'risk_admitted': admitted and quality.get('forecast_window',{}).get('status') not in {'expired','target_period_unknown','cutoff_unknown'} and quality.get('requested_focus') != 'background' and not boundary and not quality['local_scope_only'] and material_kind not in {'proposal','opinion','conditional'} and summary_background not in {'institutional_review_procedure', 'policy_principle_or_purpose'} and role not in {'opinion', 'commentary', 'policy_commentary', 'performance_claim', 'conditional_statement', 'recommendation'},
             'statement': statement, 'statement_sha256': hashlib.sha256(statement.encode()).hexdigest(),
             'semantic_status': 'not_evaluated'}
 
 
-def attach_contract(fact, scope=None, source_text=''):
+def attach_contract(fact, scope=None, source_text='', *, source_document=None):
     item = deepcopy(fact)
+    from industry_source_document import verified_context
+    item['source_document_context'] = verified_context(item, source_text, source_document)
+    from industry_quality import bind_local_context
+    bind_local_context(item, source_text)
+    from industry_source_quality import bound_policy_context
+    bound_policy_context(item, source_text)
     item['fact_contract'] = build_contract(item, scope, source_text)
     from industry_grounding import resolved_source_title
     display_title = resolved_source_title(item, source_text)
@@ -318,6 +346,12 @@ def chapter_admitted(fact, index):
     contract = fact.get('fact_contract')
     if not contract: return True  # Historical artifacts are handled by legacy rules, never silently upgraded.
     if not contract.get('report_admitted'): return False
+    from industry_substance import outline_material
+    if outline_material(contract.get('statement')): return False
+    if contract.get('evidence_quality',{}).get('requested_focus') == 'background' and index not in {3,8,9,12,13,15,16}:
+        return False
+    if index in {1,14} and contract.get('evidence_quality',{}).get('forecast_window',{}).get('status') in {'expired','target_period_unknown','cutoff_unknown'}:
+        return False
     if index == 6 and contract.get('summary_background_reason') == 'report_publication_only': return False
     if index in {1, 14} and (contract.get('material_kind') in {'proposal','opinion','conditional'} or contract['source_role'] in {'opinion', 'commentary', 'policy_commentary', 'performance_claim', 'conditional_statement', 'recommendation'}): return False
     if index == 1:
@@ -344,6 +378,9 @@ def chapter_admitted(fact, index):
     if index == 13: return bool({'risk', 'policy'} & set(contract['tasks']))
     if index == 5:
         return ('event' in contract['tasks'] and bool(re.search(r'20\d{2}\s*年\s*\d{1,2}\s*月', _quote(fact))))
+    if index == 11:
+        from industry_substance import outlook_premise
+        return task in contract['tasks'] or outlook_premise(fact)
     return not task or task in contract['tasks']
 
 
@@ -353,7 +390,7 @@ CHAPTER_QUESTIONS = {
     4: [('规模、期间和统计口径', 'amount'), ('同口径增长趋势', 'growth'), ('近三至五年历史序列与CAGR', 'historical_series'), ('未来五至十年来源预测', 'long_forecast'), ('情景假设和约束因素', r'情景假设|基准情景|乐观情景|悲观情景|制约因素|天花板'), ('增长驱动与商业化阶段', r'驱动因素|原型验证|小批量|规模化商用|增长动力')],
     5: [('有日期的主体事件', r'20\d{2}\s*年\s*\d{1,2}\s*月'), ('商业化里程碑与终端需求', r'开始收费|付费客户|订单交付|终端需求|量产|商业化落地'), ('传播或关注度数据', r'搜索指数|讨论量|曝光量|传播量')],
     6: [('竞争机制与玩家分层', r'迁移成本|进入壁垒|价格战|竞争压力|厂商排名|前[三四五十]厂商|市场第一阵营|市场前[三四五十]|' + PLAYER_LAYER_PATTERN), ('份额及集中度', r'市场份额|市占率|CR\d|HHI|集中度'), ('五力机制与护城河', r'议价|新进入者|替代品|供应商|迁移成本|护城河|专利壁垒')],
-    7: [('路线及适用场景', r'技术路线|架构|云端|端侧|边缘侧|适用场景'), ('同条件测试配置', r'测试环境|统一硬件|量化精度|测试条件'), ('可核验性能及单位成本', 'technical_measurement'), ('落地难度与迭代成熟度', r'落地难度|迭代|成熟度|部署条件|量产验证')],
+    7: [('路线及适用场景', r'技术路线|架构|工具调用|权限控制|云端|端侧|边缘侧|适用场景'), ('同条件测试配置', r'测试环境|统一硬件|量化精度|测试条件'), ('可核验性能及单位成本', 'technical_measurement'), ('落地难度与迭代成熟度', r'落地难度|迭代|成熟度|部署条件|量产验证')],
     10: [('实际收费与付费客户', r'订阅|按量计费|付费客户|续约|回款'), ('盈利及收入成本材料', r'毛利率|净利率|营业收入|收入结构|成本定义'), ('细分赛道与筛选标准', r'细分赛道|筛选标准|客户认证|单位经济|投资机会|产业整合')],
     11: [('来源预测与目标期间', 'forecast'), ('未来三至五年趋势与关键变量', r'未来.{0,15}趋势|关键变量|发展趋势|趋势判断'), ('来源假设和情景条件', r'假设|基准情景|情景假设'), ('可跟踪触发条件', r'触发条件|阈值|前提条件')],
     13: [('风险机制及作用对象', r'风险|漏洞|攻击|欺诈|成本压力|价格战|技术替代'), ('行业经营与技术研发风险', r'客户集中|产能不足|商业化慢|供应链依赖|技术迭代|研发失败|核心部件外购'), ('监管义务或执行材料', r'应当|不得|处罚决定|检查结果')],
@@ -383,12 +420,17 @@ def chapter_coverage(package, index, ids):
             if (fact['fact_contract'].get('quantity_type') == 'growth'
                     and re.search(r'CAGR|复合.*增长', str(ctx.get('metric') or ''), re.I)):
                 compound_ids.add(fact['evidence_id'])
-        series_exists = any(len(years) >= 3 for years in groups.values()) and bool(compound_ids)
+        series_exists = any(any({str(y),str(y+1),str(y+2)} <= years for y in map(int,years)) for years in groups.values())
     rows = []
     for question, pattern in CHAPTER_QUESTIONS.get(index, []):
         matched, background = [], []
         for fact in cards:
             c = fact['fact_contract']; ctx = fact.get('numeric_context') or {}
+            timing=c.get('evidence_quality',{}).get('forecast_window') or __import__('industry_outlook_quality').forecast_window(fact,package.get('industry_scope') or {})
+            if index==11 and timing.get('status') in {'expired','target_period_unknown','cutoff_unknown'}:
+                if __import__('industry_outlook_quality').question_matches(fact,question,pattern,package.get('industry_scope') or {}):
+                    background.append(fact['evidence_id'])
+                continue
             if pattern == 'synthesis': ok = True
             elif pattern == 'primary': ok = c['source_role'] == 'policy_primary'
             elif question in {'义务主体及具体要求', '监管义务或执行材料'}:
@@ -399,7 +441,18 @@ def chapter_coverage(package, index, ids):
                 ok = c['quantity_type'] == 'growth'
                 if not ok and question=='同口径增长趋势' and c['quantity_type']=='amount' and ctx.get('is_forecast') is False:
                     background.append(fact['evidence_id'])
-            elif pattern == 'forecast': ok = ctx.get('is_forecast') is True
+            elif pattern == 'forecast':
+                ok = ctx.get('is_forecast') is True and timing.get('status')=='current_or_future'
+                if not ok and ctx.get('is_forecast') is True:background.append(fact['evidence_id'])
+            elif question == '未来三至五年趋势与关键变量':
+                ok = bool(re.search(pattern,_quote(fact),re.I)) or (ctx.get('is_forecast') is True
+                    and timing.get('status')=='current_or_future' and 3<=timing.get('years_from_cutoff',-1)<=5)
+                if not ok:
+                    from industry_substance import outlook_premise
+                    ok=outlook_premise(fact,package.get('industry_scope') or {})
+            elif index==11 and question=='可跟踪触发条件':
+                from industry_substance import outlook_premise
+                ok=bool(re.search(pattern,_quote(fact),re.I)) or outlook_premise(fact,package.get('industry_scope') or {})
             elif pattern == 'historical_series':
                 ok = series_exists and fact['evidence_id'] in historical_ids | compound_ids
                 if not ok and (fact['evidence_id'] in historical_ids or c['quantity_type'] == 'growth'):
@@ -455,7 +508,7 @@ def chapter_coverage(package, index, ids):
                 -sum(bool(re.search(p,by_id[eid]['fact_contract']['statement']))
                      for p in (r'云端',r'端侧',r'边缘侧')),
                 by_id[eid]['fact_contract'].get('source_role') in {'opinion','commentary','performance_claim'}))
-        rows.append({'question': question, 'evidence_ids': matched, 'background_evidence_ids': background,
+        rows.append({'question': question, **({'historical_series_available': series_exists, 'cagr_available':bool(compound_ids)} if pattern=='historical_series' else {}), 'evidence_ids': matched, 'background_evidence_ids': background,
                      'status': 'source_material_pending_review' if matched else 'background_only' if background else 'missing'})
     return rows
 
@@ -464,6 +517,8 @@ def risk_admitted(fact, dimension):
     contract = fact.get('fact_contract')
     if not contract: return True
     if not contract.get('risk_admitted'): return False
+    from industry_review_fixes import implementation_only
+    if dimension=='技术迭代与替代风险' and implementation_only(fact): return False
     task = {'政策与监管风险':'policy', '市场增长与需求风险':'market', '竞争格局与集中度风险':'competition',
             '商业化与盈利模式风险':'business', '技术迭代与替代风险':'technology', '资本热度与估值风险':'capital'}.get(dimension)
     return not task or task in contract['tasks']
@@ -488,6 +543,8 @@ def plan_prompt(package, index):
     from industry_reasoning import question_ledger
     from industry_reader import writing_profile, writing_instruction
     profile = writing_profile(package, index)
+    profile['research_scope'] = package.get('industry_scope') or {}
+    profile['selection_limits'] = '先使用当前已归档全文中的赛道材料；候选存在但口径待核、选材未覆盖、确实未取得须分别记录。下界不能证明逐年增长；不同定义、总体或期间不可直接合并。Agent重点比较任务、工具权限、部署、成功率、延迟、单位任务成本与真实付费；无依据的字段留空，不补造。'
     batch = package.get('analysis_batch') or {}
     if batch:
         profile = {**profile, 'target_analysis_characters': [300, 660],
@@ -496,6 +553,8 @@ def plan_prompt(package, index):
     cards = [{'id': f['evidence_id'], 'statement': f['fact_contract']['statement'],
               'tasks': f['fact_contract']['tasks'], 'sample_boundary': f['fact_contract'].get('sample_boundary'),
               'material_kind': f['fact_contract'].get('material_kind'),
+              'requested_focus': f['fact_contract'].get('evidence_quality',{}).get('requested_focus'),
+              'applicability_context': __import__('industry_source_quality').bound_context(f),
               'source_role': f['fact_contract'].get('source_role'),
               'authorized_metric': f.get('numeric_context') if (f.get('numeric_validation') or {}).get('passed') is True else None}
              for f in package.get('facts', []) if chapter_admitted(f, index)]
@@ -511,7 +570,9 @@ def plan_prompt(package, index):
         'cards用于核对原始前提，不能绕过当前正文判断重新升级事实；当前章节判断被修订后，不沿用旧综合判断。'
         '每项先用一句话说明已知材料支持什么判断，再解释跨材料的联系和成立条件；不能整段只列缺口或照抄摘录。'
         '可写有边界的比较、推论和条件判断，不能据规模直接认定需求、盈利、低风险或投资吸引力。'
-        '优先综合不同章节的适用材料，只有同一主题时也可给局部判断，不为了凑跨章引用加入无关材料。'
+        '优先综合不同章节的适用材料，覆盖市场、前景、竞争、技术、商业化和政策中已有依据的重要发现；缺证项明确保留未知。'
+        '同一主题不反复占用摘要和综合结论。发现之后解释依据、实际含义与成立限制，不把材料解释长度当研究深度。'
+        '不因整页存在研究对象关键词，就把整体行业或其他赛道摘录用作本赛道判断。'
         '每项只写一个可独立复核的判断；对增长、商业化、竞争、政策和技术的联系可作有前提的分析，不把推论写成原文已经证明的事实。'
         '先把原文支持的观察完整说清，再单独标出有条件推论；不要把可保留事实和较强推论捆成一大段。'
         '研究角度不要求每项各写一段；总体判断可以体现在前述观察的联系中。'
@@ -521,7 +582,11 @@ def plan_prompt(package, index):
     if batch:
         count_rule = ('这是本章分段写作，只回答analysis_batch.questions内的问题，其他问题由本章其他分段处理。'
             '最多8条来源、3段分析，每项conclusion与text合计100至220字，reasoning简述40至80字。')
-    return (synthesis + depth + '严格按固定模板逐项研究。来源陈述不可改写；另写受证据约束的分析，不能只给编号或复述摘录。'
+    from industry_quality import comparison_contract
+    comparison = comparison_contract(package, index) if index in {4,6,7,10,11} else {}
+    return (synthesis + depth + '按照发现、依据、影响、限制组织论证：先回答研究问题，把适用材料的共同点和差异写在一起；同一事实只解释一次，后续只说明新增联系。'
+            '不得把单条款义务当整部法规适用范围，也不能从未规定时点推定允许事后履行。流程建议须明确标为建议。'
+            '严格按固定模板逐项研究。来源陈述不可改写；另写受证据约束的分析，不能只给编号或复述摘录。'
             '先按generation_targets确定本问题可用的具体前提，再写判断；只把cards.statement当依据，研究任务和覆盖状态不是事实。'
             '每项围绕一个判断，按推理需要引用1至4条前提，不为了少引而省略必要依据；强弱不同的判断拆开，不能把成立观察与未获支持的趋势或评级捆成一段。'
             '事实约束与分析权限分开：数值、日期、主体行为和法律义务必须来自授权陈述；分析不要求原文已经写出同一句结论。'
@@ -529,7 +594,8 @@ def plan_prompt(package, index):
             '推论不能伪装成已发生的结果或行业普遍事实；没有结果数据时可以分析作用机制，但不宣称实际成本、盈利、份额或政策效果已经变化。'
             '同一研究问题有多条适用材料时，优先综合共同点、差异或作用环节，不要逐卡各改写一遍就称为分析。'
             '“材料分别涉及什么”“材料显示存在差异”只是整理；应进一步解释这些联系或差异为何影响对应业务的选择、依赖关系或约束，且将推论限定在所列前提与假设内。'
-            + ('政策分析应解释不同条款分别作用于哪些业务环节、对组织或流程有哪些直接含义；不止介绍文件内容，也不擅自推定政策效果。' if index == 3 else '') +
+            + ('政策分析须继承applicability_context的适用主体、公众服务等前提及非适用范围；通过、署期、网页发布日期和施行日期分开核对，不由通过日期推定公布日期。'
+            '解释不同条款作用于哪些业务环节和流程，不擅自推定执行效果。' if index == 3 else '') +
             '返回严格JSON：{"evidence_ids":["E-..."],"analyses":[{"question":"本章研究问题原名",'
             '"conclusion":"可独立阅读的初步判断，用1至3句交代主要发现、实际含义及必要条件；材料充足时约70至160字，单点材料可简洁；仅缺口说明填空字符串",'
             '"text":"解释具体前提怎样支持上述判断、材料间的联系及对对应业务的含义；不重复conclusion，不反复介绍审查过程", "evidence_ids":["E-..."],'
@@ -552,7 +618,7 @@ def plan_prompt(package, index):
                     if not batch or q['question'] in batch['questions']],
                 **({'analysis_batch': batch} if batch else {}),
                 **({'completed_chapter_judgments': package.get('completed_chapter_judgments', [])} if index == 14 else {}),
-                'task': GAPS.get(CHAPTER_TASK.get(index), '可引用来源陈述'), 'cards': cards}, ensure_ascii=False))
+                'comparison_contract': comparison, 'task': GAPS.get(CHAPTER_TASK.get(index), '可引用来源陈述'), 'cards': cards}, ensure_ascii=False))
 
 
 def bounded_writer_package(package, index, limit=20000):
@@ -764,7 +830,7 @@ def validate_analyses(analyses, package, index, ids):
                 'background_ids': coverage.get('background_evidence_ids', [])})
         if not limitation and not set(refs) & set(coverage['evidence_ids']) and not re.search(r'尚缺|尚无|不能|不足|仅.*(?:模式|观点|样本|背景)', body):
             errors.append('background_presented_as_answer')
-        if any(f['fact_contract'].get('sample_boundary') for f in rows) and not re.search(r'样本|所引企业|特定企业|特定测试', body):
+        if any(f['fact_contract'].get('sample_boundary') for f in rows) and not re.search(r'样本|所引企业|特定企业|特定测试|特定评测|模拟用户|双控|所引案例', body):
             errors.append('analysis_sample_boundary_missing')
         numeric = {f['evidence_id']: {'context': f.get('numeric_context') or {}, 'validation': f.get('numeric_validation') or {}} for f in rows}
         if any(not any(numeric_supported(n, eid, numeric) for eid in refs) for n in numeric_mentions(checked_body)):
@@ -776,6 +842,8 @@ def validate_analyses(analyses, package, index, ids):
         for legal in legal_fields:
             if re.sub(r'\s+', '', legal) not in canonical:
                 errors.append('analysis_unauthorized_legal_statement')
+        from industry_quality import analysis_boundary_issues
+        errors.extend(analysis_boundary_issues(claim, rows, index))
         errors.extend(passage_issues(checked_body, analysis=True))
         errors.extend(r['code'] for r in claim_semantic_issues(checked_body+' '+ ' '.join(refs), rows))
         if conclusion:
@@ -784,7 +852,7 @@ def validate_analyses(analyses, package, index, ids):
             errors.extend(premise_issues({**exact_claim, 'text': conclusion}, rows))
             errors.extend(passage_issues(checked_conclusion, analysis=True))
             errors.extend(r['code'] for r in claim_semantic_issues(checked_conclusion+' '+' '.join(refs), rows))
-            if any(f['fact_contract'].get('sample_boundary') for f in rows) and not re.search(r'样本|所引企业|特定企业|特定测试', conclusion):
+            if any(f['fact_contract'].get('sample_boundary') for f in rows) and not re.search(r'样本|所引企业|特定企业|特定测试|特定评测|模拟用户|双控|所引案例', conclusion):
                 errors.append('analysis_sample_boundary_missing')
         if errors:
             reject()
@@ -852,6 +920,8 @@ def render_plan(package, index, title, ids, analyses=None, ledger=None):
             state = ('有来源材料，适用性与结论支持仍需复核' if row['evidence_ids'] else
                      ('仅有模式或观点背景，实际经营指标仍缺证' if index == 10 else
                       '仅有定性描述或观点背景，尚无已核验的可比指标') if row.get('background_evidence_ids') else '本轮未回答，需补证或缩减研究范围')
+            if row.get('inventory_status') == 'candidate_review_required' and not row['evidence_ids']:
+                state='已有待核候选，先核对原文单位、口径及适用范围；未核验前不作为事实或评分依据'
             if row['evidence_state'] == 'selection_gap':
                 state = '已有适用候选未进入本章选材，先复核选材，不据此判外部缺证'
             if row['claim_support_states']:
@@ -886,8 +956,14 @@ def render_plan(package, index, title, ids, analyses=None, ledger=None):
         lines = [line for line in lines if not any(' ['+eid+'](' in line for eid in table_ids)]
     observation_ids={eid for c in analyses or [] if c.get('source_observation_only') for eid in c['evidence_ids']}
     lines=[line for line in lines if not any(' ['+eid+'](' in line for eid in observation_ids)]
+    from industry_quality import comparison_markdown
+    conditions = comparison_markdown([cards[eid] for eid in ids if eid in cards], index)
     evidence = '\n\n'.join(([table] if table else []) + lines)
+    if conditions:
+        analysis += '\n\n'+conditions
     # Findings come before the audit material. Canonical source text and links
     # remain available below, rather than being replaced by model paraphrases.
-    return (f'## {index}. {title}\n\n' + note + analysis + '\n\n### 关键依据\n\n'
+    rendered=(f'## {index}. {title}\n\n' + note + analysis + '\n\n### 关键依据\n\n'
             + (evidence or '本章尚无满足准入条件的完整陈述，相关核验事项见第16章。') + matrix)
+    from industry_substance import reading_copy
+    return reading_copy(rendered,index,analyses or [],coverage)

@@ -80,7 +80,8 @@ def claim_contract_issues(text, facts):
             periods = {str((f.get('numeric_context') or {}).get('period') or '') for f in cards}
             if len(rates) >= 2 and (len(periods) > 1 or any(not any(numeric_supported(n, eid, numeric) for eid in numeric) for n in rates)):
                 add('growth_comparison_unsupported', '增速比较缺少同期间的已校验指标，不能借用原文中的其他数字。')
-        if re.search(r'政策原文|法规原文', line) and rows and all(public_source_type(f.get('source_url')) not in {'government', 'regulatory'} for f in rows):
+        from industry_review_fixes import policy_source_assertion
+        if policy_source_assertion(line) and rows and all(public_source_type(f.get('source_url')) not in {'government', 'regulatory'} for f in rows):
             if not re.search(r'非|不是|不等于|待核验|需核对', line):
                 add('policy_primary_source_missing', '政策原文声明只引用了解读或其他非官方网页，需回到发布机关原文。')
         if re.search(r'AI\s*Act|人工智能法案', line, re.I) and re.search(r'高风险.{0,70}7\s*[%％]', line):

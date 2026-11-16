@@ -4,7 +4,7 @@ from difflib import SequenceMatcher
 import re
 
 CLAIM_FIELDS = {'question','conclusion','text','evidence_ids','premises','claim_kind','reasoning'}
-AUDIT_FIELDS = {'answer_quality_warning','development_warning','partial_answer','partial_parent_claim_id','support_review','source_observation_only'}
+AUDIT_FIELDS = {'answer_quality_warning','development_warning','partial_answer','partial_parent_claim_id','support_review','source_observation_only','question_completion_context'}
 MAX_UNITS = 3
 
 
@@ -50,6 +50,9 @@ def _actual_payment_clauses(value):
 
 def question_alignment_issue(claim):
     """Known wrong-question answers remain readable drafts, never completed jobs."""
+    from industry_review_fixes import completion_issue
+    issue=completion_issue(claim)
+    if issue:return issue
     question = claim.get('question', '')
     body = str(claim.get('conclusion') or '') + str(claim.get('text') or '')
     if question == '实际收费与付费客户':
@@ -72,6 +75,8 @@ def question_alignment_issue(claim):
 
 def alignment_feedback(issue):
     return {
+        'forecast_horizon_not_answered':'当前只回答了较短目标期。请核对截止日后五至十年的原始预测；没有则保留现有短期观点，明确长期问题未回答，不改造数值或追加新预测。',
+        'competition_framework_partial':'当前只覆盖一种局部竞争风险。保留该分析；按已给证据区分其他竞争力量、适用对象和成立条件，材料不足的部分保留未回答。',
         'analysis_not_developed': '上一稿保留了具体判断，但分析没有展开。请用本题已有原文说明判断的依据联系、作用对象、实际业务含义及成立条件；风险题区分触发情景和条件性影响。不重新检索，不重复小结或用缺口清单凑字数。',
         'actual_payment_not_answered': '本题问实际收费与付费客户。上一稿只给样本毛利、财务表现或假设计费选项，不能作为本题已回答。请核对已给材料中的实际采用主体、客户及交易/收费安排；有哪个就明确哪个，缺少的列具体缺口。原有毛利分析可保留在盈利问题，不重复充当收费答案。',
         'policy_dates_not_demand_evidence': '上一稿仅列政策发布或施行日期，没有回答商业化需求或传播关注度。请按本题已有订单、使用或传播材料作有限判断；若没有，不把日期节点解释为热度成因，明确所缺指标。',
@@ -84,11 +89,14 @@ def _draft_signature(claim):
     finding = re.sub(r'\s+', '', str(claim.get('conclusion') or ''))
     # Shared citations can discuss different periods, subjects or geographic
     # scopes. Never fold those distinct observations together just by similarity.
-    numbers = tuple(sorted(set(re.findall(r'[-−]?\d+(?:[.,]\d+)*\s*(?:%|％)?', body))))
-    scopes = tuple(sorted(set(re.findall(r'中国大陆|全球|美国|欧洲|中国|日本|英国|深圳|上海', body))))
-    subjects = tuple(sorted(set(re.findall(r'[A-Za-z甲乙丙丁]+(?:公司|企业)|华为|英伟达|百度|阿里云|腾讯|'
-                                          r'[A-Za-z][A-Za-z0-9._+-]{1,30}', body))))
-    nature=(bool(re.search(r'预测|预计|目标期|情景',finding)),bool(re.match(r'若|如果|假设|在.{1,25}条件下',finding)))
+    numbers = tuple((m[0],body[max(0,m.start()-24):min(len(body),m.end()+12)])
+                    for m in re.finditer(r'[-−]?\d+(?:[.,]\d+)*\s*(?:%|％)?',body))
+    scopes = tuple(re.findall(r'中国大陆|全球|美国|欧洲|中国|日本|英国|深圳|上海', body))
+    subjects = tuple((m[0],body[max(0,m.start()-16):min(len(body),m.end()+16)])
+                     for m in re.finditer(r'[A-Za-z甲乙丙丁]+(?:公司|企业)|华为|英伟达|百度|阿里云|腾讯|'
+                                          r'[A-Za-z][A-Za-z0-9._+-]{1,30}',body))
+    nature=(bool(re.search(r'预测|预计|目标期|情景',finding)),bool(re.match(r'若|如果|假设|在.{1,25}条件下',finding)),
+            tuple(re.findall(r'不(?:同|低于|高于|影响|降低|提高|是|能|会|应|宜|得)|未|没有|无|非|可能|若|假设|仅|至少|至多|超过|低于|高于|提高|降低|增加|减少|上升|下降|优于|劣于|成功|失败',body)))
     return body, finding, numbers, scopes, subjects, nature
 
 
@@ -189,11 +197,11 @@ def current_revision_state(plan):
 def answer_envelope(value, diagnostic):
     diagnostic['container_type'] = type(value).__name__
     if isinstance(value,dict):
-        known = {'answers','results','data','question_id','status','claims','conclusion','analysis','refs'}
+        known = {'answers','results','data','result','question_id','status','claims','conclusion','analysis','refs'}
         diagnostic['recognized_fields'] = sorted(set(value)&known)
         diagnostic['other_field_count'] = len(set(value)-known)
-        containers = [k for k in ('answers','results','data') if isinstance(value.get(k),(list,dict))]
-        if len(containers)>1:
+        containers = [k for k in ('answers','results','data','result') if isinstance(value.get(k),(list,dict))]
+        if len(containers)>1 or (containers and set(value)&{'question_id','conclusion','analysis','refs','claims'}):
             raise ValueError('ambiguous_question_response')
         if containers:
             selected=containers[0]
@@ -314,3 +322,45 @@ def source_observations(package, chapter, ids):
             kept.append(item);seen.add(eid);break
         if len(kept)>=2:break
     return kept
+
+
+def decode_answer_container(raw, diagnostic):
+    """Normalize complete presentation envelopes; never repair truncated JSON."""
+    import json
+    from json_utils import parse_json_output
+    from industry_draft_policy import answer_envelope
+    output=getattr(raw,'output_diagnostic',None) or {}
+    if output.get('finish_reason') in {'length','max_tokens'}:
+        raise ValueError('invalid_question_response')
+    value=parse_json_output(raw)
+    if value is None and isinstance(raw,str):
+        import re
+        body=raw.strip()
+        if body.startswith('<think>'):
+            match=re.match(r'^<think>[\s\S]*?</think>\s*',body)
+            if not match:raise ValueError('invalid_question_response')
+            body=body[match.end():]
+        decoder=json.JSONDecoder();candidates=[];cursor=0
+        while cursor<len(body):
+            starts=[n for n in (body.find('{',cursor),body.find('[',cursor)) if n>=0]
+            if not starts:break
+            start=min(starts)
+            try:item,end=decoder.raw_decode(body,start)
+            except ValueError:raise ValueError('invalid_question_response') from None
+            candidates.append(item);cursor=end
+        if len(candidates)>1:raise ValueError('ambiguous_question_response')
+        if len(candidates)==1:
+            value=candidates[0];diagnostic.setdefault('normalizations',[]).append('outer_presentation_removed')
+    if isinstance(value,str):
+        try:value=json.loads(value)
+        except ValueError:raise ValueError('invalid_question_response') from None
+        diagnostic.setdefault('normalizations',[]).append('encoded_json_unwrapped')
+    for _ in range(2):
+        if not isinstance(value,dict):break
+        containers=[key for key in ('answers','results','data','result') if isinstance(value.get(key),(dict,list))]
+        direct=bool(set(value)&{'question_id','conclusion','analysis','refs','claims'})
+        if len(containers)>1 or (containers and direct):raise ValueError('ambiguous_question_response')
+        if containers==['result']:
+            value=value['result'];diagnostic.setdefault('normalizations',[]).append('result_envelope_unwrapped')
+        else:break
+    return answer_envelope(value,diagnostic)

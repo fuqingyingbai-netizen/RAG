@@ -61,6 +61,13 @@ def passage_issues(text, *, analysis=False):
         issues.append('incomplete_proposition')
     if re.match(r'^[，,。；;：:）)"”]|^[-+−]?\d+(?:\.\d+)?\s*[%％]', text):
         issues.append('incomplete_proposition')
+    if not analysis:
+        if re.match(r'^(?:基于|围绕|针对).{0,60}[，,].{0,8}(?:分析|研究|梳理|探讨|评估)',text):
+            issues.append('research_instruction_not_evidence')
+        if len(re.findall(r'(?:^|\s)\d+(?:\.\d+){1,4}\s*',text)) >= 3:
+            issues.append('table_of_contents')
+        if re.match(r'^\d+(?:\.\d+){1,4}\s*',text) and not re.search(r'达到|为\d|采用|包括|显示|表明|推出|同比.{0,8}\d|增长.{0,8}\d|下降.{0,8}\d',text):
+            issues.append('heading_without_proposition')
     # Source questions are not evidence. Authored analysis may legitimately say
     # "未说明是否可比"; interrogative words inside that statement are not a question.
     if (re.search(r'用户提问|[?？]', text)

@@ -5,7 +5,7 @@ import re
 from copy import deepcopy
 
 VERSION = 'industry-chapter-checkpoint-v1'
-PIPELINE = 'industry-report-evidence-v61-bounded-recovery'
+PIPELINE = 'industry-report-evidence-v64.1-current-outlook'
 
 def encode(value):
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'))

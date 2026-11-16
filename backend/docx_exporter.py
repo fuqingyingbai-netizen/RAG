@@ -301,6 +301,13 @@ def _table(
         row_props = '<w:tblHeader/>' if ridx == 0 else ''
         if (company or person) and max((len(_clean_inline_markdown(str(cell))) for cell in row), default=0) <= 160:
             row_props += '<w:cantSplit/>'
+        elif industry and rows[0] in (
+                ['优先级','核验事项','下一步与完成条件'], ['优先级','本轮待解决问题','完成条件']
+                ) and max((len(_clean_inline_markdown(str(cell))) for cell in row), default=0) <= 400:
+            # Compact industry tasks fit on one page; keep their links and
+            # completion criteria with the same row. Long source tables retain
+            # the existing split behavior; company/person exports are unchanged.
+            row_props += '<w:cantSplit/>'
         elif not company and not person and (ridx == 0 or max((len(str(cell)) for cell in row), default=0) <= 80):
             row_props += '<w:cantSplit/>'
         xml.append('<w:tr>' + ('<w:trPr>' + row_props + '</w:trPr>' if row_props else ''))
@@ -323,7 +330,7 @@ def _table(
             bookmark = (evidence_bookmarks or {}).get(evidence_id) if ridx > 0 and cidx == 0 else None
             xml.append(
                 f"<w:tc><w:tcPr><w:tcW w:w=\"{widths[cidx]}\" w:type=\"dxa\"/>{shade}{v_align}</w:tcPr>"
-                f"{_paragraph(cell, style='CompanySource' if compact_caption_source else 'CompanyTable' if company else 'PersonTable' if person else 'TableText', hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, bookmark=bookmark, suppress_evidence_links=bool(bookmark), compact_url_labels=bool(compact_source and ridx>0 and cidx==3 or person and ridx>0 and rows[0][cidx]=='原始定位'), monospace_evidence_ids=bool(industry_source and ridx>0), bold=ridx == 0)}</w:tc>"
+                f"{_paragraph(cell, style='CompanySource' if compact_caption_source else 'CompanyTable' if company else 'PersonTable' if person else 'TableText', hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks, bookmark=bookmark, suppress_evidence_links=bool(bookmark), compact_url_labels=bool(compact_source and ridx>0 and cidx==3 or person and ridx>0 and rows[0][cidx]=='原始定位'), monospace_evidence_ids=bool(industry_source and ridx>0), bold=ridx == 0, keep_next=bool(industry and ridx==0))}</w:tc>"
             )
         xml.append("</w:tr>")
     xml.append("</w:tbl>")
@@ -497,7 +504,7 @@ def _collect_headings(lines: list[str], outline: list[tuple[str, list[str]]] | N
 
 
 def _cover(title: str, headings: list[tuple[int, str]], review_draft: bool = True, document_kind: str = 'report') -> str:
-    subtitle = "行业研究项目建议书" if document_kind == 'industry_proposal' else "背景调查与桌面研究报告"
+    subtitle = "行业研究项目建议书" if document_kind == 'industry_proposal' else "行业研究报告" if document_kind == 'industry_report' else "背景调查与桌面研究报告"
     date_text = datetime.now().strftime("%Y-%m-%d")
     first_chapter = next((text for level, text in headings if level == 2), "")
     return (
@@ -518,7 +525,7 @@ def _cover(title: str, headings: list[tuple[int, str]], review_draft: bool = Tru
 
 
 def _toc(headings: list[tuple[int, str]], chapter_bookmarks: dict[str, tuple[int, str]] | None = None,
-         *, show_page_numbers: bool = True) -> str:
+         *, show_page_numbers: bool = True, right_aligned_pages: bool = False) -> str:
     # Keep the generated front-matter directory readable while preserving the
     # same chapter/subtitle hierarchy that Word shows in its navigation pane.
     items = ([(level,text) for level,text in headings if level==2] if chapter_bookmarks is not None
@@ -533,10 +540,11 @@ def _toc(headings: list[tuple[int, str]], chapter_bookmarks: dict[str, tuple[int
         if bookmark:
             content = f'<w:hyperlink w:anchor="{bookmark[1]}" w:history="1">{content}</w:hyperlink>'
             if show_page_numbers:
-                content += ('<w:r><w:t xml:space="preserve">  </w:t></w:r>'
+                content += (('<w:r><w:tab/></w:r>' if right_aligned_pages else '<w:r><w:t xml:space="preserve">  </w:t></w:r>')
                             + f'<w:fldSimple w:instr=" PAGEREF {bookmark[1]} \\h "><w:r><w:t>—</w:t></w:r></w:fldSimple>')
+        tabs = '<w:tabs><w:tab w:val="right" w:leader="dot" w:pos="8500"/></w:tabs>' if right_aligned_pages else ''
         xml.append(
-            f'<w:p><w:pPr><w:ind w:left="{left}"/><w:spacing w:after="80"/></w:pPr>'
+            f'<w:p><w:pPr><w:ind w:left="{left}"/>{tabs}<w:spacing w:after="80"/></w:pPr>'
             f'{content}</w:p>'
         )
     xml.append(_page_break())
@@ -568,6 +576,7 @@ def markdown_to_docx_bytes(
     review_draft: bool = True,
     outline: list[tuple[str, list[str]]] | None = None,
     document_kind: str = 'report',
+    research_subject: str = '',
 ) -> bytes:
     lines = (markdown or "").replace("\r\n", "\n").split("\n")
     company_claim_index = document_kind=='company_report' or bool(re.search(r"(?m)^##\s*13[.、．]\s*信息来源（自动生成审计索引）", markdown or ""))
@@ -596,6 +605,12 @@ def markdown_to_docx_bytes(
     visible_title = title
     if headings and headings[0][0] == 1:
         visible_title = headings[0][1]
+    cover_subject = ''
+    if document_kind == 'industry_report':
+        subject_match = re.search(r'本报告研究([^。\n]{1,80}?)行业', markdown or '')
+        subject = research_subject.strip() or (subject_match[1] if subject_match else '')
+        if subject:
+            cover_subject = _paragraph('研究对象：'+_clean_inline_markdown(subject), style='ReportSubtitle')
     body: list[str] = []
     media: list[tuple[str, bytes, str]] = []
     relationships = [
@@ -722,7 +737,7 @@ def markdown_to_docx_bytes(
             i += 1
             continue
         following=next((value.strip() for value in lines[i+1:] if value.strip()),'')
-        preface=company_claim_index and (following.startswith('|') or (len(line)<=120 and line.endswith(('：',':')) and following.startswith(('- ','* '))))
+        preface=(company_claim_index or document_kind.startswith('industry_')) and (following.startswith('|') or (len(line)<=120 and line.endswith(('：',':')) and following.startswith(('- ','* '))))
         body.append(_paragraph(line, hyperlink_id=hyperlink_id, evidence_bookmarks=evidence_bookmarks,
                                keep_lines=company_claim_index,keep_next=preface))
         i += 1
@@ -730,8 +745,8 @@ def markdown_to_docx_bytes(
     document_xml = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <w:body>
-    {_cover(visible_title, headings, review_draft=review_draft, document_kind=document_kind)}
-    {_toc(headings, chapter_bookmarks, show_page_numbers=not document_kind.startswith('industry_'))}
+    {_cover(visible_title, headings, review_draft=review_draft, document_kind=document_kind).replace(_page_break(), cover_subject+_page_break(), 1) if cover_subject else _cover(visible_title, headings, review_draft=review_draft, document_kind=document_kind)}
+    {_toc(headings, chapter_bookmarks, show_page_numbers=True, right_aligned_pages=document_kind.startswith('industry_'))}
     {''.join(body) or _paragraph(visible_title, style="ReportTitle")}
     <w:sectPr><w:footerReference w:type="default" r:id="rId2" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:footer="720"/></w:sectPr>
   </w:body>

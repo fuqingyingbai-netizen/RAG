@@ -2,7 +2,7 @@
 from collections import defaultdict
 import re
 
-VERSION = 'industry-reader-v2-question-level-development'
+VERSION = 'industry-reader-v3-concise-research-reading'
 
 
 def question_writing_profile(facts, question):
@@ -13,10 +13,10 @@ def question_writing_profile(facts, question):
     documents.discard(None);documents.discard('')
     n = len(statements)
     tier = 'rich' if n>=4 and len(documents)>=2 else 'standard' if n>=2 else 'sparse'
-    low,high = {'rich':(350,650),'standard':(240,450),'sparse':(140,280)}[tier]
+    low,high = {'rich':(220,380),'standard':(160,300),'sparse':(80,180)}[tier]
     return {'material_tier':tier,'distinct_premises':n,
         'target_analysis_characters':[low,high],
-        'finding_guidance':'用1至3句说明主要判断、实际含义及关键条件；有充分依据时约70至160字。',
+        'finding_guidance':'用1至3句说明判断、依据及必要限制；单点发现不扩写成多段材料解释。',
         'development_focus': ('风险触发情景、影响对象、作用机制与业务关注点；未发生的影响明确作为条件分析。'
             if re.search(r'风险|监管义务',question) else
             '解释具体前提之间的联系、比较维度、业务含义与成立条件；不重复结论或逐卡复述。'),
@@ -103,39 +103,8 @@ def _first_sentence(text, fallback):
 
 
 def task_brief(tasks, include_chapter_topics=True):
-    """The report gets a reading view; complete task data stays in the diagnosis."""
-    from industry_delivery import _cell
-    if not tasks:
-        return '本轮未登记额外核验事项，仍需人工复核原文与判断。'
-    lines = ['| 优先级 | 核验事项 | 下一步与完成条件 |', '| --- | --- | --- |']
-    chapters = defaultdict(list)
-    for task in tasks:
-        topic = str(task.get('task_id') or task.get('key') or '') + ' ' + str(task.get('topic') or '待确认问题')
-        action = _first_sentence(task.get('action'), '先核对已有原文与当前判断，明确待解决的问题。')
-        completion = _first_sentence(task.get('completion'), '按完整任务台账逐项复核；仍缺证则保留未知。')
-        value = action + (' '+completion if completion != action else '')
-        refs = task.get('review_evidence_ids') or []
-        if refs:
-            ref = next((r for r in task.get('review_references', []) if r.get('evidence_id') == refs[0]), {})
-            url = str(ref.get('url') or '')
-            anchor = '['+refs[0]+']'
-            if re.match(r'^https?://[^\s<>]+$', url):
-                anchor += '('+url.replace('(', '%28').replace(')', '%29')+')'
-            value += ' 候选核验入口：'+anchor+'。'
-        lines.append('| '+' | '.join(_cell(v) for v in (task.get('priority') or '高', topic, value))+' |')
-        for sub in task.get('subtasks') or []:
-            question = str(sub.get('topic') or '')
-            if question.startswith('结论支持复核：'):
-                question = question.removeprefix('结论支持复核：')+'（含推理复核）'
-            if question and question not in chapters[sub.get('chapter')]:
-                chapters[sub.get('chapter')].append(question)
-    if include_chapter_topics and chapters:
-        lines += ['', '各章核验重点（具体动作、候选来源及完成标准见完整明细）：', '']
-        for chapter, questions in chapters.items():
-            lines.append('- 第'+str(chapter)+'章：'+'；'.join(questions)+'。')
-    lines += ['', '完整任务及候选来源保留在本轮核验台账、报告质量诊断及配套建议书附录A/B；'
-        '候选入口不代表已支持事实或评分。']
-    return '\n'.join(lines)
+    from industry_substance import concise_tasks
+    return concise_tasks(tasks,include_chapter_topics)
 
 
 def balance_markdown(plans):

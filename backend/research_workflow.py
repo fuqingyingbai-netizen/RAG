@@ -74,8 +74,8 @@ FIXED_MAX_SEARCH_ROUNDS = 3
 FIXED_AI_SEARCH_ENABLED = True
 FIXED_GENERATE_PROPOSAL = True
 PERSON_IDENTITY_POLICY_VERSION = "person-identity-v4-context"
-INDUSTRY_CLEANING_VERSION = "industry-evidence-v24-performance-boundaries"
-INDUSTRY_REPORT_VERSION = "industry-report-evidence-v61-bounded-recovery"
+INDUSTRY_CLEANING_VERSION = "industry-evidence-v30-source-context"
+INDUSTRY_REPORT_VERSION = "industry-report-evidence-v70-bound-citations-risk-review"
 COMPANY_REPORT_VERSION = "company-report-evidence-v150-sequential-chapter-flow"
 
 
@@ -886,6 +886,8 @@ class ResearchWorkflow:
         project.industry_run_id = journal.data['run_id']
         project.industry_recovery_spent = False
         project.industry_executed_queries = []
+        from industry_collection import IndustryCollection
+        project.industry_collection = IndustryCollection()
         project.industry_search_outcomes = []
         project.industry_conclusion_recovery = {}
         project.industry_independent_review = {}
@@ -901,6 +903,7 @@ class ResearchWorkflow:
             project.industry_run_started_at = None
             raise
         def persist():
+            journal.data['collection'] = project.industry_collection.snapshot()
             snapshot = journal.snapshot()
             record.content = json.dumps(snapshot, ensure_ascii=False, indent=2)
             record.artifact_metadata = {**(record.artifact_metadata or {}), 'run_id': snapshot['run_id'],
@@ -933,6 +936,7 @@ class ResearchWorkflow:
         finally:
             project.industry_run_id = None
             project.industry_run_started_at = None
+            project.industry_collection = None
 
     def _run_project_impl(
         self,
@@ -1943,13 +1947,19 @@ class ResearchWorkflow:
             return current
         checkpoint('report')
         project.industry_recovery_spent = True
+        from industry_recovery_queue import RecoverySourceQueue
+        source_queue = RecoverySourceQueue(run_id)
         record = {**pending, 'limits':recovery_limits(), 'status':'started', 'round':0,
-            'questions':{}, 'passes':[], 'initial_report_sha256':digest(report),
+            'source_queue':source_queue.snapshot(),
+            'questions':{}, 'passes':[], 'remaining_tasks':list(pending['tasks']),
+            'final_report_sha256':digest(report), 'final_cleaned_artifact_id':cleaned_artifact.id,
+            'final_risk_artifact_id':risk_artifact.id, 'initial_report_sha256':digest(report),
             'initial_cleaned_artifact_id':cleaned_artifact.id, 'initial_risk_artifact_id':risk_artifact.id}
         audit = self.save_artifact(db, project, 'industry_conclusion_recovery',
             _project_doc_title(project, '逐题结论修复记录'), json.dumps(record, ensure_ascii=False),
             {'agent':'conclusion_recovery', 'recovery_version':VERSION, 'run_id':run_id})
         def persist():
+            record['source_queue'] = source_queue.snapshot()
             project.industry_conclusion_recovery = record
             audit.content = json.dumps(record, ensure_ascii=False, indent=2)
             audit.artifact_metadata = {**(audit.artifact_metadata or {}), 'recovery_status':record['status']}
@@ -1957,6 +1967,11 @@ class ResearchWorkflow:
         try:
             # Finite even if a faulty stage keeps changing its diagnostic reason.
             for _ in range(len(pending['tasks']) * record['limits']['total']):
+                from industry_review_fixes import recovery_collection_exhausted
+                if recovery_collection_exhausted(getattr(project,'industry_collection',None)) and not source_queue.pending:
+                    record['collection_budget_exhausted']=True
+                elif source_queue.pending:
+                    record.pop('collection_budget_exhausted',None)
                 tasks = schedule_tasks(pending, record)
                 if not tasks:
                     break
@@ -1975,7 +1990,8 @@ class ResearchWorkflow:
                 started = time.monotonic()
                 try:
                     current = self._recover_industry_conclusion_pass(db, project, *current,
-                        plan, intake, emit, pause_requested, checkpoint, retry, step)
+                        plan, intake, emit, pause_requested, checkpoint, retry, step,
+                        source_queue=source_queue, persist_queue=persist)
                 finally:
                     step['elapsed_ms'] = int((time.monotonic()-started)*1000)
                 remaining = finish_tasks(tasks, record, getattr(project,'industry_statement_plans',{}),
@@ -2036,6 +2052,8 @@ class ResearchWorkflow:
             record.update(status='interrupted_requires_review', error_type=type(exc).__name__)
             raise
         finally:
+            if source_queue.pending and record.get('status') == 'completed':
+                record['status'] = 'completed_with_gaps'
             persist()
             if getattr(audit,'object_key',''):
                 try:
@@ -2049,16 +2067,26 @@ class ResearchWorkflow:
 
     def _recover_industry_conclusion_pass(self, db, project, report, cleaned, risk, cleaned_artifact,
                                          risk_artifact, plan, intake, emit, pause_requested, checkpoint,
-                                         retry, record):
+                                         retry, record, *, source_queue=None, persist_queue=None):
         from industry_conclusion_recovery import recovery_plan, targeted_queries, merge_evidence, snapshot, digest, MAX_NEW_SOURCES
         from industry_research import INDUSTRY_RISK_VERSION
         from industry_evidence import source_fingerprint
         original = (report, cleaned, risk, cleaned_artifact, risk_artifact)
         saved = snapshot(project)
+        from industry_recovery_queue import RecoverySourceQueue
+        source_queue = source_queue if source_queue is not None else RecoverySourceQueue(getattr(project,'industry_run_id',None))
+        if source_queue.run_id != getattr(project,'industry_run_id',None):
+            raise ValueError('recovery_source_queue_run_mismatch')
+        def sync_queue():
+            record['source_queue'] = source_queue.snapshot()
+            if persist_queue:
+                persist_queue()
         try:
             before_ids = {s.id for s in project.sources}
             previous_queries = list(getattr(project, 'industry_executed_queries', [])) + record.get('previous_queries', [])
-            queries = targeted_queries(retry, project.target_name, previous_queries)
+            # Consume pending archived originals before starting another search.
+            source_queue.plan(self._active_industry_sources(project), MAX_NEW_SOURCES)
+            queries = [] if source_queue.pending else targeted_queries(retry, project.target_name, previous_queries)
             record['queries'] = queries
             project.industry_executed_queries = list(dict.fromkeys(previous_queries + [q['query'] for q in queries]))
             new_sources = []
@@ -2079,33 +2107,56 @@ class ResearchWorkflow:
                     _emit(emit, 'report', 'conclusion_recovery', '定向补采未完成，保留已有资料继续局部修复',
                           type(exc).__name__, status='warning')
                 db.expire(project, ['sources'])
-                new_sources = [s for s in self._active_industry_sources(project) if s.id not in before_ids][:MAX_NEW_SOURCES]
+                new_sources = [s for s in self._active_industry_sources(project) if s.id not in before_ids]
+            source_queue.enqueue(new_sources)
             outcomes = getattr(project,'industry_search_outcomes',[]) if queries else []
             record['search_outcomes'] = outcomes
             record['collection_status'] = ('failed' if record.get('collection_error_type') else
                                            'disabled' if intake.get('ai_search_enabled') is False else
-                                           'completed' if queries else 'not_needed')
+                                           'completed' if queries else 'reused_queued_sources' if source_queue.pending else 'not_needed')
             if outcomes and all(x.get('status') in {'provider_unavailable','request_failed'} for x in outcomes) and not new_sources:
                 record['collection_status'] = ('provider_unavailable' if any(x.get('status')=='provider_unavailable' for x in outcomes) else 'failed')
-            record['new_source_ids'] = [s.id for s in new_sources]
-            if new_sources:
+            preferred_modules = {q.get('module') for q in queries}
+            batches = source_queue.plan(self._active_industry_sources(project), MAX_NEW_SOURCES, preferred_modules)
+            record['new_source_ids'] = []
+            record['source_processing_batches'] = []
+            record['added_fact_count'] = 0
+            merged = _plain_json(cleaned) or {}
+            sync_queue()
+            for batch in batches:
                 checkpoint('report')
-                # No ORM relationship replacement or cleaning of the full old pool.
+                source_queue.reserve(batch)
+                processing = {'source_ids':[s.id for s in batch], 'status':'reserved'}
+                record['source_processing_batches'].append(processing)
+                sync_queue()
+                _emit(emit, 'report', 'conclusion_recovery', '分批清洗已归档的补证资料',
+                      f'本批 {len(batch)}/{MAX_NEW_SOURCES} 份；待处理 {len(source_queue.pending)} 份', status='running')
+                # The proxy contains only this run's queued sources, never the full pool.
                 proxy = SimpleNamespace(**{k:getattr(project,k,None) for k in (
                     'id','title','target_name','target_type','industry','description','industry_scope',
-                    'industry_scope_fingerprint','industry_run_id')}, sources=new_sources)
+                    'industry_scope_fingerprint','industry_run_id')}, sources=batch)
                 proxy.industry_pause_requested = pause_requested
                 try:
                     addition = self.clean_sources(proxy, emit=emit, plan=plan,
                         quality=self.evaluate_source_quality(proxy, plan), incremental_max_batches=2)
-                    addition = _plain_json(self._prepare_industry_evidence(proxy, addition, plan)) or {}
+                    addition = _plain_json(self._prepare_industry_evidence(proxy, addition, plan))
+                    if not isinstance(addition,dict) or not isinstance(addition.get('facts'),list):
+                        raise ValueError('invalid_incremental_cleaning_payload')
+                    merged = merge_evidence(merged, addition)
+                    added = merged['conclusion_recovery']['added_fact_count']
+                    record['added_fact_count'] += added
+                    source_queue.stage()
+                    record['new_source_ids'].extend(s.id for s in batch)
+                    processing.update(status='cleaned_pending_merge',added_fact_count=added)
                 except WorkflowPaused:
+                    processing['status'] = 'paused'
                     raise
                 except Exception as exc:
+                    source_queue.defer(exc)
                     record['incremental_cleaning_error_type'] = type(exc).__name__
-                    addition = {}
-                merged = merge_evidence(_plain_json(cleaned) or {}, addition)
-                record['added_fact_count'] = merged['conclusion_recovery']['added_fact_count']
+                    processing.update(status='pending_retry',error_type=type(exc).__name__)
+                sync_queue()
+            if record['new_source_ids']:
                 if record['added_fact_count']:
                     cleaned = json.dumps(merged, ensure_ascii=False, indent=2)
                     cleaned_artifact = self.save_artifact(db, project, 'cleaned_facts',
@@ -2130,6 +2181,11 @@ class ResearchWorkflow:
                         {'agent':'conclusion_recovery', 'cleaned_artifact_id':cleaned_artifact.id,
                          'cleaned_sha256':digest(cleaned), 'risk_pipeline_version':INDUSTRY_RISK_VERSION,
                          'risk_transparency':(_plain_json(risk) or {}).get('risk_transparency',{})})
+                source_queue.commit(cleaned_artifact.id if record['added_fact_count'] else None)
+                for processing in record['source_processing_batches']:
+                    if processing['status']=='cleaned_pending_merge':
+                        processing['status']='processed'
+                sync_queue()
             if not record.get('added_fact_count') and all(t['action']=='collect_evidence' for t in retry['tasks']):
                 record.update(status='completed_with_gaps',generation_skipped='no_new_evidence',
                     final_report_sha256=digest(report),final_cleaned_artifact_id=cleaned_artifact.id,final_risk_artifact_id=risk_artifact.id)
@@ -2161,6 +2217,14 @@ class ResearchWorkflow:
             record.update(status='failed_preserved_best_draft', error_type=type(exc).__name__)
             return original
         finally:
+            uncommitted = set(source_queue.staged + source_queue.reserved)
+            if uncommitted:
+                record['new_source_ids'] = [i for i in record.get('new_source_ids',[]) if i not in uncommitted]
+                for processing in record.get('source_processing_batches',[]):
+                    if processing['status'] in {'reserved','cleaned_pending_merge'}:
+                        processing['status'] = 'pending_after_interruption'
+            source_queue.release()
+            sync_queue()
             for name in ('industry_recovery_seed', 'industry_recovery_plan', 'industry_recovery_deadline'):
                 if hasattr(project, name): delattr(project, name)
 
@@ -2177,12 +2241,15 @@ class ResearchWorkflow:
             if str(getattr(project,'target_type',''))=='company' and metadata.get('company_flow_version'):
                 count=finalize_company_sources(db,project,research_store)
             else:count=finalize_web_sources(db,project,research_store)
-            _emit(emit, 'retention', 'source_records', '来源记录已保留，临时网页正文已清理',
-                  f'count={count}', status='done')
+            label = ('来源记录和网页正文已保留，供资料核对与报告复核' if project.target_type == 'industry'
+                     else '来源记录已保留，临时网页正文已清理')
+            _emit(emit, 'retention', 'source_records', label, f'count={count}', status='done')
             return True
         except Exception:
             db.rollback()
-            _emit(emit, 'retention', 'source_records', '临时正文清理未完成，来源记录仍可用', '', status='warning')
+            label = ('来源归档状态更新未完成，原文未主动清理' if project.target_type == 'industry'
+                     else '临时正文清理未完成，来源记录仍可用')
+            _emit(emit, 'retention', 'source_records', label, '', status='warning')
             return False
 
     def _latest_artifact(self, project: ResearchProject, artifact_type: str) -> ResearchArtifact | None:
@@ -2864,6 +2931,7 @@ class ResearchWorkflow:
         emit: TraceEmitter | None = None,
         pause_requested: Callable[[], bool] | None = None,
         query_cache=None,
+        industry_collection=None,
     ) -> list[tuple[dict[str, Any], list[dict[str, Any]]]]:
         if not query_items:
             return []
@@ -2892,6 +2960,14 @@ class ResearchWorkflow:
                         include_domains=list(query_item.get("include_domains") or []), category=query_item.get("exa_category"))
                     for item in results:
                         item["metadata"] = {**(item.get("metadata") or {}), "person_discovery_only": True}
+                elif industry_collection is not None:
+                    with industry_collection.request_scope(query):
+                        results = web_search_provider.search(
+                            query, limit=industry_collection.per_engine,
+                            include_domains=list(query_item.get('include_domains') or []),
+                            category=query_item.get('exa_category'),
+                            preferred_providers=list(query_item.get('preferred_providers') or []),
+                            candidate_limit=industry_collection.candidate_limit)
                 else:
                     parameters=dict(limit=max(1,max_results_per_query),
                         include_domains=list(query_item.get('include_domains') or []),
@@ -3670,15 +3746,20 @@ class ResearchWorkflow:
         # Keep the exact body version alongside the immutable cleaned artifact;
         # later source-row refreshes cannot move these offsets to another body.
         payload['source_body_snapshots']=body_snapshots
+        from industry_research_workspace import archive_inventory
+        payload['research_workspace'] = archive_inventory(payload)
         for fact in payload['facts']:
             if fact['provenance']['locator']['status']!='verified':
                 fact.update(eligible_for_report=False,eligible_for_risk_scoring=False,requires_human_review=True)
                 fact['provenance']['quarantine_reason']='unlocated_source_quote'
         from industry_fact_contracts import attach_contract, VERSION as FACT_CONTRACT_VERSION
         payload['facts'] = [attach_contract(fact, payload.get('industry_scope') or getattr(project, 'industry_scope', {}),
-            (body_snapshots.get((fact.get('provenance') or {}).get('locator', {}).get('snapshot_key')) or {}).get('content', ''))
+            (body_snapshots.get((fact.get('provenance') or {}).get('locator', {}).get('snapshot_key')) or {}).get('content', ''),
+            source_document=payload['research_workspace']['documents'].get((fact.get('provenance') or {}).get('locator', {}).get('snapshot_key')))
             for fact in payload['facts']]
         payload['fact_contract_version'] = FACT_CONTRACT_VERSION
+        from industry_research_workspace import evidence_record
+        payload['shared_evidence_records'] = {f['evidence_id']:evidence_record(f) for f in payload['facts']}
         from industry_reasoning import question_ledger, fingerprint, VERSION as REASONING_VERSION
         from industry_fact_contracts import CHAPTER_QUESTIONS
         payload['reasoning_version'] = REASONING_VERSION
@@ -5105,6 +5186,42 @@ class ResearchWorkflow:
         pause_requested: Callable[[], bool] | None = None,
         targeted_query_items: list[dict[str, Any]] | None = None,
     ) -> int:
+        industry = str((intake or {}).get('target_type') or project.target_type).lower() == 'industry'
+        collection = None
+        if industry:
+            from industry_collection import IndustryCollection
+            collection = getattr(project, 'industry_collection', None)
+            if collection is None:
+                collection = IndustryCollection()
+                project.industry_collection = collection
+            collection.pause_requested = pause_requested
+            collection.begin('recovery' if targeted_query_items is not None else 'initial')
+        try:
+            return self._collect_web_sources_impl(db, project, search_queries, focus_questions,
+                max_results_per_query, emit, plan, intake, reuse_archived, pause_requested,
+                targeted_query_items, industry_collection=collection)
+        finally:
+            if collection is not None:
+                collection.end()
+                _emit(emit, 'web_search', 'coverage_agent', '行业资料采集预算与缺口记录',
+                      collection.progress_text(),
+                      collection=collection.snapshot(), status='done')
+
+    def _collect_web_sources_impl(
+        self,
+        db: Session,
+        project: ResearchProject,
+        search_queries: list[str],
+        focus_questions: list[str],
+        max_results_per_query: int,
+        emit: TraceEmitter | None = None,
+        plan: dict[str, Any] | None = None,
+        intake: dict[str, Any] | None = None,
+        reuse_archived: bool = True,
+        pause_requested: Callable[[], bool] | None = None,
+        targeted_query_items: list[dict[str, Any]] | None = None,
+        industry_collection=None,
+    ) -> int:
         intake = intake or self._normalize_intake(project, {}, search_queries, focus_questions)
         plan = plan or self.plan_research(project, intake, emit=emit)
         if intake.get("ai_search_enabled") is False:
@@ -5132,7 +5249,8 @@ class ResearchWorkflow:
             or intake.get('company_resume_gap_queries')) if intake.get('target_type') == 'company' else None
         if targeted_query_items is not None and intake.get('target_type') != 'industry':
             raise ValueError('targeted_recovery_is_industry_only')
-        expanded_query_items = (list(targeted_query_items)[:4] if targeted_query_items is not None
+        expanded_query_items = (list(targeted_query_items)[:industry_collection.recovery_query_limit] if targeted_query_items is not None and industry_collection is not None
+                                else list(targeted_query_items)[:4] if targeted_query_items is not None
             else list(company_selected_queries) if company_selected_queries
             else self._expand_search_queries(plan, intake))
         if intake.get('_company_chapter_pass'):
@@ -5161,6 +5279,9 @@ class ResearchWorkflow:
         authority_queries = [item for item in expanded_query_items if item.get("search_tier") == "authority_first"]
         pending_open_web_queries = [item for item in expanded_query_items if item.get("search_tier") != "authority_first"] if authority_queries else []
         query_items = authority_queries or expanded_query_items
+        if industry_collection is not None:
+            query_items = expanded_query_items
+            pending_open_web_queries = []
         max_rounds = max(1, int(intake.get("max_search_rounds") or FIXED_MAX_SEARCH_ROUNDS))
         if intake.get('_company_chapter_pass'):
             max_rounds=1
@@ -5235,8 +5356,6 @@ class ResearchWorkflow:
             # budget with authority variants for only a few chapters.
             query_items = expanded_query_items
             pending_open_web_queries = []
-        industry_query_history = []
-        industry_seen_queries = set()
         for round_index in range(1, max_rounds + 1):
             if pause_requested and pause_requested():
                 raise WorkflowPaused("任务已暂停")
@@ -5246,47 +5365,50 @@ class ResearchWorkflow:
                 query_items=chapter_queries(query_items,plan.get('company_requirements',[]))
                 if not query_items:
                     break
-            if intake.get("target_type") == "industry":
-                budget = _env_int("INDUSTRY_SEARCH_QUERY_BUDGET", 80, 10, 200)
-                try:
-                    from .industry_research import unique_search_queries
-                except ImportError:
-                    from industry_research import unique_search_queries
-                query_items = unique_search_queries(query_items, industry_seen_queries)
-                used = sum(len(batch) for batch in industry_query_history)
-                query_items = query_items[:max(0, budget - used)]
-                if not query_items:
-                    _emit(emit, "web_search", "coverage_agent", "行业检索预算已用完，保留证据缺口", f"query_budget={budget}", status="warning")
-                    break
-                industry_query_history.append(query_items)
-                project.industry_executed_queries = list(dict.fromkeys(
-                    list(getattr(project, 'industry_executed_queries', [])) + [q['query'] for q in query_items]))
             if person_search:
                 query_items = person_search.choose(query_items, round_index, list(project.sources or []))
                 if not query_items:
                     break
             _emit(emit, "web_search", "online_search_agent", "开始在线检索", "", status="running")
-            search_batches = self._search_query_items_parallel(
-                query_items,
-                max_results_per_query,
-                configured_providers,
-                emit,
-                pause_requested,
-                **({'query_cache':intake['_company_query_cache']} if intake.get('_company_query_cache') is not None else {}),
-            )
+            if industry_collection is not None:
+                def industry_search(batch):
+                    project.industry_executed_queries = list(dict.fromkeys(
+                        list(getattr(project, 'industry_executed_queries', [])) + [row['query'] for row in batch]))
+                    return self._search_query_items_parallel(batch, max_results_per_query,
+                        configured_providers, emit, pause_requested, industry_collection=industry_collection)
+                def industry_sources():
+                    db.expire(project, ['sources'])
+                    return self._active_industry_sources(project)
+                def industry_notice(label, record):
+                    if 'new_usable_documents' in record:
+                        detail = (f"新增可用原文 {record['new_usable_documents']} 份；"
+                                  f"候选证据缺口减少 {record['resolved_candidate_gaps']} 项；"
+                                  f"剩余 {len(record['remaining_gaps'])} 项待核验")
+                    else:
+                        detail = (f"本批 {record['queries']} 组关键词；"
+                                  f"本轮已用查询 {industry_collection.used['queries']}/{industry_collection.limits['queries']} 组")
+                    _emit(emit, 'web_search', 'coverage_agent', label,
+                          detail, collection_batch=record, status='running')
+                search_batches = industry_collection.batches(query_items, industry_search,
+                    lambda: self.evaluate_source_quality(project, plan), industry_sources, intake, industry_notice)
+            else:
+                search_batches = self._search_query_items_parallel(
+                    query_items, max_results_per_query, configured_providers, emit, pause_requested,
+                    **({'query_cache':intake['_company_query_cache']} if intake.get('_company_query_cache') is not None else {}))
             if person_search:
                 person_search.record(search_batches)
             if targeted_query_items is not None:
-                project.industry_search_outcomes = [
-                    {'query':item['query'],**item.get('industry_search_outcome',{'status':'request_failed' if item.get('person_search_status')=='failed' else 'empty_unverified'})}
-                    for item,_ in search_batches]
+                project.industry_search_outcomes = []
             if str(intake.get('target_type') or '').lower()=='company':
                 _emit(emit,'web_search','online_search_agent','按模块与查询轮转归档候选',
                       '候选全集保留；查询内排名及原有域名、主体、空正文规则不变',status='running')
                 search_batches=interleave_research_candidates(search_batches)
             for query_item, results in search_batches:
                 if targeted_query_items is not None:
-                    results = results[:3]
+                    project.industry_search_outcomes.append(
+                        {'query':query_item['query'],**query_item.get('industry_search_outcome',
+                         {'status':'request_failed' if query_item.get('person_search_status')=='failed' else 'empty_unverified'})})
+                    results = results[:industry_collection.recovery_candidate_limit] if industry_collection is not None else results[:3]
                 if pause_requested and pause_requested():
                     raise WorkflowPaused("任务已暂停")
                 query = query_item["query"]
@@ -5294,6 +5416,11 @@ class ResearchWorkflow:
                 search_tier = query_item.get("search_tier", "open_web")
                 include_domains = list(query_item.get("include_domains") or [])
                 for item in results:
+                    if industry_collection is not None and pause_requested and pause_requested():
+                        raise WorkflowPaused('任务已暂停')
+                    if industry_collection is not None and industry_collection.remaining_seconds() < 1:
+                        industry_collection.stop('collection_time_exhausted')
+                        break
                     flow = None
                     if person_mode:
                         flow = {'candidate_id': len(person_candidates) + 1, 'query': query,
@@ -5518,6 +5645,8 @@ class ResearchWorkflow:
                             from company_publishers import statistics_release_candidate
                             should_refetch=should_refetch or statistics_release_candidate(url)
                         if retained_provider_original:should_refetch=False
+                        if industry_collection is not None and should_refetch:
+                            should_refetch = industry_collection.allow_fetch(canonical_source_url(url))
                         if person_mode and should_refetch:
                             should_refetch = can_fetch(person_fetch_used, person_fetch_budget)
                             flow['fetch_disposition'] = 'requested' if should_refetch else 'explicit_budget_exhausted'
@@ -5543,7 +5672,7 @@ class ResearchWorkflow:
                                 status="running",
                             )
                             fetch_options = {'document_profile': project.target_type} if project.target_type in {'company', 'person'} else {}
-                            fetched = self._fetch_web_url_with_timeout(url, allow_browser=allow_browser, emit=emit, **fetch_options)
+                            fetched = self._fetch_web_url_with_timeout(url, allow_browser=allow_browser, emit=emit, **fetch_options, **({'industry_collection': industry_collection} if industry_collection is not None else {}))
                             _emit(
                                 emit,
                                 "web_search",
@@ -5768,6 +5897,13 @@ class ResearchWorkflow:
                         except ImportError:
                             from json_utils import strip_nul
                         title, summary, stored_text, metadata = strip_nul([str(title or ''), str(summary or ''), stored_text, metadata])
+                        if project.target_type == 'industry':
+                            from industry_archive_text import prepare_archive_text
+                            title,summary,stored_text,metadata,unicode_fix=prepare_archive_text(title,summary,stored_text,metadata)
+                            if unicode_fix['changed_text_fields']:
+                                _emit(emit,'web_search','online_search_agent','归档字符编码已修复，需对照原文核对',
+                                    f"fields={unicode_fix['changed_text_fields']}; unpaired={unicode_fix['unpaired_surrogates']}; pairs={unicode_fix['paired_surrogates']}",
+                                    url=url,status='warning')
                         title, metadata = self._source_title_for_storage(title, metadata)
                         metadata["retention_policy"] = "transient_web_body"
                         if flow is not None:
@@ -5939,7 +6075,7 @@ class ResearchWorkflow:
         _emit(emit, "web_search", "online_search_agent", "在线来源采集结束", "", status="done")
         return added
 
-    def _fetch_web_url_with_timeout(self, url: str, allow_browser: bool, emit: TraceEmitter | None = None, *, document_profile: str = '') -> dict[str, Any]:
+    def _fetch_web_url_with_timeout(self, url: str, allow_browser: bool, emit: TraceEmitter | None = None, *, document_profile: str = '', industry_collection=None) -> dict[str, Any]:
         timeout_seconds = _env_int("WEB_FETCH_TOTAL_TIMEOUT_SECONDS", 45, 5, 180)
         if document_profile == 'person':
             timeout_seconds = _env_int('PERSON_PDF_FETCH_TOTAL_TIMEOUT_SECONDS',
@@ -5951,6 +6087,9 @@ class ResearchWorkflow:
             ocr_seconds=_integer('COMPANY_PDF_OCR_MAX_SECONDS',60,1,600)
             default=max(timeout_seconds, 60+2*ocr_seconds)
             timeout_seconds=_env_int('COMPANY_PDF_FETCH_TOTAL_TIMEOUT_SECONDS',default,30,1500)
+        if industry_collection is not None:
+            timeout_seconds = max(.1, min(timeout_seconds, industry_collection.remaining_seconds()))
+            allow_browser = False
         result_queue: queue.Queue[tuple[str, Any]] = queue.Queue(maxsize=1)
         user_deadline = os.getenv('RESEARCH_USER_DEADLINE_UTC')
         if user_deadline:
@@ -5962,7 +6101,12 @@ class ResearchWorkflow:
         def worker() -> None:
             try:
                 options = {'document_profile': document_profile} if document_profile else {}
-                result_queue.put(("ok", web_search_provider.fetch_url(url, allow_browser=allow_browser, **options)))
+                if industry_collection is not None:
+                    with industry_collection.request_scope(url):
+                        fetched = web_search_provider.fetch_url(url, allow_browser=False, **options)
+                else:
+                    fetched = web_search_provider.fetch_url(url, allow_browser=allow_browser, **options)
+                result_queue.put(('ok', fetched))
             except Exception as exc:
                 result_queue.put(("error", exc))
 
@@ -6813,15 +6957,24 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                 parsed = attach_selection(parsed, json.loads(risk_evidence).get('input_selection', {}))
                 if (isinstance(cleaned_payload, dict) and cleaned_payload.get('fact_contract_version')
                         and os.getenv('INDUSTRY_CLAIM_REVIEW_ENABLED', 'true').lower() not in {'0', 'false', 'no', 'off'}):
-                    from industry_reasoning import claim_id, run_support_review, apply_risk_support
-                    claims = [{'question': row['name'], 'text': row.get('reason', ''),
-                               'evidence_ids': row.get('evidence_ids', []), 'chapter': 14}
-                              for row in parsed.get('dimensions', []) if row.get('score') is not None]
-                    claims = [{**claim, 'claim_id': claim_id(claim, 14)} for claim in claims]
-                    review = run_support_review(claims, retained,
-                        lambda prompt: self._invoke_industry_support_review(prompt, emit=emit), max_claims=6)
-                    parsed = apply_risk_support(parsed, review, retained, getattr(project, 'industry_scope', {}))
-                _emit(emit, "risk", "risk_assessment_agent", "模型行业风险评分完成", f"risk_level={parsed.get('risk_level')}", risk_level=parsed.get("risk_level"), status="done")
+                    from industry_risk_review import review_risk_assessment
+                    parsed = review_risk_assessment(parsed, retained, getattr(project, 'industry_scope', {}),
+                        lambda prompt: self._invoke_industry_support_review(prompt, emit=emit),
+                        lambda current: self._repair_industry_risk(current, json.loads(risk_evidence), retained,
+                            getattr(project,'industry_scope',{}), emit=emit,
+                            only_dimensions={row['name'] for row in current.get('dimensions',[])
+                                if row.get('unknown_cause')=='claim_support_rejected'}))
+                review = parsed.get('claim_support_review') or {}
+                states = review.get('review_state_counts') or {}
+                pending = [row['name'] for row in parsed.get('dimensions',[]) if row.get('score') is None
+                           or row.get('claim_support_review',{}).get('status') not in {None,'supported'}]
+                codes = sorted({v['diagnostic_code'] for v in review.get('reviews',{}).values() if v.get('diagnostic_code')})
+                detail = (f"risk_level={parsed.get('risk_level')}; supported={review.get('supported_claim_count',0)}; "
+                          f"partial={states.get('partial',0)}; pending={review.get('pending_claim_count',0)}"
+                          + ('; diagnostics='+','.join(codes) if codes else ''))
+                _emit(emit, "risk", "risk_assessment_agent", "模型行业风险评分完成，保留待复核项" if pending else "模型行业风险评分完成",
+                      detail, risk_level=parsed.get("risk_level"), review_diagnostic_codes=codes,
+                      pending_dimensions=pending, status="warning" if pending else "done")
                 return json.dumps(parsed, ensure_ascii=False, indent=2)
             fallback = unknown_industry_risk(scope=getattr(project, "industry_scope", {}))
             try:
@@ -6877,7 +7030,7 @@ Do not infer controllable impact or low risk from absence of penalties. A single
         return json.dumps(fallback, ensure_ascii=False, indent=2)
 
     def _repair_industry_risk(self, normalized: dict, evidence: dict, retained: list[dict], scope: dict,
-                              emit: TraceEmitter | None = None) -> dict:
+                              emit: TraceEmitter | None = None, *, only_dimensions=None) -> dict:
         try:
             from .industry_research import risk_repair_package, risk_level
         except ImportError:
@@ -6887,7 +7040,9 @@ Do not infer controllable impact or low risk from absence of penalties. A single
         diagnostic = {'primary_status': 'validated', 'initial_rejections': initial_diagnostics,
                       'repair': {'attempted': False, 'attempts': 0}}
         result = {**normalized, 'validation_diagnostics': diagnostic}
-        package = risk_repair_package(evidence, normalized)
+        repair_source = normalized if only_dimensions is None else {**normalized,
+            'dimensions':[row for row in normalized['dimensions'] if row['name'] in only_dimensions]}
+        package = risk_repair_package(evidence, repair_source)
         requested = {row['name'] for row in package['dimensions_to_repair']}
         if not requested:
             return result
@@ -6899,6 +7054,8 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                   '预测数字必须在同一分句明确预计/预测；同一发布方的多张卡片不能写成多源印证。'
                   '保留政策目标、预测与实际统计的区别，企业样本不能评分行业整体。证据不足返回score=null、level=unknown，'
                   '缺少盈利披露不能推断实际经营恶化；内部格式或引用检查结果不能当作行业事实或风险依据。'
+                  'support_review是上一稿的拒绝诊断，不是行业事实；逐项删除或收窄未获支持的推论，保持有效部分。'
+                  '若原理由不能修正为有依据的判断，继续score=null；仅改分值不算修复。修订理由将重新独立复核。'
                   '不能为了修复凑分。无需返回其他维度、总分或额外章节。\n'
                   + json.dumps(normalized.get('scoring_methodology') or {}, ensure_ascii=False)
                   + '\n' + model_evidence(package))
@@ -8552,6 +8709,11 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                         for issue in issues if issue.get('message')]
             if not any(r['code'] == 'evidence_gate_failed' for r in reasons):
                 reasons.append({'code': 'evidence_gate_failed', 'chapter': None, 'message': gate_warning})
+        from industry_findings import build_registry, consistency_issues
+        registry = build_registry(getattr(project, 'industry_statement_plans', {}) or {}, payload.get('facts', []), getattr(project, 'industry_scope', {}) or {})
+        foundation_issues = consistency_issues(registry, report)
+        reasons += foundation_issues
+        project.industry_finding_registry = registry
         project.industry_delivery_review_reasons = reasons
         warning = '行业报告需人工复核：' + '；'.join(r['message'] for r in reasons) if reasons else ''
         # Replace our own old notice, so a reexport cannot show stale review reasons.
@@ -8583,6 +8745,7 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                         'conclusion_recovery': getattr(project, 'industry_conclusion_recovery', {}),
                         'reasoning_report_sha256': hashlib.sha256(report.encode()).hexdigest(),
                         'fact_contract_version': (getattr(project, 'industry_evidence_payload', {}) or {}).get('fact_contract_version'),
+                        'finding_registry': registry, 'foundation_consistency_issues': foundation_issues,
                         **({'quality_warning': warning} if warning else {})}
 
     def _build_report_quality_diagnostic(self, project: ResearchProject, report: str, warning: str) -> str:
@@ -9397,6 +9560,7 @@ Do not infer controllable impact or low risk from absence of penalties. A single
                     review_draft=bool(artifact_metadata.get("quality_warning") or artifact_metadata.get("requires_human_review")),
                     outline=self._select_report_outline(project) if artifact_type == "desktop_report" else None,
                     document_kind=('industry_proposal' if artifact_type == 'proposal' else 'industry_report') if project.target_type == 'industry' else 'company_report' if project.target_type=='company' and artifact_type=='desktop_report' else 'report',
+                    **({'research_subject':str((getattr(project,'industry_scope',{}) or {}).get('industry_name') or '')} if project.target_type == 'industry' else {}),
                 )
                 if project.target_type == 'industry':
                     try:

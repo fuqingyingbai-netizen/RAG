@@ -1616,6 +1616,7 @@ def get_project_run_intake(
 @router.get("/projects/{project_id}/progress")
 def get_project_progress(
     project_id: int,
+    compact: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -1631,54 +1632,53 @@ def get_project_progress(
     )
     trace_artifacts = trace_query.limit(1).all() if project.target_type == 'industry' else trace_query.all()
     trace = _latest_workflow_trace(trace_artifacts)
-    return {
-        "project": _project_response(project).model_dump(),
-        "trace": trace,
-        "activity": _trace_activity(trace_artifacts, trace),
-    }
+    activity = _trace_activity(trace_artifacts, trace)
+    result = {"project": _project_response(project).model_dump(), "trace": trace, "activity": activity}
+    if compact and project.target_type == 'industry':
+        from source_catalog import compact_progress_trace
+        result['trace'] = compact_progress_trace(trace)
+        result['trace_window'] = {'available':len(trace),'returned':len(result['trace']),
+            'has_older_events':len(trace)>len(result['trace'])}
+    return result
 
 
 @router.delete("/projects/{project_id}")
-async def delete_project(
+def delete_project(
     project_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    project = _get_project(db, project_id, current_user)
-    if _is_project_running(project_id):
-        raise HTTPException(status_code=409, detail="任务正在运行，请等待完成后再删除")
-    sources = db.query(ResearchSource).filter(ResearchSource.project_id == project.id).all()
-    artifacts = db.query(ResearchArtifact).filter(ResearchArtifact.project_id == project.id).all()
-    for source in sources:
-        metadata = source.source_metadata or {}
-        _delete_local_upload(metadata.get("local_path"), project.id)
-        for key in {source.object_key, metadata.get("original_object_key")}:
-            try:
-                _delete_project_file(key, project.id)
-            except Exception:
-                pass
-    for artifact in artifacts:
-        metadata = artifact.artifact_metadata or {}
-        for key in {
-            artifact.object_key,
-            metadata.get("docx_object_key"),
-            metadata.get("markdown_object_key"),
-            metadata.get("raw_markdown_object_key"),
-        }:
-            try:
-                _delete_project_file(key, project.id)
-            except Exception:
-                pass
+    _get_project(db, project_id, current_user)
+    # Serialize the database operation with run admission. SQL bulk deletion
+    # never materializes archived source/report bodies or ORM cascade graphs.
+    with RUNNING_PROJECT_LOCK:
+        if project_id in RUNNING_PROJECT_IDS:
+            raise HTTPException(status_code=409, detail="任务正在运行，请等待完成后再删除")
+        try:
+            db.query(ResearchSource).filter(ResearchSource.project_id == project_id).delete(synchronize_session=False)
+            db.query(ResearchArtifact).filter(ResearchArtifact.project_id == project_id).delete(synchronize_session=False)
+            db.query(ResearchProject).filter(ResearchProject.id == project_id).delete(synchronize_session=False)
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+    # These namespaces contain originals, exports, traces and requirement files.
+    # Do not remove files before the database transaction has succeeded.
+    cleanup_pending = False
     try:
-        research_store.delete_prefix(f"projects/{project.id}")
+        research_store.delete_prefix(f"projects/{project_id}")
     except Exception:
-        pass
-    upload_dir = (UPLOAD_DIR / str(project.id)).resolve()
+        cleanup_pending = True
+    upload_dir = (UPLOAD_DIR / str(project_id)).resolve()
     if UPLOAD_DIR.resolve() in upload_dir.parents and upload_dir.is_dir():
-        shutil.rmtree(upload_dir, ignore_errors=True)
-    db.delete(project)
-    db.commit()
-    return {"message": "research project deleted", "project_id": project_id}
+        try:
+            shutil.rmtree(upload_dir)
+        except OSError:
+            cleanup_pending = True
+    if cleanup_pending:
+        import logging
+        logging.getLogger(__name__).warning("Project %s deleted; file cleanup pending", project_id)
+    return {"message": "research project deleted", "project_id": project_id, "cleanup_pending": cleanup_pending}
 
 
 @router.post("/projects/{project_id}/sources", response_model=ResearchSourceResponse)
@@ -1709,6 +1709,24 @@ async def add_manual_source(
     db.commit()
     db.refresh(source)
     return _source_response(source)
+
+
+@router.get("/projects/{project_id}/source-records")
+def list_source_records(
+    project_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(15, ge=1, le=100),
+    search: str = Query('', max_length=200),
+    source_type: str = Query('', max_length=50),
+    archive_state: str = Query('', pattern=r'^(archived|cleared|not_archived)?$'),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _get_project(db, project_id, current_user)
+    from source_catalog import source_records
+    return source_records(db, project_id, page=page, page_size=page_size, search=search,
+                          source_type=source_type, archive_state=archive_state)
+
 
 
 @router.get("/projects/{project_id}/sources", response_model=list[ResearchSourceResponse])

@@ -7,9 +7,9 @@ import hashlib
 import json
 import re
 
-VERSION = 'industry-briefing-v5-developed-executive-summary'
+VERSION = 'industry-briefing-v6-findings-uncertainties-priorities'
 HEADING = '### 阶段性综合结论'
-ORDER = (4, 10, 7, 6, 3, 2, 13, 11, 5)
+ORDER = (4, 11, 6, 7, 10, 3, 2, 13, 5)
 
 
 def short_conclusion(claim):
@@ -40,7 +40,7 @@ def _basis(facts, scope):
     # a changed statement/scope is not permission to reuse an old conclusion.
     return _hash({'scope': scope, 'facts': [{k: f.get(k) for k in (
         'evidence_id', 'fact_contract', 'numeric_context', 'numeric_validation',
-        'eligible_for_report', 'evidence_scope', 'scope_match', 'provenance')}
+        'eligible_for_report', 'evidence_scope', 'scope_match', 'provenance', 'source_context','source_document_context')}
         for f in sorted(facts, key=lambda f: f['evidence_id'])]})
 
 
@@ -375,7 +375,7 @@ def conclusion_section(claims):
     return '\n'.join(lines)
 
 
-def refresh_conclusion_summary(report, claims, scope=None):
+def refresh_conclusion_summary(report, claims, scope=None, *, plans=None):
     """Lead with findings and keep their explanation when whole claims fit.
 
     The summary never manufactures an implication or cuts off a claim's final
@@ -390,19 +390,23 @@ def refresh_conclusion_summary(report, claims, scope=None):
     notice = next((p for p in re.split(r'\n\s*\n', match[2].strip())
                    if p.startswith('评估与使用边界：')), '')
     if not claims:
-        if not any(marker in match[2] for marker in ('阶段性判断摘要（依据正文综合评估，供人工复核深化）：', '研究摘要：')):
-            return report
+        from industry_quality import executive_context
+        context = executive_context(plans)
         # A changed source or edited body invalidates its derived summary too.
-        body = '\n\n'.join(p for p in [notice, '综合结论的依据已变化，需依据当前正文重新形成阶段性判断。'] if p)
+        message = ('综合结论的依据已变化，需依据当前正文重新形成阶段性判断。' if '研究摘要：' in match[2] or '阶段性判断摘要' in match[2] else '本轮尚无可保留的综合结论；需依据当前正文形成阶段性判断。')
+        body = '\n\n'.join(p for p in [notice, message, *context] if p)
         return report[:match.start()] + heading + body + '\n\n' + report[match.end():]
-    subject = str((scope or {}).get('industry_name') or '').strip()
+    from industry_source_quality import scope_label
+    subject = scope_label(scope)
     introduction = '研究摘要：' + ('本报告研究'+statement_markdown(subject)+'行业，主要判断如下。'
         if subject and len(subject)<=80 else '本报告主要判断如下。')
+    from industry_quality import executive_context
+    context = executive_context(plans)
     paragraphs, kept = [introduction], []
     def render(c, body):
         return statement_markdown(body) + ' ' + ' '.join('['+eid+']' for eid in c['evidence_ids'])
     def fits(parts):
-        return summary_length(heading+'\n\n'.join(parts+([notice] if notice else []))) <= 600
+        return summary_length(heading+'\n\n'.join(parts+context+([notice] if notice else []))) <= 600
     seen=set()
     for claim in claims:
         if not _usable_judgment(claim) or claim['text'] in seen:
@@ -421,6 +425,7 @@ def refresh_conclusion_summary(report, claims, scope=None):
             continue  # Repeated wording is not extra research depth.
         candidate=list(paragraphs);candidate[i]=render(claim,claim['text'])
         if fits(candidate):paragraphs=candidate
+    paragraphs.extend(context)
     if notice:paragraphs.append(notice)
     return report[:match.start()] + heading + '\n\n'.join(paragraphs) + '\n\n' + report[match.end():]
 
@@ -441,6 +446,10 @@ def comparison_table(cards, chapter):
         table, included = route_comparison(cards)
         if table:
             return table, included
+    if chapter in {6,7}:
+        from industry_quality import comparison_contract
+        if not comparison_contract({'facts':cards},chapter)['quantitative_comparison_ready']:
+            return '',set()
     if chapter not in {2, 6, 7} or len(cards) < 2:
         return '', set()
     labels = {2: ('产业链与产品', '分工或应用'), 6: ('竞争观察', '玩家或机制'), 7: ('技术对照', '路线或条件')}

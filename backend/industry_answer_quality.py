@@ -48,11 +48,21 @@ def writer_card(ref, fact):
             'sample_boundary': contract.get('sample_boundary'), 'material_kind': contract.get('material_kind'),
             'source_role': contract.get('source_role'),
             'authorized_metric': fact.get('numeric_context') if (fact.get('numeric_validation') or {}).get('passed') is True else None}
+    from industry_quality import comparison_row
+    row['comparison_axes'] = comparison_row(fact)
+    row['local_scope'] = contract.get('evidence_quality') or {}
+    row['forecast_window'] = contract.get('evidence_quality',{}).get('forecast_window') or {}
     quote = fact.get('evidence_quote')
     if (isinstance(quote,str) and quote!=contract['statement'] and len(quote)<=900
             and fact.get('provenance',{}).get('locator',{}).get('status')=='verified'):
         row['original_context'] = quote
         row['context_use'] = 'attribution_and_conditions_only_not_extra_metrics_or_assertions'
+    from industry_source_document import context_view
+    from industry_research_workspace import evidence_record
+    context = context_view(fact)
+    if context:
+        row['source_context'] = context
+    row['evidence_record_id'] = evidence_record(fact)['record_id']
     return row
 
 
@@ -83,11 +93,16 @@ def same_premises(claim, old_cards, current_cards):
     refs = claim.get('evidence_ids', [])
     def projection(fact):
         row = {k:fact.get(k) for k in ('fact_contract','numeric_context','numeric_validation',
-                'source_title','source_url','evidence_scope','eligible_for_report','scope_match')}
+                'source_title','source_url','evidence_scope','eligible_for_report','scope_match','source_context','source_document_context')}
         # Writer projections omit only the duplicated locator quote; its SHA,
         # offsets, source ID and the exact licensed statement must still match.
         provenance = fact.get('provenance') or {}
-        row['provenance'] = {**provenance,'locator':{k:v for k,v in (provenance.get('locator') or {}).items() if k!='quote'}}
+        locator = provenance.get('locator') or {}
+        compact_locator = {k:v for k,v in locator.items() if k!='quote'}
+        if locator.get('quote'):
+            import hashlib
+            compact_locator['quote_sha256'] = hashlib.sha256(locator['quote'].encode()).hexdigest()
+        row['provenance'] = {**provenance,'locator':compact_locator}
         return row
     return bool(refs) and all(eid in old_cards and eid in current_cards
         and projection(old_cards[eid])==projection(current_cards[eid]) for eid in refs)

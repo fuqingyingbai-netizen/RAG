@@ -285,6 +285,9 @@ def assertion_issues(text, facts):
             if (re.search(r'缺(?:少|乏)|未(?:取得|提供|披露)|无[^。；;]{0,28}(?:证据|材料|披露|数据)', line)
                     and re.search(r'盈利(?:能力|可持续性)?[^。；;]{0,8}(?:存疑|不足|不稳|疲弱)|需求[^。；;]{0,6}(?:不振|疲软)|经营风险[^。；;]{0,6}(?:较高|上升)', line)):
                 add('evidence_gap_as_business_risk', '缺少盈利或经营资料只能说明本轮评估依据不足，不能据此认定实际盈利不稳、需求疲软或经营恶化。')
+            from industry_review_fixes import incompatible_definitions_as_conflict
+            if incompatible_definitions_as_conflict(line,rows):
+                add('different_definitions_as_conflict','不同统计定义的列示值不能直接认定为数据冲突，须先核对分母和定义。')
             if bounded_conflict_unsupported(line, rows):
                 add('compatible_bounds_as_conflict', '多个下限或相容区间不能仅因数值不同就认定冲突，须核对比较符、定义及测算时点。')
             conclusions = (

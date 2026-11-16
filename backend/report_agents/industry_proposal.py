@@ -20,16 +20,16 @@ def _task_overview(tasks, risk, scope=None):
         lines.append('| ' + ' | '.join(map(_cell, (t.get('priority', '高'),
             str(t.get('task_id') or t.get('key') or '') + ' ' + str(t.get('topic') or '待确认问题'),
             t.get('completion') or '核对原始材料后复核；缺证继续保留未知。'))) + ' |')
-        # All individual questions and full completion criteria remain in
-        # appendix A; the main proposal must not duplicate that entire appendix.
+        # Complete questions and criteria remain in the structured ledger.
+        # The reading copy keeps a compact priority view.
         for sub in t.get('subtasks') or []:
             if sub.get('material_status', sub.get('status')) in {'missing', 'background_only'}:
                 chapter_topics.setdefault(sub['chapter'], [])
                 if sub['topic'] not in chapter_topics[sub['chapter']]:
                     chapter_topics[sub['chapter']].append(sub['topic'])
     if chapter_topics:
-        lines += ['', '优先复核方向（完整动作见附录A）：' + '；'.join(
-            '第'+str(chapter)+'章：'+'、'.join(topics) for chapter, topics in chapter_topics.items())+'。']
+        lines += ['', '优先复核方向（完整动作见核验台账）：' + '；'.join(
+            '第'+str(chapter)+'章：'+'、'.join(topics[:3])+('（其余见核验台账）' if len(topics)>3 else '') for chapter, topics in chapter_topics.items())+'。']
     if not tasks:
         return ('\n'.join(lines[:2]) if unknown else '') + '本轮尚未登记专项任务，实施前先核对报告及实际研究缺口。'
     return '\n'.join(lines)
@@ -58,10 +58,23 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
         if re.search(r'技术路线.{0,40}(?:缺失|缺少|待核验)|无法构建横向对比',report) and not any('技术' in t['topic'] for t in tasks):
             tasks += verification_tasks({}, {}, [{'chapter':7,'message':'技术路线尚未形成同条件比较，需复核测试条件及性能成本材料。'}], scope)
     tasks = consolidate_verification_tasks(tasks)
-    task_section=_task_overview(tasks, risk, scope)
+    from industry_substance import concise_tasks,priority_work
+    from proposal_branch import context_text
+    task_section=priority_work(scope,context_text(project))+'\n\n'+_task_overview(tasks[:6],risk,scope)
     tables=render_tables(scope, tasks)
-    task_detail=verification_task_table(tasks, include_reference_index=False, reference_location='附录B候选来源索引')
-    task_sources=verification_task_table(tasks, reference_index_only=True)
+    from industry_reader import task_brief
+    task_detail=f'本轮共登记{len(tasks)}项核验任务。第2章列优先问题与交付顺序；全部任务、材料、动作、完成条件及复核记录保留在本轮独立结论证据台账。本附录不重复正文任务表。'
+    # Full tasks and every candidate remain in the report's structured ledger.
+    # The Word reading copy exposes one bounded entry per priority task.
+    entries=[]; seen=set()
+    for task in tasks[:3]:
+        for ref in task.get('review_references') or []:
+            url=str(ref.get('url') or '')
+            if url in seen or not re.match(r'^https?://[^\s<>]+$',url):continue
+            seen.add(url)
+            entries.append('- ['+_cell(ref.get('title') or ref.get('evidence_id') or '候选原文')+']('+url.replace('(', '%28').replace(')', '%29')+')')
+            break
+    task_sources='候选链接仅为核验入口，完整定位与全部子任务保留在本轮核验台账及质量诊断。\n\n'+'\n'.join(entries)
     dependency=getattr(project,'industry_report_dependency',{}) or {}
     basis=('依据报告：v'+str(dependency.get('report_version') or '待核验')
            +'（产物 '+str(dependency.get('report_artifact_id') or '待核验')+'）；生成时间：'
@@ -98,7 +111,7 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
 
 本轮专项任务如下。完成标准为问题与原始资料逐项对应，形成可追溯结论，或明确保留缺证原因和下一步；不能以增加网页数量替代指标核验。
 
-本章保留优先问题与完成条件；具体核验动作和所需材料见附录A，候选来源链接与原文位置见附录B。候选材料须先核验，不能直接作为评分依据。
+本章保留优先问题与完成条件；附录A提供核验摘要，附录B提供候选原文入口，完整动作、材料和定位保留在本轮核验台账。候选材料须先核验，不能直接作为评分依据。
 
 {task_section}
 
@@ -135,7 +148,7 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
 
 {tables['team']}
 
-人员姓名、履历、从业经验、投入工时和可调用专家名单由项目启动时确认，当前不以角色占位声称已有确定人员。
+行业研究员根据复核发现修订最终报告；质量复核人员核对来源、推理与遗留问题；项目负责人确认交付版本。人员姓名、履历、投入工时、确认人及修改轮次均须启动时书面确认，当前角色不代表已确定人员。
 
 ## 7. 项目报价与保密条款
 
@@ -147,7 +160,7 @@ def build_industry_proposal(project, report='', risk_json='{}') -> str:
 
 无论双方最终是否形成委托，涉及委托方及其咨询业务的文字、声像、图片和其他载体资料均应按双方书面约定保密；未经书面许可不向第三方披露。数据保管、访问权限、使用期限、项目结束后的归档或删除方式，以及专家和访谈对象的保密责任应纳入合同或保密协议，由双方确认。
 
-## 附录A 核验任务明细
+## 附录A 核验任务摘要
 
 {task_detail}
 

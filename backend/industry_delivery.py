@@ -177,6 +177,10 @@ def assessment_review_plan(cause, dimension=''):
 
 def task_criteria(topic):
     """A test report, financial population and policy duty have different completion criteria."""
+    if re.search(r'经营与技术研发风险|知识产权|数据合规|法务|诉讼|法律披露', topic):
+        return ('区分经营、研发和合规风险，逐项核对风险事项、适用主体、权利义务及实际发生记录；法律披露不替代性能测试。',
+                '原始风险披露、合同与知识产权材料、数据使用授权、适用规则及事件或履行记录。',
+                '每项风险对应适用主体、事实或义务、出处与期间；区分已发生事项、一般提示和待核风险，不用硬件测试替代法律事实核验。')
     if re.search(r'技术|测试|性能|单位成本|部署|迭代', topic):
         return ('核对原始测试报告，逐项对应路线、模型和软件版本、硬件配置、负载与测量方法；只在同条件下比较性能和成本。',
                 '测试配置、模型与版本、负载、性能结果、计费或资源口径及原文定位。',
@@ -220,17 +224,62 @@ def _support_pending(row):
     return ('claim_support_review' in row and (row.get('claim_support_review') or {}).get('status') != 'supported')
 
 
+def risk_reference_bindings(body, scope):
+    """Resolve only explicit, unique risk-row notes, never chapter-wide refs.
+
+    Long reference lists are printed below the table for readable Word cells.
+    The note's dimension name and the table's exact marker retain that binding.
+    Missing, duplicated or prose-only notes fail closed.
+    """
+    from industry_research import active_risk_dimensions
+    names = set(active_risk_dimensions(scope))
+    notes, duplicates = {}, set()
+    lines = body.splitlines()
+    header = re.compile(r'^(.+)的完整引用编号（待核对支持关系）：$')
+    refs_only = re.compile(r'(?:\s*\[E-[A-Z0-9-]{6,}\]\s*)+')
+    for index, line in enumerate(lines):
+        match = header.fullmatch(line.strip())
+        if not match or match[1] not in names:
+            continue
+        name = match[1]
+        if name in notes:
+            duplicates.add(name)
+        ids = []
+        for following in lines[index+1:]:
+            following = following.strip()
+            if not following:
+                continue
+            if not refs_only.fullmatch(following):
+                break
+            ids.extend(re.findall(r'\bE-[A-Z0-9-]{6,}\b', following))
+        notes[name] = list(dict.fromkeys(ids))
+    result = {}
+    for line in lines:
+        cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
+        if (line.strip().startswith('|') and len(cells) == 6
+                and cells[0] in notes and cells[0] not in duplicates
+                and cells[-1] == '编号见表后。'):
+            result[line] = set(notes[cells[0]])
+    return result
+
+
 def risk_status_section(risk, scope, title='综合评估'):
     from industry_research import active_risk_dimensions
     dimensions = {d.get('name'):d for d in (risk.get('dimensions') or []) if isinstance(d,dict)}
     rows, assessed, pending = [], 0, 0
+    reference_notes = []
     for name in active_risk_dimensions(scope):
         row = dimensions.get(name) or {}
         score = row.get('score')
         valid = _assessed_dimension(row)
         assessed += int(valid)
         pending += int(valid and _support_pending(row))
-        refs = ' '.join(f'[{eid}]' for eid in row.get('evidence_ids',[])) if valid else '—'
+        all_refs = list(dict.fromkeys(row.get('evidence_ids',[]))) if valid else []
+        refs = ' '.join(f'[{eid}]' for eid in all_refs[:3]) if valid else '—'
+        if len(all_refs)>3:
+            refs = '编号见表后。'
+            reference_notes += ['\n'+name+'的完整引用编号（待核对支持关系）：']
+            reference_notes += [' '.join('['+eid+']' for eid in all_refs[start:start+6]) for start in range(0,len(all_refs),6)]
         reason = row.get('reason') or '本轮尚未形成有效评估，保留未知。'
         label = {'low':'低','medium':'中','high':'高','critical':'严重'}.get(row.get('level'),'未知') if valid else '未知'
         rows.append('| '+' | '.join(map(_cell,(name,'初评待复核' if valid and _support_pending(row) else '已评估' if valid else '未完成评估',str(score) if valid else '未评分',label,reason,refs)))+' |')
@@ -242,7 +291,7 @@ def risk_status_section(risk, scope, title='综合评估'):
             + ('总分暂不计算。' if overall is None else f'模型风险'+('初评总分' if pending else '总分')+f'：{overall}（启用维度等权均值）。')
             + '评分尚未人工校准，不是风险概率；引用规则通过不等于判断已获语义证明。\n\n'
             '| 风险维度 | 评估状态 | 模型分值 | 风险等级 | 判断依据或未评分原因 | 证据编号 |\n'
-            '| --- | --- | --- | --- | --- | --- |\n'+'\n'.join(rows)+'\n')
+            '| --- | --- | --- | --- | --- | --- |\n'+'\n'.join(rows)+'\n'+'\n\n'.join(reference_notes)+'\n')
 
 
 def verification_tasks(payload, risk, degradations, scope):
@@ -414,11 +463,16 @@ def verification_tasks(payload, risk, degradations, scope):
                 task['subtasks'].append({'task_id':task['task_id']+f'-C{n["chapter"]}-Q'+hashlib.sha256(question_key.encode()).hexdigest()[:8].upper(),
                     'question_id': question.get('question_id'),
                     'chapter':n['chapter'], 'topic':topic, 'status':question.get('evidence_state', question.get('status')),
-                    'material_status':question.get('evidence_state', question.get('status')),
+                    'material_status':('candidate_review_required' if question.get('next_action')=='review_existing_material' else question.get('evidence_state', question.get('status'))),
+                    'review_candidate_count':question.get('review_candidate_count',0),
+                    'review_candidate_references':question.get('review_candidates',[]),
+                    'review_references':question.get('review_candidates',[]),
+                    'review_evidence_ids':[r['evidence_id'] for r in question.get('review_candidates',[])],
                     'evidence_ids':question.get('evidence_ids') or [],
                     'next_action': question.get('next_action'), 'claim_support_states': question.get('claim_support_states', []),
                     'model_revision_complete': question.get('model_revision_complete') is True,
-                    'action': criteria[0] if criteria else '核对本题已选原文与当前判断，记录仍缺的条件及材料。',
+                    'action': ('先核对已有候选原文的单位、统计口径和适用范围；通过核验后再决定是否仍需补充资料。'
+                        if question.get('next_action')=='review_existing_material' else criteria[0] if criteria else '核对本题已选原文与当前判断，记录仍缺的条件及材料。'),
                     'materials': criteria[1] if criteria else '本题当前正文、已选原文、来源位置及复核记录。',
                     'completion':completion})
             rejections = n.get('active_analysis_rejections', n.get('analysis_rejections', []))
@@ -452,6 +506,10 @@ def verification_tasks(payload, risk, degradations, scope):
         for sub in task.get('subtasks') or []:
             sub['evidence_ids'] = review_ids(sub.get('evidence_ids') or [])
             sub['review_references'] = [review_reference(eid) for eid in sub['evidence_ids']]
+            if sub.get('material_status')=='candidate_review_required':
+                # Candidate URLs are inspection entrances, never admitted facts.
+                sub['review_references'] += [r for r in sub.get('review_candidate_references',[])[:4]
+                    if r.get('evidence_id') in facts and r.get('url')==facts[r['evidence_id']].get('source_url')]
     return tasks
 
 
@@ -509,10 +567,9 @@ def evaluation_inputs(payload):
 
 
 def tasks_section(tasks, title='后续研究点'):
-    from industry_reader import task_brief
     tasks = consolidate_verification_tasks(tasks)
     return ('## 16. '+title+'\n\n以下为待完成的核验任务；未表示已补搜、访谈或采购，也不预设人员、工期及费用。\n\n'
-            +task_brief(tasks)+'\n')
+            +__import__('industry_reader').task_brief(tasks)+'\n')
 
 
 def verification_task_table(tasks, include_reference_index=True, reference_index_only=False, reference_location='本节候选清单'):
@@ -644,6 +701,7 @@ def reader_cleanup(report):
         line=re.sub(r'information_gaps(?:\[\d+\])?\s*[:：]?','证据缺口',line)
         line=re.sub(r'\bimage_urls\s*[:：]\s*\[[^\]]*\]','',line)
         line=re.sub(r'\bnamed_companies\s*[:：]\s*\[[^\]]*\]','指定企业',line)
+        line=line.replace('local_scope', '局部适用范围')
         line=re.sub(r'\bas_of_date\s*[:：]\s*', '资料截止日：', line)
         line=re.sub(r'(对象类型\s*[:：|]\s*)industry\b', r'\1行业', line)
         if '范围置信度' in line:
@@ -717,7 +775,9 @@ def finalize_synthesis(report, payload, risk, degradations, scope, plans=None):
     section=tasks_section(tasks,titles.get(16,'后续研究点'))
     report=replace_chapter(report,16,titles.get(16,'后续研究点'),section.split('\n',1)[1])
     report=refresh_summary_readiness(report,risk,degradations,scope)
-    report=refresh_conclusion_summary(report,claims,scope)
+    from industry_quality import summary_candidates
+    summaries = summary_candidates(report, payload, plans or {}, claims)
+    report=refresh_conclusion_summary(report,summaries,scope,plans=plans)
     return reader_cleanup(report),tasks
 
 

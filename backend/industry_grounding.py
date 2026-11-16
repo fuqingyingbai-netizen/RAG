@@ -173,7 +173,7 @@ def source_metadata(source):
     """Keep publication distinct from statistical period; no current-year default."""
     meta = source.source_metadata or {}
     published = str(meta.get('published_date') or meta.get('published_at') or meta.get('publication_date') or meta.get('date') or '')
-    match = re.match(r'(20\d{2})[-/](\d{1,2})[-/](\d{1,2})', published)
+    match = re.match(r'(20\d{2})[年/-](\d{1,2})[月/-](\d{1,2})', published)
     if not match:
         # Only an explicitly labelled publication date near the page header.
         match = re.search(r'(?:发布时间|发布日期|发布于|Posted by[^\n]*?)\s*[：:]?\s*(20\d{2})[年/-](\d{1,2})[月/-](\d{1,2})', str(source.content or '')[:900])
@@ -181,6 +181,9 @@ def source_metadata(source):
         # A timestamp joined to a source/byline is page metadata, unlike a
         # year embedded in a statistical sentence. Keep this header-only.
         match = re.search(r'(?m)^\s*(20\d{2})[年/-](\d{1,2})[月/-](\d{1,2})日?\s+\d{1,2}:\d{2}[^\n]{0,40}(?:来源|作者)', str(source.content or '')[:900])
+    if not match:
+        header = str(source.content or '')[:900]
+        match = re.search(r'(?:来源|作者|Source|By)\s*[：:]\s*[^\n]{1,80}\n\s*(20\d{2})[年/-](\d{1,2})[月/-](\d{1,2})日?\s*(?:\n|$)', header, re.I)
     published = ''
     if match:
         try:

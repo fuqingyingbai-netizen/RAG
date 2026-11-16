@@ -9,7 +9,7 @@ import hashlib
 import json
 import re
 
-VERSION = 'industry-reasoning-v4-complete-review-output'
+VERSION = 'industry-reasoning-v6-question-completion-separation'
 REVIEW_STATES = {'supported', 'partial', 'unsupported', 'contradicted', 'uncertain'}
 STATE_LABELS = {'supported': '模型认为在所列范围内支持，仍需人工复核', 'partial': '仅部分支持',
                 'unsupported': '所引材料不足以支持', 'contradicted': '与所引材料冲突',
@@ -49,12 +49,14 @@ def question_ledger(package, chapter, ids, claims=(), rejections=(), *, input_fi
     candidates = [f['evidence_id'] for f in package.get('facts', []) if chapter_admitted(f, chapter)]
     all_rows = {r['question']: r for r in chapter_coverage(package, chapter, candidates)}
     before_budget = {r['question']: r for r in package.get('question_material_candidates', [])}
+    inventory={r['question']:r for r in package.get('question_candidate_inventory',[])}
     rows = []
     for number, row in enumerate(chapter_coverage(package, chapter, ids), 1):
         available = all_rows[row['question']]
         candidate = before_budget.get(row['question'], {})
         available_ids = candidate.get('evidence_ids', available['evidence_ids'])
         available_count = candidate.get('evidence_count', len(available['evidence_ids']))
+        review=inventory.get(row['question'],{})
         related = [c for c in claims if c.get('question') == row['question']]
         reviews = [c.get('support_review', {}).get('status', 'not_evaluated') for c in related]
         reviews += [r['support_review']['status'] for r in rejections
@@ -64,13 +66,17 @@ def question_ledger(package, chapter, ids, claims=(), rejections=(), *, input_fi
             'criteria': completion_criteria(row['question']),
             'available_evidence_ids': available_ids, 'available_evidence_count': available_count,
             'candidate_basis': 'pre_budget_chapter_candidates' if candidate else 'current_package', 'evidence_state': state,
+            'inventory_status':review.get('inventory_status','not_checked'),
+            'review_candidate_count':review.get('review_candidate_count',0), 'review_candidates':review.get('review_candidates',[]),
             'claim_ids': [claim_id(c, chapter) for c in related], 'claim_support_states': reviews,
             'analysis_status': ('source_observation_only' if related and all(c.get('source_observation_only') for c in related) else
                                 'limitations_only' if related and all(c.get('analysis_role') == 'material_limitation' for c in related)
                                 else 'draft_analysis_present' if related else 'analysis_not_completed'),
             'next_action': ('review_selection' if state == 'selection_gap' else
+                            'review_existing_material' if review.get('review_candidate_count') and not row['evidence_ids'] else
                             'collect_missing_material' if state in {'missing', 'background_only'} else
                             'review_claim_support'),
+            'answer_status': __import__('industry_substance').answer_state(row,related,chapter),
             'answer_verified': False})
     return {'version': VERSION, 'chapter': chapter, 'questions': rows,
             'input_fingerprint': input_fingerprint if input_fingerprint is not None else fingerprint({'facts': package.get('facts', []), 'scope': package.get('industry_scope', {})}),
@@ -191,6 +197,8 @@ def review_prompt(packet):
         '只审查所列陈述能否被指定证据支持，不打风险分，不补充常识或外部事实。'
         '分别核对主体、样本、期间、指标、实际/预测/观点性质，以及比较和因果推理的跨度。'
         '多篇转载或同文档多卡不构成独立印证；相关或有引用不等于支持。'
+        'same_source_peer_claims仅用于跨章一致性检查，不是证据。若同一来源被写成相反时点、适用范围或实际/预测性质，回到cards.statement审本条，并在reason定位冲突；不因另一章这样写就判支持。'
+        '单条款义务不能扩大或收窄整部法规适用范围；原文没有时点不证明必须事前或允许事后。'
         '同一发布机构、相同数值或相近名称不能证明统计口径一致，须核对总体、地域、期间及指标定义；'
         '同一来源的不同预测也不保证未来值逐年上升。产品覆盖或市场排名本身不能证明客户转换成本、留存或护城河；'
         '单个毛利率没有可比基准时不能直接认定盈利空间高或已具备成本转嫁能力。'
@@ -211,6 +219,7 @@ def review_prompt(packet):
         '"answer_quality":"answered|scope_only","answer_quality_reason":"回答了什么，或还缺少什么实际判断",'
         '"supported_fragments":[{"text":"仅partial时可保留的原稿完整句子。","evidence_ids":["E-..."]}],'
         '"quotes":[{"evidence_id":"E-...","quote":"从对应statement逐字摘录12至80字的关键依据"}]}]}。'
+        '对应statement不足12字时，逐字引用完整statement，不为凑长度拼接或改写。'
         '依据必须保留否定和条件，不能省略限制来改变原意；supported需覆盖该判断引用的全部编号。'
         '不要改写结论，不输出新事实、概率、分值或执行建议。无法判断返回uncertain。\n'
         + json.dumps(packet, ensure_ascii=False))
@@ -276,13 +285,24 @@ def validate_reviews(raw, packet, diagnostics=None):
             pending[cid]=_pending_review('invalid_review_schema')
             continue
         refs = set(allowed[cid]['evidence_ids']); cited, located = [], []
-        for quote in row['quotes']:
+        for position, quote in enumerate(row['quotes']):
+            cause, detail = '', {'quote_index': position}
             if (not isinstance(quote, dict) or set(quote) != {'evidence_id', 'quote'}
-                    or not isinstance(quote['evidence_id'], str) or quote['evidence_id'] not in refs
-                    or not isinstance(quote['quote'], str)
-                    or not min(12, len(packet['cards'][quote['evidence_id']]['statement'])) <= len(quote['quote']) <= 120
-                    or quote['quote'] not in packet['cards'][quote['evidence_id']]['statement']):
-                pending[cid]=_pending_review('invalid_review_quote')
+                    or not isinstance(quote.get('evidence_id'), str) or not isinstance(quote.get('quote'), str)):
+                cause = 'invalid_quote_schema'
+            elif quote['evidence_id'] not in refs:
+                cause = 'quote_reference_not_in_claim'
+            else:
+                statement = packet['cards'][quote['evidence_id']]['statement']
+                detail.update(evidence_id=quote['evidence_id'], quote_chars=len(quote['quote']),
+                              statement_chars=len(statement), min_chars=min(12, len(statement)), max_chars=120)
+                if not min(12, len(statement)) <= len(quote['quote']) <= 120:
+                    cause = 'quote_length_out_of_bounds'
+                elif quote['quote'] not in statement:
+                    cause = 'quote_not_in_statement'
+            if cause:
+                pending[cid]={**_pending_review('invalid_review_quote'),
+                              'quote_validation': {**detail, 'reason_code': cause}}
                 break
             cited.append(quote['evidence_id'])
             start = packet['cards'][quote['evidence_id']]['statement'].index(quote['quote'])
@@ -412,6 +432,7 @@ def reasoning_snapshot(project):
         'analysis_rejections': [{'chapter': int(k), **r} for k, p in plans.items() for r in p.get('analysis_rejections', [])],
         'analysis_repairs': {str(k): p['analysis_repair'] for k, p in plans.items() if p.get('analysis_repair')},
         'support_review': getattr(project, 'industry_claim_support_review', {}),
+        'verification_tasks': deepcopy(getattr(project,'industry_verification_tasks',[]) or []),
         'human_review_required': True}
 
 
@@ -427,7 +448,7 @@ def reasoning_markdown(project):
             f'取得有效复核结果{review["valid_review_count"]}条，其中模型认为支持{review["supported_claim_count"]}条；'
             f'尚未取得有效复核结果{review["pending_claim_count"]}条。有效复核包括不支持与无法判断，不等同于通过。', '']
     cell = lambda s: re.sub(r'\s+', ' ', str(s)).replace('|', '/').replace('<', '&lt;').replace('>', '&gt;')
-    actions = {'review_selection': '先复核已有材料选材', 'collect_missing_material': '按问题补证', 'review_claim_support': '核对前提及推理'}
+    actions = {'review_selection': '先复核已有材料选材', 'collect_missing_material': '按问题补证', 'review_claim_support': '核对前提及推理', 'review_existing_material':'先核对已有候选的单位、口径及适用范围'}
     for chapter, plan in plans.items():
         for q in plan.get('question_ledger', {}).get('questions', []):
             states = '、'.join(dict.fromkeys(STATE_LABELS[s] for s in q.get('claim_support_states', []))) or '尚无有效模型分析'

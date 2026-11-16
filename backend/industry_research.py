@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import urlsplit, parse_qsl, urlencode
 
 INDUSTRY_POLICY_VERSION = 'industry-scope-v3'
-INDUSTRY_RISK_VERSION = 'industry-risk-v22-support-diagnostics'
+INDUSTRY_RISK_VERSION = 'industry-risk-v25-reason-review-repair'
 INDUSTRY_RISK_DIMENSIONS = (
     '政策与监管风险', '市场增长与需求风险', '竞争格局与集中度风险',
     '商业化与盈利模式风险', '技术迭代与替代风险', '资本热度与估值风险', '数据口径与证据可靠性风险',
@@ -269,7 +269,8 @@ def risk_repair_package(payload: dict, normalized: dict, limit: int = 18000) -> 
                 'allocation_inference_unsupported', 'integration_inference_unsupported', 'commercial_certainty_unsupported',
                 'statistic_asof_rebased', 'rate_unit_conflict', 'publisher_attribution_unsupported', 'roadmap_as_current_state',
                 'absence_as_low_risk', 'numeric_corroboration_not_comparable', 'growth_trend_not_comparable',
-                'evidence_gap_as_business_risk', 'internal_diagnostic_as_evidence', 'ranking_source_missing'}
+                'evidence_gap_as_business_risk', 'internal_diagnostic_as_evidence', 'ranking_source_missing',
+                'claim_support_rejected'}
     requests = []
     mapping = payload.get('dimension_evidence_ids') or {}
     for row in normalized.get('dimensions', []):
@@ -278,12 +279,17 @@ def risk_repair_package(payload: dict, normalized: dict, limit: int = 18000) -> 
         if (row.get('unknown_cause') not in eligible or diagnostic.get('original_score') is None
                 or not mapping.get(row.get('name'))):
             continue
-        requests.append({'name': row['name'], 'previous_score': diagnostic['original_score'],
+        request = {'name': row['name'], 'previous_score': diagnostic['original_score'],
             'previous_reason': str(diagnostic.get('original_reason') or '')[:500],
             'failure': row['unknown_cause'],
             'semantic_issues': diagnostic.get('semantic_issues', [])[:5],
             'unverified_numbers': [str(n)[:80] for n in diagnostic.get('unverified_numbers', [])[:10]],
-            'invalid_reason_evidence_ids': [str(e)[:64] for e in diagnostic.get('invalid_reason_evidence_ids', [])[:12]]})
+            'invalid_reason_evidence_ids': [str(e)[:64] for e in diagnostic.get('invalid_reason_evidence_ids', [])[:12]]}
+        if row['unknown_cause'] == 'claim_support_rejected':
+            support = diagnostic.get('support_review') or {}
+            request['support_review'] = {k:str(support[k])[:500] for k in
+                ('status', 'reason', 'answer_quality_reason', 'diagnostic_code') if k in support}
+        requests.append(request)
     result = {'dimensions_to_repair': requests, 'facts': [], 'dimension_evidence_ids': {}}
     while len(json.dumps(result, ensure_ascii=False)) > limit and requests:
         requests.pop()
@@ -398,6 +404,7 @@ def select_chapter_evidence(payload: dict, title: str, requirements: list[str], 
         derived = title in {'摘要', '行业判断与综合评估', '综合评估', '信息来源', '后续研究点'}
         task_match = bool(tasks & ({'产业链分层'} if '产业链' in title else
                                   {'技术测试条件', '技术性能', '技术成本'} if title == '技术路线对比' else set()))
+        task_match |= chapter_index==3 and fact.get('fact_contract',{}).get('source_role')=='policy_primary'
         if not module_match and not hits and not derived and not task_match:
             continue
         # Structured facts must not lose to source excerpts merely because the
@@ -462,7 +469,7 @@ def select_chapter_evidence(payload: dict, title: str, requirements: list[str], 
             'evidence_ids': q['evidence_ids'][:4], 'background_count': len(q.get('background_evidence_ids', []))}
             for q in chapter_coverage({'facts': contracted, 'industry_scope': payload.get('industry_scope') or {}}, chapter_index,
                                       [f['evidence_id'] for f in contracted])]
-        question_ids = complete_plan({'facts':contracted}, chapter_index, [])
+        question_ids = complete_plan({'facts':contracted,'industry_scope':payload.get('industry_scope') or {}}, chapter_index, [])
         question_cards = [next(f for f in contracted if f['evidence_id']==eid) for eid in question_ids]
         reserved = question_cards + [f for f in reserved if f not in question_cards]
     remaining = [f for f in focused if f not in reserved]
@@ -481,6 +488,7 @@ def select_chapter_evidence(payload: dict, title: str, requirements: list[str], 
                 'absence_scope':'仅反映本章保留的证据，不代表全部来源或公开资料不存在该信息'},
             'research_questions_status':questions,
             'question_material_candidates':question_material_candidates,
+            'question_candidate_inventory':__import__('industry_outlook_quality').candidate_inventory(payload,chapter_index),
             'information_gaps': (payload.get('information_gaps') or [])[:20]}
 
 
@@ -515,12 +523,17 @@ def bounded_package(package: dict, limit: int = 20000) -> str:
             'industry_name','segment_name','attribution_boundary','sample_boundary_reason','cleaning_method',
             'is_structured_evidence','evidence_quote','evidence_quote_verified','numeric_context','numeric_validation',
             'eligible_for_report','eligible_for_risk_scoring','requires_human_review','allowed_numbers','source_document_key','provenance',
-            'fact_contract', 'summary_lineage'}
+            'fact_contract', 'summary_lineage', 'policy_context', 'source_context', 'source_document_context'}
         fact = {k:v for k,v in original.items() if k in fields}
         # Diagnostic model prose must never re-enter a writer's evidence input.
         fact.pop('original_model_fact', None)
         if isinstance(fact.get('provenance'),dict):
-            fact['provenance']={**fact['provenance'], 'locator':{k:v for k,v in (fact['provenance'].get('locator') or {}).items() if k!='quote'}}
+            locator = fact['provenance'].get('locator') or {}
+            compact_locator = {k:v for k,v in locator.items() if k!='quote'}
+            if locator.get('quote'):
+                import hashlib
+                compact_locator['quote_sha256'] = hashlib.sha256(locator['quote'].encode()).hexdigest()
+            fact['provenance']={**fact['provenance'], 'locator':compact_locator}
         # Keep the original card in the audit library; writers receive the
         # authorized metric or complete located passage, never a raw page tail.
         fact['fact'] = risk_fact_text(fact)
@@ -571,7 +584,7 @@ def summary_package(packages: dict, sections: dict, scope: dict, limit: int = 14
             # Remove raw page metadata and long image lists from synthesis prompts.
             fields = ('evidence_id', 'fact', 'source_url', 'source_title', 'module', 'claim_type',
                       'evidence_scope', 'scope_match', 'numeric_context', 'numeric_validation',
-                      'attribution_boundary', 'eligible_for_risk_scoring', 'fact_contract', 'summary_lineage')
+                      'attribution_boundary', 'eligible_for_risk_scoring', 'fact_contract', 'summary_lineage', 'policy_context', 'source_context','source_document_context')
             facts.append({k: original[k] for k in fields if k in original})
     return json.loads(bounded_package({'facts': facts, 'industry_scope': scope}, limit))
 
@@ -659,8 +672,9 @@ def extract_industry_source_facts(sources: list, scope: dict) -> list[dict]:
     This validates attribution/units, not the publisher's underlying methodology.
     """
     facts = []
-    subjects = [scope.get('industry_name'), *scope.get('segments', [])]
-    metric_pattern = r'市场规模|核心产业规模|产业规模|营业收入|营收|收入|毛利率|净利率|渗透率|市场份额|占比|复合增长率|CAGR|同比增长率|同比增长|同比增幅|增长速度|增长率|增速|吞吐量|首\s*token\s*(?:响应)?延迟|推理成功率'
+    from industry_source_quality import focus_terms, prioritize_source_cards
+    subjects = [scope.get('industry_name'), *scope.get('segments', []), *focus_terms(scope)]
+    metric_pattern = r'市场规模|核心产业规模|产业规模|营业收入|营收|收入|毛利率|净利率|渗透率|市场份额|占比|复合增长率|CAGR|同比增长率|同比增长|同比增幅|增长速度|增长率|增速|吞吐量|首\s*token\s*(?:响应)?延迟|推理成功率|任务成功率|活跃智能体(?:数量|数)?|智能体数量|智能体数|CR[345]|集中度|单位任务成本|每任务成本'
     business_pattern = r'订阅|按量计费|按调用量|商业模式|盈利模式|收入结构|收费模式|服务收费'
     from industry_grounding import source_metadata, metric_period_region, sample_boundary, TASK_PATTERNS
     for source in sources:
@@ -716,7 +730,7 @@ def extract_industry_source_facts(sources: list, scope: dict) -> list[dict]:
                     # A dated base-to-target construction authorizes two
                     # independent cards. Other neighbouring quantities do not.
                     bridge = prefix[metric.end()+earlier[-1].end():]
-                    if not re.fullmatch(r'\s*(?:增长|增|升|提高|下降|减少)(?:至|到)\s*20\d{2}年(?:的)?\s*', bridge):
+                    if not re.fullmatch(r'\s*(?:预计|预期|将)?(?:增长|增|升|提高|下降|减少)(?:至|到)\s*20\d{2}年(?:的)?\s*', bridge):
                         continue
                 definition = re.split(r'[，,：:]', prefix[:metric.end()])[-1].strip()
                 value_match = re.fullmatch(r'([+-]?[\d,.]+)\s*(.*)', number.group())
@@ -737,6 +751,7 @@ def extract_industry_source_facts(sources: list, scope: dict) -> list[dict]:
         # Reserve qualitative conditions/chain passages as well as numeric
         # cards; early market statistics must not consume the entire source.
         from industry_grounding import passage_tasks
+        selected = prioritize_source_cards(selected, scope)
         reserved, covered = [], set()
         for card in selected:
             tasks = passage_tasks(card)
@@ -783,7 +798,7 @@ def unique_search_queries(rows: list[dict], seen: set) -> list[dict]:
     return distinct
 
 
-NUMBER_UNITS = r'%|％|万亿元|万亿美元|亿元|万元|亿美元|万美元|美元|人民币元|元|EB|PB|TB|GB|MB|EFLOPS|PFLOPS|TFLOPS|tokens?/s|ms|毫秒|项|家|台|篇|个'
+NUMBER_UNITS = r'%|％|亿个|万个|亿台|万台|万亿元|万亿美元|亿元|万元|亿美元|万美元|美元|人民币元|元|EB|PB|TB|GB|MB|EFLOPS|PFLOPS|TFLOPS|tokens?/s|ms|毫秒|项|家|台|篇|个'
 NUMBER_PATTERN = rf'(?<![A-Za-z0-9_.+\-])[+-]?\d[\d,.]*\s*(?i:{NUMBER_UNITS})(?![A-Za-z0-9_])'
 EVIDENCE_ID_PATTERN = r'(?<![A-Z0-9-])E-[A-Z0-9-]{6,}(?![A-Z0-9-])'
 
@@ -791,6 +806,8 @@ EVIDENCE_ID_PATTERN = r'(?<![A-Z0-9-])E-[A-Z0-9-]{6,}(?![A-Z0-9-])'
 def numeric_scan_text(text: str) -> str:
     """Mask identifiers without joining adjacent words or moving claim positions."""
     mask = lambda m: ' ' * len(m[0])
+    from industry_review_fixes import mask_task_counts
+    text = mask_task_counts(text)
     text = re.sub(EVIDENCE_ID_PATTERN, mask, text, flags=re.I)
     return re.sub(r'(?:https?|structured)://[^\s<>\[\]()，。；、！？]+', mask, text, flags=re.I)
 
@@ -1154,11 +1171,9 @@ def append_evidence_index(report: str, payload: dict, outline: list, packages: d
             compact_groups.setdefault((record['url'],source),[]).append((f'{eid}<br>第{chapters}章',f'{location}<br>指纹前缀：<br>{short_hash}'))
         else:
             rows.append(f'| {eid}（第{chapters}章） | {source} | {cell(excerpt or "完整原文见定位；本摘录不足以单独形成判断，待核验。")} | {cell(fact.get("publisher") or fact.get("provider") or urlsplit(record["url"]).hostname or fact.get("source_type") or "保存来源正文")} / {cell(fact.get("source_grade"))} |')
+    from industry_review_fixes import compact_source_rows
     for (_, source), entries in compact_groups.items():
-        for evidence, location in entries:
-            # One fact per row keeps each locator paired with its E-ID, even
-            # when several cards share the same linked source document.
-            rows.append('| '+evidence+' | '+source+' | '+location+' |')
+        rows.extend(compact_source_rows(source,entries))
     lines = ['## 15. 信息来源（自动生成审计索引）', '',
              '本索引列出章节正文实际引用且属于对应证据包的事实编号；同一来源的不同事实可支持多个章节。', '',
              '第16章的候选原文链接用于安排核验，不表示其已支持风险评分或事实结论。', '',
@@ -1233,12 +1248,15 @@ def delivery_errors(report: str, diagnostic: dict, scope: dict) -> list[str]:
         # Candidate source titles are retrieval metadata, not report claims.
         # Their IDs remain subject to the chapter allow-list above.
         claim_body = re.split(r'(?m)^候选核验编号清单：',body,maxsplit=1)[0] if chapter == 16 else body
+        from industry_delivery import risk_reference_bindings
+        reference_bindings = risk_reference_bindings(claim_body, scope) if chapter == 14 else {}
         for line in claim_body.splitlines():
             if chapter == 16:
                 line=re.sub(r'精选\d+/\d+个核验入口', '精选核验入口',line)
             if chapter == 14 and re.match(r'^本轮\d+个启用风险维度中',line.strip()):
                 continue  # Deterministic assessment counts are not source statistics.
-            line_ids = set(re.findall(EVIDENCE_ID_PATTERN, line, re.I)) & allowed
+            line_ids = (set(re.findall(EVIDENCE_ID_PATTERN, line, re.I))
+                        | reference_bindings.get(line, set())) & allowed
             numeric = diagnostic.get('numeric_evidence', {})
             cards = [{'evidence_id':eid, 'source_url':numeric.get(eid, {}).get('source_url', ''),
                       'evidence_scope':numeric.get(eid, {}).get('evidence_scope'),

@@ -81,6 +81,9 @@ def test_real_app_registers_version_before_static_without_business_calls(monkeyp
     monkeypatch.setitem(sys.modules, 'database', SimpleNamespace(init_db=no_business, engine=create_engine('sqlite://')))
     if source_version:
         monkeypatch.setitem(sys.modules, 'source_catalog', SimpleNamespace(VERSION=source_version))
+    else:
+        # The live industry baseline now includes this optional module.
+        monkeypatch.setitem(sys.modules, 'source_catalog', None)
     monkeypatch.setitem(sys.modules, 'research_workflow', SimpleNamespace(
         INDUSTRY_CLEANING_VERSION=VERSIONS['cleaning'], INDUSTRY_REPORT_VERSION=VERSIONS['report'],
         INDUSTRY_PROPOSAL_VERSION=VERSIONS['proposal']))

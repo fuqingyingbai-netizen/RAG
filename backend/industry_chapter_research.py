@@ -30,6 +30,8 @@ def prepare_chapter_packages(payload, packages, project):
                         package.setdefault('facts', []).append(by_id[eid])
                         ids.add(eid)
                         reused.append(eid)
+        from industry_research_workspace import question_material_scope
+        package['archive_question_inventory'] = {q['question']: question_material_scope(payload, q['question'], q.get('evidence_ids', [])) for q in coverage}
         packages[chapter] = json.dumps(package, ensure_ascii=False)
         _, diagnostic = compile_jobs(package, chapter)
         rows[str(chapter)] = {'questions': diagnostic['questions'], 'reused_evidence_ids': reused,

@@ -161,7 +161,7 @@ def select_evidence(package, chapter, order, invoke, emit, trace_emit):
     return selected, diagnostic
 
 
-def review_in_groups(claims, facts, invoke, *, clock=None, sleeper=None):
+def review_in_groups(claims, facts, invoke, *, clock=None, sleeper=None, max_requests=None):
     """Cover all groups first, then recover failed units within the same budget."""
     from collections import Counter, defaultdict, deque
     from industry_reasoning import (_balanced_claims, run_support_review, REVIEW_STATES,
@@ -169,17 +169,20 @@ def review_in_groups(claims, facts, invoke, *, clock=None, sleeper=None):
     clock = clock or time.monotonic
     sleeper = sleeper or time.sleep
     started = clock()
+    from industry_quality import enrich_peer_context
+    claims = enrich_peer_context(claims)
     unique = list({c['claim_id']: c for c in claims}.values())
     ordered = list(_balanced_claims(unique))
     # Writing diagnostics and a duplicate copy of each premise are not review
     # evidence. The review packet binds exact original cards independently.
-    fields = {'claim_id', 'chapter', 'question', 'text', 'claim_kind', 'evidence_ids'}
+    fields = {'claim_id', 'chapter', 'question', 'text', 'claim_kind', 'evidence_ids', 'same_source_peer_claims'}
     def setting(name, default, upper):
         try:
             return max(0, min(upper, int(os.getenv(name, str(default)))))
         except ValueError:
             return default
-    max_requests = max(1, setting('INDUSTRY_REVIEW_MAX_REQUESTS', 12, 24))
+    configured_requests = max(1, setting('INDUSTRY_REVIEW_MAX_REQUESTS', 12, 24))
+    max_requests = configured_requests if max_requests is None else max(1, min(configured_requests, max_requests))
     format_retries = setting('INDUSTRY_REVIEW_FORMAT_RETRIES', 1, 2)
     execution_retries = setting('INDUSTRY_REVIEW_EXECUTION_RETRIES', 1, 2)
     selected = [{k:v for k,v in c.items() if k in fields} for c in ordered[:max_requests*5]]
@@ -203,7 +206,7 @@ def review_in_groups(claims, facts, invoke, *, clock=None, sleeper=None):
                 return None
         with request_deadline(time.monotonic()+min(stage_timeout('review'), remaining)):
             part = run_support_review(group, facts, lambda prompt: invoke(prompt+
-                '\n本组最多5项，reason以20至60字说明判断；每项原文摘引12至40字，保留否定与条件。'+feedback),
+                '\n本组最多5项，reason以20至60字说明判断；每项原文摘引12至40字；statement不足12字时引用全文，保留否定与条件。'+feedback),
                 max_chars=9000, max_claims=5)
         part.update(format_retry=retry_kind == 'format', retry_kind=retry_kind,
                     retry_delay_seconds=delay, requested_claim_ids=[c['claim_id'] for c in group])
@@ -248,9 +251,12 @@ def review_in_groups(claims, facts, invoke, *, clock=None, sleeper=None):
             # An oversized group must not repeatedly exclude the same card.
             size = 1 if any(previous['exclusion_reasons'].get(c['claim_id']) == 'review_input_budget' for c in failed) else len(failed)
             codes = sorted({result['reviews'].get(c['claim_id'],{}).get('diagnostic_code','review_input_budget') for c in failed})
+            quote_details = {c['claim_id']:result['reviews'][c['claim_id']]['quote_validation'] for c in failed
+                             if result['reviews'].get(c['claim_id'],{}).get('quote_validation')}
             feedback = ('\n本次仅修订上次未取得有效复核格式或原文定位的条目，诊断代码：'+','.join(codes)
                 +'。按本次packet_fingerprint返回完整JSON；编号只能来自本包，quotes逐字复制statement，每个编号只列一条关键摘引。'
-                '不得借格式修订把不支持判断改成支持；照常独立判断。')
+                + ('定位诊断：'+json.dumps(quote_details,ensure_ascii=False) if quote_details else '')
+                + '不得借格式修订把不支持判断改成支持；照常独立判断。')
         if not failed:
             continue
         for start in range(0,len(failed),size):
