@@ -1,0 +1,30 @@
+{
+  "node": {
+    "tests": 130,
+    "passed": 130
+  },
+  "backend": {
+    "tests": 125,
+    "failures": 0,
+    "errors": 0,
+    "seconds": 516.678
+  },
+  "browser_initial": {
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "seconds": 105.921
+  },
+  "browser_after_capacity_fix": {
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "seconds": 67.477
+  },
+  "last_page_indicator_browser": {
+    "tests": 1,
+    "passed": 1
+  },
+  "account_auth_script": "passed after restoring missing standard timer globals in its VM fixture",
+  "scope": "related regression checks; not a claim that every legacy frontend suite is green"
+}

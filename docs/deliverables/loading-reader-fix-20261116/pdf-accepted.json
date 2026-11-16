@@ -1,0 +1,195 @@
+{
+  "run": "accepted",
+  "frontend_commit": "da0eaddc0afb279af3e779ae82def2d486b8e54e",
+  "document_id": "ec79466fcd6b4be5a6c7e9e31bbd9911",
+  "bytes": 5027700,
+  "first_page_milliseconds": 5203,
+  "initial_page": "1",
+  "jump24_visible": true,
+  "jump24_milliseconds": 3578,
+  "initial_geometry": {
+    "scrollTop": 0,
+    "clientHeight": 829,
+    "scrollHeight": 17085,
+    "sheets": [
+      {
+        "page": "1",
+        "top": 227,
+        "height": 695,
+        "state": "image"
+      },
+      {
+        "page": "2",
+        "top": 938,
+        "height": 695,
+        "state": "第 2 页 · 正在加载…"
+      },
+      {
+        "page": "3",
+        "top": 1649,
+        "height": 695,
+        "state": "第 3 页 · 按需加载"
+      },
+      {
+        "page": "4",
+        "top": 2359,
+        "height": 695,
+        "state": "第 4 页 · 按需加载"
+      },
+      {
+        "page": "5",
+        "top": 3070,
+        "height": 695,
+        "state": "第 5 页 · 按需加载"
+      },
+      {
+        "page": "6",
+        "top": 3781,
+        "height": 695,
+        "state": "第 6 页 · 按需加载"
+      },
+      {
+        "page": "7",
+        "top": 4492,
+        "height": 695,
+        "state": "第 7 页 · 按需加载"
+      },
+      {
+        "page": "8",
+        "top": 5202,
+        "height": 695,
+        "state": "第 8 页 · 按需加载"
+      },
+      {
+        "page": "9",
+        "top": 5913,
+        "height": 695,
+        "state": "第 9 页 · 按需加载"
+      },
+      {
+        "page": "10",
+        "top": 6624,
+        "height": 695,
+        "state": "第 10 页 · 按需加载"
+      },
+      {
+        "page": "11",
+        "top": 7334,
+        "height": 695,
+        "state": "第 11 页 · 按需加载"
+      },
+      {
+        "page": "12",
+        "top": 8045,
+        "height": 695,
+        "state": "第 12 页 · 按需加载"
+      },
+      {
+        "page": "13",
+        "top": 8756,
+        "height": 695,
+        "state": "第 13 页 · 按需加载"
+      },
+      {
+        "page": "14",
+        "top": 9466,
+        "height": 695,
+        "state": "第 14 页 · 按需加载"
+      },
+      {
+        "page": "15",
+        "top": 10177,
+        "height": 695,
+        "state": "第 15 页 · 按需加载"
+      },
+      {
+        "page": "16",
+        "top": 10888,
+        "height": 695,
+        "state": "第 16 页 · 按需加载"
+      },
+      {
+        "page": "17",
+        "top": 11598,
+        "height": 695,
+        "state": "第 17 页 · 按需加载"
+      },
+      {
+        "page": "18",
+        "top": 12309,
+        "height": 695,
+        "state": "第 18 页 · 按需加载"
+      },
+      {
+        "page": "19",
+        "top": 13020,
+        "height": 695,
+        "state": "第 19 页 · 按需加载"
+      },
+      {
+        "page": "20",
+        "top": 13730,
+        "height": 695,
+        "state": "第 20 页 · 按需加载"
+      },
+      {
+        "page": "21",
+        "top": 14441,
+        "height": 695,
+        "state": "第 21 页 · 按需加载"
+      },
+      {
+        "page": "22",
+        "top": 15152,
+        "height": 695,
+        "state": "第 22 页 · 按需加载"
+      },
+      {
+        "page": "23",
+        "top": 15863,
+        "height": 695,
+        "state": "第 23 页 · 按需加载"
+      },
+      {
+        "page": "24",
+        "top": 16573,
+        "height": 695,
+        "state": "第 24 页 · 按需加载"
+      }
+    ]
+  },
+  "network": [
+    {
+      "path": "preview?",
+      "milliseconds": 766,
+      "status": 200,
+      "content_type": "application/json",
+      "bytes": 29698
+    },
+    {
+      "path": "page?page=1",
+      "milliseconds": 4656,
+      "status": 200,
+      "content_type": "image/webp",
+      "bytes": 541312
+    },
+    {
+      "path": "outline?",
+      "milliseconds": 469,
+      "status": 200,
+      "content_type": "application/json",
+      "bytes": 1957
+    },
+    {
+      "path": "page?page=24",
+      "milliseconds": 3500,
+      "status": 200,
+      "content_type": "image/webp",
+      "bytes": 534976
+    }
+  ],
+  "browser_errors": [],
+  "blocked_optional_writes": [
+    "/points/read-sessions"
+  ]
+}

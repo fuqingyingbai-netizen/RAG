@@ -1,0 +1,27 @@
+{
+  "pages": 24,
+  "size": [
+    1536,
+    864
+  ],
+  "render_milliseconds": 400,
+  "watermark_milliseconds": 748,
+  "unmarked_png_bytes": 752064,
+  "marked_png_bytes": 885747,
+  "variants": [
+    {
+      "format": "lossless_webp",
+      "method": 0,
+      "milliseconds": 664,
+      "bytes": 626446,
+      "pixels_equal": true
+    },
+    {
+      "format": "lossless_webp",
+      "method": 3,
+      "milliseconds": 919,
+      "bytes": 529448,
+      "pixels_equal": true
+    }
+  ]
+}

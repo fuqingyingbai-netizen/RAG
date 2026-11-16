@@ -1,0 +1,28 @@
+{
+  "status": "published",
+  "frontend_commit": "a96458546a58284bd45bfff717764ac03174dab3",
+  "backend_release": "/opt/supermew/releases/9fb061c861f1097d60db66d1b9a98ace0e7e3fdf",
+  "backend_pid_unchanged": 2012214,
+  "backend_instance_unchanged": "3d8a0e30-97c9-488d-8c54-66a1fce6597d",
+  "backend_source_unchanged": true,
+  "application_restart": false,
+  "database_modified": false,
+  "backup": "/opt/supermew/backups/viewer-priority-20261116T090513Z-a96458546a58",
+  "time_utc": "2026-11-16T09:05:13.869498+00:00",
+  "manifest_files_verified": 521,
+  "unrelated_files_preserved": 518,
+  "files": [
+    {
+      "path": "frontend/index.html",
+      "sha256": "1ae91ecba8873398291dd0e27aa9341800508ec5ac6538b7dfcd7597b212f428"
+    },
+    {
+      "path": "frontend/knowledge-document-viewer.fc4f741b926a.js",
+      "sha256": "fc4f741b926a9afe6969f607d400667c60febffa06f4d8f41cfe01add8795b4e"
+    },
+    {
+      "path": "frontend/knowledge-document-viewer.js",
+      "sha256": "fc4f741b926a9afe6969f607d400667c60febffa06f4d8f41cfe01add8795b4e"
+    }
+  ]
+}

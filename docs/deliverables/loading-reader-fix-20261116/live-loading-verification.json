@@ -1,0 +1,78 @@
+{
+  "release": "/opt/supermew/releases/9fb061c861f1097d60db66d1b9a98ace0e7e3fdf",
+  "frontend_commit": "9fb061c861f1097d60db66d1b9a98ace0e7e3fdf",
+  "public_source_hashes_verified": [
+    "index.html",
+    "company-knowledge.js",
+    "knowledge-points.js",
+    "personal-home.js",
+    "account-management.js",
+    "report-versions.js",
+    "script.js",
+    "project-workspace.js",
+    "knowledge-note-editor.js",
+    "knowledge-document-viewer.js",
+    "knowledge-workspace.css"
+  ],
+  "checks": [
+    {
+      "name": "personal home first load",
+      "status": "PASS",
+      "feedback": "Skeleton and refresh spinner; no false empty result"
+    },
+    {
+      "name": "chat history loading",
+      "status": "PASS",
+      "feedback": "Both initial session list and explicit history refresh show waiting text; no premature empty history"
+    },
+    {
+      "name": "recycle bin loading",
+      "status": "PASS",
+      "feedback": "Loading text replaces empty result until GET finishes"
+    },
+    {
+      "name": "knowledge audit first load",
+      "status": "PASS",
+      "feedback": "Loading text and busy state while GET is held"
+    },
+    {
+      "name": "permission request refresh",
+      "status": "PASS",
+      "feedback": "Existing request list is retained while loading, or loading text when empty",
+      "rows": 0
+    },
+    {
+      "name": "recycle failure versus empty",
+      "status": "PASS",
+      "error_and_empty_visible": false
+    },
+    {
+      "name": "account invitation tab race",
+      "status": "PASS",
+      "feedback": "Users reply does not clear invitation loading or introduce a false empty result"
+    },
+    {
+      "name": "points admin tab loading",
+      "status": "PASS",
+      "feedback": "Rule tab shows readable content loading status"
+    },
+    {
+      "name": "personal points tab loading",
+      "status": "PASS",
+      "feedback": "Leaderboard shows readable content loading status"
+    },
+    {
+      "name": "personal notes loading",
+      "status": "PASS",
+      "feedback": "Actual notes GET held after catalogue finishes retains cached content and visible loading status; status clears when notes return"
+    },
+    {
+      "name": "initial recycle error is not empty",
+      "status": "PASS",
+      "feedback": "Synthetic 503 in fresh component shows error and retry, no false empty result"
+    }
+  ],
+  "method": "Live UI with held GET responses; synthetic 503 replies only in audit browser",
+  "browser_write_attempts": [],
+  "page_errors": []
+}

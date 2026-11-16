@@ -1,0 +1,32 @@
+{
+  "status": "prepared",
+  "candidate": "/opt/supermew/releases/9fb061c861f1097d60db66d1b9a98ace0e7e3fdf",
+  "base_release": "/opt/supermew/releases/c9154e74b55f4f806aaaabc2db9de94dc5f64a05",
+  "unrelated_files_preserved": 505,
+  "preflight": {
+    "status": "passed",
+    "checks": [
+      "additive initialization repeated, old documents not backfilled, existing accounts/documents/research byte-fingerprints preserved",
+      "actual Linux application startup and points worker, anonymous 401, unchanged prior business rows",
+      "authenticated existing home/knowledge APIs and all personal points APIs; ordinary account denied admin management",
+      "actual upload API, ready checkpoint, PostgreSQL outbox and idempotent worker award +10",
+      "actual original delivery creates preview receipt, server heartbeat read +2, repeat read deduplicated",
+      "admin delegated upload into another owner project: shared, restricted and secret all credit actual admin, owner never receives delegated points, ACL remains enforced",
+      "admin endpoints, real PBKDF2 password confirmation, adjustment replay, next-day rule persistence",
+      "real Linux 24-page preview, lossless WebP and PNG fallback, audit trace, bounds and revoked access, archived bytes unchanged"
+    ],
+    "clone_only": true,
+    "real_model_called": false,
+    "dense_model_loaded": false,
+    "source_rows_before": {
+      "users": 5,
+      "company_documents": 897,
+      "research_projects": 2,
+      "research_sources": 324,
+      "research_artifacts": 92
+    }
+  },
+  "format_artifacts": "/opt/supermew/verification/loading-reader-9fb061c861f1",
+  "runtime_manifest_files": 520,
+  "stage": "/opt/supermew/staging/knowledge-loading-reader-9fb061c861f1"
+}

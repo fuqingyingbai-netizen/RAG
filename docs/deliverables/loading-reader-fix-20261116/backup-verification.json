@@ -1,0 +1,24 @@
+{
+  "status": "passed",
+  "backup": "/opt/supermew/backups/knowledge-release-20261116T085116Z",
+  "scope": "database-and-config",
+  "restored_backup_counts": {
+    "users": 5,
+    "company_documents": 897,
+    "research_projects": 2,
+    "research_sources": 324,
+    "research_artifacts": 92
+  },
+  "backup_restore_verified": true,
+  "temporary_restore_removed": true,
+  "points_runtime_errors_since_activation": {
+    "knowledge_points_startup_failed": 0,
+    "knowledge_points_worker_failed": 0,
+    "knowledge_points_capture_failed": 0,
+    "knowledge_points_preview_receipt_failed": 0,
+    "knowledge_points_database_unavailable": 0
+  },
+  "service": "active",
+  "restart_count": 0,
+  "maintenance_present": false
+}
