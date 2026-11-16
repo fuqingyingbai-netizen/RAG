@@ -1,0 +1,241 @@
+{
+  "counts": {
+    "users": 5,
+    "company_documents": 895,
+    "research_projects": 2,
+    "research_sources": 324,
+    "research_artifacts": 92
+  },
+  "points_counts_at_verification": {
+    "knowledge_points_rules": 1,
+    "knowledge_points_ledger": 0,
+    "knowledge_points_events": 0,
+    "knowledge_points_read_sessions": 0
+  },
+  "manifest_files_verified": 509,
+  "unrelated_files_preserved": 490,
+  "knowledge_points_commit": "18d2e0c030804fe158e74f7bf69d854a4ac2b0ab",
+  "prior_provenance_preserved": {
+    "source_fix_commit": "96612b640ff84e34ec61773a7f9ef0dba5af0e66",
+    "knowledge_intent_commit": "bf2fda8aac3fd3c9d56bcf0ce00121c78214ccac",
+    "knowledge_clipboard_commit": "bc8d59e7c2fc2ac668884aa71239518d34abd3a1",
+    "knowledge_paste_audit_commit": "00e9b3cfd68a5725a02d5f27e93e45be46a1132c",
+    "knowledge_file_delete_commit": "723e673b9c32685de41a001bb88e52191b7ac5ac",
+    "knowledge_points_commit": "18d2e0c030804fe158e74f7bf69d854a4ac2b0ab",
+    "knowledge_points_source_commit": "18d2e0c030804fe158e74f7bf69d854a4ac2b0ab"
+  },
+  "configuration_unchanged": true,
+  "backup_checksums_verified": true,
+  "backup_scope": "database-and-config",
+  "service": "active",
+  "pid": 1997569,
+  "index_sha256": "6245da37550dfc08de56f49507acc063096038ff4c76d929be8ed57907baed3a",
+  "model_concurrency": 3,
+  "model_wait_seconds": 60.0,
+  "knowledge_model": "qwen3.7-plus",
+  "status": "passed",
+  "public_instance": "de3e0b1f-8ccb-4beb-b992-b4ed0cabe778",
+  "public_assets_verified": [
+    "frontend/account-management.bce5433e7130.js",
+    "frontend/account-management.js",
+    "frontend/company-knowledge.78c8e48d544f.js",
+    "frontend/company-knowledge.js",
+    "frontend/knowledge-points.21c2ddfea99d.css",
+    "frontend/knowledge-points.css",
+    "frontend/knowledge-points.def11c351fcc.js",
+    "frontend/knowledge-points.js",
+    "frontend/personal-home.5d3964dcb441.js",
+    "frontend/personal-home.js",
+    "frontend/script.642fc82443c4.js",
+    "frontend/script.js"
+  ],
+  "api_checks": [
+    {
+      "role": "admin",
+      "path": "/auth/me",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/research/home",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/company-knowledge/status",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/company-knowledge/projects",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/company-knowledge/documents?local_only=true",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/points/me",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/points/rules",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/points/ledger",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/points/activity",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/points/leaderboard?period=week",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/points/leaderboard?period=month",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/points/leaderboard?period=all",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/admin/points/users",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/admin/points/ledger",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/admin/points/events",
+      "status": 200
+    },
+    {
+      "role": "admin",
+      "path": "/admin/points/rules",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/auth/me",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/research/home",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/company-knowledge/status",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/company-knowledge/projects",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/company-knowledge/documents?local_only=true",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/points/me",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/points/rules",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/points/ledger",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/points/activity",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/points/leaderboard?period=week",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/points/leaderboard?period=month",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/points/leaderboard?period=all",
+      "status": 200
+    },
+    {
+      "role": "user",
+      "path": "/admin/points/users",
+      "status": 403
+    },
+    {
+      "role": "user",
+      "path": "/admin/points/ledger",
+      "status": 403
+    },
+    {
+      "role": "user",
+      "path": "/admin/points/events",
+      "status": 403
+    },
+    {
+      "role": "user",
+      "path": "/admin/points/rules",
+      "status": 403
+    },
+    {
+      "role": "anonymous",
+      "path": "/points/me",
+      "status": 401
+    },
+    {
+      "role": "anonymous",
+      "path": "/admin/points/users",
+      "status": 401
+    },
+    {
+      "role": "anonymous",
+      "path": "/company-knowledge/projects",
+      "status": 401
+    }
+  ],
+  "browser_checks": [
+    "user personal desktop/mobile, four tabs and account-menu entry",
+    "user existing knowledge page and project workspace preserved",
+    "admin personal desktop/mobile, four tabs and account-menu entry",
+    "actual account management points integration, four admin tabs, desktop/mobile rules",
+    "admin existing knowledge page and project workspace preserved"
+  ],
+  "browser_page_errors": [],
+  "browser_http_errors": [],
+  "browser_write_attempts": [],
+  "real_model_capacity_retested": false,
+  "production_points_mutations_performed": false
+}

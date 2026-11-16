@@ -1,0 +1,30 @@
+{
+  "status": "activated",
+  "commit": "18d2e0c030804fe158e74f7bf69d854a4ac2b0ab",
+  "previous": "/opt/supermew/releases/723e673b9c32685de41a001bb88e52191b7ac5ac",
+  "backup": "/opt/supermew/backups/knowledge-release-20261116T060724Z",
+  "backup_scope": "database-and-config",
+  "time_utc": "2026-11-16T06:08:09.142342+00:00",
+  "loaded": {
+    "service": "rag-backend",
+    "instance_id": "de3e0b1f-8ccb-4beb-b992-b4ed0cabe778",
+    "loaded_at_utc": "2026-11-16T06:08:05.969705+00:00",
+    "industry": {
+      "cleaning": "industry-evidence-v30-source-context",
+      "risk": "industry-risk-v25-reason-review-repair",
+      "report": "industry-report-evidence-v70-bound-citations-risk-review",
+      "proposal": "industry-proposal-content-v4-research-responsibility",
+      "sources": "industry-source-review-v2-text-integrity"
+    },
+    "workflow": {
+      "version": "due-diligence-three-step-v1",
+      "proposal": "proposal-client-requirements-v1"
+    }
+  },
+  "drained_workloads": {
+    "research": 0,
+    "ingestion": 0,
+    "assistant_threads": 0,
+    "company_chat_threads": 0
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "status": "prepared",
+  "candidate": "/opt/supermew/releases/18d2e0c030804fe158e74f7bf69d854a4ac2b0ab",
+  "base_release": "/opt/supermew/releases/723e673b9c32685de41a001bb88e52191b7ac5ac",
+  "unrelated_files_preserved": 490,
+  "preflight": {
+    "status": "passed",
+    "checks": [
+      "additive initialization repeated, old documents not backfilled, existing accounts/documents/research byte-fingerprints preserved",
+      "actual Linux application startup and points worker, anonymous 401, unchanged prior business rows",
+      "authenticated existing home/knowledge APIs and all personal points APIs; ordinary account denied admin management",
+      "actual upload API, ready checkpoint, PostgreSQL outbox and idempotent worker award +10",
+      "actual original delivery creates preview receipt, server heartbeat read +2, repeat read deduplicated",
+      "admin endpoints, real PBKDF2 password confirmation, adjustment replay, next-day rule persistence"
+    ],
+    "clone_only": true,
+    "real_model_called": false,
+    "dense_model_loaded": false,
+    "source_rows_before": {
+      "users": 5,
+      "company_documents": 895,
+      "research_projects": 2,
+      "research_sources": 324,
+      "research_artifacts": 92
+    }
+  },
+  "format_artifacts": "/opt/supermew/verification/points-18d2e0c03080",
+  "runtime_manifest_files": 509,
+  "stage": "/opt/supermew/staging/knowledge-points-18d2e0c03080"
+}
