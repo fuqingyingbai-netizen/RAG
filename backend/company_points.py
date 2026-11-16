@@ -243,7 +243,7 @@ def capture_ready(db, doc_id):
                 reason = '账号当前不可计分'
             elif (not doc.note_id and doc.version != 1) or not doc.is_current:
                 reason = '后续版本不重复奖励'
-            elif doc.confidentiality != 'internal' or doc.visibility != 'members' or not doc.object_key or not doc.size or not digest or media_kind(doc):
+            elif (kind != 'upload' and (doc.confidentiality != 'internal' or doc.visibility != 'members')) or not doc.object_key or not doc.size or not digest or media_kind(doc):
                 reason = '该资料不符合共享贡献奖励条件'
             elif not doc.note_id and db.scalar(select(CompanyDocument.id).where(
                     CompanyDocument.sha256 == doc.sha256, CompanyDocument.id != doc.id,
@@ -313,7 +313,11 @@ def process_pending(factory=None, limit=50):
                 db.refresh(event)
                 from company_catalog import CompanyDocument, can_read
                 doc, user = db.get(CompanyDocument, event.document_id), db.get(User, event.user_id)
-                if not doc or not valid_user(user) or not can_read(doc, user) or doc.state != 'ready' or doc.confidentiality != 'internal' or doc.visibility != 'members':
+                # Upload credit belongs to the actor, independently of document ownership and ACL.
+                # Reading/notes retain their existing shared-knowledge eligibility.
+                if (not doc or not valid_user(user) or doc.state != 'ready'
+                        or (event.kind != 'upload' and (not can_read(doc, user)
+                            or doc.confidentiality != 'internal' or doc.visibility != 'members'))):
                     event.status, event.reason = 'ignored', '资料或账号状态已变化'
                 else:
                     award_event(db, event)

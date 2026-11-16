@@ -47,6 +47,25 @@ test('a home points failure is contained instead of failing the personal home',a
   assert.equal(target.unavailable,true);assert.equal(target.points,null);
 });
 
+test('the home card refreshes a settled upload without reopening and cleans up its timer',async()=>{
+  const {parts,context}=load();let tick,cleared=false,total=0;
+  context.setInterval=(callback,delay)=>{assert.equal(delay,15000);tick=callback;return 92;};
+  context.clearInterval=id=>{assert.equal(id,92);cleared=true;};
+  const target=instance(parts.PointsHomeCard,{pointsAPI:async()=>({total})});
+  await parts.PointsHomeCard.mounted.call(target);assert.equal(target.points.total,0);
+  total=10;tick();await new Promise(resolve=>setImmediate(resolve));assert.equal(target.points.total,10);
+  context.document.hidden=true;total=20;await tick();assert.equal(target.points.total,10);
+  parts.PointsHomeCard.beforeUnmount.call(target);assert.equal(cleared,true);
+});
+
+test('destroying a home card during loading discards the result and never starts polling',async()=>{
+  const {parts,context}=load();const gate=deferred();let polls=0;
+  context.setInterval=()=>{polls++;};
+  const target=instance(parts.PointsHomeCard,{pointsAPI:()=>gate.promise});
+  const mounted=parts.PointsHomeCard.mounted.call(target);target.pointsDisposed=true;
+  gate.resolve({total:999});await mounted;assert.equal(target.points,null);assert.equal(polls,0);
+});
+
 test('late read-session creation cannot restart the timer after closing a document',async()=>{
   const {parts}=load();const gate=deferred();
   const target=instance(parts.KnowledgePointsReader,{apiFetch:()=>gate.promise});

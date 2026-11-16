@@ -158,6 +158,7 @@ def test_full_application_home_card_and_account_menu_open_real_points_page(brows
     errors = []
     page.on('pageerror', lambda error: errors.append(str(error)))
     token = auth.create_access_token('bob', 'user', 0)
+    page.clock.install()
     page.add_init_script('localStorage.setItem("accessToken",' + json.dumps(token) + ');')
     # Research/model services are outside this test; authentication and points use real routes.
     def research(route):
@@ -172,6 +173,17 @@ def test_full_application_home_card_and_account_menu_open_real_points_page(brows
     page.goto(s.url + '/')
     card = page.get_by_role('button', name='查看我的知识积分', exact=True)
     expect(card).to_be_visible(timeout=15000)
+    expect(card.locator('strong')).to_have_text('0')
+    uploaded = doc(s, owner=2, visibility='restricted', title='private-poll-refresh.txt')
+    capture(s, uploaded)
+    p.process_pending(s.db)
+    page.clock.run_for(15000)
+    expect(card.locator('strong')).to_have_text('10')
+    uploaded = doc(s, owner=2, confidentiality='secret', visibility='restricted', title='private-manual-refresh.txt')
+    capture(s, uploaded)
+    p.process_pending(s.db)
+    page.get_by_role('button', name='刷新首页', exact=True).click()
+    expect(card.locator('strong')).to_have_text('20')
     card.click()
     expect(page.get_by_role('heading', name='知识积分中心', exact=True)).to_be_visible()
     page.get_by_role('button', name='账号菜单：bob', exact=True).click()

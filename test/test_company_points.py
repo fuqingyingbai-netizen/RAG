@@ -319,12 +319,80 @@ def test_duplicate_content_changes_of_location_and_old_material_do_not_earn(syst
     assert total(s, 1) == 10
 
 
-@pytest.mark.parametrize('fields', [{'state': 'failed'}, {'visibility': 'restricted'}, {'confidentiality': 'secret'}, {'size': 0}, {'object_key': ''}, {'format': 'MP4'}])
+@pytest.mark.parametrize('fields', [{'state': 'failed'}, {'size': 0}, {'object_key': ''}, {'format': 'MP4'}])
 def test_ineligible_uploads_do_not_earn(system, fields):
     row = doc(system, **fields)
     capture(system, row)
     p.process_pending(system.db)
     assert total(system, 1) == 0
+
+
+@pytest.mark.parametrize('visibility,confidentiality', [('members', 'internal'), ('restricted', 'internal'), ('restricted', 'secret')])
+def test_admin_upload_to_another_owners_project_earns_for_actual_uploader_regardless_of_acl(system, visibility, confidentiality):
+    s = system
+    s.login('alice')
+    response = s.client.post('/company-knowledge/projects', json={'name': 'Delegated upload project', 'visibility': visibility, 'department': 'market'})
+    assert response.status_code == 201, response.text
+    project = response.json()
+    s.login('admin')
+    if confidentiality == 'secret':
+        response = s.client.patch('/company-knowledge/projects/' + project['id'], json={'name': project['name'], 'department': 'market', 'visibility': visibility, 'confidentiality': 'secret'})
+        assert response.status_code == 200, response.text
+    response = s.client.post('/company-knowledge/uploads', files={'file': ('delegated.txt', b'Synthetic delegated contribution')}, data={'project_id': project['id']})
+    assert response.status_code == 202, response.text
+    identity = response.json()['id']
+    waiting = s.client.get('/points/activity').json()['items']
+    assert any(row['title'] == 'delegated.txt' and row['expected'] == 10 for row in waiting)
+    with s.db() as db:
+        row = db.get(CompanyDocument, identity)
+        assert row.owner_user_id == 1 and row.uploaded_by_user_id == 4
+        assert (row.visibility, row.confidentiality) == (visibility, confidentiality)
+        row.created_at = s.clock[0]
+        row.worker_id = 'delegated-worker'
+        db.commit()
+    ingestion.checkpoint(identity, 'delegated-worker', state='ready')
+    p.process_pending(s.db)
+    p.process_pending(s.db)
+    assert total(s, 4) == 10 and total(s, 1) == 0
+    s.login('bob')
+    if visibility == 'restricted':
+        assert s.client.get('/company-knowledge/documents/' + identity + '/original').status_code == 404
+    assert s.client.get('/points/ledger').json()['items'] == []
+
+
+def test_upload_reward_survives_acl_revocation_without_leaking_titles(system):
+    s = system
+    row = doc(s, owner=2, uploaded_by='alice', uploaded_by_user_id=1)
+    capture(s, row)
+    with s.db() as db:
+        source = db.get(CompanyDocument, row.id)
+        source.confidentiality, source.visibility = 'secret', 'restricted'
+        db.commit()
+    p.process_pending(s.db)
+    assert total(s, 1) == 10
+    s.login('alice')
+    assert s.client.get('/company-knowledge/documents/' + row.id + '/original').status_code == 404
+    assert s.client.get('/points/ledger').json()['items'][0]['title'] == '关联资料已不可访问'
+    assert s.client.post('/points/read-sessions', json={'document_id': row.id}).status_code == 404
+
+
+def test_requeued_legacy_permission_rejection_is_awarded_once_by_new_worker(system):
+    s = system
+    row = doc(s, owner=2, uploaded_by='admin', uploaded_by_user_id=4, visibility='restricted')
+    capture(s, row)
+    with s.db() as db:
+        event = db.get(p.PointsEvent, p.key('ready', row.id))
+        event.status, event.reason = 'ignored', '该资料不符合共享贡献奖励条件'
+        db.commit()
+    p.process_pending(s.db)
+    assert total(s, 4) == 0
+    with s.db() as db:
+        event = db.get(p.PointsEvent, p.key('ready', row.id))
+        event.status, event.reason = 'pending', '权限条件取消后重新结算'
+        db.commit()
+    p.process_pending(s.db)
+    p.process_pending(s.db)
+    assert total(s, 4) == 10 and total(s, 2) == 0
 
 
 def test_suspending_user_blocks_pending_rewards_and_hides_rank(system):

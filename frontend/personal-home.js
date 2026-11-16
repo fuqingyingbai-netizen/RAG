@@ -48,6 +48,7 @@ const PersonalHome = {
   beforeUnmount() { ++this.requestId; this.readController?.abort(); if (this.refreshTimer) clearInterval(this.refreshTimer); },
   methods: {
     async loadHome() {
+      this.$refs?.pointsHomeCard?.reload?.();
       const requestId = ++this.requestId;
       this.readController?.abort();
       this.readController = typeof AbortController === 'function' ? new AbortController() : null;
@@ -89,7 +90,7 @@ const PersonalHome = {
         <div class="home-identity"><span class="home-avatar" aria-hidden="true">{{avatarText}}</span><div><p class="home-date">{{dateLabel}}<span>我的工作空间</span></p><h2>你好，{{displayName}}</h2><p class="home-hero-description">管理任务进度，查阅最新报告。<template v-if="home"><span class="home-hero-separator">·</span> 进行中 {{home.summary.running}} 项，待处理 {{home.summary.attention}} 项</template></p></div></div>
         <div class="home-hero-actions"><el-button :loading="loading" @click="loadHome" aria-label="刷新首页"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i><span>刷新</span></el-button><el-button type="primary" @click="$emit('navigate', 'submit')"><i class="fa-solid fa-plus" aria-hidden="true"></i><span>新建任务</span></el-button></div>
       </header>
-      <points-home-card :request="request" :current-user="currentUser" @open="$emit('navigate','points')"></points-home-card>
+      <points-home-card ref="pointsHomeCard" :request="request" :current-user="currentUser" @open="$emit('navigate','points')"></points-home-card>
       <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="home-alert"></el-alert>
       <el-skeleton v-if="!home && loading" :rows="6" animated class="home-skeleton"></el-skeleton>
       <template v-if="home">

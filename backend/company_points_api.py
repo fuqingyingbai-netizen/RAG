@@ -290,18 +290,17 @@ def activity(user=Depends(get_knowledge_current_user)):
         started = db.scalar(select(func.min(PointsRule.effective_at)))
         query = select(CompanyDocument).where(CompanyDocument.index_id == kb.settings()['index_id'],
             CompanyDocument.created_at >= started, CompanyDocument.is_current == 1,
-            CompanyDocument.confidentiality == 'internal', CompanyDocument.visibility == 'members',
             CompanyDocument.state.in_(['queued', 'uploading', 'parsing', 'indexing', 'failed']),
             or_(CompanyDocument.uploaded_by_user_id == user.id,
                 (CompanyDocument.owner_user_id == user.id) & (CompanyDocument.note_id != '')))
         items = []
         for doc in db.scalars(query.order_by(CompanyDocument.updated_at.desc()).limit(10)):
-            if not can_read(doc, user):
+            if doc.note_id and (not can_read(doc, user) or doc.confidentiality != 'internal' or doc.visibility != 'members'):
                 continue
             kind = 'note' if doc.note_id else 'upload'
             if not doc.note_id and doc.version != 1:
                 continue
-            items.append({'title': doc.title, 'kind': kind, 'status': 'waiting',
+            items.append({'title': title_for(db, doc.id, user), 'kind': kind, 'status': 'waiting',
                 'reason': '资料处理失败，修复后再判断奖励' if doc.state == 'failed' else '等待解析与索引完成；实际以奖励条件和当日额度为准',
                 'expected': policy[kind + '_points'] if policy['enabled'] else 0})
         for event in db.scalars(select(PointsEvent).where(PointsEvent.user_id == user.id,
