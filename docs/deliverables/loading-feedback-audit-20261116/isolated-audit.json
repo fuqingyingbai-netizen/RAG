@@ -1,0 +1,27 @@
+[
+  {
+    "name": "personal notes list loading",
+    "status": "FAIL",
+    "evidence": "Notes GET held after catalogue finishes; false empty and no loading; same response released makes note appear"
+  },
+  {
+    "name": "text original preview loading",
+    "status": "PASS",
+    "evidence": "Original GET held shows opening message and spinner, then clears after text arrives"
+  },
+  {
+    "name": "report history list and body preview",
+    "status": "PASS",
+    "evidence": "Held history list and body GET each show explicit loading text and clear on successful reply"
+  },
+  {
+    "name": "upload transfer and save feedback",
+    "status": "PASS",
+    "evidence": "Held local upload shows per-file progress and minimize/stop actions; failure provides retry; zero production requests"
+  },
+  {
+    "name": "file version list loading",
+    "status": "PASS",
+    "evidence": "Version GET held shows explicit status; loading clears on reply"
+  }
+]

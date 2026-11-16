@@ -1,0 +1,123 @@
+{
+  "date": "2026-11-16",
+  "scope": "loading, false empty results, late replies and visible waiting feedback",
+  "frontend_commit": "5ebdfa3f1ea0837c393a748ac8bde6ef8d1d4878",
+  "backend_instance_unchanged": "2c7a2555-0d14-4fa1-8aa0-de65c58288b0",
+  "public_source_hashes_verified": [
+    "index.html",
+    "company-knowledge.js",
+    "knowledge-points.js",
+    "personal-home.js",
+    "account-management.js",
+    "report-versions.js",
+    "script.js",
+    "project-workspace.js",
+    "knowledge-note-editor.js",
+    "knowledge-document-viewer.js",
+    "knowledge-workspace.css"
+  ],
+  "cases": 16,
+  "results": {
+    "PASS": 10,
+    "FAIL": 4,
+    "PARTIAL": 2
+  },
+  "checks": [
+    {
+      "name": "personal home first load",
+      "status": "PASS",
+      "feedback": "Skeleton and refresh spinner; no false empty result"
+    },
+    {
+      "name": "chat history loading",
+      "status": "FAIL",
+      "feedback": "Initial conversation list held shows empty welcome; explicit history refresh held disables controls but lacks readable loading text",
+      "history_request_held": true
+    },
+    {
+      "name": "recycle bin loading",
+      "status": "PASS",
+      "feedback": "Loading text replaces empty result until GET finishes"
+    },
+    {
+      "name": "knowledge audit first load",
+      "status": "PASS",
+      "feedback": "Loading text and busy state while GET is held"
+    },
+    {
+      "name": "permission request refresh",
+      "status": "PASS",
+      "feedback": "Existing request list is retained while loading, or loading text when empty",
+      "rows": 0
+    },
+    {
+      "name": "recycle read failure with cached rows",
+      "status": "PASS",
+      "error_and_empty_visible": false,
+      "feedback": "Existing cached rows survive a simulated read error; initial-empty error is checked separately"
+    },
+    {
+      "name": "account invitation tab race",
+      "status": "FAIL",
+      "feedback": "Switch to invitations while users GET pending; users response clears shared spinner before invitation GET returns and false empty appears"
+    },
+    {
+      "name": "points admin tab loading",
+      "status": "PARTIAL",
+      "feedback": "Only header refresh button spins; rule panel blank while GET is held"
+    },
+    {
+      "name": "personal points tab loading",
+      "status": "PARTIAL",
+      "feedback": "Only header refresh button spins; no explicit board loading placeholder"
+    },
+    {
+      "name": "task workspace first load",
+      "status": "PASS",
+      "feedback": "Task placeholder and toolbar status while project GET is pending"
+    },
+    {
+      "name": "recycle initial failure versus empty",
+      "status": "FAIL",
+      "feedback": "Initial recycle GET returns synthetic 503; error and recycle-is-empty both appear"
+    },
+    {
+      "name": "personal notes list loading",
+      "status": "FAIL",
+      "evidence": "Notes GET held after catalogue finishes; false empty and no loading; same response released makes note appear"
+    },
+    {
+      "name": "text original preview loading",
+      "status": "PASS",
+      "evidence": "Original GET held shows opening message and spinner, then clears after text arrives"
+    },
+    {
+      "name": "report history list and body preview",
+      "status": "PASS",
+      "evidence": "Held history list and body GET each show explicit loading text and clear on successful reply"
+    },
+    {
+      "name": "upload transfer and save feedback",
+      "status": "PASS",
+      "evidence": "Held local upload shows per-file progress and minimize/stop actions; failure provides retry; zero production requests"
+    },
+    {
+      "name": "file version list loading",
+      "status": "PASS",
+      "evidence": "Version GET held shows explicit status; loading clears on reply"
+    }
+  ],
+  "production_code_changed": false,
+  "production_write_requests": 0,
+  "application_restarted": false,
+  "isolated_probe_runner": {
+    "cases": 5,
+    "passed": 5,
+    "note": "Probe success confirms observations; one probe deliberately reproduces a product FAIL, so this is not five product PASS results"
+  },
+  "limitations": [
+    "No production uploads, point awards or model generation",
+    "Text preview only; all Office/PDF/media formats not retested",
+    "This is a loading-feedback audit, not full business or concurrency acceptance"
+  ]
+}

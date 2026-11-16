@@ -1,0 +1,32 @@
+{
+  "release": "/opt/supermew/releases/c9154e74b55f4f806aaaabc2db9de94dc5f64a05",
+  "frontend_commit": "5ebdfa3f1ea0837c393a748ac8bde6ef8d1d4878",
+  "public_source_hashes_verified": [
+    "index.html",
+    "company-knowledge.js",
+    "knowledge-points.js",
+    "personal-home.js",
+    "account-management.js",
+    "report-versions.js",
+    "script.js",
+    "project-workspace.js",
+    "knowledge-note-editor.js",
+    "knowledge-document-viewer.js",
+    "knowledge-workspace.css"
+  ],
+  "checks": [
+    {
+      "name": "task workspace first load",
+      "status": "PASS",
+      "feedback": "Task placeholder and toolbar status while project GET is pending"
+    },
+    {
+      "name": "recycle initial failure versus empty",
+      "status": "FAIL",
+      "feedback": "Initial recycle GET returns synthetic 503; error and recycle-is-empty both appear"
+    }
+  ],
+  "method": "Live UI with held GET responses; synthetic 503 replies only in audit browser",
+  "browser_write_attempts": [],
+  "page_errors": []
+}
