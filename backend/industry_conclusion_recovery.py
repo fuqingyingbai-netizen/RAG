@@ -75,10 +75,15 @@ def finding_issue(claim):
 def recovery_plan(plans, packages, scope=None):
     from industry_question_generation import CHAPTERS, compile_jobs
     from industry_fact_contracts import CHAPTER_QUESTIONS
-    tasks = [];pending_material_reviews=[]
+    tasks = [];pending_material_reviews=[]; deferred_research=[]
+    from industry_focus import question_depth
     for chapter in sorted(CHAPTERS):
         if chapter not in plans and str(chapter) not in plans and chapter not in packages and str(chapter) not in packages:
             continue
+        package = packages.get(chapter, packages.get(str(chapter), {}))
+        if isinstance(package, str):
+            package = json.loads(package)
+        focus_scope = scope if scope is not None else package.get('industry_scope', {})
         plan = plans.get(chapter, plans.get(str(chapter), {}))
         canonical = {q for q, _ in CHAPTER_QUESTIONS.get(chapter, [])}
         claims = plan.get('analysis_claims', [])
@@ -124,6 +129,12 @@ def recovery_plan(plans, packages, scope=None):
                 collect = True
             action = ('collect_evidence' if collect else 'retry_generation' if state=='generation_failed' else 'narrow_conclusion' if support_rejected or evidence_revision else
                       'rewrite_conclusion' if shallow or question in nonanswers else 'retry_generation')
+            depth = question_depth(focus_scope, chapter, question)
+            if depth == 'excluded' or (action == 'collect_evidence' and depth == 'basic'):
+                deferred_research.append({'chapter': chapter, 'question': question, 'research_depth': depth,
+                    'status': 'unresolved', 'reason': 'outside_scope' if depth == 'excluded' else 'not_a_focus_question',
+                    'next_action': 'retain_gap_without_targeted_search'})
+                continue
             detail = rejected.get(question,{})
             support=detail.get('support_review',{})
             feedback='；'.join(str(x) for x in (support.get('reason'),support.get('answer_quality_reason'),
@@ -149,14 +160,15 @@ def recovery_plan(plans, packages, scope=None):
             if not isinstance(revision,dict):
                 revision=next((c for c in claims if c.get('question')==question and finding_issue(c)),None)
             tasks.append({'chapter': chapter, 'question': question,
-                          'action': action,
+                          'action': action, 'research_depth': depth,
                           'issue_codes': list(dict.fromkeys(issue_codes)),
                           'feedback': feedback[:500],
                           **({'revision_draft':{k:v for k,v in revision.items()
                               if k in {'conclusion','text','evidence_ids','claim_kind'}}} if isinstance(revision,dict) else {}),
                           'cause': nonanswers.get(question) or ('support_rejected' if support_rejected else
                                    'validation_rejected' if question in rejected else state or 'missing_analysis')})
-    return {'version': VERSION, 'limits': recovery_limits(), 'tasks': tasks,
+    tasks.sort(key=lambda t: t['research_depth'] != 'priority')
+    return {'version': VERSION, 'limits': recovery_limits(), 'tasks': tasks, 'deferred_research': deferred_research,
             'pending_material_reviews':pending_material_reviews,
             'chapters': sorted({t['chapter'] for t in tasks}), 'max_queries': MAX_QUERIES,
             'max_new_sources': MAX_NEW_SOURCES, 'generation_deadline_seconds': None}

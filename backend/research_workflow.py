@@ -75,7 +75,7 @@ FIXED_AI_SEARCH_ENABLED = True
 FIXED_GENERATE_PROPOSAL = True
 PERSON_IDENTITY_POLICY_VERSION = "person-identity-v4-context"
 INDUSTRY_CLEANING_VERSION = "industry-evidence-v30-source-context"
-INDUSTRY_REPORT_VERSION = "industry-report-evidence-v70-bound-citations-risk-review"
+INDUSTRY_REPORT_VERSION = "industry-report-evidence-v71-focus-depth"
 COMPANY_REPORT_VERSION = "company-report-evidence-v150-sequential-chapter-flow"
 
 
@@ -1943,7 +1943,7 @@ class ResearchWorkflow:
         saved = snapshot(project)
         pending = recovery_plan(saved['industry_statement_plans'], saved['industry_section_packages'])
         if not pending['tasks']:
-            project.industry_conclusion_recovery = {**pending, 'status':'not_needed'}
+            project.industry_conclusion_recovery = {**pending, 'status':'completed_with_gaps' if pending.get('deferred_research') else 'not_needed'}
             return current
         checkpoint('report')
         project.industry_recovery_spent = True
@@ -2002,6 +2002,7 @@ class ResearchWorkflow:
                     record['collection_unavailable'] = True
                 pending = recovery_plan(getattr(project,'industry_statement_plans',{}),
                                         getattr(project,'industry_section_packages',{}))
+                record['deferred_research'] = pending.get('deferred_research', [])
                 record.update(remaining_tasks=remaining, final_report_sha256=digest(current[0]),
                     final_cleaned_artifact_id=current[3].id, final_risk_artifact_id=current[4].id)
                 _emit(emit, 'report', 'conclusion_recovery', '本批问题检查完成',
@@ -2014,7 +2015,7 @@ class ResearchWorkflow:
                 if not remaining:
                     break
             if record['status']=='started':
-                record['status']='completed_with_gaps' if record.get('remaining_tasks') else 'completed'
+                record['status']='completed_with_gaps' if record.get('remaining_tasks') or record.get('deferred_research') else 'completed'
             if any(p.get('generation') for p in record['passes']) and not getattr(project, 'industry_chapter_phase', False):
                 # Synthesize once after local recovery; no empty-pass rerolls.
                 before_final = snapshot(project)
@@ -2027,10 +2028,12 @@ class ResearchWorkflow:
                     record['final_synthesis_status'] = 'completed'
                     record['final_report_sha256'] = digest(candidate)
                     final_pending = recovery_plan(getattr(project,'industry_statement_plans',{}),
-                        getattr(project,'industry_section_packages',{}))['tasks']
+                        getattr(project,'industry_section_packages',{}))
+                    record['deferred_research'] = final_pending.get('deferred_research', [])
+                    final_pending = final_pending['tasks']
                     record['remaining_tasks'] = final_pending
                     if record['status'] in {'completed','completed_with_gaps'}:
-                        record['status'] = 'completed_with_gaps' if final_pending else 'completed'
+                        record['status'] = 'completed_with_gaps' if final_pending or record.get('deferred_research') else 'completed'
                     pending_keys = {(t['chapter'],t['question']) for t in final_pending}
                     for state in record.get('questions',{}).values():
                         unresolved = (state['chapter'],state['question']) in pending_keys
@@ -2202,7 +2205,8 @@ class ResearchWorkflow:
             record['support_review'] = getattr(project, 'industry_claim_support_review', {})
             remaining = recovery_plan(getattr(project,'industry_statement_plans',{}),
                                       getattr(project,'industry_section_packages',{}))
-            record.update(status='completed_with_gaps' if remaining['tasks'] else 'completed',
+            record.update(status='completed_with_gaps' if remaining['tasks'] or remaining.get('deferred_research') else 'completed',
+                          deferred_research=remaining.get('deferred_research', []),
                           remaining_tasks=remaining['tasks'], final_report_sha256=digest(report),
                           final_cleaned_artifact_id=cleaned_artifact.id, final_risk_artifact_id=risk_artifact.id)
             return report, cleaned, risk, cleaned_artifact, risk_artifact
@@ -2340,7 +2344,7 @@ class ResearchWorkflow:
         strategy = get_research_strategy(target_type)
         from company_chapters import uses_chapter_contract
         if not (target_type == 'company' and uses_chapter_contract(intake)):
-            modules = modules or strategy.default_modules or DEFAULT_RESEARCH_MODULES
+            modules = modules if target_type == 'industry' and 'focus_modules' in intake else (modules or strategy.default_modules or DEFAULT_RESEARCH_MODULES)
         if target_type == "person":
             # Project copies are often suffixed with 1/2, but that version marker must not enter person queries.
             target_name = re.sub(r"(?<=[A-Za-z\u4e00-\u9fff])\d+$", "", target_name).strip()
@@ -2406,7 +2410,8 @@ class ResearchWorkflow:
                 from research_strategies.industry import INDUSTRY_MODULE_ALIASES
             normalized["focus_modules"] = list(dict.fromkeys(INDUSTRY_MODULE_ALIASES.get(m, m) for m in modules))
             normalized.update({key: intake.get(key, default) for key, default in {"industry_focus": "", "industry_segments": [], "excluded_segments": [], "research_purpose": "", "include_capital_markets": None, "as_of_date": ""}.items()})
-            normalized["industry_scope"] = self._resolve_industry_scope(project, normalized, intake)
+            from industry_focus import apply_focus
+            normalized["industry_scope"] = apply_focus(self._resolve_industry_scope(project, normalized, intake), normalized["focus_modules"])
             normalized["as_of_date"] = normalized["industry_scope"]["as_of_date"]
             normalized["region"] = normalized["industry_scope"]["geography"]
         return normalized
@@ -2849,7 +2854,7 @@ class ResearchWorkflow:
                     raise ValueError('公司章节模板已更新，请刷新目录后重新提交。')
                 modules = [chapter(n)['id'] for n in selected_chapters(intake)]
         if intake.get("target_type") == "industry":
-            modules = list(modules)
+            modules = list(intake["focus_modules"]) if "focus_modules" in intake else list(modules)
             if (intake.get("industry_scope") or {}).get("capital_market") == "none":
                 modules = [m for m in modules if m != "投融资与资本市场"]
             if (intake.get("industry_scope") or {}).get("named_companies") and "核心企业尽调" not in modules:
@@ -2911,6 +2916,8 @@ class ResearchWorkflow:
                 from .industry_evidence import evidence_requirements, VERSION
             except ImportError:
                 from industry_evidence import evidence_requirements, VERSION
+            from industry_focus import mapping
+            plan['focus_module_mapping'] = mapping(intake.get('industry_scope') or {})
             plan['evidence_contract_version'] = VERSION
             plan['evidence_requirements'] = evidence_requirements(plan['modules'],intake.get('industry_scope') or {})
         _emit(emit, "planning", "research_planning_agent", "研究计划生成完成", "", status="done")
@@ -3787,6 +3794,10 @@ class ResearchWorkflow:
         requirements: dict[str, int] = {}
         for route in get_research_strategy(target_type).authority_queries:
             module = str(route.get("module") or "权威来源")
+            if target_type == "industry":
+                from industry_focus import module_enabled
+                if not module_enabled(scope or {}, module):
+                    continue
             if target_type == "industry" and (scope or {}).get("capital_market") == "none" and module == "投融资与资本市场":
                 continue
             requirements[module] = max(requirements.get(module, 0), int(route.get("min_sources") or 2))

@@ -175,7 +175,7 @@ class IndustryResearchStrategy(BaseResearchStrategy):
         enriched: list[dict[str, Any]] = []
         for item in rows:
             row = dict(item)
-            if selected and row.get("module") not in selected | {"用户指定"}:
+            if (selected or "focus_modules" in scope) and row.get("module") not in selected | {"用户指定"}:
                 continue
             if row.get("module") == "核心企业尽调":
                 continue  # This module uses only explicit named-company queries below.
@@ -207,7 +207,7 @@ class IndustryResearchStrategy(BaseResearchStrategy):
                 ("竞争格局 代表企业 市场份额", "竞争格局与代表企业"),
                 ("政策 监管 合规", "政策与监管"),
             ]:
-                if selected and module not in selected:
+                if (selected or "focus_modules" in scope) and module not in selected:
                     continue
                 enriched.append(
                     {
@@ -226,7 +226,7 @@ class IndustryResearchStrategy(BaseResearchStrategy):
                                  "search_tier": "open_web", "evidence_scope": "representative_company",
                                  "company_role": "requested_due_diligence", "company_name": company,
                                  "industry_name": industry or target})
-        if not selected or selected & {"技术路线对比", "技术演进与平台生态"}:
+        if (not selected and "focus_modules" not in scope) or selected & {"技术路线对比", "技术演进与平台生态"}:
             for words, terms in INDUSTRY_PROFILES:
                 if any(word in target for word in words):
                     enriched.append({"module": "技术路线对比", "query": f"{target} {terms}",

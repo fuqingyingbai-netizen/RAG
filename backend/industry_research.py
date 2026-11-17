@@ -101,6 +101,8 @@ def scope_fingerprint(intake: dict, source_only: bool = False) -> str:
     }
     for key in ('segments', 'excluded_segments', 'named_companies'):
         payload['scope'][key] = sorted(set(payload['scope'].get(key) or []))
+    if not source_only and 'focus_policy_version' in scope:
+        payload['focus_policy_version'] = scope['focus_policy_version']
     if source_only:
         payload = {key: payload[key] for key in ('policy_version', 'target_name', 'scope')}
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]

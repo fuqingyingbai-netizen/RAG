@@ -30,7 +30,8 @@ def plan_questions(packages, project, invoke, emit, trace_emit):
         _, rows = question_materials(package, chapter)
         chapters.append({'chapter': chapter, 'questions': [
             {'id': q['id'], 'question': q['question'], 'direct_candidates': len(q['evidence_ids']),
-             'background_candidates': len(q.get('background_evidence_ids', []))} for q in rows]})
+             'background_candidates': len(q.get('background_evidence_ids', [])),
+             'research_depth': __import__('industry_focus').question_depth(package.get('industry_scope'), chapter, q['question'])} for q in rows]})
     packet = {'scope': getattr(project, 'industry_scope', {}) or {}, 'chapters': chapters}
     prompt = ('根据固定研究问题和研究范围，为各章安排优先回答顺序。只排序已有问题，不新建问题、结论或事实。'
         '先回答能服务研究目的且有适用材料的问题；候选数量不是证据质量或风险分。'
@@ -80,7 +81,8 @@ def select_evidence(package, chapter, order, invoke, emit, trace_emit):
     cards, rows = question_materials(package, chapter)
     rank = {qid: i for i, qid in enumerate(order or [])}
     rows = [r for r in rows if r['evidence_ids'] or r.get('background_evidence_ids')]
-    rows.sort(key=lambda r: (not bool(r['evidence_ids']), rank.get(r['id'], 100)))
+    from industry_focus import question_depth
+    rows.sort(key=lambda r: (not bool(r['evidence_ids']), question_depth(package.get('industry_scope'), chapter, r['question']) != 'priority', rank.get(r['id'], 100)))
     rows = rows[:4]
     diagnostic = {'version': VERSION, 'role': 'evidence_selector', 'attempts': 0,
                   'max_requests': 1, 'timeout_seconds': stage_timeout('selector'), 'selections': {}}

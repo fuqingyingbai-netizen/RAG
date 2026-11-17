@@ -148,8 +148,11 @@ def compile_jobs(package, chapter, *, question_order=None, evidence_selection=No
             rows.append((decision, [eid for eid in order if eid in direct or eid in background][:4]))
     # Spend the finite answer budget on direct premises before background-only
     # observations, without changing either one's evidence admission.
+    from industry_focus import question_depth
+    for decision in decisions:
+        decision['research_depth'] = question_depth(package.get('industry_scope'), chapter, decision['question'])
     rank = {qid: i for i, qid in enumerate(question_order or [])}
-    rows.sort(key=lambda row: (row[0]['mode'] != 'bounded_judgment', rank.get(row[0]['question_id'], 100)))
+    rows.sort(key=lambda row: (row[0]['mode'] != 'bounded_judgment', row[0]['research_depth'] != 'priority', rank.get(row[0]['question_id'], 100)))
     group_size = 1 if single_question else MAX_QUESTIONS_PER_REQUEST
     selected = rows[:MAX_REQUESTS*group_size]
     for decision, _ in rows[len(selected):]:
