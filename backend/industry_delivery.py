@@ -298,6 +298,9 @@ def verification_tasks(payload, risk, degradations, scope):
     """Prioritize structured deficiencies, never headings scraped from report prose."""
     from industry_research import active_risk_dimensions
     from industry_claims import industry_gap_plan
+    from industry_chapters import report_chapters, research_modules
+    active_chapters = set(report_chapters(scope))
+    active_modules = set(research_modules(active_chapters))
     tasks, keys = [], set()
     facts = {f.get('evidence_id'): f for f in payload.get('facts', []) if isinstance(f, dict) and f.get('evidence_id')}
     coverage = (payload.get('evidence_coverage') or {}).get('requirements', [])
@@ -372,6 +375,8 @@ def verification_tasks(payload, risk, degradations, scope):
             if eid not in refs:refs.append(eid)
         assigned_chapters = verification_task_chapters({'chapter':chapter, 'chapters':chapters,
                                                        'requirement_ids':requirements})
+        if 'selected_chapters' in scope:
+            assigned_chapters = [n for n in assigned_chapters if n in active_chapters] or [14]
         tasks.append({'key':key,'task_id':'V-'+hashlib.sha256(key.encode()).hexdigest()[:8].upper(),
                       'version':VERIFICATION_TASK_VERSION,'task_type':task_type,'validation_cause':validation_cause,
                       'topic':topic,'reason':reason,'action':action,'priority':'高' if key.startswith('risk:') else priority,
@@ -414,6 +419,8 @@ def verification_tasks(payload, risk, degradations, scope):
             tasks[-1]['support_review_diagnostic']={k:review[k] for k in ('status','reason','diagnostic_code') if k in review}
         covered_requirements.update(reqs)
     for row in coverage:
+        if 'selected_chapters' in scope and row.get('module') not in active_modules:
+            continue
         if row.get('status')=='verified':continue
         if scope.get('capital_market')=='none' and row.get('module')=='投融资与资本市场':continue
         if row.get('requirement_id') in covered_requirements:continue
@@ -424,6 +431,7 @@ def verification_tasks(payload, risk, degradations, scope):
     synthesis_by_chapter = {}
     for note in degradations:
         if not isinstance(note,dict):continue
+        if note.get('chapter') and note['chapter'] not in active_chapters:continue
         chapter = note.get('chapter')
         if chapter in ({8,9} if scope.get('capital_market')=='none' else set()) or (chapter==12 and not scope.get('named_companies')):continue
         if note.get('review_type') == 'statement_synthesis_review':

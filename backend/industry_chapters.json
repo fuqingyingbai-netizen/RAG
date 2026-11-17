@@ -1,0 +1,524 @@
+{
+  "version": "industry-chapters-v1",
+  "runtime_enabled": true,
+  "说明": "运行时章节配置：前端目录、研究任务、章节要求与固定问题共用；sections_explained仅为阅读说明。章节编号为稳定编号，不因取消勾选而重排。",
+  "chapters": [
+    {
+      "chapter": 1,
+      "id": "industry.ch01",
+      "title": "摘要",
+      "requirements": [
+        "整篇报告的完整摘要，涵盖报告概述、核心研究发现、需关注信号、标的所属赛道竞争格局速览及总体评估等要点"
+      ],
+      "questions": [],
+      "sections_explained": [
+        "研究范围与报告概述",
+        "核心发现",
+        "需关注信号",
+        "竞争格局速览",
+        "总体评估及局限"
+      ],
+      "selectable": false,
+      "research_modules": [],
+      "default_selected": false
+    },
+    {
+      "chapter": 2,
+      "id": "industry.ch02",
+      "title": "行业基础定义与产业链全景",
+      "requirements": [
+        "涵盖行业分类、行业定义内涵、代表产品及应用领域，完整产业链上下游结构图谱，产业链各环节代表企业、价值分配与平均毛利率水平，以及产业链核心瓶颈环节研判"
+      ],
+      "questions": [
+        {
+          "question": "行业定义、产品及应用",
+          "pattern_or_branch": "定义|是指|行业分类|应用领域|应用场景|代表产品"
+        },
+        {
+          "question": "产业链主体和分层关系",
+          "pattern_or_branch": "上游.{0,180}中游.{0,180}下游"
+        },
+        {
+          "question": "各环节价值分配及毛利率",
+          "pattern_or_branch": "价值分配|价值份额|毛利率|利润分配"
+        },
+        {
+          "question": "核心瓶颈",
+          "pattern_or_branch": "瓶颈|受制于|供应短缺|核心部件依赖"
+        }
+      ],
+      "sections_explained": [
+        "行业分类与定义",
+        "代表产品及应用",
+        "上下游结构和代表企业",
+        "价值分配及平均毛利率",
+        "核心瓶颈"
+      ],
+      "selectable": true,
+      "research_modules": [
+        "行业定义与边界",
+        "细分赛道与产业链"
+      ],
+      "default_selected": true
+    },
+    {
+      "chapter": 3,
+      "id": "industry.ch03",
+      "title": "政策环境分析与近期政策摘录",
+      "requirements": [
+        "包含国家级顶层规划、专项行动、行业标准体系、补贴准入资质、重点省市产业规划、园区载体、产业基金以及监管收紧、进出口管制、技术断供等政策风险识别。附近期行业相关政策文件原文摘编以及政策基调与监管方向的综合判断"
+      ],
+      "questions": [
+        {
+          "question": "适用政策原文",
+          "pattern_or_branch": "primary"
+        },
+        {
+          "question": "国家规划与地方支持",
+          "pattern_or_branch": "规划|专项行动|地方|省市|园区|产业基金"
+        },
+        {
+          "question": "标准、补贴与准入",
+          "pattern_or_branch": "行业标准|国家标准|补贴|资质|准入|进出口管制"
+        },
+        {
+          "question": "义务主体及具体要求",
+          "pattern_or_branch": "应当|不得|必须|禁止"
+        },
+        {
+          "question": "发布与施行日期",
+          "pattern_or_branch": "(?:发布|施行|生效).{0,8}20\\d{2}|20\\d{2}.{0,12}(?:发布|施行|生效)"
+        },
+        {
+          "question": "实际执行材料",
+          "pattern_or_branch": "处罚决定|检查结果|已.{0,8}(?:处罚|查处)"
+        }
+      ],
+      "sections_explained": [
+        "国家规划与专项行动",
+        "标准、补贴和准入",
+        "地方规划、园区与产业基金",
+        "政策原文摘编",
+        "监管、进出口和断供风险",
+        "政策基调与监管方向"
+      ],
+      "selectable": true,
+      "research_modules": [
+        "政策与监管"
+      ],
+      "default_selected": true
+    },
+    {
+      "chapter": 4,
+      "id": "industry.ch04",
+      "title": "市场规模与增长预测",
+      "requirements": [
+        "包含行业近3-5年历史市场规模与CAGR增速，对未来5-10年市场规模进行分场景预测；确认增长的核心驱动因素与制约因素，判断行业天花板以及目前整体所处阶段（实验室/原型验证/小批量量产/规模化商用）"
+      ],
+      "questions": [
+        {
+          "question": "规模、期间和统计口径",
+          "pattern_or_branch": "amount"
+        },
+        {
+          "question": "同口径增长趋势",
+          "pattern_or_branch": "growth"
+        },
+        {
+          "question": "近三至五年历史序列与CAGR",
+          "pattern_or_branch": "historical_series"
+        },
+        {
+          "question": "未来五至十年来源预测",
+          "pattern_or_branch": "long_forecast"
+        },
+        {
+          "question": "情景假设和约束因素",
+          "pattern_or_branch": "情景假设|基准情景|乐观情景|悲观情景|制约因素|天花板"
+        },
+        {
+          "question": "增长驱动与商业化阶段",
+          "pattern_or_branch": "驱动因素|原型验证|小批量|规模化商用|增长动力"
+        }
+      ],
+      "sections_explained": [
+        "历史市场规模",
+        "增长率与CAGR",
+        "未来五至十年来源预测及情景",
+        "增长驱动和制约因素",
+        "行业天花板",
+        "商业化阶段"
+      ],
+      "selectable": true,
+      "research_modules": [
+        "市场规模与增长"
+      ],
+      "default_selected": true
+    },
+    {
+      "chapter": 5,
+      "id": "industry.ch05",
+      "title": "行业热度形成",
+      "requirements": [
+        "以市场环境催化（里程碑事件、市场规模与增速、商业化进展、终端需求变化等）和政策驱动（国家顶层设计、监管审批突破、地方配套政策等）两大维度，系统分析赛道热度来源、景气度变化趋势及资本关注的核心逻辑"
+      ],
+      "questions": [
+        {
+          "question": "有日期的主体事件",
+          "pattern_or_branch": "20\\d{2}\\s*年\\s*\\d{1,2}\\s*月"
+        },
+        {
+          "question": "商业化里程碑与终端需求",
+          "pattern_or_branch": "开始收费|付费客户|订单交付|终端需求|量产|商业化落地"
+        },
+        {
+          "question": "传播或关注度数据",
+          "pattern_or_branch": "搜索指数|讨论量|曝光量|传播量"
+        }
+      ],
+      "sections_explained": [
+        "市场催化与里程碑",
+        "商业化进展和终端需求",
+        "政策催化",
+        "景气度变化",
+        "资本关注逻辑（按研究范围）"
+      ],
+      "selectable": true,
+      "research_modules": [
+        "市场规模与增长",
+        "政策与监管",
+        "投融资与资本市场"
+      ],
+      "default_selected": true
+    },
+    {
+      "chapter": 6,
+      "id": "industry.ch06",
+      "title": "竞争格局",
+      "requirements": [
+        "涵盖玩家分层（头部链主/腰部/初创/海外巨头）与CR3/CR5市场集中度；进行波特五力模型（上下游议价/同业竞争/新进入者/替代品）模型；介绍行业核心竞争力与护城河"
+      ],
+      "questions": [
+        {
+          "question": "竞争机制与玩家分层",
+          "pattern_or_branch": "迁移成本|进入壁垒|价格战|竞争压力|厂商排名|前[三四五十]厂商|市场第一阵营|市场前[三四五十]|竞争派系|(?:参与者|玩家|厂商).{0,18}(?:分为|分成|分层)|头部.{0,30}(?:腰部|初创|海外)"
+        },
+        {
+          "question": "份额及集中度",
+          "pattern_or_branch": "市场份额|市占率|CR\\d|HHI|集中度"
+        },
+        {
+          "question": "五力机制与护城河",
+          "pattern_or_branch": "议价|新进入者|替代品|供应商|迁移成本|护城河|专利壁垒"
+        }
+      ],
+      "sections_explained": [
+        "头部、腰部、初创和海外玩家",
+        "CR3/CR5及份额",
+        "波特五力",
+        "核心竞争力与护城河"
+      ],
+      "selectable": true,
+      "research_modules": [
+        "竞争格局与代表企业",
+        "细分赛道与产业链"
+      ],
+      "default_selected": true
+    },
+    {
+      "chapter": 7,
+      "id": "industry.ch07",
+      "title": "技术路线对比",
+      "requirements": [
+        "行业主流技术路线横向对比，含优劣势、落地难度、成本、迭代速度、商业化成熟度等维度"
+      ],
+      "questions": [
+        {
+          "question": "路线及适用场景",
+          "pattern_or_branch": "技术路线|架构|工具调用|权限控制|云端|端侧|边缘侧|适用场景"
+        },
+        {
+          "question": "同条件测试配置",
+          "pattern_or_branch": "测试环境|统一硬件|量化精度|测试条件"
+        },
+        {
+          "question": "可核验性能及单位成本",
+          "pattern_or_branch": "technical_measurement"
+        },
+        {
+          "question": "落地难度与迭代成熟度",
+          "pattern_or_branch": "落地难度|迭代|成熟度|部署条件|量产验证"
+        }
+      ],
+      "sections_explained": [
+        "主流技术路线",
+        "适用场景与优劣势",
+        "落地难度",
+        "性能和成本",
+        "迭代速度",
+        "商业化成熟度"
+      ],
+      "selectable": true,
+      "research_modules": [
+        "技术路线对比",
+        "技术演进与平台生态"
+      ],
+      "default_selected": true
+    },
+    {
+      "chapter": 8,
+      "id": "industry.ch08",
+      "title": "行业投融资全景",
+      "requirements": [
+        "涵盖近年一级市场融资总规模、融资事件汇总、阶段分布及地域融资梯队；资本市场IPO进度、已上市标的及估值区间；产业并购案例及估值倍数；产业资本（车企/互联网/制造龙头等）战略布局方向"
+      ],
+      "questions": [],
+      "sections_explained": [
+        "一级融资规模和事件",
+        "阶段及地域分布",
+        "IPO进度和上市标的估值",
+        "并购案例及估值倍数",
+        "产业资本布局"
+      ],
+      "selectable": true,
+      "research_modules": [
+        "投融资与资本市场"
+      ],
+      "default_selected": false
+    },
+    {
+      "chapter": 9,
+      "id": "industry.ch09",
+      "title": "二级市场情绪",
+      "requirements": [
+        "行业板块近期走势、估值水平（PE/PB/PS）、机构配置热度、卖方覆盖与评级变化、成交额占比等情绪指标的综合研判"
+      ],
+      "questions": [],
+      "sections_explained": [
+        "板块走势",
+        "PE/PB/PS估值",
+        "机构配置",
+        "卖方覆盖和评级",
+        "成交额占比等情绪指标"
+      ],
+      "selectable": true,
+      "research_modules": [
+        "投融资与资本市场"
+      ],
+      "default_selected": false
+    },
+    {
+      "chapter": 10,
+      "id": "industry.ch10",
+      "title": "投资机会",
+      "requirements": [
+        "从细分赛道选择、核心能力筛选标准、产业整合路径、资本配置方向等维度，并结合资本市场情绪热度识别行业核心投资机会，明确标的筛选逻辑与重点关注的标的类型"
+      ],
+      "questions": [
+        {
+          "question": "实际收费与付费客户",
+          "pattern_or_branch": "订阅|按量计费|付费客户|续约|回款"
+        },
+        {
+          "question": "盈利及收入成本材料",
+          "pattern_or_branch": "毛利率|净利率|营业收入|收入结构|成本定义"
+        },
+        {
+          "question": "细分赛道与筛选标准",
+          "pattern_or_branch": "细分赛道|筛选标准|客户认证|单位经济|投资机会|产业整合"
+        }
+      ],
+      "sections_explained": [
+        "细分赛道选择",
+        "核心能力筛选",
+        "产业整合路径",
+        "资本配置方向（按研究范围）",
+        "标的筛选逻辑和类型",
+        "收费、客户与盈利依据"
+      ],
+      "selectable": true,
+      "research_modules": [
+        "市场规模与增长",
+        "竞争格局与代表企业",
+        "商业模式与盈利逻辑"
+      ],
+      "default_selected": true
+    },
+    {
+      "chapter": 11,
+      "id": "industry.ch11",
+      "title": "前景展望",
+      "requirements": [
+        "综合上述研究结果，对赛道未来3-5年发展趋势、关键变量、可能的情景路径进行展望判断"
+      ],
+      "questions": [
+        {
+          "question": "来源预测与目标期间",
+          "pattern_or_branch": "forecast"
+        },
+        {
+          "question": "未来三至五年趋势与关键变量",
+          "pattern_or_branch": "未来.{0,15}趋势|关键变量|发展趋势|趋势判断"
+        },
+        {
+          "question": "来源假设和情景条件",
+          "pattern_or_branch": "假设|基准情景|情景假设"
+        },
+        {
+          "question": "可跟踪触发条件",
+          "pattern_or_branch": "触发条件|阈值|前提条件"
+        }
+      ],
+      "sections_explained": [
+        "未来三至五年趋势",
+        "关键变量",
+        "可能的情景路径",
+        "成立条件及跟踪信号"
+      ],
+      "selectable": true,
+      "research_modules": [
+        "市场规模与增长",
+        "技术演进与平台生态",
+        "政策与监管"
+      ],
+      "default_selected": true
+    },
+    {
+      "chapter": 12,
+      "id": "industry.ch12",
+      "title": "行业核心公司主体全面尽调",
+      "requirements": [
+        "基本信息：企业注册信息（成立时间、公司规模、注册资本等）；股权架构及历史工商变更情况；业务发展历程、历史沿革、关键里程碑及股权变动",
+        "核心业务经营状况：核心业务板块及全系列产品参数、技术路线、自研核心技术、专利；研发落地进度、新产品线规划及新品上市计划；新产品销售情况及公司内部市场前景与业绩增长预期；生产规划、产能情况及产能利用率等",
+        "竞品与交易对标分析：统一核心可比企业筛选标准，进行多维对比（融资估值/营收交付/技术/客户/产能/毛利率/商业模式等）；近年同赛道融资并购IPO案例复盘；标的相对竞品的核心差异化优劣势",
+        "经营与客户供应商分析：销售渠道（直销/经销/海外占比）；客户结构（前五大客户、集中度、合作年限、订单规模、行业分布）；供应商结构（上游核心厂商、采购集中度、供应链风险）；商业模式、定价体系、收费模式等"
+      ],
+      "questions": [],
+      "sections_explained": [
+        "注册、股权和历史变更",
+        "业务、产品、技术和研发",
+        "销售、产能和经营预期",
+        "竞品及交易对标",
+        "客户与供应商",
+        "商业模式与定价收费"
+      ],
+      "selectable": true,
+      "research_modules": [
+        "核心企业尽调"
+      ],
+      "default_selected": false
+    },
+    {
+      "chapter": 13,
+      "id": "industry.ch13",
+      "title": "风险核查",
+      "requirements": [
+        "根据上述检索信息进行风险识别",
+        "-行业层面风险\n-标的经营风险（客户集中、产能不足、商业化慢、供应链依赖）\n-技术研发风险（迭代落后、核心部件外购、模型能力不足）\n-合规法律风险（股权瑕疵、资质过期、诉讼、数据安全）\n-资本与估值风险（估值过高、融资承压、现金流紧张）等"
+      ],
+      "questions": [
+        {
+          "question": "风险机制及作用对象",
+          "pattern_or_branch": "风险|漏洞|攻击|欺诈|成本压力|价格战|技术替代"
+        },
+        {
+          "question": "行业经营与技术研发风险",
+          "pattern_or_branch": "客户集中|产能不足|商业化慢|供应链依赖|技术迭代|研发失败|核心部件外购"
+        },
+        {
+          "question": "监管义务或执行材料",
+          "pattern_or_branch": "应当|不得|处罚决定|检查结果"
+        }
+      ],
+      "sections_explained": [
+        "行业风险",
+        "标的经营风险（按研究范围）",
+        "技术研发风险",
+        "合规法律风险",
+        "资本与估值风险（按研究范围）"
+      ],
+      "selectable": true,
+      "research_modules": [
+        "行业风险与不确定性",
+        "政策与监管"
+      ],
+      "default_selected": true
+    },
+    {
+      "chapter": 14,
+      "id": "industry.ch14",
+      "title": "综合评估",
+      "requirements": [
+        "对目标行业进行综合评估；明确风险分与行业吸引力等评价的区别，无有效证据时写待核验。指定核心企业时，另列企业评价与局限，不与行业评分混合。"
+      ],
+      "questions": [
+        {
+          "question": "市场信号与发展判断",
+          "pattern_or_branch": "规模|增长|需求|市场"
+        },
+        {
+          "question": "竞争与商业化判断",
+          "pattern_or_branch": "玩家|竞争|订阅|计费|收费|盈利|商业模式"
+        },
+        {
+          "question": "技术及落地条件",
+          "pattern_or_branch": "技术|架构|云端|端侧|边缘|部署|性能|成本"
+        },
+        {
+          "question": "政策与经营约束",
+          "pattern_or_branch": "应当|不得|监管|义务|风险"
+        },
+        {
+          "question": "总体判断及成立条件",
+          "pattern_or_branch": "synthesis"
+        }
+      ],
+      "sections_explained": [
+        "阶段性综合判断",
+        "判断成立条件",
+        "行业风险评估状态",
+        "风险分与行业吸引力的区别",
+        "指定企业评价及局限（按研究范围）"
+      ],
+      "selectable": false,
+      "research_modules": [],
+      "default_selected": false
+    },
+    {
+      "chapter": 15,
+      "id": "industry.ch15",
+      "title": "信息来源",
+      "requirements": [
+        "注明检索的信息来源，包括信息点、网址等，以及检索用的数据获取工具"
+      ],
+      "questions": [],
+      "sections_explained": [
+        "正文实际引用信息点",
+        "来源标题及网址",
+        "来源获取工具",
+        "引用回查入口"
+      ],
+      "selectable": false,
+      "research_modules": [],
+      "default_selected": false
+    },
+    {
+      "chapter": 16,
+      "id": "industry.ch16",
+      "title": "后续研究点",
+      "requirements": [
+        "给出有待确认的信息点和进行下一步更加深度的研究所需要关注的研究方向"
+      ],
+      "questions": [],
+      "sections_explained": [
+        "待确认问题",
+        "所需资料和核查动作",
+        "候选来源入口",
+        "完成条件和后续研究方向"
+      ],
+      "selectable": false,
+      "research_modules": [],
+      "default_selected": false
+    }
+  ]
+}

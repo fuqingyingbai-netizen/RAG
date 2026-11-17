@@ -109,8 +109,8 @@ def activate(candidate,expected,wait,public_host,metadata_backup=False):
             lock=stack.enter_context((ROOT/name).open('a'))
             fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         manifest=verify(candidate)
-        if metadata_backup and manifest.get('kind') not in ('knowledge-two-levels-overlay','knowledge-reliability-overlay','account-audit-retention-overlay'):
-            raise RuntimeError('Metadata-only backup is limited to a validated knowledge overlay')
+        if metadata_backup and manifest.get('kind') not in ('knowledge-two-levels-overlay','knowledge-reliability-overlay','account-audit-retention-overlay','industry-chapters-overlay'):
+            raise RuntimeError('Metadata-only backup is limited to validated code or metadata overlays')
         model_update=manifest.get('knowledge_model_update')
         if model_update and manifest.get('kind')!='knowledge-reliability-overlay':
             raise RuntimeError('Model configuration update requires its validated knowledge overlay')

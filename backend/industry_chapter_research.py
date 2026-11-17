@@ -13,7 +13,8 @@ def prepare_chapter_packages(payload, packages, project):
     from industry_question_generation import CHAPTERS, compile_jobs
     from industry_fact_contracts import chapter_admitted, chapter_coverage
     rows = {}
-    for chapter in sorted(CHAPTERS):
+    from industry_chapters import report_chapters
+    for chapter in sorted(CHAPTERS & set(report_chapters(getattr(project, 'industry_scope', {}) or {}))):
         package = json.loads(packages.get(chapter, '{"facts":[]}'))
         library = [f for f in payload.get('facts', []) if chapter_admitted(f, chapter)]
         coverage = chapter_coverage({**package, 'facts': library}, chapter,

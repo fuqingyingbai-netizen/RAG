@@ -21,7 +21,7 @@ INDUSTRY_SECTION_STRUCTURES = {
 
 INDUSTRY_FEW_SHOT = """
 行业桌面研究报告写作要求：
-- 固定为 16 节，章节标题必须与标准目录一致；每节使用该节专属结构，不得机械套用"本章结论/事实梳理/分析判断/风险与待核验"。
+- 按本次所选章节生成，保留标准目录的稳定编号与标题；每节使用该节专属结构，不得机械套用"本章结论/事实梳理/分析判断/风险与待核验"。
 - 竞争格局速览：头部/腰部/初创/海外玩家分别列示，写清资金、客户、技术、产能或渠道差距。
 - 需关注信号：市场规模口径不统一、政策强监管、核心部件外购、商业化慢、估值透支等都要进入风险提示。
 - 证据不足处正文只写"待核验"，不要反复写"暂无充分公开证据"；所有缺口统一进入集中式待核验清单，不得编造市场规模、融资金额、政策原文、上市估值、客户或供应商数据。
@@ -56,8 +56,11 @@ class IndustryReportAgent:
         trace_emit: Any = None,
     ) -> str:
         from copy import deepcopy
+        from industry_chapters import report_chapters
+        active_chapters = set(report_chapters(getattr(project, 'industry_scope', {}) or {}))
         recovery = getattr(project, 'industry_recovery_seed', None)
         retry_chapters = set((getattr(project, 'industry_recovery_plan', {}) or {}).get('chapters', [])) if recovery else set()
+        retry_chapters &= active_chapters
         sections_by_index: dict[int, str] = {}
         setattr(project, 'industry_report_degradations', [deepcopy(n) for n in recovery.get('industry_report_degradations', [])
             if n.get('chapter') not in retry_chapters | {1,14,16}] if recovery else [])
@@ -69,13 +72,15 @@ class IndustryReportAgent:
         payload = json.loads(cleaned_json)
         project.industry_statement_mode = bool(payload.get('fact_contract_version'))
         project.industry_statement_plans = {int(k): deepcopy(v) for k,v in recovery.get('industry_statement_plans', {}).items()
-            if int(k) not in retry_chapters | {1,14,15,16}} if recovery else {}
+            if int(k) in active_chapters and int(k) not in retry_chapters | {1,14,15,16}} if recovery else {}
         # New executions compile independent question jobs. Legacy saved-plan
         # replays can still use the old private section entry point.
         project.industry_question_jobs_enabled = project.industry_statement_mode
         project.industry_analysis_repair_budget = {'requests_used': 0, 'chapters': []}
         risk = json.loads(risk_json)
         for index, (section_title, requirements) in enumerate(self.outline, 1):
+            if index not in active_chapters:
+                continue
             if index >= 15:
                 package = _focused_cleaned_json(cleaned_json, section_title, requirements,
                                                 str(project.target_name or ''), 'industry') if index == 16 else '{"facts": []}'
@@ -122,7 +127,7 @@ class IndustryReportAgent:
             project.industry_question_planning = deepcopy(recovery.get('industry_question_planning', {}))
             for k, section in recovery.get('industry_generated_sections', {}).items():
                 index = int(k)
-                if index not in retry_chapters | {1,14,15,16}:
+                if index in active_chapters and index not in retry_chapters | {1,14,15,16}:
                     sections_by_index[index] = section
                     section_packages[index] = recovery['industry_section_packages'][index]
                     section_fact_counts[index] = len(json.loads(section_packages[index]).get('facts', []))
@@ -152,7 +157,7 @@ class IndustryReportAgent:
 
         # Pre-allocate zero-evidence chapters and capital_market=none chapter.
         for index, (section_title, _requirements) in enumerate(self.outline, 1):
-            if index in {14, 15, 16}:
+            if index not in active_chapters or index in {14, 15, 16}:
                 continue
             fact_count = section_fact_counts.get(index, 0)
             if index == 12 and not industry_scope.get("named_companies"):
@@ -188,7 +193,7 @@ class IndustryReportAgent:
         with ThreadPoolExecutor(max_workers=min(workers, len(self.outline))) as executor:
             futures = {}
             for index, (section_title, requirements) in enumerate(self.outline, 1):
-                if index == 1 or index in sections_by_index:
+                if index not in active_chapters or index == 1 or index in sections_by_index:
                     continue
                 fact_count = section_fact_counts.get(index, 0)
                 future = executor.submit(
@@ -796,7 +801,9 @@ class IndustryReportAgent:
     def _edit(self, project: Any, draft: str, risk_json: str, section_fact_counts: dict[int, int], invoke: Callable[[str, str, Any], str], clip: Callable[[str, int], str], emit: Callable[..., None], trace_emit: Any) -> str:
         # Chapters have already been audited independently. A whole-report model
         # rewrite both loses citations and duplicates expensive output tokens.
-        expected = {idx: title for idx, (title, _) in enumerate(self.outline, 1)}
+        from industry_chapters import report_chapters
+        active = report_chapters(getattr(project, 'industry_scope', {}) or {})
+        expected = {idx: title for idx, (title, _) in enumerate(self.outline, 1) if idx in active}
         emit(trace_emit, 'report', self.trace_agent, '行业报告分章校验完成，执行目录合并', 'sections=16', status='done')
         return sanitize_nested_report_chapter_headings(normalize_report_headings(draft, expected), expected)
 

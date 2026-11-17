@@ -56,7 +56,7 @@ const ProjectWorkspace = (() => {
       workspaceTypeFilter(){this.taskPage=1;},
       'form.ddType'(){this.syncFormReport();},
       'form.targetType'(value){
-        const defaults={company:this.companyChapterVersion?this.modulesByTarget.company.filter(x=>x.selectable!==false).map(x=>x.value):newResearchForm().modules,person:this.modulesByTarget.person.map(x=>x.value),industry:this.modulesByTarget.industry.map(x=>x.value)};
+        const defaults={company:this.companyChapterVersion?this.modulesByTarget.company.filter(x=>x.selectable!==false).map(x=>x.value):newResearchForm().modules,person:this.modulesByTarget.person.map(x=>x.value),industry:[...this.industryChapterDefaults]};
         this.form.modules=defaults[value] || defaults.company;
         this.form.targetContext='';this.form.personContext='';this.form.personAliases='';
         if(value==='person'||value==='industry'){this.form.industry='';this.form.region='';}
@@ -133,7 +133,7 @@ const ProjectWorkspace = (() => {
         this.localDraftId=null;this.form=newResearchForm();this.form.workspaceFamily=family==='all'?'background':family;
         this.form.ddType=this.form.workspaceFamily==='background'?'BDD项目':families.find(f=>f.value===this.form.workspaceFamily)?.types?.[0]||'BDD项目';
         this.form.targetType=this.formReportOptions[0]?.value||'company';this.form.focusAreas=this.form.targetType==='company'&&this.form.workspaceFamily==='background'?['标的公司背景']:[];
-        this.form.modules=this.form.targetType==='company'&&!this.companyChapterVersion?newResearchForm().modules:this.modulesByTarget[this.form.targetType].filter(x=>x.selectable!==false).map(x=>x.value);
+        this.form.modules=this.form.targetType==='industry'?[...this.industryChapterDefaults]:this.form.targetType==='company'&&!this.companyChapterVersion?newResearchForm().modules:this.modulesByTarget[this.form.targetType].filter(x=>x.selectable!==false).map(x=>x.value);
         this.selectedFiles=[];this.clientRequirementFiles=[];this.taskCreateOpen=true;this.mobileNavOpen=false;
       },
       async submitTask(){

@@ -64,6 +64,12 @@ def company_chapter_config():
     from company_chapters import public_config
     return public_config()
 
+@router.get('/industry-chapters')
+def industry_chapter_config():
+    from industry_chapters import public_config
+    return public_config()
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 UPLOAD_DIR = BASE_DIR / "data" / "research_uploads"
 loader = DocumentLoader()
@@ -224,6 +230,15 @@ def _unsubscribe_running_project(project_id: int, queue: asyncio.Queue) -> None:
 def _locked_run_intake(request: ResearchRunRequest, target_type: str = "") -> dict:
     effective_type = request.target_type or target_type
     from company_chapters import VERSION, normalize_selection
+    if effective_type == 'industry':
+        from industry_chapters import validate_selection, VERSION as INDUSTRY_TEMPLATE
+        if request.industry_template_version and request.industry_template_version != INDUSTRY_TEMPLATE:
+            raise HTTPException(409, '行业章节目录已更新，请刷新后重新提交。')
+        if request.industry_chapter_ids is not None:
+            try:
+                validate_selection(request.industry_chapter_ids)
+            except ValueError as exc:
+                raise HTTPException(422, str(exc)) from None
     if effective_type == 'company':
         if request.company_template_version and request.company_template_version != VERSION:
             raise HTTPException(409, '公司章节模板已更新，请刷新目录后重新提交。')
@@ -965,6 +980,8 @@ def _save_project_intake(db: Session, project: ResearchProject, metadata: dict |
             project, raw, raw.get("search_queries") or [], raw.get("focus_questions") or [],
         )
         intake["industry_scope"] = normalized["industry_scope"]
+        if 'industry_chapter_ids' in normalized:
+            intake.update({key: normalized[key] for key in ('industry_chapter_ids', 'industry_template_version', 'focus_modules')})
         intake["as_of_date"] = normalized["as_of_date"]
         intake["region"] = normalized["region"]
         if isinstance(metadata, dict):
