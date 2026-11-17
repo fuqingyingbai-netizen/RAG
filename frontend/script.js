@@ -80,7 +80,6 @@ const researchAppOptions = {
       assistantNavigation: [],
       assistantSessionId: '', assistantSessions: [], assistantHasMore: false, assistantReady: false,
       assistantSyncing: false, assistantMemoryStatus: '', assistantController: null, assistantEpoch: 0,
-      industryChapterVersion:'', industryChapterError:'', industryChaptersLoading:false, industryChapterDefaults:[],
       companyChapterVersion:'', companyChapterError:'', companyChaptersLoading:false,
       modulesByTarget: { company: [
         { label: '公司背景', value: '公司背景' }, { label: '负面新闻', value: '负面新闻' },
@@ -90,7 +89,7 @@ const researchAppOptions = {
         { label: '上下游业务', value: '上下游业务' }, { label: '竞品情况', value: '竞品情况' },
         { label: '收入情况', value: '收入情况' }, { label: '行业政策', value: '行业政策' },
         { label: '舆情', value: '舆情' }
-      ], person: ['创始人底色画像（家庭/教育/履历）', '人格特质与诚信评估', '商业操守与行业口碑', '经营胜任力（战略/执行/创新）', '识人用人与团队管控', '关联利益冲突（体外公司/代持/关联交易）', '司法负面与诉讼核查', '个人信用与财务风险', '投后治理与退出风险', '同业对标评估', '核心管理团队背景'].map(x => ({ label: x, value: x })), industry: [] },
+      ], person: ['创始人底色画像（家庭/教育/履历）', '人格特质与诚信评估', '商业操守与行业口碑', '经营胜任力（战略/执行/创新）', '识人用人与团队管控', '关联利益冲突（体外公司/代持/关联交易）', '司法负面与诉讼核查', '个人信用与财务风险', '投后治理与退出风险', '同业对标评估', '核心管理团队背景'].map(x => ({ label: x, value: x })), industry: ['行业定义与边界', '细分赛道与产业链', '政策与监管', '市场规模与增长', '竞争格局与代表企业', '商业模式与盈利逻辑', '技术演进与平台生态', '技术路线对比', '投融资与资本市场', '行业风险与不确定性'].map(x => ({ label: x, value: x })) },
       form: newResearchForm()
     };
   },
@@ -212,10 +211,9 @@ const researchAppOptions = {
       if (this.reviewProjectId && !projects.some(project => project.id === this.reviewProjectId)) this.clearReviewSelection();
     },
     knowledgeQuery() { this.sourcePage = 1; },
-    'form.targetType'(value) { const defaults = { company: this.companyChapterVersion ? this.modulesByTarget.company.filter(x=>x.selectable).map(x=>x.value) : ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], person: this.modulesByTarget.person.map(x => x.value), industry: [...this.industryChapterDefaults] }; this.form.modules = defaults[value] || defaults.company; this.form.ddType = this.ddTypes[0]; this.form.targetContext = ''; this.form.personContext = ''; this.form.personAliases = ''; if (value === 'person' || value === 'industry') { this.form.industry = ''; this.form.region = ''; } }
+    'form.targetType'(value) { const defaults = { company: this.companyChapterVersion ? this.modulesByTarget.company.filter(x=>x.selectable).map(x=>x.value) : ['公司背景', '诉讼/制裁', '负面新闻', '融资情报', '管理团队'], person: this.modulesByTarget.person.map(x => x.value), industry: this.modulesByTarget.industry.map(x => x.value) }; this.form.modules = defaults[value] || defaults.company; this.form.ddType = this.ddTypes[0]; this.form.targetContext = ''; this.form.personContext = ''; this.form.personAliases = ''; if (value === 'person' || value === 'industry') { this.form.industry = ''; this.form.region = ''; } }
   },
     async mounted() {
-      this.loadIndustryChapters();
       this.updateNavigationViewport();
       window.addEventListener('resize', this.updateNavigationViewport);
       document.addEventListener('pointerdown', this.onSidebarPointerDown);
@@ -246,25 +244,6 @@ const researchAppOptions = {
     this.stopAssistantDrag();
   },
   methods: {
-    async loadIndustryChapters() {
-      this.industryChaptersLoading = true;
-      try {
-        const response = await fetch('/research/industry-chapters');
-        if (!response.ok) throw Error('行业章节目录加载失败');
-        const config = await response.json();
-        if (!config.version || !Array.isArray(config.chapters) || config.chapters.length !== 16 ||
-            new Set(config.chapters.map(x => x.value)).size !== 16 ||
-            config.chapters.some((x, i) => x.chapter !== i + 1)) throw Error('行业章节目录不完整');
-        const firstLoad = !this.industryChapterVersion;
-        this.modulesByTarget.industry = config.chapters.map(x => ({...x,
-          label: x.label + (x.selectable ? '' : '（自动汇总）')}));
-        this.industryChapterDefaults = [...config.defaults];
-        this.industryChapterVersion = config.version; this.industryChapterError = '';
-        if (firstLoad && this.form.targetType === 'industry') this.form.modules = [...config.defaults];
-        return true;
-      } catch (error) { this.industryChapterError = error.message || '行业章节目录加载失败'; return false; }
-      finally { this.industryChaptersLoading = false; }
-    },
     async loadCompanyChapters() {
       if (this.companyChaptersLoading) return false;
       this.companyChaptersLoading = true;
@@ -722,7 +701,6 @@ const researchAppOptions = {
     industryRunFields(targetType, intake = null) {
       if (targetType !== 'industry') return {};
       if (intake) return {
-        ...(intake.industry_chapter_ids ? {industry_chapter_ids: intake.industry_chapter_ids, industry_template_version: intake.industry_template_version || ''} : {}),
         industry_focus: intake.industry_focus || '',
         industry_segments: intake.industry_segments || intake.industry_scope?.segments || [],
         excluded_segments: intake.excluded_segments || intake.industry_scope?.excluded_segments || [],
@@ -732,8 +710,6 @@ const researchAppOptions = {
         industry_scope: intake.industry_scope || {}
       };
       return {
-        industry_chapter_ids: [...this.form.modules],
-        industry_template_version: this.industryChapterVersion,
         industry_focus: this.form.industryFocus.trim(),
         excluded_segments: this.form.excludedSegments.split(/[、,，;；\n]+/).map(x => x.trim()).filter(Boolean),
         research_purpose: this.form.researchPurpose,
@@ -816,14 +792,6 @@ const researchAppOptions = {
     async submitTask() {
       if (this.submitting) return;
       if (!this.form.projectName.trim()) return ElementPlus.ElMessage.warning('请填写项目名称');
-      if (this.form.targetType === 'industry') {
-        if (!this.industryChapterVersion || this.industryChapterError) return ElementPlus.ElMessage.warning('请先重新加载行业章节目录');
-        if (!this.form.modules.length) return ElementPlus.ElMessage.warning('请至少选择一个行业主体章节');
-        if (this.form.modules.some(id => ['industry.ch08','industry.ch09'].includes(id)) && !this.form.includeCapitalMarkets)
-          return ElementPlus.ElMessage.warning('选择投融资或二级市场章节时，请开启资本市场范围');
-        if (this.form.modules.includes('industry.ch12') && !this.form.targetContext.trim())
-          return ElementPlus.ElMessage.warning('选择核心公司尽调时，请填写核心企业名称');
-      }
       const sentToken = this.token;
       let created = null;
       const requirements = [...this.clientRequirementFiles], sources = [...this.selectedFiles];

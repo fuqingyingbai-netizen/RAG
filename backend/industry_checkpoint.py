@@ -62,10 +62,7 @@ def restore_chapters(project, cleaned, risk, packages):
         return {}
     sections = {}
     reused = []
-    from industry_chapters import report_chapters
     for chapter in (2,3,4,5,6,7,10,11,13):
-        if chapter not in report_chapters(getattr(project, 'industry_scope', {}) or {}):
-            continue
         package = packages.get(chapter)
         if not isinstance(package,str):
             continue

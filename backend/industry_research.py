@@ -101,9 +101,6 @@ def scope_fingerprint(intake: dict, source_only: bool = False) -> str:
     }
     for key in ('segments', 'excluded_segments', 'named_companies'):
         payload['scope'][key] = sorted(set(payload['scope'].get(key) or []))
-    if not source_only and 'selected_chapters' in scope:
-        payload['selected_chapters'] = sorted(scope['selected_chapters'])
-        payload['chapter_template_version'] = scope.get('chapter_template_version')
     if source_only:
         payload = {key: payload[key] for key in ('policy_version', 'target_name', 'scope')}
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
@@ -361,9 +358,20 @@ def delivery_review_reasons(scope: dict, risk: dict, degradations: list) -> list
     return list(distinct.values())
 
 
-from industry_chapters import CHAPTERS as CHAPTER_CONFIG
-
-CHAPTER_MODULES = {c['title']: tuple(c['research_modules']) for c in CHAPTER_CONFIG if c['selectable']}
+CHAPTER_MODULES = {
+    '行业基础定义与产业链全景': ('行业定义与边界', '细分赛道与产业链'),
+    '政策环境分析与近期政策摘录': ('政策与监管',),
+    '市场规模与增长预测': ('市场规模与增长',),
+    '行业热度形成': ('市场规模与增长', '政策与监管', '投融资与资本市场'),
+    '竞争格局': ('竞争格局与代表企业', '细分赛道与产业链'),
+    '技术路线对比': ('技术路线对比', '技术演进与平台生态'),
+    '行业投融资全景': ('投融资与资本市场',),
+    '二级市场情绪': ('投融资与资本市场',),
+    '投资机会': ('市场规模与增长', '竞争格局与代表企业', '商业模式与盈利逻辑'),
+    '前景展望': ('市场规模与增长', '技术演进与平台生态', '政策与监管'),
+    '行业核心公司主体全面尽调': ('核心企业尽调',),
+    '风险核查': ('行业风险与不确定性', '政策与监管'),
+}
 
 
 def select_chapter_evidence(payload: dict, title: str, requirements: list[str], excluded_urls=None, *, max_facts: int = 12,

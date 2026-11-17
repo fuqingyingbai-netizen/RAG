@@ -75,7 +75,7 @@ FIXED_AI_SEARCH_ENABLED = True
 FIXED_GENERATE_PROPOSAL = True
 PERSON_IDENTITY_POLICY_VERSION = "person-identity-v4-context"
 INDUSTRY_CLEANING_VERSION = "industry-evidence-v30-source-context"
-INDUSTRY_REPORT_VERSION = "industry-report-evidence-v71-chapter-selection"
+INDUSTRY_REPORT_VERSION = "industry-report-evidence-v70-bound-citations-risk-review"
 COMPANY_REPORT_VERSION = "company-report-evidence-v150-sequential-chapter-flow"
 
 
@@ -2407,8 +2407,6 @@ class ResearchWorkflow:
             normalized["focus_modules"] = list(dict.fromkeys(INDUSTRY_MODULE_ALIASES.get(m, m) for m in modules))
             normalized.update({key: intake.get(key, default) for key, default in {"industry_focus": "", "industry_segments": [], "excluded_segments": [], "research_purpose": "", "include_capital_markets": None, "as_of_date": ""}.items()})
             normalized["industry_scope"] = self._resolve_industry_scope(project, normalized, intake)
-            from industry_chapters import apply_selection
-            apply_selection(normalized, intake)
             normalized["as_of_date"] = normalized["industry_scope"]["as_of_date"]
             normalized["region"] = normalized["industry_scope"]["geography"]
         return normalized
@@ -2854,7 +2852,7 @@ class ResearchWorkflow:
             modules = list(modules)
             if (intake.get("industry_scope") or {}).get("capital_market") == "none":
                 modules = [m for m in modules if m != "投融资与资本市场"]
-            if (intake.get("industry_scope") or {}).get("named_companies") and "核心企业尽调" not in modules and "selected_chapters" not in (intake.get("industry_scope") or {}):
+            if (intake.get("industry_scope") or {}).get("named_companies") and "核心企业尽调" not in modules:
                 modules.append("核心企业尽调")
             elif not (intake.get("industry_scope") or {}).get("named_companies"):
                 modules = [m for m in modules if m != "核心企业尽调"]
@@ -3764,12 +3762,11 @@ class ResearchWorkflow:
         payload['shared_evidence_records'] = {f['evidence_id']:evidence_record(f) for f in payload['facts']}
         from industry_reasoning import question_ledger, fingerprint, VERSION as REASONING_VERSION
         from industry_fact_contracts import CHAPTER_QUESTIONS
-        from industry_chapters import report_chapters
         payload['reasoning_version'] = REASONING_VERSION
         input_fingerprint = fingerprint({'facts':payload['facts'],'scope':payload.get('industry_scope',{})})
         payload['research_questions'] = {str(index): question_ledger(payload, index,
             [f['evidence_id'] for f in payload['facts']], input_fingerprint=input_fingerprint)
-            for index in CHAPTER_QUESTIONS if index in report_chapters(getattr(project, 'industry_scope', {}) or {})}
+            for index in CHAPTER_QUESTIONS}
         payload['fact_contract_summary'] = {
             'report_admitted': sum(f['fact_contract']['report_admitted'] for f in payload['facts']),
             'risk_admitted': sum(f['fact_contract']['risk_admitted'] for f in payload['facts']),
@@ -7650,7 +7647,6 @@ Do not infer controllable impact or low risk from absence of penalties. A single
             "| --- | --- |",
             f"| 研究对象 | {scope.get('industry_name') or project.industry or project.target_name} |",
             f"| 纳入范围 | {included} |",
-            *(["| 交付章节 | " + "、".join(f"第{n}章" for n in scope['selected_chapters']) + "；另含摘要、综合评估、信息来源、后续研究点。编号沿用标准目录。 |"] if 'selected_chapters' in scope else []),
             f"| 不纳入范围 | {excluded} |",
             f"| 地域 | {scope.get('geography') or '中国大陆'} |",
             f"| 数据截止日 | {scope.get('as_of_date') or datetime.now().date().isoformat()} |",

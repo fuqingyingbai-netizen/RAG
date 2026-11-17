@@ -76,8 +76,7 @@ def recovery_plan(plans, packages, scope=None):
     from industry_question_generation import CHAPTERS, compile_jobs
     from industry_fact_contracts import CHAPTER_QUESTIONS
     tasks = [];pending_material_reviews=[]
-    from industry_chapters import report_chapters
-    for chapter in sorted(CHAPTERS & set(report_chapters(scope))):
+    for chapter in sorted(CHAPTERS):
         if chapter not in plans and str(chapter) not in plans and chapter not in packages and str(chapter) not in packages:
             continue
         plan = plans.get(chapter, plans.get(str(chapter), {}))
@@ -242,10 +241,8 @@ def merge_evidence(original, addition):
         'held_for_review': sum(not f.get('fact_contract', {}).get('report_admitted') for f in facts),
         'semantic_status': 'not_evaluated'}
     input_fingerprint = fingerprint({'facts': facts, 'scope': merged.get('industry_scope', {})})
-    from industry_chapters import report_chapters
     merged['research_questions'] = {str(i): question_ledger(merged, i,
-        [f['evidence_id'] for f in facts], input_fingerprint=input_fingerprint) for i in CHAPTER_QUESTIONS
-        if i in report_chapters(merged.get('industry_scope', {}))}
+        [f['evidence_id'] for f in facts], input_fingerprint=input_fingerprint) for i in CHAPTER_QUESTIONS}
     merged['conclusion_recovery'] = {'version': VERSION, 'added_fact_count': len(facts)-len(original.get('facts', [])),
         'incremental_cleaning_diagnostic': addition.get('cleaning_diagnostic', {})}
     return merged

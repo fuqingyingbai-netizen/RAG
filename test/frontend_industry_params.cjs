@@ -38,7 +38,7 @@ const resumed = definition.methods.industryRunFields.call(state, 'industry', {
 assert.equal(resumed.as_of_date, '2025-12-31');
 assert.equal(resumed.include_capital_markets, false);
 assert.equal(resumed.research_purpose, '投资判断');
-assert.equal(state.modulesByTarget.industry.length, 0); // Loaded from the runtime chapter endpoint.
+assert.ok(state.modulesByTarget.industry.some(row => row.value === '技术路线对比'));
 console.log('Industry form and resume parameters passed');
 const page = fs.readFileSync('frontend/index.html', 'utf8');
 assert.ok(page.includes("artifact.metadata?.proposal_confirmation_status === 'pending'"));
