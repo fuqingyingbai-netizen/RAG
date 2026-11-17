@@ -76,7 +76,7 @@ def recovery_plan(plans, packages, scope=None):
     from industry_question_generation import CHAPTERS, compile_jobs
     from industry_fact_contracts import CHAPTER_QUESTIONS
     tasks = [];pending_material_reviews=[]; deferred_research=[]
-    from industry_focus import question_depth
+    from industry_focus import question_depth, primary_module
     for chapter in sorted(CHAPTERS):
         if chapter not in plans and str(chapter) not in plans and chapter not in packages and str(chapter) not in packages:
             continue
@@ -161,6 +161,7 @@ def recovery_plan(plans, packages, scope=None):
                 revision=next((c for c in claims if c.get('question')==question and finding_issue(c)),None)
             tasks.append({'chapter': chapter, 'question': question,
                           'action': action, 'research_depth': depth,
+                          'module': primary_module(focus_scope, chapter, question),
                           'issue_codes': list(dict.fromkeys(issue_codes)),
                           'feedback': feedback[:500],
                           **({'revision_draft':{k:v for k,v in revision.items()
@@ -199,7 +200,7 @@ def targeted_queries(plan, target, previous=()):
                     continue
                 seen.add(key)
                 title = INDUSTRY_REPORT_OUTLINE[chapter-1][0]
-                rows.append({'query': query, 'module': next(iter(CHAPTER_MODULES.get(title, (title,)))),
+                rows.append({'query': query, 'module': t.get('module') or next(iter(CHAPTER_MODULES.get(title, (title,)))),
                              'chapter': chapter, 'question': t['question'], 'recovery_round': plan.get('round', 1)})
                 break
             if len(rows) == MAX_QUERIES:

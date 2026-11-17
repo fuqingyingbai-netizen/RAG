@@ -84,3 +84,10 @@ def test_writer_prioritizes_focus_without_dropping_other_questions_or_cards():
     assert package == before
     assert len(diagnostic['questions']) == 4
     assert diagnostic['questions'][0]['research_depth'] == 'basic'
+
+
+def test_supplement_query_uses_selected_owner_not_first_related_module():
+    scope = apply_focus({}, ['商业模式与盈利逻辑'])
+    result = recovery_plan({}, {10: {'industry_scope':scope}})
+    queries = targeted_queries(result,'机器人')
+    assert queries and all(q['module'] == '商业模式与盈利逻辑' for q in queries)

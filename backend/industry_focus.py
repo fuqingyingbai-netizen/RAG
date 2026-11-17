@@ -36,3 +36,9 @@ def question_depth(scope, chapter, question):
 
 def mapping(scope):
     return [{**row, 'selected': module_enabled(scope, row['name'])} for row in CONFIG['modules']]
+
+
+def primary_module(scope, chapter, question):
+    """Label a supplemental query with its selected owner, never a related module."""
+    return next((name for name, row in MODULES.items()
+                 if module_enabled(scope or {}, name) and question in row['primary'].get(str(chapter), [])), None)
