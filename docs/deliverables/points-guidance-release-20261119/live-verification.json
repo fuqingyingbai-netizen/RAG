@@ -1,0 +1,68 @@
+{
+  "release": "/opt/supermew/releases/7f3b1bf6d61ca08932a2222317f6169f0252bcd2",
+  "frontend_commit": "f1ff9641d62027ab4e1560f02b147056488dd5ae",
+  "manifest_files_verified": 593,
+  "manifest_matches": true,
+  "configuration_sha256": "105b80c7ec6c1c4a56ee111fb8ed082647f009343757e0da0e9318f756106085",
+  "pid": 2256801,
+  "maintenance_present": false,
+  "service": "active",
+  "public_assets_verified": 11,
+  "checks": [
+    {
+      "name": "home desktop/mobile actionable card",
+      "role": "admin",
+      "status": "PASS"
+    },
+    {
+      "name": "stale balance labelled; retry recovers",
+      "role": "admin",
+      "status": "PASS"
+    },
+    {
+      "name": "points tabs and upload dialog; no upload sent",
+      "role": "admin",
+      "status": "PASS"
+    },
+    {
+      "name": "reading shortcut opens library without another points card",
+      "role": "admin",
+      "status": "PASS"
+    },
+    {
+      "name": "note shortcut opens notes without creating content",
+      "role": "admin",
+      "status": "PASS"
+    },
+    {
+      "name": "home desktop/mobile actionable card",
+      "role": "user",
+      "status": "PASS"
+    },
+    {
+      "name": "stale balance labelled; retry recovers",
+      "role": "user",
+      "status": "PASS"
+    },
+    {
+      "name": "points tabs and upload dialog; no upload sent",
+      "role": "user",
+      "status": "PASS"
+    },
+    {
+      "name": "reading shortcut opens library without another points card",
+      "role": "user",
+      "status": "PASS"
+    },
+    {
+      "name": "note shortcut opens notes without creating content",
+      "role": "user",
+      "status": "PASS"
+    }
+  ],
+  "page_errors": [],
+  "browser_write_attempts": [],
+  "real_model_called": false,
+  "real_points_awarded": false,
+  "status": "passed"
+}

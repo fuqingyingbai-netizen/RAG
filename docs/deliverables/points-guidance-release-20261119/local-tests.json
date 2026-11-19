@@ -1,0 +1,31 @@
+{
+  "node": {
+    "passed": 126,
+    "failures": 0
+  },
+  "backend": {
+    "passed": 35,
+    "failures": 0,
+    "database": "isolated SQLite",
+    "points_modules_match_running_backend": true
+  },
+  "browser": {
+    "unique_passed": 16,
+    "failures_remaining": 0,
+    "method": "latest result per test ID across full browser run and targeted upload retest",
+    "scenarios": "real Vue/Element Plus shell, isolated points API; synthetic knowledge and upload responses"
+  },
+  "additional_scripts": [
+    "account navigation/auth passed",
+    "personal home lifecycle passed"
+  ],
+  "fixture_corrections": "Updated old card selectors/title, corrected upload file label and supplied required department; original failures retained in local logs.",
+  "stability": {
+    "cycles": 137,
+    "seconds": 60.03,
+    "point_reads": 458,
+    "browser_errors": [],
+    "unexpected_writes": []
+  },
+  "scope": "Related regression and bounded UI stability; not full-site acceptance, real-model quality or production load capacity."
+}

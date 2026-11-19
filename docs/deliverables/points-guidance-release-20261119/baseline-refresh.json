@@ -1,0 +1,9 @@
+{
+  "frontend_identical": true,
+  "old_release": "/opt/supermew/releases/534d008696520130745c8f9983c04cddbd4854ad",
+  "new_release": "/opt/supermew/releases/7f3b1bf6d61ca08932a2222317f6169f0252bcd2",
+  "changed_paths": [
+    "release-manifest.json",
+    "backend/company_h5.py"
+  ]
+}

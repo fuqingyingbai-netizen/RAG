@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "service": "active",
+  "instance_id": "9f2bca9f-c49e-4fa8-99de-4247c9cc8527",
+  "frontend_commit": "f1ff9641d62027ab4e1560f02b147056488dd5ae",
+  "runtime_files_verified": 593,
+  "static_backup_files_verified": 7,
+  "configuration_unchanged": true,
+  "no_application_restart": true,
+  "maintenance_present": false,
+  "backend_exception_markers_since_publication": 0
+}

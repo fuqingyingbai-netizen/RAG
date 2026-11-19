@@ -1,0 +1,61 @@
+{
+  "status": "published",
+  "frontend_commit": "f1ff9641d62027ab4e1560f02b147056488dd5ae",
+  "backend_release": "/opt/supermew/releases/7f3b1bf6d61ca08932a2222317f6169f0252bcd2",
+  "backend_pid_unchanged": 2256801,
+  "backend_instance_unchanged": "9f2bca9f-c49e-4fa8-99de-4247c9cc8527",
+  "backend_source_unchanged": true,
+  "configuration_unchanged": true,
+  "application_restart": false,
+  "database_modified": false,
+  "backup": "/opt/supermew/backups/points-guidance-20261119T041336Z-f1ff9641d620",
+  "time_utc": "2026-11-19T04:13:36.639207+00:00",
+  "manifest_files_verified": 593,
+  "unrelated_files_preserved": 582,
+  "files": [
+    {
+      "path": "frontend/knowledge-points.js",
+      "sha256": "f0a152f9343ba8c8d29d92dfb75edbcb9897a15899dfb7210a8630254fd76e6d"
+    },
+    {
+      "path": "frontend/knowledge-points.f0a152f9343b.js",
+      "sha256": "f0a152f9343ba8c8d29d92dfb75edbcb9897a15899dfb7210a8630254fd76e6d"
+    },
+    {
+      "path": "frontend/knowledge-points.css",
+      "sha256": "963d46f59fc2a146aac3c7e9877e57b0885fff598b7151008c3584f0d612e1e4"
+    },
+    {
+      "path": "frontend/knowledge-points.963d46f59fc2.css",
+      "sha256": "963d46f59fc2a146aac3c7e9877e57b0885fff598b7151008c3584f0d612e1e4"
+    },
+    {
+      "path": "frontend/personal-home.js",
+      "sha256": "22fbfc96f058204e3e79db52b090f0ed059b5c954e4851284277f3b639695f18"
+    },
+    {
+      "path": "frontend/personal-home.22fbfc96f058.js",
+      "sha256": "22fbfc96f058204e3e79db52b090f0ed059b5c954e4851284277f3b639695f18"
+    },
+    {
+      "path": "frontend/script.js",
+      "sha256": "3656016285415a02d0841a297245d8f0ec42be236b540c8f21d1a9157272a1d3"
+    },
+    {
+      "path": "frontend/script.365601628541.js",
+      "sha256": "3656016285415a02d0841a297245d8f0ec42be236b540c8f21d1a9157272a1d3"
+    },
+    {
+      "path": "frontend/company-knowledge.js",
+      "sha256": "e4f22c234e215145a7a1fc0c4dc530a6f39b1b0eb234666a455d41bfddd6716f"
+    },
+    {
+      "path": "frontend/company-knowledge.e4f22c234e21.js",
+      "sha256": "e4f22c234e215145a7a1fc0c4dc530a6f39b1b0eb234666a455d41bfddd6716f"
+    },
+    {
+      "path": "frontend/index.html",
+      "sha256": "48a717c080fd98ce8dc38e1a7830cc06a922f99af0baf0d49081c13a57d2cf2a"
+    }
+  ]
+}
