@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="vendor/fontawesome-free-6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="company-knowledge.css" />
+  <link rel="stylesheet" href="h5-workbench.0f3497fb732d.css" />
   <link rel="stylesheet" href="navigation.7e3a97139c28.css" />
   <link rel="stylesheet" href="accounts.css" />
   <link rel="stylesheet" href="personal-home.css" />
@@ -109,6 +110,7 @@
           <el-menu-item index="knowledge-policies" :disabled="!!$refs.knowledgeWorkspace?.busy" @keydown.enter.prevent.stop="navigateFromSidebar('knowledge-policies')" @keydown.space.prevent.stop="navigateFromSidebar('knowledge-policies')"><i class="fa-solid fa-file-lines" aria-hidden="true"></i><span>制度文件</span></el-menu-item>
           <el-menu-item index="knowledge-experts" :disabled="!!$refs.knowledgeWorkspace?.busy" @keydown.enter.prevent.stop="navigateFromSidebar('knowledge-experts')" @keydown.space.prevent.stop="navigateFromSidebar('knowledge-experts')"><i class="fa-solid fa-user-tie" aria-hidden="true"></i><span>专家部资料</span></el-menu-item>
         </el-sub-menu>
+        <el-menu-item v-if="h5Enabled" index="knowledge-h5"><i class="fa-solid fa-file-code" aria-hidden="true"></i><span>H5 制作</span></el-menu-item>
         <el-menu-item v-if="currentUser?.role === 'admin'" index="accounts"><i class="fa-solid fa-users-gear" aria-hidden="true"></i><span>账号管理</span></el-menu-item>
       </el-menu>
       </div>
@@ -151,7 +153,8 @@
         </div>
         <personal-home v-if="activeView === 'home'" :request="authFetch" :read="readJSON" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @filter-tasks="openHomeTaskFilter" @open-project="openHomeProject" @view-versions="report => openReportVersions({id:report.project_id, title:report.project_title}, report.artifact_type)"></personal-home>
         <points-center v-if="activeView === 'points'" :key="currentUser?.username" :request="authFetch" :current-user="currentUser"></points-center>
-        <company-knowledge :department-entry="knowledgeDepartmentEntry" @department-change="knowledgeDepartment=$event" ref="knowledgeWorkspace" v-if="activeView === 'company-knowledge'" :projects="projects" :feedback="runAction" :operation-state="pendingActions"></company-knowledge>
+        <h5-workbench v-if="activeView === 'knowledge-h5' && h5Enabled" :key="token" :request="authFetch" :entry="h5Entry" @location="openH5Location"></h5-workbench>
+        <company-knowledge :department-entry="knowledgeDepartmentEntry" @department-change="knowledgeDepartment=$event" @generate-h5="openH5" @open-h5="openSavedH5" ref="knowledgeWorkspace" v-if="activeView === 'company-knowledge'" :projects="projects" :feedback="runAction" :operation-state="pendingActions"></company-knowledge>
 
         <account-management v-if="activeView === 'accounts' && currentUser?.role === 'admin'" :request="authFetch" @session-invalidated="handleLogout"></account-management>
         <el-dialog v-model="taskCreateOpen" title="新建项目" width="min(860px, 94vw)" :close-on-click-modal="false" class="task-create-dialog">
@@ -175,7 +178,7 @@
                 <template v-if="form.targetType === 'person'"><el-form-item label="人物补充线索"><el-input v-model="form.personContext" type="textarea" :rows="3" maxlength="12000" placeholder="任职时间、学校、地区、职责或同名排除线索"></el-input></el-form-item><el-form-item label="曾用名或中英文姓名（每行一个）"><el-input v-model="form.personAliases" type="textarea" :rows="2"></el-input></el-form-item></template>
                 <el-row :gutter="16"><el-col :xs="24" :sm="12"><el-form-item label="行业"><el-input v-model="form.industry"></el-input></el-form-item></el-col><el-col :xs="24" :sm="12"><el-form-item label="研究地域"><el-input v-model="form.region" placeholder="例如：中国大陆"></el-input></el-form-item></el-col></el-row>
                 <template v-if="form.targetType === 'industry'"><el-form-item label="重点赛道"><el-input v-model="form.industryFocus" type="textarea" :rows="2"></el-input></el-form-item><el-form-item label="不纳入的赛道"><el-input v-model="form.excludedSegments" type="textarea" :rows="2"></el-input></el-form-item><el-form-item label="数据截止日"><el-input v-model="form.asOfDate" type="date"></el-input></el-form-item><el-form-item label="研究用途"><el-select v-model="form.researchPurpose"><el-option v-for="purpose in ['日常了解','战略研究','投资判断','尽调支持']" :key="purpose" :label="purpose" :value="purpose"></el-option></el-select></el-form-item><div class="search-setting"><div><strong>纳入资本市场研究</strong><span>一级融资、IPO、估值及二级市场概览</span></div><el-switch v-model="form.includeCapitalMarkets"></el-switch></div></template>
-                <el-form-item label="详细研究范围"><el-checkbox-group v-model="form.modules" class="checkbox-grid"><el-checkbox v-for="module in modules" :key="module.value" :label="module.value" :disabled="module.selectable === false">{{module.label}}</el-checkbox></el-checkbox-group></el-form-item>
+                <el-form-item :label="form.targetType === 'industry' ? '重点研究模块' : '详细研究范围'"><el-checkbox-group v-model="form.modules" class="checkbox-grid"><el-checkbox v-for="module in modules" :key="module.value" :label="module.value" :disabled="module.selectable === false">{{module.label}}</el-checkbox></el-checkbox-group><small v-if="form.targetType === 'industry'">勾选本次重点关注的方向，系统将优先补充资料并深入分析；其他方向根据已有资料进行基础分析。未勾选不代表删除章节，明确排除的范围不开展研究。</small></el-form-item>
                 <div class="search-setting"><div><strong>开启 AI 搜索</strong><span>沿用现有对象研究流程的公开资料检索策略</span></div><el-switch v-model="form.aiSearchEnabled"></el-switch></div>
                 <el-form-item label="检索关键词（每行一个）"><el-input v-model="form.searchQueries" type="textarea" :rows="2"></el-input></el-form-item><el-form-item label="补充重点问题（每行一个）"><el-input v-model="form.focusQuestions" type="textarea" :rows="2"></el-input></el-form-item>
               </details>
@@ -563,17 +566,18 @@
 <script defer src="vendor/marked-18.1.2/marked.umd.js"></script>
 <script defer src="vendor/purify-3.4.17.min.js"></script>
 <script defer src="safe-markdown.js"></script>
+<script defer src="h5-workbench.9b9ba819d35d.js"></script>
 <script defer src="knowledge-points.5e9e8db60de5.js"></script>
 <script defer src="knowledge-glass-optics.8cba1cf6e905.js"></script>
 <script defer src="knowledge-document-viewer.484b01cd5d73.js"></script>
 <link rel="stylesheet" href="knowledge-note-editor.70b7481352b4.css">
 <script defer src="knowledge-note-editor.97e3f47133aa.js"></script>
-<script defer src="company-knowledge.af24afc45c13.js"></script>
+<script defer src="company-knowledge.d75dcf83923d.js"></script>
 <script defer src="account-management.ae5818114371.js"></script>
 <script defer src="personal-home.5ed6b0fd64ff.js"></script>
 <script defer src="report-versions.js"></script>
 <script defer src="project-workspace.5862f06db460.js"></script>
-<script defer src="script.642fc82443c4.js"></script>
+<script defer src="script.3008de22831e.js"></script>
 </body>
 </html>
 

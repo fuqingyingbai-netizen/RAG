@@ -1993,4 +1993,5 @@ const researchAppOptions = {
   }
 };
 if (typeof ProjectWorkspace !== 'undefined') ProjectWorkspace.install(researchAppOptions);
+if (typeof H5Workbench !== 'undefined') H5Workbench.install(researchAppOptions);
 createApp(researchAppOptions).component('company-knowledge', CompanyKnowledge).use(ElementPlus).mount('#app');
