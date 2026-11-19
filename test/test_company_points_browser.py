@@ -2,6 +2,7 @@
 from datetime import timedelta
 from pathlib import Path
 import json
+import os
 import socket
 import threading
 import time
@@ -28,7 +29,8 @@ def browser_system(system):
     token_bob = auth.create_access_token('bob', 'user', 0)
     token_admin = auth.create_access_token('admin', 'admin', 0)
     root = Path(__file__).resolve().parents[1]
-    s.app.mount('/assets', StaticFiles(directory=str(root / 'frontend')), name='points-test-assets')
+    frontend = Path(os.environ.get('POINTS_TEST_FRONTEND', root / 'frontend')).resolve()
+    s.app.mount('/assets', StaticFiles(directory=str(frontend)), name='points-test-assets')
 
     @s.app.get('/points-test', response_class=HTMLResponse)
     def page(mode: str = 'personal'):
@@ -44,7 +46,7 @@ const request=(path,options={})=>fetch(path,{...options,headers:{Authorization:'
 const ReaderHarness={mixins:[KnowledgePointsReader],data(){return {readerOpen:false,readerLoading:false,readerOriginalLoading:false,readerMode:'original',selectedDoc:null,readerBlob:null};},methods:{apiFetch:request,async open(){this.readerOpen=true;this.readerLoading=true;this.selectedDoc={id:config.document_id,can_read:true,format:'TXT'};const response=await request('/company-knowledge/documents/'+config.document_id+'/original');if(!response.ok)throw Error('Synthetic original failed');this.readerBlob=await response.blob();this.readerLoading=false;}},template:'<section class="reader-test"><button @click="open">打开测试资料</button><div class="ckb-reader-columns" v-if="readerOpen"><p>合成研究资料，供隔离阅读测试使用。</p><p>前台阅读并与正文交互后，积分由服务端判断。</p></div><p role="status">{{pointsReaderMessage}}</p></section>'};
 Vue.createApp({components:{PointsCenter,PointsAdmin,ReaderHarness},data(){return {view:config.mode,user:{username:config.mode==='admin'?'admin':'bob'}};},methods:{request}}).use(ElementPlus).mount('#test-app');</script></body></html>'''.replace('BOOTSTRAP', bootstrap)
 
-    s.app.mount('/', StaticFiles(directory=str(root / 'frontend'), html=True), name='points-full-ui')
+    s.app.mount('/', StaticFiles(directory=str(frontend), html=True), name='points-full-ui')
 
     sock = socket.socket()
     sock.bind(('127.0.0.1', 0))
@@ -79,7 +81,7 @@ def test_personal_points_desktop_mobile_and_all_tabs(browser_system):
     errors = []
     page.on('pageerror', lambda error: errors.append(str(error)))
     page.goto(s.url + '/points-test')
-    expect(page.get_by_role('heading', name='知识积分中心')).to_be_visible()
+    expect(page.get_by_role('heading', name='积分中心', exact=True)).to_be_visible()
     expect(page.get_by_text('累计荣誉积分', exact=True)).to_be_visible()
     page.screenshot(path=str(s.output / 'personal-desktop.png'), full_page=True)
     page.get_by_role('tab', name='积分明细', exact=True).click()
@@ -171,7 +173,7 @@ def test_full_application_home_card_and_account_menu_open_real_points_page(brows
             route.fulfill(json={'projects': [], 'items': [], 'total': 0, 'summary': {}})
     page.route('**/research/**', research)
     page.goto(s.url + '/')
-    card = page.get_by_role('button', name='查看我的知识积分', exact=True)
+    card = page.locator('.points-home-card')
     expect(card).to_be_visible(timeout=15000)
     expect(card.locator('strong')).to_have_text('0')
     uploaded = doc(s, owner=2, visibility='restricted', title='private-poll-refresh.txt')
@@ -184,11 +186,11 @@ def test_full_application_home_card_and_account_menu_open_real_points_page(brows
     p.process_pending(s.db)
     page.get_by_role('button', name='刷新首页', exact=True).click()
     expect(card.locator('strong')).to_have_text('20')
-    card.click()
-    expect(page.get_by_role('heading', name='知识积分中心', exact=True)).to_be_visible()
+    card.get_by_role('button', name='查看积分', exact=True).click()
+    expect(page.get_by_role('heading', name='积分中心', exact=True)).to_be_visible()
     page.get_by_role('button', name='账号菜单：bob', exact=True).click()
     page.get_by_role('button', name='我的积分', exact=True).click()
-    expect(page.get_by_role('heading', name='知识积分中心', exact=True)).to_be_visible()
+    expect(page.get_by_role('heading', name='积分中心', exact=True)).to_be_visible()
     page.screenshot(path=str(s.output / 'full-application-points.png'), full_page=True)
     assert errors == []
     page.close()

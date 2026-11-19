@@ -47,7 +47,7 @@ const researchAppOptions = {
       authForm: { username: '', password: '', confirm_password: '', invitation: '' },
       inviteStatus: '', inviteValid: false, inviteChecking: false, inviteRequestId: 0,
       passwordOpen: false, passwordLoading: false, passwordForm: { current_password: '', new_password: '', confirm_password: '' },
-      knowledgeDepartment:'', knowledgeDepartmentEntry:null,
+      knowledgeDepartment:'', knowledgeDepartmentEntry:null, knowledgeActionSequence:0,
       activeView: 'home', sidebarCollapsed: readSidebarPreference(), navigationIsMobile: typeof window !== 'undefined' && window.innerWidth <= 960, sidebarAccountOpen: false, mobileNavOpen: false, taskCreateOpen: false, projects: [], projectSummary: {}, projectMeta: {}, projectDetails: {}, artifactsByProject: {}, sourcesByProject: {}, traceByProject: {},
       collectedSourcesOpen: false, collectedSourcesProject: null, collectedSourcesRows: [], collectedSourcesLoading: false,
       collectedSourcesError: '', collectedSourcesLoadedAt: '', collectedSourceQuery: '', collectedSourceType: '', collectedSourceFilter: '',
@@ -144,7 +144,7 @@ const researchAppOptions = {
     taskSectionTitle() { return ({tasks:'任务总览', intake:'需求与资料', deliverables:'报告与建议书'})[this.activeView] || '任务总览'; },
     taskSectionHint() { return ({tasks:'查看全部尽调任务的状态与进度，选择任务进入对应工作环节。', intake:'仅显示尚未开始生成的任务，核对需求与资料后点击开始生成。', deliverables:'仅显示报告与建议书生成阶段的任务；生成完成后进入复核与正式方案。'})[this.activeView] || ''; },
     knowledgeSection() { return ({'knowledge-marketing': {label:'市场部', icon:'fa-bullhorn'}, 'knowledge-projects': {label:'项目部', icon:'fa-briefcase'}, 'knowledge-policies': {label:'制度文件', icon:'fa-file-lines'}, 'knowledge-experts': {label:'专家部资料', icon:'fa-user-tie'}})[this.activeView] || null; },
-    pageTitle() { if (this.knowledgeSection) return this.knowledgeSection.label; if (this.isTaskWorkspace) return '尽调任务'; return ({home: '个人首页', points: '我的知识积分', workbench: '工作台', 'due-diligence': '尽调任务', research: '研究任务', 'ai-services': 'AI服务', accounts: '账号管理', 'company-knowledge': '公司知识库'})[this.activeView] || '工作台'; },
+    pageTitle() { if (this.knowledgeSection) return this.knowledgeSection.label; if (this.isTaskWorkspace) return '尽调任务'; return ({home: '个人首页', points: '我的积分', workbench: '工作台', 'due-diligence': '尽调任务', research: '研究任务', 'ai-services': 'AI服务', accounts: '账号管理', 'company-knowledge': '公司知识库'})[this.activeView] || '工作台'; },
     pageSubtitle() {
       if (this.knowledgeSection) return '公司知识库 · ' + this.knowledgeSection.label;
       if (this.activeView === 'home') return '查看自己的任务、研究成果与常用入口。';
@@ -620,6 +620,19 @@ const researchAppOptions = {
         this.passwordOpen = false; this.passwordForm = {current_password:'',new_password:'',confirm_password:''};
         await this.acceptAuthentication(data, { openHome: !!this.currentUser?.must_change_password }); ElementPlus.ElMessage.success('密码已修改，其他登录凭证已失效');
       } catch (e) { ElementPlus.ElMessage.error(e.message); } finally { this.passwordLoading = false; }
+    },
+    async openPointsAction(kind) {
+      if (!['read','upload','note'].includes(kind)) return;
+      if (this.$refs?.knowledgeWorkspace?.busy) { ElementPlus.ElMessage.info('请先停止当前回答，再切换知识库页面。'); return; }
+      const sequence=++this.knowledgeActionSequence, token=this.token;
+      this.knowledgeDepartmentEntry=null; this.switchView('company-knowledge');
+      await this.$nextTick();
+      const workspace=this.$refs?.knowledgeWorkspace;
+      if (!workspace) return;
+      await workspace.initialWorkspaceLoad;
+      if (sequence!==this.knowledgeActionSequence || token!==this.token || this.activeView!=='company-knowledge' || this.$refs?.knowledgeWorkspace!==workspace || !workspace.service?.access_allowed || !workspace.service?.configured) return;
+      if (kind==='note') workspace.browseMyNotes();
+      else { workspace.openHomeLibrary(); if (kind==='upload') workspace.startUpload(); }
     },
     openKnowledgeHome() {
       if(this.$refs?.knowledgeWorkspace?.busy){ElementPlus.ElMessage.info('请先停止当前回答，再切换知识库页面。');return;}

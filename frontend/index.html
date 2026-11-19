@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="navigation.7e3a97139c28.css" />
   <link rel="stylesheet" href="accounts.css" />
   <link rel="stylesheet" href="personal-home.css" />
-  <link rel="stylesheet" href="knowledge-points.e308905f2e1e.css" />
+  <link rel="stylesheet" href="knowledge-points.963d46f59fc2.css" />
   <link rel="stylesheet" href="report-versions.css" />
   <link rel="stylesheet" href="assistant.94a69af9244b.css" />
   <link rel="stylesheet" href="workbench-theme.8ecce8fe6b2b.css" />
@@ -151,10 +151,10 @@
         <div v-if="isTaskWorkspace" class="project-resource-toolbar">
           <span v-if="actionPending('projects')" role="status">正在更新项目列表…</span><span v-else-if="workspaceMetaLoading" role="status">正在核对项目分类…</span><span v-else>{{stageProjects.length}} 个项目 · 已生成的报告仍需人工复核</span>
         </div>
-        <personal-home v-if="activeView === 'home'" :request="authFetch" :read="readJSON" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @filter-tasks="openHomeTaskFilter" @open-project="openHomeProject" @view-versions="report => openReportVersions({id:report.project_id, title:report.project_title}, report.artifact_type)"></personal-home>
-        <points-center v-if="activeView === 'points'" :key="currentUser?.username" :request="authFetch" :current-user="currentUser"></points-center>
+        <personal-home v-if="activeView === 'home'" :request="authFetch" :read="readJSON" :current-user="currentUser" :download="downloadArtifact" @navigate="switchView" @knowledge-action="openPointsAction" @filter-tasks="openHomeTaskFilter" @open-project="openHomeProject" @view-versions="report => openReportVersions({id:report.project_id, title:report.project_title}, report.artifact_type)"></personal-home>
+        <points-center v-if="activeView === 'points'" :key="currentUser?.username" :request="authFetch" :current-user="currentUser" @action="openPointsAction"></points-center>
         <h5-workbench v-if="activeView === 'knowledge-h5' && h5Enabled" :key="token" :request="authFetch" :entry="h5Entry" @location="openH5Location"></h5-workbench>
-        <company-knowledge :department-entry="knowledgeDepartmentEntry" @department-change="knowledgeDepartment=$event" @generate-h5="openH5" @open-h5="openSavedH5" ref="knowledgeWorkspace" v-if="activeView === 'company-knowledge'" :projects="projects" :feedback="runAction" :operation-state="pendingActions"></company-knowledge>
+        <company-knowledge @open-points="switchView('points')" :department-entry="knowledgeDepartmentEntry" @department-change="knowledgeDepartment=$event" @generate-h5="openH5" @open-h5="openSavedH5" ref="knowledgeWorkspace" v-if="activeView === 'company-knowledge'" :projects="projects" :feedback="runAction" :operation-state="pendingActions"></company-knowledge>
 
         <account-management v-if="activeView === 'accounts' && currentUser?.role === 'admin'" :request="authFetch" @session-invalidated="handleLogout"></account-management>
         <el-dialog v-model="taskCreateOpen" title="新建项目" width="min(860px, 94vw)" :close-on-click-modal="false" class="task-create-dialog">
@@ -567,17 +567,17 @@
 <script defer src="vendor/purify-3.4.17.min.js"></script>
 <script defer src="safe-markdown.js"></script>
 <script defer src="h5-workbench.9b9ba819d35d.js"></script>
-<script defer src="knowledge-points.5e9e8db60de5.js"></script>
+<script defer src="knowledge-points.f0a152f9343b.js"></script>
 <script defer src="knowledge-glass-optics.8cba1cf6e905.js"></script>
 <script defer src="knowledge-document-viewer.484b01cd5d73.js"></script>
 <link rel="stylesheet" href="knowledge-note-editor.70b7481352b4.css">
 <script defer src="knowledge-note-editor.97e3f47133aa.js"></script>
-<script defer src="company-knowledge.d75dcf83923d.js"></script>
+<script defer src="company-knowledge.e4f22c234e21.js"></script>
 <script defer src="account-management.ae5818114371.js"></script>
-<script defer src="personal-home.5ed6b0fd64ff.js"></script>
+<script defer src="personal-home.22fbfc96f058.js"></script>
 <script defer src="report-versions.js"></script>
 <script defer src="project-workspace.5862f06db460.js"></script>
-<script defer src="script.3008de22831e.js"></script>
+<script defer src="script.365601628541.js"></script>
 </body>
 </html>
 
